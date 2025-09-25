@@ -1,0 +1,202 @@
+{
+  "commands": [
+    {
+      "name": "test",
+      "description": "Run test suites with optional scope filtering",
+      "usage": "/test [scope] [feature]",
+      "parameters": [
+        {
+          "name": "scope",
+          "type": "string",
+          "required": false,
+          "description": "Test scope: unit, integration, e2e, performance, or all",
+          "default": "unit"
+        },
+        {
+          "name": "feature",
+          "type": "string",
+          "required": false,
+          "description": "Specific feature to test (roster, uniform, draft, etc.)"
+        }
+      ],
+      "examples": [
+        "/test",
+        "/test unit roster",
+        "/test e2e",
+        "/test performance uniform"
+      ],
+      "subagent": "test-agent"
+    },
+    {
+      "name": "build",
+      "description": "Build the application for specified environment",
+      "usage": "/build [environment]",
+      "parameters": [
+        {
+          "name": "environment",
+          "type": "string",
+          "required": false,
+          "description": "Build environment: dev, prod, or test",
+          "default": "dev"
+        }
+      ],
+      "examples": [
+        "/build",
+        "/build prod",
+        "/build test"
+      ],
+      "subagent": "package-agent",
+      "validations": [
+        "tests-passing",
+        "no-linting-errors"
+      ]
+    },
+    {
+      "name": "scaffold-feature",
+      "description": "Generate boilerplate code for a new feature module",
+      "usage": "/scaffold-feature <feature-name>",
+      "parameters": [
+        {
+          "name": "feature-name",
+          "type": "string",
+          "required": true,
+          "description": "Name of the feature to scaffold (e.g., uniform-editor)"
+        }
+      ],
+      "examples": [
+        "/scaffold-feature uniform-editor",
+        "/scaffold-feature salary-cap",
+        "/scaffold-feature draft-helper"
+      ],
+      "generates": [
+        "src/renderer/features/{feature}/",
+        "src/main/parsers/{feature}/",
+        "tests/unit/{feature}/",
+        "docs/{feature}/"
+      ]
+    },
+    {
+      "name": "parse-file",
+      "description": "Parse and analyze a Madden file format",
+      "usage": "/parse-file <file-path> [--debug] [--output]",
+      "parameters": [
+        {
+          "name": "file-path",
+          "type": "file",
+          "required": true,
+          "description": "Path to the Madden file to parse"
+        },
+        {
+          "name": "debug",
+          "type": "boolean",
+          "required": false,
+          "description": "Enable debug output with detailed parsing info"
+        },
+        {
+          "name": "output",
+          "type": "string",
+          "required": false,
+          "description": "Output file for parsed data (JSON format)"
+        }
+      ],
+      "examples": [
+        "/parse-file roster.ros",
+        "/parse-file franchise.fra --debug",
+        "/parse-file uniform.uni --output parsed-uniform.json"
+      ],
+      "subagent": "research-agent"
+    },
+    {
+      "name": "validate-file",
+      "description": "Validate the integrity and format of a Madden file",
+      "usage": "/validate-file <file-path>",
+      "parameters": [
+        {
+          "name": "file-path",
+          "type": "file",
+          "required": true,
+          "description": "Path to the file to validate"
+        }
+      ],
+      "examples": [
+        "/validate-file roster.ros",
+        "/validate-file draft-class.dcl"
+      ],
+      "subagent": "research-agent",
+      "validations": [
+        "file-exists",
+        "file-readable",
+        "format-recognized"
+      ]
+    },
+    {
+      "name": "benchmark",
+      "description": "Run performance benchmarks for specified features",
+      "usage": "/benchmark <feature> [iterations]",
+      "parameters": [
+        {
+          "name": "feature",
+          "type": "string",
+          "required": true,
+          "description": "Feature to benchmark (parsing, rendering, ui, startup, etc.)"
+        },
+        {
+          "name": "iterations",
+          "type": "number",
+          "required": false,
+          "description": "Number of benchmark iterations",
+          "default": 10
+        }
+      ],
+      "examples": [
+        "/benchmark parsing",
+        "/benchmark uniform-rendering 20",
+        "/benchmark startup-time"
+      ],
+      "subagent": "test-agent"
+    },
+    {
+      "name": "lint-fix",
+      "description": "Automatically fix all ESLint and Prettier issues",
+      "usage": "/lint-fix [scope]",
+      "parameters": [
+        {
+          "name": "scope",
+          "type": "string",
+          "required": false,
+          "description": "Scope to lint: src, tests, or all",
+          "default": "all"
+        }
+      ],
+      "examples": [
+        "/lint-fix",
+        "/lint-fix src",
+        "/lint-fix tests"
+      ]
+    },
+    {
+      "name": "clean-workspace",
+      "description": "Clean build artifacts, temporary files, and caches",
+      "usage": "/clean-workspace [--deep]",
+      "parameters": [
+        {
+          "name": "deep",
+          "type": "boolean",
+          "required": false,
+          "description": "Perform deep clean including node_modules"
+        }
+      ],
+      "examples": [
+        "/clean-workspace",
+        "/clean-workspace --deep"
+      ],
+      "cleans": [
+        "dist/",
+        "out/",
+        "coverage/",
+        ".vite/",
+        "temp/"
+      ]
+    }
+  ]
+}

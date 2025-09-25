@@ -1,0 +1,230 @@
+{
+  "commands": [
+    {
+      "name": "release",
+      "description": "Create a complete release with version bump and distribution",
+      "usage": "/release <type> [--draft]",
+      "parameters": [
+        {
+          "name": "type",
+          "type": "string",
+          "required": true,
+          "description": "Release type: patch, minor, major, or custom version"
+        },
+        {
+          "name": "draft",
+          "type": "boolean",
+          "required": false,
+          "description": "Create as draft release for review before publishing"
+        }
+      ],
+      "examples": [
+        "/release patch",
+        "/release minor --draft",
+        "/release major",
+        "/release 1.0.0-beta"
+      ],
+      "subagent": "release-agent",
+      "workflow": [
+        "version-bump",
+        "update-changelog",
+        "run-tests",
+        "build-production",
+        "create-installer",
+        "sign-code",
+        "upload-assets",
+        "create-github-release"
+      ]
+    },
+    {
+      "name": "package",
+      "description": "Package the application for distribution",
+      "usage": "/package <platform> [--sign]",
+      "parameters": [
+        {
+          "name": "platform",
+          "type": "string",
+          "required": true,
+          "description": "Target platform: windows, portable, or installer"
+        },
+        {
+          "name": "sign",
+          "type": "boolean",
+          "required": false,
+          "description": "Code sign the package"
+        }
+      ],
+      "examples": [
+        "/package windows",
+        "/package installer --sign",
+        "/package portable"
+      ],
+      "subagent": "package-agent"
+    },
+    {
+      "name": "create-installer",
+      "description": "Create Windows installer with Squirrel",
+      "usage": "/create-installer [--sign] [--upload]",
+      "parameters": [
+        {
+          "name": "sign",
+          "type": "boolean",
+          "required": false,
+          "description": "Code sign the installer"
+        },
+        {
+          "name": "upload",
+          "type": "boolean",
+          "required": false,
+          "description": "Upload installer to release assets"
+        }
+      ],
+      "examples": [
+        "/create-installer",
+        "/create-installer --sign --upload"
+      ],
+      "subagent": "package-agent",
+      "requirements": [
+        "production-build-exists",
+        "code-sign-certificate-available"
+      ]
+    },
+    {
+      "name": "draft-release",
+      "description": "Create a draft GitHub release for review",
+      "usage": "/draft-release <version> [title]",
+      "parameters": [
+        {
+          "name": "version",
+          "type": "string",
+          "required": true,
+          "description": "Release version (e.g., v0.1.0)"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "description": "Custom release title"
+        }
+      ],
+      "examples": [
+        "/draft-release v0.1.0",
+        "/draft-release v0.2.0 \"Major UI Overhaul\""
+      ],
+      "subagent": "release-agent"
+    },
+    {
+      "name": "publish-release",
+      "description": "Publish a draft release to make it public",
+      "usage": "/publish-release <version> [--notify]",
+      "parameters": [
+        {
+          "name": "version",
+          "type": "string",
+          "required": true,
+          "description": "Version of the draft release to publish"
+        },
+        {
+          "name": "notify",
+          "type": "boolean",
+          "required": false,
+          "description": "Send notifications to users about the new release"
+        }
+      ],
+      "examples": [
+        "/publish-release v0.1.0",
+        "/publish-release v0.2.0 --notify"
+      ],
+      "subagent": "release-agent",
+      "validations": [
+        "draft-release-exists",
+        "all-assets-uploaded",
+        "changelog-updated"
+      ]
+    },
+    {
+      "name": "sign-code",
+      "description": "Code sign executables and installers",
+      "usage": "/sign-code <file-path> [--timestamp]",
+      "parameters": [
+        {
+          "name": "file-path",
+          "type": "file",
+          "required": true,
+          "description": "Path to executable or installer to sign"
+        },
+        {
+          "name": "timestamp",
+          "type": "boolean",
+          "required": false,
+          "description": "Include timestamp server for long-term validity",
+          "default": true
+        }
+      ],
+      "examples": [
+        "/sign-code setup.exe",
+        "/sign-code madden-editor-suite.exe --timestamp"
+      ],
+      "subagent": "package-agent",
+      "requirements": [
+        "code-sign-certificate-available",
+        "certificate-not-expired"
+      ]
+    },
+    {
+      "name": "notify-update",
+      "description": "Notify users of available updates through various channels",
+      "usage": "/notify-update <version> [channels]",
+      "parameters": [
+        {
+          "name": "version",
+          "type": "string",
+          "required": true,
+          "description": "Version to notify users about"
+        },
+        {
+          "name": "channels",
+          "type": "string",
+          "required": false,
+          "description": "Notification channels: discord, email, in-app, or all",
+          "default": "all"
+        }
+      ],
+      "examples": [
+        "/notify-update v0.1.0",
+        "/notify-update v0.2.0 discord,in-app"
+      ],
+      "subagent": "release-agent"
+    },
+    {
+      "name": "rollback-release",
+      "description": "Rollback a release in case of critical issues",
+      "usage": "/rollback-release <version> <reason>",
+      "parameters": [
+        {
+          "name": "version",
+          "type": "string",
+          "required": true,
+          "description": "Version to rollback"
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "required": true,
+          "description": "Reason for rollback"
+        }
+      ],
+      "examples": [
+        "/rollback-release v0.1.1 \"Critical data corruption bug\"",
+        "/rollback-release v0.2.0 \"Performance regression\""
+      ],
+      "subagent": "release-agent",
+      "workflow": [
+        "mark-release-as-recalled",
+        "disable-auto-updates",
+        "notify-users-of-rollback",
+        "prepare-hotfix-release"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm run test
+
+    - name: Build application
+      run: npm run make
+      env:
+        NODE_ENV: production
+
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        # Extract release notes from CHANGELOG.md
+        $version = "${{ steps.get_version.outputs.VERSION }}"
+        $changelog = Get-Content CHANGELOG.md -Raw
+        $pattern = "## \[$version\].*?(?=## \[|\z)"
+        $releaseNotes = [regex]::Match($changelog, $pattern, [System.Text.RegularExpressions.RegexOptions]::Singleline).Value
+        if ($releaseNotes) {
+          $releaseNotes = $releaseNotes -replace "## \[$version\].*?\n", ""
+          $releaseNotes | Out-File -FilePath release_notes.txt -Encoding utf8
+        } else {
+          "Release $version" | Out-File -FilePath release_notes.txt -Encoding utf8
+        }
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        release_name: Madden Editor Suite ${{ steps.get_version.outputs.VERSION }}
+        body_path: release_notes.txt
+        draft: false
+        prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'alpha') }}
+
+    - name: Upload Windows Installer
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: out/make/squirrel.windows/x64/madden-editor-suite-${{ steps.get_version.outputs.VERSION }} Setup.exe
+        asset_name: MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Setup.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload Portable Version
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: out/make/zip/win32/x64/madden-editor-suite-win32-x64-${{ steps.get_version.outputs.VERSION }}.zip
+        asset_name: MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Portable.zip
+        asset_content_type: application/zip
+
+    - name: Generate checksums
+      run: |
+        $setupFile = "out/make/squirrel.windows/x64/madden-editor-suite-${{ steps.get_version.outputs.VERSION }} Setup.exe"
+        $portableFile = "out/make/zip/win32/x64/madden-editor-suite-win32-x64-${{ steps.get_version.outputs.VERSION }}.zip"
+
+        $setupHash = (Get-FileHash -Path $setupFile -Algorithm SHA256).Hash
+        $portableHash = (Get-FileHash -Path $portableFile -Algorithm SHA256).Hash
+
+        @"
+        SHA256 Checksums for Madden Editor Suite ${{ steps.get_version.outputs.VERSION }}
+
+        MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Setup.exe
+        $setupHash
+
+        MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Portable.zip
+        $portableHash
+        "@ | Out-File -FilePath checksums.txt -Encoding utf8
+
+    - name: Upload Checksums
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: checksums.txt
+        asset_name: checksums-${{ steps.get_version.outputs.VERSION }}.txt
+        asset_content_type: text/plain
