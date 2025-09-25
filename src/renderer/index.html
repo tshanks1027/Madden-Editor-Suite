@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Madden Editor Suite</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+    />
+    <link rel="stylesheet" href="styles/main.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash" class="splash-screen">
+        <div class="splash-content">
+            <img src="assets/splash.png" alt="Madden Editor Suite" class="splash-image">
+            <div class="splash-loader">
+                <div class="loader-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <img src="assets/banner.png" alt="KNuttZ Madden Editor" class="app-logo">
+                <h1 class="app-title">Madden Editor Suite</h1>
+            </div>
+
+            <div class="header-center">
+                <!-- Tool Navigation Tabs -->
+                <nav class="tool-tabs">
+                    <button class="tool-tab active" data-tool="roster">
+                        <span class="tab-icon">👤</span>
+                        Roster Editor
+                    </button>
+                    <button class="tool-tab" data-tool="draft">
+                        <span class="tab-icon">🏈</span>
+                        Draft Class
+                    </button>
+                    <button class="tool-tab" data-tool="coach">
+                        <span class="tab-icon">👔</span>
+                        Coach Editor
+                    </button>
+                    <button class="tool-tab" data-tool="franchise">
+                        <span class="tab-icon">🏆</span>
+                        Franchise
+                    </button>
+                </nav>
+            </div>
+
+            <div class="header-right">
+                <button id="openFileBtn" class="btn btn-primary">
+                    <span class="btn-icon">📁</span>
+                    Open File
+                </button>
+                <input type="file" id="fileInput" accept="*" style="display: none;">
+
+                <div id="currentFile" class="current-file" style="display: none;">
+                    <span class="file-icon">📄</span>
+                    <span id="fileName" class="file-name"></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="app-main">
+            <!-- Roster Editor Tool -->
+            <div id="roster-tool" class="tool-panel active">
+                <!-- Roster Controls -->
+                <div class="tool-controls">
+                    <div class="controls-left">
+                        <div class="control-group">
+                            <label for="positionFilter" class="control-label">Position:</label>
+                            <select id="positionFilter" class="control-select">
+                                <option value="">All Positions</option>
+                                <option value="QB">Quarterbacks</option>
+                                <option value="HB">Running Backs</option>
+                                <option value="WR">Wide Receivers</option>
+                                <option value="TE">Tight Ends</option>
+                                <option value="LT">Left Tackles</option>
+                                <option value="LG">Left Guards</option>
+                                <option value="C">Centers</option>
+                                <option value="RG">Right Guards</option>
+                                <option value="RT">Right Tackles</option>
+                                <option value="DT">Defensive Tackles</option>
+                                <option value="LEDG">Left Ends</option>
+                                <option value="REDG">Right Ends</option>
+                                <option value="SAM">SAM Linebackers</option>
+                                <option value="Mike">Mike Linebackers</option>
+                                <option value="WILL">WILL Linebackers</option>
+                                <option value="CB">Cornerbacks</option>
+                                <option value="FS">Free Safeties</option>
+                                <option value="SS">Strong Safeties</option>
+                                <option value="K">Kickers</option>
+                                <option value="P">Punters</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label class="control-checkbox">
+                                <input type="checkbox" id="showAllColumns">
+                                <span class="checkmark"></span>
+                                Show All 131 Fields
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="controls-right">
+                        <button id="saveRosterBtn" class="btn btn-success" style="display: none;">
+                            <span class="btn-icon">💾</span>
+                            Save Roster
+                        </button>
+
+                        <div class="player-stats">
+                            <span id="playerCount" class="stat-item">0 players</span>
+                            <span id="visibleFields" class="stat-item">0 visible fields</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Grid Container -->
+                <div id="rosterGrid" class="data-grid-container">
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <h3 class="empty-title">No players loaded</h3>
+                        <p class="empty-description">Open a roster file to begin editing</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other Tool Panels (Coming Soon) -->
+            <div id="draft-tool" class="tool-panel">
+                <div class="coming-soon">
+                    <div class="coming-soon-icon">🚧</div>
+                    <h2 class="coming-soon-title">Coming Soon</h2>
+                    <p class="coming-soon-description">The Draft Class Editor is under development.</p>
+                    <p class="coming-soon-note">Try the Roster Editor for now!</p>
+                </div>
+            </div>
+
+            <div id="coach-tool" class="tool-panel">
+                <div class="coming-soon">
+                    <div class="coming-soon-icon">🚧</div>
+                    <h2 class="coming-soon-title">Coming Soon</h2>
+                    <p class="coming-soon-description">The Coach Editor is under development.</p>
+                    <p class="coming-soon-note">Try the Roster Editor for now!</p>
+                </div>
+            </div>
+
+            <div id="franchise-tool" class="tool-panel">
+                <div class="coming-soon">
+                    <div class="coming-soon-icon">🚧</div>
+                    <h2 class="coming-soon-title">Coming Soon</h2>
+                    <p class="coming-soon-description">The Franchise Editor is under development.</p>
+                    <p class="coming-soon-note">Try the Roster Editor for now!</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Status Bar -->
+        <footer class="app-footer">
+            <div class="status-left">
+                <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <span id="loadingText">Loading...</span>
+                </div>
+            </div>
+
+            <div class="status-right">
+                <span id="statusText" class="status-text">Ready</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="modal" style="display: none;">
+        <div class="modal-content error-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Error</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage" class="error-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeErrorModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

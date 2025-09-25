@@ -1,0 +1,211 @@
+/* AG-Grid theme customization for Madden Editor Suite */
+
+/* Dark theme base */
+.ag-theme-alpine {
+  --ag-background-color: #1a1a1a;
+  --ag-header-background-color: #2d2d30;
+  --ag-odd-row-background-color: #242529;
+  --ag-row-hover-color: #3e4248;
+  --ag-selected-row-background-color: #0d4f8c;
+  --ag-range-selection-background-color: rgba(66, 165, 245, 0.15);
+
+  /* Borders */
+  --ag-border-color: #3e4248;
+  --ag-cell-horizontal-border: 1px solid #3e4248;
+  --ag-cell-vertical-border: 1px solid #3e4248;
+
+  /* Text colors */
+  --ag-foreground-color: #e0e0e0;
+  --ag-secondary-foreground-color: #a0a0a0;
+  --ag-header-foreground-color: #ffffff;
+
+  /* Input controls */
+  --ag-input-background-color: #2d2d30;
+  --ag-input-border-color: #555;
+  --ag-input-focus-border-color: #66afe9;
+
+  /* Cell editor colors */
+  --ag-cell-editor-background-color: #2d2d30;
+  --ag-cell-editor-border-color: #66afe9;
+
+  /* Scrollbar styling */
+  --ag-scrollbar-thumb-color: #555;
+  --ag-scrollbar-track-color: #2d2d30;
+}
+
+/* Custom scrollbar for webkit browsers */
+.ag-theme-alpine .ag-body-viewport::-webkit-scrollbar,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.ag-theme-alpine .ag-body-viewport::-webkit-scrollbar-track,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-track {
+  background: #2d2d30;
+}
+
+.ag-theme-alpine .ag-body-viewport::-webkit-scrollbar-thumb,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 6px;
+}
+
+.ag-theme-alpine .ag-body-viewport::-webkit-scrollbar-thumb:hover,
+.ag-theme-alpine .ag-body-horizontal-scroll-viewport::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Header styling */
+.ag-theme-alpine .ag-header-cell {
+  font-weight: 600;
+  font-size: 13px;
+  border-right: 1px solid #3e4248;
+}
+
+.ag-theme-alpine .ag-header-cell:hover {
+  background-color: #3e4248;
+}
+
+/* Pinned column styling */
+.ag-theme-alpine .ag-pinned-left-header,
+.ag-theme-alpine .ag-pinned-left-cols-container {
+  border-right: 2px solid #66afe9;
+  background-color: #1e1e1e;
+}
+
+.ag-theme-alpine .ag-pinned-right-header,
+.ag-theme-alpine .ag-pinned-right-cols-container {
+  border-left: 2px solid #66afe9;
+  background-color: #1e1e1e;
+}
+
+/* Cell styling */
+.ag-theme-alpine .ag-cell {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-right: 1px solid rgba(62, 66, 72, 0.5);
+}
+
+.ag-theme-alpine .ag-cell.ag-cell-inline-editing {
+  background-color: #3e4248 !important;
+  border: 2px solid #66afe9 !important;
+}
+
+/* Cell editor styling */
+.ag-theme-alpine .ag-cell-editor {
+  background-color: #2d2d30;
+  border: 2px solid #66afe9;
+  color: #e0e0e0;
+  font-size: 13px;
+}
+
+.ag-theme-alpine .ag-cell-editor select {
+  background-color: #2d2d30;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  padding: 4px;
+  font-size: 13px;
+}
+
+.ag-theme-alpine .ag-cell-editor input {
+  background-color: #2d2d30;
+  color: #e0e0e0;
+  border: 1px solid #555;
+  padding: 4px;
+  font-size: 13px;
+}
+
+/* Error highlighting for invalid values */
+.ag-theme-alpine .ag-cell.cell-error {
+  background-color: #ffebee !important;
+  color: #c62828 !important;
+  font-weight: bold;
+}
+
+/* Sorting indicators */
+.ag-theme-alpine .ag-header-cell-sortable:hover {
+  background-color: #3e4248;
+}
+
+.ag-theme-alpine .ag-sort-ascending-icon,
+.ag-theme-alpine .ag-sort-descending-icon {
+  color: #66afe9;
+}
+
+/* Loading overlay */
+.ag-theme-alpine .ag-overlay-loading-center {
+  background-color: rgba(26, 26, 26, 0.9);
+  color: #e0e0e0;
+}
+
+/* Pagination */
+.ag-theme-alpine .ag-paging-panel {
+  background-color: #2d2d30;
+  border-top: 1px solid #3e4248;
+  color: #e0e0e0;
+}
+
+.ag-theme-alpine .ag-paging-button {
+  background-color: transparent;
+  border: 1px solid #555;
+  color: #e0e0e0;
+}
+
+.ag-theme-alpine .ag-paging-button:hover {
+  background-color: #3e4248;
+  border-color: #66afe9;
+}
+
+.ag-theme-alpine .ag-paging-button.ag-disabled {
+  opacity: 0.5;
+}
+
+/* Filters */
+.ag-theme-alpine .ag-filter {
+  background-color: #2d2d30;
+  border: 1px solid #3e4248;
+}
+
+.ag-theme-alpine .ag-filter input,
+.ag-theme-alpine .ag-filter select {
+  background-color: #1a1a1a;
+  border: 1px solid #555;
+  color: #e0e0e0;
+}
+
+/* Context menu */
+.ag-theme-alpine .ag-menu {
+  background-color: #2d2d30;
+  border: 1px solid #3e4248;
+}
+
+.ag-theme-alpine .ag-menu-option {
+  color: #e0e0e0;
+}
+
+.ag-theme-alpine .ag-menu-option:hover {
+  background-color: #3e4248;
+}
+
+/* Global app styles */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1a1a1a;
+  color: #e0e0e0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}

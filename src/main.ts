@@ -4,10 +4,8 @@ import { fileURLToPath } from 'node:url';
 import started from 'electron-squirrel-startup';
 
 // Import IPC handlers
-import './ipc/file-handlers';
-import './ipc/parser-handlers';
-import './ipc/database-handlers';
-import './ipc/settings-handlers';
+import './main/ipc/simple-handlers';  // Simple handlers without SQLite
+import { registerLookupHandlers } from './main/ipc/lookup-handlers';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -96,7 +94,6 @@ const createApplicationMenu = (): void => {
             const result = await dialog.showOpenDialog(mainWindow!, {
               title: 'Open Roster File',
               filters: [
-                { name: 'Roster Files', extensions: ['ros'] },
                 { name: 'All Files', extensions: ['*'] }
               ],
               properties: ['openFile']
@@ -114,7 +111,6 @@ const createApplicationMenu = (): void => {
             const result = await dialog.showOpenDialog(mainWindow!, {
               title: 'Open Franchise File',
               filters: [
-                { name: 'Franchise Files', extensions: ['fra'] },
                 { name: 'All Files', extensions: ['*'] }
               ],
               properties: ['openFile']
@@ -245,6 +241,9 @@ const createApplicationMenu = (): void => {
 
 // App event handlers
 app.whenReady().then(() => {
+  // Register lookup handlers for the lookup system
+  registerLookupHandlers();
+
   createWindow();
 
   app.on('activate', () => {

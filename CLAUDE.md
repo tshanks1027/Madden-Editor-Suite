@@ -1,5 +1,69 @@
 # Madden Editor Suite - Project Context
 
+## USER WORKFLOW RULES (MANDATORY)
+
+### Rule 1: Test Agent Verification
+- **Test agent MUST be used** to ensure code is working before allowing user to test
+- No code changes go to user without test agent confirmation
+- Test agent must verify: startup, core functionality, error-free operation
+
+### Rule 2: Package Agent Validation
+- **Package agent MUST verify** current build can be packaged without error
+- Must ensure: correct data files, dependencies, dynamic paths, no hardcoded paths
+- All builds must be packaging-ready before user testing
+
+### Rule 3: Comprehensive Error Handling
+- **NO ERROR should be ignored** - all errors must be addressed
+- Document: what the error was, why it happened, how it was fixed
+- Create error handling subagent if needed for systematic error tracking
+- User must know about every error and its resolution
+
+### Rule 4: No Assumptions About Working Builds
+- Even if test agent confirms working, **user must manually test before git commit**
+- Do not assume success without user verification
+- No moving forward until user confirms functionality
+
+### Rule 5: No Strategy Changes Without Permission
+- **DO NOT change tactics without permission**
+- If current approach isn't working, ASK before trying something else
+- User must approve any deviation from agreed approach
+
+### Rule 6: Mandatory Documentation
+- All errors, fixes, and changes must be documented in this file
+- Track every issue encountered and resolution applied
+- Maintain error log for user reference
+
+## ERROR LOG & FIXES
+
+### 2025-09-25: Major UI and File Opening Fix
+**Errors Encountered:**
+1. **IPC Handler Duplicate Error**: `Error: Attempted to register a second handler for 'app:get-version'`
+   - **Cause**: Both main.ts and simple-handlers.ts registered the same IPC handler
+   - **Fix**: Removed duplicate from simple-handlers.ts, kept in main.ts
+   - **Resolution**: App now starts without errors
+
+2. **File Opening Failure**: "does not open a roster at all"
+   - **Cause**: Looking for .ros extensions but Madden files have NO EXTENSIONS (e.g., "ROSTER-EDITED")
+   - **Fix**: Replaced Electron dialog with HTML `<input type="file" accept="*">`
+   - **Resolution**: Can now select extensionless Madden files
+
+3. **UI Quality Issue**: "looks like trash and does nothing"
+   - **Cause**: Basic gray UI didn't match user's professional working editor
+   - **Fix**: Complete UI redesign with KNuttZ branding, Madden colors, compact layout
+   - **Resolution**: Professional orange/red theme with compact spacing
+
+**Changes Applied:**
+- Removed duplicate IPC handler from src/main/ipc/simple-handlers.ts:4
+- Replaced file opening mechanism in src/renderer/App.tsx with HTML input
+- Updated file validation in src/main/ipc/simple-handlers.ts to accept extensionless files >1KB
+- Removed all extension filtering from main.ts menu dialogs
+- Redesigned App.tsx with professional KNuttZ branding and Madden theme
+- Updated RosterEditor.tsx with compact professional styling
+- Added orange/red gradient colors throughout UI
+- Implemented file status indicators and compact stats display
+
+---
+
 ## Project Overview
 This is a professional desktop application for comprehensive Madden NFL game file editing. Built with Electron + React + TypeScript, it provides 17+ specialized editing tools with a focus on professional presentation and installer distribution.
 
