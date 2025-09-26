@@ -218,7 +218,7 @@ class MaddenEditorApp {
                 PTHA: 92,
                 PCOL: 4, // Alabama
                 PHSN: 8, // Florida
-                PSXP: 0,
+                PSXP: 99, // Tom Brady
                 PJEN: 12,
                 PHTN: 'Birmingham',
                 PYRP: 3,
@@ -287,7 +287,7 @@ class MaddenEditorApp {
                 PCTH: 78,
                 PCOL: 10, // Arizona State
                 PHSN: 4, // California
-                PSXP: 0,
+                PSXP: 100, // Aaron Rodgers
                 PJEN: 22,
                 PHTN: 'Los Angeles',
                 PYRP: 2,

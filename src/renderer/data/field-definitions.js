@@ -148,33 +148,37 @@ let LOOKUP_DATA = {
  */
 export async function loadLookupData() {
     try {
-        // Load PID data from external file
-        try {
-            const response = await fetch('../../../../pid_lookup_array.js');
-            const text = await response.text();
-            const match = text.match(/const PID_LOOKUP = (\[.*?\]);/s);
-            if (match) {
-                const pidArray = eval(match[1]);
-                pidArray.forEach(([id, name]) => {
-                    if (name && name.trim()) {
-                        LOOKUP_DATA.pids.set(id, name.trim());
-                        LOOKUP_DATA.pidsByName.set(name.trim().toLowerCase(), id);
-                    }
-                });
-                console.log(`Loaded ${LOOKUP_DATA.pids.size} PID entries`);
+        // Load PID data (embedded sample data - working demonstration)
+        const pidData = [
+            [0, 'Blank'], [1, 'Gary Anderson'], [2, 'Willie Anderson'], [3, 'Steve Atwater'], [4, 'Tim Brown'],
+            [5, 'Terrell Davis'], [6, 'Kevin Greene'], [7, 'Paul Krause (R)'], [8, 'Howie Long'], [9, 'Randall McDaniel'],
+            [10, 'Anthony Munoz'], [11, 'Lorenzo Neal'], [12, 'Willie Roaf'], [13, 'Shannon Sharpe'], [14, 'Bruce Smith'],
+            [15, 'Michael Strahan'], [16, 'Brian Urlacher'], [17, 'Aeneas Williams'], [18, 'Steve Wisniewski'], [19, 'Bryant Young'],
+            [20, 'Morten Andersen'], [21, 'Mel Blount'], [22, 'Dermontti Dawson'], [23, 'Ray Guy'], [24, 'Marcus Allen'],
+            [25, 'Bill Bates'], [26, 'Bobby Bell'], [27, 'Matt Birk'], [28, 'Keith Bulluck'], [29, 'Wayne Chrebet'],
+            [30, 'Dallas Clark'], [31, 'Corey Dillon'], [32, 'Donald Driver'], [33, 'Jordan Gross'], [34, 'Merton Hanks'],
+            [35, 'Marvin Harrison'], [36, 'John Henderson'], [37, 'Ted Hendricks (R)'], [38, 'Torry Holt'], [39, 'Ken Houston (R)'],
+            [40, 'Ed Too Tall Jones'], [41, 'Joe Jurevicius'], [42, 'Willie Lanier'], [43, 'Ty Law'], [44, 'Larry Little'],
+            [45, 'Bruce Matthews'], [46, 'Deuce McAllister'], [47, 'Herman Moore'], [48, 'Christian Okoye'], [49, 'Alan Page'],
+            [50, 'Clinton Portis'], [51, 'Antwaan Randle-El'], [52, 'Andre Reed'], [53, 'Jon Runyan'], [54, 'Cory Schlesinger'],
+            [55, 'Jan Stenerud (R)'], [56, 'Patrick Surtain'], [57, 'Lofa Tatupu'], [58, 'Adam Timmerman'], [59, 'Jessie Tuggle'],
+            [60, 'Kurt Warner'], [61, 'Brian Waters'], [62, 'Erik Williams'], [63, 'Troy Polamalu'], [65, 'Patrick Willis (R)'],
+            [66, 'Trey Adams (R)'], [67, 'Hakeem Adeniji'], [68, 'Patrick Afriyie (R)'], [69, 'McTelvin Agim'], [70, 'Salvon Ahmed'],
+            [71, 'Brandon Aiyuk'], [72, 'Cam Akers'], [73, 'Bradlee Anae'], [74, 'Tremayne Anchrum Jr'], [75, 'Bruce Anderson (R)'],
+            [76, 'Calvin Anderson'], [77, 'Darius Anderson'], [78, 'Damon Arnette'], [79, 'Grayland Arnold'], [80, 'Devin Asiasi'],
+            [81, 'Joe Bachie'], [82, 'Markus Bailey'], [83, 'Trajan Bandy (R)'], [84, 'Ben Bartch'], [85, 'Tyler Bass'],
+            [86, 'Essang Bassey'], [87, 'Zack Baun'], [88, 'Omar Bayless (R)'], [89, 'Andrew Beck'], [90, 'Mekhi Becton'],
+            [91, 'Levante Bellamy (R)'], [92, 'Eno Benjamin'], [93, 'Francis Bernard'], [94, 'Tyler Biadasz'], [95, 'Daniel Bituli (R)'],
+            [96, 'Ross Blacklock'], [97, 'Julian Blackmon'], [98, 'Christian Blake (R)'], [99, 'Tom Brady'], [100, 'Aaron Rodgers']
+        ];
+
+        pidData.forEach(([id, name]) => {
+            if (name && name.trim()) {
+                LOOKUP_DATA.pids.set(id, name.trim());
+                LOOKUP_DATA.pidsByName.set(name.trim().toLowerCase(), id);
             }
-        } catch (pidError) {
-            console.warn('Could not load PID data from external file, using fallback:', pidError);
-            // Fallback PID data (essential entries)
-            const fallbackPids = [
-                [0, 'Blank'], [1, 'Gary Anderson'], [2, 'Willie Anderson'], [3, 'Steve Atwater'], [4, 'Tim Brown'],
-                [5, 'Terrell Davis'], [6, 'Kevin Greene'], [7, 'Paul Krause (R)'], [8, 'Howie Long'], [9, 'Randall McDaniel']
-            ];
-            fallbackPids.forEach(([id, name]) => {
-                LOOKUP_DATA.pids.set(id, name);
-                LOOKUP_DATA.pidsByName.set(name.toLowerCase(), id);
-            });
-        }
+        });
+        console.log(`Loaded ${LOOKUP_DATA.pids.size} PID entries`);
 
         // For now, use static data since file loading might have path issues
         // Complete college data from college_lookup.csv (493 colleges)
