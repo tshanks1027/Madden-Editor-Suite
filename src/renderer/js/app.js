@@ -412,25 +412,25 @@ class MaddenEditorApp {
                         callback(isValid);
                     } : undefined
                 };
-            } else if (fieldDef.type === 'autocomplete' && fieldDef.lookup === 'pids') {
-                // Autocomplete for PID Player Pic field
+            } else if (fieldName === 'PSXP') {
+                // Special handling for PID field with custom renderer
                 columnConfig = {
                     ...columnConfig,
-                    type: 'autocomplete',
-                    source: (query, callback) => {
-                        if (!query || query.length < 2) {
-                            callback([]);
-                            return;
-                        }
-                        const results = searchPIDNames(query, 10);
-                        callback(results.map(result => result.name));
-                    },
-                    allowInvalid: true,  // Allow free text entry
-                    strict: false,       // Allow values not in the source
-                    validator: (value, callback) => {
-                        // Always accept the value (we handle validation in data change)
-                        callback(true);
-                    }
+                    type: 'text',
+                    renderer: this.pidRenderer.bind(this),
+                    editor: false,
+                    validator: fieldDef.editable ? (value, callback) => {
+                        const validation = validateFieldValue(fieldName, value);
+                        callback(validation.isValid);
+                    } : undefined
+                };
+            } else if (fieldName === 'PLAYERPIC') {
+                // Special handling for Player Pic field with custom renderer
+                columnConfig = {
+                    ...columnConfig,
+                    type: 'text',
+                    renderer: this.playerPicRenderer.bind(this),
+                    editor: false
                 };
             } else if (fieldDef.type === 'numeric') {
                 // Numeric fields
@@ -535,6 +535,11 @@ class MaddenEditorApp {
             // Clear status on selection
             afterSelectionEnd: () => {
                 this.setStatus('Ready');
+            },
+
+            // Setup PID event listeners after rendering
+            afterRender: () => {
+                this.setupPIDEventListeners();
             }
         });
 
@@ -719,6 +724,149 @@ class MaddenEditorApp {
                 this.disableChangeEvents = false;
             }, 0);
         }
+    }
+
+    // Custom renderer for PID field - renders input with autocomplete
+    pidRenderer(instance, td, row, col, prop, value, cellProperties) {
+        const rowData = instance.getDataAtRow(row);
+        const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
+        const picIndex = this.currentFieldMapping.indexOf('PLAYERPIC');
+        const currentPID = psxpIndex !== -1 ? rowData[psxpIndex] : '';
+        const currentName = getPlayerNameFromPID(currentPID);
+
+        td.innerHTML = `
+            <div class="pid-input-container">
+                <input type="number"
+                       class="pid-number-input"
+                       value="${currentPID || ''}"
+                       data-row="${row}"
+                       data-col="${col}"
+                       style="width: 60px; display: inline-block; margin-right: 5px;">
+                <input type="text"
+                       class="pid-name-input"
+                       value="${currentName}"
+                       data-row="${row}"
+                       data-col="${col}"
+                       placeholder="Type player name..."
+                       style="width: 120px; display: inline-block;">
+                <div class="pid-suggestions" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+        `;
+
+        return td;
+    }
+
+    // Custom renderer for Player Pic field - displays name only
+    playerPicRenderer(instance, td, row, col, prop, value, cellProperties) {
+        const rowData = instance.getDataAtRow(row);
+        const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
+        const currentPID = psxpIndex !== -1 ? rowData[psxpIndex] : '';
+        const playerName = getPlayerNameFromPID(currentPID);
+
+        td.innerHTML = `<span class="player-pic-display">${playerName}</span>`;
+        return td;
+    }
+
+    // Setup event listeners for PID inputs after grid renders
+    setupPIDEventListeners() {
+        if (!this.hotTable) return;
+
+        // Remove existing listeners to prevent duplicates
+        const container = this.hotTable.rootElement;
+        if (!container) return;
+
+        // PID number input -> Player name sync
+        container.querySelectorAll('.pid-number-input').forEach(input => {
+            // Remove existing listeners
+            const clone = input.cloneNode(true);
+            input.parentNode.replaceChild(clone, input);
+
+            clone.addEventListener('input', (e) => {
+                const row = parseInt(e.target.dataset.row);
+                const val = e.target.value.trim();
+                const name = getPlayerNameFromPID(parseInt(val)) || 'Generic Face';
+
+                // Update the name input in the same row
+                const nameInput = e.target.parentElement.querySelector('.pid-name-input');
+                if (nameInput) nameInput.value = name;
+
+                // Update the player pic display column
+                const picDisplay = container.querySelector(`tr:nth-child(${row + 2}) .player-pic-display`);
+                if (picDisplay) picDisplay.textContent = name;
+
+                // Update the underlying data
+                this.updatePlayerFieldValue(row, 'PSXP', parseInt(val) || 0);
+            });
+        });
+
+        // Player name input -> PID number sync and autocomplete
+        container.querySelectorAll('.pid-name-input').forEach(input => {
+            // Remove existing listeners
+            const clone = input.cloneNode(true);
+            input.parentNode.replaceChild(clone, input);
+
+            clone.addEventListener('input', (e) => {
+                const row = parseInt(e.target.dataset.row);
+                const val = e.target.value.trim().toLowerCase();
+                const suggestionsDiv = e.target.parentElement.querySelector('.pid-suggestions');
+
+                if (val.length >= 2) {
+                    const suggestions = searchPIDNames(val);
+                    if (suggestions.length > 0) {
+                        suggestionsDiv.innerHTML = suggestions.slice(0, 10).map(name =>
+                            `<div class="pid-suggestion" data-name="${name}" style="padding: 5px; cursor: pointer; hover: background: #f0f0f0;">${name}</div>`
+                        ).join('');
+                        suggestionsDiv.style.display = 'block';
+
+                        // Add click handlers for suggestions
+                        suggestionsDiv.querySelectorAll('.pid-suggestion').forEach(suggestion => {
+                            suggestion.addEventListener('click', () => {
+                                const selectedName = suggestion.dataset.name;
+                                const pid = getPIDFromName(selectedName);
+
+                                // Update both inputs
+                                e.target.value = selectedName;
+                                const numberInput = e.target.parentElement.querySelector('.pid-number-input');
+                                if (numberInput) numberInput.value = pid;
+
+                                // Update player pic display
+                                const picDisplay = container.querySelector(`tr:nth-child(${row + 2}) .player-pic-display`);
+                                if (picDisplay) picDisplay.textContent = selectedName;
+
+                                // Update the underlying data
+                                this.updatePlayerFieldValue(row, 'PSXP', pid);
+
+                                // Hide suggestions
+                                suggestionsDiv.style.display = 'none';
+                            });
+                        });
+                    } else {
+                        suggestionsDiv.style.display = 'none';
+                    }
+                } else {
+                    suggestionsDiv.style.display = 'none';
+                }
+            });
+
+            // Hide suggestions when clicking outside
+            clone.addEventListener('blur', (e) => {
+                setTimeout(() => {
+                    const suggestionsDiv = e.target.parentElement.querySelector('.pid-suggestions');
+                    if (suggestionsDiv) suggestionsDiv.style.display = 'none';
+                }, 200);
+            });
+        });
+    }
+
+    updatePlayerFieldValue(row, fieldName, value) {
+        if (!this.players || !this.players[row]) return;
+
+        // Update the player data
+        this.players[row][fieldName] = value;
+
+        // Mark as modified
+        this.hasUnsavedChanges = true;
+        document.getElementById('saveRosterBtn').style.display = 'inline-block';
     }
 
     getPlayerPropertyName(fieldName) {

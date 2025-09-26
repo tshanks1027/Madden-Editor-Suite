@@ -7,8 +7,8 @@ export const MADDEN_FIELDS = {
     // User-friendly fields based on FIELD_ORDER
     'PLNA': { display: 'Last Name', type: 'text', editable: true, width: 100 },
     'PFNA': { display: 'First Name', type: 'text', editable: true, width: 100 },
-    'PSXP': { display: 'Pic ID', type: 'numeric', editable: true, width: 80, min: 0, max: 10861 },
-    'PLAYERPIC': { display: 'Player Pic', type: 'autocomplete', editable: true, width: 120, lookup: 'pids' },
+    'PSXP': { display: 'Pic ID', type: 'numeric', editable: true, width: 200, min: 0, max: 10861 },
+    'PLAYERPIC': { display: 'Player Pic', type: 'text', editable: false, width: 120 },
     'PPOS': { display: 'Position', type: 'lookup', editable: true, width: 80, lookup: 'positions' },
     'TGID': { display: 'Team', type: 'lookup', editable: true, width: 80, lookup: 'teams' },
     'PJEN': { display: 'Jersey #', type: 'numeric', editable: true, width: 80, min: 0, max: 99 },
