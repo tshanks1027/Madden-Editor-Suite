@@ -418,7 +418,7 @@ class MaddenEditorApp {
                     ...columnConfig,
                     type: 'text',
                     renderer: this.pidRenderer.bind(this),
-                    editor: false,
+                    readOnly: false,  // Override to ensure it's editable
                     validator: fieldDef.editable ? (value, callback) => {
                         const validation = validateFieldValue(fieldName, value);
                         callback(validation.isValid);
@@ -430,7 +430,7 @@ class MaddenEditorApp {
                     ...columnConfig,
                     type: 'text',
                     renderer: this.playerPicRenderer.bind(this),
-                    editor: false
+                    readOnly: true
                 };
             } else if (fieldDef.type === 'numeric') {
                 // Numeric fields
