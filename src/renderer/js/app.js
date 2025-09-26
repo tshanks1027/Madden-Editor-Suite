@@ -10,7 +10,10 @@ import {
     getVisibleFields,
     validateFieldValue,
     POSITION_MAPPINGS,
-    TEAM_MAPPINGS
+    TEAM_MAPPINGS,
+    loadLookupData,
+    getLookupOptions,
+    getLookupValue
 } from '../data/field-definitions.js';
 
 class MaddenEditorApp {
@@ -32,6 +35,9 @@ class MaddenEditorApp {
         setTimeout(() => {
             this.hideSplashScreen();
         }, 2000);
+
+        // Load lookup data first
+        await loadLookupData();
 
         // Initialize lookup system
         await this.initializeLookup();
@@ -194,7 +200,7 @@ class MaddenEditorApp {
                 PLNA: 'Smith',
                 PFNA: 'John',
                 PPOS: 0, // QB
-                TGID: 1, // Bears
+                TGID: 1, // ATL
                 POVR: 85,
                 PAGE: 25,
                 PSPD: 80,
@@ -209,14 +215,61 @@ class MaddenEditorApp {
                 PTHA: 92,
                 PCOL: 4, // Alabama
                 PHSN: 8, // Florida
-                PSXP: 0
+                PSXP: 0,
+                PJEN: 12,
+                PHTN: 'Birmingham',
+                PYRP: 3,
+                PBCV: 85,
+                PBSG: 40,
+                PBSK: 55,
+                PCAR: 45,
+                PLCI: 80,
+                PCTH: 85,
+                PDRR: 88,
+                PELU: 75,
+                PFMS: 60,
+                PLHT: 70,
+                PLIB: 45,
+                PLJM: 80,
+                PJMP: 85,
+                PKAC: 30,
+                PKPR: 25,
+                PKRT: 60,
+                PLBK: 40,
+                PLMC: 78,
+                PMRR: 85,
+                PPBK: 35,
+                PPBF: 30,
+                PPBS: 40,
+                PPLA: 92,
+                PLPM: 65,
+                PLPE: 50,
+                PLPU: 60,
+                PLRL: 85,
+                PRBK: 30,
+                PRBF: 25,
+                PRBS: 35,
+                SRRN: 90,
+                PLSC: 88,
+                PLSM: 82,
+                PSTA: 88,
+                PLSA: 75,
+                PTAK: 45,
+                PTAD: 95,
+                PTAM: 92,
+                PTAS: 88,
+                PTOR: 90,
+                PTUP: 88,
+                PTGH: 80,
+                PLTR: 70,
+                PLZC: 60
             },
             {
                 PGID: 2,
                 PLNA: 'Johnson',
                 PFNA: 'Mike',
                 PPOS: 1, // HB
-                TGID: 2, // Bengals
+                TGID: 2, // BAL
                 POVR: 82,
                 PAGE: 23,
                 PSPD: 92,
@@ -231,7 +284,52 @@ class MaddenEditorApp {
                 PCTH: 78,
                 PCOL: 10, // Arizona State
                 PHSN: 4, // California
-                PSXP: 0
+                PSXP: 0,
+                PJEN: 22,
+                PHTN: 'Los Angeles',
+                PYRP: 2,
+                PBCV: 80,
+                PBSG: 65,
+                PBSK: 70,
+                PLCI: 78,
+                PDRR: 60,
+                PELU: 90,
+                PFMS: 85,
+                PLHT: 75,
+                PLIB: 50,
+                PLJM: 92,
+                PJMP: 88,
+                PKAC: 20,
+                PKPR: 15,
+                PKRT: 85,
+                PLBK: 60,
+                PLMC: 30,
+                PMRR: 65,
+                PPBK: 25,
+                PPBF: 20,
+                PPBS: 30,
+                PPLA: 40,
+                PLPM: 80,
+                PLPE: 35,
+                PLPU: 75,
+                PLRL: 70,
+                PRBK: 20,
+                PRBF: 15,
+                PRBS: 25,
+                SRRN: 70,
+                PLSC: 82,
+                PLSM: 88,
+                PSTA: 85,
+                PLSA: 85,
+                PTAK: 40,
+                PTAD: 35,
+                PTAM: 40,
+                PTAS: 45,
+                PTOR: 50,
+                PTUP: 40,
+                PTGH: 88,
+                PLTR: 90,
+                PLZC: 25
             }
         ];
 
@@ -289,17 +387,51 @@ class MaddenEditorApp {
 
         const columns = fieldCodes.map(fieldName => {
             const fieldDef = getFieldDefinition(fieldName);
-            return {
-                type: fieldDef.type === 'numeric' ? 'numeric' : 'text',
+            let columnConfig = {
                 width: fieldDef.width,
                 readOnly: !fieldDef.editable,
-                format: fieldDef.type === 'numeric' ? '0' : undefined,
-                validator: fieldDef.editable ? (value, callback) => {
-                    const validation = validateFieldValue(fieldName, value);
-                    callback(validation.isValid);
-                } : undefined,
                 allowInvalid: false
             };
+
+            // Configure column type and editor based on field type
+            if (fieldDef.type === 'lookup' && fieldDef.lookup) {
+                // Dropdown for lookup fields
+                const options = getLookupOptions(fieldDef.lookup);
+                columnConfig = {
+                    ...columnConfig,
+                    type: 'dropdown',
+                    source: options.map(opt => opt.label),  // Display names for dropdown
+                    allowInvalid: false,
+                    validator: fieldDef.editable ? (value, callback) => {
+                        // Check if the selected value is valid
+                        const isValid = options.some(opt => opt.label === value);
+                        callback(isValid);
+                    } : undefined
+                };
+            } else if (fieldDef.type === 'numeric') {
+                // Numeric fields
+                columnConfig = {
+                    ...columnConfig,
+                    type: 'numeric',
+                    format: '0',
+                    validator: fieldDef.editable ? (value, callback) => {
+                        const validation = validateFieldValue(fieldName, value);
+                        callback(validation.isValid);
+                    } : undefined
+                };
+            } else {
+                // Text fields
+                columnConfig = {
+                    ...columnConfig,
+                    type: 'text',
+                    validator: fieldDef.editable ? (value, callback) => {
+                        const validation = validateFieldValue(fieldName, value);
+                        callback(validation.isValid);
+                    } : undefined
+                };
+            }
+
+            return columnConfig;
         });
 
         // Store field mapping for data changes
@@ -386,70 +518,38 @@ class MaddenEditorApp {
     }
 
     getPlayerFieldValue(player, fieldName) {
-        // Handle direct field mappings first
+        const fieldDef = getFieldDefinition(fieldName);
+
+        // Handle lookup fields
+        if (fieldDef.type === 'lookup' && fieldDef.lookup) {
+            const value = player[fieldName];
+            return getLookupValue(fieldDef.lookup, value);
+        }
+
+        // Handle direct field mappings
         if (player[fieldName] !== undefined) {
             return player[fieldName];
         }
 
-        // Handle special computed fields
+        // Handle special computed fields and fallbacks
         switch (fieldName) {
-            case 'Position':
             case 'PPOS':
-                return POSITION_MAPPINGS[player.PPOS] || 'Unknown';
-            case 'Team':
+                return getLookupValue('positions', player.PPOS);
             case 'TGID':
-                return TEAM_MAPPINGS[player.TGID] || 'Unknown';
-            case 'Overall':
-            case 'POVR':
-                return player.POVR || 0;
-            case 'Age':
-            case 'PAGE':
-                return player.PAGE || 0;
-            case 'Height':
-            case 'PHGT':
-                return player.PHGT || 0;
-            case 'Weight':
-            case 'PWGT':
-                return player.PWGT || 0;
-            case 'Speed':
-            case 'PSPD':
-                return player.PSPD || 0;
-            case 'Acceleration':
-            case 'PACC':
-                return player.PACC || 0;
-            case 'Strength':
-            case 'PSTR':
-                return player.PSTR || 0;
-            case 'Agility':
-            case 'PAGI':
-                return player.PAGI || 0;
-            case 'Awareness':
-            case 'PAWR':
-                return player.PAWR || 0;
-            case 'Injury':
-            case 'PINJ':
-                return player.PINJ || 0;
-            case 'College':
+                return getLookupValue('teams', player.TGID);
             case 'PCOL':
-                return player.PCOL ? `College ${player.PCOL}` : 'Unknown';
-            case 'State':
+                return getLookupValue('colleges', player.PCOL);
             case 'PHSN':
-                return player.PHSN ? `State ${player.PHSN}` : 'Unknown';
-            case 'Jump':
-            case 'PJMP':
-                return player.PJMP || 0;
-            case 'Stamina':
-            case 'PSTA':
-                return player.PSTA || 0;
-            case 'Carrying':
-            case 'PCAR':
-                return player.PCAR || 0;
-            case 'Catching':
-            case 'PCTH':
-                return player.PCTH || 0;
+                return getLookupValue('states', player.PHSN);
             default:
-                // Return 0 for unknown numeric fields, empty string for others
-                return 0;
+                // Return appropriate default based on field type
+                if (fieldDef.type === 'numeric') {
+                    return 0;
+                } else if (fieldDef.type === 'text') {
+                    return '';
+                } else {
+                    return 'Unknown';
+                }
         }
     }
 
@@ -517,18 +617,22 @@ class MaddenEditorApp {
                 const fieldDef = getFieldDefinition(fieldName);
 
                 if (fieldDef.editable) {
-                    // Convert value based on field type
                     let convertedValue = newValue;
-                    if (fieldDef.type === 'numeric') {
+
+                    // Handle lookup fields - convert display name back to ID
+                    if (fieldDef.type === 'lookup' && fieldDef.lookup) {
+                        const options = getLookupOptions(fieldDef.lookup);
+                        const option = options.find(opt => opt.label === newValue);
+                        convertedValue = option ? option.value : 0;
+                    } else if (fieldDef.type === 'numeric') {
+                        // Convert numeric values
                         convertedValue = parseInt(newValue) || 0;
                     }
+                    // Text fields keep their value as-is
 
-                    // Map field name to player property
-                    const playerProp = this.getPlayerPropertyName(fieldName);
-                    if (playerProp) {
-                        this.players[row][playerProp] = convertedValue;
-                        console.log(`Updated player ${row} ${fieldName} (${playerProp}): ${oldValue} -> ${convertedValue}`);
-                    }
+                    // Update the player data
+                    this.players[row][fieldName] = convertedValue;
+                    console.log(`Updated player ${row} ${fieldName}: ${oldValue} -> ${newValue} (stored as ${convertedValue})`);
                 }
             }
         });

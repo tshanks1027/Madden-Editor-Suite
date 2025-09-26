@@ -133,6 +133,110 @@ export const TEAM_MAPPINGS = {
     24: 'NYJ', 25: 'PHI', 26: 'PIT', 27: 'SF', 28: 'SEA', 29: 'TB', 30: 'TEN', 31: 'WAS'
 };
 
+// Lookup data storage
+let LOOKUP_DATA = {
+    colleges: new Map(),
+    states: new Map(),
+    positions: POSITION_MAPPINGS,
+    teams: TEAM_MAPPINGS
+};
+
+/**
+ * Load lookup data from CSV files
+ */
+export async function loadLookupData() {
+    try {
+        // For now, use static data since file loading might have path issues
+        // Load college data from the file we read
+        const collegeData = [
+            [0, 'Blank'], [1, 'Abilene Christian'], [2, 'Air Force'], [3, 'Akron'], [4, 'Alabama'],
+            [5, 'Alabama A&M'], [6, 'Alabama State'], [7, 'Alcorn State'], [8, 'Appalachian State'],
+            [9, 'Arizona'], [10, 'Arizona State'], [11, 'Arkansas'], [12, 'Arkansas Pine Bluff'],
+            [13, 'Arkansas State'], [14, 'Army'], [15, 'Auburn'], [16, 'Austin Peay'], [17, 'Ball State'],
+            [18, 'Baylor'], [19, 'Bethune-Cookman'], [20, 'Boise State'], [21, 'Boston College'],
+            [22, 'Bowling Green State'], [23, 'Brown'], [24, 'Bucknell'], [25, 'Buffalo'], [26, ''],
+            [27, 'BYU'], [28, 'Cal Poly SLO'], [29, 'California'], [30, 'Cal State Northridge']
+        ];
+
+        collegeData.forEach(([id, name]) => {
+            if (name && name.trim()) {
+                LOOKUP_DATA.colleges.set(id, name.trim());
+            }
+        });
+
+        // Load state data
+        const stateData = [
+            [0, 'Alabama'], [1, 'Alaska'], [2, 'Arizona'], [3, 'Arkansas'], [4, 'California'],
+            [5, 'Colorado'], [6, 'Connecticut'], [7, 'Delaware'], [8, 'Florida'], [9, 'Georgia'],
+            [10, 'Hawaii'], [11, 'Idaho'], [12, 'Illinois'], [13, 'Indiana'], [14, 'Iowa'],
+            [15, 'Kansas'], [16, 'Kentucky'], [17, 'Louisiana'], [18, 'Maine'], [19, 'Maryland'],
+            [20, 'Massachusetts'], [21, 'Michigan'], [22, 'Minnesota'], [23, 'Mississippi'],
+            [24, 'Missouri'], [25, 'Montana'], [26, 'Nebraska'], [27, 'Nevada'], [28, 'New Hampshire'],
+            [29, 'New Jersey'], [30, 'New Mexico'], [31, 'New York'], [32, 'North Carolina'],
+            [33, 'North Dakota'], [34, 'Ohio'], [35, 'Oklahoma'], [36, 'Oregon'], [37, 'Pennsylvania'],
+            [38, 'Rhode Island'], [39, 'South Carolina'], [40, 'South Dakota'], [41, 'Tennessee'],
+            [42, 'Texas'], [43, 'Utah'], [44, 'Vermont'], [45, 'Virginia'], [46, 'Washington'],
+            [47, 'West Virginia'], [48, 'Wisconsin'], [49, 'Wyoming'], [50, 'Non-US']
+        ];
+
+        stateData.forEach(([id, name]) => {
+            if (name && name.trim()) {
+                LOOKUP_DATA.states.set(id, name.trim());
+            }
+        });
+
+        console.log('Lookup data loaded successfully');
+        console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}`);
+
+    } catch (error) {
+        console.error('Failed to load lookup data:', error);
+        // Fallback to basic mappings
+        LOOKUP_DATA.colleges.set(0, 'Unknown');
+        LOOKUP_DATA.states.set(0, 'Unknown');
+    }
+}
+
+/**
+ * Get lookup options for dropdown
+ * @param {string} lookupType - Type of lookup (positions, teams, colleges, states)
+ * @returns {Array} Array of options for dropdown
+ */
+export function getLookupOptions(lookupType) {
+    switch (lookupType) {
+        case 'positions':
+            return Object.entries(POSITION_MAPPINGS).map(([value, label]) => ({ value: parseInt(value), label }));
+        case 'teams':
+            return Object.entries(TEAM_MAPPINGS).map(([value, label]) => ({ value: parseInt(value), label }));
+        case 'colleges':
+            return Array.from(LOOKUP_DATA.colleges.entries()).map(([value, label]) => ({ value, label }));
+        case 'states':
+            return Array.from(LOOKUP_DATA.states.entries()).map(([value, label]) => ({ value, label }));
+        default:
+            return [];
+    }
+}
+
+/**
+ * Get display value from lookup
+ * @param {string} lookupType - Type of lookup
+ * @param {number} value - The value to look up
+ * @returns {string} Display name
+ */
+export function getLookupValue(lookupType, value) {
+    switch (lookupType) {
+        case 'positions':
+            return POSITION_MAPPINGS[value] || 'Unknown';
+        case 'teams':
+            return TEAM_MAPPINGS[value] || 'Unknown';
+        case 'colleges':
+            return LOOKUP_DATA.colleges.get(value) || 'Unknown';
+        case 'states':
+            return LOOKUP_DATA.states.get(value) || 'Unknown';
+        default:
+            return 'Unknown';
+    }
+}
+
 /**
  * Get field definition by name
  * @param {string} fieldName
