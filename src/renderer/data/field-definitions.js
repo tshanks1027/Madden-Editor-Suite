@@ -7,8 +7,8 @@ export const MADDEN_FIELDS = {
     // User-friendly fields based on FIELD_ORDER
     'PLNA': { display: 'Last Name', type: 'text', editable: true, width: 100 },
     'PFNA': { display: 'First Name', type: 'text', editable: true, width: 100 },
-    'PSXP': { display: 'Pic ID', type: 'numeric', editable: false, width: 80, min: 0, max: 255 },
-    'PLAYERPIC': { display: 'Player Pic', type: 'text', editable: false, width: 100 },
+    'PSXP': { display: 'Pic ID', type: 'numeric', editable: true, width: 80, min: 0, max: 10861 },
+    'PLAYERPIC': { display: 'Player Pic', type: 'autocomplete', editable: true, width: 120, lookup: 'pids' },
     'PPOS': { display: 'Position', type: 'lookup', editable: true, width: 80, lookup: 'positions' },
     'TGID': { display: 'Team', type: 'lookup', editable: true, width: 80, lookup: 'teams' },
     'PJEN': { display: 'Jersey #', type: 'numeric', editable: true, width: 80, min: 0, max: 99 },
@@ -138,7 +138,9 @@ let LOOKUP_DATA = {
     colleges: new Map(),
     states: new Map(),
     positions: POSITION_MAPPINGS,
-    teams: TEAM_MAPPINGS
+    teams: TEAM_MAPPINGS,
+    pids: new Map(),
+    pidsByName: new Map()
 };
 
 /**
@@ -146,6 +148,34 @@ let LOOKUP_DATA = {
  */
 export async function loadLookupData() {
     try {
+        // Load PID data from external file
+        try {
+            const response = await fetch('../../../../pid_lookup_array.js');
+            const text = await response.text();
+            const match = text.match(/const PID_LOOKUP = (\[.*?\]);/s);
+            if (match) {
+                const pidArray = eval(match[1]);
+                pidArray.forEach(([id, name]) => {
+                    if (name && name.trim()) {
+                        LOOKUP_DATA.pids.set(id, name.trim());
+                        LOOKUP_DATA.pidsByName.set(name.trim().toLowerCase(), id);
+                    }
+                });
+                console.log(`Loaded ${LOOKUP_DATA.pids.size} PID entries`);
+            }
+        } catch (pidError) {
+            console.warn('Could not load PID data from external file, using fallback:', pidError);
+            // Fallback PID data (essential entries)
+            const fallbackPids = [
+                [0, 'Blank'], [1, 'Gary Anderson'], [2, 'Willie Anderson'], [3, 'Steve Atwater'], [4, 'Tim Brown'],
+                [5, 'Terrell Davis'], [6, 'Kevin Greene'], [7, 'Paul Krause (R)'], [8, 'Howie Long'], [9, 'Randall McDaniel']
+            ];
+            fallbackPids.forEach(([id, name]) => {
+                LOOKUP_DATA.pids.set(id, name);
+                LOOKUP_DATA.pidsByName.set(name.toLowerCase(), id);
+            });
+        }
+
         // For now, use static data since file loading might have path issues
         // Complete college data from college_lookup.csv (493 colleges)
         const collegeData = [
@@ -258,7 +288,7 @@ export async function loadLookupData() {
         });
 
         console.log('Lookup data loaded successfully');
-        console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}`);
+        console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}, PIDs: ${LOOKUP_DATA.pids.size}`);
 
     } catch (error) {
         console.error('Failed to load lookup data:', error);
@@ -283,6 +313,8 @@ export function getLookupOptions(lookupType) {
             return Array.from(LOOKUP_DATA.colleges.entries()).map(([value, label]) => ({ value, label }));
         case 'states':
             return Array.from(LOOKUP_DATA.states.entries()).map(([value, label]) => ({ value, label }));
+        case 'pids':
+            return Array.from(LOOKUP_DATA.pids.entries()).map(([value, label]) => ({ value, label }));
         default:
             return [];
     }
@@ -304,6 +336,8 @@ export function getLookupValue(lookupType, value) {
             return LOOKUP_DATA.colleges.get(value) || 'Unknown';
         case 'states':
             return LOOKUP_DATA.states.get(value) || 'Unknown';
+        case 'pids':
+            return LOOKUP_DATA.pids.get(value) || 'Generic Name';
         default:
             return 'Unknown';
     }
@@ -368,4 +402,45 @@ export function validateFieldValue(fieldName, value) {
     }
 
     return { isValid: true };
+}
+
+/**
+ * Get PID from player name (for autocomplete)
+ * @param {string} playerName - Player name to search for
+ * @returns {number|null} PID or null if not found
+ */
+export function getPIDFromName(playerName) {
+    if (!playerName) return null;
+    return LOOKUP_DATA.pidsByName.get(playerName.toLowerCase()) || null;
+}
+
+/**
+ * Get player name from PID
+ * @param {number} pid - PID to look up
+ * @returns {string} Player name or 'Generic Name'
+ */
+export function getPlayerNameFromPID(pid) {
+    return LOOKUP_DATA.pids.get(pid) || 'Generic Name';
+}
+
+/**
+ * Search PID names for autocomplete
+ * @param {string} query - Search query
+ * @param {number} limit - Max results to return
+ * @returns {Array} Array of matching player names
+ */
+export function searchPIDNames(query, limit = 10) {
+    if (!query || query.trim().length < 2) return [];
+
+    const lowercaseQuery = query.toLowerCase();
+    const matches = [];
+
+    for (const [name, pid] of LOOKUP_DATA.pidsByName.entries()) {
+        if (name.includes(lowercaseQuery)) {
+            matches.push({ name: LOOKUP_DATA.pids.get(pid), pid });
+            if (matches.length >= limit) break;
+        }
+    }
+
+    return matches.sort((a, b) => a.name.localeCompare(b.name));
 }

@@ -13,7 +13,10 @@ import {
     TEAM_MAPPINGS,
     loadLookupData,
     getLookupOptions,
-    getLookupValue
+    getLookupValue,
+    getPIDFromName,
+    getPlayerNameFromPID,
+    searchPIDNames
 } from '../data/field-definitions.js';
 
 class MaddenEditorApp {
@@ -408,6 +411,26 @@ class MaddenEditorApp {
                         callback(isValid);
                     } : undefined
                 };
+            } else if (fieldDef.type === 'autocomplete' && fieldDef.lookup === 'pids') {
+                // Autocomplete for PID Player Pic field
+                columnConfig = {
+                    ...columnConfig,
+                    type: 'autocomplete',
+                    source: (query, callback) => {
+                        if (!query || query.length < 2) {
+                            callback([]);
+                            return;
+                        }
+                        const results = searchPIDNames(query, 10);
+                        callback(results.map(result => result.name));
+                    },
+                    allowInvalid: true,  // Allow free text entry
+                    strict: false,       // Allow values not in the source
+                    validator: (value, callback) => {
+                        // Always accept the value (we handle validation in data change)
+                        callback(true);
+                    }
+                };
             } else if (fieldDef.type === 'numeric') {
                 // Numeric fields
                 columnConfig = {
@@ -526,6 +549,12 @@ class MaddenEditorApp {
             return getLookupValue(fieldDef.lookup, value);
         }
 
+        // Handle PID Player Pic field - convert PID to player name
+        if (fieldName === 'PLAYERPIC') {
+            const pid = player['PSXP'] || 0;
+            return getPlayerNameFromPID(pid);
+        }
+
         // Handle direct field mappings
         if (player[fieldName] !== undefined) {
             return player[fieldName];
@@ -627,15 +656,46 @@ class MaddenEditorApp {
                     } else if (fieldDef.type === 'numeric') {
                         // Convert numeric values
                         convertedValue = parseInt(newValue) || 0;
+                    } else if (fieldDef.type === 'autocomplete' && fieldDef.lookup === 'pids') {
+                        // Handle Player Pic autocomplete - convert name to PID and store as text
+                        const pid = getPIDFromName(newValue);
+                        if (pid !== null) {
+                            // Valid player name selected, update corresponding PID
+                            this.players[row]['PSXP'] = pid;
+                            this.updateGridCell(row, 'PSXP', pid);
+                        }
+                        // Always store the display name as-is for Player Pic
+                        convertedValue = newValue;
                     }
                     // Text fields keep their value as-is
 
                     // Update the player data
                     this.players[row][fieldName] = convertedValue;
+
+                    // Handle PID -> Player Pic sync (when PID changes, update Player Pic)
+                    if (fieldName === 'PSXP') {
+                        const playerName = getPlayerNameFromPID(convertedValue);
+                        this.players[row]['PLAYERPIC'] = playerName;
+                        this.updateGridCell(row, 'PLAYERPIC', playerName);
+                    }
+
                     console.log(`Updated player ${row} ${fieldName}: ${oldValue} -> ${newValue} (stored as ${convertedValue})`);
                 }
             }
         });
+    }
+
+    /**
+     * Update a specific grid cell without triggering change events
+     */
+    updateGridCell(row, fieldName, value) {
+        if (!this.rosterGrid || !this.currentFieldMapping) return;
+
+        const colIndex = this.currentFieldMapping.indexOf(fieldName);
+        if (colIndex === -1) return;
+
+        // Set the value without triggering afterChange event
+        this.rosterGrid.setDataAtCell(row, colIndex, value, 'internal');
     }
 
     getPlayerPropertyName(fieldName) {
