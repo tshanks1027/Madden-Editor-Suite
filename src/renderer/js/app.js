@@ -703,21 +703,22 @@ class MaddenEditorApp {
         // Temporarily disable change events to prevent recursion
         this.disableChangeEvents = true;
 
-        // For PLAYERPIC field, we need to update the underlying data and refresh the display
+        // For PLAYERPIC field, we need special handling since it's computed from PSXP
         if (fieldName === 'PLAYERPIC') {
-            // Update the grid data directly and force a render
-            const gridData = this.rosterGrid.getData();
-            gridData[row][colIndex] = value;
-            this.rosterGrid.render();
+            // Don't update the grid directly - it will be recomputed during next refresh
+            // Instead, trigger a refresh of this specific cell
+            setTimeout(() => {
+                // Force re-render of this specific cell
+                this.rosterGrid.render();
+                this.disableChangeEvents = false;
+            }, 0);
         } else {
-            // For other fields, use setDataAtCell which handles the display properly
-            this.rosterGrid.setDataAtCell(row, colIndex, value);
+            // For other fields, update the cell normally
+            this.rosterGrid.setDataAtCell(row, colIndex, value, 'internal');
+            setTimeout(() => {
+                this.disableChangeEvents = false;
+            }, 0);
         }
-
-        // Re-enable change events after a short delay
-        setTimeout(() => {
-            this.disableChangeEvents = false;
-        }, 10);
     }
 
     getPlayerPropertyName(fieldName) {

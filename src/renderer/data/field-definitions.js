@@ -424,7 +424,7 @@ export function getPIDFromName(playerName) {
  * @returns {string} Player name or 'Generic Name'
  */
 export function getPlayerNameFromPID(pid) {
-    return LOOKUP_DATA.pids.get(pid) || 'Generic Name';
+    return LOOKUP_DATA.pids.get(pid) || 'Generic Face';
 }
 
 /**
