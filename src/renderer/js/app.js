@@ -430,7 +430,7 @@ class MaddenEditorApp {
                     ...columnConfig,
                     type: 'text',
                     renderer: this.playerPicRenderer.bind(this),
-                    readOnly: true
+                    readOnly: false  // Make it editable with autocomplete
                 };
             } else if (fieldDef.type === 'numeric') {
                 // Numeric fields
@@ -756,14 +756,25 @@ class MaddenEditorApp {
         return td;
     }
 
-    // Custom renderer for Player Pic field - displays name only
+    // Custom renderer for Player Pic field - editable with autocomplete
     playerPicRenderer(instance, td, row, col, prop, value, cellProperties) {
         const rowData = instance.getDataAtRow(row);
         const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
         const currentPID = psxpIndex !== -1 ? rowData[psxpIndex] : '';
         const playerName = getPlayerNameFromPID(currentPID);
 
-        td.innerHTML = `<span class="player-pic-display">${playerName}</span>`;
+        td.innerHTML = `
+            <div class="player-pic-container">
+                <input type="text"
+                       class="player-pic-input"
+                       value="${playerName}"
+                       data-row="${row}"
+                       data-col="${col}"
+                       placeholder="Type player name..."
+                       style="width: 100%; border: none; background: transparent;">
+                <div class="player-pic-suggestions" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto;"></div>
+            </div>
+        `;
         return td;
     }
 
@@ -771,73 +782,72 @@ class MaddenEditorApp {
     setupPIDEventListeners() {
         if (!this.hotTable) return;
 
-        // Remove existing listeners to prevent duplicates
         const container = this.hotTable.rootElement;
         if (!container) return;
 
-        // PID number input -> Player name sync
+        // PID number input -> Player name sync (in PSXP column)
         container.querySelectorAll('.pid-number-input').forEach(input => {
-            // Remove existing listeners
             const clone = input.cloneNode(true);
             input.parentNode.replaceChild(clone, input);
 
             clone.addEventListener('input', (e) => {
                 const row = parseInt(e.target.dataset.row);
-                const val = e.target.value.trim();
-                const name = getPlayerNameFromPID(parseInt(val)) || 'Generic Face';
+                const pidValue = parseInt(e.target.value.trim()) || 0;
+                const playerName = getPlayerNameFromPID(pidValue) || 'Generic Face';
 
-                // Update the name input in the same row
+                // Update the name input in same cell
                 const nameInput = e.target.parentElement.querySelector('.pid-name-input');
-                if (nameInput) nameInput.value = name;
+                if (nameInput) nameInput.value = playerName;
 
-                // Update the player pic display column
-                const picDisplay = container.querySelector(`tr:nth-child(${row + 2}) .player-pic-display`);
-                if (picDisplay) picDisplay.textContent = name;
+                // Update Player Pic column (separate column)
+                const playerPicInput = container.querySelector(`tr:nth-child(${row + 2}) .player-pic-input`);
+                if (playerPicInput) playerPicInput.value = playerName;
 
-                // Update the underlying data
-                this.updatePlayerFieldValue(row, 'PSXP', parseInt(val) || 0);
+                // Update underlying data
+                this.hotTable.setDataAtCell(row, this.currentFieldMapping.indexOf('PSXP'), pidValue, 'internal');
+
+                // Force re-render of both columns
+                this.hotTable.render();
             });
         });
 
-        // Player name input -> PID number sync and autocomplete
+        // PID name input autocomplete (in PSXP column)
         container.querySelectorAll('.pid-name-input').forEach(input => {
-            // Remove existing listeners
             const clone = input.cloneNode(true);
             input.parentNode.replaceChild(clone, input);
 
             clone.addEventListener('input', (e) => {
                 const row = parseInt(e.target.dataset.row);
-                const val = e.target.value.trim().toLowerCase();
+                const searchText = e.target.value.trim().toLowerCase();
                 const suggestionsDiv = e.target.parentElement.querySelector('.pid-suggestions');
 
-                if (val.length >= 2) {
-                    const suggestions = searchPIDNames(val);
+                if (searchText.length >= 2) {
+                    const suggestions = searchPIDNames(searchText);
                     if (suggestions.length > 0) {
                         suggestionsDiv.innerHTML = suggestions.slice(0, 10).map(name =>
-                            `<div class="pid-suggestion" data-name="${name}" style="padding: 5px; cursor: pointer; hover: background: #f0f0f0;">${name}</div>`
+                            `<div class="pid-suggestion" data-name="${name}" style="padding: 5px; cursor: pointer;">${name}</div>`
                         ).join('');
                         suggestionsDiv.style.display = 'block';
 
-                        // Add click handlers for suggestions
                         suggestionsDiv.querySelectorAll('.pid-suggestion').forEach(suggestion => {
                             suggestion.addEventListener('click', () => {
                                 const selectedName = suggestion.dataset.name;
                                 const pid = getPIDFromName(selectedName);
 
-                                // Update both inputs
+                                // Update inputs in PSXP column
                                 e.target.value = selectedName;
                                 const numberInput = e.target.parentElement.querySelector('.pid-number-input');
                                 if (numberInput) numberInput.value = pid;
 
-                                // Update player pic display
-                                const picDisplay = container.querySelector(`tr:nth-child(${row + 2}) .player-pic-display`);
-                                if (picDisplay) picDisplay.textContent = selectedName;
+                                // Update Player Pic column
+                                const playerPicInput = container.querySelector(`tr:nth-child(${row + 2}) .player-pic-input`);
+                                if (playerPicInput) playerPicInput.value = selectedName;
 
-                                // Update the underlying data
-                                this.updatePlayerFieldValue(row, 'PSXP', pid);
+                                // Update underlying data
+                                this.hotTable.setDataAtCell(row, this.currentFieldMapping.indexOf('PSXP'), pid, 'internal');
 
-                                // Hide suggestions
                                 suggestionsDiv.style.display = 'none';
+                                this.hotTable.render();
                             });
                         });
                     } else {
@@ -848,10 +858,64 @@ class MaddenEditorApp {
                 }
             });
 
-            // Hide suggestions when clicking outside
             clone.addEventListener('blur', (e) => {
                 setTimeout(() => {
                     const suggestionsDiv = e.target.parentElement.querySelector('.pid-suggestions');
+                    if (suggestionsDiv) suggestionsDiv.style.display = 'none';
+                }, 200);
+            });
+        });
+
+        // Player Pic column autocomplete (separate column)
+        container.querySelectorAll('.player-pic-input').forEach(input => {
+            const clone = input.cloneNode(true);
+            input.parentNode.replaceChild(clone, input);
+
+            clone.addEventListener('input', (e) => {
+                const row = parseInt(e.target.dataset.row);
+                const searchText = e.target.value.trim().toLowerCase();
+                const suggestionsDiv = e.target.parentElement.querySelector('.player-pic-suggestions');
+
+                if (searchText.length >= 2) {
+                    const suggestions = searchPIDNames(searchText);
+                    if (suggestions.length > 0) {
+                        suggestionsDiv.innerHTML = suggestions.slice(0, 10).map(name =>
+                            `<div class="pic-suggestion" data-name="${name}" style="padding: 5px; cursor: pointer;">${name}</div>`
+                        ).join('');
+                        suggestionsDiv.style.display = 'block';
+
+                        suggestionsDiv.querySelectorAll('.pic-suggestion').forEach(suggestion => {
+                            suggestion.addEventListener('click', () => {
+                                const selectedName = suggestion.dataset.name;
+                                const pid = getPIDFromName(selectedName);
+
+                                // Update Player Pic input
+                                e.target.value = selectedName;
+
+                                // Update PSXP column inputs
+                                const pidNumberInput = container.querySelector(`tr:nth-child(${row + 2}) .pid-number-input`);
+                                const pidNameInput = container.querySelector(`tr:nth-child(${row + 2}) .pid-name-input`);
+                                if (pidNumberInput) pidNumberInput.value = pid;
+                                if (pidNameInput) pidNameInput.value = selectedName;
+
+                                // Update underlying data
+                                this.hotTable.setDataAtCell(row, this.currentFieldMapping.indexOf('PSXP'), pid, 'internal');
+
+                                suggestionsDiv.style.display = 'none';
+                                this.hotTable.render();
+                            });
+                        });
+                    } else {
+                        suggestionsDiv.style.display = 'none';
+                    }
+                } else {
+                    suggestionsDiv.style.display = 'none';
+                }
+            });
+
+            clone.addEventListener('blur', (e) => {
+                setTimeout(() => {
+                    const suggestionsDiv = e.target.parentElement.querySelector('.player-pic-suggestions');
                     if (suggestionsDiv) suggestionsDiv.style.display = 'none';
                 }, 200);
             });
