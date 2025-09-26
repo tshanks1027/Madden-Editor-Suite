@@ -27,6 +27,7 @@ class MaddenEditorApp {
         this.lookupReady = false;
         this.selectedPosition = '';
         this.showAllColumns = false;
+        this.disableChangeEvents = false;
 
         this.init();
     }
@@ -639,6 +640,11 @@ class MaddenEditorApp {
     }
 
     handlePlayerDataChange(changes) {
+        // Skip if change events are disabled (to prevent recursion)
+        if (this.disableChangeEvents) {
+            return;
+        }
+
         // Update player data based on Handsontable changes
         changes.forEach(([row, colIndex, oldValue, newValue]) => {
             if (oldValue !== newValue && this.players[row] && this.currentFieldMapping) {
@@ -694,8 +700,24 @@ class MaddenEditorApp {
         const colIndex = this.currentFieldMapping.indexOf(fieldName);
         if (colIndex === -1) return;
 
-        // Set the value without triggering afterChange event
-        this.rosterGrid.setDataAtCell(row, colIndex, value, 'internal');
+        // Temporarily disable change events to prevent recursion
+        this.disableChangeEvents = true;
+
+        // For PLAYERPIC field, we need to update the underlying data and refresh the display
+        if (fieldName === 'PLAYERPIC') {
+            // Update the grid data directly and force a render
+            const gridData = this.rosterGrid.getData();
+            gridData[row][colIndex] = value;
+            this.rosterGrid.render();
+        } else {
+            // For other fields, use setDataAtCell which handles the display properly
+            this.rosterGrid.setDataAtCell(row, colIndex, value);
+        }
+
+        // Re-enable change events after a short delay
+        setTimeout(() => {
+            this.disableChangeEvents = false;
+        }, 10);
     }
 
     getPlayerPropertyName(fieldName) {
