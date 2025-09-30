@@ -16,30 +16,30 @@ const Franchise = require('madden-franchise');
  * @returns {Promise<Object>} Parsed roster data with players array
  */
 async function parseRosterFile(filePath) {
+  console.log('[RosterParser] ===== START PARSE =====');
+  console.log('[RosterParser] File path:', filePath);
+
   try {
-    console.log('[RosterParser] Opening file:', filePath);
+    console.log('[RosterParser] Step 1: Calling Franchise.create()...');
+    const franchise = await Franchise.create(filePath);
+    console.log('[RosterParser] Step 2: Franchise created successfully');
 
-    // Open franchise file using madden-franchise
-    const franchise = new Franchise(filePath);
+    console.log('[RosterParser] Step 3: Checking schema...');
+    console.log('[RosterParser] File ready, game year:', franchise.schema.meta.gameYear);
 
-    // Parse the file
-    await franchise.on('ready', async () => {
-      console.log('[RosterParser] File ready, game year:', franchise.schema.meta.gameYear);
-    });
-
-    // Wait for franchise to be ready
-    if (!franchise.isLoaded) {
-      await new Promise((resolve) => {
-        franchise.on('ready', resolve);
-      });
-    }
-
-    // Get the PLAY table (player data)
+    // Get the Player table
+    console.log('[RosterParser] Step 4: Getting Player table...');
     const playerTable = franchise.getTableByName('Player');
+    console.log('[RosterParser] Step 5: Player table retrieved:', !!playerTable);
 
     if (!playerTable) {
       throw new Error('Player table not found in roster file');
     }
+
+    // Read all records from the table
+    console.log('[RosterParser] Step 6: Reading records...');
+    await playerTable.readRecords();
+    console.log('[RosterParser] Step 7: Records read successfully');
 
     console.log('[RosterParser] Found Player table with', playerTable.records.length, 'records');
 
@@ -50,110 +50,110 @@ async function parseRosterFile(filePath) {
       // Extract all player fields
       const player = {
         // Identity
-        PGID: record.fields.PlayerId || record.index,
-        PLNA: record.fields.LastName || '',
-        PFNA: record.fields.FirstName || '',
+        PGID: record.PlayerId || record.index,
+        PLNA: record.LastName || '',
+        PFNA: record.FirstName || '',
 
         // Basic Info
-        PPOS: record.fields.Position || 0,
-        TGID: record.fields.TeamId || 0,
-        POVR: record.fields.Overall || 0,
-        PAGE: record.fields.Age || 21,
-        PYER: record.fields.YearsPro || 0,
-        PJEN: record.fields.JerseyNum || 0,
+        PPOS: record.Position || 0,
+        TGID: record.TeamId || 0,
+        POVR: record.Overall || 0,
+        PAGE: record.Age || 21,
+        PYER: record.YearsPro || 0,
+        PJEN: record.JerseyNum || 0,
 
         // Physical Attributes
-        PHGT: record.fields.Height || 72,
-        PWGT: record.fields.Weight || 200,
+        PHGT: record.Height || 72,
+        PWGT: record.Weight || 200,
 
         // Core Ratings
-        PSPD: record.fields.Speed || 50,
-        PACC: record.fields.Acceleration || 50,
-        PSTR: record.fields.Strength || 50,
-        PAGI: record.fields.Agility || 50,
-        PAWR: record.fields.Awareness || 50,
-        PJMP: record.fields.Jumping || 50,
-        PSTA: record.fields.Stamina || 50,
-        PINJ: record.fields.Injury || 50,
-        PTGH: record.fields.Toughness || 50,
+        PSPD: record.Speed || 50,
+        PACC: record.Acceleration || 50,
+        PSTR: record.Strength || 50,
+        PAGI: record.Agility || 50,
+        PAWR: record.Awareness || 50,
+        PJMP: record.Jumping || 50,
+        PSTA: record.Stamina || 50,
+        PINJ: record.Injury || 50,
+        PTGH: record.Toughness || 50,
 
         // Passing
-        PTHP: record.fields.ThrowPower || 50,
-        PTHA: record.fields.ThrowAccuracyShort || 50,
-        PTAM: record.fields.ThrowAccuracyMid || 50,
-        PTAD: record.fields.ThrowAccuracyDeep || 50,
-        PTOR: record.fields.ThrowOnTheRun || 50,
-        PTUP: record.fields.ThrowUnderPressure || 50,
+        PTHP: record.ThrowPower || 50,
+        PTHA: record.ThrowAccuracyShort || 50,
+        PTAM: record.ThrowAccuracyMid || 50,
+        PTAD: record.ThrowAccuracyDeep || 50,
+        PTOR: record.ThrowOnTheRun || 50,
+        PTUP: record.ThrowUnderPressure || 50,
 
         // Receiving
-        PCTH: record.fields.Catching || 50,
-        PDRR: record.fields.ShortRouteRunning || 50,
-        PMRR: record.fields.MediumRouteRunning || 50,
-        PDRR: record.fields.DeepRouteRunning || 50,
-        PLCI: record.fields.CatchInTraffic || 50,
-        PSPC: record.fields.SpectacularCatch || 50,
+        PCTH: record.Catching || 50,
+        PDRR: record.ShortRouteRunning || 50,
+        PMRR: record.MediumRouteRunning || 50,
+        PDRR: record.DeepRouteRunning || 50,
+        PLCI: record.CatchInTraffic || 50,
+        PSPC: record.SpectacularCatch || 50,
 
         // Rushing
-        PCAR: record.fields.Carrying || 50,
-        PBTK: record.fields.BreakTackle || 50,
-        PELU: record.fields.Elusiveness || 50,
-        PJUK: record.fields.Juke || 50,
-        PSPN: record.fields.Spin || 50,
-        PLSM: record.fields.Stiffarm || 50,
-        PTRK: record.fields.Trucking || 50,
+        PCAR: record.Carrying || 50,
+        PBTK: record.BreakTackle || 50,
+        PELU: record.Elusiveness || 50,
+        PJUK: record.Juke || 50,
+        PSPN: record.Spin || 50,
+        PLSM: record.Stiffarm || 50,
+        PTRK: record.Trucking || 50,
 
         // Blocking
-        PPBK: record.fields.PassBlock || 50,
-        PPBS: record.fields.PassBlockStrength || 50,
-        PPBF: record.fields.PassBlockFinesse || 50,
-        PRBK: record.fields.RunBlock || 50,
-        PRBS: record.fields.RunBlockStrength || 50,
-        PRBF: record.fields.RunBlockFinesse || 50,
-        PLBK: record.fields.LeadBlock || 50,
-        PIBL: record.fields.ImpactBlocking || 50,
+        PPBK: record.PassBlock || 50,
+        PPBS: record.PassBlockStrength || 50,
+        PPBF: record.PassBlockFinesse || 50,
+        PRBK: record.RunBlock || 50,
+        PRBS: record.RunBlockStrength || 50,
+        PRBF: record.RunBlockFinesse || 50,
+        PLBK: record.LeadBlock || 50,
+        PIBL: record.ImpactBlocking || 50,
 
         // Defense
-        PTAK: record.fields.Tackle || 50,
-        PHIT: record.fields.HitPower || 50,
-        PPOW: record.fields.PowerMoves || 50,
-        PFMS: record.fields.FinesseMoves || 50,
-        PBSG: record.fields.BlockShedding || 50,
-        PPRC: record.fields.Pursuit || 50,
-        PPLA: record.fields.PlayRecognition || 50,
+        PTAK: record.Tackle || 50,
+        PHIT: record.HitPower || 50,
+        PPOW: record.PowerMoves || 50,
+        PFMS: record.FinesseMoves || 50,
+        PBSG: record.BlockShedding || 50,
+        PPRC: record.Pursuit || 50,
+        PPLA: record.PlayRecognition || 50,
 
         // Coverage
-        PMCV: record.fields.ManCoverage || 50,
-        PZCV: record.fields.ZoneCoverage || 50,
-        PPRZ: record.fields.Press || 50,
+        PMCV: record.ManCoverage || 50,
+        PZCV: record.ZoneCoverage || 50,
+        PPRZ: record.Press || 50,
 
         // Kicking
-        PKPR: record.fields.KickPower || 50,
-        PKAC: record.fields.KickAccuracy || 50,
-        PKRT: record.fields.KickReturn || 50,
+        PKPR: record.KickPower || 50,
+        PKAC: record.KickAccuracy || 50,
+        PKRT: record.KickReturn || 50,
 
         // Special
-        PRET: record.fields.Return || 50,
+        PRET: record.Return || 50,
 
         // Mental
-        PLPE: record.fields.PlayAction || 50,
+        PLPE: record.PlayAction || 50,
 
         // Background
-        PCOL: record.fields.CollegeId || 0,
-        PHSN: record.fields.HomeState || 0,
-        PHTN: record.fields.Hometown || '',
+        PCOL: record.CollegeId || 0,
+        PHSN: record.HomeState || 0,
+        PHTN: record.Hometown || '',
 
         // Player ID (for faces)
-        PSXP: record.fields.PLYR_ASSETNAME || 0,
+        PSXP: record.PLYR_ASSETNAME || 0,
 
         // Contract
-        PCON: record.fields.ContractLength || 0,
-        PCSA: record.fields.ContractSalary || 0,
-        PCSB: record.fields.ContractBonus || 0,
+        PCON: record.ContractLength || 0,
+        PCSA: record.ContractSalary || 0,
+        PCSB: record.ContractBonus || 0,
 
         // Development
-        PDPI: record.fields.PlayerSchemefit || 0,
-        PTSA: record.fields.TotalSalary || 0,
-        PYRP: record.fields.YearsWithTeam || 0,
+        PDPI: record.PlayerSchemefit || 0,
+        PTSA: record.TotalSalary || 0,
+        PYRP: record.YearsWithTeam || 0,
 
         // Store original record for reference
         _originalRecord: record
@@ -173,7 +173,11 @@ async function parseRosterFile(filePath) {
     };
 
   } catch (error) {
-    console.error('[RosterParser] Error parsing roster file:', error);
+    console.error('[RosterParser] ===== ERROR IN PARSE =====');
+    console.error('[RosterParser] Error type:', error.constructor.name);
+    console.error('[RosterParser] Error message:', error.message);
+    console.error('[RosterParser] Error stack:', error.stack);
+    console.error('[RosterParser] ===========================');
     throw new Error(`Failed to parse roster file: ${error.message}`);
   }
 }
@@ -214,38 +218,38 @@ async function saveRosterFile(filePath, players, originalData) {
 
       // Update fields that were edited
       // (Only update fields that exist in the schema)
-      if (record.fields.FirstName !== undefined) record.fields.FirstName = player.PFNA;
-      if (record.fields.LastName !== undefined) record.fields.LastName = player.PLNA;
-      if (record.fields.Position !== undefined) record.fields.Position = player.PPOS;
-      if (record.fields.TeamId !== undefined) record.fields.TeamId = player.TGID;
-      if (record.fields.Overall !== undefined) record.fields.Overall = player.POVR;
-      if (record.fields.Age !== undefined) record.fields.Age = player.PAGE;
-      if (record.fields.JerseyNum !== undefined) record.fields.JerseyNum = player.PJEN;
+      if (record.FirstName !== undefined) record.FirstName = player.PFNA;
+      if (record.LastName !== undefined) record.LastName = player.PLNA;
+      if (record.Position !== undefined) record.Position = player.PPOS;
+      if (record.TeamId !== undefined) record.TeamId = player.TGID;
+      if (record.Overall !== undefined) record.Overall = player.POVR;
+      if (record.Age !== undefined) record.Age = player.PAGE;
+      if (record.JerseyNum !== undefined) record.JerseyNum = player.PJEN;
 
       // Physical
-      if (record.fields.Height !== undefined) record.fields.Height = player.PHGT;
-      if (record.fields.Weight !== undefined) record.fields.Weight = player.PWGT;
+      if (record.Height !== undefined) record.Height = player.PHGT;
+      if (record.Weight !== undefined) record.Weight = player.PWGT;
 
       // Core Ratings
-      if (record.fields.Speed !== undefined) record.fields.Speed = player.PSPD;
-      if (record.fields.Acceleration !== undefined) record.fields.Acceleration = player.PACC;
-      if (record.fields.Strength !== undefined) record.fields.Strength = player.PSTR;
-      if (record.fields.Agility !== undefined) record.fields.Agility = player.PAGI;
-      if (record.fields.Awareness !== undefined) record.fields.Awareness = player.PAWR;
-      if (record.fields.Jumping !== undefined) record.fields.Jumping = player.PJMP;
-      if (record.fields.Stamina !== undefined) record.fields.Stamina = player.PSTA;
-      if (record.fields.Injury !== undefined) record.fields.Injury = player.PINJ;
-      if (record.fields.Toughness !== undefined) record.fields.Toughness = player.PTGH;
+      if (record.Speed !== undefined) record.Speed = player.PSPD;
+      if (record.Acceleration !== undefined) record.Acceleration = player.PACC;
+      if (record.Strength !== undefined) record.Strength = player.PSTR;
+      if (record.Agility !== undefined) record.Agility = player.PAGI;
+      if (record.Awareness !== undefined) record.Awareness = player.PAWR;
+      if (record.Jumping !== undefined) record.Jumping = player.PJMP;
+      if (record.Stamina !== undefined) record.Stamina = player.PSTA;
+      if (record.Injury !== undefined) record.Injury = player.PINJ;
+      if (record.Toughness !== undefined) record.Toughness = player.PTGH;
 
       // Passing
-      if (record.fields.ThrowPower !== undefined) record.fields.ThrowPower = player.PTHP;
-      if (record.fields.ThrowAccuracyShort !== undefined) record.fields.ThrowAccuracyShort = player.PTHA;
-      if (record.fields.ThrowAccuracyMid !== undefined) record.fields.ThrowAccuracyMid = player.PTAM;
-      if (record.fields.ThrowAccuracyDeep !== undefined) record.fields.ThrowAccuracyDeep = player.PTAD;
+      if (record.ThrowPower !== undefined) record.ThrowPower = player.PTHP;
+      if (record.ThrowAccuracyShort !== undefined) record.ThrowAccuracyShort = player.PTHA;
+      if (record.ThrowAccuracyMid !== undefined) record.ThrowAccuracyMid = player.PTAM;
+      if (record.ThrowAccuracyDeep !== undefined) record.ThrowAccuracyDeep = player.PTAD;
 
       // Receiving
-      if (record.fields.Catching !== undefined) record.fields.Catching = player.PCTH;
-      if (record.fields.Carrying !== undefined) record.fields.Carrying = player.PCAR;
+      if (record.Catching !== undefined) record.Catching = player.PCTH;
+      if (record.Carrying !== undefined) record.Carrying = player.PCAR;
 
       // Add more field mappings as needed...
     }

@@ -7,7 +7,7 @@
  * Source: Custom implementation following Electron IPC best practices
  */
 
-import { ipcMain, dialog } from 'electron';
+import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -16,14 +16,36 @@ import path from 'path';
  * Open native file picker dialog
  */
 ipcMain.handle('file:open-dialog', async (event, filters?: any[]) => {
+  console.log('[file-handlers] ===== OPEN DIALOG REQUEST =====');
+
   try {
-    const result = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: filters || [
-        { name: 'All Files', extensions: ['*'] },
-        { name: 'Roster Files', extensions: [] } // Madden files often have no extension
-      ]
-    });
+    // Get the window that sent the request to use as parent
+    const win = BrowserWindow.fromWebContents(event.sender);
+    console.log('[file-handlers] Window retrieved:', !!win);
+
+    if (!win) {
+      throw new Error('Could not get browser window from event sender');
+    }
+
+    console.log('[file-handlers] Showing open dialog...');
+
+    let result;
+    try {
+      // Try minimal dialog options first
+      result = await dialog.showOpenDialog({
+        properties: ['openFile']
+      });
+      console.log('[file-handlers] Dialog closed successfully');
+    } catch (dialogError: any) {
+      console.error('[file-handlers] ===== DIALOG ERROR =====');
+      console.error('[file-handlers] Error:', dialogError);
+      console.error('[file-handlers] Message:', dialogError.message);
+      console.error('[file-handlers] Stack:', dialogError.stack);
+      console.error('[file-handlers] ===========================');
+      throw dialogError;
+    }
+
+    console.log('[file-handlers] Dialog result - canceled:', result.canceled);
 
     if (result.canceled || result.filePaths.length === 0) {
       return {
@@ -56,6 +78,7 @@ ipcMain.handle('file:open-dialog', async (event, filters?: any[]) => {
  */
 ipcMain.handle('file:save-dialog', async (event, defaultPath?: string) => {
   try {
+    // Don't pass window on Windows - causes crash
     const result = await dialog.showSaveDialog({
       defaultPath: defaultPath,
       filters: [

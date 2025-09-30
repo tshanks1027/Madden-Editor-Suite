@@ -1,6 +1,21 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 
+// Catch all uncaught errors to prevent silent crashes
+process.on('uncaughtException', (error) => {
+  console.error('===== UNCAUGHT EXCEPTION =====');
+  console.error('Error:', error);
+  console.error('Stack:', error.stack);
+  console.error('==============================');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('===== UNHANDLED REJECTION =====');
+  console.error('Reason:', reason);
+  console.error('Promise:', promise);
+  console.error('===============================');
+});
+
 // Import IPC handlers
 import './main/ipc/parser-handlers';
 import './main/ipc/file-handlers';

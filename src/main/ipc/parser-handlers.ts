@@ -19,13 +19,13 @@ const { parseRosterFile, saveRosterFile } = RosterParser;
  * Parse a Madden roster file and return player data
  */
 ipcMain.handle('parser:parse-roster-file', async (event, filePath: string) => {
+  console.log('[parser-handlers] ===== IPC PARSE REQUEST =====');
+  console.log('[parser-handlers] File path received:', filePath);
+
   try {
-    console.log('[parser-handlers] Parsing roster file:', filePath);
-
-    // Parse the file
+    console.log('[parser-handlers] Calling parseRosterFile()...');
     const result = await parseRosterFile(filePath);
-
-    console.log('[parser-handlers] Parse successful:', result.playerCount, 'players');
+    console.log('[parser-handlers] Parse successful, player count:', result.playerCount);
 
     return {
       success: true,
@@ -33,7 +33,10 @@ ipcMain.handle('parser:parse-roster-file', async (event, filePath: string) => {
     };
 
   } catch (error: any) {
-    console.error('[parser-handlers] Parse error:', error);
+    console.error('[parser-handlers] ===== IPC PARSE ERROR =====');
+    console.error('[parser-handlers] Error:', error);
+    console.error('[parser-handlers] Stack:', error.stack);
+    console.error('[parser-handlers] ===============================');
 
     return {
       success: false,

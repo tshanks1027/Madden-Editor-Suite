@@ -159,28 +159,35 @@ class MaddenEditorApp {
     }
 
     async openFileDialog() {
+        console.log('[app.js] ===== OPEN FILE DIALOG =====');
         try {
             if (typeof window.electronAPI !== 'undefined') {
-                // Use Electron dialog API to get the full file path
+                console.log('[app.js] Step 1: Calling file.openDialog()...');
                 const result = await window.electronAPI.file.openDialog([
                     { name: 'All Files', extensions: ['*'] },
                     { name: 'Roster Files', extensions: [] }
                 ]);
+                console.log('[app.js] Step 2: Dialog result:', result);
 
                 if (result.success && result.filePath) {
+                    console.log('[app.js] Step 3: Calling loadRosterFile()...');
                     await this.loadRosterFile(result.filePath);
+                    console.log('[app.js] Step 4: loadRosterFile() completed');
                 } else if (result.canceled) {
-                    console.log('File selection canceled');
+                    console.log('[app.js] File selection canceled by user');
                 } else if (result.error) {
+                    console.error('[app.js] Dialog error:', result.error);
                     this.showError(`Failed to open file: ${result.error}`);
                 }
             } else {
-                // Fallback for testing without Electron
-                console.warn('Electron API not available - using HTML file input fallback');
+                console.warn('[app.js] Electron API not available - using HTML file input fallback');
                 document.getElementById('fileInput').click();
             }
         } catch (error) {
-            console.error('Error opening file dialog:', error);
+            console.error('[app.js] ===== ERROR IN OPEN FILE =====');
+            console.error('[app.js] Error:', error);
+            console.error('[app.js] Stack:', error.stack);
+            console.error('[app.js] ===============================');
             this.showError(`Failed to open file dialog: ${error.message}`);
         }
     }

@@ -14,7 +14,11 @@
       "WebFetch(domain:www.npmjs.com)",
       "WebSearch",
       "Bash(git add:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npx playwright test:*)",
+      "Bash(tasklist)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

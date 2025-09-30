@@ -1,0 +1,388 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\playwright.config.js",
+    "rootDir": "C:/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/madden-editor-suite/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "test-reports/html",
+          "open": "never"
+        }
+      ],
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-reports/results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/madden-editor-suite/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "electron-tests",
+        "name": "electron-tests",
+        "testDir": "C:/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/madden-editor-suite/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.spec.js"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npm start",
+      "port": 3000,
+      "reuseExistingServer": true,
+      "timeout": 120000,
+      "stdout": "pipe",
+      "stderr": "pipe"
+    }
+  },
+  "suites": [
+    {
+      "title": "02-file-dialog-crash-fix.spec.js",
+      "file": "02-file-dialog-crash-fix.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "File Dialog - Click Open File without crash",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "electron-tests",
+              "projectName": "electron-tests",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 7658,
+                  "error": {
+                    "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                    "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:65:16",
+                    "location": {
+                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                      "column": 16,
+                      "line": 65
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 63 |\u001b[39m\n \u001b[90m 64 |\u001b[39m   \u001b[90m// Wait for dialog (it will open natively)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 66 |\u001b[39m   console\u001b[33m.\u001b[39mlog(\u001b[32m'[TEST] Waited 2s for dialog'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 67 |\u001b[39m\n \u001b[90m 68 |\u001b[39m   \u001b[90m// Take screenshot after click\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                        "column": 16,
+                        "line": 65
+                      },
+                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  63 |\n  64 |   // Wait for dialog (it will open natively)\n> 65 |   await window.waitForTimeout(2000);\n     |                ^\n  66 |   console.log('[TEST] Waited 2s for dialog');\n  67 |\n  68 |   // Take screenshot after click\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:65:16"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "\n[TEST] Launching Electron app...\n"
+                    },
+                    {
+                      "text": "[TEST] Window loaded\n"
+                    },
+                    {
+                      "text": "[TEST] App ready - Open File button visible\n"
+                    },
+                    {
+                      "text": "[TEST] ===== FILE DIALOG CRASH TEST =====\n"
+                    },
+                    {
+                      "text": "[TEST] Screenshot: Before clicking Open File\n"
+                    },
+                    {
+                      "text": "[TEST] Status before click: Ready\n"
+                    },
+                    {
+                      "text": "[TEST] Clicking #openFileBtn...\n"
+                    },
+                    {
+                      "text": "[APP] [app.js] ===== OPEN FILE DIALOG =====\n"
+                    },
+                    {
+                      "text": "[APP] [app.js] Step 1: Calling file.openDialog()...\n"
+                    },
+                    {
+                      "text": "[TEST] App closed\n\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2025-09-30T19:09:11.898Z",
+                  "annotations": [],
+                  "attachments": [],
+                  "errorLocation": {
+                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                    "column": 16,
+                    "line": 65
+                  }
+                },
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 7314,
+                  "error": {
+                    "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                    "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:65:16",
+                    "location": {
+                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                      "column": 16,
+                      "line": 65
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 63 |\u001b[39m\n \u001b[90m 64 |\u001b[39m   \u001b[90m// Wait for dialog (it will open natively)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 66 |\u001b[39m   console\u001b[33m.\u001b[39mlog(\u001b[32m'[TEST] Waited 2s for dialog'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 67 |\u001b[39m\n \u001b[90m 68 |\u001b[39m   \u001b[90m// Take screenshot after click\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                        "column": 16,
+                        "line": 65
+                      },
+                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  63 |\n  64 |   // Wait for dialog (it will open natively)\n> 65 |   await window.waitForTimeout(2000);\n     |                ^\n  66 |   console.log('[TEST] Waited 2s for dialog');\n  67 |\n  68 |   // Take screenshot after click\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:65:16"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "\n[TEST] Launching Electron app...\n"
+                    },
+                    {
+                      "text": "[TEST] Window loaded\n"
+                    },
+                    {
+                      "text": "[TEST] App ready - Open File button visible\n"
+                    },
+                    {
+                      "text": "[TEST] ===== FILE DIALOG CRASH TEST =====\n"
+                    },
+                    {
+                      "text": "[TEST] Screenshot: Before clicking Open File\n"
+                    },
+                    {
+                      "text": "[TEST] Status before click: Ready\n"
+                    },
+                    {
+                      "text": "[TEST] Clicking #openFileBtn...\n"
+                    },
+                    {
+                      "text": "[APP] [app.js] ===== OPEN FILE DIALOG =====\n"
+                    },
+                    {
+                      "text": "[APP] [app.js] Step 1: Calling file.openDialog()...\n"
+                    },
+                    {
+                      "text": "[TEST] App closed\n\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2025-09-30T19:09:20.512Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\test-results\\02-file-dialog-crash-fix-F-ecd7a-ick-Open-File-without-crash-electron-tests-retry1\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                    "column": 16,
+                    "line": 65
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "c8a1069e6e06141560f7-c0196fb600c41e3df5d7",
+          "file": "02-file-dialog-crash-fix.spec.js",
+          "line": 41,
+          "column": 1
+        },
+        {
+          "title": "File Dialog - Verify debug logging",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "electron-tests",
+              "projectName": "electron-tests",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 6923,
+                  "error": {
+                    "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                    "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:121:16",
+                    "location": {
+                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                      "column": 16,
+                      "line": 121
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 119 |\u001b[39m   \u001b[90m// Click Open File\u001b[39m\n \u001b[90m 120 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mclick(\u001b[32m'#openFileBtn'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 121 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m1000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 122 |\u001b[39m\n \u001b[90m 123 |\u001b[39m   \u001b[90m// Close dialog\u001b[39m\n \u001b[90m 124 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                        "column": 16,
+                        "line": 121
+                      },
+                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  119 |   // Click Open File\n  120 |   await window.click('#openFileBtn');\n> 121 |   await window.waitForTimeout(1000);\n      |                ^\n  122 |\n  123 |   // Close dialog\n  124 |   await window.keyboard.press('Escape');\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:121:16"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "\n[TEST] Launching Electron app...\n"
+                    },
+                    {
+                      "text": "[TEST] Window loaded\n"
+                    },
+                    {
+                      "text": "[TEST] App ready - Open File button visible\n"
+                    },
+                    {
+                      "text": "[TEST] ===== DEBUG LOGGING TEST =====\n"
+                    },
+                    {
+                      "text": "[TEST] App closed\n\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2025-09-30T19:09:28.817Z",
+                  "annotations": [],
+                  "attachments": [],
+                  "errorLocation": {
+                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                    "column": 16,
+                    "line": 121
+                  }
+                },
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 7082,
+                  "error": {
+                    "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
+                    "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:121:16",
+                    "location": {
+                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                      "column": 16,
+                      "line": 121
+                    },
+                    "snippet": "\u001b[0m \u001b[90m 119 |\u001b[39m   \u001b[90m// Click Open File\u001b[39m\n \u001b[90m 120 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mclick(\u001b[32m'#openFileBtn'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 121 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m1000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 122 |\u001b[39m\n \u001b[90m 123 |\u001b[39m   \u001b[90m// Close dialog\u001b[39m\n \u001b[90m 124 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                        "column": 16,
+                        "line": 121
+                      },
+                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  119 |   // Click Open File\n  120 |   await window.click('#openFileBtn');\n> 121 |   await window.waitForTimeout(1000);\n      |                ^\n  122 |\n  123 |   // Close dialog\n  124 |   await window.keyboard.press('Escape');\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:121:16"
+                    }
+                  ],
+                  "stdout": [
+                    {
+                      "text": "\n[TEST] Launching Electron app...\n"
+                    },
+                    {
+                      "text": "[TEST] Window loaded\n"
+                    },
+                    {
+                      "text": "[TEST] App ready - Open File button visible\n"
+                    },
+                    {
+                      "text": "[TEST] ===== DEBUG LOGGING TEST =====\n"
+                    },
+                    {
+                      "text": "[TEST] App closed\n\n"
+                    }
+                  ],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2025-09-30T19:09:36.650Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\test-results\\02-file-dialog-crash-fix-File-Dialog---Verify-debug-logging-electron-tests-retry1\\trace.zip"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
+                    "column": 16,
+                    "line": 121
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "c8a1069e6e06141560f7-9227cdfcb08e0674f7e7",
+          "file": "02-file-dialog-crash-fix.spec.js",
+          "line": 111,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-09-30T19:09:07.536Z",
+    "duration": 36894.284,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}
