@@ -49,8 +49,9 @@ class MaddenEditorApp {
         // Setup event listeners
         this.setupEventListeners();
 
-        // Initialize with sample data if no file loaded
-        this.loadSampleData();
+        // Don't load sample data - app should start blank until file is loaded
+        this.players = [];
+        this.renderRoster();
 
         console.log('Application initialized successfully');
     }
@@ -104,8 +105,8 @@ class MaddenEditorApp {
         });
 
         // File operations
-        document.getElementById('openFileBtn').addEventListener('click', () => {
-            document.getElementById('fileInput').click();
+        document.getElementById('openFileBtn').addEventListener('click', async () => {
+            await this.openFileDialog();
         });
 
         document.getElementById('fileInput').addEventListener('change', (e) => {
@@ -157,28 +158,69 @@ class MaddenEditorApp {
         console.log(`Switched to ${toolName} tool`);
     }
 
-    async handleFileSelect(event) {
-        const file = event.target.files[0];
-        if (!file) return;
+    async openFileDialog() {
+        try {
+            if (typeof window.electronAPI !== 'undefined') {
+                // Use Electron dialog API to get the full file path
+                const result = await window.electronAPI.file.openDialog([
+                    { name: 'All Files', extensions: ['*'] },
+                    { name: 'Roster Files', extensions: [] }
+                ]);
+
+                if (result.success && result.filePath) {
+                    await this.loadRosterFile(result.filePath);
+                } else if (result.canceled) {
+                    console.log('File selection canceled');
+                } else if (result.error) {
+                    this.showError(`Failed to open file: ${result.error}`);
+                }
+            } else {
+                // Fallback for testing without Electron
+                console.warn('Electron API not available - using HTML file input fallback');
+                document.getElementById('fileInput').click();
+            }
+        } catch (error) {
+            console.error('Error opening file dialog:', error);
+            this.showError(`Failed to open file dialog: ${error.message}`);
+        }
+    }
+
+    async loadRosterFile(filePath) {
+        if (!filePath) return;
 
         this.setStatus('Loading file...');
         this.showLoading(true);
 
         try {
-            // For now, just use the file name and load sample data
-            // File validation will be implemented when Electron APIs are working
-            const fileName = file.name;
-            console.log('Selected file:', fileName);
+            const fileName = filePath.replace(/^.*[\\/]/, ''); // Extract filename from path
+            console.log('Loading roster file:', fileName, 'Path:', filePath);
 
             // Update UI
-            this.setCurrentFile(fileName);
+            this.setCurrentFile(filePath);
 
-            // Load sample data for now
-            console.log('Loading sample data (file parsing not yet implemented)');
-            this.loadSampleData();
+            // Use real parser from backend
+            if (typeof window.electronAPI !== 'undefined') {
+                console.log('Loading roster file using real parser...');
+                const result = await window.electronAPI.parser.parseRosterFile(filePath);
+                console.log('Parse result:', result);
 
-            this.renderRoster();
-            this.setStatus(`Loaded ${this.players.length} players from ${fileName}`);
+                if (result.success && result.data) {
+                    // Extract players from the parse result
+                    this.players = result.data.players || [];
+                    this.originalData = result.data; // Store for saving
+
+                    this.renderRoster();
+                    this.setStatus(`Loaded ${this.players.length} players from ${fileName}`);
+                } else {
+                    throw new Error(result.error || 'Unknown parsing error');
+                }
+            } else {
+                // Fallback to sample data for testing without Electron
+                console.log('Electron API not available - loading sample data for testing');
+                this.loadSampleData();
+                this.renderRoster();
+                this.setStatus(`Loaded ${this.players.length} players from ${fileName} (sample data)`);
+            }
 
         } catch (error) {
             console.error('Error loading file:', error);
@@ -186,6 +228,19 @@ class MaddenEditorApp {
         } finally {
             this.showLoading(false);
         }
+    }
+
+    async handleFileSelect(event) {
+        // Fallback for HTML file input (when Electron API not available)
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // For HTML file input, we only get the filename, so use sample data
+        console.log('Using HTML file input fallback - loading sample data');
+        this.setCurrentFile(file.name);
+        this.loadSampleData();
+        this.renderRoster();
+        this.setStatus(`Loaded ${this.players.length} players from ${file.name} (sample data - HTML fallback)`);
     }
 
     setCurrentFile(filePath) {
@@ -991,25 +1046,40 @@ class MaddenEditorApp {
             return;
         }
 
+        if (!this.originalData) {
+            this.showError('No original data available - please reload the file');
+            return;
+        }
+
         this.setStatus('Saving roster...');
         this.showLoading(true);
 
         try {
             if (typeof window.electronAPI !== 'undefined') {
                 // Create backup first
-                await window.electronAPI.file.createBackup(this.currentFile);
+                console.log('Creating backup...');
+                const backupResult = await window.electronAPI.file.createBackup(this.currentFile);
 
-                // Build updated roster file
-                const rosterBuffer = await window.electronAPI.parser.buildRosterFile(
+                if (backupResult.success && backupResult.backupPath) {
+                    console.log('Backup created:', backupResult.backupPath);
+                } else if (backupResult.skipped) {
+                    console.log('Backup skipped (new file)');
+                }
+
+                // Save the roster file
+                console.log('Saving roster file...');
+                const saveResult = await window.electronAPI.parser.saveRosterFile(
+                    this.currentFile,
                     this.players,
-                    { version: 26 }
+                    this.originalData
                 );
 
-                // Save the file
-                await window.electronAPI.file.saveFile(this.currentFile, rosterBuffer);
-
-                this.setStatus('Roster saved successfully');
-                console.log('Roster saved successfully');
+                if (saveResult.success) {
+                    this.setStatus('Roster saved successfully');
+                    console.log('Roster saved successfully');
+                } else {
+                    throw new Error(saveResult.error || 'Unknown save error');
+                }
             } else {
                 // Simulate save for testing
                 await new Promise(resolve => setTimeout(resolve, 1000));

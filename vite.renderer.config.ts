@@ -4,6 +4,7 @@ import { resolve } from 'path';
 // https://vitejs.dev/config
 export default defineConfig({
   root: resolve(__dirname, 'src/renderer'),
+  plugins: [],
   build: {
     outDir: resolve(__dirname, '.vite/renderer'),
     emptyOutDir: true,
@@ -20,7 +21,6 @@ export default defineConfig({
   server: {
     port: 3000,
   },
-  // Remove React-specific ESBuild config for vanilla JS
   optimizeDeps: {
     exclude: []
   },

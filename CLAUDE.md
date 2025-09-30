@@ -1,367 +1,259 @@
-# Madden Editor Suite - Project Context
+# CLAUDE.md
 
-## USER WORKFLOW RULES (MANDATORY)
+# ⚠️ MANDATORY - READ THIS FIRST BEFORE ANY ACTION ⚠️
 
-### Rule 1: Test Agent Verification
-- **Test agent MUST be used** to ensure code is working before allowing user to test
-- No code changes go to user without test agent confirmation
-- Test agent must verify: startup, core functionality, error-free operation
+## CRITICAL RULES - ENFORCED AT ALL TIMES
 
-### Rule 2: Package Agent Validation
-- **Package agent MUST verify** current build can be packaged without error
-- Must ensure: correct data files, dependencies, dynamic paths, no hardcoded paths
-- All builds must be packaging-ready before user testing
+**BEFORE responding to ANY user request, you MUST:**
 
-### Rule 3: Comprehensive Error Handling
-- **NO ERROR should be ignored** - all errors must be addressed
-- Document: what the error was, why it happened, how it was fixed
-- Create error handling subagent if needed for systematic error tracking
-- User must know about every error and its resolution
-
-### Rule 4: No Assumptions About Working Builds
-- Even if test agent confirms working, **user must manually test before git commit**
-- Do not assume success without user verification
-- No moving forward until user confirms functionality
-
-### Rule 5: No Strategy Changes Without Permission
-- **DO NOT change tactics without permission**
-- If current approach isn't working, ASK before trying something else
-- User must approve any deviation from agreed approach
-
-### Rule 6: Mandatory Documentation
-- All errors, fixes, and changes must be documented in this file
-- Track every issue encountered and resolution applied
-- Maintain error log for user reference
-
-## ERROR LOG & FIXES
-
-### 2025-09-25: Major UI and File Opening Fix
-**Errors Encountered:**
-1. **IPC Handler Duplicate Error**: `Error: Attempted to register a second handler for 'app:get-version'`
-   - **Cause**: Both main.ts and simple-handlers.ts registered the same IPC handler
-   - **Fix**: Removed duplicate from simple-handlers.ts, kept in main.ts
-   - **Resolution**: App now starts without errors
-
-2. **File Opening Failure**: "does not open a roster at all"
-   - **Cause**: Looking for .ros extensions but Madden files have NO EXTENSIONS (e.g., "ROSTER-EDITED")
-   - **Fix**: Replaced Electron dialog with HTML `<input type="file" accept="*">`
-   - **Resolution**: Can now select extensionless Madden files
-
-3. **UI Quality Issue**: "looks like trash and does nothing"
-   - **Cause**: Basic gray UI didn't match user's professional working editor
-   - **Fix**: Complete UI redesign with KNuttZ branding, Madden colors, compact layout
-   - **Resolution**: Professional orange/red theme with compact spacing
-
-**Changes Applied:**
-- Removed duplicate IPC handler from src/main/ipc/simple-handlers.ts:4
-- Replaced file opening mechanism in src/renderer/App.tsx with HTML input
-- Updated file validation in src/main/ipc/simple-handlers.ts to accept extensionless files >1KB
-- Removed all extension filtering from main.ts menu dialogs
-- Redesigned App.tsx with professional KNuttZ branding and Madden theme
-- Updated RosterEditor.tsx with compact professional styling
-- Added orange/red gradient colors throughout UI
-- Implemented file status indicators and compact stats display
+1. **READ THIS ENTIRE CLAUDE.MD FILE** - Every time, no exceptions
+2. **CHECK TECH STACK** - It is LOCKED, verify before any changes
+3. **STAY IN PLAN MODE** - For all code changes, propose first
+4. **USE RESEARCH AGENT** - For ANY parsing/file I/O work, research existing implementations FIRST
+5. **WAIT FOR APPROVAL** - After proposing approach, wait for explicit "proceed" or "approved"
 
 ---
 
-## Project Overview
-This is a professional desktop application for comprehensive Madden NFL game file editing. Built with Electron + React + TypeScript, it provides 17+ specialized editing tools with a focus on professional presentation and installer distribution.
+## LOCKED TECH STACK - NO CHANGES ALLOWED WITHOUT EXPLICIT APPROVAL
 
-## Project Goals
-- Create a unified tool for editing all Madden file types
-- Professional UI matching Madden's aesthetic (dark theme, sports styling)
-- Comprehensive editing capabilities for retro and modern seasons
-- Web scraping integration for historical data from pro-football-reference.com
-- Professional installer with code signing (no antivirus false positives)
-- Incremental release strategy with feature tracking
+**Current Stack:**
+- ✅ **Vanilla JavaScript** - Renderer uses pure JS (NO React, NO Vue, NO Angular, NO frameworks)
+- ✅ **Handsontable 16.1.1** - Data grid component (NOT AG-Grid, NOT any other grid)
+- ✅ **Electron 38.1.2** - Desktop application framework
+- ✅ **Playwright** - E2E automated testing
+- ✅ **Vite 5** - Build tool and development server
+- ✅ **TypeScript 4.5** - Type-safe JavaScript (main process only)
+
+**Dependencies Available:**
+- madden-franchise@3.8.0 - Binary parsing (see RESEARCH_FINDINGS.md)
+- bit-buffer - Binary operations
+- SQLite3 - Local database for lookups
+- Sharp - Image processing
+
+❌ **FORBIDDEN:** Adding React, Vue, Angular, or ANY new framework
+❌ **FORBIDDEN:** Changing from Handsontable to another grid
+❌ **FORBIDDEN:** Adding new dependencies without explicit approval
+
+---
+
+## ABSOLUTE RULES
+
+### Rule 1: NO FILE DELETIONS
+- **NEVER delete ANY file without explicit permission for that specific file**
+- If you think a file is unnecessary, **ASK FIRST**, show contents, explain why
+- User will decide - you cannot override
+
+### Rule 2: RESEARCH BEFORE IMPLEMENTATION
+- **BEFORE writing parsers, IPC handlers, or complex logic:**
+  1. Use Task agent (general-purpose) to research existing implementations
+  2. Check RESEARCH_FINDINGS.md for documented solutions
+  3. Create markdown document with findings
+  4. Show user the research
+  5. Wait for approval to proceed
+- **NO "I'll just write it from scratch"** - always use reference implementations
+
+### Rule 3: NEVER BYPASS WORKFLOW
+- Follow the exact workflow defined in WORKFLOW.md
+- Each phase has agent handoffs (coding → testing → packaging → optimization → git)
+- **DO NOT skip steps** - testing agent MUST run before user testing
+- **DO NOT commit** without explicit user approval
+
+### Rule 4: PLAN MODE FOR CODE CHANGES
+- Stay in plan mode for ANY file edits/creation
+- Propose your approach with file list and changes
+- Wait for "approved" or "proceed" before executing
+- If user says "no" or raises concerns, STOP and revise
+
+### Rule 5: ATTRIBUTION AND DOCUMENTATION
+- When using code from reference implementations, **ANNOTATE source**
+- Add comments like: `// Source: madden-franchise by bep713 (MIT License)`
+- Update ERROR_LOG.md when fixing issues
+- Update RELEASE_NOTES.md when completing features
+
+---
+
+## DEVELOPMENT WORKFLOW
+
+**Your workflow for EVERY feature:**
+
+```
+1. User Request → You read CLAUDE.md (this file)
+2. Research (if needed) → Task agent researches, creates findings doc
+3. Plan Mode → Propose approach, list files to change
+4. User Approval → Wait for "proceed" or "approved"
+5. Implementation → Write code
+6. Testing Agent → Playwright runs automated tests
+   - If FAIL → back to step 5
+   - If PASS → continue
+7. User Testing → User manually verifies
+   - If issues → back to step 5
+   - If confirmed working → continue
+8. Packaging Agent → Test electron-forge package
+   - If issues → back to step 5
+   - If success → continue
+9. Optimizer Agent → Check for code issues
+   - If issues found → fix them
+   - If clean → continue
+10. Git Commit → User says "commit this" → Git agent commits
+```
+
+**DO NOT skip steps. DO NOT proceed without approval.**
+
+---
+
+## REFERENCE DOCUMENTATION
+
+**Always check these files BEFORE starting work:**
+
+- **RESEARCH_FINDINGS.md** - All available tools, parsers, reference code
+- **WORKFLOW.md** - Detailed workflow with agent configurations
+- **MASTER_PLAN.md** - 8 phases of development with acceptance criteria
+- **ERROR_LOG.md** - Known issues and solutions
+- **RELEASE_NOTES.md** - Completed features and versions
+
+---
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Commands
+
+### Development
+- `npm start` - Start development server with hot reload
+- `npm run dev` - Alias for npm start
+- `npm run build` - Full build with typecheck, lint, test, and package
+- `npm run typecheck` - TypeScript type checking
+- `npm run lint` - ESLint code linting
+- `npm run lint:fix` - Fix linting issues automatically
+- `npm run test` - Run Jest tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Generate test coverage report
+
+### Building and Packaging
+- `npm run package` - Create platform-specific package
+- `npm run make` - Create distributable packages
+- `npm run publish` - Publish the application
+- `npm run clean` - Clean build artifacts
 
 ## Architecture
 
-### Tech Stack
-- **Frontend**: Electron 28+ + React 19 + TypeScript 5
-- **UI Framework**: Tailwind CSS + Custom Components
-- **State Management**: Zustand
-- **Data Tables**: AG-Grid
-- **3D Rendering**: Three.js (for uniform/field previews)
-- **Image Processing**: Sharp
-- **Database**: SQLite3 (local data cache)
-- **Web Scraping**: Puppeteer + Playwright
-- **Testing**: Jest + React Testing Library
-- **Build**: Vite + Electron Forge
+### Technology Stack
+- **Electron 38.1.2** - Desktop application framework
+- **Vite 5** - Build tool and development server
+- **TypeScript 4.5** - Type-safe JavaScript
+- **Vanilla JavaScript** - Renderer process uses pure JS + Handsontable
+- **Handsontable** - Data grid component (NOT AG-Grid)
+- **SQLite3** - Local database for lookups
+- **Sharp** - Image processing
 
 ### Project Structure
 ```
 src/
-├── main/              # Electron main process
-│   ├── ipc/          # IPC handlers for renderer communication
-│   ├── parsers/      # Binary file parsers for each format
-│   │   ├── roster/   # Roster file parser (.ros)
-│   │   ├── franchise/# Franchise file parser (.fra)
-│   │   ├── draft/    # Draft class parser (.dcl)
-│   │   ├── uniform/  # Uniform file parser (.uni)
-│   │   ├── dds/      # DDS texture parser
-│   │   ├── field/    # Field texture parser
-│   │   ├── stats/    # Stats file parser
-│   │   ├── coach/    # Coach data parser
-│   │   └── salary/   # Salary cap parser
-│   └── database/     # SQLite operations
-├── renderer/         # React frontend
-│   ├── components/   # Reusable UI components
-│   │   ├── Navigation/     # Main app navigation
-│   │   ├── FileExplorer/   # Dynamic path file picker
-│   │   ├── DataGrid/       # AG-Grid wrapper
-│   │   ├── ColorPicker/    # Color selection (uniform editor)
-│   │   └── Preview3D/      # 3D preview (Three.js)
-│   ├── features/     # Feature modules (17 tools)
-│   │   ├── roster/         # Player attribute editing
-│   │   ├── draft/          # Draft class creation/editing
-│   │   ├── coach/          # Coach profiles and records
-│   │   ├── pid/            # Player image (PID) editor
-│   │   ├── stats/          # Historical stats editor
-│   │   ├── history/        # Season start date editor
-│   │   ├── expansion/      # Expansion draft tool
-│   │   ├── field/          # Stadium field customization
-│   │   ├── salary/         # Salary cap management
-│   │   ├── commentary/     # Commentary ID fixes
-│   │   ├── weather/        # Weather controls
-│   │   ├── uniform/        # Uniform color/texture editor
-│   │   ├── visuals/        # Splash screens, scorebugs
-│   │   ├── mods/           # Era mod switcher
-│   │   └── export/         # File conversion tools
-│   ├── hooks/        # Custom React hooks
-│   ├── utils/        # Frontend utilities
-│   └── types/        # TypeScript type definitions
-├── scrapers/         # Web scraping modules
-│   ├── pfr/         # Pro-football-reference.com scraper
-│   └── historical/  # Historical data processors
-└── shared/          # Shared code between main/renderer
-    ├── types/       # Shared TypeScript types
-    ├── constants/   # Application constants
-    └── utils/       # Shared utilities
+├── main/                    # Electron main process
+│   ├── ipc/                # IPC handlers for renderer communication
+│   │   ├── parser-handlers.ts    # File parsing operations
+│   │   ├── lookup-handlers.ts    # Lookup system operations
+│   │   └── file-handlers.ts      # File I/O operations
+│   ├── parsers/            # Binary file parsers
+│   │   ├── BinaryReader.js       # Binary reading utilities
+│   │   └── TDBFileValidator.js   # TDB format validation
+│   └── services/           # Business logic services
+├── renderer/               # Frontend (Electron renderer)
+│   ├── js/                 # Vanilla JavaScript application code
+│   │   └── app.js          # Main application logic
+│   ├── data/               # Field definitions and lookup data
+│   └── hooks/              # React-style hooks (if using React)
+└── shared/                 # Shared types and utilities
+    └── types/              # TypeScript type definitions
 ```
 
-## Feature List (17 Tools)
+### Key Files
+- **src/main.ts** - Main Electron process entry point
+- **src/preload.ts** - Preload script exposing APIs to renderer
+- **src/renderer/js/app.js** - Main frontend application
+- **src/main/parsers/BinaryReader.js** - Binary file reading utilities
+- **src/main/parsers/TDBFileValidator.js** - Madden file format detection
+- **src/main/ipc/parser-handlers.ts** - File parsing IPC handlers
 
-### Phase 1: Core Tools (v0.1.0)
-1. **Roster Editor** - Full player attribute editing with data grid
-2. **Draft Class Editor** - Create/modify draft classes with player generation
-3. **Coach Editor** - Edit coach attributes, records, and AI tendencies
-4. **Export Tool** - Convert franchise to roster file format
+### Data Flow
+1. **File Selection**: Frontend → IPC → File handlers
+2. **File Parsing**: File handlers → Parser handlers → Binary readers → Frontend
+3. **Data Display**: Frontend uses Handsontable for data grid display
+4. **Data Editing**: Handsontable → Frontend validation → Player data updates
+5. **File Saving**: Frontend → IPC → Parser handlers → Binary writers
 
-### Phase 2: Enhanced Editing (v0.2.0)
-5. **PID Editor** - In-game photo management and replacement
-6. **Stats Editor** - Historical stats modification for retro accuracy
-7. **Commentary Fix Tool** - Audio ID mapping corrections for proper names
-8. **Salary Cap Editor** - Team salary cap management and penalties
+## Important Patterns
 
-### Phase 3: Retro Features (v0.3.0)
-9. **History Editor** - Start franchise from past seasons
-10. **Expansion Draft Tool** - Add new teams with custom draft rules
-11. **Draft Helper** - Multi-team draft control and automation
-12. **Weather Controls** - Game condition and weather modifications
+### IPC Communication
+- All file operations go through IPC handlers
+- Use `window.electronAPI` in renderer for main process communication
+- Parser operations are asynchronous and return promises
 
-### Phase 4: Visual Customization (v0.4.0)
-13. **Field Editor** - Stadium field texture and logo customization
-14. **Splash Screen Editor** - Custom loading screens and era branding
-15. **Scorebug Editor** - Era-specific scoreboards and overlays
-16. **Equipment Editor** - Period-accurate uniforms and equipment
-17. **Uniform Editor** - Team uniform color/design/texture customization
+### File Parsing
+- Files are validated using TDBFileValidator before parsing
+- BinaryReader handles low-level binary operations
+- Parser handlers contain format-specific parsing logic
+- Fallback to sample data if parsing fails
 
-### Phase 5: Advanced Features (v1.0.0)
-- **Era Mod Switcher** - Quick switching between time periods
-- **Web Scraping Integration** - Auto-import from pro-football-reference.com
-- **Batch Processing** - Multi-file operations and team processing
-- **Cloud Sync** - Settings and roster sharing (optional)
+### Error Handling
+- Always wrap IPC calls in try-catch blocks
+- Display user-friendly error messages
+- Log detailed error information to console
+- Maintain application state even when operations fail
 
-## Development Standards
+## Development Guidelines
 
-### Code Quality
-- TypeScript strict mode enabled
-- ESLint + Prettier formatting
-- 85% test coverage minimum
-- Jest + React Testing Library
-- Visual regression tests for UI
+### Module System
+- Main process uses ES6 imports (`import`/`export`)
+- Parser files (BinaryReader, TDBFileValidator) use ES6 exports
+- Avoid mixing CommonJS (`require`) with ES6 imports
 
-### File Handling
-- Always create backups before modifications
-- Dynamic path selection (no hardcoded paths)
-- Transaction support for multi-file operations
-- Checksum validation after every operation
-- Stream processing for large files (>10MB)
+### File Structure Conventions
+- Keep binary parsers in `src/main/parsers/`
+- IPC handlers go in `src/main/ipc/`
+- Frontend JavaScript in `src/renderer/js/`
+- Shared types in `src/shared/types/`
 
-### Security
-- Code signing certificate for installer
-- Sandbox all file operations
-- Input validation on all forms
-- No hardcoded credentials or paths
-- HTTPS-only for updates and scraping
+### Testing
+- Use Jest for unit tests
+- Test binary parsing logic thoroughly
+- Mock Electron APIs for renderer tests
+- Maintain test coverage above 80%
 
-### Performance Targets
-- Startup time: < 3 seconds
-- File parsing: < 500ms for roster files
-- 3D preview: 60 FPS minimum
-- UI responsiveness: < 100ms for operations
-- Memory usage: < 150MB idle, < 500MB active
+## Common Issues
 
-## File Formats
+### Module Import Errors
+If you see "Cannot find module" errors:
+1. Check that ES6 imports/exports are used consistently
+2. Verify file paths are correct relative to importing file
+3. Ensure Vite configuration includes necessary files
 
-### Madden File Types
-- `.ros` - Roster files (player data)
-- `.fra` - Franchise files (full season data)
-- `.dcl` - Draft class files
-- `.uni` - Uniform configuration files
-- `.dds` - DirectDraw Surface textures
-- `.ast` - Asset package files
-- `.col` - Color palette files
-- `.fld` - Field texture files
+### Electron App Not Starting
+1. Check main.ts for syntax errors
+2. Verify preload.ts exposes required APIs
+3. Ensure all IPC handlers are registered
+4. Check console for detailed error messages
 
-### Binary Parsing Requirements
+### Parser Not Working
+1. Verify TDBFileValidator and BinaryReader imports
+2. Check file path resolution in IPC handlers
+3. Test with known good Madden files
+4. Review parser-handlers.ts for errors
+
+## Madden File Formats
+
+### Supported Formats
+- **TDB Legacy** - Original format with "TDB\0" signature
+- **TDB2 Compressed** - zlib-compressed format
+- **TDB2 Uncompressed** - "TDB\x02" signature
+- **FBCH** - Modern Madden format with "FBCH" signature
+
+### File Extensions
+- Madden files often have NO file extension
+- Examples: "ROSTER-Official", "CAREER-DRAFT", etc.
+- Use file content validation instead of extension checking
+
+### Binary Structure
 - Little-endian byte order
-- Variable-length encoding for strings
-- Checksum validation
-- Version compatibility handling
-- Mipmap support for textures
-
-## Development Workflow
-
-### Git Strategy
-```
-main                 # Stable releases only
-├── develop         # Integration branch
-│   ├── feature/*   # New features
-│   ├── fix/*      # Bug fixes
-│   └── release/*  # Release preparation
-└── hotfix/*       # Emergency fixes
-```
-
-### Commit Convention
-```
-feat: Add roster export functionality
-fix: Correct PID image loading issue
-docs: Update uniform editor guide
-style: Format texture manager component
-refactor: Optimize binary parser performance
-test: Add draft class validation tests
-chore: Update dependencies
-```
-
-### Release Process
-1. Weekly releases with incremental features
-2. Automated testing on all commits
-3. Code signing for all releases
-4. Comprehensive changelog documentation
-5. GitHub releases with installer packages
-
-## Testing Strategy
-
-### Test Structure
-```
-tests/
-├── unit/
-│   ├── parsers/    # Binary parser tests
-│   ├── components/ # React component tests
-│   └── utils/      # Utility function tests
-├── integration/
-│   ├── file-operations/     # File I/O tests
-│   ├── texture-processing/  # Image processing tests
-│   └── database/           # SQLite operation tests
-├── e2e/
-│   ├── roster-workflow.test.ts
-│   ├── uniform-workflow.test.ts
-│   └── draft-workflow.test.ts
-├── visual/
-│   └── ui-regression.test.ts
-└── performance/
-    └── benchmarks.test.ts
-```
-
-### Test Requirements
-- Unit tests: 85% coverage minimum
-- Integration tests: Critical user paths
-- E2E tests: Complete workflows
-- Performance tests: Each major feature
-- Visual tests: UI components and 3D renders
-
-## User Interface Guidelines
-
-### Design Principles
-- Dark theme matching Madden's aesthetic
-- Professional sports application styling
-- Clear navigation between tools
-- Real-time previews for all changes
-- Responsive design for different screen sizes
-
-### Component Standards
-- Consistent spacing and typography
-- Loading states for async operations
-- Error boundaries with user-friendly messages
-- Keyboard shortcuts for power users
-- Tooltips and help text for complex features
-
-## Installation & Distribution
-
-### Installer Requirements
-- Windows Squirrel installer (primary)
-- Code signing to prevent antivirus false positives
-- User selectable installation directory
-- Desktop shortcut creation
-- Uninstaller with clean removal
-
-### Auto-Update System
-- Silent background updates
-- Update notifications
-- Rollback capability
-- Delta updates for smaller downloads
-- Update channel selection (stable/beta)
-
-## Community Integration
-
-### Existing Madden Modding Tools
-- Research compatibility with existing editors
-- Import/export with common formats
-- Community asset sharing
-- Plugin architecture for third-party tools
-- Open-source components where appropriate
-
-### Future Extensibility
-- Plugin system for custom tools
-- API for third-party integrations
-- Community marketplace for assets
-- Scripting support for automation
-- Template sharing system
-
-## Version History
-
-### Tracking System
-- CHANGELOG.md with detailed feature additions
-- Semantic versioning (MAJOR.MINOR.PATCH)
-- Release notes with screenshots
-- Migration guides for breaking changes
-- Feature deprecation warnings
-
-### Documentation Requirements
-- User guides with video tutorials
-- API documentation for developers
-- File format specifications
-- Troubleshooting guides
-- FAQ section with common issues
-
-## Development Environment
-
-### Required Tools
-- Node.js 20 LTS
-- npm 10+
-- Git 2.40+
-- Code signing certificate (for releases)
-- Windows SDK (for native modules)
-
-### Recommended Setup
-- VS Code with extensions:
-  - TypeScript + ESLint + Prettier
-  - Jest Test Explorer
-  - Electron debugging
-  - Git integration
-- Chrome DevTools for renderer debugging
-- Electron debugging tools
-
-This project represents a comprehensive solution for Madden NFL game file editing with professional presentation and distribution standards. The incremental release strategy ensures users receive working features quickly while maintaining high quality standards.
+- Variable-length strings with null terminators
+- Multiple table structures within single file
+- Requires binary reader for proper parsing
