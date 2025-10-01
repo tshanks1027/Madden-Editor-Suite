@@ -489,12 +489,16 @@ class MaddenEditorApp {
             fieldCodes = visibleFields;
             displayNames = visibleFields.map(fieldName => {
                 const fieldDef = getFieldDefinition(fieldName);
-                return fieldDef.display;
+                return fieldDef.shortDisplay || fieldDef.display;
             });
         } else {
             // For basic fields mode, extract from tuple structure
             fieldCodes = visibleFields.map(field => Array.isArray(field) ? field[0] : field);
-            displayNames = visibleFields.map(field => Array.isArray(field) ? field[1] : getFieldDefinition(field).display);
+            displayNames = visibleFields.map(field => {
+                const fieldName = Array.isArray(field) ? field[0] : field;
+                const fieldDef = getFieldDefinition(fieldName);
+                return fieldDef.shortDisplay || fieldDef.display;
+            });
         }
 
         // Calculate pagination
@@ -513,14 +517,13 @@ class MaddenEditorApp {
         const columns = fieldCodes.map(fieldName => {
             const fieldDef = getFieldDefinition(fieldName);
             let columnConfig = {
-                // Don't set width - let autoColumnSize handle it
                 readOnly: !fieldDef.editable,
                 allowInvalid: false
             };
 
             // Configure column type and editor based on field type
             if (fieldDef.type === 'lookup' && fieldDef.lookup) {
-                // Dropdown for lookup fields
+                // Dropdown for lookup fields - let autoColumnSize handle width
                 const options = getLookupOptions(fieldDef.lookup);
                 columnConfig = {
                     ...columnConfig,
@@ -534,10 +537,11 @@ class MaddenEditorApp {
                     } : undefined
                 };
             } else if (fieldName === 'PSXP') {
-                // Special handling for PID field with custom renderer
+                // Special handling for PID field with custom renderer - fixed width
                 columnConfig = {
                     ...columnConfig,
                     type: 'text',
+                    width: 50,
                     renderer: this.pidRenderer.bind(this),
                     readOnly: false,  // Override to ensure it's editable
                     validator: fieldDef.editable ? (value, callback) => {
@@ -546,7 +550,7 @@ class MaddenEditorApp {
                     } : undefined
                 };
             } else if (fieldName === 'PLAYERPIC') {
-                // Special handling for Player Pic field with autocomplete
+                // Special handling for Player Pic field with autocomplete - let autoColumnSize handle width
                 columnConfig = {
                     ...columnConfig,
                     type: 'autocomplete',
@@ -560,18 +564,19 @@ class MaddenEditorApp {
                     readOnly: false  // Make it editable
                 };
             } else if (fieldDef.type === 'numeric') {
-                // Numeric fields
+                // Numeric fields - fixed width for stats (1-99 range)
                 columnConfig = {
                     ...columnConfig,
                     type: 'numeric',
                     format: '0',
+                    width: 50,  // Fixed width for stat columns
                     validator: fieldDef.editable ? (value, callback) => {
                         const validation = validateFieldValue(fieldName, value);
                         callback(validation.isValid);
                     } : undefined
                 };
             } else {
-                // Text fields
+                // Text fields - let autoColumnSize handle width
                 columnConfig = {
                     ...columnConfig,
                     type: 'text',
@@ -588,10 +593,20 @@ class MaddenEditorApp {
         // Store field mapping for data changes
         this.currentFieldMapping = fieldCodes;
 
+        // Create custom column headers with tooltips
+        const colHeaders = (colIndex) => {
+            const fieldName = fieldCodes[colIndex];
+            const fieldDef = getFieldDefinition(fieldName);
+            const displayName = displayNames[colIndex];
+
+            // Return HTML with title attribute for tooltip
+            return `<span title="${fieldDef.display}">${displayName}</span>`;
+        };
+
         // Initialize Handsontable with proper validation and editing
         this.hotTable = new Handsontable(hotContainer, {
             data: data,
-            colHeaders: displayNames,
+            colHeaders: colHeaders,
             columns: columns,
             rowHeaders: true,
             width: '100%',
