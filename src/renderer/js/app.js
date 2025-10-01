@@ -550,6 +550,9 @@ class MaddenEditorApp {
             scrollH: true,
             scrollV: true,
 
+            // Freeze columns
+            fixedColumnsStart: 2, // Freeze First Name and Last Name columns
+
             // Editing
             enterMoves: { row: 1, col: 0 },
 
