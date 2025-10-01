@@ -1371,8 +1371,17 @@ class MaddenEditorApp {
         // Show team header
         const teamHeader = document.getElementById('teamViewHeader');
         const teamName = document.getElementById('teamName');
+        const teamLogo = document.getElementById('teamLogo');
+
         teamHeader.style.display = 'flex';
         teamName.textContent = team.fullName;
+
+        // Set team logo if available
+        if (team.logo) {
+            teamLogo.innerHTML = `<img src="${team.logo}" alt="${team.fullName} logo" class="team-logo-img">`;
+        } else {
+            teamLogo.innerHTML = '';
+        }
 
         // Apply team colors
         this.applyTeamColors(team);
@@ -1401,9 +1410,24 @@ class MaddenEditorApp {
         root.style.setProperty('--team-primary', team.primary);
         root.style.setProperty('--team-secondary', team.secondary);
 
-        // Apply team colors to header and other elements
+        // Apply team colors to header
         const teamHeader = document.getElementById('teamViewHeader');
         teamHeader.style.background = `linear-gradient(135deg, ${team.primary} 0%, ${team.secondary} 100%)`;
+
+        // Apply team colors to data grid container
+        const gridContainer = document.getElementById('rosterGrid');
+        if (gridContainer) {
+            gridContainer.style.background = `linear-gradient(135deg, ${team.primary} 0%, ${team.secondary} 100%)`;
+            gridContainer.style.padding = '2px'; // Small padding to show gradient border
+            gridContainer.classList.add('team-view-active'); // Enable team-colored selections
+        }
+
+        // Apply subtle team-colored overlay to Handsontable
+        const hotContainer = gridContainer.querySelector('.handsontable');
+        if (hotContainer) {
+            hotContainer.style.position = 'relative';
+            hotContainer.style.background = '#1a1a1a'; // Keep table dark for readability
+        }
     }
 
     resetColors() {
@@ -1411,7 +1435,22 @@ class MaddenEditorApp {
         root.style.removeProperty('--team-primary');
         root.style.removeProperty('--team-secondary');
 
+        // Reset header
         document.getElementById('teamViewHeader').style.background = '';
+
+        // Reset grid container
+        const gridContainer = document.getElementById('rosterGrid');
+        if (gridContainer) {
+            gridContainer.style.background = '';
+            gridContainer.style.padding = '';
+            gridContainer.classList.remove('team-view-active'); // Disable team-colored selections
+        }
+
+        // Reset Handsontable container
+        const hotContainer = gridContainer?.querySelector('.handsontable');
+        if (hotContainer) {
+            hotContainer.style.background = '';
+        }
     }
 
     updateStats() {

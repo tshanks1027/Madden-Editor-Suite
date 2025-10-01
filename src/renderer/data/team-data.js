@@ -1,5 +1,6 @@
-// NFL Team Data - Colors, Names, Abbreviations
-// Scraped by scrape-agent from teampalettes.com
+// NFL Team Data - Colors, Names, Abbreviations, Logos
+// Colors scraped by scrape-agent from teampalettes.com
+// Logos scraped by scrape-agent from NFL.com official CDN
 
 export const NFL_TEAMS = {
   1: {
@@ -9,7 +10,8 @@ export const NFL_TEAMS = {
     fullName: 'Chicago Bears',
     abbr: 'CHI',
     primary: '#0B162A',
-    secondary: '#C83803'
+    secondary: '#C83803',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/CHI.svg'
   },
   2: {
     id: 2,
@@ -18,7 +20,8 @@ export const NFL_TEAMS = {
     fullName: 'Cincinnati Bengals',
     abbr: 'CIN',
     primary: '#FB4F14',
-    secondary: '#000000'
+    secondary: '#000000',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/CIN.svg'
   },
   3: {
     id: 3,
@@ -27,7 +30,8 @@ export const NFL_TEAMS = {
     fullName: 'Buffalo Bills',
     abbr: 'BUF',
     primary: '#00338D',
-    secondary: '#C60C30'
+    secondary: '#C60C30',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/BUF.svg'
   },
   4: {
     id: 4,
@@ -36,7 +40,8 @@ export const NFL_TEAMS = {
     fullName: 'Denver Broncos',
     abbr: 'DEN',
     primary: '#FB4F14',
-    secondary: '#002244'
+    secondary: '#002244',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/DEN.svg'
   },
   5: {
     id: 5,
@@ -45,7 +50,8 @@ export const NFL_TEAMS = {
     fullName: 'Cleveland Browns',
     abbr: 'CLE',
     primary: '#311D00',
-    secondary: '#FF3C00'
+    secondary: '#FF3C00',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/CLE.svg'
   },
   6: {
     id: 6,
@@ -54,7 +60,8 @@ export const NFL_TEAMS = {
     fullName: 'Tampa Bay Buccaneers',
     abbr: 'TB',
     primary: '#D50A0A',
-    secondary: '#34302B'
+    secondary: '#34302B',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/TB.svg'
   },
   7: {
     id: 7,
@@ -63,7 +70,8 @@ export const NFL_TEAMS = {
     fullName: 'Arizona Cardinals',
     abbr: 'ARI',
     primary: '#97233F',
-    secondary: '#000000'
+    secondary: '#000000',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/ARI.svg'
   },
   8: {
     id: 8,
@@ -72,7 +80,8 @@ export const NFL_TEAMS = {
     fullName: 'Los Angeles Chargers',
     abbr: 'LAC',
     primary: '#0080C6',
-    secondary: '#FFC20E'
+    secondary: '#FFC20E',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/LAC.svg'
   },
   9: {
     id: 9,
@@ -81,7 +90,8 @@ export const NFL_TEAMS = {
     fullName: 'Kansas City Chiefs',
     abbr: 'KC',
     primary: '#E31837',
-    secondary: '#FFB81C'
+    secondary: '#FFB81C',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/KC.svg'
   },
   10: {
     id: 10,
@@ -90,7 +100,8 @@ export const NFL_TEAMS = {
     fullName: 'Indianapolis Colts',
     abbr: 'IND',
     primary: '#002C5F',
-    secondary: '#FFFFFF'
+    secondary: '#FFFFFF',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/IND.svg'
   },
   11: {
     id: 11,
@@ -99,7 +110,8 @@ export const NFL_TEAMS = {
     fullName: 'Dallas Cowboys',
     abbr: 'DAL',
     primary: '#003594',
-    secondary: '#869397'
+    secondary: '#869397',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/DAL.svg'
   },
   12: {
     id: 12,
@@ -108,7 +120,8 @@ export const NFL_TEAMS = {
     fullName: 'Miami Dolphins',
     abbr: 'MIA',
     primary: '#008E97',
-    secondary: '#FC4C02'
+    secondary: '#FC4C02',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/MIA.svg'
   },
   13: {
     id: 13,
@@ -117,7 +130,8 @@ export const NFL_TEAMS = {
     fullName: 'Philadelphia Eagles',
     abbr: 'PHI',
     primary: '#004C54',
-    secondary: '#A5ACAF'
+    secondary: '#A5ACAF',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/PHI.svg'
   },
   14: {
     id: 14,
@@ -126,7 +140,8 @@ export const NFL_TEAMS = {
     fullName: 'Atlanta Falcons',
     abbr: 'ATL',
     primary: '#A71930',
-    secondary: '#000000'
+    secondary: '#000000',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/ATL.svg'
   },
   15: {
     id: 15,
@@ -135,7 +150,8 @@ export const NFL_TEAMS = {
     fullName: 'San Francisco 49ers',
     abbr: 'SF',
     primary: '#AA0000',
-    secondary: '#B3995D'
+    secondary: '#B3995D',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/SF.svg'
   },
   16: {
     id: 16,
@@ -144,7 +160,8 @@ export const NFL_TEAMS = {
     fullName: 'New York Giants',
     abbr: 'NYG',
     primary: '#0B2265',
-    secondary: '#A71930'
+    secondary: '#A71930',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/NYG.svg'
   },
   17: {
     id: 17,
@@ -153,7 +170,8 @@ export const NFL_TEAMS = {
     fullName: 'Jacksonville Jaguars',
     abbr: 'JAX',
     primary: '#006778',
-    secondary: '#D7A22A'
+    secondary: '#D7A22A',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/JAX.svg'
   },
   18: {
     id: 18,
@@ -162,7 +180,8 @@ export const NFL_TEAMS = {
     fullName: 'New York Jets',
     abbr: 'NYJ',
     primary: '#125740',
-    secondary: '#FFFFFF'
+    secondary: '#FFFFFF',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/NYJ.svg'
   },
   19: {
     id: 19,
@@ -171,7 +190,8 @@ export const NFL_TEAMS = {
     fullName: 'Detroit Lions',
     abbr: 'DET',
     primary: '#0076B6',
-    secondary: '#B0B7BC'
+    secondary: '#B0B7BC',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/DET.svg'
   },
   20: {
     id: 20,
@@ -180,7 +200,8 @@ export const NFL_TEAMS = {
     fullName: 'Green Bay Packers',
     abbr: 'GB',
     primary: '#203731',
-    secondary: '#FFB612'
+    secondary: '#FFB612',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/GB.svg'
   },
   21: {
     id: 21,
@@ -189,7 +210,8 @@ export const NFL_TEAMS = {
     fullName: 'Carolina Panthers',
     abbr: 'CAR',
     primary: '#101820',
-    secondary: '#0085CA'
+    secondary: '#0085CA',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/CAR.svg'
   },
   22: {
     id: 22,
@@ -198,7 +220,8 @@ export const NFL_TEAMS = {
     fullName: 'New England Patriots',
     abbr: 'NE',
     primary: '#002244',
-    secondary: '#C60C30'
+    secondary: '#C60C30',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/NE.svg'
   },
   23: {
     id: 23,
@@ -207,7 +230,8 @@ export const NFL_TEAMS = {
     fullName: 'Las Vegas Raiders',
     abbr: 'LV',
     primary: '#000000',
-    secondary: '#A5ACAF'
+    secondary: '#A5ACAF',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/LV.svg'
   },
   24: {
     id: 24,
@@ -216,7 +240,8 @@ export const NFL_TEAMS = {
     fullName: 'Los Angeles Rams',
     abbr: 'LAR',
     primary: '#003594',
-    secondary: '#FFA300'
+    secondary: '#FFA300',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/LAR.svg'
   },
   25: {
     id: 25,
@@ -225,7 +250,8 @@ export const NFL_TEAMS = {
     fullName: 'Baltimore Ravens',
     abbr: 'BAL',
     primary: '#241773',
-    secondary: '#000000'
+    secondary: '#000000',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/BAL.svg'
   },
   26: {
     id: 26,
@@ -234,7 +260,8 @@ export const NFL_TEAMS = {
     fullName: 'Washington Commanders',
     abbr: 'WAS',
     primary: '#5A1414',
-    secondary: '#FFB612'
+    secondary: '#FFB612',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/WAS.svg'
   },
   27: {
     id: 27,
@@ -243,7 +270,8 @@ export const NFL_TEAMS = {
     fullName: 'New Orleans Saints',
     abbr: 'NO',
     primary: '#101820',
-    secondary: '#D3BC8D'
+    secondary: '#D3BC8D',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/NO.svg'
   },
   28: {
     id: 28,
@@ -252,7 +280,8 @@ export const NFL_TEAMS = {
     fullName: 'Seattle Seahawks',
     abbr: 'SEA',
     primary: '#002244',
-    secondary: '#69BE28'
+    secondary: '#69BE28',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/SEA.svg'
   },
   29: {
     id: 29,
@@ -261,7 +290,8 @@ export const NFL_TEAMS = {
     fullName: 'Pittsburgh Steelers',
     abbr: 'PIT',
     primary: '#101820',
-    secondary: '#FFB612'
+    secondary: '#FFB612',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/PIT.svg'
   },
   30: {
     id: 30,
@@ -270,7 +300,8 @@ export const NFL_TEAMS = {
     fullName: 'Tennessee Titans',
     abbr: 'TEN',
     primary: '#0C2340',
-    secondary: '#4B92DB'
+    secondary: '#4B92DB',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/TEN.svg'
   },
   31: {
     id: 31,
@@ -279,7 +310,8 @@ export const NFL_TEAMS = {
     fullName: 'Minnesota Vikings',
     abbr: 'MIN',
     primary: '#4F2683',
-    secondary: '#FFC62F'
+    secondary: '#FFC62F',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/MIN.svg'
   },
   32: {
     id: 32,
@@ -288,7 +320,8 @@ export const NFL_TEAMS = {
     fullName: 'Houston Texans',
     abbr: 'HOU',
     primary: '#03202F',
-    secondary: '#A71930'
+    secondary: '#A71930',
+    logo: 'https://static.www.nfl.com/league/api/clubs/logos/HOU.svg'
   }
 };
 
