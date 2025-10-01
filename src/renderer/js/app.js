@@ -24,6 +24,7 @@ class MaddenEditorApp {
         this.currentTool = 'roster';
         this.currentFile = null;
         this.players = [];
+        this.filteredPlayers = []; // Filtered/sorted view of players
         this.lookupReady = false;
         this.selectedPosition = '';
         this.showAllColumns = false;
@@ -33,6 +34,9 @@ class MaddenEditorApp {
         this.currentPage = 1;
         this.rowsPerPage = 100;
         this.totalPages = 1;
+
+        // Sorting state
+        this.sortColumns = []; // Array of {column: fieldName, order: 'asc'|'desc'}
 
         this.init();
     }
@@ -470,6 +474,9 @@ class MaddenEditorApp {
             return;
         }
 
+        // Apply filtering and sorting to get the view
+        this.applyFiltersAndSort();
+
         // Destroy existing Handsontable instance if it exists
         if (this.hotTable) {
             this.hotTable.destroy();
@@ -501,11 +508,16 @@ class MaddenEditorApp {
             });
         }
 
-        // Calculate pagination
-        this.totalPages = Math.ceil(this.players.length / this.rowsPerPage);
+        // Calculate pagination using filteredPlayers
+        this.totalPages = Math.ceil(this.filteredPlayers.length / this.rowsPerPage);
         const startIndex = (this.currentPage - 1) * this.rowsPerPage;
-        const endIndex = Math.min(startIndex + this.rowsPerPage, this.players.length);
-        const paginatedPlayers = this.players.slice(startIndex, endIndex);
+        const endIndex = Math.min(startIndex + this.rowsPerPage, this.filteredPlayers.length);
+        const paginatedPlayers = this.filteredPlayers.slice(startIndex, endIndex);
+
+        // Store paginated player indices for mapping back to filteredPlayers
+        this.paginatedPlayerIndices = paginatedPlayers.map(player =>
+            this.filteredPlayers.indexOf(player)
+        );
 
         // Prepare data and columns for Handsontable (only current page)
         const data = paginatedPlayers.map(player => {
@@ -593,14 +605,18 @@ class MaddenEditorApp {
         // Store field mapping for data changes
         this.currentFieldMapping = fieldCodes;
 
-        // Create custom column headers with tooltips
+        // Create custom column headers with tooltips and sort indicators
         const colHeaders = (colIndex) => {
             const fieldName = fieldCodes[colIndex];
             const fieldDef = getFieldDefinition(fieldName);
             const displayName = displayNames[colIndex];
 
-            // Return HTML with title attribute for tooltip
-            return `<span title="${fieldDef.display}">${displayName}</span>`;
+            // Check if this column is currently sorted
+            const sortInfo = this.sortColumns.find(s => s.column === fieldName);
+            const sortIndicator = sortInfo ? (sortInfo.order === 'asc' ? ' ▲' : ' ▼') : '';
+
+            // Return HTML with title attribute for tooltip and sort indicator
+            return `<span class="sortable-header" data-field="${fieldName}" title="${fieldDef.display}">${displayName}${sortIndicator}</span>`;
         };
 
         // Initialize Handsontable with proper validation and editing
@@ -625,6 +641,10 @@ class MaddenEditorApp {
             },
             manualColumnResize: true,
             manualRowResize: false,
+
+            // Column sorting - disable built-in plugins since we handle sorting manually
+            columnSorting: false,
+            multiColumnSorting: false,
 
             // Selection
             selectionMode: 'multiple',
@@ -693,9 +713,10 @@ class MaddenEditorApp {
                 this.setStatus('Ready');
             },
 
-            // Setup PID event listeners after rendering
+            // Setup PID event listeners and header click handlers after rendering
             afterRender: () => {
                 this.setupPIDEventListeners();
+                this.setupHeaderClickHandlers();
             },
 
 
@@ -849,9 +870,10 @@ class MaddenEditorApp {
 
         // Update player data based on Handsontable changes
         changes.forEach(([row, colIndex, oldValue, newValue]) => {
-            // Calculate actual player index accounting for pagination
-            const startIndex = (this.currentPage - 1) * this.rowsPerPage;
-            const actualPlayerIndex = startIndex + row;
+            // Map from paginated row to filteredPlayers index to players array index
+            const filteredIndex = this.paginatedPlayerIndices[row];
+            const actualPlayer = this.filteredPlayers[filteredIndex];
+            const actualPlayerIndex = this.players.indexOf(actualPlayer);
 
             if (oldValue !== newValue && this.players[actualPlayerIndex] && this.currentFieldMapping) {
                 const fieldName = this.currentFieldMapping[colIndex];
@@ -1175,8 +1197,119 @@ class MaddenEditorApp {
         return positions[posId] || 'Unknown';
     }
 
+    applyFiltersAndSort() {
+        // Start with all players
+        let filtered = [...this.players];
+
+        // Apply position filter
+        if (this.selectedPosition) {
+            filtered = filtered.filter(player => {
+                const position = getLookupValue('positions', player.PPOS);
+                return position === this.selectedPosition;
+            });
+        }
+
+        // Apply sorting
+        if (this.sortColumns.length > 0) {
+            filtered.sort((a, b) => {
+                // Multi-column sort - check each sort column in order
+                for (const sortCol of this.sortColumns) {
+                    const fieldName = sortCol.column;
+                    const valueA = this.getPlayerFieldValue(a, fieldName);
+                    const valueB = this.getPlayerFieldValue(b, fieldName);
+
+                    // Compare values
+                    let comparison = 0;
+
+                    // Handle empty values
+                    if (valueA === '' || valueA === null || valueA === undefined) {
+                        comparison = 1;
+                    } else if (valueB === '' || valueB === null || valueB === undefined) {
+                        comparison = -1;
+                    } else if (typeof valueA === 'number' && typeof valueB === 'number') {
+                        // Numeric comparison
+                        comparison = valueA - valueB;
+                    } else {
+                        // String comparison (case insensitive)
+                        const strA = String(valueA).toLowerCase();
+                        const strB = String(valueB).toLowerCase();
+                        comparison = strA.localeCompare(strB);
+                    }
+
+                    // Apply sort order
+                    if (comparison !== 0) {
+                        return sortCol.order === 'asc' ? comparison : -comparison;
+                    }
+
+                    // If equal, continue to next sort column
+                }
+                return 0;
+            });
+        }
+
+        // Store filtered and sorted result
+        this.filteredPlayers = filtered;
+    }
+
+    setupHeaderClickHandlers() {
+        // Add click handlers to sortable headers
+        const headers = document.querySelectorAll('.sortable-header');
+        headers.forEach(header => {
+            header.style.cursor = 'pointer';
+            header.addEventListener('click', (e) => {
+                const fieldName = e.target.dataset.field;
+                const isShiftKey = e.shiftKey;
+
+                // Handle column sort
+                this.toggleColumnSort(fieldName, isShiftKey);
+            });
+        });
+    }
+
+    toggleColumnSort(fieldName, isMultiColumn) {
+        // Find existing sort for this column
+        const existingSortIndex = this.sortColumns.findIndex(s => s.column === fieldName);
+
+        if (!isMultiColumn) {
+            // Single column sort - clear all other sorts
+            if (existingSortIndex >= 0) {
+                // Toggle between asc/desc/none
+                const currentOrder = this.sortColumns[existingSortIndex].order;
+                if (currentOrder === 'asc') {
+                    this.sortColumns = [{ column: fieldName, order: 'desc' }];
+                } else {
+                    // desc -> remove sort
+                    this.sortColumns = [];
+                }
+            } else {
+                // Start with ascending
+                this.sortColumns = [{ column: fieldName, order: 'asc' }];
+            }
+        } else {
+            // Multi-column sort - add or toggle this column
+            if (existingSortIndex >= 0) {
+                // Toggle existing column
+                const currentOrder = this.sortColumns[existingSortIndex].order;
+                if (currentOrder === 'asc') {
+                    this.sortColumns[existingSortIndex].order = 'desc';
+                } else {
+                    // desc -> remove this sort column
+                    this.sortColumns.splice(existingSortIndex, 1);
+                }
+            } else {
+                // Add new sort column
+                this.sortColumns.push({ column: fieldName, order: 'asc' });
+            }
+        }
+
+        // Reset to first page and re-render
+        this.currentPage = 1;
+        this.renderRoster();
+    }
+
     filterPlayers() {
-        // TODO: Implement position filtering
+        // Reset to first page when filtering
+        this.currentPage = 1;
         this.renderRoster();
     }
 

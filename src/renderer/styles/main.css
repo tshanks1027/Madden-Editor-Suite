@@ -389,6 +389,33 @@ body {
     position: relative;
 }
 
+/* Info Tooltips */
+.info-tooltips {
+    background: var(--gray-medium);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.info-tip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--gray-text-secondary);
+}
+
+.info-icon {
+    font-size: 1rem;
+    color: var(--info-blue);
+}
+
+.info-text {
+    color: var(--gray-text);
+}
+
 /* Empty State */
 .empty-state {
     display: flex;
@@ -762,6 +789,16 @@ input:focus {
     color: var(--white) !important;
     font-weight: 500 !important;
     border-color: var(--border-color) !important;
+}
+
+.handsontable .sortable-header {
+    cursor: pointer !important;
+    user-select: none !important;
+    transition: color 0.2s ease;
+}
+
+.handsontable .sortable-header:hover {
+    color: var(--primary-orange) !important;
 }
 
 .handsontable .rowHeader {
