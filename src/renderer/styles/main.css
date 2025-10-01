@@ -661,6 +661,7 @@ input:focus {
     background-color: var(--gray-medium) !important;
     color: var(--gray-text) !important;
     border-color: var(--border-color) !important;
+    white-space: nowrap !important;
 }
 
 .handsontable .colHeader {
@@ -779,5 +780,43 @@ input:focus {
 /* Invalid cell styling */
 .htInvalid {
     background-color: rgba(220, 53, 69, 0.3) !important;
+    color: var(--white) !important;
+}
+
+/* Dropdown cell styling - classic dropdown appearance */
+.handsontable td.dropdown-cell {
+    background: linear-gradient(180deg, var(--gray-light) 0%, var(--gray-medium) 100%) !important;
+    border: 1px solid var(--border-color) !important;
+    cursor: pointer !important;
+}
+
+.handsontable td.dropdown-cell:hover {
+    background: linear-gradient(180deg, var(--gray-lighter) 0%, var(--gray-light) 100%) !important;
+    border-color: var(--primary-orange) !important;
+}
+
+/* Dropdown editor styling */
+.handsontableInput {
+    background-color: var(--gray-dark) !important;
+    color: var(--gray-text) !important;
+    border: 1px solid var(--primary-orange) !important;
+}
+
+/* Autocomplete dropdown list */
+.htAutocompleteArrow {
+    background-color: var(--gray-medium) !important;
+    color: var(--gray-text) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.htAutocompleteArrow td {
+    background-color: var(--gray-medium) !important;
+    color: var(--gray-text) !important;
+}
+
+.htAutocompleteArrow td.current,
+.htAutocompleteArrow td:hover {
+    background-color: var(--primary-orange) !important;
     color: var(--white) !important;
 }

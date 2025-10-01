@@ -454,7 +454,7 @@ class MaddenEditorApp {
         const columns = fieldCodes.map(fieldName => {
             const fieldDef = getFieldDefinition(fieldName);
             let columnConfig = {
-                width: fieldDef.width,
+                // Don't set width - let autoColumnSize handle it
                 readOnly: !fieldDef.editable,
                 allowInvalid: false
             };
@@ -538,7 +538,11 @@ class MaddenEditorApp {
 
             // Grid behavior
             stretchH: 'none',
-            autoColumnSize: false,
+            autoColumnSize: {
+                useHeaders: true,
+                samplingRatio: 30,
+                allowSampleDuplicates: true
+            },
             manualColumnResize: true,
             manualRowResize: false,
 
@@ -572,9 +576,16 @@ class MaddenEditorApp {
             cells: (row, col) => {
                 const fieldName = this.currentFieldMapping[col];
                 const fieldDef = getFieldDefinition(fieldName);
+
+                // Add dropdown-cell class for lookup fields
+                let cellClass = fieldDef.editable ? 'editable-cell' : 'readonly-cell';
+                if (fieldDef.type === 'lookup' && fieldDef.lookup) {
+                    cellClass += ' dropdown-cell';
+                }
+
                 return {
                     renderer: this.customCellRenderer,
-                    className: fieldDef.editable ? 'editable-cell' : 'readonly-cell'
+                    className: cellClass
                 };
             },
 
@@ -594,6 +605,17 @@ class MaddenEditorApp {
             afterChange: (changes, source) => {
                 if (source !== 'loadData' && changes) {
                     this.handlePlayerDataChange(changes);
+
+                    // Recalculate column widths when data changes
+                    setTimeout(() => {
+                        const autoColumnSizePlugin = this.hotTable.getPlugin('autoColumnSize');
+                        if (autoColumnSizePlugin) {
+                            // Clear cache and recalculate
+                            autoColumnSizePlugin.clearCache();
+                            autoColumnSizePlugin.calculateAllColumnsWidth();
+                            this.hotTable.render();
+                        }
+                    }, 0);
                 }
             },
 
@@ -605,8 +627,36 @@ class MaddenEditorApp {
             // Setup PID event listeners after rendering
             afterRender: () => {
                 this.setupPIDEventListeners();
+            },
+
+            // Auto-size columns after loading
+            afterLoadData: () => {
+                if (this.hotTable) {
+                    // Force column resize to fit content
+                    setTimeout(() => {
+                        const autoColumnSizePlugin = this.hotTable.getPlugin('autoColumnSize');
+                        if (autoColumnSizePlugin) {
+                            // Clear cache first to ensure fresh calculation
+                            autoColumnSizePlugin.clearCache();
+                            autoColumnSizePlugin.calculateAllColumnsWidth();
+                        }
+                        this.hotTable.render();
+                    }, 100);
+                }
             }
         });
+
+        // Force initial column sizing
+        setTimeout(() => {
+            if (this.hotTable) {
+                const autoColumnSizePlugin = this.hotTable.getPlugin('autoColumnSize');
+                if (autoColumnSizePlugin) {
+                    autoColumnSizePlugin.clearCache();
+                    autoColumnSizePlugin.calculateAllColumnsWidth();
+                }
+                this.hotTable.render();
+            }
+        }, 200);
 
         this.updateStats();
     }
@@ -654,8 +704,14 @@ class MaddenEditorApp {
     }
 
     customCellRenderer(instance, td, row, col, prop, value, cellProperties) {
-        // Use default renderer first
-        Handsontable.renderers.TextRenderer.apply(this, arguments);
+        // Use appropriate renderer based on cell type
+        if (cellProperties.type === 'dropdown') {
+            // Use dropdown renderer for dropdown cells
+            Handsontable.renderers.DropdownRenderer.apply(this, arguments);
+        } else {
+            // Use text renderer for other cells
+            Handsontable.renderers.TextRenderer.apply(this, arguments);
+        }
 
         // Apply custom styling to match MyFranchise theme
         td.style.backgroundColor = 'var(--gray-medium)';
