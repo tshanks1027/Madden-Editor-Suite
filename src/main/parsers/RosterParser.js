@@ -115,8 +115,11 @@ async function saveRosterFile(filePath, players) {
       const record = playerTable.records[i];
       const playerData = players[i];
 
-      // Update each field
+      // Update each field (exclude PLAYERPIC - it's a virtual field for display only)
       for (const fieldName in playerData) {
+        if (fieldName === 'PLAYERPIC') {
+          continue; // Skip virtual field
+        }
         if (record.fields[fieldName]) {
           record.fields[fieldName].value = playerData[fieldName];
         }

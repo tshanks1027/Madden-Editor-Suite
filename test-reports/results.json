@@ -49,9 +49,11 @@
         "id": "electron-tests",
         "name": "electron-tests",
         "testDir": "C:/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/madden-editor-suite/tests/e2e",
-        "testIgnore": [],
+        "testIgnore": [
+          "**/archive/**"
+        ],
         "testMatch": [
-          "**/*.spec.js"
+          "roster-load.spec.js"
         ],
         "timeout": 60000
       }
@@ -72,13 +74,13 @@
   },
   "suites": [
     {
-      "title": "02-file-dialog-crash-fix.spec.js",
-      "file": "02-file-dialog-crash-fix.spec.js",
+      "title": "roster-load.spec.js",
+      "file": "roster-load.spec.js",
       "column": 0,
       "line": 0,
       "specs": [
         {
-          "title": "File Dialog - Click Open File without crash",
+          "title": "Load ROSTER-Official and capture console logs",
           "ok": false,
           "tags": [],
           "tests": [
@@ -93,284 +95,89 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "failed",
-                  "duration": 7658,
+                  "duration": 2368,
                   "error": {
-                    "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
-                    "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:65:16",
+                    "message": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=17796\u001b[22m\n\u001b[2m  - [pid=17796][out]\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger listening on ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - [pid=17796][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=17796] <kill>\u001b[22m\n\u001b[2m  - [pid=17796] <will force kill>\u001b[22m\n\u001b[2m  - [pid=17796] taskkill stderr: ERROR: The process \"17796\" not found.\u001b[22m\n\u001b[2m  - [pid=17796] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=17796] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=17796] finished temporary directories cleanup\u001b[22m\n",
+                    "stack": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=17796\u001b[22m\n\u001b[2m  - [pid=17796][out]\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger listening on ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - [pid=17796][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=17796] <kill>\u001b[22m\n\u001b[2m  - [pid=17796] <will force kill>\u001b[22m\n\u001b[2m  - [pid=17796] taskkill stderr: ERROR: The process \"17796\" not found.\u001b[22m\n\u001b[2m  - [pid=17796] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=17796] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=17796] finished temporary directories cleanup\u001b[22m\n\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js:21:23",
                     "location": {
-                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                      "column": 16,
-                      "line": 65
+                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
+                      "column": 23,
+                      "line": 21
                     },
-                    "snippet": "\u001b[0m \u001b[90m 63 |\u001b[39m\n \u001b[90m 64 |\u001b[39m   \u001b[90m// Wait for dialog (it will open natively)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 66 |\u001b[39m   console\u001b[33m.\u001b[39mlog(\u001b[32m'[TEST] Waited 2s for dialog'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 67 |\u001b[39m\n \u001b[90m 68 |\u001b[39m   \u001b[90m// Take screenshot after click\u001b[39m\u001b[0m"
+                    "snippet": "\u001b[0m \u001b[90m 19 |\u001b[39m\n \u001b[90m 20 |\u001b[39m   \u001b[90m// Launch Electron app\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 21 |\u001b[39m   \u001b[36mconst\u001b[39m electronApp \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m electron\u001b[33m.\u001b[39mlaunch({\n \u001b[90m    |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 22 |\u001b[39m     args\u001b[33m:\u001b[39m [\u001b[32m'.vite/build/main.js'\u001b[39m]\u001b[33m,\u001b[39m\n \u001b[90m 23 |\u001b[39m     env\u001b[33m:\u001b[39m {\n \u001b[90m 24 |\u001b[39m       \u001b[33m...\u001b[39mprocess\u001b[33m.\u001b[39menv\u001b[33m,\u001b[39m\u001b[0m"
                   },
                   "errors": [
                     {
                       "location": {
-                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                        "column": 16,
-                        "line": 65
+                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
+                        "column": 23,
+                        "line": 21
                       },
-                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  63 |\n  64 |   // Wait for dialog (it will open natively)\n> 65 |   await window.waitForTimeout(2000);\n     |                ^\n  66 |   console.log('[TEST] Waited 2s for dialog');\n  67 |\n  68 |   // Take screenshot after click\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:65:16"
+                      "message": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=17796\u001b[22m\n\u001b[2m  - [pid=17796][out]\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger listening on ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - [pid=17796][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=17796] <kill>\u001b[22m\n\u001b[2m  - [pid=17796] <will force kill>\u001b[22m\n\u001b[2m  - [pid=17796] taskkill stderr: ERROR: The process \"17796\" not found.\u001b[22m\n\u001b[2m  - [pid=17796] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=17796] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=17796] finished temporary directories cleanup\u001b[22m\n\n\n  19 |\n  20 |   // Launch Electron app\n> 21 |   const electronApp = await electron.launch({\n     |                       ^\n  22 |     args: ['.vite/build/main.js'],\n  23 |     env: {\n  24 |       ...process.env,\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js:21:23"
                     }
                   ],
-                  "stdout": [
-                    {
-                      "text": "\n[TEST] Launching Electron app...\n"
-                    },
-                    {
-                      "text": "[TEST] Window loaded\n"
-                    },
-                    {
-                      "text": "[TEST] App ready - Open File button visible\n"
-                    },
-                    {
-                      "text": "[TEST] ===== FILE DIALOG CRASH TEST =====\n"
-                    },
-                    {
-                      "text": "[TEST] Screenshot: Before clicking Open File\n"
-                    },
-                    {
-                      "text": "[TEST] Status before click: Ready\n"
-                    },
-                    {
-                      "text": "[TEST] Clicking #openFileBtn...\n"
-                    },
-                    {
-                      "text": "[APP] [app.js] ===== OPEN FILE DIALOG =====\n"
-                    },
-                    {
-                      "text": "[APP] [app.js] Step 1: Calling file.openDialog()...\n"
-                    },
-                    {
-                      "text": "[TEST] App closed\n\n"
-                    }
-                  ],
+                  "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2025-09-30T19:09:11.898Z",
+                  "startTime": "2025-10-01T16:54:40.616Z",
                   "annotations": [],
                   "attachments": [],
                   "errorLocation": {
-                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                    "column": 16,
-                    "line": 65
+                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
+                    "column": 23,
+                    "line": 21
                   }
                 },
                 {
                   "workerIndex": 1,
                   "parallelIndex": 0,
                   "status": "failed",
-                  "duration": 7314,
+                  "duration": 36133,
                   "error": {
-                    "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
-                    "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:65:16",
+                    "message": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=7984\u001b[22m\n\u001b[2m  - [pid=7984][out]\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger listening on ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - [pid=7984][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=7984] <kill>\u001b[22m\n\u001b[2m  - [pid=7984] <will force kill>\u001b[22m\n\u001b[2m  - [pid=7984] taskkill stderr: ERROR: The process \"7984\" not found.\u001b[22m\n\u001b[2m  - [pid=7984] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=7984] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=7984] finished temporary directories cleanup\u001b[22m\n",
+                    "stack": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=7984\u001b[22m\n\u001b[2m  - [pid=7984][out]\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger listening on ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - [pid=7984][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=7984] <kill>\u001b[22m\n\u001b[2m  - [pid=7984] <will force kill>\u001b[22m\n\u001b[2m  - [pid=7984] taskkill stderr: ERROR: The process \"7984\" not found.\u001b[22m\n\u001b[2m  - [pid=7984] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=7984] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=7984] finished temporary directories cleanup\u001b[22m\n\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js:21:23",
                     "location": {
-                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                      "column": 16,
-                      "line": 65
+                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
+                      "column": 23,
+                      "line": 21
                     },
-                    "snippet": "\u001b[0m \u001b[90m 63 |\u001b[39m\n \u001b[90m 64 |\u001b[39m   \u001b[90m// Wait for dialog (it will open natively)\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 65 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m2000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 66 |\u001b[39m   console\u001b[33m.\u001b[39mlog(\u001b[32m'[TEST] Waited 2s for dialog'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 67 |\u001b[39m\n \u001b[90m 68 |\u001b[39m   \u001b[90m// Take screenshot after click\u001b[39m\u001b[0m"
+                    "snippet": "\u001b[0m \u001b[90m 19 |\u001b[39m\n \u001b[90m 20 |\u001b[39m   \u001b[90m// Launch Electron app\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 21 |\u001b[39m   \u001b[36mconst\u001b[39m electronApp \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m electron\u001b[33m.\u001b[39mlaunch({\n \u001b[90m    |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 22 |\u001b[39m     args\u001b[33m:\u001b[39m [\u001b[32m'.vite/build/main.js'\u001b[39m]\u001b[33m,\u001b[39m\n \u001b[90m 23 |\u001b[39m     env\u001b[33m:\u001b[39m {\n \u001b[90m 24 |\u001b[39m       \u001b[33m...\u001b[39mprocess\u001b[33m.\u001b[39menv\u001b[33m,\u001b[39m\u001b[0m"
                   },
                   "errors": [
                     {
                       "location": {
-                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                        "column": 16,
-                        "line": 65
+                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
+                        "column": 23,
+                        "line": 21
                       },
-                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  63 |\n  64 |   // Wait for dialog (it will open natively)\n> 65 |   await window.waitForTimeout(2000);\n     |                ^\n  66 |   console.log('[TEST] Waited 2s for dialog');\n  67 |\n  68 |   // Take screenshot after click\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:65:16"
+                      "message": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=7984\u001b[22m\n\u001b[2m  - [pid=7984][out]\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger listening on ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - [pid=7984][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=7984] <kill>\u001b[22m\n\u001b[2m  - [pid=7984] <will force kill>\u001b[22m\n\u001b[2m  - [pid=7984] taskkill stderr: ERROR: The process \"7984\" not found.\u001b[22m\n\u001b[2m  - [pid=7984] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=7984] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=7984] finished temporary directories cleanup\u001b[22m\n\n\n  19 |\n  20 |   // Launch Electron app\n> 21 |   const electronApp = await electron.launch({\n     |                       ^\n  22 |     args: ['.vite/build/main.js'],\n  23 |     env: {\n  24 |       ...process.env,\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js:21:23"
                     }
                   ],
-                  "stdout": [
-                    {
-                      "text": "\n[TEST] Launching Electron app...\n"
-                    },
-                    {
-                      "text": "[TEST] Window loaded\n"
-                    },
-                    {
-                      "text": "[TEST] App ready - Open File button visible\n"
-                    },
-                    {
-                      "text": "[TEST] ===== FILE DIALOG CRASH TEST =====\n"
-                    },
-                    {
-                      "text": "[TEST] Screenshot: Before clicking Open File\n"
-                    },
-                    {
-                      "text": "[TEST] Status before click: Ready\n"
-                    },
-                    {
-                      "text": "[TEST] Clicking #openFileBtn...\n"
-                    },
-                    {
-                      "text": "[APP] [app.js] ===== OPEN FILE DIALOG =====\n"
-                    },
-                    {
-                      "text": "[APP] [app.js] Step 1: Calling file.openDialog()...\n"
-                    },
-                    {
-                      "text": "[TEST] App closed\n\n"
-                    }
-                  ],
+                  "stdout": [],
                   "stderr": [],
                   "retry": 1,
-                  "startTime": "2025-09-30T19:09:20.512Z",
+                  "startTime": "2025-10-01T16:54:44.651Z",
                   "annotations": [],
                   "attachments": [
                     {
                       "name": "trace",
                       "contentType": "application/zip",
-                      "path": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\test-results\\02-file-dialog-crash-fix-F-ecd7a-ick-Open-File-without-crash-electron-tests-retry1\\trace.zip"
+                      "path": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\test-results\\roster-load-Load-ROSTER-Official-and-capture-console-logs-electron-tests-retry1\\trace.zip"
                     }
                   ],
                   "errorLocation": {
-                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                    "column": 16,
-                    "line": 65
+                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
+                    "column": 23,
+                    "line": 21
                   }
                 }
               ],
               "status": "unexpected"
             }
           ],
-          "id": "c8a1069e6e06141560f7-c0196fb600c41e3df5d7",
-          "file": "02-file-dialog-crash-fix.spec.js",
-          "line": 41,
-          "column": 1
-        },
-        {
-          "title": "File Dialog - Verify debug logging",
-          "ok": false,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "electron-tests",
-              "projectName": "electron-tests",
-              "results": [
-                {
-                  "workerIndex": 2,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 6923,
-                  "error": {
-                    "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
-                    "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:121:16",
-                    "location": {
-                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                      "column": 16,
-                      "line": 121
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 119 |\u001b[39m   \u001b[90m// Click Open File\u001b[39m\n \u001b[90m 120 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mclick(\u001b[32m'#openFileBtn'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 121 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m1000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 122 |\u001b[39m\n \u001b[90m 123 |\u001b[39m   \u001b[90m// Close dialog\u001b[39m\n \u001b[90m 124 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                        "column": 16,
-                        "line": 121
-                      },
-                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  119 |   // Click Open File\n  120 |   await window.click('#openFileBtn');\n> 121 |   await window.waitForTimeout(1000);\n      |                ^\n  122 |\n  123 |   // Close dialog\n  124 |   await window.keyboard.press('Escape');\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:121:16"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "\n[TEST] Launching Electron app...\n"
-                    },
-                    {
-                      "text": "[TEST] Window loaded\n"
-                    },
-                    {
-                      "text": "[TEST] App ready - Open File button visible\n"
-                    },
-                    {
-                      "text": "[TEST] ===== DEBUG LOGGING TEST =====\n"
-                    },
-                    {
-                      "text": "[TEST] App closed\n\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-09-30T19:09:28.817Z",
-                  "annotations": [],
-                  "attachments": [],
-                  "errorLocation": {
-                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                    "column": 16,
-                    "line": 121
-                  }
-                },
-                {
-                  "workerIndex": 3,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 7082,
-                  "error": {
-                    "message": "Error: page.waitForTimeout: Target page, context or browser has been closed",
-                    "stack": "Error: page.waitForTimeout: Target page, context or browser has been closed\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:121:16",
-                    "location": {
-                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                      "column": 16,
-                      "line": 121
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 119 |\u001b[39m   \u001b[90m// Click Open File\u001b[39m\n \u001b[90m 120 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mclick(\u001b[32m'#openFileBtn'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 121 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mwaitForTimeout(\u001b[35m1000\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m     |\u001b[39m                \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 122 |\u001b[39m\n \u001b[90m 123 |\u001b[39m   \u001b[90m// Close dialog\u001b[39m\n \u001b[90m 124 |\u001b[39m   \u001b[36mawait\u001b[39m window\u001b[33m.\u001b[39mkeyboard\u001b[33m.\u001b[39mpress(\u001b[32m'Escape'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                        "column": 16,
-                        "line": 121
-                      },
-                      "message": "Error: page.waitForTimeout: Target page, context or browser has been closed\n\n  119 |   // Click Open File\n  120 |   await window.click('#openFileBtn');\n> 121 |   await window.waitForTimeout(1000);\n      |                ^\n  122 |\n  123 |   // Close dialog\n  124 |   await window.keyboard.press('Escape');\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js:121:16"
-                    }
-                  ],
-                  "stdout": [
-                    {
-                      "text": "\n[TEST] Launching Electron app...\n"
-                    },
-                    {
-                      "text": "[TEST] Window loaded\n"
-                    },
-                    {
-                      "text": "[TEST] App ready - Open File button visible\n"
-                    },
-                    {
-                      "text": "[TEST] ===== DEBUG LOGGING TEST =====\n"
-                    },
-                    {
-                      "text": "[TEST] App closed\n\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 1,
-                  "startTime": "2025-09-30T19:09:36.650Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\test-results\\02-file-dialog-crash-fix-File-Dialog---Verify-debug-logging-electron-tests-retry1\\trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\02-file-dialog-crash-fix.spec.js",
-                    "column": 16,
-                    "line": 121
-                  }
-                }
-              ],
-              "status": "unexpected"
-            }
-          ],
-          "id": "c8a1069e6e06141560f7-9227cdfcb08e0674f7e7",
-          "file": "02-file-dialog-crash-fix.spec.js",
-          "line": 111,
+          "id": "3e5d9668e5bc1bf73dc2-4e2e612bcc42c5a80975",
+          "file": "roster-load.spec.js",
+          "line": 17,
           "column": 1
         }
       ]
@@ -378,11 +185,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2025-09-30T19:09:07.536Z",
-    "duration": 36894.284,
+    "startTime": "2025-10-01T16:54:35.331Z",
+    "duration": 45553.581,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 2,
+    "unexpected": 1,
     "flaky": 0
   }
 }

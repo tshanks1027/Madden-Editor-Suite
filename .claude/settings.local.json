@@ -1,24 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git ls-tree:*)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/**)",
-      "Bash(npm start)",
-      "WebFetch(domain:github.com)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/MyFranchise_extracted/**)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/Madden 26/Tools/Head Coach Editor/**)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/Madden 26/Tools/Modding Tools/**)",
-      "Bash(dir \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\Madden Files\\*\" /s /b)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/Madden 25/Tools/**)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/Madden 25/Mods/1994 Mods/**)",
-      "WebFetch(domain:www.npmjs.com)",
-      "WebSearch",
-      "Bash(git add:*)",
-      "Bash(git log:*)",
-      "Bash(npx playwright test:*)",
-      "Bash(tasklist)",
-      "Bash(findstr:*)",
-      "Bash(taskkill:*)"
+      "Bash(npm view:*)",
+      "Bash(dir:*)",
+      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/Madden 26/Tools/**)",
+      "Bash(npm install)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

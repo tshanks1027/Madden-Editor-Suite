@@ -487,12 +487,18 @@ class MaddenEditorApp {
                     } : undefined
                 };
             } else if (fieldName === 'PLAYERPIC') {
-                // Special handling for Player Pic field with custom renderer
+                // Special handling for Player Pic field with autocomplete
                 columnConfig = {
                     ...columnConfig,
-                    type: 'text',
-                    renderer: this.playerPicRenderer.bind(this),
-                    readOnly: false  // Make it editable with autocomplete
+                    type: 'autocomplete',
+                    source: (query, process) => {
+                        // Get all player names from PID lookup for autocomplete
+                        const results = searchPIDNames(query, 20);
+                        process(results.map(r => r.name));
+                    },
+                    strict: false,  // Allow typing custom values
+                    allowInvalid: true,  // Allow invalid values temporarily
+                    readOnly: false  // Make it editable
                 };
             } else if (fieldDef.type === 'numeric') {
                 // Numeric fields
@@ -605,17 +611,6 @@ class MaddenEditorApp {
             afterChange: (changes, source) => {
                 if (source !== 'loadData' && changes) {
                     this.handlePlayerDataChange(changes);
-
-                    // Recalculate column widths when data changes
-                    setTimeout(() => {
-                        const autoColumnSizePlugin = this.hotTable.getPlugin('autoColumnSize');
-                        if (autoColumnSizePlugin) {
-                            // Clear cache and recalculate
-                            autoColumnSizePlugin.clearCache();
-                            autoColumnSizePlugin.calculateAllColumnsWidth();
-                            this.hotTable.render();
-                        }
-                    }, 0);
                 }
             },
 
@@ -628,6 +623,7 @@ class MaddenEditorApp {
             afterRender: () => {
                 this.setupPIDEventListeners();
             },
+
 
             // Auto-size columns after loading
             afterLoadData: () => {
@@ -674,6 +670,11 @@ class MaddenEditorApp {
         if (fieldName === 'PLAYERPIC') {
             const pid = player['PSXP'] || 0;
             return getPlayerNameFromPID(pid);
+        }
+
+        // Handle weight conversion: roster value starts at 1 = 160 lbs
+        if (fieldName === 'PWGT' && player[fieldName] !== undefined) {
+            return player[fieldName] + 159;
         }
 
         // Handle direct field mappings
@@ -780,6 +781,30 @@ class MaddenEditorApp {
                 if (fieldDef.editable) {
                     let convertedValue = newValue;
 
+                    // Special handling for PLAYERPIC autocomplete field
+                    if (fieldName === 'PLAYERPIC') {
+                        // Handle Player Pic autocomplete - convert name to PID
+                        const pid = getPIDFromName(newValue);
+
+                        if (pid !== null) {
+                            // Valid player name selected, update corresponding PID
+                            this.players[row]['PSXP'] = pid;
+                            // Update the PSXP cell in the grid
+                            this.updateGridCell(row, 'PSXP', pid);
+                            // Store the valid name
+                            convertedValue = newValue;
+                            this.players[row]['PLAYERPIC'] = convertedValue;
+                        } else {
+                            // Invalid name typed - revert to original value
+                            const originalPID = this.players[row]['PSXP'];
+                            convertedValue = getPlayerNameFromPID(originalPID);
+                            this.players[row]['PLAYERPIC'] = convertedValue;
+                            // Update the grid to show the reverted value
+                            this.updateGridCell(row, 'PLAYERPIC', convertedValue);
+                        }
+                        return; // Skip normal processing
+                    }
+
                     // Handle lookup fields - convert display name back to ID
                     if (fieldDef.type === 'lookup' && fieldDef.lookup) {
                         const options = getLookupOptions(fieldDef.lookup);
@@ -788,30 +813,24 @@ class MaddenEditorApp {
                     } else if (fieldDef.type === 'numeric') {
                         // Convert numeric values
                         convertedValue = parseInt(newValue) || 0;
-                    } else if (fieldDef.type === 'autocomplete' && fieldDef.lookup === 'pids') {
-                        // Handle Player Pic autocomplete - convert name to PID and store as text
-                        const pid = getPIDFromName(newValue);
-                        if (pid !== null) {
-                            // Valid player name selected, update corresponding PID
-                            this.players[row]['PSXP'] = pid;
-                            this.updateGridCell(row, 'PSXP', pid);
+
+                        // Handle weight conversion: display value 160+ lbs = roster value 1+
+                        if (fieldName === 'PWGT') {
+                            convertedValue = convertedValue - 159;
                         }
-                        // Always store the display name as-is for Player Pic
-                        convertedValue = newValue;
+
+                        // Handle PID changes - update Player Pic automatically
+                        if (fieldName === 'PSXP') {
+                            const playerName = getPlayerNameFromPID(convertedValue);
+                            // Update PLAYERPIC with the looked-up name (or 'Generic Face' if not found)
+                            this.players[row]['PLAYERPIC'] = playerName;
+                            this.updateGridCell(row, 'PLAYERPIC', playerName);
+                        }
                     }
                     // Text fields keep their value as-is
 
                     // Update the player data
                     this.players[row][fieldName] = convertedValue;
-
-                    // Handle PID -> Player Pic sync (when PID changes, update Player Pic)
-                    if (fieldName === 'PSXP') {
-                        const playerName = getPlayerNameFromPID(convertedValue);
-                        this.players[row]['PLAYERPIC'] = playerName;
-                        this.updateGridCell(row, 'PLAYERPIC', playerName);
-                    }
-
-                    console.log(`Updated player ${row} ${fieldName}: ${oldValue} -> ${newValue} (stored as ${convertedValue})`);
                 }
             }
         });
@@ -821,7 +840,7 @@ class MaddenEditorApp {
      * Update a specific grid cell without triggering change events
      */
     updateGridCell(row, fieldName, value) {
-        if (!this.rosterGrid || !this.currentFieldMapping) return;
+        if (!this.hotTable || !this.currentFieldMapping) return;
 
         const colIndex = this.currentFieldMapping.indexOf(fieldName);
         if (colIndex === -1) return;
@@ -829,22 +848,12 @@ class MaddenEditorApp {
         // Temporarily disable change events to prevent recursion
         this.disableChangeEvents = true;
 
-        // For PLAYERPIC field, we need special handling since it's computed from PSXP
-        if (fieldName === 'PLAYERPIC') {
-            // Don't update the grid directly - it will be recomputed during next refresh
-            // Instead, trigger a refresh of this specific cell
-            setTimeout(() => {
-                // Force re-render of this specific cell
-                this.rosterGrid.render();
-                this.disableChangeEvents = false;
-            }, 0);
-        } else {
-            // For other fields, update the cell normally
-            this.rosterGrid.setDataAtCell(row, colIndex, value, 'internal');
-            setTimeout(() => {
-                this.disableChangeEvents = false;
-            }, 0);
-        }
+        // Update the cell value
+        this.hotTable.setDataAtCell(row, colIndex, value, 'internal');
+
+        setTimeout(() => {
+            this.disableChangeEvents = false;
+        }, 0);
     }
 
     // Custom renderer for PID field - renders input with autocomplete
@@ -1189,6 +1198,19 @@ function closeErrorModal() {
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new MaddenEditorApp();
+
+    // Debug function for testing PID lookups in browser console
+    window.testPIDLookup = function() {
+        console.log('=== Testing PID Lookup ===');
+        console.log('Testing getPlayerNameFromPID(1):', getPlayerNameFromPID(1));
+        console.log('Testing getPlayerNameFromPID(20):', getPlayerNameFromPID(20));
+        console.log('Testing getPlayerNameFromPID(999999):', getPlayerNameFromPID(999999));
+        console.log('Testing getPIDFromName("Gary Anderson"):', getPIDFromName("Gary Anderson"));
+        console.log('Testing getPIDFromName("Morten Andersen"):', getPIDFromName("Morten Andersen"));
+        console.log('Testing getPIDFromName("Invalid Name"):', getPIDFromName("Invalid Name"));
+        console.log('Testing searchPIDNames("Anderson", 5):', searchPIDNames("Anderson", 5));
+        console.log('=== Test Complete ===');
+    };
 });
 
 // Export for ES6 module use

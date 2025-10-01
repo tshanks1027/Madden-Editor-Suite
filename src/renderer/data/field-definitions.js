@@ -8,7 +8,7 @@ export const MADDEN_FIELDS = {
     'PLNA': { display: 'Last Name', type: 'text', editable: true, width: 100 },
     'PFNA': { display: 'First Name', type: 'text', editable: true, width: 100 },
     'PSXP': { display: 'Pic ID', type: 'numeric', editable: true, width: 200, min: 0, max: 10861 },
-    'PLAYERPIC': { display: 'Player Pic', type: 'text', editable: false, width: 120 },
+    'PLAYERPIC': { display: 'Player Pic', type: 'autocomplete', editable: true, width: 120, lookup: 'pids' },
     'PPOS': { display: 'Position', type: 'lookup', editable: true, width: 80, lookup: 'positions' },
     'TGID': { display: 'Team', type: 'lookup', editable: true, width: 80, lookup: 'teams' },
     'PJEN': { display: 'Jersey #', type: 'numeric', editable: true, width: 80, min: 0, max: 99 },
@@ -324,6 +324,44 @@ export async function loadLookupData() {
                 LOOKUP_DATA.teams.set(id, name.trim());
             }
         });
+
+        // Load PID data from PID_lookup.csv using IPC
+        console.log('Loading PID lookup data via IPC...');
+        const pidLookupPath = 'C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\Lookups\\PID_lookup.csv';
+
+        try {
+            const readResult = await window.electronAPI.file.read(pidLookupPath);
+
+            if (!readResult.success) {
+                throw new Error(readResult.error || 'Failed to read PID lookup file');
+            }
+
+            // Convert buffer to text
+            const decoder = new TextDecoder('utf-8');
+            const csvText = decoder.decode(readResult.data);
+            const lines = csvText.split('\n');
+
+            console.log(`Loaded ${lines.length} lines from PID lookup file`);
+
+            // Skip header row, process data rows
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const [pidStr, playerName] = line.split(',');
+                const pid = parseInt(pidStr);
+
+                if (!isNaN(pid) && playerName) {
+                    const cleanName = playerName.trim();
+                    LOOKUP_DATA.pids.set(pid, cleanName);
+                    LOOKUP_DATA.pidsByName.set(cleanName.toLowerCase(), pid);
+                }
+            }
+
+            console.log(`Processed ${LOOKUP_DATA.pids.size} PID lookups`);
+        } catch (error) {
+            console.error('Failed to load PID lookup:', error);
+        }
 
         console.log('Lookup data loaded successfully');
         console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}, PIDs: ${LOOKUP_DATA.pids.size}`);

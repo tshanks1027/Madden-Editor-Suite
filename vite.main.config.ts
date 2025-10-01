@@ -80,6 +80,37 @@ export default defineConfig({
 
           copyDirectory(srcParsersDir, destParsersDir);
         }
+
+        // Copy lib directory to build output (contains TDB2Parser and dependencies)
+        const srcLibDir = path.join(__dirname, 'src', 'main', 'lib');
+        const destLibDir = path.join(__dirname, '.vite', 'build', 'lib');
+
+        if (existsSync(srcLibDir)) {
+          if (!existsSync(destLibDir)) {
+            mkdirSync(destLibDir, { recursive: true });
+          }
+
+          // Recursively copy all JS files from lib
+          function copyDirectory(src, dest) {
+            const entries = fs.readdirSync(src, { withFileTypes: true });
+            entries.forEach(entry => {
+              const srcPath = path.join(src, entry.name);
+              const destPath = path.join(dest, entry.name);
+
+              if (entry.isDirectory()) {
+                if (!existsSync(destPath)) {
+                  mkdirSync(destPath, { recursive: true });
+                }
+                copyDirectory(srcPath, destPath);
+              } else if (entry.name.endsWith('.js')) {
+                copyFileSync(srcPath, destPath);
+                console.log(`Copied lib file: ${entry.name}`);
+              }
+            });
+          }
+
+          copyDirectory(srcLibDir, destLibDir);
+        }
       }
     }
   ],

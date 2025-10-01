@@ -67,7 +67,16 @@ test('Load ROSTER-Official and capture console logs', async () => {
 
   console.log('[TEST] Parse result:', result);
 
-  // Wait for all logs to finish
+  // Load the data into the grid
+  console.log('[TEST] Loading data into grid...');
+  await window.evaluate(async () => {
+    if (window.app && window.app.loadRosterData) {
+      console.log('[TEST-EVAL] Calling app.loadRosterData...');
+      await window.app.loadRosterData();
+    }
+  });
+
+  // Wait for table to render
   await window.waitForTimeout(3000);
 
   // Check if file loaded (look for error or success indicators)
@@ -76,6 +85,12 @@ test('Load ROSTER-Official and capture console logs', async () => {
 
   // Take screenshot after file load attempt
   await window.screenshot({ path: 'test-reports/02-after-file-load.png' });
+
+  // Take a focused screenshot of just the grid area
+  const gridElement = await window.locator('.grid-container').first();
+  if (await gridElement.count() > 0) {
+    await gridElement.screenshot({ path: 'test-reports/03-grid-detail.png' });
+  }
 
   console.log('[TEST] Has error:', hasError);
   console.log('[TEST] Has table:', hasTable);

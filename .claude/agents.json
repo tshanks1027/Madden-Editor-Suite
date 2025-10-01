@@ -1,0 +1,175 @@
+{
+  "agents": [
+    {
+      "name": "auto-research",
+      "type": "task",
+      "description": "Research existing implementations before coding - MANDATORY for parsing/IPC/file work",
+      "trigger": "mandatory-before-implementation",
+      "subagent_type": "general-purpose",
+      "when_to_use": [
+        "ANY parsing or binary file work",
+        "IPC handlers or file I/O",
+        "Complex features without clear implementation",
+        "When you don't know the best approach",
+        "Before modifying existing working code"
+      ],
+      "research_sources": [
+        "RESEARCH_FINDINGS.md",
+        "Madden Resources.txt",
+        "GitHub repos (madden-file-tools, madden-franchise)",
+        "Local tools (Head Coach Editor, MyFranchise)",
+        "User's existing working code"
+      ],
+      "process": [
+        "1. Use Task tool with general-purpose agent",
+        "2. Search RESEARCH_FINDINGS.md first",
+        "3. Examine reference implementations",
+        "4. Read user's existing code thoroughly",
+        "5. Create markdown findings document",
+        "6. Present options to user",
+        "7. Wait for approval before coding"
+      ],
+      "outputs": [
+        "Markdown document with findings",
+        "List of available approaches",
+        "Pros/cons of each approach",
+        "Recommendation with reasoning",
+        "Source attribution info"
+      ],
+      "critical_rule": "NEVER write parser code without research phase first"
+    },
+    {
+      "name": "auto-test",
+      "type": "command",
+      "description": "Automated E2E testing with Playwright - verifies feature works end-to-end",
+      "trigger": "after-implementation",
+      "command": "npm test",
+      "auto_run": true,
+      "when_to_use": [
+        "After making code changes to parsers",
+        "After modifying IPC handlers",
+        "After updating file I/O logic",
+        "When you need to verify console output",
+        "Instead of asking user to manually test"
+      ],
+      "requirements": [
+        "Implementation must be complete",
+        "App must compile and start",
+        "Feature must be user-testable"
+      ],
+      "outputs": [
+        "HTML test report with screenshots at test-reports/html/index.html",
+        "Console logs saved to test-reports/console-logs.txt",
+        "Pass/fail status"
+      ],
+      "onSuccess": "Read console-logs.txt and analyze results, continue to user testing phase",
+      "onFailure": "Read console-logs.txt to diagnose issue, return to implementation phase to fix issues"
+    },
+    {
+      "name": "auto-package",
+      "type": "command",
+      "description": "Verify app can be packaged without errors",
+      "trigger": "manual",
+      "command": "npm run package",
+      "requirements": [
+        "Automated tests passed",
+        "User testing confirmed",
+        "No compilation errors"
+      ],
+      "checks": [
+        "Dependencies bundled correctly",
+        "ASAR packaging works",
+        "Native modules rebuild",
+        "Data files copied",
+        "Packaged app launches"
+      ],
+      "onSuccess": "Continue to optimizer phase",
+      "onFailure": "Return to implementation to fix packaging issues"
+    },
+    {
+      "name": "auto-optimizer",
+      "type": "analysis",
+      "description": "Check for code quality issues and optimization opportunities",
+      "trigger": "manual",
+      "checks": [
+        "Unused imports",
+        "Unused variables/functions",
+        "Memory leaks (event listeners)",
+        "Dead code paths",
+        "Code duplication",
+        "Inefficient algorithms",
+        "Missing error handling"
+      ],
+      "outputs": [
+        "List of issues found",
+        "File and line numbers",
+        "Severity ratings"
+      ],
+      "onSuccess": "Continue to git commit phase",
+      "onFailure": "Fix issues then re-run optimizer"
+    },
+    {
+      "name": "auto-git-commit",
+      "type": "command",
+      "description": "Create properly formatted git commit with attribution",
+      "trigger": "manual",
+      "requirements": [
+        "All workflow phases passed",
+        "User explicitly approved commit",
+        "Commit message approved"
+      ],
+      "process": [
+        "Run git status",
+        "Run git diff",
+        "Propose commit message",
+        "Wait for user approval",
+        "Execute commit"
+      ],
+      "commitFormat": {
+        "title": "[Feature/Fix]: Brief description",
+        "body": "Detailed explanation of changes",
+        "attribution": "Source Attribution (if applicable)",
+        "testing": "✅ Testing: Playwright tests passed",
+        "userTesting": "✅ User Testing: Confirmed working",
+        "packaging": "✅ Packaging: Verified bundling",
+        "optimized": "✅ Optimized: No issues found",
+        "footer": "🤖 Generated with Claude Code\nCo-Authored-By: Claude <noreply@anthropic.com>"
+      },
+      "restrictions": [
+        "NEVER update git config",
+        "NEVER force push",
+        "NEVER skip hooks",
+        "NEVER commit without approval",
+        "DO NOT push unless explicitly requested"
+      ]
+    }
+  ],
+  "workflow": {
+    "phases": [
+      "1. User Request",
+      "2. AI reads CLAUDE.md",
+      "3. auto-research (MANDATORY for parsing/IPC work)",
+      "4. Plan Mode - Propose Approach",
+      "5. User Approval",
+      "6. Implementation",
+      "7. auto-test (Playwright)",
+      "8. User Testing",
+      "9. auto-package",
+      "10. auto-optimizer",
+      "11. auto-git-commit"
+    ],
+    "rules": [
+      "NEVER skip phases",
+      "ALWAYS wait for user approval",
+      "STOP if any phase fails",
+      "Return to implementation if tests/packaging fail",
+      "Fix issues before proceeding"
+    ]
+  },
+  "documentation": {
+    "onError": "Log to ERROR_LOG.md with date, error, fix, prevention",
+    "onFeatureComplete": "Update RELEASE_NOTES.md with changes",
+    "onResearch": "Create findings document in markdown",
+    "attribution": "Always comment source code origin with license"
+  }
+}
