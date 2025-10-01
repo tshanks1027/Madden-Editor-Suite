@@ -1,175 +1,86 @@
 /**
- * Roster File Parser
+ * Madden 26 FBCHUNKS Roster File Parser
  *
- * Parses Madden roster files using the madden-franchise package.
- * Extracts player data from the PLAY table and converts to editable format.
+ * Uses proven code from Head Coach Editor (madden-file-tools package)
+ * This is the WORKING implementation that successfully parses Madden roster files.
  *
- * Source: Adapted from madden-franchise by bep713 (MIT License)
- * Reference: RESEARCH_FINDINGS.md section 2.1
+ * Source: madden-file-tools v2.9.1 (MIT License)
+ * GitHub: https://github.com/bep713/madden-file-tools
  */
 
-const Franchise = require('madden-franchise');
+// Use madden-file-tools from Head Coach Editor
+const path = require('path');
+const maddenFileToolsPath = path.join('C:', 'Users', 'tshan', 'OneDrive', 'Documents', 'Madden Files', 'Madden 26', 'Tools', 'Head Coach Editor', 'resources', 'node_modules', 'madden-file-tools');
+const MaddenRosterHelper = require(path.join(maddenFileToolsPath, 'helpers', 'MaddenRosterHelper'));
 
 /**
- * Parse a Madden roster file
+ * Parse a Madden FBCHUNKS roster file
  * @param {string} filePath - Absolute path to roster file
  * @returns {Promise<Object>} Parsed roster data with players array
  */
 async function parseRosterFile(filePath) {
-  console.log('[RosterParser] ===== START PARSE =====');
+  console.log('[RosterParser] ===== START ROSTER PARSE =====');
   console.log('[RosterParser] File path:', filePath);
 
   try {
-    console.log('[RosterParser] Step 1: Calling Franchise.create()...');
-    const franchise = await Franchise.create(filePath);
-    console.log('[RosterParser] Step 2: Franchise created successfully');
+    const helper = new MaddenRosterHelper();
 
-    console.log('[RosterParser] Step 3: Checking schema...');
-    console.log('[RosterParser] File ready, game year:', franchise.schema.meta.gameYear);
+    // Load the roster file using proven MaddenRosterHelper
+    console.log('[RosterParser] Loading roster with MaddenRosterHelper...');
+    const file = await helper.load(filePath);
 
-    // Get the Player table
-    console.log('[RosterParser] Step 4: Getting Player table...');
-    const playerTable = franchise.getTableByName('Player');
-    console.log('[RosterParser] Step 5: Player table retrieved:', !!playerTable);
+    console.log('[RosterParser] Roster loaded successfully');
+    console.log('[RosterParser] Found', file.tables.length, 'tables');
+
+    // List all table names
+    const tableNames = file.tables.map(t => t.name);
+    console.log('[RosterParser] Tables:', tableNames.join(', '));
+
+    // Get player table (PLAY in TDB2 format)
+    const playerTable = file.PLAY;
 
     if (!playerTable) {
-      throw new Error('Player table not found in roster file');
+      console.error('[RosterParser] Available tables:', tableNames.join(', '));
+      throw new Error('PLAY table not found in roster file');
     }
 
-    // Read all records from the table
-    console.log('[RosterParser] Step 6: Reading records...');
-    await playerTable.readRecords();
-    console.log('[RosterParser] Step 7: Records read successfully');
-
-    console.log('[RosterParser] Found Player table with', playerTable.records.length, 'records');
+    console.log('[RosterParser] Found PLAY table with', playerTable.records.length, 'players');
 
     // Extract player data
     const players = [];
-
     for (const record of playerTable.records) {
-      // Extract all player fields
-      const player = {
-        // Identity
-        PGID: record.PlayerId || record.index,
-        PLNA: record.LastName || '',
-        PFNA: record.FirstName || '',
+      const player = {};
 
-        // Basic Info
-        PPOS: record.Position || 0,
-        TGID: record.TeamId || 0,
-        POVR: record.Overall || 0,
-        PAGE: record.Age || 21,
-        PYER: record.YearsPro || 0,
-        PJEN: record.JerseyNum || 0,
-
-        // Physical Attributes
-        PHGT: record.Height || 72,
-        PWGT: record.Weight || 200,
-
-        // Core Ratings
-        PSPD: record.Speed || 50,
-        PACC: record.Acceleration || 50,
-        PSTR: record.Strength || 50,
-        PAGI: record.Agility || 50,
-        PAWR: record.Awareness || 50,
-        PJMP: record.Jumping || 50,
-        PSTA: record.Stamina || 50,
-        PINJ: record.Injury || 50,
-        PTGH: record.Toughness || 50,
-
-        // Passing
-        PTHP: record.ThrowPower || 50,
-        PTHA: record.ThrowAccuracyShort || 50,
-        PTAM: record.ThrowAccuracyMid || 50,
-        PTAD: record.ThrowAccuracyDeep || 50,
-        PTOR: record.ThrowOnTheRun || 50,
-        PTUP: record.ThrowUnderPressure || 50,
-
-        // Receiving
-        PCTH: record.Catching || 50,
-        PDRR: record.ShortRouteRunning || 50,
-        PMRR: record.MediumRouteRunning || 50,
-        PDRR: record.DeepRouteRunning || 50,
-        PLCI: record.CatchInTraffic || 50,
-        PSPC: record.SpectacularCatch || 50,
-
-        // Rushing
-        PCAR: record.Carrying || 50,
-        PBTK: record.BreakTackle || 50,
-        PELU: record.Elusiveness || 50,
-        PJUK: record.Juke || 50,
-        PSPN: record.Spin || 50,
-        PLSM: record.Stiffarm || 50,
-        PTRK: record.Trucking || 50,
-
-        // Blocking
-        PPBK: record.PassBlock || 50,
-        PPBS: record.PassBlockStrength || 50,
-        PPBF: record.PassBlockFinesse || 50,
-        PRBK: record.RunBlock || 50,
-        PRBS: record.RunBlockStrength || 50,
-        PRBF: record.RunBlockFinesse || 50,
-        PLBK: record.LeadBlock || 50,
-        PIBL: record.ImpactBlocking || 50,
-
-        // Defense
-        PTAK: record.Tackle || 50,
-        PHIT: record.HitPower || 50,
-        PPOW: record.PowerMoves || 50,
-        PFMS: record.FinesseMoves || 50,
-        PBSG: record.BlockShedding || 50,
-        PPRC: record.Pursuit || 50,
-        PPLA: record.PlayRecognition || 50,
-
-        // Coverage
-        PMCV: record.ManCoverage || 50,
-        PZCV: record.ZoneCoverage || 50,
-        PPRZ: record.Press || 50,
-
-        // Kicking
-        PKPR: record.KickPower || 50,
-        PKAC: record.KickAccuracy || 50,
-        PKRT: record.KickReturn || 50,
-
-        // Special
-        PRET: record.Return || 50,
-
-        // Mental
-        PLPE: record.PlayAction || 50,
-
-        // Background
-        PCOL: record.CollegeId || 0,
-        PHSN: record.HomeState || 0,
-        PHTN: record.Hometown || '',
-
-        // Player ID (for faces)
-        PSXP: record.PLYR_ASSETNAME || 0,
-
-        // Contract
-        PCON: record.ContractLength || 0,
-        PCSA: record.ContractSalary || 0,
-        PCSB: record.ContractBonus || 0,
-
-        // Development
-        PDPI: record.PlayerSchemefit || 0,
-        PTSA: record.TotalSalary || 0,
-        PYRP: record.YearsWithTeam || 0,
-
-        // Store original record for reference
-        _originalRecord: record
-      };
+      // Convert TDB2 fields to plain object
+      for (const fieldName in record.fields) {
+        player[fieldName] = record.fields[fieldName].value;
+      }
 
       players.push(player);
     }
 
-    console.log('[RosterParser] Successfully parsed', players.length, 'players');
+    console.log('[RosterParser] Successfully extracted', players.length, 'players');
+
+    // Log sample player
+    if (players.length > 0) {
+      const sample = players[0];
+      console.log('[RosterParser] Sample player:', {
+        firstName: sample.PFNA,
+        lastName: sample.PLNA,
+        overall: sample.POVR,
+        position: sample.PPOS
+      });
+    }
+
+    // Store file and helper in global scope for saving later
+    global.rosterFile = file;
+    global.rosterHelper = helper;
 
     return {
-      version: franchise.schema.meta.gameYear,
+      version: 2026, // Madden 26
       playerCount: players.length,
       players: players,
-      teams: [], // TODO: Extract team data if needed
-      _franchise: franchise // Keep reference for saving
+      teams: [] // TODO: Extract team data from TEAM table
     };
 
   } catch (error) {
@@ -183,84 +94,45 @@ async function parseRosterFile(filePath) {
 }
 
 /**
- * Save roster file with modified player data
- * @param {string} filePath - Path to save file
- * @param {Array} players - Modified player array
- * @param {Object} originalData - Original parsed data with _franchise reference
- * @returns {Promise<void>}
+ * Save roster file (not yet implemented)
  */
-async function saveRosterFile(filePath, players, originalData) {
+async function saveRosterFile(filePath, players) {
+  console.log('[RosterParser] ===== START ROSTER SAVE =====');
+  console.log('[RosterParser] Output path:', filePath);
+
   try {
-    console.log('[RosterParser] Saving roster file to:', filePath);
-
-    const franchise = originalData._franchise;
-
-    if (!franchise) {
-      throw new Error('Original franchise data not found - cannot save');
+    if (!global.rosterHelper || !global.rosterFile) {
+      throw new Error('No roster file loaded - must load before saving');
     }
 
-    // Get player table
-    const playerTable = franchise.getTableByName('Player');
+    const helper = global.rosterHelper;
+    const file = global.rosterFile;
 
-    if (!playerTable) {
-      throw new Error('Player table not found');
-    }
+    // Update player values in the TDB2 file
+    const playerTable = file.PLAY;
 
-    // Update each player record
-    for (let i = 0; i < players.length; i++) {
-      const player = players[i];
+    for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
       const record = playerTable.records[i];
+      const playerData = players[i];
 
-      if (!record) {
-        console.warn('[RosterParser] Skipping player at index', i, '- no matching record');
-        continue;
+      // Update each field
+      for (const fieldName in playerData) {
+        if (record.fields[fieldName]) {
+          record.fields[fieldName].value = playerData[fieldName];
+        }
       }
-
-      // Update fields that were edited
-      // (Only update fields that exist in the schema)
-      if (record.FirstName !== undefined) record.FirstName = player.PFNA;
-      if (record.LastName !== undefined) record.LastName = player.PLNA;
-      if (record.Position !== undefined) record.Position = player.PPOS;
-      if (record.TeamId !== undefined) record.TeamId = player.TGID;
-      if (record.Overall !== undefined) record.Overall = player.POVR;
-      if (record.Age !== undefined) record.Age = player.PAGE;
-      if (record.JerseyNum !== undefined) record.JerseyNum = player.PJEN;
-
-      // Physical
-      if (record.Height !== undefined) record.Height = player.PHGT;
-      if (record.Weight !== undefined) record.Weight = player.PWGT;
-
-      // Core Ratings
-      if (record.Speed !== undefined) record.Speed = player.PSPD;
-      if (record.Acceleration !== undefined) record.Acceleration = player.PACC;
-      if (record.Strength !== undefined) record.Strength = player.PSTR;
-      if (record.Agility !== undefined) record.Agility = player.PAGI;
-      if (record.Awareness !== undefined) record.Awareness = player.PAWR;
-      if (record.Jumping !== undefined) record.Jumping = player.PJMP;
-      if (record.Stamina !== undefined) record.Stamina = player.PSTA;
-      if (record.Injury !== undefined) record.Injury = player.PINJ;
-      if (record.Toughness !== undefined) record.Toughness = player.PTGH;
-
-      // Passing
-      if (record.ThrowPower !== undefined) record.ThrowPower = player.PTHP;
-      if (record.ThrowAccuracyShort !== undefined) record.ThrowAccuracyShort = player.PTHA;
-      if (record.ThrowAccuracyMid !== undefined) record.ThrowAccuracyMid = player.PTAM;
-      if (record.ThrowAccuracyDeep !== undefined) record.ThrowAccuracyDeep = player.PTAD;
-
-      // Receiving
-      if (record.Catching !== undefined) record.Catching = player.PCTH;
-      if (record.Carrying !== undefined) record.Carrying = player.PCAR;
-
-      // Add more field mappings as needed...
     }
 
-    // Save the file
-    await franchise.save(filePath);
+    // Save using MaddenRosterHelper
+    await helper.save(filePath);
 
-    console.log('[RosterParser] Successfully saved roster file');
+    console.log('[RosterParser] Roster saved successfully');
+    console.log('[RosterParser] ===========================');
 
   } catch (error) {
-    console.error('[RosterParser] Error saving roster file:', error);
+    console.error('[RosterParser] ===== ERROR IN SAVE =====');
+    console.error('[RosterParser] Error:', error.message);
+    console.error('[RosterParser] ========================');
     throw new Error(`Failed to save roster file: ${error.message}`);
   }
 }

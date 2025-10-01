@@ -13,7 +13,8 @@
     "lint:fix": "eslint --ext .ts,.tsx . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "jest",
+    "test": "playwright test",
+    "test:jest": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit",
@@ -81,6 +82,7 @@
     "react-dom": "^19.1.1",
     "sharp": "^0.34.4",
     "sqlite3": "^5.1.7",
+    "stream-parser": "^0.3.1",
     "three": "^0.180.0",
     "zustand": "^5.0.8"
   }
