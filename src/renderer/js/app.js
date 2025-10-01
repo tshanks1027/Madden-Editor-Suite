@@ -29,6 +29,11 @@ class MaddenEditorApp {
         this.showAllColumns = false;
         this.disableChangeEvents = false;
 
+        // Pagination settings
+        this.currentPage = 1;
+        this.rowsPerPage = 100;
+        this.totalPages = 1;
+
         this.init();
     }
 
@@ -139,6 +144,42 @@ class MaddenEditorApp {
                 this.closeErrorModal();
             }
         });
+
+        // Pagination controls
+        document.getElementById('firstPageBtn').addEventListener('click', () => {
+            this.firstPage();
+        });
+
+        document.getElementById('prevPageBtn').addEventListener('click', () => {
+            this.previousPage();
+        });
+
+        document.getElementById('nextPageBtn').addEventListener('click', () => {
+            this.nextPage();
+        });
+
+        document.getElementById('lastPageBtn').addEventListener('click', () => {
+            this.lastPage();
+        });
+
+        document.getElementById('goToPageBtn').addEventListener('click', () => {
+            const pageInput = document.getElementById('pageInput');
+            const targetPage = parseInt(pageInput.value);
+            if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= this.totalPages) {
+                this.goToPage(targetPage);
+                pageInput.value = '';
+            }
+        });
+
+        document.getElementById('pageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const targetPage = parseInt(e.target.value);
+                if (!isNaN(targetPage) && targetPage >= 1 && targetPage <= this.totalPages) {
+                    this.goToPage(targetPage);
+                    e.target.value = '';
+                }
+            }
+        });
     }
 
     switchTool(toolName) {
@@ -196,7 +237,7 @@ class MaddenEditorApp {
         if (!filePath) return;
 
         this.setStatus('Loading file...');
-        this.showLoading(true);
+        this.showLoading(true, 'Initializing...', 10);
 
         try {
             const fileName = filePath.replace(/^.*[\\/]/, ''); // Extract filename from path
@@ -204,18 +245,27 @@ class MaddenEditorApp {
 
             // Update UI
             this.setCurrentFile(filePath);
+            this.updateLoadingProgress('Reading file...', 25);
 
             // Use real parser from backend
             if (typeof window.electronAPI !== 'undefined') {
                 console.log('Loading roster file using real parser...');
+                this.updateLoadingProgress('Parsing roster data...', 50);
+
                 const result = await window.electronAPI.parser.parseRosterFile(filePath);
                 console.log('Parse result:', result);
 
                 if (result.success && result.data) {
+                    this.updateLoadingProgress('Processing players...', 75);
+
                     // Extract players from the parse result
                     this.players = result.data.players || [];
                     this.originalData = result.data; // Store for saving
 
+                    // Reset pagination
+                    this.currentPage = 1;
+
+                    this.updateLoadingProgress('Rendering grid...', 90);
                     this.renderRoster();
                     this.setStatus(`Loaded ${this.players.length} players from ${fileName}`);
                 } else {
@@ -224,7 +274,10 @@ class MaddenEditorApp {
             } else {
                 // Fallback to sample data for testing without Electron
                 console.log('Electron API not available - loading sample data for testing');
+                this.updateLoadingProgress('Loading sample data...', 75);
                 this.loadSampleData();
+                this.currentPage = 1;
+                this.updateLoadingProgress('Rendering grid...', 90);
                 this.renderRoster();
                 this.setStatus(`Loaded ${this.players.length} players from ${fileName} (sample data)`);
             }
@@ -444,8 +497,14 @@ class MaddenEditorApp {
             displayNames = visibleFields.map(field => Array.isArray(field) ? field[1] : getFieldDefinition(field).display);
         }
 
-        // Prepare data and columns for Handsontable
-        const data = this.players.map(player => {
+        // Calculate pagination
+        this.totalPages = Math.ceil(this.players.length / this.rowsPerPage);
+        const startIndex = (this.currentPage - 1) * this.rowsPerPage;
+        const endIndex = Math.min(startIndex + this.rowsPerPage, this.players.length);
+        const paginatedPlayers = this.players.slice(startIndex, endIndex);
+
+        // Prepare data and columns for Handsontable (only current page)
+        const data = paginatedPlayers.map(player => {
             return fieldCodes.map(fieldName => {
                 return this.getPlayerFieldValue(player, fieldName);
             });
@@ -655,6 +714,7 @@ class MaddenEditorApp {
         }, 200);
 
         this.updateStats();
+        this.updatePaginationUI();
     }
 
     getPlayerFieldValue(player, fieldName) {
@@ -774,7 +834,11 @@ class MaddenEditorApp {
 
         // Update player data based on Handsontable changes
         changes.forEach(([row, colIndex, oldValue, newValue]) => {
-            if (oldValue !== newValue && this.players[row] && this.currentFieldMapping) {
+            // Calculate actual player index accounting for pagination
+            const startIndex = (this.currentPage - 1) * this.rowsPerPage;
+            const actualPlayerIndex = startIndex + row;
+
+            if (oldValue !== newValue && this.players[actualPlayerIndex] && this.currentFieldMapping) {
                 const fieldName = this.currentFieldMapping[colIndex];
                 const fieldDef = getFieldDefinition(fieldName);
 
@@ -788,17 +852,17 @@ class MaddenEditorApp {
 
                         if (pid !== null) {
                             // Valid player name selected, update corresponding PID
-                            this.players[row]['PSXP'] = pid;
+                            this.players[actualPlayerIndex]['PSXP'] = pid;
                             // Update the PSXP cell in the grid
                             this.updateGridCell(row, 'PSXP', pid);
                             // Store the valid name
                             convertedValue = newValue;
-                            this.players[row]['PLAYERPIC'] = convertedValue;
+                            this.players[actualPlayerIndex]['PLAYERPIC'] = convertedValue;
                         } else {
                             // Invalid name typed - revert to original value
-                            const originalPID = this.players[row]['PSXP'];
+                            const originalPID = this.players[actualPlayerIndex]['PSXP'];
                             convertedValue = getPlayerNameFromPID(originalPID);
-                            this.players[row]['PLAYERPIC'] = convertedValue;
+                            this.players[actualPlayerIndex]['PLAYERPIC'] = convertedValue;
                             // Update the grid to show the reverted value
                             this.updateGridCell(row, 'PLAYERPIC', convertedValue);
                         }
@@ -823,14 +887,14 @@ class MaddenEditorApp {
                         if (fieldName === 'PSXP') {
                             const playerName = getPlayerNameFromPID(convertedValue);
                             // Update PLAYERPIC with the looked-up name (or 'Generic Face' if not found)
-                            this.players[row]['PLAYERPIC'] = playerName;
+                            this.players[actualPlayerIndex]['PLAYERPIC'] = playerName;
                             this.updateGridCell(row, 'PLAYERPIC', playerName);
                         }
                     }
                     // Text fields keep their value as-is
 
                     // Update the player data
-                    this.players[row][fieldName] = convertedValue;
+                    this.players[actualPlayerIndex][fieldName] = convertedValue;
                 }
             }
         });
@@ -1169,9 +1233,89 @@ class MaddenEditorApp {
         }
     }
 
-    showLoading(show) {
-        document.getElementById('loadingIndicator').style.display = show ? 'flex' : 'none';
-        document.getElementById('loadingText').textContent = show ? 'Loading...' : '';
+    showLoading(show, text = 'Loading...', progress = 0) {
+        const indicator = document.getElementById('loadingIndicator');
+        const loadingText = document.getElementById('loadingText');
+        const loadingBar = document.getElementById('loadingBar');
+
+        indicator.style.display = show ? 'flex' : 'none';
+        loadingText.textContent = show ? text : '';
+
+        if (show && progress > 0) {
+            loadingBar.style.width = `${Math.min(progress, 100)}%`;
+        } else {
+            loadingBar.style.width = '0%';
+        }
+    }
+
+    updateLoadingProgress(text, progress) {
+        document.getElementById('loadingText').textContent = text;
+        document.getElementById('loadingBar').style.width = `${Math.min(progress, 100)}%`;
+    }
+
+    updatePaginationUI() {
+        const paginationControls = document.getElementById('paginationControls');
+        const paginationInfo = document.getElementById('paginationInfo');
+        const currentPageIndicator = document.getElementById('currentPageIndicator');
+        const firstPageBtn = document.getElementById('firstPageBtn');
+        const prevPageBtn = document.getElementById('prevPageBtn');
+        const nextPageBtn = document.getElementById('nextPageBtn');
+        const lastPageBtn = document.getElementById('lastPageBtn');
+        const pageInput = document.getElementById('pageInput');
+
+        if (this.players.length === 0) {
+            paginationControls.style.display = 'none';
+            return;
+        }
+
+        // Show pagination controls
+        paginationControls.style.display = 'flex';
+
+        // Update pagination info
+        const startIndex = (this.currentPage - 1) * this.rowsPerPage + 1;
+        const endIndex = Math.min(this.currentPage * this.rowsPerPage, this.players.length);
+        paginationInfo.textContent = `Showing ${startIndex}-${endIndex} of ${this.players.length} players`;
+        currentPageIndicator.textContent = `Page ${this.currentPage} of ${this.totalPages}`;
+        pageInput.max = this.totalPages;
+        pageInput.placeholder = String(this.currentPage);
+
+        // Update button states
+        firstPageBtn.disabled = this.currentPage === 1;
+        prevPageBtn.disabled = this.currentPage === 1;
+        nextPageBtn.disabled = this.currentPage === this.totalPages;
+        lastPageBtn.disabled = this.currentPage === this.totalPages;
+    }
+
+    goToPage(page) {
+        const targetPage = Math.max(1, Math.min(page, this.totalPages));
+        if (targetPage !== this.currentPage) {
+            this.currentPage = targetPage;
+            this.showLoading(true, 'Switching page...', 50);
+            setTimeout(() => {
+                this.renderRoster();
+                this.showLoading(false);
+            }, 100);
+        }
+    }
+
+    nextPage() {
+        if (this.currentPage < this.totalPages) {
+            this.goToPage(this.currentPage + 1);
+        }
+    }
+
+    previousPage() {
+        if (this.currentPage > 1) {
+            this.goToPage(this.currentPage - 1);
+        }
+    }
+
+    firstPage() {
+        this.goToPage(1);
+    }
+
+    lastPage() {
+        this.goToPage(this.totalPages);
     }
 
     setStatus(text) {

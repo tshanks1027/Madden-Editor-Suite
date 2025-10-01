@@ -167,7 +167,10 @@
             <div class="status-left">
                 <div id="loadingIndicator" class="loading-indicator" style="display: none;">
                     <div class="spinner"></div>
-                    <span id="loadingText">Loading...</span>
+                    <div class="loading-bar-container">
+                        <div id="loadingBar" class="loading-bar"></div>
+                    </div>
+                    <span id="loadingText" class="loading-text">Loading...</span>
                 </div>
             </div>
 
@@ -175,6 +178,25 @@
                 <span id="statusText" class="status-text">Ready</span>
             </div>
         </footer>
+
+        <!-- Pagination Controls (hidden by default) -->
+        <div id="paginationControls" class="pagination-controls" style="display: none;">
+            <div class="pagination-info">
+                <span id="paginationInfo">Showing 1-100 of 3000 players</span>
+            </div>
+            <div class="pagination-buttons">
+                <button id="firstPageBtn" class="pagination-btn">« First</button>
+                <button id="prevPageBtn" class="pagination-btn">‹ Previous</button>
+                <span id="currentPageIndicator" class="pagination-info">Page 1 of 30</span>
+                <button id="nextPageBtn" class="pagination-btn">Next ›</button>
+                <button id="lastPageBtn" class="pagination-btn">Last »</button>
+            </div>
+            <div class="page-jump">
+                <label for="pageInput" class="pagination-info">Go to page:</label>
+                <input type="number" id="pageInput" class="page-input" min="1" placeholder="1">
+                <button id="goToPageBtn" class="pagination-btn">Go</button>
+            </div>
+        </div>
     </div>
 
     <!-- Error Modal -->
