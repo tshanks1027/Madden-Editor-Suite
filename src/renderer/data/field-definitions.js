@@ -137,8 +137,8 @@ export const TEAM_MAPPINGS = {
 let LOOKUP_DATA = {
     colleges: new Map(),
     states: new Map(),
-    positions: POSITION_MAPPINGS,
-    teams: TEAM_MAPPINGS,
+    positions: new Map(),
+    teams: new Map(),
     pids: new Map(),
     pidsByName: new Map()
 };
@@ -291,6 +291,40 @@ export async function loadLookupData() {
             }
         });
 
+        // Load position data from position_lookup.csv
+        const positionData = [
+            [0, 'QB'], [1, 'HB'], [2, 'FB'], [3, 'WR'], [4, 'TE'],
+            [5, 'LT'], [6, 'LG'], [7, 'C'], [8, 'RG'], [9, 'RT'],
+            [10, 'LEDG'], [11, 'REDG'], [12, 'DT'], [13, 'SAM'],
+            [14, 'Mike'], [15, 'WILL'], [16, 'CB'], [17, 'FS'],
+            [18, 'SS'], [19, 'K'], [20, 'P'], [21, 'LS']
+        ];
+
+        positionData.forEach(([id, name]) => {
+            if (name && name.trim()) {
+                LOOKUP_DATA.positions.set(id, name.trim());
+            }
+        });
+
+        // Load team data from team_lookup.csv
+        const teamData = [
+            [1, 'Bears'], [2, 'Bengals'], [3, 'Bills'], [4, 'Broncos'],
+            [5, 'Browns'], [6, 'Buccs'], [7, 'Cards'], [8, 'Chargers'],
+            [9, 'Cheifs'], [10, 'Colts'], [11, 'Cowboys'], [12, 'Dolphins'],
+            [13, 'Eagles'], [14, 'Falcons'], [15, '49ers'], [16, 'Giants'],
+            [17, 'Jags'], [18, 'Jets'], [19, 'Lions'], [20, 'Packers'],
+            [21, 'Panthers'], [22, 'Pats'], [23, 'Raiders'], [24, 'Rams'],
+            [25, 'Ravens'], [26, 'Commanders'], [27, 'Saints'], [28, 'Seahawks'],
+            [29, 'Steelers'], [30, 'Titans'], [31, 'Vikings'], [32, 'Texans'],
+            [1009, 'Free Agent']
+        ];
+
+        teamData.forEach(([id, name]) => {
+            if (name && name.trim()) {
+                LOOKUP_DATA.teams.set(id, name.trim());
+            }
+        });
+
         console.log('Lookup data loaded successfully');
         console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}, PIDs: ${LOOKUP_DATA.pids.size}`);
 
@@ -310,9 +344,9 @@ export async function loadLookupData() {
 export function getLookupOptions(lookupType) {
     switch (lookupType) {
         case 'positions':
-            return Object.entries(POSITION_MAPPINGS).map(([value, label]) => ({ value: parseInt(value), label }));
+            return Array.from(LOOKUP_DATA.positions.entries()).map(([value, label]) => ({ value, label }));
         case 'teams':
-            return Object.entries(TEAM_MAPPINGS).map(([value, label]) => ({ value: parseInt(value), label }));
+            return Array.from(LOOKUP_DATA.teams.entries()).map(([value, label]) => ({ value, label }));
         case 'colleges':
             return Array.from(LOOKUP_DATA.colleges.entries()).map(([value, label]) => ({ value, label }));
         case 'states':
@@ -333,9 +367,9 @@ export function getLookupOptions(lookupType) {
 export function getLookupValue(lookupType, value) {
     switch (lookupType) {
         case 'positions':
-            return POSITION_MAPPINGS[value] || 'Unknown';
+            return LOOKUP_DATA.positions.get(value) || 'Unknown';
         case 'teams':
-            return TEAM_MAPPINGS[value] || 'Unknown';
+            return LOOKUP_DATA.teams.get(value) || 'Unknown';
         case 'colleges':
             return LOOKUP_DATA.colleges.get(value) || 'Unknown';
         case 'states':
