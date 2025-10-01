@@ -83,9 +83,28 @@
                     </div>
                 </div>
 
+                <!-- Team View Header (hidden by default) -->
+                <div id="teamViewHeader" class="team-view-header" style="display: none;">
+                    <button id="backToAllTeams" class="btn btn-secondary team-back-btn">
+                        <span class="btn-icon">←</span>
+                        Back to All Teams
+                    </button>
+                    <div class="team-branding">
+                        <h2 id="teamName" class="team-name"></h2>
+                        <div id="teamLogo" class="team-logo"></div>
+                    </div>
+                </div>
+
                 <!-- Roster Controls -->
                 <div class="tool-controls">
                     <div class="controls-left">
+                        <div class="control-group">
+                            <label for="teamFilter" class="control-label">Team:</label>
+                            <select id="teamFilter" class="control-select">
+                                <option value="">All Teams</option>
+                            </select>
+                        </div>
+
                         <div class="control-group">
                             <label for="positionFilter" class="control-label">Position:</label>
                             <select id="positionFilter" class="control-select">

@@ -416,6 +416,62 @@ body {
     color: var(--gray-text);
 }
 
+/* Team View Header */
+.team-view-header {
+    background: var(--gray-medium);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+.team-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--white);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.team-back-btn:hover {
+    background: rgba(0, 0, 0, 0.5);
+    border-color: var(--primary-orange);
+}
+
+.team-branding {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex: 1;
+    justify-content: center;
+}
+
+.team-name {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--white);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    margin: 0;
+}
+
+.team-logo {
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 3rem;
+}
+
 /* Empty State */
 .empty-state {
     display: flex;

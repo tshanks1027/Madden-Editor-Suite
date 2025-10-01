@@ -18,6 +18,7 @@ import {
     getPlayerNameFromPID,
     searchPIDNames
 } from '../data/field-definitions.js';
+import { NFL_TEAMS, getAllTeams, getTeamById } from '../data/team-data.js';
 
 class MaddenEditorApp {
     constructor() {
@@ -27,6 +28,7 @@ class MaddenEditorApp {
         this.filteredPlayers = []; // Filtered/sorted view of players
         this.lookupReady = false;
         this.selectedPosition = '';
+        this.selectedTeamId = null; // null = all teams, number = specific team
         this.showAllColumns = false;
         this.disableChangeEvents = false;
 
@@ -57,6 +59,9 @@ class MaddenEditorApp {
 
         // Setup event listeners
         this.setupEventListeners();
+
+        // Populate team dropdown
+        this.populateTeamDropdown();
 
         // Don't load sample data - app should start blank until file is loaded
         this.players = [];
@@ -123,6 +128,12 @@ class MaddenEditorApp {
         });
 
         // Roster controls
+        document.getElementById('teamFilter').addEventListener('change', (e) => {
+            const teamId = e.target.value ? parseInt(e.target.value) : null;
+            this.selectedTeamId = teamId;
+            this.enterTeamView(teamId);
+        });
+
         document.getElementById('positionFilter').addEventListener('change', (e) => {
             this.selectedPosition = e.target.value;
             this.filterPlayers();
@@ -131,6 +142,11 @@ class MaddenEditorApp {
         document.getElementById('showAllColumns').addEventListener('change', (e) => {
             this.showAllColumns = e.target.checked;
             this.updateVisibleFields();
+        });
+
+        // Back to all teams button
+        document.getElementById('backToAllTeams').addEventListener('click', () => {
+            this.exitTeamView();
         });
 
         document.getElementById('saveRosterBtn').addEventListener('click', () => {
@@ -1201,6 +1217,13 @@ class MaddenEditorApp {
         // Start with all players
         let filtered = [...this.players];
 
+        // Apply team filter
+        if (this.selectedTeamId !== null) {
+            filtered = filtered.filter(player => {
+                return player.TGID === this.selectedTeamId;
+            });
+        }
+
         // Apply position filter
         if (this.selectedPosition) {
             filtered = filtered.filter(player => {
@@ -1317,6 +1340,78 @@ class MaddenEditorApp {
         // Re-render the roster with new field visibility
         this.renderRoster();
         this.updateStats();
+    }
+
+    populateTeamDropdown() {
+        const teamFilter = document.getElementById('teamFilter');
+        const teams = getAllTeams();
+
+        // Clear existing options (except "All Teams")
+        teamFilter.innerHTML = '<option value="">All Teams</option>';
+
+        // Add team options
+        teams.forEach(team => {
+            const option = document.createElement('option');
+            option.value = team.id;
+            option.textContent = team.fullName;
+            teamFilter.appendChild(option);
+        });
+    }
+
+    enterTeamView(teamId) {
+        if (!teamId) {
+            // "All Teams" selected - exit team view
+            this.exitTeamView();
+            return;
+        }
+
+        const team = getTeamById(teamId);
+        if (!team) return;
+
+        // Show team header
+        const teamHeader = document.getElementById('teamViewHeader');
+        const teamName = document.getElementById('teamName');
+        teamHeader.style.display = 'flex';
+        teamName.textContent = team.fullName;
+
+        // Apply team colors
+        this.applyTeamColors(team);
+
+        // Filter and render
+        this.filterPlayers();
+    }
+
+    exitTeamView() {
+        // Hide team header
+        document.getElementById('teamViewHeader').style.display = 'none';
+
+        // Reset team filter dropdown
+        document.getElementById('teamFilter').value = '';
+        this.selectedTeamId = null;
+
+        // Reset colors to default
+        this.resetColors();
+
+        // Re-render
+        this.filterPlayers();
+    }
+
+    applyTeamColors(team) {
+        const root = document.documentElement;
+        root.style.setProperty('--team-primary', team.primary);
+        root.style.setProperty('--team-secondary', team.secondary);
+
+        // Apply team colors to header and other elements
+        const teamHeader = document.getElementById('teamViewHeader');
+        teamHeader.style.background = `linear-gradient(135deg, ${team.primary} 0%, ${team.secondary} 100%)`;
+    }
+
+    resetColors() {
+        const root = document.documentElement;
+        root.style.removeProperty('--team-primary');
+        root.style.removeProperty('--team-secondary');
+
+        document.getElementById('teamViewHeader').style.background = '';
     }
 
     updateStats() {
