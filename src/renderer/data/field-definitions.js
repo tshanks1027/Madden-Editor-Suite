@@ -10,13 +10,13 @@ export const MADDEN_FIELDS = {
     'PSXP': { display: 'Pic ID', shortDisplay: 'PID', type: 'numeric', editable: true, width: 200, min: 0, max: 10861 },
     'PLAYERPIC': { display: 'Player Pic', shortDisplay: 'Player Pic', type: 'autocomplete', editable: true, width: 120, lookup: 'pids' },
     'PPOS': { display: 'Position', shortDisplay: 'POS', type: 'lookup', editable: true, width: 80, lookup: 'positions' },
+    'PYRP': { display: 'Years Pro', shortDisplay: 'YRS', type: 'numeric', editable: true, width: 80, min: 0, max: 25 },
     'TGID': { display: 'Team', shortDisplay: 'Team', type: 'lookup', editable: true, width: 80, lookup: 'teams' },
     'PJEN': { display: 'Jersey Number', shortDisplay: 'JER', type: 'numeric', editable: true, width: 80, min: 0, max: 99 },
     'PCOL': { display: 'College', shortDisplay: 'College', type: 'lookup', editable: true, width: 100, lookup: 'colleges' },
     'PAGE': { display: 'Age', shortDisplay: 'Age', type: 'numeric', editable: true, width: 60, min: 18, max: 45 },
     'PHTN': { display: 'Hometown', shortDisplay: 'Hometown', type: 'text', editable: false, width: 100 },
     'PHSN': { display: 'State', shortDisplay: 'State', type: 'lookup', editable: true, width: 80, lookup: 'states' },
-    'PYRP': { display: 'Years Pro', shortDisplay: 'YRS', type: 'numeric', editable: true, width: 80, min: 0, max: 25 },
     'PACC': { display: 'Acceleration', shortDisplay: 'ACC', type: 'numeric', editable: true, width: 90, min: 0, max: 99 },
     'PAGI': { display: 'Agility', shortDisplay: 'AGI', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
     'PAWR': { display: 'Awareness', shortDisplay: 'AWR', type: 'numeric', editable: true, width: 90, min: 0, max: 99 },
@@ -71,6 +71,28 @@ export const MADDEN_FIELDS = {
     'PHGT': { display: 'Height', shortDisplay: 'HGT', type: 'numeric', editable: true, width: 70, min: 65, max: 85 },
     'PWGT': { display: 'Weight', shortDisplay: 'WGT', type: 'numeric', editable: true, width: 70, min: 160, max: 380 },
 
+    // Contract fields (stored in hundreds of thousands, displayed in millions - divide by 100 for display, multiply by 100 when saving)
+    'PCON': { display: 'Contract Years', shortDisplay: 'CON', type: 'numeric', editable: true, width: 80, min: 0, max: 7 },
+    'PCYL': { display: 'Years Left', shortDisplay: 'LEFT', type: 'numeric', editable: true, width: 80, min: 0, max: 7 },
+
+    // Per-year salary fields (PSA0-PSA6)
+    'PSA0': { display: 'Salary Yr 1 ($M)', shortDisplay: 'SAL1', type: 'numeric', editable: true, width: 100, min: 0, max: 999, transform: { display: v => v / 100, save: v => v * 100 } },
+    'PSA1': { display: 'Salary Yr 2 ($M)', shortDisplay: 'SAL2', type: 'numeric', editable: true, width: 100, min: 0, max: 999, transform: { display: v => v / 100, save: v => v * 100 } },
+    'PSA2': { display: 'Salary Yr 3 ($M)', shortDisplay: 'SAL3', type: 'numeric', editable: true, width: 100, min: 0, max: 999, transform: { display: v => v / 100, save: v => v * 100 } },
+    'PSA3': { display: 'Salary Yr 4 ($M)', shortDisplay: 'SAL4', type: 'numeric', editable: true, width: 100, min: 0, max: 999, transform: { display: v => v / 100, save: v => v * 100 } },
+    'PSA4': { display: 'Salary Yr 5 ($M)', shortDisplay: 'SAL5', type: 'numeric', editable: true, width: 100, min: 0, max: 999, transform: { display: v => v / 100, save: v => v * 100 } },
+    'PSA5': { display: 'Salary Yr 6 ($M)', shortDisplay: 'SAL6', type: 'numeric', editable: true, width: 100, min: 0, max: 999, transform: { display: v => v / 100, save: v => v * 100 } },
+    'PSA6': { display: 'Salary Yr 7 ($M)', shortDisplay: 'SAL7', type: 'numeric', editable: true, width: 100, min: 0, max: 999, transform: { display: v => v / 100, save: v => v * 100 } },
+
+    // Calculated total salary (sum of PSA0-PSA6)
+    'TOTAL_SALARY': { display: 'Total Salary ($M)', shortDisplay: 'TOT SAL', type: 'calculated', editable: false, width: 110, calculate: (player) => {
+        const years = ['PSA0', 'PSA1', 'PSA2', 'PSA3', 'PSA4', 'PSA5', 'PSA6'];
+        const total = years.reduce((sum, field) => sum + (player[field] || 0), 0);
+        return Math.round(total / 100); // Convert to millions
+    }},
+
+    'PSBO': { display: 'Signing Bonus ($M)', shortDisplay: 'BONUS', type: 'numeric', editable: true, width: 100, min: 0, max: 999, transform: { display: v => v / 100, save: v => v * 100 } },
+
     // Additional system fields
     'PGID': { display: 'Player ID', shortDisplay: 'ID', type: 'numeric', editable: false, width: 80, min: 0, max: 99999 },
     'POVR': { display: 'Overall Rating', shortDisplay: 'OVR', type: 'numeric', editable: false, width: 70, min: 0, max: 99 }
@@ -79,8 +101,8 @@ export const MADDEN_FIELDS = {
 // Field order for user-friendly editing (Madden game order)
 export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"],
-    ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
-    ["PAGE", "Age"], ["PHTN", "Hometown"], ["PHSN", "State"], ["PYRP", "Years Pro"],
+    ["PPOS", "Position"], ["PYRP", "Years Pro"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
+    ["PAGE", "Age"], ["PHTN", "Hometown"], ["PHSN", "State"],
     ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBCV", "Vision"],
     ["PBSG", "Block Shed"], ["PBSK", "Break Sack"], ["PCAR", "Carrying"], ["PLCI", "Catch in Traffic"],
     ["PCTH", "Catching"], ["PDRR", "Deep RR"], ["PELU", "Change of Dir"], ["PFMS", "Finesse Moves"],
@@ -94,7 +116,8 @@ export const FIELD_ORDER = [
     ["PSTR", "Strength"], ["PTAK", "Tackling"], ["PTAD", "Deep Throw"], ["PTAM", "Med Throw"],
     ["PTAS", "Short Throw"], ["PTOR", "Throw on Run"], ["PTHP", "Throw Power"],
     ["PTUP", "Throw Under Pressure"], ["PTGH", "Toughness"], ["PLTR", "Truck"], ["PLZC", "Zone Coverage"],
-    ["PHGT", "Height"], ["PWGT", "Weight"]
+    ["PHGT", "Height"], ["PWGT", "Weight"],
+    ["PCON", "Contract Years"], ["PCYL", "Years Left"], ["TOTAL_SALARY", "Total Salary"], ["PSBO", "Signing Bonus"]
 ];
 
 // Madden export order (for file saving - exact order for roster file export)
@@ -140,7 +163,13 @@ let LOOKUP_DATA = {
     positions: new Map(),
     teams: new Map(),
     pids: new Map(),
-    pidsByName: new Map()
+    pidsByName: new Map(),
+    devtraits: new Map([
+        [0, 'Normal'],
+        [1, 'Star'],
+        [2, 'Superstar'],
+        [3, 'X-Factor']
+    ])
 };
 
 /**
@@ -391,6 +420,8 @@ export function getLookupOptions(lookupType) {
             return Array.from(LOOKUP_DATA.states.entries()).map(([value, label]) => ({ value, label }));
         case 'pids':
             return Array.from(LOOKUP_DATA.pids.entries()).map(([value, label]) => ({ value, label }));
+        case 'devtraits':
+            return Array.from(LOOKUP_DATA.devtraits.entries()).map(([value, label]) => ({ value, label }));
         default:
             return [];
     }

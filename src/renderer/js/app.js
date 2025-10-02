@@ -789,6 +789,16 @@ class MaddenEditorApp {
             return player[fieldName] + 159;
         }
 
+        // Handle calculated fields (e.g., TOTAL_SALARY)
+        if (fieldDef.type === 'calculated' && fieldDef.calculate) {
+            return fieldDef.calculate(player);
+        }
+
+        // Handle fields with transform for display (salary/bonus in millions)
+        if (fieldDef.transform && fieldDef.transform.display && player[fieldName] !== undefined) {
+            return fieldDef.transform.display(player[fieldName]);
+        }
+
         // Handle direct field mappings
         if (player[fieldName] !== undefined) {
             return player[fieldName];
@@ -942,6 +952,11 @@ class MaddenEditorApp {
                             // Update PLAYERPIC with the looked-up name (or 'Generic Face' if not found)
                             this.players[actualPlayerIndex]['PLAYERPIC'] = playerName;
                             this.updateGridCell(row, 'PLAYERPIC', playerName);
+                        }
+
+                        // Apply save transform if defined (e.g., salary/bonus: multiply by 1000)
+                        if (fieldDef.transform && fieldDef.transform.save) {
+                            convertedValue = fieldDef.transform.save(convertedValue);
                         }
                     }
                     // Text fields keep their value as-is
