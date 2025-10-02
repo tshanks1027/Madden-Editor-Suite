@@ -1504,23 +1504,15 @@ class MaddenEditorApp {
                 }
 
                 const saveFilePath = dialogResult.filePath;
-                console.log('Saving to:', saveFilePath);
+                console.log('[app.js] User chose save location:', saveFilePath);
+                console.log('[app.js] Source file (will NOT be modified):', this.currentFile);
 
                 this.setStatus('Saving roster...');
                 this.showLoading(true);
 
-                // Create backup of target file if it exists
-                console.log('Creating backup...');
-                const backupResult = await window.electronAPI.file.createBackup(saveFilePath);
-
-                if (backupResult.success && backupResult.backupPath) {
-                    console.log('Backup created:', backupResult.backupPath);
-                } else if (backupResult.skipped) {
-                    console.log('Backup skipped (new file)');
-                }
-
-                // Save the roster file
-                console.log('Saving roster file...');
+                // Save the roster file directly to user's chosen location
+                // NO backup creation - we only write to the chosen file
+                console.log('[app.js] Calling saveRosterFile with chosen path...');
                 const saveResult = await window.electronAPI.parser.saveRosterFile(
                     saveFilePath,
                     this.players,
