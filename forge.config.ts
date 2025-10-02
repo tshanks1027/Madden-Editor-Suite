@@ -3,24 +3,41 @@ import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
 import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
+import MakerNSIS from 'electron-forge-maker-nsis';
+import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const brandingPath = 'C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\Branding';
 
 const config: ForgeConfig = {
   packagerConfig: {
+    icon: path.join(brandingPath, 'madden.ico'),
+    name: 'Madden Editor Suite',
+    executableName: 'madden-editor-suite',
     asar: {
-      unpack: '{**/data/lookups/**/*,**/parsers/**/*}'
-    },
+      unpack: '*.{node,dll}'
+    }
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
+    new MakerSquirrel({
+      name: 'MaddenEditorSuite',
+      setupIcon: path.join(brandingPath, 'madden.ico'),
+      loadingGif: path.join(brandingPath, 'splash.png'),
+      iconUrl: path.join(brandingPath, 'madden.ico'),
+      setupExe: 'Madden-Editor-Suite-Setup.exe'
+    }),
     new MakerZIP({}, ['darwin']),
-    new MakerRpm({}),
-    new MakerDeb({}),
   ],
   plugins: [
+    new AutoUnpackNativesPlugin({}),
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
       // If you are familiar with Vite configuration, it will look really familiar.

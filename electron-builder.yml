@@ -1,0 +1,53 @@
+appId: com.krazynuttZ.madden-editor-suite
+productName: Madden Editor Suite
+copyright: Copyright © 2025 KRaZyNuttZ
+electronDist: out/Madden Editor Suite-win32-x64
+electronVersion: 38.1.2
+
+directories:
+  output: dist
+  buildResources: ../Branding
+
+files:
+  - "!**/*"
+
+extraFiles:
+  - from: out/Madden Editor Suite-win32-x64
+    to: .
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: ../Branding/madden.ico
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  allowElevation: true
+  installerIcon: ../Branding/madden.ico
+  uninstallerIcon: ../Branding/madden.ico
+  installerHeader: ../Branding/banner.png
+  installerSidebar: ../Branding/splash.png
+  uninstallerSidebar: ../Branding/splash.png
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Madden Editor Suite
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  menuCategory: true
+  displayLanguageSelector: false
+  installerLanguages:
+    - en_US
+  warningsAsErrors: false
+
+  # Reduce antivirus false positives
+  unicode: true
+  guid: 5a8f7c3b-1d9e-4a2f-b5c6-8e3d4f2a1b0c
+
+publish: null
