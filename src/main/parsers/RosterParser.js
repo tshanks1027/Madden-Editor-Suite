@@ -111,6 +111,9 @@ async function saveRosterFile(filePath, players) {
     // Update player values in the TDB2 file
     const playerTable = file.PLAY;
 
+    console.log('[RosterParser] Updating', players.length, 'player records');
+    let fieldsUpdated = 0;
+
     for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
       const record = playerTable.records[i];
       const playerData = players[i];
@@ -122,9 +125,13 @@ async function saveRosterFile(filePath, players) {
         }
         if (record.fields[fieldName]) {
           record.fields[fieldName].value = playerData[fieldName];
+          fieldsUpdated++;
         }
       }
     }
+
+    console.log('[RosterParser] Updated', fieldsUpdated, 'field values');
+    console.log('[RosterParser] Original record has', Object.keys(playerTable.records[0].fields).length, 'fields - all preserved');
 
     // Save using MaddenRosterHelper
     await helper.save(filePath);
