@@ -1487,14 +1487,31 @@ class MaddenEditorApp {
             return;
         }
 
-        this.setStatus('Saving roster...');
-        this.showLoading(true);
-
         try {
             if (typeof window.electronAPI !== 'undefined') {
-                // Create backup first
+                // Get the directory and default to 'ROSTER-EDITED' filename
+                const lastSlash = Math.max(this.currentFile.lastIndexOf('/'), this.currentFile.lastIndexOf('\\'));
+                const dir = this.currentFile.substring(0, lastSlash + 1);
+                const defaultPath = dir + 'ROSTER-EDITED';
+
+                // Show save dialog
+                this.setStatus('Choose save location...');
+                const dialogResult = await window.electronAPI.file.saveDialog(defaultPath);
+
+                if (dialogResult.canceled || !dialogResult.filePath) {
+                    this.setStatus('Save canceled');
+                    return;
+                }
+
+                const saveFilePath = dialogResult.filePath;
+                console.log('Saving to:', saveFilePath);
+
+                this.setStatus('Saving roster...');
+                this.showLoading(true);
+
+                // Create backup of target file if it exists
                 console.log('Creating backup...');
-                const backupResult = await window.electronAPI.file.createBackup(this.currentFile);
+                const backupResult = await window.electronAPI.file.createBackup(saveFilePath);
 
                 if (backupResult.success && backupResult.backupPath) {
                     console.log('Backup created:', backupResult.backupPath);
@@ -1505,17 +1522,21 @@ class MaddenEditorApp {
                 // Save the roster file
                 console.log('Saving roster file...');
                 const saveResult = await window.electronAPI.parser.saveRosterFile(
-                    this.currentFile,
+                    saveFilePath,
                     this.players,
                     this.originalData
                 );
 
                 if (saveResult.success) {
-                    this.setStatus('Roster saved successfully');
+                    const lastSlash = Math.max(saveFilePath.lastIndexOf('/'), saveFilePath.lastIndexOf('\\'));
+                    const fileName = saveFilePath.substring(lastSlash + 1);
+                    this.setStatus('Roster saved successfully to ' + fileName);
                     console.log('Roster saved successfully');
                 } else {
                     throw new Error(saveResult.error || 'Unknown save error');
                 }
+
+                this.showLoading(false);
             } else {
                 // Simulate save for testing
                 await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1525,7 +1546,6 @@ class MaddenEditorApp {
         } catch (error) {
             console.error('Error saving roster:', error);
             this.showError(`Failed to save roster: ${error.message}`);
-        } finally {
             this.showLoading(false);
         }
     }
