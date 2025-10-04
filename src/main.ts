@@ -1,6 +1,11 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'node:path';
 
+// No custom module path configuration needed
+// Electron Forge puts node_modules at resources/node_modules where Node expects them
+console.log('[main] __dirname:', __dirname);
+console.log('[main] app.isPackaged:', app.isPackaged);
+
 // Catch all uncaught errors to prevent silent crashes
 process.on('uncaughtException', (error) => {
   console.error('===== UNCAUGHT EXCEPTION =====');
@@ -20,6 +25,7 @@ process.on('unhandledRejection', (reason, promise) => {
 import './main/ipc/parser-handlers';
 import './main/ipc/file-handlers';
 import './main/ipc/lookup-handlers';
+import './main/ipc/draft-class-handlers';
 
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;

@@ -40,6 +40,11 @@ class MaddenEditorApp {
         // Sorting state
         this.sortColumns = []; // Array of {column: fieldName, order: 'asc'|'desc'}
 
+        // Draft class state
+        this.currentDraftClass = null;
+        this.currentDraftFilePath = null;
+        this.draftGrid = null;
+
         this.init();
     }
 
@@ -151,6 +156,19 @@ class MaddenEditorApp {
 
         document.getElementById('saveRosterBtn').addEventListener('click', () => {
             this.saveRoster();
+        });
+
+        // Draft class controls
+        document.getElementById('open-draft-btn').addEventListener('click', async () => {
+            await this.openDraftClassDialog();
+        });
+
+        document.getElementById('save-draft-btn').addEventListener('click', () => {
+            this.saveDraftClass();
+        });
+
+        document.getElementById('export-draft-json-btn').addEventListener('click', () => {
+            this.exportDraftJSON();
         });
 
         // Modal close
@@ -1638,6 +1656,276 @@ class MaddenEditorApp {
 
     closeErrorModal() {
         document.getElementById('errorModal').style.display = 'none';
+    }
+
+    // ========================================
+    // Draft Class Methods
+    // ========================================
+
+    async openDraftClassDialog() {
+        try {
+            if (typeof window.electronAPI !== 'undefined') {
+                const result = await window.electronAPI.file.openDialog([
+                    { name: 'All Files', extensions: ['*'] },
+                    { name: 'Draft Class Files', extensions: [] }
+                ]);
+
+                if (result.success && result.filePath) {
+                    await this.loadDraftClass(result.filePath);
+                } else if (result.error) {
+                    this.showError(`Failed to open file: ${result.error}`);
+                }
+            }
+        } catch (error) {
+            console.error('Error opening draft class dialog:', error);
+            this.showError(`Error opening file dialog: ${error.message}`);
+        }
+    }
+
+    async loadDraftClass(filePath) {
+        try {
+            console.log('Loading draft class:', filePath);
+
+            const result = await window.electronAPI.draftClass.load(filePath);
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to load draft class');
+            }
+
+            this.currentDraftClass = result.data;
+            this.currentDraftFilePath = filePath;
+
+            // Update UI
+            document.getElementById('draft-file-name').textContent = filePath.split(/[/\\]/).pop();
+            document.getElementById('draft-file-stats').textContent =
+                `${result.data.prospects.length} prospects | Year: ${result.data.header.year}`;
+
+            // Enable buttons
+            document.getElementById('save-draft-btn').disabled = false;
+            document.getElementById('export-draft-json-btn').disabled = false;
+
+            // Create grid
+            this.createDraftGrid(result.data.prospects);
+
+            console.log('Draft class loaded successfully:', result.data.prospects.length, 'prospects');
+        } catch (error) {
+            console.error('Error loading draft class:', error);
+            this.showError(`Failed to load draft class: ${error.message}`);
+        }
+    }
+
+    createDraftGrid(prospects) {
+        const container = document.getElementById('draft-grid-container');
+
+        // Clear existing grid
+        if (this.draftGrid) {
+            this.draftGrid.destroy();
+        }
+
+        // Map draft class field names to roster editor field names and create columns
+        // Following FIELD_ORDER from field-definitions.js, excluding contract fields
+        const draftColumns = [
+            // Personal Info
+            { data: 'lastName', title: 'Last Name', width: 100 },
+            { data: 'firstName', title: 'First Name', width: 100 },
+            { data: 'position', title: 'Position', width: 80, type: 'numeric',
+              renderer: (instance, td, row, col, prop, value) => {
+                  const positionName = getLookupValue('positions', value);
+                  td.textContent = positionName || value;
+                  return td;
+              }
+            },
+            { data: 'jerseyNum', title: 'Jersey #', width: 80, type: 'numeric' },
+            { data: 'college', title: 'College', width: 100, type: 'numeric',
+              renderer: (instance, td, row, col, prop, value) => {
+                  const collegeName = getLookupValue('colleges', value);
+                  if (collegeName) {
+                      td.textContent = collegeName;
+                  } else if (value > 400) {
+                      td.textContent = `Invalid (${value})`;
+                      td.style.color = '#ff6b6b';
+                  } else {
+                      td.textContent = value;
+                  }
+                  return td;
+              }
+            },
+            { data: 'age', title: 'Age', width: 60, type: 'numeric' },
+            { data: 'homeTown', title: 'Hometown', width: 100 },
+            { data: 'homeState', title: 'State', width: 80, type: 'numeric',
+              renderer: (instance, td, row, col, prop, value) => {
+                  const stateName = getLookupValue('states', value);
+                  if (stateName) {
+                      td.textContent = stateName;
+                  } else if (value > 50 || value < 0) {
+                      td.textContent = `Invalid (${value})`;
+                      td.style.color = '#ff6b6b';
+                  } else {
+                      td.textContent = value;
+                  }
+                  return td;
+              }
+            },
+
+            // Ratings (in roster field order)
+            { data: 'acceleration', title: 'ACC', width: 70, type: 'numeric' },
+            { data: 'agility', title: 'AGI', width: 70, type: 'numeric' },
+            { data: 'awareness', title: 'AWR', width: 70, type: 'numeric' },
+            { data: 'breakTackle', title: 'BTK', width: 70, type: 'numeric' },
+            { data: 'ballCarrierVision', title: 'BCV', width: 70, type: 'numeric' },
+            { data: 'blockShedding', title: 'BSH', width: 70, type: 'numeric' },
+            { data: 'breakSack', title: 'BSK', width: 70, type: 'numeric' },
+            { data: 'carrying', title: 'CAR', width: 70, type: 'numeric' },
+            { data: 'catchInTraffic', title: 'CIT', width: 80, type: 'numeric' },
+            { data: 'catching', title: 'CTH', width: 70, type: 'numeric' },
+            { data: 'deepRouteRunning', title: 'DRR', width: 70, type: 'numeric' },
+            { data: 'changeOfDirection', title: 'COD', width: 70, type: 'numeric' },
+            { data: 'finesseMoves', title: 'FMV', width: 70, type: 'numeric' },
+            { data: 'hitPower', title: 'POW', width: 70, type: 'numeric' },
+            { data: 'impactBlocking', title: 'IBL', width: 70, type: 'numeric' },
+            { data: 'injury', title: 'INJ', width: 70, type: 'numeric' },
+            { data: 'jukeMove', title: 'JKM', width: 70, type: 'numeric' },
+            { data: 'jumping', title: 'JMP', width: 70, type: 'numeric' },
+            { data: 'kickAccuracy', title: 'KAC', width: 70, type: 'numeric' },
+            { data: 'kickPower', title: 'KPW', width: 70, type: 'numeric' },
+            { data: 'kickReturn', title: 'KR', width: 70, type: 'numeric' },
+            { data: 'leadBlock', title: 'LBK', width: 70, type: 'numeric' },
+            { data: 'manCoverage', title: 'MCV', width: 70, type: 'numeric' },
+            { data: 'mediumRouteRunning', title: 'MRR', width: 70, type: 'numeric' },
+            { data: 'passBlock', title: 'PBK', width: 70, type: 'numeric' },
+            { data: 'passBlockFinesse', title: 'PBF', width: 80, type: 'numeric' },
+            { data: 'passBlockPower', title: 'PBS', width: 80, type: 'numeric' },
+            { data: 'playAction', title: 'PAC', width: 70, type: 'numeric' },
+            { data: 'powerMoves', title: 'PMV', width: 70, type: 'numeric' },
+            { data: 'pressCoverage', title: 'PRS', width: 70, type: 'numeric' },
+            { data: 'pursuit', title: 'PUR', width: 70, type: 'numeric' },
+            { data: 'playRecognition', title: 'PRC', width: 70, type: 'numeric' },
+            { data: 'release', title: 'RLS', width: 70, type: 'numeric' },
+            { data: 'runBlock', title: 'RBK', width: 70, type: 'numeric' },
+            { data: 'runBlockFinesse', title: 'RBF', width: 80, type: 'numeric' },
+            { data: 'runBlockPower', title: 'RBS', width: 80, type: 'numeric' },
+            { data: 'shortRouteRunning', title: 'SRR', width: 70, type: 'numeric' },
+            { data: 'spectacularCatch', title: 'SPC', width: 70, type: 'numeric' },
+            { data: 'speed', title: 'SPD', width: 70, type: 'numeric' },
+            { data: 'spinMove', title: 'SPM', width: 70, type: 'numeric' },
+            { data: 'stamina', title: 'STA', width: 70, type: 'numeric' },
+            { data: 'stiffArm', title: 'SFA', width: 70, type: 'numeric' },
+            { data: 'strength', title: 'STR', width: 70, type: 'numeric' },
+            { data: 'tackle', title: 'TAK', width: 70, type: 'numeric' },
+            { data: 'throwAccuracyDeep', title: 'TAD', width: 70, type: 'numeric' },
+            { data: 'throwAccuracyMid', title: 'TAM', width: 70, type: 'numeric' },
+            { data: 'throwAccuracyShort', title: 'TAS', width: 70, type: 'numeric' },
+            { data: 'throwOnTheRun', title: 'TOR', width: 70, type: 'numeric' },
+            { data: 'throwPower', title: 'THP', width: 70, type: 'numeric' },
+            { data: 'throwUnderPressure', title: 'TUP', width: 70, type: 'numeric' },
+            { data: 'toughness', title: 'TGH', width: 70, type: 'numeric' },
+            { data: 'trucking', title: 'TRK', width: 70, type: 'numeric' },
+            { data: 'zoneCoverage', title: 'ZCV', width: 70, type: 'numeric' },
+
+            // Physical
+            { data: 'heightInches', title: 'Height', width: 70, type: 'numeric' },
+            { data: 'weight', title: 'Weight', width: 70, type: 'numeric' },
+
+            // Dev Trait (editable in draft class)
+            { data: 'devTrait', title: 'Dev Trait', width: 90, type: 'numeric',
+              renderer: (instance, td, row, col, prop, value) => {
+                  const devTraits = ['Normal', 'Star', 'Superstar', 'X-Factor'];
+                  td.textContent = devTraits[value] || value;
+                  return td;
+              }
+            },
+
+            // Overall (calculated field)
+            { data: 'overall', title: 'OVR', width: 70, type: 'numeric' }
+        ];
+
+        this.draftGrid = new Handsontable(container, {
+            data: prospects,
+            columns: draftColumns,
+            colHeaders: true,
+            rowHeaders: true,
+            width: '100%',
+            height: 'calc(100vh - 200px)',
+            licenseKey: 'non-commercial-and-evaluation',
+            stretchH: 'all',
+            manualColumnResize: true,
+            manualRowResize: true,
+            filters: true,
+            dropdownMenu: true,
+            contextMenu: true,
+            afterChange: (changes) => {
+                if (changes) {
+                    console.log('Draft class data changed:', changes);
+                }
+            }
+        });
+    }
+
+    async saveDraftClass() {
+        try {
+            if (!this.currentDraftClass || !this.draftGrid) {
+                this.showError('No draft class loaded');
+                return;
+            }
+
+            // Get save location
+            const result = await window.electronAPI.file.saveDialog(this.currentDraftFilePath || 'draft-class-edited');
+
+            if (!result.success || result.canceled) {
+                return;
+            }
+
+            // Get updated data from grid
+            const updatedProspects = this.draftGrid.getData();
+
+            // Update prospects in draft class data
+            this.currentDraftClass.prospects = updatedProspects;
+
+            // Save via IPC (pass whole draft class structure)
+            const saveResult = await window.electronAPI.draftClass.save(result.filePath, this.currentDraftClass);
+
+            if (!saveResult.success) {
+                throw new Error(saveResult.error || 'Failed to save draft class');
+            }
+
+            console.log('Draft class saved successfully');
+            alert('Draft class saved successfully!');
+        } catch (error) {
+            console.error('Error saving draft class:', error);
+            this.showError(`Failed to save draft class: ${error.message}`);
+        }
+    }
+
+    async exportDraftJSON() {
+        try {
+            if (!this.currentDraftFilePath) {
+                this.showError('No draft class loaded');
+                return;
+            }
+
+            const result = await window.electronAPI.file.saveDialog(
+                this.currentDraftFilePath.replace(/[^.]+$/, 'json')
+            );
+
+            if (!result.success || result.canceled) {
+                return;
+            }
+
+            const exportResult = await window.electronAPI.draftClass.exportJSON(
+                this.currentDraftFilePath,
+                result.filePath
+            );
+
+            if (!exportResult.success) {
+                throw new Error(exportResult.error || 'Failed to export JSON');
+            }
+
+            console.log('Draft class exported to JSON');
+            alert('Draft class exported successfully!');
+        } catch (error) {
+            console.error('Error exporting JSON:', error);
+            this.showError(`Failed to export JSON: ${error.message}`);
+        }
     }
 }
 

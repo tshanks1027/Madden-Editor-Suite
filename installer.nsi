@@ -4,6 +4,7 @@
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
+!include "LogicLib.nsh"
 
 ; Product Information
 !define PRODUCT_NAME "Madden Editor Suite"
@@ -17,12 +18,12 @@
 Unicode true
 ManifestSupportedOS all
 SetCompressor /SOLID lzma
-SetCompressorDictSize 64
+SetCompressorDictSize 32
 
 ; General Settings
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "dist\Madden-Editor-Suite-Setup.exe"
-InstallDir "$PROGRAMFILES64\${PRODUCT_NAME}"
+InstallDir "$PROGRAMFILES64\MaddenEditorSuite"
 InstallDirRegKey HKLM "Software\${PRODUCT_PUBLISHER}\${PRODUCT_NAME}" ""
 ShowInstDetails show
 ShowUnInstDetails show
@@ -62,11 +63,28 @@ VIAddVersionKey "OriginalFilename" "Madden-Editor-Suite-Setup.exe"
 VIAddVersionKey "Comments" "Open-source Madden NFL roster editor for PC"
 
 Section "MainSection" SEC01
-  SetOutPath "$INSTDIR"
-  SetOverwrite on
+  ; Ensure we have admin rights before attempting install
+  UserInfo::GetAccountType
+  pop $0
+  ${If} $0 != "admin"
+    MessageBox MB_OK "Administrator rights required!"
+    SetErrorLevel 740  ; ERROR_ELEVATION_REQUIRED
+    Quit
+  ${EndIf}
 
-  ; Copy all files from forge output
+  SetOutPath "$INSTDIR"
+  SetOverwrite ifnewer
+
+  ; Use ClearErrors and detailed file operations
+  ClearErrors
+
+  ; Copy all files from Electron Forge package output
   File /r "out\Madden Editor Suite-win32-x64\*.*"
+
+  ; Check if file copy succeeded
+  IfErrors 0 +3
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Error copying application files. Installation may be incomplete."
+    Abort
 
   ; Create shortcuts
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
@@ -81,7 +99,10 @@ Section -Post
   ; Application registration for legitimacy
   WriteRegStr HKLM "Software\${PRODUCT_PUBLISHER}\${PRODUCT_NAME}" "" "$INSTDIR\madden-editor-suite.exe"
   WriteRegStr HKLM "Software\${PRODUCT_PUBLISHER}\${PRODUCT_NAME}" "Version" "${PRODUCT_VERSION}"
-  WriteRegStr HKLM "Software\${PRODUCT_PUBLISHER}\${PRODUCT_NAME}" "InstallDate" "$DATE"
+
+  ; Get current date using NSIS built-in macro
+  !define /date INSTALL_DATE "%Y-%m-%d"
+  WriteRegStr HKLM "Software\${PRODUCT_PUBLISHER}\${PRODUCT_NAME}" "InstallDate" "${INSTALL_DATE}"
 
   ; Uninstaller registration - Extended metadata for Windows trust
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "$(^Name)"

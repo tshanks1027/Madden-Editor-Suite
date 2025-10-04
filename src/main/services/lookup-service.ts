@@ -21,9 +21,9 @@ export class LookupService {
 
   private resolveDataPath(...segments: string[]): string {
     if (app.isPackaged) {
-      // In packaged app, lookup files should be in app.asar.unpacked
-      // The files are built under .vite/build/data/lookups structure
-      return path.join(__dirname, '.vite', 'build', 'data', 'lookups', ...segments);
+      // In packaged app, __dirname is already .vite/build
+      // lookup files are at .vite/build/data/lookups
+      return path.join(__dirname, 'data', 'lookups', ...segments);
     }
     // In development, lookup files are in data/lookups (relative to project root)
     return path.join(__dirname, '..', '..', 'data', 'lookups', ...segments);

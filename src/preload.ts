@@ -36,5 +36,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   lookup: {
     isReady: () => ipcRenderer.invoke('lookup:is-ready'),
     reload: () => ipcRenderer.invoke('lookup:reload')
+  },
+
+  // Draft Class APIs
+  draftClass: {
+    load: (filePath: string) =>
+      ipcRenderer.invoke('draft-class:load', filePath),
+    save: (filePath: string, prospects: any[]) =>
+      ipcRenderer.invoke('draft-class:save', filePath, prospects),
+    exportJSON: (filePath: string, outputPath: string) =>
+      ipcRenderer.invoke('draft-class:export-json', filePath, outputPath),
+    validate: (filePath: string) =>
+      ipcRenderer.invoke('draft-class:validate', filePath),
+    getInfo: (filePath: string) =>
+      ipcRenderer.invoke('draft-class:get-info', filePath),
+    getAttributeDefs: () =>
+      ipcRenderer.invoke('draft-class:get-attribute-defs')
   }
 });

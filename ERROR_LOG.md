@@ -28,7 +28,33 @@ Each error entry should include:
 
 ## Active Issues
 
-*No active issues at this time.*
+### 2025-10-03 - Packaging/Distribution Failure (CRITICAL)
+
+**Feature:** Application packaging and distribution
+**Phase:** Phase 8 - Packaging Agent
+**Error:**
+```
+Error: Failed with exit code: 1
+Output:
+Attempting to build package from 'MaddenEditorSuite.nuspec'.
+FileStream will not open Win32 devices such as disk partitions and tape drives. Avoid use of "\\.\" in the path.
+```
+**Cause:**
+- Squirrel maker cannot handle OneDrive paths or absolute paths with special characters
+- `iconUrl` parameter in MakerSquirrel config pointing to OneDrive path
+- Attempted solutions: Squirrel, Inno, NSIS, electron-forge, electron-builder (ALL FAILED)
+- Duration: ~1 month of failed attempts
+
+**Requirements:**
+1. Installer with user directory choice
+2. Custom branding from: `C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\Branding`
+3. Avoid virus false positives
+4. Must actually work
+
+**Fix Attempted:** Multiple approaches tried, all failed
+**Prevention:** Follow WORKFLOW.md Phase 8 (Packaging Agent) systematically
+**Status:** ❌ UNRESOLVED - BLOCKING DISTRIBUTION
+**Documentation:** See PACKAGING_ISSUES_LOG.md for complete history
 
 ---
 

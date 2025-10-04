@@ -11,30 +11,9 @@
 // Use madden-file-tools - dynamically located based on environment
 const path = require('path');
 
-// Try to find madden-file-tools in multiple locations (dev vs packaged)
-let MaddenRosterHelper;
-try {
-  // First try: Local vendor directory (if we bundle it)
-  const vendorPath = path.join(__dirname, '..', 'vendor', 'madden-file-tools');
-  MaddenRosterHelper = require(path.join(vendorPath, 'helpers', 'MaddenRosterHelper'));
-} catch (err1) {
-  try {
-    // Second try: Additional working directories from environment
-    const additionalDirs = process.env.ADDITIONAL_WORKING_DIRS || '';
-    const dirs = additionalDirs.split(';').filter(d => d.trim());
-
-    if (dirs.length > 0) {
-      // Use the first additional directory (madden-file-tools/helpers)
-      MaddenRosterHelper = require(path.join(dirs[0], 'MaddenRosterHelper'));
-    } else {
-      throw new Error('ADDITIONAL_WORKING_DIRS not configured');
-    }
-  } catch (err2) {
-    // Third try: Fallback to external location (development only)
-    const externalPath = path.join('C:', 'Users', 'tshan', 'OneDrive', 'Documents', 'Madden Files', 'Madden 26', 'Tools', 'Head Coach Editor', 'resources', 'node_modules', 'madden-file-tools');
-    MaddenRosterHelper = require(path.join(externalPath, 'helpers', 'MaddenRosterHelper'));
-  }
-}
+// MaddenRosterHelper is in lib/ (vendored madden-franchise code)
+// In build: parsers/ is at .vite/build/parsers/, lib/ is at .vite/build/lib/
+const MaddenRosterHelper = require(path.join(__dirname, '..', 'lib', 'helpers', 'MaddenRosterHelper'));
 
 /**
  * Parse a Madden FBCHUNKS roster file

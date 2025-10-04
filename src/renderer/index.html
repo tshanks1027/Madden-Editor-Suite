@@ -164,13 +164,31 @@
                 </div>
             </div>
 
-            <!-- Other Tool Panels (Coming Soon) -->
+            <!-- Draft Class Tool -->
             <div id="draft-tool" class="tool-panel">
-                <div class="coming-soon">
-                    <div class="coming-soon-icon">🚧</div>
-                    <h2 class="coming-soon-title">Coming Soon</h2>
-                    <p class="coming-soon-description">The Draft Class Editor is under development.</p>
-                    <p class="coming-soon-note">Try the Roster Editor for now!</p>
+                <div class="tool-header">
+                    <div class="file-info">
+                        <span id="draft-file-name" class="file-name">No file loaded</span>
+                        <span id="draft-file-stats" class="file-stats"></span>
+                    </div>
+                    <div class="tool-actions">
+                        <button id="open-draft-btn" class="btn btn-primary">
+                            <span class="btn-icon">📂</span>
+                            Open Draft Class
+                        </button>
+                        <button id="save-draft-btn" class="btn btn-success" disabled>
+                            <span class="btn-icon">💾</span>
+                            Save Draft Class
+                        </button>
+                        <button id="export-draft-json-btn" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">📤</span>
+                            Export JSON
+                        </button>
+                    </div>
+                </div>
+
+                <div id="draft-grid-container" class="grid-container">
+                    <!-- Handsontable will be inserted here -->
                 </div>
             </div>
 
