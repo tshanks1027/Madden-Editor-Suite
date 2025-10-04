@@ -1,40 +1,47 @@
 appId: com.krazynuttZ.madden-editor-suite
 productName: Madden Editor Suite
 copyright: Copyright © 2025 KRaZyNuttZ
-electronDist: out/Madden Editor Suite-win32-x64
 electronVersion: 38.1.2
+
+extraMetadata:
+  main: ".vite/build/main.js"
 
 directories:
   output: dist
-  buildResources: ../Branding
+  buildResources: build-assets
+
+asar: false
 
 files:
-  - "!**/*"
-
-extraFiles:
-  - from: out/Madden Editor Suite-win32-x64
-    to: .
-    filter:
-      - "**/*"
+  - ".vite/build/**/*"
+  - "package.json"
+  - "node_modules/**/*"
+  - "!node_modules/**/test"
+  - "!node_modules/**/tests"
+  - "!node_modules/**/*.md"
 
 win:
   target:
     - target: nsis
       arch:
         - x64
-  icon: ../Branding/madden.ico
+  icon: build-assets/madden.ico
   artifactName: ${productName}-Setup-${version}.${ext}
+  forceCodeSigning: false  # Disable code signing
+  compression: normal  # Use normal compression instead of maximum for faster install
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   perMachine: false
   allowElevation: true
-  installerIcon: ../Branding/madden.ico
-  uninstallerIcon: ../Branding/madden.ico
-  installerHeader: ../Branding/banner.png
-  installerSidebar: ../Branding/splash.png
-  uninstallerSidebar: ../Branding/splash.png
+  differentialPackage: false
+  packElevateHelper: true
+  installerIcon: build-assets/madden.ico
+  uninstallerIcon: build-assets/madden.ico
+  installerHeader: build-assets/banner.png
+  installerSidebar: build-assets/splash.png
+  uninstallerSidebar: build-assets/splash.png
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: Madden Editor Suite

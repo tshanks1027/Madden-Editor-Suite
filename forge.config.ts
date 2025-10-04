@@ -1,9 +1,5 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { MakerZIP } from '@electron-forge/maker-zip';
-import { MakerDeb } from '@electron-forge/maker-deb';
-import { MakerRpm } from '@electron-forge/maker-rpm';
-import MakerNSIS from 'electron-forge-maker-nsis';
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -14,30 +10,59 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const brandingPath = 'C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\Branding';
+// Use local build-assets directory for branding
+const brandingPath = path.join(__dirname, 'build-assets');
 
 const config: ForgeConfig = {
   packagerConfig: {
     icon: path.join(brandingPath, 'madden.ico'),
     name: 'Madden Editor Suite',
     executableName: 'madden-editor-suite',
-    asar: {
-      unpack: '*.{node,dll}'
-    }
+    asar: false,  // Disable ASAR completely - let Node resolve modules normally
+    prune: true,  // Remove devDependencies - only keep production dependencies
+    // Don't ignore .vite directory when packaging
+    ignore: (path: string) => {
+      // Include everything except common ignored directories
+      if (!path) return false;
+
+      const excludePatterns = [
+        // Don't ignore node_modules - we need it in the package!
+        /^\/\.git/,
+        /^\/dist/,
+        /^\/out/,
+        /^\/coverage/,
+        /^\/.vscode/,
+        /^\/tests/,
+        /^\/\.github/,
+        /^\/build-assets/,  // Don't package the source build assets
+        /^\/\.claude/,
+        /^\/agents/,
+        /^\/commands/,
+        /^\/docs/,
+        /^\/playwright-report/,
+        /^\/releases/,
+        /^\/temp-check/,
+        /^\/temp-check2/,
+        /^\/temp-extract/,
+        /^\/temp-final/,
+        /^\/temp-validate/,
+        /^\/temp-verify/,
+        /^\/temp_extracted/,
+        /^\/test-reports/,
+        /^\/test-results/,
+        /^\/nul$/,  // Ignore Windows null device file
+      ];
+
+      return excludePatterns.some(pattern => pattern.test(path));
+    },
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({
-      name: 'MaddenEditorSuite',
-      setupIcon: path.join(brandingPath, 'madden.ico'),
-      loadingGif: path.join(brandingPath, 'splash.png'),
-      iconUrl: path.join(brandingPath, 'madden.ico'),
-      setupExe: 'Madden-Editor-Suite-Setup.exe'
-    }),
-    new MakerZIP({}, ['darwin']),
+    // Use electron-builder for NSIS installer (via npm run dist)
+    // Forge only creates ZIP for distribution backup
+    new MakerZIP({}, ['darwin', 'win32']),
   ],
   plugins: [
-    new AutoUnpackNativesPlugin({}),
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
       // If you are familiar with Vite configuration, it will look really familiar.
@@ -69,8 +94,8 @@ const config: ForgeConfig = {
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,  // Disabled - no ASAR
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,  // Disabled - no ASAR
     }),
   ],
 };

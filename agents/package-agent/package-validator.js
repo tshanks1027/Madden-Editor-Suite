@@ -46,6 +46,7 @@ class PackageValidator {
     this.checkRendererPath();
     this.checkNativeModules();
     this.checkForgeConfig();
+    this.checkNulFile();
 
     this.printReport();
   }
@@ -242,6 +243,42 @@ class PackageValidator {
     });
 
     console.log(`   Native modules ${this.warnings.filter(w => w.type === 'NATIVE_MODULE').length === 0 ? 'configured' : 'need attention'}`);
+  }
+
+  /**
+   * Check for nul file (Windows null device file)
+   */
+  checkNulFile() {
+    console.log('📄 Checking for nul file...');
+
+    const nulPaths = [
+      path.join(ROOT_DIR, 'nul'),
+      path.join(ROOT_DIR, 'out', 'Madden Editor Suite-win32-x64', 'resources', 'app', 'nul')
+    ];
+
+    nulPaths.forEach(nulPath => {
+      if (fs.existsSync(nulPath)) {
+        this.issues.push({
+          type: 'NUL_FILE',
+          file: path.relative(ROOT_DIR, nulPath),
+          issue: 'Windows null device file found - will break file I/O in packaged app',
+          fix: `Delete the file: rm "${nulPath}"`
+        });
+      }
+    });
+
+    // Check if nul is in forge ignore patterns
+    const forgeConfig = fs.readFileSync(FORGE_CONFIG, 'utf-8');
+    if (!forgeConfig.includes('/nul')) {
+      this.warnings.push({
+        type: 'NUL_IGNORE',
+        file: 'forge.config.ts',
+        issue: 'nul file not in forge ignore patterns',
+        fix: 'Add /^\\/nul$/ to excludePatterns in forge.config.ts'
+      });
+    }
+
+    console.log(`   Found ${this.issues.filter(i => i.type === 'NUL_FILE').length} nul file issues`);
   }
 
   /**

@@ -6,7 +6,13 @@ import { copyFileSync, existsSync, mkdirSync } from 'fs';
 export default defineConfig({
   build: {
     rollupOptions: {
-      external: [],
+      external: [
+        'electron',
+        'sqlite3',
+        'sharp',
+        // Do NOT externalize bit-buffer, stream-parser - they need to be bundled
+        // so they're available when RosterParser.js requires them at runtime
+      ],
     },
   },
   resolve: {
@@ -81,7 +87,8 @@ export default defineConfig({
           copyDirectory(srcParsersDir, destParsersDir);
         }
 
-        // Copy lib directory to build output (contains TDB2Parser and dependencies)
+        // Copy lib directory (contains draft-class and madden-franchise vendored code)
+        // Exclude node_modules, .git, tests, docs to reduce bloat
         const srcLibDir = path.join(__dirname, 'src', 'main', 'lib');
         const destLibDir = path.join(__dirname, '.vite', 'build', 'lib');
 
@@ -90,27 +97,84 @@ export default defineConfig({
             mkdirSync(destLibDir, { recursive: true });
           }
 
-          // Recursively copy all JS files from lib
-          function copyDirectory(src, dest) {
+          function copyLibDirectory(src, dest) {
             const entries = fs.readdirSync(src, { withFileTypes: true });
             entries.forEach(entry => {
               const srcPath = path.join(src, entry.name);
               const destPath = path.join(dest, entry.name);
 
+              // Skip these directories to reduce bloat
+              if (entry.isDirectory() && (
+                entry.name === 'node_modules' ||
+                entry.name === '.git' ||
+                entry.name === '.vscode' ||
+                entry.name === 'tests' ||
+                entry.name === 'test' ||
+                entry.name === 'docs' ||
+                entry.name === 'scripts'
+              )) {
+                return;
+              }
+
+              // Skip test files
+              if (entry.name.endsWith('.spec.js') || entry.name.endsWith('.test.js')) {
+                return;
+              }
+
               if (entry.isDirectory()) {
                 if (!existsSync(destPath)) {
                   mkdirSync(destPath, { recursive: true });
                 }
-                copyDirectory(srcPath, destPath);
-              } else if (entry.name.endsWith('.js')) {
+                copyLibDirectory(srcPath, destPath);
+              } else if (entry.name.endsWith('.js') || entry.name.endsWith('.json')) {
                 copyFileSync(srcPath, destPath);
-                console.log(`Copied lib file: ${entry.name}`);
+                console.log(`Copied lib: ${entry.name}`);
               }
             });
           }
 
-          copyDirectory(srcLibDir, destLibDir);
+          copyLibDirectory(srcLibDir, destLibDir);
         }
+
+        // Copy required node_modules for lib to use
+        // The lib directory files use CommonJS require() and need these modules accessible
+        const destNodeModules = path.join(__dirname, '.vite', 'build', 'node_modules');
+        if (!existsSync(destNodeModules)) {
+          mkdirSync(destNodeModules, { recursive: true });
+        }
+
+        const requiredModules = ['bit-buffer', 'stream-parser', 'crc-32'];
+        requiredModules.forEach(moduleName => {
+          const srcModule = path.join(__dirname, 'node_modules', moduleName);
+          const destModule = path.join(destNodeModules, moduleName);
+
+          if (existsSync(srcModule)) {
+            function copyModuleRecursive(src, dest) {
+              if (!existsSync(dest)) {
+                mkdirSync(dest, { recursive: true });
+              }
+
+              const entries = fs.readdirSync(src, { withFileTypes: true });
+              entries.forEach(entry => {
+                const srcPath = path.join(src, entry.name);
+                const destPath = path.join(dest, entry.name);
+
+                if (entry.isDirectory()) {
+                  copyModuleRecursive(srcPath, destPath);
+                } else {
+                  copyFileSync(srcPath, destPath);
+                }
+              });
+            }
+
+            copyModuleRecursive(srcModule, destModule);
+            console.log(`Copied node_module: ${moduleName}`);
+          } else {
+            console.warn(`Required module not found: ${moduleName}`);
+          }
+        });
+
+        console.log('Vite build complete - lib dependencies copied to .vite/build/node_modules');
       }
     }
   ],
