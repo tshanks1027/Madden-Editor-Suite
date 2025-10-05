@@ -29,7 +29,6 @@ class MaddenEditorApp {
         this.lookupReady = false;
         this.selectedPosition = '';
         this.selectedTeamId = null; // null = all teams, number = specific team
-        this.showAllColumns = false;
         this.disableChangeEvents = false;
 
         // Pagination settings
@@ -144,11 +143,6 @@ class MaddenEditorApp {
             this.filterPlayers();
         });
 
-        document.getElementById('showAllColumns').addEventListener('change', (e) => {
-            this.showAllColumns = e.target.checked;
-            this.updateVisibleFields();
-        });
-
         // Back to all teams button
         document.getElementById('backToAllTeams').addEventListener('click', () => {
             this.exitTeamView();
@@ -169,6 +163,11 @@ class MaddenEditorApp {
 
         document.getElementById('export-draft-json-btn').addEventListener('click', () => {
             this.exportDraftJSON();
+        });
+
+        document.getElementById('draftPositionFilter').addEventListener('change', (e) => {
+            this.selectedDraftPosition = e.target.value;
+            this.filterDraftProspects();
         });
 
         // Modal close
@@ -520,19 +519,12 @@ class MaddenEditorApp {
         container.innerHTML = '<div id="handsontable-container" style="height: 100%; background: var(--gray-dark);"></div>';
         const hotContainer = document.getElementById('handsontable-container');
 
-        // Get visible fields based on toggle
-        const visibleFields = getVisibleFields(this.showAllColumns);
+        // Get visible fields (always use default field order)
+        const visibleFields = getVisibleFields(false);
 
         // Extract field codes and display names from the visible fields
         let fieldCodes, displayNames;
-        if (this.showAllColumns) {
-            // For all fields mode, use the export order (simple strings)
-            fieldCodes = visibleFields;
-            displayNames = visibleFields.map(fieldName => {
-                const fieldDef = getFieldDefinition(fieldName);
-                return fieldDef.shortDisplay || fieldDef.display;
-            });
-        } else {
+        {
             // For basic fields mode, extract from tuple structure
             fieldCodes = visibleFields.map(field => Array.isArray(field) ? field[0] : field);
             displayNames = visibleFields.map(field => {
@@ -610,17 +602,21 @@ class MaddenEditorApp {
                     readOnly: false  // Make it editable
                 };
             } else if (fieldDef.type === 'numeric') {
-                // Numeric fields - fixed width for stats (1-99 range)
+                // Numeric fields - use field width if specified, otherwise let autoColumnSize handle it
                 columnConfig = {
                     ...columnConfig,
                     type: 'numeric',
                     format: '0',
-                    width: 50,  // Fixed width for stat columns
                     validator: fieldDef.editable ? (value, callback) => {
                         const validation = validateFieldValue(fieldName, value);
                         callback(validation.isValid);
                     } : undefined
                 };
+
+                // Only set fixed width if field definition specifies one (for stat columns)
+                if (fieldDef.width !== undefined) {
+                    columnConfig.width = fieldDef.width;
+                }
             } else {
                 // Text fields - let autoColumnSize handle width
                 columnConfig = {
@@ -1488,7 +1484,7 @@ class MaddenEditorApp {
 
     updateStats() {
         const playerCount = this.players.length;
-        const visibleFields = getVisibleFields(this.showAllColumns);
+        const visibleFields = getVisibleFields(false);
 
         document.getElementById('playerCount').textContent = `${playerCount} players`;
         document.getElementById('visibleFields').textContent = `${visibleFields.length} visible fields`;
@@ -1722,50 +1718,37 @@ class MaddenEditorApp {
             this.draftGrid.destroy();
         }
 
+        // Store original prospect data with numeric IDs
+        this.originalProspectData = prospects.map(p => ({...p}));
+
+        // Transform prospect data: convert numeric IDs to friendly names for dropdown fields
+        const transformedProspects = prospects.map(prospect => {
+            return {
+                ...prospect,
+                position: getLookupValue('positions', prospect.position) || prospect.position,
+                college: getLookupValue('colleges', prospect.college) || prospect.college,
+                homeState: getLookupValue('states', prospect.homeState) || prospect.homeState,
+                devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][prospect.devTrait] || prospect.devTrait
+            };
+        });
+
+        // Get lookup options for dropdowns
+        const positionOptions = getLookupOptions('positions').map(opt => opt.label);
+        const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
+        const stateOptions = getLookupOptions('states').map(opt => opt.label);
+        const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
+
         // Map draft class field names to roster editor field names and create columns
         // Following FIELD_ORDER from field-definitions.js, excluding contract fields
         const draftColumns = [
-            // Personal Info
+            // Personal Info (First 3 columns frozen)
             { data: 'lastName', title: 'Last Name', width: 100 },
             { data: 'firstName', title: 'First Name', width: 100 },
-            { data: 'position', title: 'Position', width: 80, type: 'numeric',
-              renderer: (instance, td, row, col, prop, value) => {
-                  const positionName = getLookupValue('positions', value);
-                  td.textContent = positionName || value;
-                  return td;
-              }
-            },
+            { data: 'position', title: 'Pos', width: 90, type: 'dropdown', source: positionOptions, allowInvalid: false },
             { data: 'jerseyNum', title: 'Jersey #', width: 80, type: 'numeric' },
-            { data: 'college', title: 'College', width: 100, type: 'numeric',
-              renderer: (instance, td, row, col, prop, value) => {
-                  const collegeName = getLookupValue('colleges', value);
-                  if (collegeName) {
-                      td.textContent = collegeName;
-                  } else if (value > 400) {
-                      td.textContent = `Invalid (${value})`;
-                      td.style.color = '#ff6b6b';
-                  } else {
-                      td.textContent = value;
-                  }
-                  return td;
-              }
-            },
-            { data: 'age', title: 'Age', width: 60, type: 'numeric' },
-            { data: 'homeTown', title: 'Hometown', width: 100 },
-            { data: 'homeState', title: 'State', width: 80, type: 'numeric',
-              renderer: (instance, td, row, col, prop, value) => {
-                  const stateName = getLookupValue('states', value);
-                  if (stateName) {
-                      td.textContent = stateName;
-                  } else if (value > 50 || value < 0) {
-                      td.textContent = `Invalid (${value})`;
-                      td.style.color = '#ff6b6b';
-                  } else {
-                      td.textContent = value;
-                  }
-                  return td;
-              }
-            },
+            { data: 'college', title: 'College', width: 150, type: 'dropdown', source: collegeOptions, allowInvalid: false },
+            { data: 'age', title: 'Age', width: 50, type: 'numeric' },
+            { data: 'homeState', title: 'State', width: 100, type: 'dropdown', source: stateOptions, allowInvalid: false },
 
             // Ratings (in roster field order)
             { data: 'acceleration', title: 'ACC', width: 70, type: 'numeric' },
@@ -1827,20 +1810,14 @@ class MaddenEditorApp {
             { data: 'weight', title: 'Weight', width: 70, type: 'numeric' },
 
             // Dev Trait (editable in draft class)
-            { data: 'devTrait', title: 'Dev Trait', width: 90, type: 'numeric',
-              renderer: (instance, td, row, col, prop, value) => {
-                  const devTraits = ['Normal', 'Star', 'Superstar', 'X-Factor'];
-                  td.textContent = devTraits[value] || value;
-                  return td;
-              }
-            },
+            { data: 'devTrait', title: 'Dev Trait', width: 110, type: 'dropdown', source: devTraitOptions, allowInvalid: false },
 
             // Overall (calculated field)
             { data: 'overall', title: 'OVR', width: 70, type: 'numeric' }
         ];
 
         this.draftGrid = new Handsontable(container, {
-            data: prospects,
+            data: transformedProspects,
             columns: draftColumns,
             colHeaders: true,
             rowHeaders: true,
@@ -1853,6 +1830,35 @@ class MaddenEditorApp {
             filters: true,
             dropdownMenu: true,
             contextMenu: true,
+            fixedColumnsStart: 3,  // Freeze first 3 columns (Last Name, First Name, Position)
+            columnSorting: true,  // Enable sorting on all columns
+            afterGetColHeader: (col, TH) => {
+                // Add tooltips with full stat names
+                const statTooltips = {
+                    'ACC': 'Acceleration', 'AGI': 'Agility', 'AWR': 'Awareness', 'BTK': 'Break Tackle',
+                    'BCV': 'Ball Carrier Vision', 'BSH': 'Block Shedding', 'BSK': 'Break Sack',
+                    'CAR': 'Carrying', 'CIT': 'Catch In Traffic', 'CTH': 'Catching',
+                    'DRR': 'Deep Route Running', 'COD': 'Change Of Direction', 'FMV': 'Finesse Moves',
+                    'POW': 'Hit Power', 'IBL': 'Impact Blocking', 'INJ': 'Injury',
+                    'JKM': 'Juke Move', 'JMP': 'Jumping', 'KAC': 'Kick Accuracy', 'KPW': 'Kick Power',
+                    'KR': 'Kick Return', 'LBK': 'Lead Block', 'MCV': 'Man Coverage',
+                    'MRR': 'Medium Route Running', 'PBK': 'Pass Block', 'PBF': 'Pass Block Finesse',
+                    'PBS': 'Pass Block Power', 'PAC': 'Play Action', 'PMV': 'Power Moves',
+                    'PRS': 'Press Coverage', 'PUR': 'Pursuit', 'PRC': 'Play Recognition',
+                    'RLS': 'Release', 'RBK': 'Run Block', 'RBF': 'Run Block Finesse',
+                    'RBS': 'Run Block Power', 'SRR': 'Short Route Running', 'SPC': 'Spectacular Catch',
+                    'SPD': 'Speed', 'SPM': 'Spin Move', 'STA': 'Stamina', 'SFA': 'Stiff Arm',
+                    'STR': 'Strength', 'TAK': 'Tackle', 'TAD': 'Throw Accuracy Deep',
+                    'TAM': 'Throw Accuracy Mid', 'TAS': 'Throw Accuracy Short', 'TOR': 'Throw On Run',
+                    'THP': 'Throw Power', 'TUP': 'Throw Under Pressure', 'TGH': 'Toughness',
+                    'TRK': 'Trucking', 'ZCV': 'Zone Coverage', 'OVR': 'Overall'
+                };
+
+                const headerText = TH.textContent.trim();
+                if (statTooltips[headerText]) {
+                    TH.title = statTooltips[headerText];
+                }
+            },
             afterChange: (changes) => {
                 if (changes) {
                     console.log('Draft class data changed:', changes);
@@ -1875,8 +1881,27 @@ class MaddenEditorApp {
                 return;
             }
 
-            // Get updated data from grid
-            const updatedProspects = this.draftGrid.getData();
+            // Get updated data from grid (has friendly names)
+            const gridData = this.draftGrid.getSourceData();
+
+            // Convert friendly names back to numeric IDs
+            const updatedProspects = gridData.map((prospect, index) => {
+                const originalProspect = this.originalProspectData[index];
+
+                return {
+                    ...prospect,
+                    // Convert position name to ID
+                    position: getLookupOptions('positions').find(opt => opt.label === prospect.position)?.value ?? originalProspect.position,
+                    // Convert college name to ID
+                    college: getLookupOptions('colleges').find(opt => opt.label === prospect.college)?.value ?? originalProspect.college,
+                    // Convert state name to ID
+                    homeState: getLookupOptions('states').find(opt => opt.label === prospect.homeState)?.value ?? originalProspect.homeState,
+                    // Convert dev trait name to ID
+                    devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait) !== -1
+                        ? ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait)
+                        : originalProspect.devTrait
+                };
+            });
 
             // Update prospects in draft class data
             this.currentDraftClass.prospects = updatedProspects;
@@ -1926,6 +1951,26 @@ class MaddenEditorApp {
             console.error('Error exporting JSON:', error);
             this.showError(`Failed to export JSON: ${error.message}`);
         }
+    }
+
+    filterDraftProspects() {
+        if (!this.currentDraftClass || !this.draftGrid) {
+            return;
+        }
+
+        const allProspects = this.currentDraftClass.prospects;
+        let filtered = [...allProspects];
+
+        // Apply position filter
+        if (this.selectedDraftPosition) {
+            filtered = filtered.filter(prospect => {
+                const position = getLookupValue('positions', prospect.position);
+                return position === this.selectedDraftPosition;
+            });
+        }
+
+        // Update grid with filtered data
+        this.draftGrid.loadData(filtered);
     }
 }
 

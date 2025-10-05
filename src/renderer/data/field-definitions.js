@@ -9,6 +9,7 @@ export const MADDEN_FIELDS = {
     'PFNA': { display: 'First Name', shortDisplay: 'First Name', type: 'text', editable: true, width: 100 },
     'PSXP': { display: 'Pic ID', shortDisplay: 'PID', type: 'numeric', editable: true, width: 200, min: 0, max: 10861 },
     'PLAYERPIC': { display: 'Player Pic', shortDisplay: 'Player Pic', type: 'autocomplete', editable: true, width: 120, lookup: 'pids' },
+    'PEPS': { display: 'Player Asset Model', shortDisplay: 'PAM', type: 'text', editable: true },
     'PPOS': { display: 'Position', shortDisplay: 'POS', type: 'lookup', editable: true, width: 80, lookup: 'positions' },
     'PYRP': { display: 'Years Pro', shortDisplay: 'YRS', type: 'numeric', editable: true, width: 80, min: 0, max: 25 },
     'TGID': { display: 'Team', shortDisplay: 'Team', type: 'lookup', editable: true, width: 80, lookup: 'teams' },
@@ -102,7 +103,7 @@ export const MADDEN_FIELDS = {
 
 // Field order for user-friendly editing (Madden game order)
 export const FIELD_ORDER = [
-    ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"],
+    ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"],
     ["PPOS", "Position"], ["PYRP", "Years Pro"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["PHTN", "Hometown"], ["PHSN", "State"],
     ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBKT", "Break Tackle"], ["PBCV", "Vision"],
@@ -494,6 +495,11 @@ export function validateFieldValue(fieldName, value) {
     }
 
     if (field.type === 'numeric') {
+        // Allow empty/null/undefined for numeric fields - treat as 0
+        if (value === '' || value === null || value === undefined) {
+            return { isValid: true };
+        }
+
         const numValue = parseInt(value);
         if (isNaN(numValue)) {
             return { isValid: false, message: 'Must be a number' };

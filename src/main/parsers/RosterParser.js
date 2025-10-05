@@ -70,8 +70,10 @@ async function parseRosterFile(filePath) {
         firstName: sample.PFNA,
         lastName: sample.PLNA,
         overall: sample.POVR,
-        position: sample.PPOS
+        position: sample.PPOS,
+        PEPS: sample.PEPS
       });
+      console.log('[RosterParser] PEPS field exists:', 'PEPS' in sample);
     }
 
     // Store file and helper in global scope for saving later
@@ -126,8 +128,18 @@ async function saveRosterFile(filePath, players) {
           continue; // Skip virtual field
         }
         if (record.fields[fieldName]) {
-          record.fields[fieldName].value = playerData[fieldName];
+          const oldValue = record.fields[fieldName].value;
+          const newValue = playerData[fieldName];
+          record.fields[fieldName].value = newValue;
+
+          // Log PEPS changes
+          if (fieldName === 'PEPS' && oldValue !== newValue) {
+            console.log(`[RosterParser] Player ${i}: PEPS changed from "${oldValue}" to "${newValue}"`);
+          }
+
           fieldsUpdated++;
+        } else if (fieldName === 'PEPS') {
+          console.log(`[RosterParser] WARNING: Player ${i} has no PEPS field in record!`);
         }
       }
     }
