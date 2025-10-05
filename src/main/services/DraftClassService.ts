@@ -79,8 +79,43 @@ export class DraftClassService {
         };
 
       } else if (version === 'M26') {
-        // M26 support - for now just show error
-        throw new Error('Madden 26 draft class files are not yet supported. Please use a Madden 25 file or check back for updates.');
+        // M26 uses custom parser with dynamic block scanning
+        const path = require('path');
+        const m26ParserPath = path.join(__dirname, 'lib', 'draft-class', 'M26Parser');
+        const { parseM26Prospects } = require(m26ParserPath);
+
+        // Parse header first (same structure, different offset)
+        const buffer = fs.readFileSync(filePath);
+        const signature = buffer.toString('ascii', 0, 8);
+        const versionByte = buffer.readUInt8(8);
+        const year = buffer.readUInt16LE(0x16);
+        const product = buffer.toString('ascii', 0x22, 0x37).replace(/\0/g, '');
+
+        const header = {
+          signature,
+          version: versionByte,
+          year,
+          product,
+          gameVersion: 'M26',
+          dataStartOffset: 0x46 // M26 starts at 0x46
+        };
+
+        // Parse prospects using M26-specific parser
+        const prospects = parseM26Prospects(buffer, header);
+
+        draftClass = {
+          header,
+          prospects
+        };
+
+        console.log('[DraftClassService] Successfully loaded M26 draft class');
+        console.log(`[DraftClassService] - Prospects: ${draftClass.prospects.length}`);
+        console.log(`[DraftClassService] - Year: ${draftClass.header.year}`);
+
+        return {
+          success: true,
+          data: draftClass
+        };
 
       } else {
         throw new Error('Unknown draft class format - not a valid Madden 25 or 26 file');
