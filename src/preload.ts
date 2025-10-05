@@ -32,10 +32,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('file:exists', filePath)
   },
 
-  // Lookup APIs (if needed later)
+  // Lookup APIs
   lookup: {
     isReady: () => ipcRenderer.invoke('lookup:is-ready'),
-    reload: () => ipcRenderer.invoke('lookup:reload')
+    reload: () => ipcRenderer.invoke('lookup:reload'),
+    getDropdownOptions: (fileName: string) => ipcRenderer.invoke('lookup:get-dropdown-options', fileName)
   },
 
   // Draft Class APIs
