@@ -146,9 +146,8 @@ export class LookupService {
 
     const options: LookupEntry[] = [];
     lookup.forEach((playerName, portraitId) => {
-      // For PID, we want to show "Portrait ID - Player Name"
-      const displayName = portraitId === 0 ? 'Blank' : `${portraitId} - ${playerName}`;
-      options.push({ id: portraitId, name: displayName });
+      // Just show the player name
+      options.push({ id: portraitId, name: playerName });
     });
 
     return options.sort((a, b) => a.id - b.id);
