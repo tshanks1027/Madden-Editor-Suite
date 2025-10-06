@@ -365,10 +365,12 @@ export async function loadLookupData() {
 
             console.log(`Loaded ${pidOptions.length} PID lookups from lookup service`);
 
-            // Populate both maps from the lookup options
+            // Populate both maps from the lookup options (skip entries with missing labels)
             pidOptions.forEach(option => {
-                LOOKUP_DATA.pids.set(option.value, option.label);
-                LOOKUP_DATA.pidsByName.set(option.label.toLowerCase(), option.value);
+                if (option.label && option.label.trim()) {
+                    LOOKUP_DATA.pids.set(option.value, option.label);
+                    LOOKUP_DATA.pidsByName.set(option.label.toLowerCase(), option.value);
+                }
             });
 
             console.log(`Processed ${LOOKUP_DATA.pids.size} PID lookups`);
