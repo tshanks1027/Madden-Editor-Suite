@@ -42,10 +42,15 @@ ipcMain.handle('lookup:get-numeric-id', async (event, fileName: string, displayN
  */
 ipcMain.handle('lookup:get-dropdown-options', async (event, fileName: string) => {
   try {
+    let options;
     if (fileName === 'PID_lookup.csv') {
-      return lookupService.getPIDOptions();
+      options = lookupService.getPIDOptions();
+    } else {
+      options = lookupService.getDropdownOptions(fileName);
     }
-    return lookupService.getDropdownOptions(fileName);
+
+    // Transform {id, name} to {value, label} for renderer
+    return options.map(opt => ({ value: opt.id, label: opt.name }));
   } catch (error) {
     console.error('Error getting dropdown options:', error);
     return [];
