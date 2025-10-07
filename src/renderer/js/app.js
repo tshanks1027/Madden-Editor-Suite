@@ -1723,12 +1723,30 @@ class MaddenEditorApp {
 
         // Transform prospect data: convert numeric IDs to friendly names for dropdown fields
         const transformedProspects = prospects.map(prospect => {
+            // Extract PEPS (generic head name) from visuals JSON
+            let peps = null;
+            if (prospect.visuals && prospect.visuals.genericHeadName) {
+                peps = prospect.visuals.genericHeadName;
+            }
+
+            // Look up player name from PID
+            let playerPic = 'Generic Face';
+            if (prospect.PID && window.lookupData && window.lookupData.pidsCapitalized) {
+                const capitalizedName = window.lookupData.pidsCapitalized.get(prospect.PID);
+                if (capitalizedName) {
+                    playerPic = capitalizedName;
+                }
+            }
+
             return {
                 ...prospect,
                 position: getLookupValue('positions', prospect.position) || prospect.position,
                 college: getLookupValue('colleges', prospect.college) || prospect.college,
                 homeState: getLookupValue('states', prospect.homeState) || prospect.homeState,
-                devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][prospect.devTrait] || prospect.devTrait
+                devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][prospect.devTrait] || prospect.devTrait,
+                PEPS: peps,  // Generic head name from visuals JSON
+                playerPic: playerPic  // Player name from PID lookup
+                // PID is already parsed from binary at offset 0x92 by M26Parser
             };
         });
 
@@ -1737,18 +1755,28 @@ class MaddenEditorApp {
         const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
         const stateOptions = getLookupOptions('states').map(opt => opt.label);
         const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
+        // Use capitalized names for player pic autocomplete
+        const playerPicOptions = Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face']);
+
+        // Custom renderer for lookup columns - just display, don't modify data
+        const dropdownRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+            // Data is already transformed to friendly names, just render it
+            Handsontable.renderers.DropdownRenderer.apply(this, [instance, td, row, col, prop, value, cellProperties]);
+        };
 
         // Map draft class field names to roster editor field names and create columns
         // Following FIELD_ORDER from field-definitions.js, excluding contract fields
         const draftColumns = [
             // Personal Info (First 3 columns frozen)
-            { data: 'lastName', title: 'Last Name', width: 100 },
-            { data: 'firstName', title: 'First Name', width: 100 },
-            { data: 'position', title: 'Pos', width: 90, type: 'dropdown', source: positionOptions, allowInvalid: false },
+            { data: 'lastName', title: 'Last Name', width: 100, type: 'text', editor: 'text' },
+            { data: 'firstName', title: 'First Name', width: 100, type: 'text', editor: 'text' },
+            { data: 'position', title: 'Pos', width: 90, type: 'dropdown', source: positionOptions, allowInvalid: false, renderer: dropdownRenderer },
             { data: 'jerseyNum', title: 'Jersey #', width: 80, type: 'numeric' },
-            { data: 'college', title: 'College', width: 150, type: 'dropdown', source: collegeOptions, allowInvalid: false },
+            { data: 'college', title: 'College', width: 150, type: 'dropdown', source: collegeOptions, allowInvalid: false, renderer: dropdownRenderer },
             { data: 'age', title: 'Age', width: 50, type: 'numeric' },
-            { data: 'homeState', title: 'State', width: 100, type: 'dropdown', source: stateOptions, allowInvalid: false },
+            { data: 'homeState', title: 'State', width: 100, type: 'dropdown', source: stateOptions, allowInvalid: false, renderer: dropdownRenderer },
+            { data: 'PID', title: 'PID', width: 70, type: 'numeric' },
+            { data: 'playerPic', title: 'Player Pic', width: 150, type: 'autocomplete', source: playerPicOptions, strict: false, allowInvalid: true },
 
             // Ratings (in roster field order)
             { data: 'acceleration', title: 'ACC', width: 70, type: 'numeric' },
@@ -1810,7 +1838,7 @@ class MaddenEditorApp {
             { data: 'weight', title: 'Weight', width: 70, type: 'numeric' },
 
             // Dev Trait (editable in draft class)
-            { data: 'devTrait', title: 'Dev Trait', width: 110, type: 'dropdown', source: devTraitOptions, allowInvalid: false },
+            { data: 'devTrait', title: 'Dev Trait', width: 110, type: 'dropdown', source: devTraitOptions, allowInvalid: false, renderer: dropdownRenderer },
 
             // Overall (calculated field)
             { data: 'overall', title: 'OVR', width: 70, type: 'numeric' }
@@ -1827,11 +1855,11 @@ class MaddenEditorApp {
             stretchH: 'all',
             manualColumnResize: true,
             manualRowResize: true,
-            filters: true,
-            dropdownMenu: true,
+            filters: false,  // Disable filters (they require dropdownMenu)
+            dropdownMenu: false,  // Disable dropdown menu (removes filter arrows)
             contextMenu: true,
             fixedColumnsStart: 3,  // Freeze first 3 columns (Last Name, First Name, Position)
-            columnSorting: true,  // Enable sorting on all columns
+            columnSorting: true,  // Enable column sorting
             afterGetColHeader: (col, TH) => {
                 // Add tooltips with full stat names
                 const statTooltips = {
@@ -1859,10 +1887,44 @@ class MaddenEditorApp {
                     TH.title = statTooltips[headerText];
                 }
             },
-            afterChange: (changes) => {
-                if (changes) {
-                    console.log('Draft class data changed:', changes);
-                }
+            afterChange: (changes, source) => {
+                if (!changes || source === 'loadData' || source === 'pid_sync' || source === 'pic_sync') return;
+
+                // Two-way sync between PID and Player Pic
+                changes.forEach(([row, prop, oldValue, newValue]) => {
+                    if (prop === 'PID' && newValue !== oldValue) {
+                        // PID changed - update Player Pic
+                        console.log(`PID changed to ${newValue}, looking up player name...`);
+                        const playerPic = window.lookupData.pidsCapitalized.get(parseInt(newValue)) || 'Generic Face';
+                        console.log(`Setting Player Pic to: ${playerPic}`);
+                        this.draftGrid.setDataAtRowProp(row, 'playerPic', playerPic, 'pid_sync');
+                    } else if (prop === 'playerPic' && newValue !== oldValue) {
+                        // Player Pic changed - update PID
+                        console.log(`Player Pic changed from "${oldValue}" to "${newValue}", looking up PID...`);
+                        console.log('Available keys in pidsByName:', Array.from(window.lookupData.pidsByName.keys()).slice(0, 5));
+
+                        if (newValue === 'Generic Face' || !newValue) {
+                            console.log('Generic Face selected, not changing PID');
+                            return;
+                        }
+                        const pid = window.lookupData.pidsByName.get(newValue);
+                        console.log(`Lookup result for "${newValue}": ${pid}`);
+                        if (pid) {
+                            console.log(`Setting PID to: ${pid}`);
+                            this.draftGrid.setDataAtRowProp(row, 'PID', pid, 'pic_sync');
+                        } else {
+                            console.log(`No PID found for player: ${newValue}`);
+                            // Try case-insensitive search
+                            for (const [name, id] of window.lookupData.pidsByName.entries()) {
+                                if (name.toLowerCase() === newValue.toLowerCase()) {
+                                    console.log(`Found case-insensitive match: ${name} -> ${id}`);
+                                    this.draftGrid.setDataAtRowProp(row, 'PID', id, 'pic_sync');
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                });
             }
         });
     }
@@ -1875,7 +1937,7 @@ class MaddenEditorApp {
             }
 
             // Get save location
-            const result = await window.electronAPI.file.saveDialog(this.currentDraftFilePath || 'draft-class-edited');
+            const result = await window.electronAPI.file.saveDialog('CAREERDRAFT-EDITED');
 
             if (!result.success || result.canceled) {
                 return;
@@ -1903,11 +1965,14 @@ class MaddenEditorApp {
                 };
             });
 
-            // Update prospects in draft class data
-            this.currentDraftClass.prospects = updatedProspects;
-
-            // Save via IPC (pass whole draft class structure)
-            const saveResult = await window.electronAPI.draftClass.save(result.filePath, this.currentDraftClass);
+            // Save via IPC
+            // Pass: save path, original source path, updated prospects, and game version
+            const saveResult = await window.electronAPI.draftClass.save(
+                result.filePath,
+                this.currentDraftFilePath,  // Original file path to reload buffer
+                updatedProspects,
+                this.currentDraftClass._version || 'M25'
+            );
 
             if (!saveResult.success) {
                 throw new Error(saveResult.error || 'Failed to save draft class');

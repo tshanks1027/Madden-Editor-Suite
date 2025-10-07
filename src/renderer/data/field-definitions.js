@@ -167,6 +167,7 @@ let LOOKUP_DATA = {
     teams: new Map(),
     pids: new Map(),
     pidsByName: new Map(),
+    pidsCapitalized: new Map(), // Maps PID -> Capitalized Name
     devtraits: new Map([
         [0, 'Normal'],
         [1, 'Star'],
@@ -174,6 +175,18 @@ let LOOKUP_DATA = {
         [3, 'X-Factor']
     ])
 };
+
+/**
+ * Capitalize each word in a name
+ * @param {string} name - Name to capitalize
+ * @returns {string} Capitalized name
+ */
+function capitalizeName(name) {
+    if (!name) return name;
+    return name.split(' ').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+}
 
 /**
  * Load lookup data from CSV files
@@ -336,11 +349,13 @@ export async function loadLookupData() {
 
             console.log(`Loaded ${pidOptions.length} PID lookups from lookup service`);
 
-            // Populate both maps from the lookup options (skip entries with missing labels)
+            // Populate maps from the lookup options (skip entries with missing labels)
             pidOptions.forEach(option => {
                 if (option.label && option.label.trim()) {
-                    LOOKUP_DATA.pids.set(option.value, option.label);
-                    LOOKUP_DATA.pidsByName.set(option.label.toLowerCase(), option.value);
+                    const capitalizedName = capitalizeName(option.label);
+                    LOOKUP_DATA.pids.set(option.value, option.label); // Keep original for backward compat
+                    LOOKUP_DATA.pidsCapitalized.set(option.value, capitalizedName); // Capitalized version
+                    LOOKUP_DATA.pidsByName.set(option.label.toLowerCase(), option.value); // Lowercase key for lookup
                 }
             });
 
@@ -352,11 +367,17 @@ export async function loadLookupData() {
         console.log('Lookup data loaded successfully');
         console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}, PIDs: ${LOOKUP_DATA.pids.size}`);
 
+        // Expose LOOKUP_DATA on window for two-way PID sync
+        window.lookupData = LOOKUP_DATA;
+
     } catch (error) {
         console.error('Failed to load lookup data:', error);
         // Fallback to basic mappings
         LOOKUP_DATA.colleges.set(0, 'Unknown');
         LOOKUP_DATA.states.set(0, 'Unknown');
+
+        // Still expose on window even with fallback
+        window.lookupData = LOOKUP_DATA;
     }
 }
 
