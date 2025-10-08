@@ -51,6 +51,25 @@ const config: ForgeConfig = {
         /^\/test-reports/,
         /^\/test-results/,
         /^\/nul$/,  // Ignore Windows null device file
+
+        // Exclude large testing/dev dependencies that shouldn't be in production
+        /node_modules\/playwright($|\/)/,
+        /node_modules\/@playwright($|\/)/,
+        /node_modules\/puppeteer($|\/)/,
+        /node_modules\/puppeteer-core($|\/)/,
+        /node_modules\/chromium-bidi($|\/)/,
+
+        // Exclude unused UI frameworks (using Handsontable instead)
+        /node_modules\/react($|\/)/,
+        /node_modules\/react-dom($|\/)/,
+        /node_modules\/react-color($|\/)/,
+        /node_modules\/ag-grid-community($|\/)/,
+        /node_modules\/ag-grid-react($|\/)/,
+        /node_modules\/three($|\/)/,
+        /node_modules\/zustand($|\/)/,
+
+        // Exclude @types packages (TypeScript types not needed at runtime)
+        /node_modules\/@types\//,
       ];
 
       return excludePatterns.some(pattern => pattern.test(path));
