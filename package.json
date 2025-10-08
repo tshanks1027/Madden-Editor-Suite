@@ -84,7 +84,7 @@
     "madden-draft-class-tools": "^1.1.0",
     "madden-franchise": "^3.8.0",
     "playwright": "^1.55.1",
-    "puppeteer": "^24.22.3",
+    "puppeteer": "^24.23.0",
     "react": "^19.1.1",
     "react-color": "^2.19.3",
     "react-dom": "^19.1.1",
