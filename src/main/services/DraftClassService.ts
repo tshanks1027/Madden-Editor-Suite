@@ -68,10 +68,42 @@ export class DraftClassService {
         const buffer = fs.readFileSync(filePath);
         draftClass = readM25(buffer);
 
+        // Map M25 field names to M26 field names for consistency
+        // M25 uses portraitId, M26 uses PID
+        // M25 stores player-specific PEPS in assetName field (e.g., "ZappeBailey_22049")
+        // Falls back to genericHeadName if assetName not present
+        draftClass.prospects = draftClass.prospects.map((prospect: any, index: number) => {
+          const pid = prospect.portraitId || 0;
+          const peps = prospect.assetName ||
+                       (prospect.visuals && prospect.visuals.genericHeadName) ||
+                       null;
+
+          if (index === 0) {
+            console.log('[DraftClassService] First prospect mapping:');
+            console.log('  portraitId:', prospect.portraitId);
+            console.log('  PID:', pid);
+            console.log('  assetName:', prospect.assetName);
+            console.log('  visuals.genericHeadName:', prospect.visuals?.genericHeadName);
+            console.log('  PEPS:', peps);
+          }
+
+          return {
+            ...prospect,
+            PID: pid,
+            PEPS: peps
+          };
+        });
+
         console.log('[DraftClassService] Successfully loaded M25 draft class');
         console.log(`[DraftClassService] - Prospects: ${draftClass.prospects.length}`);
         console.log(`[DraftClassService] - Year: ${draftClass.header.gameYear}`);
         console.log(`[DraftClassService] - File Name: ${draftClass.header.fileName}`);
+        console.log(`[DraftClassService] - First prospect PID: ${draftClass.prospects[0].PID}`);
+        console.log(`[DraftClassService] - First prospect PEPS: ${draftClass.prospects[0].PEPS}`);
+
+        // Store original buffer and version for saving
+        draftClass._originalBuffer = buffer;
+        draftClass._version = 'M25';
 
         return {
           success: true,
@@ -105,7 +137,9 @@ export class DraftClassService {
 
         draftClass = {
           header,
-          prospects
+          prospects,
+          _originalBuffer: buffer, // Store for writing back
+          _version: 'M26' // Store version for save operation
         };
 
         console.log('[DraftClassService] Successfully loaded M26 draft class');
@@ -129,9 +163,8 @@ export class DraftClassService {
 
   /**
    * Save modified draft class data
-   * NOTE: Currently read-only - writing not yet implemented in parser
    * @param filePath - Path to save the draft class file
-   * @param prospects - Array of prospect data
+   * @param draftClassData - Draft class data with modified prospects
    * @returns Success status
    */
   async saveDraftClass(filePath: string, draftClassData: any): Promise<boolean> {
@@ -139,8 +172,32 @@ export class DraftClassService {
       console.log('[DraftClassService] Save operation requested for:', filePath);
       console.log('[DraftClassService] Prospect count:', draftClassData.prospects.length);
 
-      // Use madden-draft-class-tools to write M25 files
-      const buffer = writeM25(draftClassData);
+      const version = draftClassData._version || 'M25';
+      console.log(`[DraftClassService] Saving as: ${version}`);
+
+      let buffer: Buffer;
+
+      if (version === 'M26') {
+        // Use M26 writer
+        const path = require('path');
+        const m26WriterPath = path.join(__dirname, 'lib', 'draft-class', 'M26Writer');
+        const { writeM26DraftClass } = require(m26WriterPath);
+
+        if (!draftClassData._originalBuffer) {
+          throw new Error('Cannot save M26 file - original buffer not found');
+        }
+
+        buffer = writeM26DraftClass(
+          draftClassData._originalBuffer,
+          draftClassData.prospects,
+          draftClassData.header
+        );
+
+      } else {
+        // Use madden-draft-class-tools to write M25 files
+        buffer = writeM25(draftClassData);
+      }
+
       fs.writeFileSync(filePath, buffer);
 
       console.log('[DraftClassService] Successfully saved draft class');
@@ -249,6 +306,44 @@ export class DraftClassService {
       console.error('[DraftClassService] Error getting draft class info:', error);
       return {
         valid: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Convert M25 draft class to M26 format
+   * @param inputPath - Path to M25 draft class file
+   * @param outputPath - Path for M26 output file
+   * @param templatePath - Path to M26 template file
+   * @returns Conversion result
+   */
+  async convertM25toM26(inputPath: string, outputPath: string, templatePath: string): Promise<any> {
+    try {
+      console.log('[DraftClassService] Converting M25 to M26:', inputPath);
+      console.log('[DraftClassService] Using template:', templatePath);
+
+      // Import converter using absolute path
+      const path = require('path');
+      const converterPath = path.join(__dirname, 'lib', 'draft-class', 'M25toM26Converter');
+      const { convertM25toM26 } = require(converterPath);
+
+      // Run conversion with template
+      const result = convertM25toM26(inputPath, outputPath, templatePath);
+
+      if (result.success) {
+        console.log('[DraftClassService] Conversion successful');
+        console.log(`  Prospects: ${result.prospectCount}`);
+        console.log(`  Input size: ${result.inputSize} bytes`);
+        console.log(`  Output size: ${result.outputSize} bytes`);
+      }
+
+      return result;
+
+    } catch (error: any) {
+      console.error('[DraftClassService] Error converting M25 to M26:', error);
+      return {
+        success: false,
         error: error.message
       };
     }

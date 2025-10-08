@@ -43,8 +43,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   draftClass: {
     load: (filePath: string) =>
       ipcRenderer.invoke('draft-class:load', filePath),
-    save: (filePath: string, prospects: any[]) =>
-      ipcRenderer.invoke('draft-class:save', filePath, prospects),
+    save: (savePath: string, sourcePath: string, prospects: any[], version: string) =>
+      ipcRenderer.invoke('draft-class:save', savePath, sourcePath, prospects, version),
     exportJSON: (filePath: string, outputPath: string) =>
       ipcRenderer.invoke('draft-class:export-json', filePath, outputPath),
     validate: (filePath: string) =>
@@ -52,6 +52,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getInfo: (filePath: string) =>
       ipcRenderer.invoke('draft-class:get-info', filePath),
     getAttributeDefs: () =>
-      ipcRenderer.invoke('draft-class:get-attribute-defs')
+      ipcRenderer.invoke('draft-class:get-attribute-defs'),
+    convertM25toM26: (inputPath: string, outputPath: string, templatePath: string) =>
+      ipcRenderer.invoke('draft-class:convert-m25-to-m26', inputPath, outputPath, templatePath)
   }
 });

@@ -44,13 +44,44 @@ ipcMain.handle('draft-class:load', async (event, filePath: string) => {
  * Handle: draft-class:save
  * Save modified draft class file
  */
-ipcMain.handle('draft-class:save', async (event, filePath: string, draftClassData: any) => {
+ipcMain.handle('draft-class:save', async (event, savePath: string, sourcePath: string, prospects: any[], version: string) => {
   console.log('[draft-class-handlers] ===== IPC SAVE REQUEST =====');
-  console.log('[draft-class-handlers] File path:', filePath);
-  console.log('[draft-class-handlers] Prospect count:', draftClassData.prospects.length);
+  console.log('[draft-class-handlers] Save path:', savePath);
+  console.log('[draft-class-handlers] Source path:', sourcePath);
+  console.log('[draft-class-handlers] Prospect count:', prospects.length);
+  console.log('[draft-class-handlers] Version:', version);
+
+  // Debug: Log first prospect RECEIVED from frontend
+  if (prospects.length > 0) {
+    console.log('[draft-class-handlers] First prospect RECEIVED from frontend:');
+    console.log('  firstName:', prospects[0].firstName);
+    console.log('  lastName:', prospects[0].lastName);
+    console.log('  PEPS:', prospects[0].PEPS);
+    console.log('  bodyType:', prospects[0].bodyType);
+    console.log('  Has visuals?:', !!prospects[0].visuals);
+    if (prospects[0].visuals) {
+      console.log('  visuals.genericHeadName:', prospects[0].visuals.genericHeadName);
+    }
+  }
 
   try {
-    const success = await draftClassService.saveDraftClass(filePath, draftClassData);
+    // Reload the original file to get buffer and header
+    const originalData = await draftClassService.loadDraftClass(sourcePath);
+
+    if (!originalData.success) {
+      throw new Error('Failed to reload original file: ' + originalData.error);
+    }
+
+    // Reconstruct draft class data with updated prospects
+    const draftClassData = {
+      header: originalData.data.header,
+      prospects: prospects,  // Use prospects from frontend (NOT originalData.data.prospects)
+      _originalBuffer: originalData.data._originalBuffer,
+      _version: version
+    };
+
+    // Save the modified draft class
+    const success = await draftClassService.saveDraftClass(savePath, draftClassData);
 
     console.log('[draft-class-handlers] Save successful');
 
@@ -161,6 +192,39 @@ ipcMain.handle('draft-class:get-info', async (event, filePath: string) => {
     return {
       valid: false,
       error: error.message || 'Unknown error getting draft class info'
+    };
+  }
+});
+
+/**
+ * Handle: draft-class:convert-m25-to-m26
+ * Convert M25 draft class to M26 format
+ */
+ipcMain.handle('draft-class:convert-m25-to-m26', async (event, inputPath: string, outputPath: string, templatePath: string) => {
+  console.log('[draft-class-handlers] ===== IPC CONVERT M25 TO M26 REQUEST =====');
+  console.log('[draft-class-handlers] Input:', inputPath);
+  console.log('[draft-class-handlers] Output:', outputPath);
+  console.log('[draft-class-handlers] Template:', templatePath);
+
+  try {
+    const result = await draftClassService.convertM25toM26(inputPath, outputPath, templatePath);
+
+    if (result.success) {
+      console.log('[draft-class-handlers] Conversion successful');
+    } else {
+      console.log('[draft-class-handlers] Conversion failed:', result.error);
+    }
+
+    return result;
+
+  } catch (error: any) {
+    console.error('[draft-class-handlers] ===== IPC CONVERT ERROR =====');
+    console.error('[draft-class-handlers] Error:', error);
+    console.error('[draft-class-handlers] ===============================');
+
+    return {
+      success: false,
+      error: error.message || 'Unknown error converting draft class'
     };
   }
 });

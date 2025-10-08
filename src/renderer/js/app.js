@@ -165,6 +165,10 @@ class MaddenEditorApp {
             this.exportDraftJSON();
         });
 
+        document.getElementById('convert-m25-to-m26-btn').addEventListener('click', () => {
+            this.convertM25toM26();
+        });
+
         document.getElementById('draftPositionFilter').addEventListener('change', (e) => {
             this.selectedDraftPosition = e.target.value;
             this.filterDraftProspects();
@@ -1723,10 +1727,23 @@ class MaddenEditorApp {
 
         // Transform prospect data: convert numeric IDs to friendly names for dropdown fields
         const transformedProspects = prospects.map(prospect => {
-            // Extract PEPS (generic head name) from visuals JSON
-            let peps = null;
-            if (prospect.visuals && prospect.visuals.genericHeadName) {
-                peps = prospect.visuals.genericHeadName;
+            // Use PEPS from backend (already mapped from assetName or genericHeadName)
+            // Backend correctly prioritizes assetName (player-specific) over genericHeadName
+            let peps = prospect.PEPS || null;
+
+            // Extract Body Type from visuals JSON
+            let bodyType = null;
+            if (prospect.visuals && prospect.visuals.bodyType) {
+                bodyType = prospect.visuals.bodyType;
+            }
+
+            // Debug: Log first prospect to check visuals
+            if (prospects.indexOf(prospect) === 0) {
+                console.log('[Draft Class] First prospect visuals:', prospect.visuals);
+                console.log('[Draft Class] Body Type:', bodyType);
+                console.log('[Draft Class] PID:', prospect.PID);
+                console.log('[Draft Class] PEPS:', prospect.PEPS);
+                console.log('[Draft Class] assetName:', prospect.assetName);
             }
 
             // Look up player name from PID
@@ -1745,6 +1762,7 @@ class MaddenEditorApp {
                 homeState: getLookupValue('states', prospect.homeState) || prospect.homeState,
                 devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][prospect.devTrait] || prospect.devTrait,
                 PEPS: peps,  // Generic head name from visuals JSON
+                bodyType: bodyType,  // Body type from visuals JSON
                 playerPic: playerPic  // Player name from PID lookup
                 // PID is already parsed from binary at offset 0x92 by M26Parser
             };
@@ -1755,13 +1773,37 @@ class MaddenEditorApp {
         const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
         const stateOptions = getLookupOptions('states').map(opt => opt.label);
         const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
+        const bodyTypeOptions = ['Heavy', 'Lean', 'Athletic', 'Stocky', 'Muscular', 'Thin'];
         // Use capitalized names for player pic autocomplete
         const playerPicOptions = Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face']);
 
-        // Custom renderer for lookup columns - just display, don't modify data
+        // Custom renderer for lookup columns - ensures friendly names are always displayed
         const dropdownRenderer = function(instance, td, row, col, prop, value, cellProperties) {
-            // Data is already transformed to friendly names, just render it
-            Handsontable.renderers.DropdownRenderer.apply(this, [instance, td, row, col, prop, value, cellProperties]);
+            // Convert numeric values to friendly names if needed
+            let displayValue = value;
+
+            if (typeof value === 'number') {
+                if (prop === 'position') {
+                    displayValue = getLookupValue('positions', value) || value;
+                } else if (prop === 'college') {
+                    displayValue = getLookupValue('colleges', value) || value;
+                } else if (prop === 'homeState') {
+                    displayValue = getLookupValue('states', value) || value;
+                } else if (prop === 'devTrait') {
+                    displayValue = ['Normal', 'Star', 'Superstar', 'X-Factor'][value] || value;
+                }
+            }
+
+            // Update the actual data to friendly name so sorting works correctly
+            if (displayValue !== value) {
+                const sourceData = instance.getSourceDataAtRow(row);
+                if (sourceData) {
+                    sourceData[prop] = displayValue;
+                }
+            }
+
+            // Use dropdown renderer with the friendly name
+            Handsontable.renderers.DropdownRenderer.apply(this, [instance, td, row, col, prop, displayValue, cellProperties]);
         };
 
         // Map draft class field names to roster editor field names and create columns
@@ -1770,13 +1812,15 @@ class MaddenEditorApp {
             // Personal Info (First 3 columns frozen)
             { data: 'lastName', title: 'Last Name', width: 100, type: 'text', editor: 'text' },
             { data: 'firstName', title: 'First Name', width: 100, type: 'text', editor: 'text' },
-            { data: 'position', title: 'Pos', width: 90, type: 'dropdown', source: positionOptions, allowInvalid: false, renderer: dropdownRenderer },
+            { data: 'position', title: 'Pos', width: 90, type: 'dropdown', source: positionOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
             { data: 'jerseyNum', title: 'Jersey #', width: 80, type: 'numeric' },
-            { data: 'college', title: 'College', width: 150, type: 'dropdown', source: collegeOptions, allowInvalid: false, renderer: dropdownRenderer },
+            { data: 'college', title: 'College', width: 150, type: 'dropdown', source: collegeOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
             { data: 'age', title: 'Age', width: 50, type: 'numeric' },
-            { data: 'homeState', title: 'State', width: 100, type: 'dropdown', source: stateOptions, allowInvalid: false, renderer: dropdownRenderer },
+            { data: 'homeState', title: 'State', width: 100, type: 'dropdown', source: stateOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
             { data: 'PID', title: 'PID', width: 70, type: 'numeric' },
             { data: 'playerPic', title: 'Player Pic', width: 150, type: 'autocomplete', source: playerPicOptions, strict: false, allowInvalid: true },
+            { data: 'PEPS', title: 'Asset ID (PEPS)', width: 200, type: 'text' },
+            { data: 'bodyType', title: 'Body Type', width: 110, type: 'dropdown', source: bodyTypeOptions, allowInvalid: true, renderer: dropdownRenderer },
 
             // Ratings (in roster field order)
             { data: 'acceleration', title: 'ACC', width: 70, type: 'numeric' },
@@ -1800,6 +1844,7 @@ class MaddenEditorApp {
             { data: 'kickAccuracy', title: 'KAC', width: 70, type: 'numeric' },
             { data: 'kickPower', title: 'KPW', width: 70, type: 'numeric' },
             { data: 'kickReturn', title: 'KR', width: 70, type: 'numeric' },
+            { data: 'longSnap', title: 'LS', width: 70, type: 'numeric' },
             { data: 'leadBlock', title: 'LBK', width: 70, type: 'numeric' },
             { data: 'manCoverage', title: 'MCV', width: 70, type: 'numeric' },
             { data: 'mediumRouteRunning', title: 'MRR', width: 70, type: 'numeric' },
@@ -1859,7 +1904,55 @@ class MaddenEditorApp {
             dropdownMenu: false,  // Disable dropdown menu (removes filter arrows)
             contextMenu: true,
             fixedColumnsStart: 3,  // Freeze first 3 columns (Last Name, First Name, Position)
-            columnSorting: true,  // Enable column sorting
+            columnSorting: {
+                indicator: true,
+                headerAction: true,
+                compareFunctionFactory: function(sortOrder, columnMeta) {
+                    // Custom comparator that handles both string and numeric values
+                    return function(value, nextValue) {
+                        // Ensure we're comparing strings for dropdown columns
+                        const val1 = String(value || '');
+                        const val2 = String(nextValue || '');
+
+                        if (sortOrder === 'asc') {
+                            return val1.localeCompare(val2);
+                        } else {
+                            return val2.localeCompare(val1);
+                        }
+                    };
+                }
+            },
+            afterColumnSort: (currentSortConfig, destinationSortConfigs) => {
+                // After sorting, ensure dropdown fields still show friendly names
+                // This prevents them from reverting to numeric IDs
+                const data = this.draftGrid.getSourceData();
+                data.forEach((row) => {
+                    // Re-apply friendly name transformations after sort
+                    if (typeof row.position === 'number') {
+                        row.position = getLookupValue('positions', row.position) || row.position;
+                    }
+                    if (typeof row.college === 'number') {
+                        row.college = getLookupValue('colleges', row.college) || row.college;
+                    }
+                    if (typeof row.homeState === 'number') {
+                        row.homeState = getLookupValue('states', row.homeState) || row.homeState;
+                    }
+                    if (typeof row.devTrait === 'number') {
+                        row.devTrait = ['Normal', 'Star', 'Superstar', 'X-Factor'][row.devTrait] || row.devTrait;
+                    }
+                });
+                this.draftGrid.render();
+            },
+            beforeChange: (changes, source) => {
+                // When a dropdown value is changed, keep it as the friendly name
+                // This prevents it from being converted back to a number
+                if (!changes) return;
+
+                changes.forEach(([row, prop, oldValue, newValue]) => {
+                    // Position, college, homeState, devTrait should stay as friendly names
+                    // They will be converted back to IDs during save
+                });
+            },
             afterGetColHeader: (col, TH) => {
                 // Add tooltips with full stat names
                 const statTooltips = {
@@ -1943,14 +2036,29 @@ class MaddenEditorApp {
                 return;
             }
 
-            // Get updated data from grid (has friendly names)
+            // Get updated data from grid INCLUDING user edits (has friendly names)
             const gridData = this.draftGrid.getSourceData();
+
+            // Debug: Log first prospect to see what we're getting
+            if (gridData.length > 0) {
+                console.log('[Save] First prospect data from grid:');
+                console.log('  PEPS:', gridData[0].PEPS);
+                console.log('  bodyType:', gridData[0].bodyType);
+                console.log('  throwPower:', gridData[0].throwPower);
+                console.log('  injury:', gridData[0].injury);
+                console.log('  jerseyNum:', gridData[0].jerseyNum);
+                console.log('  Has visuals in gridData?:', !!gridData[0].visuals);
+                if (gridData[0].visuals) {
+                    console.log('  gridData visuals.genericHeadName:', gridData[0].visuals.genericHeadName);
+                }
+            }
 
             // Convert friendly names back to numeric IDs
             const updatedProspects = gridData.map((prospect, index) => {
                 const originalProspect = this.originalProspectData[index];
 
-                return {
+                // Build updated prospect object
+                const updated = {
                     ...prospect,
                     // Convert position name to ID
                     position: getLookupOptions('positions').find(opt => opt.label === prospect.position)?.value ?? originalProspect.position,
@@ -1961,9 +2069,42 @@ class MaddenEditorApp {
                     // Convert dev trait name to ID
                     devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait) !== -1
                         ? ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait)
-                        : originalProspect.devTrait
+                        : originalProspect.devTrait,
+                    // Explicitly preserve PEPS and bodyType from grid
+                    PEPS: prospect.PEPS,
+                    bodyType: prospect.bodyType
                 };
+
+                // CRITICAL FIX: Update visuals.genericHeadName and bodyType to match edited values
+                // The M26Writer reads from visuals JSON, not from the top-level fields
+                // If gridData doesn't have visuals, get it from originalProspectData
+                if (!updated.visuals && originalProspect.visuals) {
+                    updated.visuals = { ...originalProspect.visuals };
+                }
+
+                if (updated.visuals && prospect.PEPS) {
+                    updated.visuals.genericHeadName = prospect.PEPS;
+                    console.log(`[Save] Updated visuals.genericHeadName for prospect ${index + 1}: ${prospect.PEPS}`);
+                }
+
+                if (updated.visuals && prospect.bodyType) {
+                    updated.visuals.bodyType = prospect.bodyType;
+                    console.log(`[Save] Updated visuals.bodyType for prospect ${index + 1}: ${prospect.bodyType}`);
+                }
+
+                return updated;
             });
+
+            // Debug: Log first prospect being sent to backend
+            if (updatedProspects.length > 0) {
+                console.log('[Save] First prospect being sent to backend:');
+                console.log('  PEPS:', updatedProspects[0].PEPS);
+                console.log('  bodyType:', updatedProspects[0].bodyType);
+                console.log('  Has visuals?:', !!updatedProspects[0].visuals);
+                if (updatedProspects[0].visuals) {
+                    console.log('  visuals.genericHeadName:', updatedProspects[0].visuals.genericHeadName);
+                }
+            }
 
             // Save via IPC
             // Pass: save path, original source path, updated prospects, and game version
@@ -2015,6 +2156,69 @@ class MaddenEditorApp {
         } catch (error) {
             console.error('Error exporting JSON:', error);
             this.showError(`Failed to export JSON: ${error.message}`);
+        }
+    }
+
+    async convertM25toM26() {
+        try {
+            // Prompt user to select M25 file
+            const inputResult = await window.electronAPI.file.openDialog();
+
+            if (!inputResult.success || inputResult.canceled) {
+                return;
+            }
+
+            const inputPath = inputResult.filePath;
+            console.log('[Convert] M25 input file:', inputPath);
+
+            // Prompt user to select M26 template file
+            alert('Step 2: Select a Madden 26 draft class file to use as template\n(This provides the correct M26 file structure)');
+            const templateResult = await window.electronAPI.file.openDialog();
+
+            if (!templateResult.success || templateResult.canceled) {
+                return;
+            }
+
+            const templatePath = templateResult.filePath;
+            console.log('[Convert] M26 template file:', templatePath);
+
+            // Generate default output filename (append -M26)
+            const defaultOutputName = inputPath.replace(/([^\\\/]+)$/, '$1-M26');
+
+            // Prompt user for output location
+            const outputResult = await window.electronAPI.file.saveDialog(defaultOutputName);
+
+            if (!outputResult.success || outputResult.canceled) {
+                return;
+            }
+
+            const outputPath = outputResult.filePath;
+            console.log('[Convert] M26 output file:', outputPath);
+
+            // Show converting message
+            alert('Converting M25 to M26... This may take a moment.');
+
+            // Convert with template
+            const convertResult = await window.electronAPI.draftClass.convertM25toM26(
+                inputPath,
+                outputPath,
+                templatePath
+            );
+
+            if (!convertResult.success) {
+                throw new Error(convertResult.error || 'Failed to convert draft class');
+            }
+
+            console.log('[Convert] Conversion successful');
+            console.log(`  Prospects: ${convertResult.prospectCount}`);
+            console.log(`  Input size: ${convertResult.inputSize} bytes`);
+            console.log(`  Output size: ${convertResult.outputSize} bytes`);
+
+            alert(`M25 to M26 conversion successful!\n\nProspects: ${convertResult.prospectCount}\nOutput: ${outputPath}`);
+
+        } catch (error) {
+            console.error('[Convert] Error:', error);
+            this.showError(`Failed to convert M25 to M26: ${error.message}`);
         }
     }
 
