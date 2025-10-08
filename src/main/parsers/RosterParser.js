@@ -76,7 +76,14 @@ async function parseRosterFile(filePath) {
       console.log('[RosterParser] PEPS field exists:', 'PEPS' in sample);
     }
 
-    // Store file and helper in global scope for saving later
+    // Store file and helper in a map keyed by file path
+    // This allows multiple files to be open and prevents data loss when saving
+    if (!global.rosterFiles) {
+      global.rosterFiles = new Map();
+    }
+    global.rosterFiles.set(filePath, { helper, file });
+
+    // Also store in global scope for backward compatibility
     global.rosterFile = file;
     global.rosterHelper = helper;
 
@@ -84,7 +91,8 @@ async function parseRosterFile(filePath) {
       version: 2026, // Madden 26
       playerCount: players.length,
       players: players,
-      teams: [] // TODO: Extract team data from TEAM table
+      teams: [], // TODO: Extract team data from TEAM table
+      filePath: filePath // Store file path to retrieve helper/file later
     };
 
   } catch (error) {
@@ -98,19 +106,53 @@ async function parseRosterFile(filePath) {
 }
 
 /**
- * Save roster file (not yet implemented)
+ * Save roster file
+ * @param {string} filePath - Path to save the roster file
+ * @param {Array} players - Array of player data
+ * @param {Object} originalData - Original parsed data (contains filePath to retrieve helper/file)
  */
-async function saveRosterFile(filePath, players) {
+async function saveRosterFile(filePath, players, originalData) {
   console.log('[RosterParser] ===== START ROSTER SAVE =====');
   console.log('[RosterParser] Output path:', filePath);
+  console.log('[RosterParser] Original data:', originalData ? `filePath: ${originalData.filePath}` : 'none');
 
   try {
-    if (!global.rosterHelper || !global.rosterFile) {
-      throw new Error('No roster file loaded - must load before saving');
+    const sourcePath = originalData?.filePath;
+
+    // CRITICAL FIX: If saving to the same file we loaded from, we MUST reload it fresh
+    // to avoid in-memory corruption during the save operation
+    const savingToSameFile = (sourcePath === filePath);
+
+    let helper, file;
+
+    if (savingToSameFile) {
+      console.log('[RosterParser] ⚠️  CRITICAL: Saving to same file - reloading fresh copy to prevent corruption');
+      // Load a fresh copy of the file
+      helper = new MaddenRosterHelper();
+      file = await helper.load(sourcePath);
+      console.log('[RosterParser] Fresh copy loaded successfully');
+    } else {
+      // Different file - safe to use cached version
+      if (sourcePath && global.rosterFiles) {
+        const stored = global.rosterFiles.get(sourcePath);
+        if (stored) {
+          helper = stored.helper;
+          file = stored.file;
+          console.log('[RosterParser] Retrieved helper/file from stored map for:', sourcePath);
+        }
+      }
+
+      // Fall back to globals if not found
+      if (!helper || !file) {
+        helper = global.rosterHelper;
+        file = global.rosterFile;
+        console.log('[RosterParser] Using global helper/file as fallback');
+      }
     }
 
-    const helper = global.rosterHelper;
-    const file = global.rosterFile;
+    if (!helper || !file) {
+      throw new Error('No roster file data available - must load before saving');
+    }
 
     // Update player values in the TDB2 file
     const playerTable = file.PLAY;

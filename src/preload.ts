@@ -43,8 +43,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   draftClass: {
     load: (filePath: string) =>
       ipcRenderer.invoke('draft-class:load', filePath),
-    save: (savePath: string, sourcePath: string, prospects: any[], version: string) =>
-      ipcRenderer.invoke('draft-class:save', savePath, sourcePath, prospects, version),
+    save: (savePath: string, draftClassData: any) =>
+      ipcRenderer.invoke('draft-class:save', savePath, draftClassData),
     exportJSON: (filePath: string, outputPath: string) =>
       ipcRenderer.invoke('draft-class:export-json', filePath, outputPath),
     validate: (filePath: string) =>

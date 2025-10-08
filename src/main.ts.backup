@@ -1,0 +1,91 @@
+import { app, BrowserWindow } from 'electron';
+import path from 'node:path';
+
+// Configure module paths - no ASAR
+// __dirname when packaged is: resources/app/.vite/build
+// Vendor modules are at: resources/app/.vite/build/vendor/node_modules (same dir as __dirname)
+// In dev: node_modules are at project root
+const nodeModulesPath = app.isPackaged
+  ? path.join(__dirname, 'vendor', 'node_modules')  // Packaged: .vite/build/vendor/node_modules
+  : path.join(__dirname, 'node_modules');            // Dev: project/node_modules
+
+if (require('module').globalPaths) {
+  require('module').globalPaths.unshift(nodeModulesPath);
+}
+// Also set NODE_PATH environment variable
+process.env.NODE_PATH = nodeModulesPath + (process.env.NODE_PATH ? path.delimiter + process.env.NODE_PATH : '');
+require('module').Module._initPaths();
+
+console.log('[main] Node modules path configured:', nodeModulesPath);
+console.log('[main] __dirname:', __dirname);
+console.log('[main] app.isPackaged:', app.isPackaged);
+
+// Catch all uncaught errors to prevent silent crashes
+process.on('uncaughtException', (error) => {
+  console.error('===== UNCAUGHT EXCEPTION =====');
+  console.error('Error:', error);
+  console.error('Stack:', error.stack);
+  console.error('==============================');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('===== UNHANDLED REJECTION =====');
+  console.error('Reason:', reason);
+  console.error('Promise:', promise);
+  console.error('===============================');
+});
+
+// Import IPC handlers AFTER NODE_PATH is configured
+// Use require() instead of import to ensure they load after NODE_PATH setup
+require('./main/ipc/parser-handlers');
+require('./main/ipc/file-handlers');
+require('./main/ipc/lookup-handlers');
+require('./main/ipc/draft-class-handlers');
+
+// Keep a global reference of the window object
+let mainWindow: BrowserWindow | null = null;
+
+const createWindow = (): void => {
+  // Create the browser window
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1200,
+    minHeight: 700,
+    backgroundColor: '#0a0a0a',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+
+  // Load the index.html
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+  } else {
+    mainWindow.loadFile(
+      path.join(__dirname, '../renderer/index.html')
+    );
+  }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+};
+
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});

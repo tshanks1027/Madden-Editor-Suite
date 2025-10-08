@@ -25,29 +25,29 @@ PCOL,CollegeName
 23,Brown
 24,Bucknell
 25,Buffalo
-26,
+26,Charlestown Southern
 27,BYU
 28,Cal Poly SLO
 29,California
 30,Cal State Northridge
 31,Malone
 32,Canisus
-33,
+33,C. Connecticut State
 34,Eastern Michigan
 35,Central State (OH)
-36,
+36,Butler
 37,Cincinnati
 38,Citadel
 39,Clemson
-40,
+40,Davidson
 41,Colgate
 42,Colorado
 43,Colorado State
-44,
+44,Columbia
 45,Cornell
 46,Culver-Stockton
 47,Dartmouth
-48,
+48,Clinch Valley
 49,Dayton
 50,Delaware
 51,Delaware State
@@ -61,7 +61,7 @@ PCOL,CollegeName
 59,East Carolina
 60,Eastern Washington
 61,Elon University
-62,
+62,Georgetown
 63,Flordia
 64,Flordia A&M
 65,Flordia State
@@ -69,7 +69,7 @@ PCOL,CollegeName
 67,Fresno State
 68,Furman
 69,Georgia Southern
-70,
+70,Fairfield
 71,Georgia
 72,Georgia Tech
 73,Grambling State
@@ -78,7 +78,7 @@ PCOL,CollegeName
 76,Harvard
 77,Hawaii
 78,Henderson State
-79,
+79,Hofstra
 80,Holy Cross
 81,Houston
 82,Howard
@@ -88,21 +88,21 @@ PCOL,CollegeName
 86,Illinois State
 87,Indiana
 88,Indiana State
-89,
+89,Iona
 90,Iowa
 91,Iowa State
 92,James Madison
 93,Jackson State
 94,Jacksonville State
-95,
+95,John Carroll
 96,Kansas
 97,Kansas State
 98,Kent State
 99,Kentucky
 100,Kutztown
-101,
+101,La Salle
 102,LA Tech
-103,
+103,Lambuth
 104,Lehigh
 105,Liberty
 106,Louisville
@@ -123,14 +123,14 @@ PCOL,CollegeName
 121,Minnesota
 122,North Carolina
 123,Missouri
-124,
+124,Monmouth
 125,Montana
 126,Montana State
 127,Morehead State
-128,
+128,Morehouse
 129,Morgan State
-130,
-131,
+130,Mt S. Antonio College
+131,Morris Brown
 132,Murray State
 133,North Alabama
 134,Northern Arizona
@@ -141,7 +141,7 @@ PCOL,CollegeName
 139,NC State
 140,Navy
 141,North Carolina Central
-142,
+142,Nebraska-Omaha
 143,Nebraska
 144,Nevada
 145,New Mexico State
@@ -153,7 +153,7 @@ PCOL,CollegeName
 151,Northern Iowa
 152,Northwestern
 153,Notre Dame
-154,
+154,NW Oklahoma State
 155,Uni. Arkansas Monticello
 156,Ohio
 157,Ohio State
@@ -173,7 +173,7 @@ PCOL,CollegeName
 171,Rhode Island
 172,Rice
 173,Richmond
-174,
+174,St. Peters
 175,Rowan
 176,Rutgers
 177,Augustana
@@ -187,29 +187,29 @@ PCOL,CollegeName
 185,Samford
 186,San Jose State
 187,Savannah State
-188,
+188,St. Francis
 189,SE Missouri State
 190,Shippensburg
-191,
-192,
+191,Simon Fraser
+192,Siena
 193,SMU
 194,Southern
 195,Southern Miss
 196,Southern Utah
-197,
+197,Southeastern University
 198,St. John's
 199,St. Mary's
-200,
+200,Robert Morris
 201,Stanford
 202,Stony Brook
-203,
-204,
+203,Merrimack
+204,Valparaiso
 205,Southern Arkansas
 206,Syracuse
 207,Texas A&M Kingsville
 208,TCU
 209,Temple
-210,
+210,Tuskegee
 211,Tenn-Chattanooga
 212,Tennessee
 213,Tennessee State
@@ -223,7 +223,7 @@ PCOL,CollegeName
 221,Troy
 222,Tulane
 223,Tulsa
-224,
+224,Tennesee Tech
 225,UAB
 226,UCF
 227,UCLA
@@ -237,29 +237,29 @@ PCOL,CollegeName
 235,Utah State
 236,UTEP
 237,Valdosta State
-238,
+238,SW Mississippi State
 239,Vanderbilt
 240,Villanova
 241,Virgina
 242,Virgina Tech
-243,
+243,VMI
 244,W. Carolina
 245,W. Illinois
 246,W. Kentucky
 247,W. Michigan
 248,W. Texas A&M
-249,
+249,Union College
 250,Wake Forrest
-251,
+251,Walla Walla
 252,Washington State
 253,Washington
 254,Weber State
 255,West Virgina
-256,
+256,Westminster
 257,William & Mary
 258,Winston Salem
 259,Wisconsin
-260,
+260,Wofford
 261,Wyoming
 262,Yale
 263,Youngstown State
@@ -267,225 +267,225 @@ PCOL,CollegeName
 265,No College
 266,New Hampshire
 267,UW La Crosse
-268,
-269,
+268,Central Washington
+269,Cal State Bakersfield
 270,North Dakota
 271,Wayne State
-272,
+272,East Stroudsburg
 273,IUP
 274,Saginaw Valley
-275,
+275,Buffalo State
 276,Emporia State
 277,Wingate
-278,
+278,Whitworth
 279,W. New Mexico
 280,Albany
-281,
+281,Presbyterian
 282,Bloomsburg
 283,Central Michigan
-284,
-285,
+284,Wheaton
+285,Franklin College
 286,UC Davis
 287,Carson-Newman
 288,Central Arkansas
 289,Berry College
 290,Coastal Carolina
 291,Tusculum College
-292,
-293,
-294,
-295,
+292,UW Stevens Point
+293,Midwestern State
+294,Hastings College
+295,Bentley College
 296,Ferris State
 297,FIU
 298,Delta State
 299,Fort Valley State
 300,Gardner-Webb
-301,
+301,Harding
 302,Lafayette
 303,Lane
-304,
-305,
+304,Carrol College
+305,St. Cloud State
 306,Mesa State
 307,California (PA)
 308,FAU
-309,
+309,Missouri Southern State
 310,Missouri State
 311,Missouri Western State
 312,Mount Union
-313,
+313,Ohio Northern
 314,None
 315,North Dakota State
 316,Northern State
 317,NW Missouri State
-318,
-319,
-320,
-321,
-322,
+318,Northwood
+319,Nebraska-Kearney
+320,Ottawa
+321,Pikeville
+322,Ramapo
 323,Regina
 324,Lindenwood
 325,Sacranento State
-326,
+326,Calgary
 327,San Diego
 328,South Dakota
-329,
+329,Stillman
 330,SE Louisiana
-331,
+331,Coe College
 332,Texas State
-333,
+333,St. Augustine
 334,Tarleton State
 335,Truman State
-336,
+336,Bridgewater State
 337,Virgina Union
 338,Washburn
-339,
-340,
-341,
+339,Western Washington
+340,St. Paul's
+341,William Penn
 342,West Georgia
 343,Wisc-Whitewater
-344,
-345,
+344,Eastern Oregon
+345,Belhaven
 346,Western Ontario
-347,
+347,Hillsdale
 348,Manitoba
-349,
+349,Trinity
 350,Western Oregon
 351,Tiffin
-352,
+352,Clarion
 353,Stephen F. Austin
-354,
+354,S. Connecticut State
 355,UTSA
-356,
-357,
-358,
+356,Knoxville College
+357,Chardon State
+358,Central Oklahoma
 359,Newberry College
 360,Ashland
-361,
+361,Albion College
 362,Georgia State
-363,
+363,Salisbury
 364,Bowie State
-365,
-366,
-367,
-368,
-369,
+365,Michigan Tech
+366,Concordia
+367,Bethel
+368,Slippery Rock
+369,Baker
 370,Ouachita Baptist
-371,
-372,
+371,Queen's University
+372,Beliot College
 373,Fort Hays State
-374,
-375,
-376,
+374,Walsh
+375,Huntington
+376,Scottsbluff JC
 377,Humboldt State
 378,CSU-Pueblo
 379,South Alabama
 380,Old Dominion
-381,
+381,North Greenville
 382,West Alabama
-383,
+383,Catawba College
 384,East Central University
 385,Central Missouri
-386,
-387,
-388,
-389,
+386,Mary Hardin-Baylor
+387,Montreal University
+388,Heidelberg
+389,Palomar College
 390,Minnesota State
 391,Assumption
-392,
-393,
+392,Centre College
+393,McGill University
 394,Bemidji State
 395,Shepherd University
-396,
-397,
-398,
-399,
+396,UC Irvine
+397,Northeastern State
+398,UW-Milwaukee
+399,Florida Tech
 400,Texas A&M-Commerce
-401,
-402,
-403,
-404,
-405,
+401,SW Oklahoma State
+402,Lamar University
+403,Louisiana Christian
+404,Mars Hill
+405,Hobart
 406,Feyetteville State
-407,
-408,
-409,
+407,Jacksonville University
+408,Wesley College
+409,Wisconsin-Eau Claire
 410,Campbell University
 411,Northern Michigan
-412,
-413,
-414,
-415,
-416,
-417,
+412,Wisconsin-Oshkosh
+413,Pretoria
+414,Cumberlands
+415,Rensselaer Poly
+416,Northwestern State
+417,Incarnate Word
 418,Findlay
-419,
-420,
-421,
-422,
+419,Morningside College
+420,West Chester
+421,Marysville College
+422,Cal Lutheran
 423,Charlotte
-424,
-425,
-426,
-427,
+424,Wisconsin-Platteville
+425,Marian
+426,Southern Oregon
+427,Lake Erie College
 428,Charleston
 429,Greenvile College
-430,
-431,
-432,
-433,
+430,Faulkner
+431,Laval
+432,Mississippi College
+433,Seattle
 434,Stetson
-435,
+435,Texas-Permian Basin
 436,Virgina Commonwealth
-437,
-438,
+437,Virgina-Lynchburg
+438,Kentucky Wesleyan
 439,Azusa Pacific
 440,Western Colorado
 441,Dubuque
-442,
-443,
-444,
+442,Virgina State
+443,Notre Dame College
+444,Fairmount State
 445,Univ. British Columbia
-446,
+446,Frostburg State
 447,Sioux Falls
 448,East Texas Baptist
-449,
-450,
-451,
-452,
-453,
-454,
-455,
-456,
-457,
-458,
-459,
-460,
-461,
+449,Southern Nazarene
+450,Gannon University
+451,Mines
+452,Indianapolis
+453,NE Mississippi Community
+454,SE Oklahoma State
+455,Limestone
+456,Pace University
+457,Dakota State
+458,Edinboro
+459,Ohio Dominican
+460,St. Norbert
+461,Dickinson State
 462,Kennesaw State
 463,Missouri S&T
 464,Lenior-Rhyne
-465,
+465,UW-Scout
 466,Alberta
-467,
+467,Arizona Christian
 468,Adams State
-469,
-470,
-471,
-472,
-473,
-474,
-475,
+469,West Liberty University
+470,Univ of Minnesota Duluth
+471,Concordia Univ.-St.Paul
+472,Mercyhurst University
+473,SW Assemblies of God
+474,Benedictine College
+475,Lindsey Wilson College
 476,Friends University
-477,
+477,Monrclair State
 478,Livingstone College
-479,
+479,U of Saskatchewan
 480,Houston Baptist
-481,
-482,
-483,
+481,Widener University
+482,Western University
+483,Mercer
 484,West Florida
-485,
-486,
+485,Peru State College
+486,Framinham State
 487,York University
 488,Albany State 
 489,Bryant

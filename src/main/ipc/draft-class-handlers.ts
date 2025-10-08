@@ -44,43 +44,28 @@ ipcMain.handle('draft-class:load', async (event, filePath: string) => {
  * Handle: draft-class:save
  * Save modified draft class file
  */
-ipcMain.handle('draft-class:save', async (event, savePath: string, sourcePath: string, prospects: any[], version: string) => {
+ipcMain.handle('draft-class:save', async (event, savePath: string, draftClassData: any) => {
   console.log('[draft-class-handlers] ===== IPC SAVE REQUEST =====');
   console.log('[draft-class-handlers] Save path:', savePath);
-  console.log('[draft-class-handlers] Source path:', sourcePath);
-  console.log('[draft-class-handlers] Prospect count:', prospects.length);
-  console.log('[draft-class-handlers] Version:', version);
+  console.log('[draft-class-handlers] Prospect count:', draftClassData.prospects.length);
+  console.log('[draft-class-handlers] Version:', draftClassData._version);
 
   // Debug: Log first prospect RECEIVED from frontend
-  if (prospects.length > 0) {
+  if (draftClassData.prospects.length > 0) {
     console.log('[draft-class-handlers] First prospect RECEIVED from frontend:');
-    console.log('  firstName:', prospects[0].firstName);
-    console.log('  lastName:', prospects[0].lastName);
-    console.log('  PEPS:', prospects[0].PEPS);
-    console.log('  bodyType:', prospects[0].bodyType);
-    console.log('  Has visuals?:', !!prospects[0].visuals);
-    if (prospects[0].visuals) {
-      console.log('  visuals.genericHeadName:', prospects[0].visuals.genericHeadName);
+    console.log('  firstName:', draftClassData.prospects[0].firstName);
+    console.log('  lastName:', draftClassData.prospects[0].lastName);
+    console.log('  PEPS:', draftClassData.prospects[0].PEPS);
+    console.log('  bodyType:', draftClassData.prospects[0].bodyType);
+    console.log('  Has visuals?:', !!draftClassData.prospects[0].visuals);
+    if (draftClassData.prospects[0].visuals) {
+      console.log('  visuals.genericHeadName:', draftClassData.prospects[0].visuals.genericHeadName);
     }
   }
 
   try {
-    // Reload the original file to get buffer and header
-    const originalData = await draftClassService.loadDraftClass(sourcePath);
-
-    if (!originalData.success) {
-      throw new Error('Failed to reload original file: ' + originalData.error);
-    }
-
-    // Reconstruct draft class data with updated prospects
-    const draftClassData = {
-      header: originalData.data.header,
-      prospects: prospects,  // Use prospects from frontend (NOT originalData.data.prospects)
-      _originalBuffer: originalData.data._originalBuffer,
-      _version: version
-    };
-
-    // Save the modified draft class
+    // Use the draft class data passed from frontend (already contains header, buffer, prospects)
+    // No need to reload from disk - this prevents data loss when saving over same file
     const success = await draftClassService.saveDraftClass(savePath, draftClassData);
 
     console.log('[draft-class-handlers] Save successful');

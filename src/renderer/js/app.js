@@ -2107,12 +2107,17 @@ class MaddenEditorApp {
             }
 
             // Save via IPC
-            // Pass: save path, original source path, updated prospects, and game version
+            // Pass complete draft class data (prevents data loss when saving over same file)
+            const draftClassData = {
+                header: this.currentDraftClass.header,
+                prospects: updatedProspects,
+                _originalBuffer: this.currentDraftClass._originalBuffer,
+                _version: this.currentDraftClass._version || 'M25'
+            };
+
             const saveResult = await window.electronAPI.draftClass.save(
                 result.filePath,
-                this.currentDraftFilePath,  // Original file path to reload buffer
-                updatedProspects,
-                this.currentDraftClass._version || 'M25'
+                draftClassData
             );
 
             if (!saveResult.success) {

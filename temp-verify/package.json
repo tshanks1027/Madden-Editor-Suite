@@ -1,0 +1,37 @@
+{
+  "name": "madden-editor-suite",
+  "productName": "madden-editor-suite",
+  "version": "1.0.0",
+  "description": "Professional Madden NFL file editor with 17+ specialized tools for roster, franchise, and visual customization",
+  "main": ".vite/build/main.js",
+  "author": {
+    "name": "tshanks1027",
+    "email": "98771803+tshanks1027@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@types/puppeteer": "^5.4.7",
+    "@types/react": "^19.1.13",
+    "@types/react-color": "^3.0.13",
+    "@types/react-dom": "^19.1.9",
+    "@types/sqlite3": "^3.1.11",
+    "@types/three": "^0.180.0",
+    "ag-grid-community": "^34.2.0",
+    "ag-grid-react": "^34.2.0",
+    "bit-buffer": "^0.2.5",
+    "electron-squirrel-startup": "^1.0.1",
+    "handsontable": "^16.1.1",
+    "madden-draft-class-tools": "^1.1.0",
+    "madden-franchise": "^3.8.0",
+    "playwright": "^1.55.1",
+    "puppeteer": "^24.22.3",
+    "react": "^19.1.1",
+    "react-color": "^2.19.3",
+    "react-dom": "^19.1.1",
+    "sharp": "^0.34.4",
+    "sqlite3": "^5.1.7",
+    "stream-parser": "^0.3.1",
+    "three": "^0.180.0",
+    "zustand": "^5.0.8"
+  }
+}
