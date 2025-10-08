@@ -165,10 +165,6 @@ class MaddenEditorApp {
             this.exportDraftJSON();
         });
 
-        document.getElementById('convert-m25-to-m26-btn').addEventListener('click', () => {
-            this.convertM25toM26();
-        });
-
         document.getElementById('draftPositionFilter').addEventListener('change', (e) => {
             this.selectedDraftPosition = e.target.value;
             this.filterDraftProspects();
@@ -221,6 +217,74 @@ class MaddenEditorApp {
                 }
             }
         });
+
+        // Creator screen event listeners
+        const selectRosterTemplateBtn = document.getElementById('selectRosterTemplate');
+        if (selectRosterTemplateBtn) {
+            selectRosterTemplateBtn.addEventListener('click', async () => {
+                const result = await window.electronAPI.file.openDialog();
+                if (result.success && result.filePath && !result.canceled) {
+                    document.getElementById('rosterTemplate').value = result.filePath;
+                }
+            });
+        }
+
+        const selectDraftTemplateBtn = document.getElementById('selectDraftTemplate');
+        if (selectDraftTemplateBtn) {
+            selectDraftTemplateBtn.addEventListener('click', async () => {
+                const result = await window.electronAPI.file.openDialog();
+                if (result.success && result.filePath && !result.canceled) {
+                    document.getElementById('draftTemplate').value = result.filePath;
+                }
+            });
+        }
+
+        // M25→M26 Converter event listeners
+        const selectM25DraftBtn = document.getElementById('selectM25Draft');
+        if (selectM25DraftBtn) {
+            selectM25DraftBtn.addEventListener('click', async () => {
+                const result = await window.electronAPI.file.openDialog();
+                if (result.success && result.filePath && !result.canceled) {
+                    document.getElementById('m25DraftFile').value = result.filePath;
+                    localStorage.setItem('m25DraftPath', result.filePath);
+                    this.checkConverterReady();
+                }
+            });
+        }
+
+        const selectM26TemplateBtn = document.getElementById('selectM26Template');
+        if (selectM26TemplateBtn) {
+            selectM26TemplateBtn.addEventListener('click', async () => {
+                const result = await window.electronAPI.file.openDialog();
+                if (result.success && result.filePath && !result.canceled) {
+                    document.getElementById('m26TemplateFile').value = result.filePath;
+                    localStorage.setItem('m26TemplatePath', result.filePath);
+                    this.checkConverterReady();
+                }
+            });
+        }
+
+        const selectM26OutputBtn = document.getElementById('selectM26Output');
+        if (selectM26OutputBtn) {
+            selectM26OutputBtn.addEventListener('click', async () => {
+                const result = await window.electronAPI.file.saveDialog();
+                if (result.success && result.filePath && !result.canceled) {
+                    document.getElementById('m26OutputFile').value = result.filePath;
+                    localStorage.setItem('m26OutputPath', result.filePath);
+                    this.checkConverterReady();
+                }
+            });
+        }
+
+        const convertBtn = document.getElementById('convertM25ToM26Btn');
+        if (convertBtn) {
+            convertBtn.addEventListener('click', () => {
+                this.convertM25toM26Streamlined();
+            });
+        }
+
+        // Load saved paths from localStorage
+        this.loadConverterPaths();
     }
 
     switchTool(toolName) {
@@ -1737,22 +1801,22 @@ class MaddenEditorApp {
                 bodyType = prospect.visuals.bodyType;
             }
 
-            // Debug: Log first prospect to check visuals
-            if (prospects.indexOf(prospect) === 0) {
-                console.log('[Draft Class] First prospect visuals:', prospect.visuals);
-                console.log('[Draft Class] Body Type:', bodyType);
-                console.log('[Draft Class] PID:', prospect.PID);
-                console.log('[Draft Class] PEPS:', prospect.PEPS);
-                console.log('[Draft Class] assetName:', prospect.assetName);
-            }
-
-            // Look up player name from PID
+            // Look up player name from PID for the "Player Pic" column
             let playerPic = 'Generic Face';
             if (prospect.PID && window.lookupData && window.lookupData.pidsCapitalized) {
                 const capitalizedName = window.lookupData.pidsCapitalized.get(prospect.PID);
                 if (capitalizedName) {
                     playerPic = capitalizedName;
                 }
+            }
+
+            // Debug: Log first prospect to check visuals
+            if (prospects.indexOf(prospect) === 0) {
+                console.log('[Draft Class] First prospect visuals:', prospect.visuals);
+                console.log('[Draft Class] Body Type:', bodyType);
+                console.log('[Draft Class] PID:', prospect.PID);
+                console.log('[Draft Class] PEPS:', peps);
+                console.log('[Draft Class] Player Pic:', playerPic);
             }
 
             return {
@@ -2082,14 +2146,18 @@ class MaddenEditorApp {
                     updated.visuals = { ...originalProspect.visuals };
                 }
 
-                if (updated.visuals && prospect.PEPS) {
-                    updated.visuals.genericHeadName = prospect.PEPS;
-                    console.log(`[Save] Updated visuals.genericHeadName for prospect ${index + 1}: ${prospect.PEPS}`);
-                }
+                // ALWAYS update visuals to match PEPS/bodyType from grid (even if null)
+                // This ensures M26Writer has the correct values to write
+                if (updated.visuals) {
+                    // Update genericHeadName from PEPS (use prospect.PEPS from grid, or fallback to original)
+                    updated.visuals.genericHeadName = prospect.PEPS !== undefined ? prospect.PEPS : (originalProspect.PEPS || originalProspect.visuals?.genericHeadName);
+                    console.log(`[Save] Updated visuals.genericHeadName for prospect ${index + 1}: ${updated.visuals.genericHeadName}`);
 
-                if (updated.visuals && prospect.bodyType) {
-                    updated.visuals.bodyType = prospect.bodyType;
-                    console.log(`[Save] Updated visuals.bodyType for prospect ${index + 1}: ${prospect.bodyType}`);
+                    // Update bodyType from grid or original
+                    if (prospect.bodyType !== undefined) {
+                        updated.visuals.bodyType = prospect.bodyType;
+                        console.log(`[Save] Updated visuals.bodyType for prospect ${index + 1}: ${prospect.bodyType}`);
+                    }
                 }
 
                 return updated;
@@ -2161,6 +2229,101 @@ class MaddenEditorApp {
         } catch (error) {
             console.error('Error exporting JSON:', error);
             this.showError(`Failed to export JSON: ${error.message}`);
+        }
+    }
+
+    // Load saved converter paths from localStorage
+    loadConverterPaths() {
+        const m25Path = localStorage.getItem('m25DraftPath');
+        const m26TemplatePath = localStorage.getItem('m26TemplatePath');
+        const m26OutputPath = localStorage.getItem('m26OutputPath');
+
+        if (m25Path && document.getElementById('m25DraftFile')) {
+            document.getElementById('m25DraftFile').value = m25Path;
+        }
+        if (m26TemplatePath && document.getElementById('m26TemplateFile')) {
+            document.getElementById('m26TemplateFile').value = m26TemplatePath;
+        }
+        if (m26OutputPath && document.getElementById('m26OutputFile')) {
+            document.getElementById('m26OutputFile').value = m26OutputPath;
+        }
+
+        this.checkConverterReady();
+    }
+
+    // Check if all converter fields are filled and enable/disable convert button
+    checkConverterReady() {
+        const m25File = document.getElementById('m25DraftFile')?.value;
+        const m26Template = document.getElementById('m26TemplateFile')?.value;
+        const m26Output = document.getElementById('m26OutputFile')?.value;
+        const convertBtn = document.getElementById('convertM25ToM26Btn');
+
+        if (convertBtn) {
+            convertBtn.disabled = !(m25File && m26Template && m26Output);
+        }
+    }
+
+    // Streamlined converter using the dedicated converter screen
+    async convertM25toM26Streamlined() {
+        try {
+            const m25File = document.getElementById('m25DraftFile').value;
+            const m26Template = document.getElementById('m26TemplateFile').value;
+            const m26Output = document.getElementById('m26OutputFile').value;
+
+            if (!m25File || !m26Template || !m26Output) {
+                this.showError('Please select all required files');
+                return;
+            }
+
+            // Show progress
+            const progressDiv = document.getElementById('conversionProgress');
+            const progressBar = document.getElementById('conversionProgressBar');
+            const progressText = document.getElementById('conversionProgressText');
+
+            if (progressDiv) progressDiv.style.display = 'block';
+            if (progressBar) progressBar.style.width = '50%';
+            if (progressText) progressText.textContent = 'Converting M25 to M26...';
+
+            console.log('[Convert] M25 input file:', m25File);
+            console.log('[Convert] M26 template file:', m26Template);
+            console.log('[Convert] M26 output file:', m26Output);
+
+            // Convert with template
+            const convertResult = await window.electronAPI.draftClass.convertM25toM26(
+                m25File,
+                m26Output,
+                m26Template
+            );
+
+            if (!convertResult.success) {
+                throw new Error(convertResult.error || 'Failed to convert draft class');
+            }
+
+            // Update progress
+            if (progressBar) progressBar.style.width = '100%';
+            if (progressText) progressText.textContent = 'Conversion complete!';
+
+            console.log('[Convert] Conversion successful');
+            console.log(`  Prospects: ${convertResult.prospectCount}`);
+            console.log(`  Input size: ${convertResult.inputSize} bytes`);
+            console.log(`  Output size: ${convertResult.outputSize} bytes`);
+
+            // Hide progress after delay
+            setTimeout(() => {
+                if (progressDiv) progressDiv.style.display = 'none';
+                if (progressBar) progressBar.style.width = '0%';
+            }, 2000);
+
+            alert(`M25 to M26 conversion successful!\n\nProspects: ${convertResult.prospectCount}\nSaved to: ${m26Output}`);
+
+        } catch (error) {
+            console.error('[Convert] Error:', error);
+
+            // Hide progress
+            const progressDiv = document.getElementById('conversionProgress');
+            if (progressDiv) progressDiv.style.display = 'none';
+
+            this.showError(`Failed to convert M25 to M26: ${error.message}`);
         }
     }
 

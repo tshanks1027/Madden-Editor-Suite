@@ -9,6 +9,7 @@
       content="script-src 'self' 'unsafe-inline' 'unsafe-eval';"
     />
     <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/creator.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -26,45 +27,57 @@
     <div id="app" class="app-container">
         <!-- Header -->
         <header class="app-header">
-            <div class="header-left">
-                <img src="assets/banner.png" alt="KNuttZ Madden Editor" class="app-logo">
-                <h1 class="app-title">Madden Editor Suite</h1>
-            </div>
+            <div class="header-top">
+                <div class="header-left">
+                    <img src="assets/banner.png" alt="KNuttZ Madden Editor" class="app-logo">
+                    <h1 class="app-title">Madden Editor Suite</h1>
+                </div>
 
-            <div class="header-center">
-                <!-- Tool Navigation Tabs -->
-                <nav class="tool-tabs">
-                    <button class="tool-tab active" data-tool="roster">
-                        <span class="tab-icon">👤</span>
-                        Roster Editor
+                <div class="header-right">
+                    <button id="openFileBtn" class="btn btn-primary">
+                        <span class="btn-icon">📁</span>
+                        Open File
                     </button>
-                    <button class="tool-tab" data-tool="draft">
-                        <span class="tab-icon">🏈</span>
-                        Draft Class
-                    </button>
-                    <button class="tool-tab" data-tool="coach">
-                        <span class="tab-icon">👔</span>
-                        Coach Editor
-                    </button>
-                    <button class="tool-tab" data-tool="franchise">
-                        <span class="tab-icon">🏆</span>
-                        Franchise
-                    </button>
-                </nav>
-            </div>
+                    <input type="file" id="fileInput" accept="*" style="display: none;">
 
-            <div class="header-right">
-                <button id="openFileBtn" class="btn btn-primary">
-                    <span class="btn-icon">📁</span>
-                    Open File
-                </button>
-                <input type="file" id="fileInput" accept="*" style="display: none;">
-
-                <div id="currentFile" class="current-file" style="display: none;">
-                    <span class="file-icon">📄</span>
-                    <span id="fileName" class="file-name"></span>
+                    <div id="currentFile" class="current-file" style="display: none;">
+                        <span class="file-icon">📄</span>
+                        <span id="fileName" class="file-name"></span>
+                    </div>
                 </div>
             </div>
+
+            <!-- Tool Navigation Tabs (Below Banner) -->
+            <nav class="tool-tabs">
+                <button class="tool-tab active" data-tool="roster">
+                    <span class="tab-icon">👤</span>
+                    Roster Editor
+                </button>
+                <button class="tool-tab" data-tool="draft">
+                    <span class="tab-icon">🏈</span>
+                    Draft Class
+                </button>
+                <button class="tool-tab" data-tool="create-roster">
+                    <span class="tab-icon">⚡</span>
+                    Create Roster
+                </button>
+                <button class="tool-tab" data-tool="create-draft">
+                    <span class="tab-icon">✨</span>
+                    Create Draft Class
+                </button>
+                <button class="tool-tab" data-tool="converter">
+                    <span class="tab-icon">🔄</span>
+                    M25→M26 Converter
+                </button>
+                <button class="tool-tab" data-tool="coach">
+                    <span class="tab-icon">👔</span>
+                    Coach Editor
+                </button>
+                <button class="tool-tab" data-tool="franchise">
+                    <span class="tab-icon">🏆</span>
+                    Franchise
+                </button>
+            </nav>
         </header>
 
         <!-- Main Content Area -->
@@ -176,10 +189,6 @@
                             <span class="btn-icon">📤</span>
                             Export JSON
                         </button>
-                        <button id="convert-m25-to-m26-btn" class="btn btn-info">
-                            <span class="btn-icon">🔄</span>
-                            Convert M25 to M26
-                        </button>
                     </div>
                 </div>
 
@@ -232,6 +241,267 @@
                     <h2 class="coming-soon-title">Coming Soon</h2>
                     <p class="coming-soon-description">The Franchise Editor is under development.</p>
                     <p class="coming-soon-note">Try the Roster Editor for now!</p>
+                </div>
+            </div>
+
+            <!-- M25→M26 Converter Tool -->
+            <div id="converter-tool" class="tool-panel">
+                <div class="creator-container">
+                    <div class="creator-header">
+                        <h2 class="creator-title">🔄 M25→M26 Draft Class Converter</h2>
+                        <p class="creator-subtitle">Convert Madden 25 draft classes to Madden 26 format</p>
+                    </div>
+
+                    <div class="creator-workflow">
+                        <!-- Step 1: Select M25 Draft Class -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">1</span>
+                                <h3 class="step-title">Select M25 Draft Class</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="m25DraftFile" class="form-label">Madden 25 Draft Class File:</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="m25DraftFile" class="form-input" placeholder="Browse for M25 draft class..." readonly style="flex: 1;">
+                                        <button id="selectM25Draft" class="btn btn-secondary">
+                                            <span class="btn-icon">📂</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">Default location: C:\Users\[YourName]\Documents\Madden NFL 25\saves</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Select M26 Template -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">2</span>
+                                <h3 class="step-title">Select M26 Template Draft Class</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="m26TemplateFile" class="form-label">Madden 26 Template File:</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="m26TemplateFile" class="form-input" placeholder="Browse for M26 draft class template..." readonly style="flex: 1;">
+                                        <button id="selectM26Template" class="btn btn-secondary">
+                                            <span class="btn-icon">📂</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">This provides the M26 file structure for conversion</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Save Location -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">3</span>
+                                <h3 class="step-title">Save Converted File</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="m26OutputFile" class="form-label">Save As (Madden 26 format):</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="m26OutputFile" class="form-input" placeholder="Choose save location..." readonly style="flex: 1;">
+                                        <button id="selectM26Output" class="btn btn-secondary">
+                                            <span class="btn-icon">💾</span>
+                                            Save As
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">Default location: C:\Users\[YourName]\Documents\Madden NFL 26\saves</span>
+                                </div>
+                                <div class="info-box">
+                                    <span class="info-icon">ℹ️</span>
+                                    <div class="info-text">
+                                        <strong>File Naming:</strong>
+                                        <p>Use Madden's format: CAREERDRAFT-YYYY (e.g., CAREERDRAFT-2025DRAFT7RND)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Convert -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">4</span>
+                                <h3 class="step-title">Convert</h3>
+                            </div>
+                            <div class="step-content">
+                                <button id="convertM25ToM26Btn" class="btn btn-primary btn-large" disabled>
+                                    <span class="btn-icon">🔄</span>
+                                    Convert to M26
+                                </button>
+                                <div id="conversionProgress" class="generate-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div id="conversionProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <p id="conversionProgressText" class="progress-text">Converting...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Roster Tool -->
+            <div id="create-roster-tool" class="tool-panel">
+                <div class="creator-container">
+                    <div class="creator-header">
+                        <h2 class="creator-title">⚡ Create Historical Roster</h2>
+                        <p class="creator-subtitle">Generate a roster from real NFL data using web scraping</p>
+                    </div>
+
+                    <div class="creator-workflow">
+                        <!-- Step 1: Year & Template Selection -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">1</span>
+                                <h3 class="step-title">Select Season Year & Template</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="rosterYear" class="form-label">Season Year:</label>
+                                    <input type="number" id="rosterYear" class="form-input" placeholder="e.g., 2019" min="1970" max="2025">
+                                    <span class="form-hint">All teams from this year will be included automatically</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="rosterTemplate" class="form-label">Template Roster (for file structure):</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="rosterTemplate" class="form-input" placeholder="Select a roster file to use as template..." readonly>
+                                        <button id="selectRosterTemplate" class="btn btn-secondary">
+                                            <span class="btn-icon">📂</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">This provides the correct file structure for the output</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Generate -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">2</span>
+                                <h3 class="step-title">Generate Roster</h3>
+                            </div>
+                            <div class="step-content">
+                                <button id="generateRosterBtn" class="btn btn-primary btn-large" disabled>
+                                    <span class="btn-icon">🚀</span>
+                                    Generate Roster
+                                </button>
+                                <div id="rosterGenerateProgress" class="generate-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div id="rosterProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <p id="rosterProgressText" class="progress-text">Scraping data...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Preview & Edit -->
+                        <div class="creator-step" id="rosterPreviewStep" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">3</span>
+                                <h3 class="step-title">Preview & Edit</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="preview-controls">
+                                    <span id="rosterPreviewCount" class="preview-count"></span>
+                                    <button id="saveGeneratedRoster" class="btn btn-success">
+                                        <span class="btn-icon">💾</span>
+                                        Save Roster
+                                    </button>
+                                </div>
+                                <div id="rosterPreviewGrid" class="preview-grid-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Draft Class Tool -->
+            <div id="create-draft-tool" class="tool-panel">
+                <div class="creator-container">
+                    <div class="creator-header">
+                        <h2 class="creator-title">✨ Create Draft Class</h2>
+                        <p class="creator-subtitle">Generate a draft class from real NFL Draft data</p>
+                    </div>
+
+                    <div class="creator-workflow">
+                        <!-- Step 1: Year & Template Selection -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">1</span>
+                                <h3 class="step-title">Select Draft Year & Template</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="draftYear" class="form-label">Draft Year:</label>
+                                    <input type="number" id="draftYear" class="form-input" placeholder="e.g., 2023" min="2000" max="2030">
+                                    <span class="form-hint">Enter a year between 2000-2030</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="draftTemplate" class="form-label">Template Draft Class (for file structure):</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="draftTemplate" class="form-input" placeholder="Select a draft class file to use as template..." readonly>
+                                        <button id="selectDraftTemplate" class="btn btn-secondary">
+                                            <span class="btn-icon">📂</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">This provides the correct file structure for the output</span>
+                                </div>
+                                <div class="info-box">
+                                    <span class="info-icon">ℹ️</span>
+                                    <div class="info-text">
+                                        <strong>What this does:</strong>
+                                        <p>Scrapes draft prospect data from pro-football-reference.com and converts their college stats into Madden ratings. PID values will be matched from PID_lookup.csv when names match, body type calculated from height/weight, and colleges matched to college_lookup.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Generate -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">2</span>
+                                <h3 class="step-title">Generate Draft Class</h3>
+                            </div>
+                            <div class="step-content">
+                                <button id="generateDraftBtn" class="btn btn-primary btn-large">
+                                    <span class="btn-icon">🚀</span>
+                                    Generate Draft Class
+                                </button>
+                                <div id="draftGenerateProgress" class="generate-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div id="draftProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <p id="draftProgressText" class="progress-text">Scraping draft data...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Preview & Edit -->
+                        <div class="creator-step" id="draftPreviewStep" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">3</span>
+                                <h3 class="step-title">Preview & Edit</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="preview-controls">
+                                    <span id="draftPreviewCount" class="preview-count"></span>
+                                    <button id="saveGeneratedDraft" class="btn btn-success">
+                                        <span class="btn-icon">💾</span>
+                                        Save Draft Class
+                                    </button>
+                                </div>
+                                <div id="draftPreviewGrid" class="preview-grid-container"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
