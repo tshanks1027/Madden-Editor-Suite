@@ -6,7 +6,6 @@
  */
 
 import { ipcMain } from 'electron';
-import { creatorService } from '../services/CreatorService';
 
 /**
  * Register all creator IPC handlers
@@ -17,11 +16,26 @@ export function registerCreatorHandlers(): void {
   /**
    * Generate draft class from web scraping
    */
-  ipcMain.handle('creator:generate-draft-class', async (event, year: number) => {
+  ipcMain.handle('creator:generate-draft-class', async (event, year: number, testingMode: boolean = false) => {
     try {
-      console.log(`[CreatorHandlers] Generating draft class for ${year}`);
+      console.log(`[CreatorHandlers] Generating draft class for ${year} (Testing Mode: ${testingMode})`);
 
-      const players = await creatorService.generateDraftClass(year);
+      // Lazy load to avoid loading Puppeteer until first use
+      const { creatorService } = await import('../services/CreatorService');
+      const players = await creatorService.generateDraftClass(year, testingMode);
+
+      // DEBUG: Log first player data BEFORE sending to renderer
+      if (players.length > 0) {
+        const firstPlayer = players[0];
+        console.log(`[CreatorHandlers] ========== IPC HANDLER FIRST PLAYER ==========`);
+        console.log(`[CreatorHandlers] Name: ${firstPlayer.firstName} ${firstPlayer.lastName}`);
+        console.log(`[CreatorHandlers] Position: ${firstPlayer.position} (code ${firstPlayer.positionCode})`);
+        console.log(`[CreatorHandlers] College ID: ${firstPlayer.college}, HomeState ID: ${firstPlayer.homeState}, Body Type: ${firstPlayer.bodyType}`);
+        console.log(`[CreatorHandlers] COD: ${firstPlayer.ratings.changeOfDirection}, TGH: ${firstPlayer.ratings.toughness}, LS: ${firstPlayer.ratings.longSnap}`);
+        console.log(`[CreatorHandlers] PBS: ${firstPlayer.ratings.passBlockPower}, PBF: ${firstPlayer.ratings.passBlockFinesse}`);
+        console.log(`[CreatorHandlers] RBS: ${firstPlayer.ratings.runBlockPower}, RBF: ${firstPlayer.ratings.runBlockFinesse}`);
+        console.log(`[CreatorHandlers] ================================================`);
+      }
 
       return {
         success: true,
@@ -45,6 +59,8 @@ export function registerCreatorHandlers(): void {
     try {
       console.log(`[CreatorHandlers] Generating roster for ${year} (${teams.length} teams)`);
 
+      // Lazy load to avoid loading Puppeteer until first use
+      const { creatorService } = await import('../services/CreatorService');
       const players = await creatorService.generateRoster(year, teams);
 
       return {
@@ -69,8 +85,8 @@ export function registerCreatorHandlers(): void {
     try {
       console.log(`[CreatorHandlers] Testing scraper with year ${year}`);
 
-      // Try to scrape just 5 prospects as a test
-      const { scraperService } = require('../services/ScraperService');
+      // Lazy load to avoid loading Puppeteer until first use
+      const { scraperService } = await import('../services/ScraperService');
       const prospects = await scraperService.scrapeDraftClass(year);
       await scraperService.closeBrowser();
 

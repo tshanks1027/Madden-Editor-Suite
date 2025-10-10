@@ -364,8 +364,8 @@
                             <div class="step-content">
                                 <div class="form-group">
                                     <label for="rosterYear" class="form-label">Season Year:</label>
-                                    <input type="number" id="rosterYear" class="form-input" placeholder="e.g., 2019" min="1970" max="2025">
-                                    <span class="form-hint">All teams from this year will be included automatically</span>
+                                    <input type="number" id="rosterYear" class="form-input" placeholder="e.g., 2019" min="1920" max="2025">
+                                    <span class="form-hint">All teams from this year will be included automatically (NFL founded 1920)</span>
                                 </div>
                                 <div class="form-group">
                                     <label for="rosterTemplate" class="form-label">Template Roster (for file structure):</label>
@@ -440,8 +440,15 @@
                             <div class="step-content">
                                 <div class="form-group">
                                     <label for="draftYear" class="form-label">Draft Year:</label>
-                                    <input type="number" id="draftYear" class="form-input" placeholder="e.g., 2023" min="2000" max="2030">
-                                    <span class="form-hint">Enter a year between 2000-2030</span>
+                                    <input type="number" id="draftYear" class="form-input" placeholder="e.g., 2023" min="1936" max="2030">
+                                    <span class="form-hint">Enter a year between 1936-2030 (first NFL draft was 1936)</span>
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="testingMode" style="width: auto;">
+                                        <span>Testing Mode (5 players per round, faster generation)</span>
+                                    </label>
+                                    <span class="form-hint">Use for testing - generates ~40 players instead of 400</span>
                                 </div>
                                 <div class="form-group">
                                     <label for="draftTemplate" class="form-label">Template Draft Class (for file structure):</label>
@@ -458,7 +465,10 @@
                                     <span class="info-icon">ℹ️</span>
                                     <div class="info-text">
                                         <strong>What this does:</strong>
-                                        <p>Scrapes draft prospect data from pro-football-reference.com and converts their college stats into Madden ratings. PID values will be matched from PID_lookup.csv when names match, body type calculated from height/weight, and colleges matched to college_lookup.</p>
+                                        <p>Scrapes draft prospect data from pro-football-reference.com including drafted players (~260-300), undrafted free agents (UDFAs), and top college players to create a full class of 380-400 prospects. Converts their college stats into Madden ratings. PID values will be matched from PID_lookup.csv when names match, body type calculated from height/weight, and colleges matched to college_lookup.</p>
+                                        <p><strong>⏱️ Estimated Time:</strong> 5-10 minutes for ~400 prospects (varies by internet speed)</p>
+                                        <p><strong>📊 Class Composition:</strong> Drafted prospects + UDFAs + College stars (like Jeff Samardzija, Charlie Ward)</p>
+                                        <p><strong>🏆 Hall of Fame Detection:</strong> Future Hall of Famers automatically get X-Factor dev trait!</p>
                                     </div>
                                 </div>
                             </div>
@@ -493,6 +503,10 @@
                             <div class="step-content">
                                 <div class="preview-controls">
                                     <span id="draftPreviewCount" class="preview-count"></span>
+                                    <button id="loadIntoDraftEditor" class="btn btn-primary">
+                                        <span class="btn-icon">📝</span>
+                                        Load into Draft Class Editor
+                                    </button>
                                     <button id="saveGeneratedDraft" class="btn btn-success">
                                         <span class="btn-icon">💾</span>
                                         Save Draft Class

@@ -55,5 +55,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('draft-class:get-attribute-defs'),
     convertM25toM26: (inputPath: string, outputPath: string, templatePath: string) =>
       ipcRenderer.invoke('draft-class:convert-m25-to-m26', inputPath, outputPath, templatePath)
+  },
+
+  // Creator APIs (web scraping and rating generation)
+  creator: {
+    generateDraftClass: (year: number) =>
+      ipcRenderer.invoke('creator:generate-draft-class', year),
+    generateRoster: (year: number, teams: string[]) =>
+      ipcRenderer.invoke('creator:generate-roster', year, teams),
+    testScraper: (year: number) =>
+      ipcRenderer.invoke('creator:test-scraper', year)
   }
 });

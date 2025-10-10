@@ -20,11 +20,13 @@ export interface MaddenRatings {
   speed: number;
   acceleration: number;
   agility: number;
+  changeOfDirection?: number; // COD - Agility/quick cuts
   strength: number;
   awareness: number;
   jumping: number;
   stamina: number;
   injury: number;
+  toughness?: number; // TGH - Injury resilience
 
   // QB Attributes
   throwPower?: number;
@@ -56,7 +58,11 @@ export interface MaddenRatings {
 
   // Blocking
   passBlock?: number;
+  passBlockPower?: number; // PBS - Pass Block Strength
+  passBlockFinesse?: number; // PBF - Pass Block Finesse
   runBlock?: number;
+  runBlockPower?: number; // RBS - Run Block Strength
+  runBlockFinesse?: number; // RBF - Run Block Finesse
   leadBlock?: number;
   impactBlocking?: number;
 
@@ -76,6 +82,7 @@ export interface MaddenRatings {
   kickPower?: number;
   kickAccuracy?: number;
   kickReturn?: number;
+  longSnap?: number; // LS - Long snapping accuracy
 
   // Overall
   overall: number;
@@ -106,11 +113,14 @@ export class RatingCalculator {
       speed: this.calculateSpeed(stats),
       acceleration: this.calculateAcceleration(stats),
       agility: this.calculateAgility(stats),
+      changeOfDirection: this.calculateChangeOfDirection(stats), // COD - based on agility
       strength: this.calculateStrength(stats),
       awareness: 65, // Default, adjusted per position
       jumping: 70,
       stamina: 85,
       injury: 90,
+      toughness: this.calculateToughness(stats, position), // TGH - based on position
+      longSnap: 1, // Default to 1 (overridden for LS position)
       overall: 50 // Will be calculated at the end
     };
 
@@ -121,14 +131,17 @@ export class RatingCalculator {
       Object.assign(ratings, this.calculateRBRatings(stats));
     } else if (['WR', 'TE'].includes(position)) {
       Object.assign(ratings, this.calculateReceiverRatings(stats));
-    } else if (['T', 'G', 'C', 'OT', 'OG'].includes(position)) {
+    } else if (['T', 'G', 'C', 'OT', 'OG', 'LT', 'LG', 'RG', 'RT'].includes(position)) {
       Object.assign(ratings, this.calculateOLineRatings(stats));
     } else if (['DE', 'DT', 'NT'].includes(position)) {
       Object.assign(ratings, this.calculateDLineRatings(stats));
-    } else if (['LB', 'MLB', 'OLB', 'ILB'].includes(position)) {
+    } else if (['LB', 'MLB', 'OLB', 'ILB', 'SAM', 'Mike', 'WILL'].includes(position)) {
       Object.assign(ratings, this.calculateLBRatings(stats));
     } else if (['CB', 'FS', 'SS', 'S'].includes(position)) {
       Object.assign(ratings, this.calculateDBRatings(stats));
+    } else if (position === 'LS') {
+      // Long Snapper - special case
+      ratings.longSnap = this.clamp(75); // LS have high long snap rating
     }
 
     // Calculate overall rating
@@ -183,6 +196,32 @@ export class RatingCalculator {
     };
 
     return this.clamp(agilityByPosition[position] || 70);
+  }
+
+  /**
+   * Calculate Change of Direction (COD) - typically slightly lower than agility
+   */
+  private calculateChangeOfDirection(stats: PlayerStats): number {
+    const agility = this.calculateAgility(stats);
+    // COD is typically 2-3 points lower than agility
+    return this.clamp(agility - 2);
+  }
+
+  /**
+   * Calculate Toughness (TGH) - injury resilience, varies by position
+   */
+  private calculateToughness(stats: PlayerStats, position: string): number {
+    const pos = position.toUpperCase();
+
+    // Toughness by position (linemen are toughest, skill positions less so)
+    const toughnessByPosition: { [key: string]: number } = {
+      'OT': 85, 'OG': 85, 'C': 83, 'DT': 88, 'NT': 90,
+      'DE': 82, 'TE': 80, 'LB': 82, 'FB': 80, 'RB': 75,
+      'SS': 78, 'FS': 75, 'QB': 72, 'WR': 70, 'CB': 70,
+      'K': 60, 'P': 60, 'LS': 75
+    };
+
+    return this.clamp(toughnessByPosition[pos] || 75);
   }
 
   /**
@@ -364,15 +403,20 @@ export class RatingCalculator {
    */
   private calculateOLineRatings(stats: PlayerStats): Partial<MaddenRatings> {
     // O-line stats aren't typically available, use position defaults
+    const passBlockBase = this.clamp(75);
+    const runBlockBase = this.clamp(75);
+
     return {
-      passBlock: this.clamp(75),
-      runBlock: this.clamp(75),
-      passBlockPower: 75,
-      passBlockFinesse: 70,
-      runBlockPower: 75,
-      runBlockFinesse: 70,
+      passBlock: passBlockBase,
+      passBlockPower: this.clamp(passBlockBase - 2), // PBS slightly lower than passBlock
+      passBlockFinesse: this.clamp(passBlockBase - 5), // PBF typically lower for OL
+      runBlock: runBlockBase,
+      runBlockPower: this.clamp(runBlockBase + 2), // RBS typically higher for OL
+      runBlockFinesse: this.clamp(runBlockBase - 3), // RBF lower
       impactBlocking: this.clamp(70),
-      awareness: this.clamp(70)
+      leadBlock: this.clamp(70),
+      awareness: this.clamp(70),
+      toughness: this.clamp(85) // OL are tough!
     };
   }
 

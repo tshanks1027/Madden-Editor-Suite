@@ -10,6 +10,7 @@ export default defineConfig({
         'electron',
         'sqlite3',
         'sharp',
+        'puppeteer',
         // Do NOT externalize bit-buffer, stream-parser - they need to be bundled
         // so they're available when RosterParser.js requires them at runtime
       ],
@@ -85,6 +86,37 @@ export default defineConfig({
           }
 
           copyDirectory(srcParsersDir, destParsersDir);
+        }
+
+        // Copy services directory to build output (for CreatorService, etc.)
+        const srcServicesDir = path.join(__dirname, 'src', 'main', 'services');
+        const destServicesDir = path.join(__dirname, '.vite', 'build', 'services');
+
+        if (existsSync(srcServicesDir)) {
+          if (!existsSync(destServicesDir)) {
+            mkdirSync(destServicesDir, { recursive: true });
+          }
+
+          // Copy all JS/TS files from services
+          function copyServicesDirectory(src, dest) {
+            const entries = fs.readdirSync(src, { withFileTypes: true });
+            entries.forEach(entry => {
+              const srcPath = path.join(src, entry.name);
+              const destPath = path.join(dest, entry.name);
+
+              if (entry.isDirectory()) {
+                if (!existsSync(destPath)) {
+                  mkdirSync(destPath, { recursive: true });
+                }
+                copyServicesDirectory(srcPath, destPath);
+              } else if (entry.name.endsWith('.js') || entry.name.endsWith('.ts')) {
+                copyFileSync(srcPath, destPath);
+                console.log(`Copied service: ${entry.name}`);
+              }
+            });
+          }
+
+          copyServicesDirectory(srcServicesDir, destServicesDir);
         }
 
         // Copy lib directory (contains draft-class and madden-franchise vendored code)

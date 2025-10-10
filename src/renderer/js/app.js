@@ -283,6 +283,68 @@ class MaddenEditorApp {
             });
         }
 
+        // Draft Class Creator event listeners
+        const generateDraftBtn = document.getElementById('generateDraftBtn');
+        if (generateDraftBtn) {
+            generateDraftBtn.addEventListener('click', async () => {
+                await this.generateDraftClass();
+            });
+        }
+
+        const saveGeneratedDraftBtn = document.getElementById('saveGeneratedDraft');
+        if (saveGeneratedDraftBtn) {
+            saveGeneratedDraftBtn.addEventListener('click', async () => {
+                await this.saveGeneratedDraftClass();
+            });
+        }
+
+        const loadIntoDraftEditorBtn = document.getElementById('loadIntoDraftEditor');
+        if (loadIntoDraftEditorBtn) {
+            loadIntoDraftEditorBtn.addEventListener('click', async () => {
+                await this.loadGeneratedDraftIntoEditor();
+            });
+        }
+
+        // Roster Creator event listeners
+        const generateRosterBtn = document.getElementById('generateRosterBtn');
+        if (generateRosterBtn) {
+            generateRosterBtn.addEventListener('click', async () => {
+                await this.generateRoster();
+            });
+        }
+
+        const saveGeneratedRosterBtn = document.getElementById('saveGeneratedRoster');
+        if (saveGeneratedRosterBtn) {
+            saveGeneratedRosterBtn.addEventListener('click', async () => {
+                await this.saveGeneratedRoster();
+            });
+        }
+
+        // Enable/disable generate buttons based on input
+        const draftYearInput = document.getElementById('draftYear');
+        if (draftYearInput) {
+            draftYearInput.addEventListener('input', () => {
+                const year = parseInt(draftYearInput.value);
+                if (generateDraftBtn) {
+                    generateDraftBtn.disabled = !year || year < 1936 || year > 2030;
+                }
+            });
+        }
+
+        const rosterYearInput = document.getElementById('rosterYear');
+        const rosterTemplateInput = document.getElementById('rosterTemplate');
+        if (rosterYearInput && rosterTemplateInput) {
+            const checkRosterReady = () => {
+                const year = parseInt(rosterYearInput.value);
+                const template = rosterTemplateInput.value;
+                if (generateRosterBtn) {
+                    generateRosterBtn.disabled = !year || year < 1920 || year > 2025 || !template;
+                }
+            };
+            rosterYearInput.addEventListener('input', checkRosterReady);
+            rosterTemplateInput.addEventListener('change', checkRosterReady);
+        }
+
         // Load saved paths from localStorage
         this.loadConverterPaths();
     }
@@ -1786,6 +1848,11 @@ class MaddenEditorApp {
             this.draftGrid.destroy();
         }
 
+        // Set container to allow overflow scrolling
+        container.style.width = '100%';
+        container.style.height = 'calc(100vh - 200px)';
+        container.style.overflow = 'auto';  // Enable both horizontal and vertical scrolling
+
         // Store original prospect data with numeric IDs
         this.originalProspectData = prospects.map(p => ({...p}));
 
@@ -1795,10 +1862,12 @@ class MaddenEditorApp {
             // Backend correctly prioritizes assetName (player-specific) over genericHeadName
             let peps = prospect.PEPS || null;
 
-            // Extract Body Type from visuals JSON
+            // Extract Body Type from visuals JSON or direct property (for generated players)
             let bodyType = null;
-            if (prospect.visuals && prospect.visuals.bodyType) {
+            if (prospect.visuals && prospect.visuals.bodyType !== undefined) {
                 bodyType = prospect.visuals.bodyType;
+            } else if (prospect.bodyType !== undefined) {
+                bodyType = prospect.bodyType;
             }
 
             // Look up player name from PID for the "Player Pic" column
@@ -1826,7 +1895,7 @@ class MaddenEditorApp {
                 homeState: getLookupValue('states', prospect.homeState) || prospect.homeState,
                 devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][prospect.devTrait] || prospect.devTrait,
                 PEPS: peps,  // Generic head name from visuals JSON
-                bodyType: bodyType,  // Body type from visuals JSON
+                bodyType: ['Lean', 'Athletic', 'Muscular', 'Stocky'][bodyType] || bodyType,  // Convert numeric to label (0=Lean, 1=Athletic, 2=Muscular, 3=Stocky)
                 playerPic: playerPic  // Player name from PID lookup
                 // PID is already parsed from binary at offset 0x92 by M26Parser
             };
@@ -1837,7 +1906,7 @@ class MaddenEditorApp {
         const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
         const stateOptions = getLookupOptions('states').map(opt => opt.label);
         const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
-        const bodyTypeOptions = ['Heavy', 'Lean', 'Athletic', 'Stocky', 'Muscular', 'Thin'];
+        const bodyTypeOptions = ['Lean', 'Athletic', 'Muscular', 'Stocky'];  // Match backend: 0=Lean, 1=Athletic, 2=Muscular, 3=Stocky
         // Use capitalized names for player pic autocomplete
         const playerPicOptions = Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face']);
 
@@ -1958,10 +2027,10 @@ class MaddenEditorApp {
             columns: draftColumns,
             colHeaders: true,
             rowHeaders: true,
-            width: '100%',
             height: 'calc(100vh - 200px)',
             licenseKey: 'non-commercial-and-evaluation',
-            stretchH: 'all',
+            stretchH: 'none',  // Allow horizontal scrolling instead of stretching columns
+            autoColumnSize: true,  // Enable auto column sizing
             manualColumnResize: true,
             manualRowResize: true,
             filters: false,  // Disable filters (they require dropdownMenu)
@@ -2408,6 +2477,772 @@ class MaddenEditorApp {
 
         // Update grid with filtered data
         this.draftGrid.loadData(filtered);
+    }
+
+    // ===== CREATOR METHODS =====
+
+    /**
+     * Generate Draft Class from web scraping
+     */
+    async generateDraftClass() {
+        const yearInput = document.getElementById('draftYear');
+        const year = parseInt(yearInput.value);
+        const testingModeCheckbox = document.getElementById('testingMode');
+        const testingMode = testingModeCheckbox ? testingModeCheckbox.checked : false;
+
+        if (!year || year < 1936 || year > 2030) {
+            this.showError('Please enter a valid draft year (1936-2030)');
+            return;
+        }
+
+        // Show progress
+        const progressDiv = document.getElementById('draftGenerateProgress');
+        const progressBar = document.getElementById('draftProgressBar');
+        const progressText = document.getElementById('draftProgressText');
+        const generateBtn = document.getElementById('generateDraftBtn');
+
+        progressDiv.style.display = 'block';
+        generateBtn.disabled = true;
+        progressBar.style.width = '10%';
+        progressText.textContent = testingMode ?
+            `Generating test class (~40 players)...` :
+            `Scraping ${year} draft class data...`;
+
+        try {
+            console.log(`[Creator] Generating draft class for ${year} (Testing Mode: ${testingMode})`);
+
+            // Call IPC to generate draft class with testing mode flag
+            progressBar.style.width = '30%';
+            const result = await window.electronAPI.creator.generateDraftClass(year, testingMode);
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to generate draft class');
+            }
+
+            console.log(`[Creator] Generated ${result.count} players`);
+
+            progressBar.style.width = '70%';
+            progressText.textContent = 'Displaying preview...';
+
+            // Store generated players
+            this.generatedDraftPlayers = result.players;
+
+            // Show preview step
+            await this.showDraftPreview(result.players);
+
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Complete!';
+
+            setTimeout(() => {
+                progressDiv.style.display = 'none';
+                generateBtn.disabled = false;
+            }, 1000);
+
+        } catch (error) {
+            console.error('[Creator] Error generating draft class:', error);
+            this.showError(`Failed to generate draft class: ${error.message}`);
+            progressDiv.style.display = 'none';
+            generateBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Generate Roster from web scraping
+     */
+    async generateRoster() {
+        const yearInput = document.getElementById('rosterYear');
+        const year = parseInt(yearInput.value);
+
+        if (!year || year < 1920 || year > 2025) {
+            this.showError('Please enter a valid season year (1920-2025)');
+            return;
+        }
+
+        // Show progress
+        const progressDiv = document.getElementById('rosterGenerateProgress');
+        const progressBar = document.getElementById('rosterProgressBar');
+        const progressText = document.getElementById('rosterProgressText');
+        const generateBtn = document.getElementById('generateRosterBtn');
+
+        progressDiv.style.display = 'block';
+        generateBtn.disabled = true;
+        progressBar.style.width = '10%';
+        progressText.textContent = `Scraping ${year} roster data for all teams...`;
+
+        try {
+            console.log(`[Creator] Generating roster for ${year}`);
+
+            // Get all NFL teams (hardcoded list for now)
+            const nflTeams = ['ari', 'atl', 'bal', 'buf', 'car', 'chi', 'cin', 'cle',
+                             'dal', 'den', 'det', 'gnb', 'htx', 'clt', 'jax', 'kan',
+                             'sdg', 'rai', 'ram', 'mia', 'min', 'nwe', 'nor', 'nyg',
+                             'nyj', 'phi', 'pit', 'sfo', 'sea', 'tam', 'oti', 'was'];
+
+            progressBar.style.width = '20%';
+
+            // Call IPC to generate roster
+            const result = await window.electronAPI.creator.generateRoster(year, nflTeams);
+
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to generate roster');
+            }
+
+            console.log(`[Creator] Generated ${result.count} players`);
+
+            progressBar.style.width = '70%';
+            progressText.textContent = 'Displaying preview...';
+
+            // Store generated players
+            this.generatedRosterPlayers = result.players;
+
+            // Show preview step
+            await this.showRosterPreview(result.players);
+
+            progressBar.style.width = '100%';
+            progressText.textContent = 'Complete!';
+
+            setTimeout(() => {
+                progressDiv.style.display = 'none';
+                generateBtn.disabled = false;
+            }, 1000);
+
+        } catch (error) {
+            console.error('[Creator] Error generating roster:', error);
+            this.showError(`Failed to generate roster: ${error.message}`);
+            progressDiv.style.display = 'none';
+            generateBtn.disabled = false;
+        }
+    }
+
+    /**
+     * Show draft class preview in Handsontable grid
+     */
+    async showDraftPreview(players) {
+        const previewStep = document.getElementById('draftPreviewStep');
+        const previewContainer = document.getElementById('draftPreviewGrid');
+        const previewCount = document.getElementById('draftPreviewCount');
+
+        // Show preview step
+        previewStep.style.display = 'block';
+        previewCount.textContent = `${players.length} players generated - Ready to load into Draft Class Editor`;
+
+        // DEBUG: Log first player data AS RECEIVED from IPC
+        if (players.length > 0) {
+            const firstPlayer = players[0];
+            console.log(`[Frontend] ========== FIRST PLAYER RECEIVED FROM IPC ==========`);
+            console.log(`[Frontend] Name: ${firstPlayer.firstName} ${firstPlayer.lastName}`);
+            console.log(`[Frontend] Position: ${firstPlayer.position} (code ${firstPlayer.positionCode})`);
+            console.log(`[Frontend] College ID: ${firstPlayer.college}, HomeState ID: ${firstPlayer.homeState}, Body Type: ${firstPlayer.bodyType}`);
+            console.log(`[Frontend] Raw ratings object:`, firstPlayer.ratings);
+            console.log(`[Frontend] COD: ${firstPlayer.ratings?.changeOfDirection}, TGH: ${firstPlayer.ratings?.toughness}, LS: ${firstPlayer.ratings?.longSnap}`);
+            console.log(`[Frontend] PBS: ${firstPlayer.ratings?.passBlockPower}, PBF: ${firstPlayer.ratings?.passBlockFinesse}`);
+            console.log(`[Frontend] RBS: ${firstPlayer.ratings?.runBlockPower}, RBF: ${firstPlayer.ratings?.runBlockFinesse}`);
+            console.log(`[Frontend] ======================================================`);
+        }
+
+        // Convert players to grid data with ALL ratings
+        const gridData = players.map(player => {
+            const r = player.ratings;
+            return {
+                // Basic Info
+                firstName: player.firstName,
+                lastName: player.lastName,
+                position: player.position,
+                college: player.college,
+                homeState: player.homeState,
+                age: player.age,
+                heightInches: player.heightInches,
+                weight: player.weight,
+                jerseyNum: player.jerseyNum,
+                devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][player.devTrait] || 'Normal',
+                bodyType: player.bodyType,
+                PID: player.PID,
+
+                // Core Physical
+                overall: r.overall,
+                speed: r.speed,
+                acceleration: r.acceleration,
+                agility: r.agility,
+                changeOfDirection: r.changeOfDirection || '-',
+                strength: r.strength,
+                awareness: r.awareness,
+                jumping: r.jumping,
+                stamina: r.stamina,
+                injury: r.injury,
+                toughness: r.toughness || '-',
+
+                // QB Attributes
+                throwPower: r.throwPower || '-',
+                throwAccShort: r.throwAccuracyShort || '-',
+                throwAccMid: r.throwAccuracyMid || '-',
+                throwAccDeep: r.throwAccuracyDeep || '-',
+                throwOnRun: r.throwOnTheRun || '-',
+                throwUnderPress: r.throwUnderPressure || '-',
+                playAction: r.playAction || '-',
+                breakSack: r.breakSack || '-',
+
+                // Ball Carrier
+                carrying: r.carrying || '-',
+                bcVision: r.ballCarrierVision || '-',
+                breakTackle: r.breakTackle || '-',
+                trucking: r.trucking || '-',
+                stiffArm: r.stiffArm || '-',
+                spinMove: r.spinMove || '-',
+                jukeMove: r.jukeMove || '-',
+
+                // Receiving
+                catching: r.catching || '-',
+                catchInTraffic: r.catchInTraffic || '-',
+                specCatch: r.spectacularCatch || '-',
+                shortRoute: r.shortRouteRunning || '-',
+                medRoute: r.mediumRouteRunning || '-',
+                deepRoute: r.deepRouteRunning || '-',
+                release: r.release || '-',
+
+                // Blocking
+                passBlock: r.passBlock || '-',
+                passBlockPower: r.passBlockPower || '-',
+                passBlockFinesse: r.passBlockFinesse || '-',
+                runBlock: r.runBlock || '-',
+                runBlockPower: r.runBlockPower || '-',
+                runBlockFinesse: r.runBlockFinesse || '-',
+                leadBlock: r.leadBlock || '-',
+                impactBlock: r.impactBlocking || '-',
+
+                // Defense
+                tackle: r.tackle || '-',
+                hitPower: r.hitPower || '-',
+                powerMoves: r.powerMoves || '-',
+                finesseMoves: r.finesseMoves || '-',
+                blockShed: r.blockShedding || '-',
+                pursuit: r.pursuit || '-',
+                playRec: r.playRecognition || '-',
+                manCov: r.manCoverage || '-',
+                zoneCov: r.zoneCoverage || '-',
+                pressCov: r.pressCoverage || '-',
+
+                // Special Teams
+                kickPower: r.kickPower || '-',
+                kickAcc: r.kickAccuracy || '-',
+                kickReturn: r.kickReturn || '-',
+                longSnap: r.longSnap || '-'
+            };
+        });
+
+        // DEBUG: Log first row of gridData AFTER mapping
+        if (gridData.length > 0) {
+            const firstRow = gridData[0];
+            console.log(`[Frontend] ========== FIRST ROW AFTER MAPPING ==========`);
+            console.log(`[Frontend] Name: ${firstRow.firstName} ${firstRow.lastName}`);
+            console.log(`[Frontend] College: ${firstRow.college}, HomeState: ${firstRow.homeState}, Body Type: ${firstRow.bodyType}`);
+            console.log(`[Frontend] COD: ${firstRow.changeOfDirection}, TGH: ${firstRow.toughness}, LS: ${firstRow.longSnap}`);
+            console.log(`[Frontend] PBS: ${firstRow.passBlockPower}, PBF: ${firstRow.passBlockFinesse}`);
+            console.log(`[Frontend] RBS: ${firstRow.runBlockPower}, RBF: ${firstRow.runBlockFinesse}`);
+            console.log(`[Frontend] ====================================================`);
+        }
+
+        // Define all columns with readable headers
+        const columns = [
+            // Basic Info
+            { data: 'firstName', header: 'First', width: 70 },
+            { data: 'lastName', header: 'Last', width: 90 },
+            { data: 'position', header: 'Pos', width: 45 },
+            { data: 'college', header: 'College', width: 110 },
+            { data: 'age', header: 'Age', width: 40, type: 'numeric' },
+            { data: 'heightInches', header: 'Ht"', width: 40, type: 'numeric' },
+            { data: 'weight', header: 'Wt', width: 45, type: 'numeric' },
+            { data: 'jerseyNum', header: '#', width: 40, type: 'numeric' },
+            { data: 'devTrait', header: 'Dev', width: 75 },
+            { data: 'bodyType', header: 'Body', width: 50, type: 'numeric' },
+            { data: 'PID', header: 'PID', width: 50, type: 'numeric' },
+
+            // Core Physical
+            { data: 'overall', header: 'OVR', width: 45, type: 'numeric' },
+            { data: 'speed', header: 'SPD', width: 45, type: 'numeric' },
+            { data: 'acceleration', header: 'ACC', width: 45, type: 'numeric' },
+            { data: 'agility', header: 'AGI', width: 45, type: 'numeric' },
+            { data: 'strength', header: 'STR', width: 45, type: 'numeric' },
+            { data: 'awareness', header: 'AWR', width: 45, type: 'numeric' },
+            { data: 'jumping', header: 'JMP', width: 45, type: 'numeric' },
+            { data: 'stamina', header: 'STA', width: 45, type: 'numeric' },
+            { data: 'injury', header: 'INJ', width: 45, type: 'numeric' },
+
+            // QB Attributes
+            { data: 'throwPower', header: 'THP', width: 45 },
+            { data: 'throwAccShort', header: 'TAS', width: 45 },
+            { data: 'throwAccMid', header: 'TAM', width: 45 },
+            { data: 'throwAccDeep', header: 'TAD', width: 45 },
+            { data: 'throwOnRun', header: 'TOR', width: 45 },
+            { data: 'throwUnderPress', header: 'TUP', width: 45 },
+            { data: 'playAction', header: 'PAC', width: 45 },
+            { data: 'breakSack', header: 'BSK', width: 45 },
+
+            // Ball Carrier
+            { data: 'carrying', header: 'CAR', width: 45 },
+            { data: 'bcVision', header: 'BCV', width: 45 },
+            { data: 'breakTackle', header: 'BTK', width: 45 },
+            { data: 'trucking', header: 'TRK', width: 45 },
+            { data: 'stiffArm', header: 'SFA', width: 45 },
+            { data: 'spinMove', header: 'SPM', width: 45 },
+            { data: 'jukeMove', header: 'JKM', width: 45 },
+
+            // Receiving
+            { data: 'catching', header: 'CTH', width: 45 },
+            { data: 'catchInTraffic', header: 'CIT', width: 45 },
+            { data: 'specCatch', header: 'SPC', width: 45 },
+            { data: 'shortRoute', header: 'SRR', width: 45 },
+            { data: 'medRoute', header: 'MRR', width: 45 },
+            { data: 'deepRoute', header: 'DRR', width: 45 },
+            { data: 'release', header: 'RLS', width: 45 },
+
+            // Blocking
+            { data: 'passBlock', header: 'PBK', width: 45 },
+            { data: 'runBlock', header: 'RBK', width: 45 },
+            { data: 'leadBlock', header: 'LBK', width: 45 },
+            { data: 'impactBlock', header: 'IBL', width: 45 },
+
+            // Defense
+            { data: 'tackle', header: 'TAK', width: 45 },
+            { data: 'hitPower', header: 'POW', width: 45 },
+            { data: 'powerMoves', header: 'PMV', width: 45 },
+            { data: 'finesseMoves', header: 'FMV', width: 45 },
+            { data: 'blockShed', header: 'BSH', width: 45 },
+            { data: 'pursuit', header: 'PUR', width: 45 },
+            { data: 'playRec', header: 'PRC', width: 45 },
+            { data: 'manCov', header: 'MCV', width: 45 },
+            { data: 'zoneCov', header: 'ZCV', width: 45 },
+            { data: 'pressCov', header: 'PRS', width: 45 },
+
+            // Special Teams
+            { data: 'kickPower', header: 'KPW', width: 45 },
+            { data: 'kickAcc', header: 'KAC', width: 45 },
+            { data: 'kickReturn', header: 'KR', width: 45 }
+        ];
+
+        // Initialize Handsontable if needed
+        if (!this.draftCreatorGrid) {
+            this.draftCreatorGrid = new Handsontable(previewContainer, {
+                data: gridData,
+                colHeaders: columns.map(col => col.header),
+                columns: columns.map(col => ({
+                    data: col.data,
+                    type: col.type || 'text',
+                    width: col.width
+                })),
+                rowHeaders: true,
+                height: 500,
+                licenseKey: 'non-commercial-and-evaluation',
+                manualColumnResize: true,
+                filters: true,
+                dropdownMenu: true,
+                contextMenu: true,
+                stretchH: 'none', // Don't stretch columns, use defined widths
+                width: '100%', // Ensure full width
+                autoWrapRow: true,
+                autoWrapCol: true
+            });
+        } else {
+            this.draftCreatorGrid.loadData(gridData);
+        }
+    }
+
+    /**
+     * Show roster preview in Handsontable grid
+     */
+    async showRosterPreview(players) {
+        const previewStep = document.getElementById('rosterPreviewStep');
+        const previewContainer = document.getElementById('rosterPreviewGrid');
+        const previewCount = document.getElementById('rosterPreviewCount');
+
+        // Show preview step
+        previewStep.style.display = 'block';
+        previewCount.textContent = `${players.length} players generated`;
+
+        // Convert players to grid data with ALL ratings (same as draft preview)
+        const gridData = players.map(player => {
+            const r = player.ratings;
+            return {
+                // Basic Info
+                firstName: player.firstName,
+                lastName: player.lastName,
+                position: player.position,
+                positionCode: player.positionCode,
+                team: player.team,
+                college: player.college,
+                age: player.age,
+                heightInches: player.heightInches,
+                weight: player.weight,
+                devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][player.devTrait] || 'Normal',
+
+                // Core Physical
+                overall: r.overall,
+                speed: r.speed,
+                acceleration: r.acceleration,
+                agility: r.agility,
+                strength: r.strength,
+                awareness: r.awareness,
+                jumping: r.jumping,
+                stamina: r.stamina,
+                injury: r.injury,
+
+                // QB Attributes
+                throwPower: r.throwPower || '-',
+                throwAccShort: r.throwAccuracyShort || '-',
+                throwAccMid: r.throwAccuracyMid || '-',
+                throwAccDeep: r.throwAccuracyDeep || '-',
+                throwOnRun: r.throwOnTheRun || '-',
+                throwUnderPress: r.throwUnderPressure || '-',
+                playAction: r.playAction || '-',
+                breakSack: r.breakSack || '-',
+
+                // Ball Carrier
+                carrying: r.carrying || '-',
+                bcVision: r.ballCarrierVision || '-',
+                breakTackle: r.breakTackle || '-',
+                trucking: r.trucking || '-',
+                stiffArm: r.stiffArm || '-',
+                spinMove: r.spinMove || '-',
+                jukeMove: r.jukeMove || '-',
+
+                // Receiving
+                catching: r.catching || '-',
+                catchInTraffic: r.catchInTraffic || '-',
+                specCatch: r.spectacularCatch || '-',
+                shortRoute: r.shortRouteRunning || '-',
+                medRoute: r.mediumRouteRunning || '-',
+                deepRoute: r.deepRouteRunning || '-',
+                release: r.release || '-',
+
+                // Blocking
+                passBlock: r.passBlock || '-',
+                passBlockPower: r.passBlockPower || '-',
+                passBlockFinesse: r.passBlockFinesse || '-',
+                runBlock: r.runBlock || '-',
+                runBlockPower: r.runBlockPower || '-',
+                runBlockFinesse: r.runBlockFinesse || '-',
+                leadBlock: r.leadBlock || '-',
+                impactBlock: r.impactBlocking || '-',
+
+                // Defense
+                tackle: r.tackle || '-',
+                hitPower: r.hitPower || '-',
+                powerMoves: r.powerMoves || '-',
+                finesseMoves: r.finesseMoves || '-',
+                blockShed: r.blockShedding || '-',
+                pursuit: r.pursuit || '-',
+                playRec: r.playRecognition || '-',
+                manCov: r.manCoverage || '-',
+                zoneCov: r.zoneCoverage || '-',
+                pressCov: r.pressCoverage || '-',
+
+                // Special Teams
+                kickPower: r.kickPower || '-',
+                kickAcc: r.kickAccuracy || '-',
+                kickReturn: r.kickReturn || '-',
+                longSnap: r.longSnap || '-'
+            };
+        });
+
+        // Define all columns (same as draft preview)
+        const columns = [
+            // Basic Info
+            { data: 'firstName', header: 'First', width: 70 },
+            { data: 'lastName', header: 'Last', width: 90 },
+            { data: 'position', header: 'Pos', width: 45 },
+            { data: 'positionCode', header: 'Code', width: 45, type: 'numeric' },
+            { data: 'team', header: 'Team', width: 50 },
+            { data: 'college', header: 'College', width: 110 },
+            { data: 'age', header: 'Age', width: 40, type: 'numeric' },
+            { data: 'heightInches', header: 'Ht"', width: 40, type: 'numeric' },
+            { data: 'weight', header: 'Wt', width: 45, type: 'numeric' },
+            { data: 'devTrait', header: 'Dev', width: 75 },
+
+            // Core Physical
+            { data: 'overall', header: 'OVR', width: 45, type: 'numeric' },
+            { data: 'speed', header: 'SPD', width: 45, type: 'numeric' },
+            { data: 'acceleration', header: 'ACC', width: 45, type: 'numeric' },
+            { data: 'agility', header: 'AGI', width: 45, type: 'numeric' },
+            { data: 'strength', header: 'STR', width: 45, type: 'numeric' },
+            { data: 'awareness', header: 'AWR', width: 45, type: 'numeric' },
+            { data: 'jumping', header: 'JMP', width: 45, type: 'numeric' },
+            { data: 'stamina', header: 'STA', width: 45, type: 'numeric' },
+            { data: 'injury', header: 'INJ', width: 45, type: 'numeric' },
+
+            // QB Attributes
+            { data: 'throwPower', header: 'THP', width: 45 },
+            { data: 'throwAccShort', header: 'TAS', width: 45 },
+            { data: 'throwAccMid', header: 'TAM', width: 45 },
+            { data: 'throwAccDeep', header: 'TAD', width: 45 },
+            { data: 'throwOnRun', header: 'TOR', width: 45 },
+            { data: 'throwUnderPress', header: 'TUP', width: 45 },
+            { data: 'playAction', header: 'PAC', width: 45 },
+            { data: 'breakSack', header: 'BSK', width: 45 },
+
+            // Ball Carrier
+            { data: 'carrying', header: 'CAR', width: 45 },
+            { data: 'bcVision', header: 'BCV', width: 45 },
+            { data: 'breakTackle', header: 'BTK', width: 45 },
+            { data: 'trucking', header: 'TRK', width: 45 },
+            { data: 'stiffArm', header: 'SFA', width: 45 },
+            { data: 'spinMove', header: 'SPM', width: 45 },
+            { data: 'jukeMove', header: 'JKM', width: 45 },
+
+            // Receiving
+            { data: 'catching', header: 'CTH', width: 45 },
+            { data: 'catchInTraffic', header: 'CIT', width: 45 },
+            { data: 'specCatch', header: 'SPC', width: 45 },
+            { data: 'shortRoute', header: 'SRR', width: 45 },
+            { data: 'medRoute', header: 'MRR', width: 45 },
+            { data: 'deepRoute', header: 'DRR', width: 45 },
+            { data: 'release', header: 'RLS', width: 45 },
+
+            // Blocking
+            { data: 'passBlock', header: 'PBK', width: 45 },
+            { data: 'runBlock', header: 'RBK', width: 45 },
+            { data: 'leadBlock', header: 'LBK', width: 45 },
+            { data: 'impactBlock', header: 'IBL', width: 45 },
+
+            // Defense
+            { data: 'tackle', header: 'TAK', width: 45 },
+            { data: 'hitPower', header: 'POW', width: 45 },
+            { data: 'powerMoves', header: 'PMV', width: 45 },
+            { data: 'finesseMoves', header: 'FMV', width: 45 },
+            { data: 'blockShed', header: 'BSH', width: 45 },
+            { data: 'pursuit', header: 'PUR', width: 45 },
+            { data: 'playRec', header: 'PRC', width: 45 },
+            { data: 'manCov', header: 'MCV', width: 45 },
+            { data: 'zoneCov', header: 'ZCV', width: 45 },
+            { data: 'pressCov', header: 'PRS', width: 45 },
+
+            // Special Teams
+            { data: 'kickPower', header: 'KPW', width: 45 },
+            { data: 'kickAcc', header: 'KAC', width: 45 },
+            { data: 'kickReturn', header: 'KR', width: 45 }
+        ];
+
+        // Initialize Handsontable if needed
+        if (!this.rosterCreatorGrid) {
+            this.rosterCreatorGrid = new Handsontable(previewContainer, {
+                data: gridData,
+                colHeaders: columns.map(col => col.header),
+                columns: columns.map(col => ({
+                    data: col.data,
+                    type: col.type || 'text',
+                    width: col.width
+                })),
+                rowHeaders: true,
+                height: 500,
+                licenseKey: 'non-commercial-and-evaluation',
+                manualColumnResize: true,
+                filters: true,
+                dropdownMenu: true,
+                contextMenu: true,
+                stretchH: 'none' // Don't stretch columns, use defined widths
+            });
+        } else {
+            this.rosterCreatorGrid.loadData(gridData);
+        }
+    }
+
+    /**
+     * Save generated draft class
+     */
+    async saveGeneratedDraftClass() {
+        if (!this.generatedDraftPlayers || this.generatedDraftPlayers.length === 0) {
+            this.showError('No draft class data to save');
+            return;
+        }
+
+        try {
+            // Open save dialog
+            const result = await window.electronAPI.file.saveDialog('CAREERDRAFT-CUSTOM');
+
+            if (result.canceled || !result.filePath) {
+                console.log('Save canceled by user');
+                return;
+            }
+
+            console.log('[Creator] Saving draft class to:', result.filePath);
+            this.showError('Save functionality not yet implemented. Generated data is ready!');
+
+            // TODO: Implement actual file writing
+            // Will need to use template file and write binary data
+
+        } catch (error) {
+            console.error('[Creator] Error saving draft class:', error);
+            this.showError(`Failed to save: ${error.message}`);
+        }
+    }
+
+    /**
+     * Load generated draft class into the Draft Class Editor tab
+     */
+    async loadGeneratedDraftIntoEditor() {
+        if (!this.generatedDraftPlayers || this.generatedDraftPlayers.length === 0) {
+            this.showError('No draft class data to load');
+            return;
+        }
+
+        try {
+            console.log('[Creator] Loading generated draft class into editor');
+
+            // Convert generated players to draft prospect format
+            const prospects = this.generatedDraftPlayers.map(player => ({
+                // Basic Info
+                firstName: player.firstName,
+                lastName: player.lastName,
+                position: player.positionCode, // Use numeric code for draft class
+                college: player.college || 'Unknown',
+                jerseyNum: player.jerseyNum,
+                age: player.age,
+                yearsPro: 0,
+                heightInches: player.heightInches,
+                weight: player.weight,
+
+                // Dev Trait
+                devTrait: player.devTrait,
+
+                // Ratings - map from GeneratedPlayer ratings to prospect format
+                overall: player.ratings.overall,
+                speed: player.ratings.speed,
+                acceleration: player.ratings.acceleration,
+                agility: player.ratings.agility,
+                strength: player.ratings.strength,
+                awareness: player.ratings.awareness,
+                jumping: player.ratings.jumping || 70,
+                stamina: player.ratings.stamina || 85,
+                injury: player.ratings.injury || 90,
+
+                // Core Physical (missing from before)
+                changeOfDirection: player.ratings.changeOfDirection || 0,
+                toughness: player.ratings.toughness || 0,
+
+                // Position-specific attributes (use || 0 for numeric fields)
+                throwPower: player.ratings.throwPower || 0,
+                throwAccuracyShort: player.ratings.throwAccuracyShort || 0,
+                throwAccuracyMid: player.ratings.throwAccuracyMid || 0,
+                throwAccuracyDeep: player.ratings.throwAccuracyDeep || 0,
+                throwOnTheRun: player.ratings.throwOnTheRun || 0,
+                throwUnderPressure: player.ratings.throwUnderPressure || 0,
+                playAction: player.ratings.playAction || 0,
+                breakSack: player.ratings.breakSack || 0,
+
+                carrying: player.ratings.carrying || 0,
+                ballCarrierVision: player.ratings.ballCarrierVision || 0,
+                breakTackle: player.ratings.breakTackle || 0,
+                trucking: player.ratings.trucking || 0,
+                stiffArm: player.ratings.stiffArm || 0,
+                spinMove: player.ratings.spinMove || 0,
+                jukeMove: player.ratings.jukeMove || 0,
+
+                catching: player.ratings.catching || 0,
+                catchInTraffic: player.ratings.catchInTraffic || 0,
+                spectacularCatch: player.ratings.spectacularCatch || 0,
+                shortRouteRunning: player.ratings.shortRouteRunning || 0,
+                mediumRouteRunning: player.ratings.mediumRouteRunning || 0,
+                deepRouteRunning: player.ratings.deepRouteRunning || 0,
+                release: player.ratings.release || 0,
+
+                passBlock: player.ratings.passBlock || 0,
+                passBlockPower: player.ratings.passBlockPower || 0,
+                passBlockFinesse: player.ratings.passBlockFinesse || 0,
+                runBlock: player.ratings.runBlock || 0,
+                runBlockPower: player.ratings.runBlockPower || 0,
+                runBlockFinesse: player.ratings.runBlockFinesse || 0,
+                leadBlock: player.ratings.leadBlock || 0,
+                impactBlocking: player.ratings.impactBlocking || 0,
+
+                tackle: player.ratings.tackle || 0,
+                hitPower: player.ratings.hitPower || 0,
+                powerMoves: player.ratings.powerMoves || 0,
+                finesseMoves: player.ratings.finesseMoves || 0,
+                blockShedding: player.ratings.blockShedding || 0,
+                pursuit: player.ratings.pursuit || 0,
+                playRecognition: player.ratings.playRecognition || 0,
+                manCoverage: player.ratings.manCoverage || 0,
+                zoneCoverage: player.ratings.zoneCoverage || 0,
+                pressCoverage: player.ratings.pressCoverage || 0,
+
+                kickPower: player.ratings.kickPower || 0,
+                kickAccuracy: player.ratings.kickAccuracy || 0,
+                kickReturn: player.ratings.kickReturn || 0,
+                longSnap: player.ratings.longSnap || 0,
+
+                // Visuals
+                PID: player.PID || 0,
+                PEPS: player.PEPS || null,
+                bodyType: player.bodyType || 1,
+
+                // Draft info (optional, can be filled in editor)
+                round: 0,
+                pick: 0,
+                draftTeam: 0,
+                homeState: player.homeState || 0
+            }));
+
+            // Set up draft class data structure
+            this.currentDraftClass = {
+                prospects: prospects,
+                header: {
+                    year: new Date().getFullYear() + 1, // Next year
+                    prospectCount: prospects.length
+                }
+            };
+
+            this.currentDraftFilePath = `Generated Draft Class (${prospects.length} prospects)`;
+
+            // Switch to draft tab
+            this.switchTool('draft');
+
+            // Update UI
+            document.getElementById('draft-file-name').textContent = `Generated Draft Class (${prospects.length} prospects)`;
+            document.getElementById('draft-file-stats').textContent =
+                `${prospects.length} prospects | Year: ${this.currentDraftClass.header.year}`;
+
+            // Enable buttons
+            document.getElementById('save-draft-btn').disabled = false;
+            document.getElementById('export-draft-json-btn').disabled = false;
+
+            // Create grid with generated data
+            this.createDraftGrid(prospects);
+
+            console.log('[Creator] Successfully loaded generated draft class into editor');
+            this.setStatus(`Loaded ${prospects.length} generated prospects into Draft Class Editor`);
+
+        } catch (error) {
+            console.error('[Creator] Error loading draft class into editor:', error);
+            this.showError(`Failed to load into editor: ${error.message}`);
+        }
+    }
+
+    /**
+     * Save generated roster
+     */
+    async saveGeneratedRoster() {
+        if (!this.generatedRosterPlayers || this.generatedRosterPlayers.length === 0) {
+            this.showError('No roster data to save');
+            return;
+        }
+
+        try {
+            // Open save dialog
+            const result = await window.electronAPI.file.saveDialog('ROSTER-CUSTOM');
+
+            if (result.canceled || !result.filePath) {
+                console.log('Save canceled by user');
+                return;
+            }
+
+            console.log('[Creator] Saving roster to:', result.filePath);
+            this.showError('Save functionality not yet implemented. Generated data is ready!');
+
+            // TODO: Implement actual file writing
+            // Will need to use template file and write binary data
+
+        } catch (error) {
+            console.error('[Creator] Error saving roster:', error);
+            this.showError(`Failed to save: ${error.message}`);
+        }
     }
 }
 
