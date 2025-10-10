@@ -55,9 +55,10 @@ const config: ForgeConfig = {
         // Exclude large testing/dev dependencies that shouldn't be in production
         /node_modules\/playwright($|\/)/,
         /node_modules\/@playwright($|\/)/,
-        /node_modules\/puppeteer($|\/)/,
-        /node_modules\/puppeteer-core($|\/)/,
-        /node_modules\/chromium-bidi($|\/)/,
+        // NOTE: Puppeteer IS needed for draft class generator web scraping
+        // /node_modules\/puppeteer($|\/)/,
+        // /node_modules\/puppeteer-core($|\/)/,
+        // /node_modules\/chromium-bidi($|\/)/,
 
         // Exclude unused UI frameworks (using Handsontable instead)
         /node_modules\/react($|\/)/,
