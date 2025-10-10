@@ -2203,9 +2203,12 @@ class MaddenEditorApp {
                     devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait) !== -1
                         ? ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait)
                         : originalProspect.devTrait,
-                    // Explicitly preserve PEPS and bodyType from grid
-                    PEPS: prospect.PEPS,
-                    bodyType: prospect.bodyType
+                    // Convert body type name to ID (Lean=0, Athletic=1, Muscular=2, Stocky=3)
+                    bodyType: ['Lean', 'Athletic', 'Muscular', 'Stocky'].indexOf(prospect.bodyType) !== -1
+                        ? ['Lean', 'Athletic', 'Muscular', 'Stocky'].indexOf(prospect.bodyType)
+                        : originalProspect.bodyType,
+                    // Explicitly preserve PEPS from grid
+                    PEPS: prospect.PEPS
                 };
 
                 // CRITICAL FIX: Update visuals.genericHeadName and bodyType to match edited values
