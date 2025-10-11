@@ -3089,6 +3089,34 @@ class MaddenEditorApp {
         try {
             console.log('[Creator] Loading generated draft class into editor');
 
+            // Get template file path from the file selector
+            const templatePath = document.getElementById('draftTemplate')?.value;
+            let templateData = null;
+
+            console.log(`[Creator] Template file path from input: "${templatePath}"`);
+
+            if (templatePath && templatePath.trim() !== '') {
+                console.log('[Creator] Loading template file for buffer:', templatePath);
+
+                // Load the template file to get _originalBuffer and _version
+                const templateResult = await window.electronAPI.draftClass.load(templatePath);
+
+                if (!templateResult.success) {
+                    throw new Error(`Failed to load template file: ${templateResult.error}`);
+                }
+
+                templateData = templateResult.data;
+                console.log(`[Creator] Template loaded: ${templateData._version}, buffer size: ${templateData._originalBuffer?.length || 0}`);
+            } else {
+                console.error('[Creator] ⚠️ NO TEMPLATE FILE SELECTED!');
+                console.error('[Creator] You must select a template draft class file before generating.');
+                console.error('[Creator] Use the "Select Draft Template" button in the generator tab.');
+
+                // Show error to user
+                this.showError('Please select a template draft class file before generating.\n\nUse the "Select Draft Template" button to choose an existing M26 draft class file as a template.');
+                return;
+            }
+
             // Convert generated players to draft prospect format
             const prospects = this.generatedDraftPlayers.map(player => ({
                 // Basic Info
@@ -3184,21 +3212,34 @@ class MaddenEditorApp {
             }));
 
             // Set up draft class data structure
+            // If we have template data, use its buffer and version for saving
             this.currentDraftClass = {
                 prospects: prospects,
-                header: {
+                header: templateData ? {
+                    ...templateData.header,
+                    prospectCount: prospects.length  // Update count to match generated prospects
+                } : {
                     year: new Date().getFullYear() + 1, // Next year
                     prospectCount: prospects.length
-                }
+                },
+                // Include template's buffer and version if available (needed for M26 saves)
+                _originalBuffer: templateData?._originalBuffer,
+                _version: templateData?._version
             };
 
-            this.currentDraftFilePath = `Generated Draft Class (${prospects.length} prospects)`;
+            this.currentDraftFilePath = templateData ?
+                `${templatePath.split(/[/\\]/).pop()} (${prospects.length} generated prospects)` :
+                `Generated Draft Class (${prospects.length} prospects)`;
 
             // Switch to draft tab
             this.switchTool('draft');
 
             // Update UI
-            document.getElementById('draft-file-name').textContent = `Generated Draft Class (${prospects.length} prospects)`;
+            const displayName = templateData ?
+                `${templatePath.split(/[/\\]/).pop()} (${prospects.length} generated prospects)` :
+                `Generated Draft Class (${prospects.length} prospects)`;
+
+            document.getElementById('draft-file-name').textContent = displayName;
             document.getElementById('draft-file-stats').textContent =
                 `${prospects.length} prospects | Year: ${this.currentDraftClass.header.year}`;
 
