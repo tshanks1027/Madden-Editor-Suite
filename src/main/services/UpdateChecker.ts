@@ -74,16 +74,15 @@ export class UpdateChecker {
 
       const hasUpdate = this.compareVersions(currentVersion, latestVersion) < 0;
 
-      // Find the .zip download URL
-      const zipAsset = releaseData.assets.find((asset: any) =>
-        asset.name.endsWith('.zip')
-      );
+      // Use Google Drive download link for the ZIP file
+      // GitHub releases show release notes, Google Drive hosts the actual download
+      const downloadUrl = 'https://drive.google.com/file/d/1VcnwuGipCnFqvhYSyIEwCx4IteipdqPV/view?usp=drive_link';
 
       const updateInfo: UpdateInfo = {
         currentVersion,
         latestVersion,
         hasUpdate,
-        downloadUrl: zipAsset ? zipAsset.browser_download_url : releaseData.html_url,
+        downloadUrl: downloadUrl, // Google Drive link for the packaged ZIP
         releaseNotes: releaseData.body || 'No release notes available.',
         publishedAt: releaseData.published_at
       };
