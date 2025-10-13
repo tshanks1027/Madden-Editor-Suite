@@ -96,5 +96,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   rating: {
     calculateOverall: (ratings: any, position: string) =>
       ipcRenderer.invoke('rating:calculate-overall', ratings, position)
+  },
+
+  // Update APIs
+  update: {
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    // Listen for update notifications
+    onUpdateAvailable: (callback: (updateInfo: any) => void) =>
+      ipcRenderer.on('update-available', (_event, updateInfo) => callback(updateInfo)),
+    // Remove update listener
+    removeUpdateListener: () =>
+      ipcRenderer.removeAllListeners('update-available')
   }
 });

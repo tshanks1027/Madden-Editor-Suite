@@ -30,11 +30,14 @@ import './main/ipc/roster-creator-handlers';
 import { registerCreatorHandlers } from './main/ipc/creator-handlers';
 import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';
+import { registerUpdateHandlers } from './main/ipc/update-handlers';
+import { updateChecker } from './main/services/UpdateChecker';
 
 // Register creator handlers
 registerCreatorHandlers();
 registerDebugHandlers();
 registerRatingHandlers();
+registerUpdateHandlers();
 
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;
@@ -71,6 +74,15 @@ const createWindow = (): void => {
 app.whenReady().then(() => {
   createWindow();
 
+  // Start checking for updates (checks immediately, then every 4 hours)
+  updateChecker.startPeriodicChecks((updateInfo) => {
+    console.log('[main] Update available:', updateInfo);
+    // Send update notification to renderer
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-available', updateInfo);
+    }
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -79,6 +91,9 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  // Stop update checker
+  updateChecker.stopPeriodicChecks();
+
   if (process.platform !== 'darwin') {
     app.quit();
   }
