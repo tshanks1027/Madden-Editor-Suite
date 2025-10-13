@@ -88,7 +88,8 @@ const NFL_TEAMS = [
   { abbr: 'sfo', name: 'San Francisco 49ers', id: 15 }, // SF in Madden
   { abbr: 'tam', name: 'Tampa Bay Buccaneers', id: 6 }, // TB in Madden
   { abbr: 'oti', name: 'Tennessee Titans', id: 30 },    // TEN in Madden
-  { abbr: 'was', name: 'Washington Commanders', id: 26 } // WAS in Madden
+  { abbr: 'was', name: 'Washington Commanders', id: 26 }, // WAS in Madden
+  { abbr: 'fa', name: 'Free Agent', id: 1009 }           // FA in Madden
 ];
 
 /**
@@ -120,7 +121,8 @@ export class RosterCreatorService {
 
       // Use CreatorService to generate roster with proper data handling
       // This gives us: college lookup, position mapping, dev traits, stat minimums, etc.
-      const teamAbbrs = NFL_TEAMS.map(t => t.abbr);
+      // Exclude 'fa' from team scraping - FA pool will be generated separately
+      const teamAbbrs = NFL_TEAMS.filter(t => t.abbr !== 'fa').map(t => t.abbr);
       const generatedPlayers = await creatorService.generateRoster(year, teamAbbrs);
 
       console.log(`[RosterCreatorService] CreatorService generated ${generatedPlayers.length} players`);
@@ -179,8 +181,9 @@ export class RosterCreatorService {
           // Dev trait (0-3)
           PDEV: player.devTrait,
 
-          // PID and body type (PSXP is the correct field name for PID in Madden 26)
-          PSXP: player.PID,
+          // PID (Player Picture ID) and Years Pro
+          PSXP: player.PID, // Player Picture ID for face/headshot
+          PYRP: player.yearsPro, // Years in league
           PBOD: player.bodyType,
 
           // All ratings from GeneratedPlayer.ratings

@@ -16,6 +16,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 import { scraperDebugLogger } from '../utils/DebugLogger';
+import { findChrome } from '../utils/ChromeFinder';
 
 export interface PlayerStats {
   // Basic Info
@@ -111,8 +112,9 @@ export class ScraperService {
       console.log('[ScraperService] Launching Puppeteer browser...');
 
       try {
-        // Use puppeteer's bundled Chromium - works in both dev and packaged app
-        // For packaged apps, Chromium should be in: resources/app.asar.unpacked/node_modules/puppeteer/.local-chromium
+        // Try to find system Chrome first (avoids 170MB Chromium download)
+        const systemChrome = findChrome();
+
         const launchOptions: any = {
           headless: true,
           args: [
@@ -124,77 +126,22 @@ export class ScraperService {
           ]
         };
 
-        // Look for Chrome in common locations (both dev and packaged)
-        // Check Puppeteer cache first (recommended location)
-        const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-        const possiblePaths = [
-          // Puppeteer cache locations (preferred)
-          path.join(homeDir, '.cache', 'puppeteer', 'chrome', '**', 'chrome.exe'),
-          path.join(homeDir, '.cache', 'puppeteer', 'chrome', '**', 'chrome-win64', 'chrome.exe'),
-
-          // Packaged app locations
-          path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'puppeteer', '.local-chromium', '**', 'chrome.exe'),
-          path.join(process.resourcesPath, 'node_modules', 'puppeteer', '.local-chromium', '**', 'chrome.exe'),
-
-          // System Chrome installations
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-          path.join(process.env.PROGRAMFILES || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-          path.join(process.env['PROGRAMFILES(X86)'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe')
-        ];
-
-        // Search for Chrome executable
-        for (const searchPath of possiblePaths) {
-          // Handle wildcard paths (for Puppeteer cache with version numbers)
-          if (searchPath.includes('**')) {
-            const basePath = searchPath.split('**')[0];
-            const endPath = searchPath.split('**')[1];
-
-            if (fs.existsSync(basePath)) {
-              const searchRecursive = (dir: string): string | null => {
-                try {
-                  const entries = fs.readdirSync(dir, { withFileTypes: true });
-
-                  for (const entry of entries) {
-                    const fullPath = path.join(dir, entry.name);
-
-                    if (entry.isDirectory()) {
-                      const found = searchRecursive(fullPath);
-                      if (found) return found;
-                    } else if (entry.name === 'chrome.exe' && fullPath.endsWith(endPath.replace('**', ''))) {
-                      return fullPath;
-                    }
-                  }
-                } catch (err) {
-                  // Skip directories we can't read
-                }
-                return null;
-              };
-
-              const found = searchRecursive(basePath);
-              if (found) {
-                console.log(`[ScraperService] Found Chrome at: ${found}`);
-                launchOptions.executablePath = found;
-                break;
-              }
-            }
-          } else {
-            // Direct path check
-            if (fs.existsSync(searchPath)) {
-              console.log(`[ScraperService] Found Chrome at: ${searchPath}`);
-              launchOptions.executablePath = searchPath;
-              break;
-            }
-          }
+        // If system Chrome/Edge found, use it
+        if (systemChrome) {
+          console.log(`[ScraperService] Using system ${systemChrome.browser}: ${systemChrome.executablePath}`);
+          launchOptions.executablePath = systemChrome.executablePath;
+        } else {
+          console.log('[ScraperService] System Chrome not found, falling back to bundled Chromium');
         }
 
-        if (!launchOptions.executablePath) {
+        // If no system Chrome found, show helpful error message
+        if (!systemChrome) {
           throw new Error(
-            'Could not find Chrome. Please either:\n' +
-            '1. Install Google Chrome from https://www.google.com/chrome/, OR\n' +
-            '2. Run "npx puppeteer browsers install chrome" in the app directory to download Chromium.\n\n' +
-            'The application will automatically detect Chrome once installed.'
+            'Chrome/Edge not found. To use roster generation features, please either:\n\n' +
+            '1. Install Google Chrome from https://www.google.com/chrome/ (RECOMMENDED), OR\n' +
+            '2. Install Microsoft Edge (pre-installed on Windows 10+)\n\n' +
+            'The application will automatically detect and use Chrome or Edge once installed.\n' +
+            'This avoids downloading a separate 170MB Chromium browser.'
           );
         }
 
@@ -1548,6 +1495,11 @@ export class ScraperService {
                              row.querySelector('td[data-stat="wt"]');
           const ageCell = row.querySelector('td[data-stat="age"]');
 
+          // Years in league - can be "Rook" for rookies or a number
+          const yearsCell = row.querySelector('td[data-stat="years_in_league"]') ||
+                            row.querySelector('td[data-stat="years"]') ||
+                            row.querySelector('td[data-stat="yrs"]');
+
           // Try multiple possible college selectors
           const collegeCell = row.querySelector('td[data-stat="college"] a') ||
                               row.querySelector('td[data-stat="college_id"] a') ||
@@ -1566,6 +1518,11 @@ export class ScraperService {
           if (heightCell) player.height = heightCell.textContent?.trim() || '';
           if (weightCell) player.weight = parseInt(weightCell.textContent?.trim() || '0');
           if (ageCell) player.age = parseInt(ageCell.textContent?.trim() || '0');
+          if (yearsCell) {
+            const yearsText = yearsCell.textContent?.trim().toLowerCase() || '';
+            // "Rook" means 0 years, otherwise parse as number
+            player.yearsPro = yearsText === 'rook' || yearsText === 'rookie' ? 0 : parseInt(yearsText) || 0;
+          }
           if (collegeCell) {
             const collegeLink = collegeCell.querySelector('a');
             player.college = (collegeLink?.textContent || collegeCell.textContent)?.trim() || 'Unknown';

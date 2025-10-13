@@ -1895,6 +1895,15 @@ class MaddenEditorApp {
             return;
         }
 
+        // Check if this is a generated roster (no original buffer data)
+        const isGeneratedRoster = !this.originalData || !this.originalData._originalBuffer;
+
+        if (isGeneratedRoster) {
+            // Use roster creator save method for generated rosters
+            console.log('[app.js] This is a generated roster - using roster creator save');
+            return await this.saveGeneratedRosterFromEditor();
+        }
+
         if (!this.originalData) {
             this.showError('No original data available - please reload the file');
             return;
@@ -3556,6 +3565,51 @@ class MaddenEditorApp {
     }
 
     /**
+     * Save generated roster from editor (after loading into editor and potentially editing)
+     */
+    async saveGeneratedRosterFromEditor() {
+        try {
+            // Open save dialog
+            const result = await window.electronAPI.file.saveDialog('ROSTER-CUSTOM');
+
+            if (result.canceled || !result.filePath) {
+                console.log('[app.js] Save canceled by user');
+                return;
+            }
+
+            console.log('[app.js] Saving generated roster from editor to:', result.filePath);
+
+            // Get template file path (stored when we loaded the generated roster)
+            const templatePath = this.currentFile;
+
+            if (!templatePath || templatePath.trim() === '') {
+                this.showError('Template file path is missing. Cannot save generated roster.');
+                return;
+            }
+
+            // Call backend to save roster
+            console.log('[app.js] Calling rosterCreator.save with template:', templatePath);
+            const saveResult = await window.electronAPI.rosterCreator.save(
+                this.players, // Use current player data from editor
+                templatePath,
+                result.filePath
+            );
+
+            if (!saveResult.success) {
+                throw new Error(saveResult.error || 'Failed to save roster');
+            }
+
+            console.log('[app.js] Generated roster saved successfully!');
+            this.setStatus('Roster saved successfully');
+            alert(`Roster saved successfully!\n\n✅ ${this.players.length} players saved to:\n${result.filePath}\n\nYou can now load this roster file in Madden 26.`);
+
+        } catch (error) {
+            console.error('[app.js] Error saving generated roster from editor:', error);
+            this.showError(`Failed to save: ${error.message}`);
+        }
+    }
+
+    /**
      * Save generated roster
      */
     async saveGeneratedRoster() {
@@ -3574,10 +3628,29 @@ class MaddenEditorApp {
             }
 
             console.log('[Creator] Saving roster to:', result.filePath);
-            this.showError('Save functionality not yet implemented. Generated data is ready!');
 
-            // TODO: Implement actual file writing
-            // Will need to use template file and write binary data
+            // Get template file path from the file selector
+            const templatePath = document.getElementById('rosterTemplate')?.value;
+
+            if (!templatePath || templatePath.trim() === '') {
+                this.showError('Template file path is missing. Please select a template roster file first.');
+                return;
+            }
+
+            // Call backend to save roster
+            console.log('[Creator] Calling backend save with template:', templatePath);
+            const saveResult = await window.electronAPI.rosterCreator.save(
+                this.generatedRosterPlayers,
+                templatePath,
+                result.filePath
+            );
+
+            if (!saveResult.success) {
+                throw new Error(saveResult.error || 'Failed to save roster');
+            }
+
+            console.log('[Creator] Roster saved successfully!');
+            alert(`Roster saved successfully!\n\n✅ ${this.generatedRosterPlayers.length} players saved to:\n${result.filePath}\n\nYou can now load this roster file in Madden 26.`);
 
         } catch (error) {
             console.error('[Creator] Error saving roster:', error);
@@ -3618,6 +3691,22 @@ class MaddenEditorApp {
 
             // Store the generated players as the current roster data
             this.players = this.generatedRosterPlayers;
+
+            // Set current file to template path (so save knows where to write)
+            const templatePath = document.getElementById('rosterTemplate')?.value;
+            if (templatePath && templatePath.trim() !== '') {
+                this.currentFile = templatePath;
+                console.log('[Creator] Set currentFile to template path:', this.currentFile);
+            } else {
+                console.warn('[Creator] No template path found - save may not work');
+            }
+
+            // Store empty original data (we don't have original roster data)
+            this.originalData = {
+                _version: 'M26',
+                _originalBuffer: null,
+                teams: []
+            };
 
             // Render the roster in the editor grid (this method handles Handsontable setup)
             this.renderRoster();

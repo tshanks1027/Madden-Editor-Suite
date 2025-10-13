@@ -49,6 +49,7 @@ export interface GeneratedPlayer {
   PID: number; // Portrait ID (0 for generic)
   PEPS: string | null; // Player Equipment Preset (null for generic)
   bodyType: number;
+  yearsPro: number; // Years in the league (0 for rookies)
 
   // Source data (for reference)
   _sourceStats?: PlayerStats;
@@ -893,6 +894,18 @@ export class CreatorService {
           // Determine dev trait: HOFers get X-Factor, others based on overall rating
           const devTrait = isHOF ? 3 : this.determineDevTraitFromRating(ratings.overall);
 
+          // Use scraped years pro if available, otherwise calculate from age
+          const playerAge = playerStats.age || 25;
+          let yearsPro = 0;
+          if (playerStats.yearsPro !== undefined && playerStats.yearsPro !== null) {
+            // Use scraped value ("Rook" becomes 0, numbers are parsed)
+            yearsPro = playerStats.yearsPro;
+          } else {
+            // Fallback: estimate from age (assume NFL entry at 22)
+            const typicalRookieAge = 22;
+            yearsPro = Math.max(0, playerAge - typicalRookieAge);
+          }
+
           const player: GeneratedPlayer = {
             firstName,
             lastName,
@@ -901,7 +914,7 @@ export class CreatorService {
             college: matchedCollege,
             team: teamAbbr.toUpperCase(),
             jerseyNum,
-            age: playerStats.age || 25,
+            age: playerAge,
             heightInches,
             weight: maddenWeight,
             homeState: homeStateId,
@@ -910,6 +923,7 @@ export class CreatorService {
             PID: matchedPID,
             PEPS: null,
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
+            yearsPro,
             _sourceStats: playerStats
           };
 
@@ -998,6 +1012,82 @@ export class CreatorService {
 
       console.log(`[CreatorService] Generated ${generatedPlayers.length} total players`);
       console.log(`[CreatorService] HOF players with X-Factor: ${generatedPlayers.filter(p => p.devTrait === 3).length}`);
+
+      console.log(`[CreatorService] ============================================`);
+      console.log(`[CreatorService] *** ABOUT TO GENERATE FREE AGENT POOL ***`);
+      console.log(`[CreatorService] ============================================`);
+
+      // Generate free agent pool to match official roster size (~3000+ players)
+      // Official rosters have significant FA pools for depth
+      const teamPlayerCount = generatedPlayers.length;
+      const targetTotalPlayers = 3000; // Target similar to official rosters
+      const freeAgentsNeeded = Math.max(0, targetTotalPlayers - teamPlayerCount);
+
+      console.log(`[CreatorService] Team player count: ${teamPlayerCount}`);
+      console.log(`[CreatorService] Target total: ${targetTotalPlayers}`);
+      console.log(`[CreatorService] Free agents needed: ${freeAgentsNeeded}`);
+
+      if (freeAgentsNeeded > 0) {
+        console.log(`[CreatorService] ========================================`);
+        console.log(`[CreatorService] Generating Free Agent Pool`);
+        console.log(`[CreatorService] Current players: ${teamPlayerCount}`);
+        console.log(`[CreatorService] Target total: ${targetTotalPlayers}`);
+        console.log(`[CreatorService] Free agents needed: ${freeAgentsNeeded}`);
+        console.log(`[CreatorService] ========================================`);
+
+        // Generate fictional free agents with varied positions
+        const freeAgentRoster = this.generateFictionalRoster('FA', freeAgentsNeeded);
+
+        // Process free agents (same as filler players but with team = 1009)
+        for (const faStats of freeAgentRoster) {
+          const nameParts = faStats.name.split(' ');
+          const firstName = nameParts[0] || 'John';
+          const lastName = nameParts.slice(1).join(' ') || 'Doe';
+
+          const mappedPosition = this.mapPosition(faStats.position);
+          const age = faStats.age || 24; // FAs tend to be younger
+
+          const heightParts = faStats.height.split('-');
+          const heightInches = (parseInt(heightParts[0]) * 12) + parseInt(heightParts[1] || '0');
+          const weight = faStats.weight;
+          const maddenWeight = this.convertWeightToMaddenFormat(weight);
+
+          const matchedCollege = this.matchCollege(faStats.college || 'Unknown');
+          const homeStateId = this.matchHomeState(this.generateHomeState());
+
+          // Free agents: lower ratings (50-70 overall range)
+          const ratings = this.generateFillerRatings(mappedPosition.name);
+
+          // Dev trait (mostly Normal, occasional Star for young FAs)
+          const devTrait = age <= 23 && Math.random() < 0.10 ? 1 : 0; // 10% Star for young FAs
+
+          const freeAgent: GeneratedPlayer = {
+            firstName,
+            lastName,
+            position: mappedPosition.name,
+            positionCode: mappedPosition.code,
+            team: 'FA', // Free Agent team code
+            jerseyNum: Math.floor(Math.random() * 100),
+            yearsPro: Math.floor(Math.random() * 3), // 0-2 years pro
+            college: matchedCollege,
+            age,
+            heightInches,
+            weight: maddenWeight,
+            homeState: homeStateId,
+            devTrait,
+            ratings,
+            PID: -1,
+            PEPS: null,
+            bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
+            _sourceStats: faStats
+          };
+
+          generatedPlayers.push(freeAgent);
+        }
+
+        console.log(`[CreatorService] ✓ Added ${freeAgentsNeeded} free agents`);
+        console.log(`[CreatorService] Final roster size: ${generatedPlayers.length} players`);
+      }
 
       // Close browser when done
       await scraperService.closeBrowser();
