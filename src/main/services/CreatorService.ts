@@ -690,10 +690,11 @@ export class CreatorService {
    * NOW WITH: College lookup, dev traits based on HOF+stats, stat minimums, position mapping
    * @param year - Season year
    * @param teams - Array of team abbreviations (e.g., ['dal', 'sea', 'ne'])
+   * @param maxPlayers - Maximum number of players (from template roster, default 3000)
    * @returns Array of generated players
    */
-  async generateRoster(year: number, teams: string[]): Promise<GeneratedPlayer[]> {
-    console.log(`[CreatorService] Generating roster for ${year} (${teams.length} teams)`);
+  async generateRoster(year: number, teams: string[], maxPlayers: number = 3000): Promise<GeneratedPlayer[]> {
+    console.log(`[CreatorService] Generating roster for ${year} (${teams.length} teams, max ${maxPlayers} players)`);
 
     try {
       const generatedPlayers: GeneratedPlayer[] = [];
@@ -1089,10 +1090,10 @@ export class CreatorService {
       console.log(`[CreatorService] *** ABOUT TO GENERATE FREE AGENT POOL ***`);
       console.log(`[CreatorService] ============================================`);
 
-      // Generate free agent pool to match official roster size (~3000+ players)
-      // Official rosters have significant FA pools for depth
+      // Generate free agent pool to match template roster size
+      // Use the maxPlayers from template to determine how many FAs we can fit
       const teamPlayerCount = generatedPlayers.length;
-      const targetTotalPlayers = 3000; // Target similar to official rosters
+      const targetTotalPlayers = maxPlayers; // Use template roster size
       const freeAgentsNeeded = Math.max(0, targetTotalPlayers - teamPlayerCount);
 
       scraperDebugLogger.log(`Team player count: ${teamPlayerCount}`);

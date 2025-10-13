@@ -117,13 +117,32 @@ export class RosterCreatorService {
 
       console.log(`[RosterCreatorService] Starting roster generation for ${year}`);
 
-      progressCallback?.(0, `Generating roster for ${year}...`);
+      progressCallback?.(0, `Loading template roster...`);
+
+      // Load template roster FIRST to determine max player count
+      const helperPath = path.join(__dirname, 'lib', 'helpers', 'MaddenRosterHelper');
+      const MaddenRosterHelper = require(helperPath);
+      const helper = new MaddenRosterHelper();
+
+      console.log(`[RosterCreatorService] Loading template roster from: ${templatePath}`);
+      const templateFile = await helper.load(templatePath);
+
+      const playerTable = templateFile.PLAY;
+      if (!playerTable) {
+        throw new Error('PLAY table not found in template file');
+      }
+
+      const maxPlayers = playerTable.records.length;
+      console.log(`[RosterCreatorService] Template has ${maxPlayers} player slots available`);
+      scraperDebugLogger.log(`Template roster loaded: ${maxPlayers} player slots available\n`);
+
+      progressCallback?.(10, `Generating roster for ${year}...`);
 
       // Use CreatorService to generate roster with proper data handling
       // This gives us: college lookup, position mapping, dev traits, stat minimums, etc.
       // Exclude 'fa' from team scraping - FA pool will be generated separately
       const teamAbbrs = NFL_TEAMS.filter(t => t.abbr !== 'fa').map(t => t.abbr);
-      const generatedPlayers = await creatorService.generateRoster(year, teamAbbrs);
+      const generatedPlayers = await creatorService.generateRoster(year, teamAbbrs, maxPlayers);
 
       console.log(`[RosterCreatorService] CreatorService generated ${generatedPlayers.length} players`);
 
