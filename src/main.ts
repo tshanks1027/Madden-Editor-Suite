@@ -26,10 +26,15 @@ import './main/ipc/parser-handlers';
 import './main/ipc/file-handlers';
 import './main/ipc/lookup-handlers';
 import './main/ipc/draft-class-handlers';
+import './main/ipc/roster-creator-handlers';
 import { registerCreatorHandlers } from './main/ipc/creator-handlers';
+import { registerDebugHandlers } from './main/ipc/debug-handlers';
+import { registerRatingHandlers } from './main/ipc/rating-handlers';
 
 // Register creator handlers
 registerCreatorHandlers();
+registerDebugHandlers();
+registerRatingHandlers();
 
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;

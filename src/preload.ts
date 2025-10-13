@@ -65,5 +65,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('creator:generate-roster', year, teams),
     testScraper: (year: number) =>
       ipcRenderer.invoke('creator:test-scraper', year)
+  },
+
+  // Roster Creator APIs
+  rosterCreator: {
+    generate: (year: number, templatePath: string) =>
+      ipcRenderer.invoke('roster-creator:generate', year, templatePath),
+    save: (players: any[], templatePath: string, outputPath: string) =>
+      ipcRenderer.invoke('roster-creator:save', players, templatePath, outputPath),
+    validateYear: (year: number) =>
+      ipcRenderer.invoke('roster-creator:validate-year', year),
+    getStats: (players: any[]) =>
+      ipcRenderer.invoke('roster-creator:get-stats', players),
+    // Listen for progress updates
+    onProgress: (callback: (data: { progress: number; message: string }) => void) =>
+      ipcRenderer.on('roster-creator:progress', (_event, data) => callback(data)),
+    // Remove progress listener
+    removeProgressListener: () =>
+      ipcRenderer.removeAllListeners('roster-creator:progress')
+  },
+
+  // Debug APIs
+  debug: {
+    getLog: () => ipcRenderer.invoke('debug:get-log'),
+    getLogPath: () => ipcRenderer.invoke('debug:get-log-path'),
+    clearLog: () => ipcRenderer.invoke('debug:clear-log')
+  },
+
+  // Rating APIs
+  rating: {
+    calculateOverall: (ratings: any, position: string) =>
+      ipcRenderer.invoke('rating:calculate-overall', ratings, position)
   }
 });

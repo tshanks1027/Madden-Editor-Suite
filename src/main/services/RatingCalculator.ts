@@ -551,24 +551,29 @@ export class RatingCalculator {
 
   /**
    * Calculate overall rating based on position-weighted attributes
+   * Based on community research and reverse-engineered Madden formulas
+   * Awareness is heavily weighted for most positions
    */
   private calculateOverall(ratings: MaddenRatings, position: string): number {
     position = position.toUpperCase();
 
     // Position-specific weight maps
+    // Based on community research from FiveThirtyEight's EA data and reverse engineering
     const weights: { [key: string]: { [key: string]: number } } = {
       'QB': {
-        'throwPower': 0.15,
-        'throwAccuracyShort': 0.15,
-        'throwAccuracyMid': 0.15,
-        'throwAccuracyDeep': 0.12,
-        'awareness': 0.12,
-        'speed': 0.08,
-        'throwOnTheRun': 0.08,
-        'throwUnderPressure': 0.10,
-        'playAction': 0.05
+        'throwPower': 0.16,
+        'awareness': 0.16,
+        'throwAccuracyShort': 0.12,
+        'throwAccuracyMid': 0.12,
+        'throwAccuracyDeep': 0.08,
+        'playAction': 0.06,
+        'speed': 0.04,
+        'agility': 0.02,
+        'throwOnTheRun': 0.02,
+        'throwUnderPressure': 0.02,
+        'acceleration': 0.02
       },
-      'RB': {
+      'HB': { // Halfback (RB)
         'speed': 0.18,
         'acceleration': 0.12,
         'carrying': 0.12,
@@ -578,6 +583,17 @@ export class RatingCalculator {
         'trucking': 0.08,
         'catching': 0.08,
         'awareness': 0.08
+      },
+      'FB': { // Fullback
+        'runBlock': 0.20,
+        'strength': 0.15,
+        'awareness': 0.12,
+        'carrying': 0.10,
+        'breakTackle': 0.10,
+        'speed': 0.08,
+        'leadBlock': 0.08,
+        'impactBlocking': 0.08,
+        'trucking': 0.09
       },
       'WR': {
         'speed': 0.15,
@@ -590,27 +606,198 @@ export class RatingCalculator {
         'release': 0.08,
         'awareness': 0.07
       },
-      'CB': {
-        'manCoverage': 0.18,
-        'zoneCoverage': 0.15,
-        'speed': 0.15,
-        'agility': 0.12,
-        'pressCoverage': 0.10,
+      'TE': { // Tight End
+        'catching': 0.15,
+        'runBlock': 0.15,
+        'awareness': 0.12,
+        'speed': 0.10,
+        'shortRouteRunning': 0.10,
+        'catchInTraffic': 0.10,
+        'strength': 0.08,
+        'passBlock': 0.08,
+        'release': 0.06,
+        'mediumRouteRunning': 0.06
+      },
+      // Offensive Line
+      'LT': { // Left Tackle
+        'passBlock': 0.22,
+        'awareness': 0.18,
+        'strength': 0.15,
+        'runBlock': 0.12,
+        'passBlockPower': 0.10,
+        'runBlockPower': 0.08,
+        'passBlockFinesse': 0.08,
+        'impactBlocking': 0.07
+      },
+      'LG': { // Left Guard
+        'runBlock': 0.20,
+        'awareness': 0.18,
+        'strength': 0.15,
+        'passBlock': 0.12,
+        'runBlockPower': 0.12,
+        'impactBlocking': 0.10,
+        'passBlockPower': 0.08,
+        'runBlockFinesse': 0.05
+      },
+      'C': { // Center
+        'runBlock': 0.18,
+        'awareness': 0.20, // Centers need high awareness for line calls
+        'passBlock': 0.15,
+        'strength': 0.15,
+        'runBlockPower': 0.10,
+        'passBlockPower': 0.10,
+        'impactBlocking': 0.07,
+        'playRecognition': 0.05
+      },
+      'RG': { // Right Guard
+        'runBlock': 0.20,
+        'awareness': 0.18,
+        'strength': 0.15,
+        'passBlock': 0.12,
+        'runBlockPower': 0.12,
+        'impactBlocking': 0.10,
+        'passBlockPower': 0.08,
+        'runBlockFinesse': 0.05
+      },
+      'RT': { // Right Tackle
+        'passBlock': 0.22,
+        'awareness': 0.18,
+        'strength': 0.15,
+        'runBlock': 0.12,
+        'passBlockPower': 0.10,
+        'runBlockPower': 0.08,
+        'passBlockFinesse': 0.08,
+        'impactBlocking': 0.07
+      },
+      // Defensive Line
+      'LEDG': { // Left Defensive End
+        'powerMoves': 0.18,
+        'finesseMoves': 0.16,
+        'blockShedding': 0.15,
+        'awareness': 0.12,
+        'tackle': 0.10,
+        'strength': 0.10,
+        'pursuit': 0.08,
+        'speed': 0.06,
+        'playRecognition': 0.05
+      },
+      'REDG': { // Right Defensive End
+        'powerMoves': 0.18,
+        'finesseMoves': 0.16,
+        'blockShedding': 0.15,
+        'awareness': 0.12,
+        'tackle': 0.10,
+        'strength': 0.10,
+        'pursuit': 0.08,
+        'speed': 0.06,
+        'playRecognition': 0.05
+      },
+      'DT': { // Defensive Tackle
+        'powerMoves': 0.20,
+        'blockShedding': 0.18,
+        'strength': 0.15,
+        'awareness': 0.12,
+        'tackle': 0.12,
+        'finesseMoves': 0.10,
+        'pursuit': 0.08,
+        'hitPower': 0.05
+      },
+      // Linebackers
+      'SAM': { // Strong-side LB
+        'tackle': 0.18,
+        'awareness': 0.15,
+        'playRecognition': 0.12,
+        'pursuit': 0.12,
+        'blockShedding': 0.10,
+        'hitPower': 0.08,
+        'speed': 0.08,
+        'manCoverage': 0.08,
+        'zoneCoverage': 0.09
+      },
+      'Mike': { // Middle LB
+        'tackle': 0.20,
+        'awareness': 0.18,
+        'playRecognition': 0.15,
+        'pursuit': 0.12,
+        'blockShedding': 0.10,
+        'hitPower': 0.08,
+        'zoneCoverage': 0.10,
+        'strength': 0.07
+      },
+      'WILL': { // Weak-side LB
+        'tackle': 0.18,
+        'awareness': 0.15,
+        'speed': 0.12,
+        'pursuit': 0.12,
         'playRecognition': 0.10,
-        'awareness': 0.10,
-        'acceleration': 0.10
+        'zoneCoverage': 0.10,
+        'manCoverage': 0.08,
+        'hitPower': 0.08,
+        'agility': 0.07
+      },
+      // Defensive Backs
+      'CB': {
+        'manCoverage': 0.20,
+        'zoneCoverage': 0.18,
+        'speed': 0.15,
+        'awareness': 0.12,
+        'agility': 0.10,
+        'pressCoverage': 0.10,
+        'playRecognition': 0.08,
+        'acceleration': 0.07
+      },
+      'FS': { // Free Safety
+        'zoneCoverage': 0.20,
+        'awareness': 0.18,
+        'speed': 0.15,
+        'playRecognition': 0.12,
+        'tackle': 0.10,
+        'manCoverage': 0.08,
+        'pursuit': 0.08,
+        'hitPower': 0.05,
+        'catching': 0.04
+      },
+      'SS': { // Strong Safety
+        'tackle': 0.18,
+        'zoneCoverage': 0.16,
+        'awareness': 0.15,
+        'hitPower': 0.12,
+        'playRecognition': 0.10,
+        'speed': 0.10,
+        'pursuit': 0.08,
+        'manCoverage': 0.06,
+        'strength': 0.05
       }
     };
 
+    // Handle position aliases
+    const positionMap: { [key: string]: string } = {
+      'RB': 'HB',
+      'OT': 'LT',
+      'OG': 'LG',
+      'T': 'LT',
+      'G': 'LG',
+      'DE': 'LEDG',
+      'NT': 'DT',
+      'LB': 'Mike',
+      'MLB': 'Mike',
+      'OLB': 'SAM',
+      'ILB': 'Mike',
+      'S': 'FS'
+    };
+
+    // Map position to canonical name
+    const mappedPosition = positionMap[position] || position;
+
     // Get weights for position (or use default balanced weights)
-    const posWeights = weights[position] || {};
+    const posWeights = weights[mappedPosition] || {};
 
     let overall = 0;
     let totalWeight = 0;
 
     for (const [attr, weight] of Object.entries(posWeights)) {
       const value = (ratings as any)[attr];
-      if (value !== undefined) {
+      if (value !== undefined && value !== null) {
         overall += value * weight;
         totalWeight += weight;
       }
@@ -625,6 +812,76 @@ export class RatingCalculator {
     }
 
     return this.clamp(overall);
+  }
+
+  /**
+   * Public method to recalculate overall rating from existing ratings
+   * Used by renderer for dynamic OVR calculation in grid
+   * @param ratings - Current player ratings
+   * @param position - Player position
+   * @returns Calculated overall rating
+   */
+  public recalculateOverall(ratings: Partial<MaddenRatings>, position: string): number {
+    // Create a complete ratings object with defaults
+    const fullRatings: MaddenRatings = {
+      speed: ratings.speed || 50,
+      acceleration: ratings.acceleration || 50,
+      agility: ratings.agility || 50,
+      changeOfDirection: ratings.changeOfDirection,
+      strength: ratings.strength || 50,
+      awareness: ratings.awareness || 50,
+      jumping: ratings.jumping || 50,
+      stamina: ratings.stamina || 50,
+      injury: ratings.injury || 90,
+      toughness: ratings.toughness,
+      throwPower: ratings.throwPower,
+      throwAccuracyShort: ratings.throwAccuracyShort,
+      throwAccuracyMid: ratings.throwAccuracyMid,
+      throwAccuracyDeep: ratings.throwAccuracyDeep,
+      throwOnTheRun: ratings.throwOnTheRun,
+      throwUnderPressure: ratings.throwUnderPressure,
+      playAction: ratings.playAction,
+      breakSack: ratings.breakSack,
+      carrying: ratings.carrying,
+      ballCarrierVision: ratings.ballCarrierVision,
+      breakTackle: ratings.breakTackle,
+      trucking: ratings.trucking,
+      stiffArm: ratings.stiffArm,
+      spinMove: ratings.spinMove,
+      jukeMove: ratings.jukeMove,
+      catching: ratings.catching,
+      catchInTraffic: ratings.catchInTraffic,
+      spectacularCatch: ratings.spectacularCatch,
+      shortRouteRunning: ratings.shortRouteRunning,
+      mediumRouteRunning: ratings.mediumRouteRunning,
+      deepRouteRunning: ratings.deepRouteRunning,
+      release: ratings.release,
+      passBlock: ratings.passBlock,
+      passBlockPower: ratings.passBlockPower,
+      passBlockFinesse: ratings.passBlockFinesse,
+      runBlock: ratings.runBlock,
+      runBlockPower: ratings.runBlockPower,
+      runBlockFinesse: ratings.runBlockFinesse,
+      leadBlock: ratings.leadBlock,
+      impactBlocking: ratings.impactBlocking,
+      tackle: ratings.tackle,
+      hitPower: ratings.hitPower,
+      powerMoves: ratings.powerMoves,
+      finesseMoves: ratings.finesseMoves,
+      blockShedding: ratings.blockShedding,
+      pursuit: ratings.pursuit,
+      playRecognition: ratings.playRecognition,
+      manCoverage: ratings.manCoverage,
+      zoneCoverage: ratings.zoneCoverage,
+      pressCoverage: ratings.pressCoverage,
+      kickPower: ratings.kickPower,
+      kickAccuracy: ratings.kickAccuracy,
+      kickReturn: ratings.kickReturn,
+      longSnap: ratings.longSnap,
+      overall: 50
+    };
+
+    return this.calculateOverall(fullRatings, position);
   }
 }
 

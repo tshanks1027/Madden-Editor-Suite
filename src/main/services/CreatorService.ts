@@ -543,8 +543,15 @@ export class CreatorService {
           ? this.parseHeight(prospect.height)
           : this.generateHeight(mappedPosition.name);
 
-        // Get weight with proper defaults
-        const weight = prospect.weight || this.getDefaultWeight(mappedPosition.name);
+        // Get weight with proper defaults and validation
+        // Weight validation: if weight is unrealistic (>400 or <150), use position default
+        let weight = prospect.weight || 0;
+        if (weight > 400 || weight < 150 || weight === 0) {
+          weight = this.getDefaultWeight(mappedPosition.name);
+        }
+
+        // Convert weight to Madden offset format (actual - 160)
+        const maddenWeight = this.convertWeightToMaddenFormat(weight);
 
         // Match PID from lookup table
         const matchedPID = this.matchPID(firstName, lastName);
@@ -574,7 +581,7 @@ export class CreatorService {
           jerseyNum,
           age,
           heightInches,
-          weight,
+          weight: maddenWeight,
           homeState: homeStateId,
           devTrait: this.determineDevTrait(prospect.round, prospect.pick, ratings.overall, prospect.isHallOfFamer),
           ratings,
@@ -614,6 +621,7 @@ export class CreatorService {
 
   /**
    * Generate a roster from web-scraped data
+   * NOW WITH: College lookup, dev traits based on HOF+stats, stat minimums, position mapping
    * @param year - Season year
    * @param teams - Array of team abbreviations (e.g., ['dal', 'sea', 'ne'])
    * @returns Array of generated players
@@ -624,53 +632,372 @@ export class CreatorService {
     try {
       const generatedPlayers: GeneratedPlayer[] = [];
 
+      // Step 1: Get HOF players active in this year
+      // NOTE: getHOFPlayersByYear returns Map<string, boolean>
+      // We need to also load the HOF lookup to get college data
+      const hofPlayers = await scraperService.getHOFPlayersByYear(year);
+      console.log(`[CreatorService] Found ${hofPlayers.size} potential HOF players active in ${year}`);
+
+      // Step 1.5: Load HOF lookup data (has college info)
+      (scraperService as any).loadHOFLookup(); // Force load HOF data
+      const hofLookup = (scraperService as any).hofLookup; // Access private field
+
+      // Step 1.7: Get Pro Bowl players for this year
+      const proBowlers = await scraperService.scrapeProBowl(year);
+      console.log(`[CreatorService] Found ${proBowlers.size} Pro Bowlers for ${year}`);
+
       // For each team, scrape roster
       for (const teamAbbr of teams) {
-        console.log(`[CreatorService] Scraping roster for ${teamAbbr}`);
+        console.log(`[CreatorService] ========== PROCESSING TEAM: ${teamAbbr.toUpperCase()} ==========`);
 
-        const roster = await scraperService.scrapeTeamRoster(teamAbbr, year);
-        console.log(`[CreatorService] Found ${roster.length} players for ${teamAbbr}`);
+        // Check if team existed in this year
+        const teamExisted = scraperService.teamExistedInYear(teamAbbr, year);
+        console.log(`[CreatorService] Team ${teamAbbr} existed in ${year}: ${teamExisted}`);
+
+        let roster: PlayerStats[] = [];
+
+        if (!teamExisted) {
+          console.log(`[CreatorService] ⚠️ ${teamAbbr} did not exist in ${year}, generating fictional roster (53 players)`);
+          // Generate 53 fictional players for teams that didn't exist
+          roster = this.generateFictionalRoster(teamAbbr, 53);
+        } else {
+          console.log(`[CreatorService] ✅ ${teamAbbr} existed, scraping roster and stats...`);
+
+          // Step 1: Scrape roster (basic info: name, position, height, weight, college, age, jersey)
+          roster = await scraperService.scrapeTeamRoster(teamAbbr, year);
+          console.log(`[CreatorService] ✓ Scraped ${roster.length} players from roster page`);
+
+          if (roster.length === 0) {
+            console.warn(`[CreatorService] ⚠️ WARNING: ${teamAbbr} scraper returned ZERO players, generating fictional roster instead!`);
+            roster = this.generateFictionalRoster(teamAbbr, 53);
+          } else {
+            // Step 2: Scrape team stats (passing, rushing, receiving, defense stats)
+            console.log(`[CreatorService] Scraping team stats for ${teamAbbr}...`);
+            const teamStats = await scraperService.scrapeTeamStats(teamAbbr, year);
+            console.log(`[CreatorService] ✓ Scraped stats for ${teamStats.size} players from team stats page`);
+
+            // Step 3: Merge stats into roster data by player name
+            let mergedCount = 0;
+            let notFoundCount = 0;
+            const unmatchedPlayers: string[] = [];
+            const matchedPlayers: string[] = [];
+
+            console.log(`[CreatorService] ========== STATS MERGE DEBUG ==========`);
+            console.log(`[CreatorService] Roster has ${roster.length} players`);
+            console.log(`[CreatorService] Team stats has ${teamStats.size} players with stats`);
+
+            // DEBUG: Log first 5 names from each source
+            console.log(`[CreatorService] First 5 roster names:`);
+            for (let i = 0; i < Math.min(5, roster.length); i++) {
+              console.log(`  ${i + 1}. "${roster[i].name}" (${roster[i].position})`);
+            }
+
+            console.log(`[CreatorService] First 5 teamStats names:`);
+            let statsIdx = 0;
+            for (const [name, stats] of teamStats.entries()) {
+              if (statsIdx >= 5) break;
+              console.log(`  ${statsIdx + 1}. "${name}" (${stats.position})`);
+              statsIdx++;
+            }
+            console.log(`[CreatorService] ========================================`);
+
+            for (const player of roster) {
+              const stats = teamStats.get(player.name);
+              if (stats) {
+                // Merge stats into player object
+                player.passCompletions = stats.passCompletions;
+                player.passAttempts = stats.passAttempts;
+                player.passYards = stats.passYards;
+                player.passTDs = stats.passTDs;
+                player.interceptions = stats.interceptions;
+
+                player.rushAttempts = stats.rushAttempts;
+                player.rushYards = stats.rushYards;
+                player.rushTDs = stats.rushTDs;
+
+                player.receptions = stats.receptions;
+                player.recYards = stats.recYards;
+                player.recTDs = stats.recTDs;
+                player.targets = stats.targets;
+
+                player.tackles = stats.tackles;
+                player.sacks = stats.sacks;
+                player.forcedFumbles = stats.forcedFumbles;
+                player.interceptionsCaught = stats.interceptionsCaught;
+                player.passDefended = stats.passDefended;
+
+                mergedCount++;
+                matchedPlayers.push(player.name);
+
+                // DEBUG: Log ALL merged players (not just first 3)
+                if (mergedCount <= 10) {
+                  console.log(`[CreatorService] ✓ Merged stats for "${player.name}" (${player.position}):`);
+                  console.log(`  - Pass: cmp=${player.passCompletions}, att=${player.passAttempts}, yds=${player.passYards}, TD=${player.passTDs}, INT=${player.interceptions}`);
+                  console.log(`  - Rush: att=${player.rushAttempts}, yds=${player.rushYards}, TD=${player.rushTDs}`);
+                  console.log(`  - Rec: rec=${player.receptions}, yds=${player.recYards}, TD=${player.recTDs}, tgt=${player.targets}`);
+                  console.log(`  - Def: tkl=${player.tackles}, sacks=${player.sacks}, FF=${player.forcedFumbles}, INT=${player.interceptionsCaught}, PD=${player.passDefended}`);
+                }
+              } else {
+                notFoundCount++;
+                unmatchedPlayers.push(player.name);
+                if (notFoundCount <= 10) {
+                  console.warn(`[CreatorService] ⚠️ No stats found for "${player.name}" (${player.position}) - will use generic ratings`);
+                }
+              }
+            }
+
+            console.log(`[CreatorService] ========== MERGE SUMMARY ==========`);
+            console.log(`[CreatorService] ✓ Stats merge complete for ${teamAbbr}:`);
+            console.log(`[CreatorService]   - ${mergedCount} players WITH stats (${(mergedCount/roster.length*100).toFixed(1)}%)`);
+            console.log(`[CreatorService]   - ${notFoundCount} players WITHOUT stats (${(notFoundCount/roster.length*100).toFixed(1)}%)`);
+            if (unmatchedPlayers.length > 0 && unmatchedPlayers.length <= 20) {
+              console.warn(`[CreatorService] Unmatched players: ${unmatchedPlayers.join(', ')}`);
+            }
+            console.log(`[CreatorService] ===================================`);
+          }
+        }
+
+        console.log(`[CreatorService] Processing ${roster.length} players from ${teamAbbr}...`);
+
+        // DEBUG: Log ALL roster data to see if stats are present
+        console.log(`[CreatorService] ========== FULL ROSTER DATA FOR ${teamAbbr} ==========`);
+        for (let idx = 0; idx < Math.min(5, roster.length); idx++) {
+          const p = roster[idx];
+          console.log(`[CreatorService] Player ${idx + 1}: ${p.name} (${p.position})`);
+          console.log(`  - Basic: age=${p.age}, height=${p.height}, weight=${p.weight}, college=${p.college}, jersey=${(p as any).jerseyNumber}`);
+          console.log(`  - Pass: cmp=${p.passCompletions}, att=${p.passAttempts}, yds=${p.passYards}, TD=${p.passTDs}, INT=${p.interceptions}`);
+          console.log(`  - Rush: att=${p.rushAttempts}, yds=${p.rushYards}, TD=${p.rushTDs}`);
+          console.log(`  - Rec: rec=${p.receptions}, yds=${p.recYards}, TD=${p.recTDs}, tgt=${p.targets}`);
+          console.log(`  - Def: tkl=${p.tackles}, sacks=${p.sacks}, FF=${p.forcedFumbles}, INT=${p.interceptionsCaught}, PD=${p.passDefended}`);
+        }
+        console.log(`[CreatorService] ==================================================`);
 
         // Convert each player to GeneratedPlayer
-        for (const playerStats of roster) {
-          const ratings = ratingCalculator.calculateRatings(playerStats);
+        for (let playerIdx = 0; playerIdx < roster.length; playerIdx++) {
+          const playerStats = roster[playerIdx];
+
+          // DEBUG: Detailed logging for EVERY player
+          const debugDetail = playerIdx < 10; // Detailed logs for first 10 players
+
+          if (debugDetail) {
+            console.log(`\n[CreatorService] ===== PROCESSING PLAYER ${playerIdx + 1}/${roster.length} =====`);
+            console.log(`[CreatorService] Name: "${playerStats.name}"`);
+            console.log(`[CreatorService] Position: "${playerStats.position}"`);
+          }
 
           // Parse name
           const nameParts = playerStats.name.split(' ');
           const firstName = nameParts[0] || 'John';
           const lastName = nameParts.slice(1).join(' ') || 'Doe';
 
+          // Check if player is HOF
+          const isHOF = hofPlayers.has(playerStats.name);
+          if (debugDetail && isHOF) {
+            console.log(`[CreatorService] 🏆 HALL OF FAMER DETECTED!`);
+          }
+
+          // Get college: use HOF lookup if available, otherwise use scraped data
+          let collegeName = playerStats.college || 'Unknown';
+          if (isHOF && hofLookup) {
+            const hofData = hofLookup.get(playerStats.name);
+            if (hofData && hofData.college) {
+              collegeName = hofData.college;
+              console.log(`[CreatorService] 🏆 Using HOF college data for ${playerStats.name}: ${collegeName}`);
+            }
+          }
+
           // Map position to M26 format
           const mappedPosition = this.mapPosition(playerStats.position);
+          if (debugDetail) {
+            console.log(`[CreatorService] Position mapped: "${playerStats.position}" -> "${mappedPosition.name}" (code ${mappedPosition.code})`);
+          }
+
+          // DEBUG: Log stats BEFORE rating calculation
+          if (debugDetail) {
+            console.log(`[CreatorService] Raw stats before rating calc:`);
+            console.log(`  - Pass: cmp=${playerStats.passCompletions}, att=${playerStats.passAttempts}, yds=${playerStats.passYards}, TD=${playerStats.passTDs}, INT=${playerStats.interceptions}`);
+            console.log(`  - Rush: att=${playerStats.rushAttempts}, yds=${playerStats.rushYards}, TD=${playerStats.rushTDs}`);
+            console.log(`  - Rec: rec=${playerStats.receptions}, yds=${playerStats.recYards}, TD=${playerStats.recTDs}, tgt=${playerStats.targets}`);
+            console.log(`  - Def: tkl=${playerStats.tackles}, sacks=${playerStats.sacks}, FF=${playerStats.forcedFumbles}, INT=${playerStats.interceptionsCaught}, PD=${playerStats.passDefended}`);
+
+            // Check if ANY stats exist
+            const hasAnyStats = !!(playerStats.passAttempts || playerStats.rushAttempts || playerStats.receptions || playerStats.tackles);
+            console.log(`  - Has ANY stats: ${hasAnyStats}`);
+          }
+
+          // Calculate ratings
+          const ratings = ratingCalculator.calculateRatings(playerStats);
+
+          // DEBUG: Log ratings AFTER calculation
+          if (debugDetail) {
+            console.log(`[CreatorService] Ratings after calc:`);
+            console.log(`  - Overall: ${ratings.overall}`);
+            console.log(`  - Physical: SPD=${ratings.speed}, ACC=${ratings.acceleration}, AGI=${ratings.agility}, STR=${ratings.strength}, AWR=${ratings.awareness}`);
+            console.log(`  - Pass: THP=${ratings.throwPower}, TAS=${ratings.throwAccuracyShort}, TAM=${ratings.throwAccuracyMid}, TAD=${ratings.throwAccuracyDeep}`);
+            console.log(`  - Rush: CAR=${ratings.carrying}, BCV=${ratings.ballCarrierVision}, BTK=${ratings.breakTackle}, TRK=${ratings.trucking}`);
+            console.log(`  - Rec: CTH=${ratings.catching}, CIT=${ratings.catchInTraffic}, SPC=${ratings.spectacularCatch}, SRR=${ratings.shortRouteRunning}`);
+            console.log(`  - Def: TAK=${ratings.tackle}, HTP=${ratings.hitPower}, PMV=${ratings.powerMoves}, BSH=${ratings.blockShedding}, MCV=${ratings.manCoverage}, ZCV=${ratings.zoneCoverage}`);
+          }
+
+          // Apply tiered rating boosts based on accomplishments
+          const isProBowler = proBowlers.has(playerStats.name);
+          if (isHOF) {
+            // Tier 1: Hall of Famers - elite ratings (85-99 overall)
+            this.applyHOFBoost(ratings, mappedPosition.name, playerStats);
+            if (debugDetail) console.log(`[CreatorService] 🏆 Applied HOF rating boost`);
+          } else if (isProBowler) {
+            // Tier 1: Pro Bowlers - high ratings (80-90 overall)
+            this.applyProBowlBoost(ratings, mappedPosition.name, playerStats);
+            if (debugDetail) console.log(`[CreatorService] ⭐ Applied Pro Bowl rating boost`);
+          } else if (this.hasStrongStats(playerStats, mappedPosition.name)) {
+            // Tier 2: Players with strong stats - good starter ratings (75-85 overall)
+            this.applyStrongStatsBoost(ratings, mappedPosition.name);
+            if (debugDetail) console.log(`[CreatorService] ✓ Applied strong stats boost`);
+          }
+          // Tier 3: Average/backup players - no boost (ratings as calculated)
+          // Tier 4: Players with weak/no stats - ratings remain low
+
+          // Fill missing ratings (ensures NO blanks)
+          this.fillMissingRatings(ratings, mappedPosition.name);
 
           // Match PID from lookup table
           const matchedPID = this.matchPID(firstName, lastName);
+
+          // Match college to valid college ID
+          const matchedCollege = this.matchCollege(collegeName);
+
+          // Use scraped jersey number if available, otherwise generate
+          const jerseyNum = (playerStats as any).jerseyNumber || this.generateJerseyNumber(mappedPosition.name);
+
+          // Get height with proper defaults
+          const heightInches = playerStats.height
+            ? this.parseHeight(playerStats.height)
+            : this.generateHeight(mappedPosition.name);
+
+          // Get weight with proper defaults and validation
+          // Weight validation: if weight is unrealistic (>400 or <150), use position default
+          let weight = playerStats.weight || 0;
+          if (weight > 400 || weight < 150 || weight === 0) {
+            if (debugDetail && weight > 400) {
+              console.warn(`[CreatorService] ⚠️ Invalid weight ${weight} for ${playerStats.name}, using default for ${mappedPosition.name}`);
+            }
+            weight = this.getDefaultWeight(mappedPosition.name);
+          }
+
+          // Convert weight to Madden offset format (actual - 160)
+          const maddenWeight = this.convertWeightToMaddenFormat(weight);
+
+          // Match homestate (generate if not available)
+          const homeStateId = this.matchHomeState(this.generateHomeState());
+
+          // Determine dev trait: HOFers get X-Factor, others based on overall rating
+          const devTrait = isHOF ? 3 : this.determineDevTraitFromRating(ratings.overall);
 
           const player: GeneratedPlayer = {
             firstName,
             lastName,
             position: mappedPosition.name,
             positionCode: mappedPosition.code,
-            college: this.matchCollege(playerStats.college || 'Unknown'),
+            college: matchedCollege,
             team: teamAbbr.toUpperCase(),
-            jerseyNum: Math.floor(Math.random() * 99) + 1,
+            jerseyNum,
             age: playerStats.age || 25,
-            heightInches: this.parseHeight(playerStats.height),
-            weight: playerStats.weight || this.getDefaultWeight(mappedPosition.name),
-            homeState: this.matchHomeState(this.generateHomeState()), // Generate realistic homestate
-            devTrait: this.determineDevTraitFromRating(ratings.overall),
+            heightInches,
+            weight: maddenWeight,
+            homeState: homeStateId,
+            devTrait,
             ratings,
             PID: matchedPID,
             PEPS: null,
-            bodyType: this.determineBodyType(mappedPosition.name, playerStats.weight),
+            bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             _sourceStats: playerStats
           };
 
+          if (isHOF) {
+            console.log(`[CreatorService] 🏆 HOF player: ${playerStats.name} (${mappedPosition.name}) - OVR ${ratings.overall}, Dev Trait ${devTrait}`);
+          }
+
           generatedPlayers.push(player);
+        }
+
+        // Pad roster to 53 players if needed
+        const teamPlayerCount = roster.length;
+        const targetRosterSize = 53;
+
+        if (teamPlayerCount < targetRosterSize) {
+          const playersNeeded = targetRosterSize - teamPlayerCount;
+          console.log(`[CreatorService] ⚠️ ${teamAbbr} only has ${teamPlayerCount} players, generating ${playersNeeded} filler players to reach ${targetRosterSize}`);
+
+          // Generate filler players for this team
+          const fillerRoster = this.generateFictionalRoster(teamAbbr, playersNeeded);
+
+          // Process filler players the same way as scraped players
+          for (const fillerStats of fillerRoster) {
+            // Parse name
+            const nameParts = fillerStats.name.split(' ');
+            const firstName = nameParts[0] || 'John';
+            const lastName = nameParts.slice(1).join(' ') || 'Doe';
+
+            // Map position
+            const mappedPosition = this.mapPosition(fillerStats.position);
+
+            // Calculate age
+            const age = fillerStats.age || 22;
+
+            // Parse height
+            const heightParts = fillerStats.height.split('-');
+            const heightInches = (parseInt(heightParts[0]) * 12) + parseInt(heightParts[1] || '0');
+
+            // Weight
+            const weight = fillerStats.weight;
+
+            // Convert weight to Madden offset format (actual - 160)
+            const maddenWeight = this.convertWeightToMaddenFormat(weight);
+
+            // Match college using the same method as real players
+            const matchedCollege = this.matchCollege(fillerStats.college || 'Unknown');
+
+            // Match home state using the same method as real players
+            const homeStateId = this.matchHomeState(this.generateHomeState());
+
+            // Generate low ratings for filler players (backup/practice squad level)
+            const ratings = this.generateFillerRatings(mappedPosition.name);
+
+            // Dev trait (mostly Normal, some Star Potential for young players)
+            const devTrait = age <= 23 && Math.random() < 0.15 ? 1 : 0; // 15% Star for young players
+
+            const fillerPlayer: GeneratedPlayer = {
+              firstName,
+              lastName,
+              position: mappedPosition.name,
+              positionCode: mappedPosition.code,
+              team: teamAbbr.toUpperCase(),
+              jerseyNum: 50 + Math.floor(Math.random() * 50),
+              yearsPro: 0,
+              college: matchedCollege,
+              age,
+              heightInches,
+              weight: maddenWeight,
+              homeState: homeStateId,
+              devTrait,
+              ratings,
+              PID: -1, // No player ID for fictional players
+              PEPS: null,
+              bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
+              _sourceStats: fillerStats
+            };
+
+            generatedPlayers.push(fillerPlayer);
+          }
+
+          console.log(`[CreatorService] ✓ Added ${playersNeeded} filler players to ${teamAbbr}, now has ${teamPlayerCount + playersNeeded} total`);
+        } else {
+          console.log(`[CreatorService] ✓ ${teamAbbr} already has ${teamPlayerCount} players (target: ${targetRosterSize})`);
         }
       }
 
       console.log(`[CreatorService] Generated ${generatedPlayers.length} total players`);
+      console.log(`[CreatorService] HOF players with X-Factor: ${generatedPlayers.filter(p => p.devTrait === 3).length}`);
 
       // Close browser when done
       await scraperService.closeBrowser();
@@ -768,6 +1095,63 @@ export class CreatorService {
   }
 
   /**
+   * Generate low ratings for filler/backup players
+   * These are practice squad / backup level players (50-65 OVR)
+   */
+  private generateFillerRatings(position: string): MaddenRatings {
+    // Generate position-appropriate ratings with low base stats
+    const mockStats: PlayerStats = {
+      name: 'Filler Player',
+      position: position,
+      college: 'Weber State'
+    };
+
+    // Use rating calculator to get position-appropriate ratings
+    const ratings = ratingCalculator.calculateRatings(mockStats);
+
+    // Scale down all ratings to backup/practice squad level (45-60 range)
+    // Keep the relative proportions between ratings, just scale the overall level down
+    const scaleFactor = 0.65; // Scale to ~65% of default ratings
+
+    const scaledRatings: MaddenRatings = {
+      overall: Math.max(45, Math.floor(ratings.overall * scaleFactor)),
+      speed: Math.max(45, Math.floor(ratings.speed * scaleFactor)),
+      acceleration: Math.max(45, Math.floor(ratings.acceleration * scaleFactor)),
+      agility: Math.max(45, Math.floor(ratings.agility * scaleFactor)),
+      strength: Math.max(45, Math.floor(ratings.strength * scaleFactor)),
+      awareness: Math.max(40, Math.floor(ratings.awareness * scaleFactor)),
+      catching: Math.max(40, Math.floor(ratings.catching * scaleFactor)),
+      carrying: Math.max(40, Math.floor(ratings.carrying * scaleFactor)),
+      throwPower: Math.max(40, Math.floor(ratings.throwPower * scaleFactor)),
+      throwAccuracy: Math.max(40, Math.floor(ratings.throwAccuracy * scaleFactor)),
+      shortThrowAccuracy: Math.max(40, Math.floor(ratings.shortThrowAccuracy * scaleFactor)),
+      mediumThrowAccuracy: Math.max(40, Math.floor(ratings.mediumThrowAccuracy * scaleFactor)),
+      deepThrowAccuracy: Math.max(40, Math.floor(ratings.deepThrowAccuracy * scaleFactor)),
+      runBlock: Math.max(40, Math.floor(ratings.runBlock * scaleFactor)),
+      passBlock: Math.max(40, Math.floor(ratings.passBlock * scaleFactor)),
+      tackle: Math.max(40, Math.floor(ratings.tackle * scaleFactor)),
+      hitPower: Math.max(40, Math.floor(ratings.hitPower * scaleFactor)),
+      manCoverage: Math.max(40, Math.floor(ratings.manCoverage * scaleFactor)),
+      zoneCoverage: Math.max(40, Math.floor(ratings.zoneCoverage * scaleFactor)),
+      press: Math.max(40, Math.floor(ratings.press * scaleFactor)),
+      pursuit: Math.max(40, Math.floor(ratings.pursuit * scaleFactor)),
+      playRecognition: Math.max(40, Math.floor(ratings.playRecognition * scaleFactor)),
+      blockShedding: Math.max(40, Math.floor(ratings.blockShedding * scaleFactor)),
+      finesseMoves: Math.max(40, Math.floor(ratings.finesseMoves * scaleFactor)),
+      powerMoves: Math.max(40, Math.floor(ratings.powerMoves * scaleFactor)),
+      jumping: Math.max(40, Math.floor(ratings.jumping * scaleFactor)),
+      stamina: Math.max(50, Math.floor(ratings.stamina * scaleFactor)),
+      injury: Math.max(50, Math.floor(ratings.injury * scaleFactor)),
+      toughness: Math.max(50, Math.floor(ratings.toughness * scaleFactor)),
+      kickPower: Math.max(40, Math.floor(ratings.kickPower * scaleFactor)),
+      kickAccuracy: Math.max(40, Math.floor(ratings.kickAccuracy * scaleFactor)),
+      kickReturn: Math.max(40, Math.floor(ratings.kickReturn * scaleFactor))
+    };
+
+    return scaledRatings;
+  }
+
+  /**
    * Determine dev trait based on draft position and overall
    */
   private determineDevTrait(round?: number, pick?: number, overall?: number, isHallOfFamer?: boolean): number {
@@ -822,6 +1206,30 @@ export class CreatorService {
     const inches = parseInt(parts[1]) || 1;
 
     return (feet * 12) + inches;
+  }
+
+  /**
+   * Convert actual weight (lbs) to Madden offset format
+   * Madden stores weight as offset from 160 lbs
+   * Example: 220 lbs = 60 (220 - 160)
+   * @param actualWeight - Player's actual weight in pounds
+   * @returns Madden weight offset value
+   */
+  private convertWeightToMaddenFormat(actualWeight: number): number {
+    const MADDEN_WEIGHT_BASE = 160;
+    const offset = actualWeight - MADDEN_WEIGHT_BASE;
+
+    // Validate: offset should be between 0 and 200 (160-360 lbs actual)
+    if (offset < 0) {
+      console.warn(`[CreatorService] ⚠️ Weight ${actualWeight} lbs is below minimum (160 lbs), clamping to 160`);
+      return 0;
+    }
+    if (offset > 200) {
+      console.warn(`[CreatorService] ⚠️ Weight ${actualWeight} lbs is above maximum (360 lbs), clamping to 360`);
+      return 200;
+    }
+
+    return offset;
   }
 
   /**
@@ -968,6 +1376,269 @@ export class CreatorService {
     if (stillMissing.length > 0) {
       console.warn(`[CreatorService] After fillMissingRatings, still have ${stillMissing.length} missing ratings: ${stillMissing.join(', ')}`);
     }
+  }
+
+  /**
+   * Check if player has strong stats worthy of a rating boost
+   * @param stats - Player stats
+   * @param position - Madden position name
+   * @returns True if player has strong stats for their position
+   */
+  private hasStrongStats(stats: PlayerStats, position: string): boolean {
+    const pos = position.toUpperCase();
+
+    // QB: Strong passing stats
+    if (pos === 'QB') {
+      const passAttempts = stats.passAttempts || 0;
+      const completions = stats.passCompletions || 0;
+      const compPct = passAttempts > 0 ? (completions / passAttempts) * 100 : 0;
+      const tds = stats.passTDs || 0;
+      const yards = stats.passYards || 0;
+      return passAttempts >= 200 && (compPct >= 60 || tds >= 15 || yards >= 2500);
+    }
+
+    // RB: Strong rushing stats
+    if (pos === 'HB' || pos === 'FB') {
+      const rushAttempts = stats.rushAttempts || 0;
+      const rushYards = stats.rushYards || 0;
+      const rushTDs = stats.rushTDs || 0;
+      return rushAttempts >= 100 && (rushYards >= 600 || rushTDs >= 5);
+    }
+
+    // WR/TE: Strong receiving stats
+    if (pos === 'WR' || pos === 'TE') {
+      const receptions = stats.receptions || 0;
+      const recYards = stats.recYards || 0;
+      const recTDs = stats.recTDs || 0;
+      return receptions >= 30 && (recYards >= 500 || recTDs >= 4);
+    }
+
+    // DB: Strong defensive back stats
+    if (pos === 'CB' || pos === 'FS' || pos === 'SS') {
+      const tackles = stats.tackles || 0;
+      const ints = stats.interceptionsCaught || 0;
+      const passDefended = stats.passDefended || 0;
+      return tackles >= 40 || ints >= 3 || passDefended >= 8;
+    }
+
+    // LB: Strong linebacker stats
+    if (pos === 'SAM' || pos === 'Mike' || pos === 'WILL') {
+      const tackles = stats.tackles || 0;
+      const sacks = stats.sacks || 0;
+      return tackles >= 60 || sacks >= 3;
+    }
+
+    // DL: Strong defensive line stats
+    if (pos === 'LEDG' || pos === 'REDG' || pos === 'DT') {
+      const tackles = stats.tackles || 0;
+      const sacks = stats.sacks || 0;
+      return tackles >= 30 || sacks >= 5;
+    }
+
+    return false;
+  }
+
+  /**
+   * Apply Hall of Fame rating boost
+   * HOFers should have elite ratings (85-99 overall)
+   * @param ratings - Ratings to boost
+   * @param position - Madden position name
+   * @param stats - Player stats for context
+   */
+  private applyHOFBoost(ratings: MaddenRatings, position: string, stats: PlayerStats): void {
+    const pos = position.toUpperCase();
+
+    // Boost overall to HOF level (85-95 range)
+    ratings.overall = Math.max(ratings.overall, 85);
+
+    // Boost awareness (HOFers have high football IQ)
+    ratings.awareness = Math.min(99, ratings.awareness + 15);
+
+    // Position-specific boosts
+    if (pos === 'QB') {
+      ratings.throwPower = Math.min(99, ratings.throwPower + 10);
+      ratings.throwAccuracyShort = Math.min(99, ratings.throwAccuracyShort + 12);
+      ratings.throwAccuracyMid = Math.min(99, ratings.throwAccuracyMid + 12);
+      ratings.throwAccuracyDeep = Math.min(99, ratings.throwAccuracyDeep + 10);
+    } else if (pos === 'HB') {
+      ratings.speed = Math.min(99, ratings.speed + 5);
+      ratings.acceleration = Math.min(99, ratings.acceleration + 5);
+      ratings.carrying = Math.min(99, ratings.carrying + 10);
+      ratings.ballCarrierVision = Math.min(99, ratings.ballCarrierVision + 12);
+      ratings.breakTackle = Math.min(99, ratings.breakTackle + 10);
+    } else if (pos === 'WR') {
+      ratings.speed = Math.min(99, ratings.speed + 5);
+      ratings.catching = Math.min(99, ratings.catching + 12);
+      ratings.spectacularCatch = Math.min(99, ratings.spectacularCatch + 10);
+      ratings.shortRouteRunning = Math.min(99, ratings.shortRouteRunning + 10);
+      ratings.mediumRouteRunning = Math.min(99, ratings.mediumRouteRunning + 10);
+      ratings.deepRouteRunning = Math.min(99, ratings.deepRouteRunning + 10);
+    } else if (pos === 'CB') {
+      ratings.speed = Math.min(99, ratings.speed + 5);
+      ratings.manCoverage = Math.min(99, ratings.manCoverage + 18);  // Increased from +12
+      ratings.zoneCoverage = Math.min(99, ratings.zoneCoverage + 18);  // Increased from +12
+      ratings.pressCoverage = Math.min(99, ratings.pressCoverage + 15);  // Increased from +10
+    } else if (pos === 'FS' || pos === 'SS') {
+      ratings.speed = Math.min(99, ratings.speed + 5);
+      ratings.zoneCoverage = Math.min(99, ratings.zoneCoverage + 16);  // Increased from +12
+      ratings.manCoverage = Math.min(99, ratings.manCoverage + 14);  // Increased from +10
+      ratings.tackle = Math.min(99, ratings.tackle + 8);
+    } else if (pos === 'SAM' || pos === 'Mike' || pos === 'WILL') {
+      ratings.tackle = Math.min(99, ratings.tackle + 18);  // Increased from +12
+      ratings.hitPower = Math.min(99, ratings.hitPower + 10);
+      ratings.pursuit = Math.min(99, ratings.pursuit + 10);
+      ratings.playRecognition = Math.min(99, ratings.playRecognition + 12);
+      ratings.strength = Math.min(99, ratings.strength + 8);  // Added strength boost
+    } else if (pos === 'LEDG' || pos === 'REDG' || pos === 'DT') {
+      ratings.powerMoves = Math.min(99, ratings.powerMoves + 18);  // Increased from +12
+      ratings.finesseMoves = Math.min(99, ratings.finesseMoves + 16);  // Increased from +10
+      ratings.blockShedding = Math.min(99, ratings.blockShedding + 12);
+      ratings.tackle = Math.min(99, ratings.tackle + 10);
+      ratings.strength = Math.min(99, ratings.strength + 15);  // Added strength boost
+    } else if (pos === 'TE') {
+      ratings.catching = Math.min(99, ratings.catching + 10);
+      ratings.runBlock = Math.min(99, ratings.runBlock + 10);
+      ratings.passBlock = Math.min(99, ratings.passBlock + 8);
+    } else if (pos === 'LT' || pos === 'RT' || pos === 'LG' || pos === 'RG' || pos === 'C') {
+      ratings.passBlock = Math.min(99, ratings.passBlock + 12);
+      ratings.runBlock = Math.min(99, ratings.runBlock + 12);
+      ratings.awareness = Math.min(99, ratings.awareness + 10);
+      ratings.strength = Math.min(99, ratings.strength + 15);  // Added strength boost
+    }
+
+    // Recalculate overall after boosts
+    ratings.overall = Math.max(ratings.overall, Math.min(95, Math.floor(ratings.overall * 1.15)));
+  }
+
+  /**
+   * Apply Pro Bowl rating boost
+   * Pro Bowlers should have high ratings (80-92 overall)
+   * @param ratings - Ratings to boost
+   * @param position - Madden position name
+   * @param stats - Player stats for context
+   */
+  private applyProBowlBoost(ratings: MaddenRatings, position: string, stats: PlayerStats): void {
+    const pos = position.toUpperCase();
+
+    // Boost overall to Pro Bowl level (80-92 range)
+    ratings.overall = Math.max(ratings.overall, 80);
+
+    // Moderate awareness boost
+    ratings.awareness = Math.min(99, ratings.awareness + 10);
+
+    // Position-specific boosts (smaller than HOF)
+    if (pos === 'QB') {
+      ratings.throwPower = Math.min(99, ratings.throwPower + 7);
+      ratings.throwAccuracyShort = Math.min(99, ratings.throwAccuracyShort + 8);
+      ratings.throwAccuracyMid = Math.min(99, ratings.throwAccuracyMid + 8);
+      ratings.throwAccuracyDeep = Math.min(99, ratings.throwAccuracyDeep + 7);
+    } else if (pos === 'HB') {
+      ratings.speed = Math.min(99, ratings.speed + 3);
+      ratings.acceleration = Math.min(99, ratings.acceleration + 3);
+      ratings.carrying = Math.min(99, ratings.carrying + 8);
+      ratings.ballCarrierVision = Math.min(99, ratings.ballCarrierVision + 8);
+      ratings.breakTackle = Math.min(99, ratings.breakTackle + 7);
+    } else if (pos === 'WR') {
+      ratings.speed = Math.min(99, ratings.speed + 3);
+      ratings.catching = Math.min(99, ratings.catching + 8);
+      ratings.spectacularCatch = Math.min(99, ratings.spectacularCatch + 7);
+      ratings.shortRouteRunning = Math.min(99, ratings.shortRouteRunning + 8);
+      ratings.mediumRouteRunning = Math.min(99, ratings.mediumRouteRunning + 8);
+    } else if (pos === 'CB') {
+      ratings.speed = Math.min(99, ratings.speed + 3);
+      ratings.manCoverage = Math.min(99, ratings.manCoverage + 14);  // Increased from +8
+      ratings.zoneCoverage = Math.min(99, ratings.zoneCoverage + 14);  // Increased from +8
+      ratings.pressCoverage = Math.min(99, ratings.pressCoverage + 12);  // Increased from +7
+    } else if (pos === 'FS' || pos === 'SS') {
+      ratings.speed = Math.min(99, ratings.speed + 3);
+      ratings.zoneCoverage = Math.min(99, ratings.zoneCoverage + 12);  // Increased from +8
+      ratings.manCoverage = Math.min(99, ratings.manCoverage + 10);  // Increased from +7
+      ratings.tackle = Math.min(99, ratings.tackle + 6);
+    } else if (pos === 'SAM' || pos === 'Mike' || pos === 'WILL') {
+      ratings.tackle = Math.min(99, ratings.tackle + 14);  // Increased from +8
+      ratings.hitPower = Math.min(99, ratings.hitPower + 7);
+      ratings.pursuit = Math.min(99, ratings.pursuit + 7);
+      ratings.playRecognition = Math.min(99, ratings.playRecognition + 8);
+      ratings.strength = Math.min(99, ratings.strength + 6);  // Added strength boost
+    } else if (pos === 'LEDG' || pos === 'REDG' || pos === 'DT') {
+      ratings.powerMoves = Math.min(99, ratings.powerMoves + 14);  // Increased from +8
+      ratings.finesseMoves = Math.min(99, ratings.finesseMoves + 12);  // Increased from +7
+      ratings.blockShedding = Math.min(99, ratings.blockShedding + 8);
+      ratings.tackle = Math.min(99, ratings.tackle + 7);
+      ratings.strength = Math.min(99, ratings.strength + 12);  // Added strength boost
+    } else if (pos === 'TE') {
+      ratings.catching = Math.min(99, ratings.catching + 8);
+      ratings.runBlock = Math.min(99, ratings.runBlock + 7);
+      ratings.passBlock = Math.min(99, ratings.passBlock + 6);
+    } else if (pos === 'LT' || pos === 'RT' || pos === 'LG' || pos === 'RG' || pos === 'C') {
+      ratings.passBlock = Math.min(99, ratings.passBlock + 8);
+      ratings.runBlock = Math.min(99, ratings.runBlock + 8);
+      ratings.awareness = Math.min(99, ratings.awareness + 8);
+      ratings.strength = Math.min(99, ratings.strength + 12);  // Added strength boost
+    }
+
+    // Recalculate overall after boosts
+    ratings.overall = Math.max(ratings.overall, Math.min(92, Math.floor(ratings.overall * 1.10)));
+  }
+
+  /**
+   * Apply strong stats rating boost
+   * Players with strong stats should be good starters (75-85 overall)
+   * @param ratings - Ratings to boost
+   * @param position - Madden position name
+   */
+  private applyStrongStatsBoost(ratings: MaddenRatings, position: string): void {
+    const pos = position.toUpperCase();
+
+    // Moderate overall boost
+    ratings.overall = Math.max(ratings.overall, 75);
+
+    // Small awareness boost
+    ratings.awareness = Math.min(99, ratings.awareness + 5);
+
+    // Position-specific boosts (smaller than Pro Bowl)
+    if (pos === 'QB') {
+      ratings.throwAccuracyShort = Math.min(99, ratings.throwAccuracyShort + 5);
+      ratings.throwAccuracyMid = Math.min(99, ratings.throwAccuracyMid + 5);
+      ratings.throwAccuracyDeep = Math.min(99, ratings.throwAccuracyDeep + 4);
+    } else if (pos === 'HB') {
+      ratings.carrying = Math.min(99, ratings.carrying + 5);
+      ratings.ballCarrierVision = Math.min(99, ratings.ballCarrierVision + 5);
+      ratings.breakTackle = Math.min(99, ratings.breakTackle + 4);
+    } else if (pos === 'WR') {
+      ratings.catching = Math.min(99, ratings.catching + 5);
+      ratings.shortRouteRunning = Math.min(99, ratings.shortRouteRunning + 5);
+      ratings.mediumRouteRunning = Math.min(99, ratings.mediumRouteRunning + 5);
+    } else if (pos === 'CB') {
+      ratings.manCoverage = Math.min(99, ratings.manCoverage + 10);  // Increased from +5
+      ratings.zoneCoverage = Math.min(99, ratings.zoneCoverage + 10);  // Increased from +5
+      ratings.pressCoverage = Math.min(99, ratings.pressCoverage + 8);  // Increased from +4
+    } else if (pos === 'FS' || pos === 'SS') {
+      ratings.zoneCoverage = Math.min(99, ratings.zoneCoverage + 8);  // Increased from +5
+      ratings.manCoverage = Math.min(99, ratings.manCoverage + 7);  // Increased from +4
+      ratings.tackle = Math.min(99, ratings.tackle + 4);
+    } else if (pos === 'SAM' || pos === 'Mike' || pos === 'WILL') {
+      ratings.tackle = Math.min(99, ratings.tackle + 10);  // Increased from +5
+      ratings.pursuit = Math.min(99, ratings.pursuit + 4);
+      ratings.playRecognition = Math.min(99, ratings.playRecognition + 5);
+      ratings.strength = Math.min(99, ratings.strength + 5);  // Added strength boost
+    } else if (pos === 'LEDG' || pos === 'REDG' || pos === 'DT') {
+      ratings.powerMoves = Math.min(99, ratings.powerMoves + 10);  // Increased from +5
+      ratings.finesseMoves = Math.min(99, ratings.finesseMoves + 8);  // Added finesse boost
+      ratings.blockShedding = Math.min(99, ratings.blockShedding + 5);
+      ratings.tackle = Math.min(99, ratings.tackle + 4);
+      ratings.strength = Math.min(99, ratings.strength + 10);  // Added strength boost
+    } else if (pos === 'TE') {
+      ratings.catching = Math.min(99, ratings.catching + 5);
+      ratings.runBlock = Math.min(99, ratings.runBlock + 4);
+    } else if (pos === 'LT' || pos === 'RT' || pos === 'LG' || pos === 'RG' || pos === 'C') {
+      ratings.passBlock = Math.min(99, ratings.passBlock + 5);
+      ratings.runBlock = Math.min(99, ratings.runBlock + 5);
+      ratings.strength = Math.min(99, ratings.strength + 10);  // Added strength boost
+    }
+
+    // Recalculate overall after boosts
+    ratings.overall = Math.max(ratings.overall, Math.min(85, Math.floor(ratings.overall * 1.05)));
   }
 
   /**
@@ -1174,6 +1845,125 @@ export class CreatorService {
     ];
 
     return statePool[Math.floor(Math.random() * statePool.length)];
+  }
+
+  /**
+   * Generate a fictional roster for teams that didn't exist in a given year
+   * Creates 53 low-rated players with generic names
+   * @param teamAbbr - Team abbreviation
+   * @param count - Number of players to generate (typically 53)
+   * @returns Array of PlayerStats for fictional players
+   */
+  private generateFictionalRoster(teamAbbr: string, count: number): PlayerStats[] {
+    const fictionalPlayers: PlayerStats[] = [];
+
+    // Common first/last names for fictional players
+    const firstNames = ['John', 'Mike', 'Dave', 'Tom', 'Chris', 'Matt', 'Ryan', 'Steve', 'Dan', 'Joe',
+      'Tim', 'Jim', 'Bob', 'Mark', 'Paul', 'Kevin', 'Brian', 'Eric', 'Jeff', 'Scott'];
+    const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Miller', 'Davis', 'Wilson', 'Moore', 'Taylor',
+      'Anderson', 'Thomas', 'Jackson', 'White', 'Harris', 'Martin', 'Thompson', 'Garcia', 'Martinez', 'Robinson'];
+
+    // Small colleges
+    const colleges = ['Weber State', 'Idaho State', 'Montana', 'Eastern Illinois', 'Western Kentucky', 'Toledo',
+      'Ball State', 'Northern Iowa', 'South Dakota State', 'North Dakota State'];
+
+    // Position distribution for a 53-man roster
+    const positions = [
+      'QB', 'QB', 'QB',           // 3 QBs
+      'RB', 'RB', 'RB', 'RB', 'FB',  // 5 RBs/FBs
+      'WR', 'WR', 'WR', 'WR', 'WR', 'WR',  // 6 WRs
+      'TE', 'TE', 'TE',           // 3 TEs
+      'T', 'T', 'T', 'T',         // 4 Tackles
+      'G', 'G', 'G', 'G',         // 4 Guards
+      'C', 'C', 'C',              // 3 Centers
+      'DE', 'DE', 'DE', 'DE', 'DE',  // 5 DEs
+      'DT', 'DT', 'DT', 'DT',     // 4 DTs
+      'LB', 'LB', 'LB', 'LB', 'LB', 'LB',  // 6 LBs
+      'CB', 'CB', 'CB', 'CB', 'CB',  // 5 CBs
+      'S', 'S', 'S', 'S',         // 4 Safeties
+      'K', 'P', 'LS'              // 3 Specialists
+    ];
+
+    for (let i = 0; i < count && i < positions.length; i++) {
+      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+      const position = positions[i];
+      const college = colleges[Math.floor(Math.random() * colleges.length)];
+
+      // Generate realistic physical stats by position
+      let height = '6-1';
+      let weight = 220;
+
+      switch (position) {
+        case 'QB':
+          height = '6-3';
+          weight = 215;
+          break;
+        case 'RB':
+          height = '5-11';
+          weight = 210;
+          break;
+        case 'FB':
+          height = '6-0';
+          weight = 240;
+          break;
+        case 'WR':
+          height = '6-1';
+          weight = 195;
+          break;
+        case 'TE':
+          height = '6-4';
+          weight = 250;
+          break;
+        case 'T':
+          height = '6-6';
+          weight = 310;
+          break;
+        case 'G':
+        case 'C':
+          height = '6-3';
+          weight = 305;
+          break;
+        case 'DE':
+          height = '6-4';
+          weight = 275;
+          break;
+        case 'DT':
+          height = '6-3';
+          weight = 305;
+          break;
+        case 'LB':
+          height = '6-2';
+          weight = 240;
+          break;
+        case 'CB':
+          height = '5-11';
+          weight = 190;
+          break;
+        case 'S':
+          height = '6-0';
+          weight = 205;
+          break;
+        case 'K':
+        case 'P':
+          height = '5-11';
+          weight = 195;
+          break;
+      }
+
+      fictionalPlayers.push({
+        name: `${firstName} ${lastName}`,
+        position: position,
+        college: college,
+        height: height,
+        weight: weight,
+        age: 22 + Math.floor(Math.random() * 6), // Age 22-27
+        team: teamAbbr.toUpperCase()
+      });
+    }
+
+    console.log(`[CreatorService] Generated ${fictionalPlayers.length} fictional players for ${teamAbbr}`);
+    return fictionalPlayers;
   }
 
   /**

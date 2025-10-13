@@ -14,6 +14,8 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 import * as fs from 'fs';
 import * as path from 'path';
+import { app } from 'electron';
+import { scraperDebugLogger } from '../utils/DebugLogger';
 
 export interface PlayerStats {
   // Basic Info
@@ -107,11 +109,106 @@ export class ScraperService {
   async initBrowser(): Promise<void> {
     if (!this.browser) {
       console.log('[ScraperService] Launching Puppeteer browser...');
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      });
-      console.log('[ScraperService] Browser launched successfully');
+
+      try {
+        // Use puppeteer's bundled Chromium - works in both dev and packaged app
+        // For packaged apps, Chromium should be in: resources/app.asar.unpacked/node_modules/puppeteer/.local-chromium
+        const launchOptions: any = {
+          headless: true,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage', // Overcome limited resource problems
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu'
+          ]
+        };
+
+        // Look for Chrome in common locations (both dev and packaged)
+        // Check Puppeteer cache first (recommended location)
+        const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+        const possiblePaths = [
+          // Puppeteer cache locations (preferred)
+          path.join(homeDir, '.cache', 'puppeteer', 'chrome', '**', 'chrome.exe'),
+          path.join(homeDir, '.cache', 'puppeteer', 'chrome', '**', 'chrome-win64', 'chrome.exe'),
+
+          // Packaged app locations
+          path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'puppeteer', '.local-chromium', '**', 'chrome.exe'),
+          path.join(process.resourcesPath, 'node_modules', 'puppeteer', '.local-chromium', '**', 'chrome.exe'),
+
+          // System Chrome installations
+          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+          path.join(process.env.LOCALAPPDATA || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+          path.join(process.env.PROGRAMFILES || '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
+          path.join(process.env['PROGRAMFILES(X86)'] || '', 'Google', 'Chrome', 'Application', 'chrome.exe')
+        ];
+
+        // Search for Chrome executable
+        for (const searchPath of possiblePaths) {
+          // Handle wildcard paths (for Puppeteer cache with version numbers)
+          if (searchPath.includes('**')) {
+            const basePath = searchPath.split('**')[0];
+            const endPath = searchPath.split('**')[1];
+
+            if (fs.existsSync(basePath)) {
+              const searchRecursive = (dir: string): string | null => {
+                try {
+                  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+                  for (const entry of entries) {
+                    const fullPath = path.join(dir, entry.name);
+
+                    if (entry.isDirectory()) {
+                      const found = searchRecursive(fullPath);
+                      if (found) return found;
+                    } else if (entry.name === 'chrome.exe' && fullPath.endsWith(endPath.replace('**', ''))) {
+                      return fullPath;
+                    }
+                  }
+                } catch (err) {
+                  // Skip directories we can't read
+                }
+                return null;
+              };
+
+              const found = searchRecursive(basePath);
+              if (found) {
+                console.log(`[ScraperService] Found Chrome at: ${found}`);
+                launchOptions.executablePath = found;
+                break;
+              }
+            }
+          } else {
+            // Direct path check
+            if (fs.existsSync(searchPath)) {
+              console.log(`[ScraperService] Found Chrome at: ${searchPath}`);
+              launchOptions.executablePath = searchPath;
+              break;
+            }
+          }
+        }
+
+        if (!launchOptions.executablePath) {
+          throw new Error(
+            'Could not find Chrome. Please either:\n' +
+            '1. Install Google Chrome from https://www.google.com/chrome/, OR\n' +
+            '2. Run "npx puppeteer browsers install chrome" in the app directory to download Chromium.\n\n' +
+            'The application will automatically detect Chrome once installed.'
+          );
+        }
+
+        this.browser = await puppeteer.launch(launchOptions);
+        console.log('[ScraperService] Browser launched successfully');
+      } catch (error: any) {
+        console.error('[ScraperService] Failed to launch browser:', error);
+        throw new Error(
+          `Failed to launch browser: ${error.message}\n\n` +
+          'If Chrome is not installed, please either:\n' +
+          '1. Install Google Chrome, OR\n' +
+          '2. Run "npx puppeteer browsers install chrome" in the app directory'
+        );
+      }
     }
   }
 
@@ -421,12 +518,18 @@ export class ScraperService {
     const hofData = this.hofLookup.get(prospect.name);
 
     if (hofData) {
-      // Enrich with HOF data if not already present
+      // Enrich with HOF data if not already present (or override with correct college data)
       if (!prospect.height) prospect.height = hofData.height;
       if (!prospect.weight) prospect.weight = hofData.weight;
       if (!prospect.homeState) prospect.homeState = hofData.birthState;
 
-      console.log(`[ScraperService] Enriched HOFer ${prospect.name} with bio data from lookup: ${hofData.height}, ${hofData.weight}lb, ${hofData.birthState}`);
+      // ALWAYS override college for HOF players to avoid transfer school issues
+      // (e.g., Deion Sanders should show Florida State, not West Florida)
+      if (hofData.college) {
+        prospect.college = hofData.college;
+      }
+
+      console.log(`[ScraperService] Enriched HOFer ${prospect.name} with bio data from lookup: ${hofData.height}, ${hofData.weight}lb, ${hofData.birthState}, ${hofData.college}`);
     }
   }
 
@@ -1134,10 +1237,214 @@ export class ScraperService {
   }
 
   /**
-   * Scrape team roster for a given year
-   * @param teamAbbr - Team abbreviation (e.g., 'dal', 'sea', 'ne')
+   * Scrape team statistics for a given year - gets player stats from team stats page
+   * Scrapes Passing, Rushing & Receiving, and Defense & Fumbles tables
+   * @param teamAbbr - Team abbreviation (e.g., 'dal', 'sea', 'nwe')
    * @param year - Season year
-   * @returns Array of player stats
+   * @returns Map of player name -> stats object
+   */
+  async scrapeTeamStats(teamAbbr: string, year: number): Promise<Map<string, PlayerStats>> {
+    await this.initBrowser();
+
+    if (!this.browser) {
+      throw new Error('Failed to initialize browser');
+    }
+
+    const page = await this.browser.newPage();
+    const statsMap = new Map<string, PlayerStats>();
+
+    try {
+      scraperDebugLogger.logTeamHeader(teamAbbr, year);
+      console.log(`[ScraperService] Scraping team stats for ${teamAbbr} (${year})`);
+
+      // Navigate to team stats page (NOT roster page)
+      const teamUrl = `https://www.pro-football-reference.com/teams/${teamAbbr}/${year}.htm`;
+      scraperDebugLogger.log(`Team Stats URL: ${teamUrl}`);
+      await page.goto(teamUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+      // Pro-Football-Reference hides tables in HTML comments!
+      // We need to get the page content and uncomment the tables
+      const pageContent = await page.content();
+
+      // Uncomment all HTML comments (<!-- ... -->)
+      const uncommentedHTML = pageContent.replace(/<!--/g, '').replace(/-->/g, '');
+
+      // Set the page content to the uncommented HTML
+      await page.setContent(uncommentedHTML, { waitUntil: 'domcontentloaded' });
+
+      // Extract stats from all three tables
+      const scrapedStats = await page.evaluate(() => {
+        const playerStatsMap: { [name: string]: any } = {};
+        const debugInfo: any = {
+          passingTableFound: false,
+          rushingTableFound: false,
+          defenseTableFound: false,
+          allTableIds: [] as string[],
+          allTableClasses: [] as string[]
+        };
+
+        // DEBUG: Log ALL table IDs and classes on the page
+        const allTables = document.querySelectorAll('table');
+        for (const table of Array.from(allTables)) {
+          if (table.id) debugInfo.allTableIds.push(table.id);
+          if (table.className) debugInfo.allTableClasses.push(table.className);
+        }
+
+        // Helper function to get numeric value from cell
+        const getNumericValue = (cell: Element | null): number | undefined => {
+          if (!cell) return undefined;
+          const text = cell.textContent?.trim() || '';
+          if (text === '' || text === '-') return undefined;
+          const value = parseFloat(text);
+          return isNaN(value) ? undefined : value;
+        };
+
+        // 1. Scrape Passing Table (#passing)
+        const passingTable = document.querySelector('#passing');
+        debugInfo.passingTableFound = !!passingTable;
+        if (passingTable) {
+          const rows = passingTable.querySelectorAll('tbody tr');
+
+          for (const row of Array.from(rows)) {
+            // Skip header rows
+            if (row.classList.contains('thead')) continue;
+
+            // Try multiple selectors for historical data compatibility
+            const nameCell = row.querySelector('th[data-stat="player"] a') ||
+                            row.querySelector('td[data-stat="player"] a') ||
+                            row.querySelector('th a') ||
+                            row.querySelector('td a');
+            if (!nameCell) continue;
+
+            const playerName = nameCell.textContent?.trim() || '';
+            if (!playerName) continue;
+
+            // Initialize player if not exists
+            if (!playerStatsMap[playerName]) {
+              playerStatsMap[playerName] = { name: playerName };
+            }
+
+            // Extract passing stats
+            playerStatsMap[playerName].passCompletions = getNumericValue(row.querySelector('td[data-stat="pass_cmp"]'));
+            playerStatsMap[playerName].passAttempts = getNumericValue(row.querySelector('td[data-stat="pass_att"]'));
+            playerStatsMap[playerName].passYards = getNumericValue(row.querySelector('td[data-stat="pass_yds"]'));
+            playerStatsMap[playerName].passTDs = getNumericValue(row.querySelector('td[data-stat="pass_td"]'));
+            playerStatsMap[playerName].interceptions = getNumericValue(row.querySelector('td[data-stat="pass_int"]'));
+          }
+        }
+
+        // 2. Scrape Rushing & Receiving Table (#rushing_and_receiving)
+        const rushingReceivingTable = document.querySelector('#rushing_and_receiving');
+        debugInfo.rushingTableFound = !!rushingReceivingTable;
+        if (rushingReceivingTable) {
+          const rows = rushingReceivingTable.querySelectorAll('tbody tr');
+
+          for (const row of Array.from(rows)) {
+            // Skip header rows
+            if (row.classList.contains('thead')) continue;
+
+            // Try multiple selectors for historical data compatibility
+            const nameCell = row.querySelector('th[data-stat="player"] a') ||
+                            row.querySelector('td[data-stat="player"] a') ||
+                            row.querySelector('th a') ||
+                            row.querySelector('td a');
+            if (!nameCell) continue;
+
+            const playerName = nameCell.textContent?.trim() || '';
+            if (!playerName) continue;
+
+            // Initialize player if not exists
+            if (!playerStatsMap[playerName]) {
+              playerStatsMap[playerName] = { name: playerName };
+            }
+
+            // Extract rushing stats
+            playerStatsMap[playerName].rushAttempts = getNumericValue(row.querySelector('td[data-stat="rush_att"]'));
+            playerStatsMap[playerName].rushYards = getNumericValue(row.querySelector('td[data-stat="rush_yds"]'));
+            playerStatsMap[playerName].rushTDs = getNumericValue(row.querySelector('td[data-stat="rush_td"]'));
+
+            // Extract receiving stats
+            playerStatsMap[playerName].receptions = getNumericValue(row.querySelector('td[data-stat="rec"]'));
+            playerStatsMap[playerName].recYards = getNumericValue(row.querySelector('td[data-stat="rec_yds"]'));
+            playerStatsMap[playerName].recTDs = getNumericValue(row.querySelector('td[data-stat="rec_td"]'));
+            playerStatsMap[playerName].targets = getNumericValue(row.querySelector('td[data-stat="targets"]'));
+          }
+        }
+
+        // 3. Scrape Defense & Fumbles Table (#defense)
+        const defenseTable = document.querySelector('#defense');
+        debugInfo.defenseTableFound = !!defenseTable;
+        if (defenseTable) {
+          const rows = defenseTable.querySelectorAll('tbody tr');
+
+          for (const row of Array.from(rows)) {
+            // Skip header rows
+            if (row.classList.contains('thead')) continue;
+
+            // Try multiple selectors for historical data compatibility
+            const nameCell = row.querySelector('th[data-stat="player"] a') ||
+                            row.querySelector('td[data-stat="player"] a') ||
+                            row.querySelector('th a') ||
+                            row.querySelector('td a');
+            if (!nameCell) continue;
+
+            const playerName = nameCell.textContent?.trim() || '';
+            if (!playerName) continue;
+
+            // Initialize player if not exists
+            if (!playerStatsMap[playerName]) {
+              playerStatsMap[playerName] = { name: playerName };
+            }
+
+            // Extract defensive stats
+            playerStatsMap[playerName].tackles = getNumericValue(row.querySelector('td[data-stat="tackles_combined"]'));
+            playerStatsMap[playerName].sacks = getNumericValue(row.querySelector('td[data-stat="sacks"]'));
+            playerStatsMap[playerName].forcedFumbles = getNumericValue(row.querySelector('td[data-stat="fumbles_forced"]'));
+            playerStatsMap[playerName].interceptionsCaught = getNumericValue(row.querySelector('td[data-stat="def_int"]'));
+            playerStatsMap[playerName].passDefended = getNumericValue(row.querySelector('td[data-stat="pass_defended"]'));
+          }
+        }
+
+        return { playerStatsMap, debugInfo };
+      });
+
+      // Log debug info
+      console.log(`[ScraperService] Stats table debug for ${teamAbbr} (${year}):`);
+      console.log(`  - Passing table found: ${scrapedStats.debugInfo.passingTableFound}`);
+      console.log(`  - Rushing table found: ${scrapedStats.debugInfo.rushingTableFound}`);
+      console.log(`  - Defense table found: ${scrapedStats.debugInfo.defenseTableFound}`);
+      console.log(`  - All table IDs on page: ${scrapedStats.debugInfo.allTableIds.join(', ') || 'NONE'}`);
+      console.log(`  - All table classes on page: ${scrapedStats.debugInfo.allTableClasses.join(', ') || 'NONE'}`);
+
+      scraperDebugLogger.log(`\nTable Debug Info:`);
+      scraperDebugLogger.log(`  Passing table found: ${scrapedStats.debugInfo.passingTableFound}`);
+      scraperDebugLogger.log(`  Rushing table found: ${scrapedStats.debugInfo.rushingTableFound}`);
+      scraperDebugLogger.log(`  Defense table found: ${scrapedStats.debugInfo.defenseTableFound}`);
+      scraperDebugLogger.log(`  Table IDs on page: ${scrapedStats.debugInfo.allTableIds.join(', ') || 'NONE'}`);
+
+      // Convert to Map
+      for (const [name, stats] of Object.entries(scrapedStats.playerStatsMap)) {
+        statsMap.set(name, stats as PlayerStats);
+      }
+
+      console.log(`[ScraperService] Scraped stats for ${statsMap.size} players from ${teamAbbr} (${year})`);
+      scraperDebugLogger.log(`Stats scraped for ${statsMap.size} players`);
+
+      await page.close();
+      return statsMap;
+
+    } catch (error: any) {
+      console.error(`[ScraperService] Error scraping team stats for ${teamAbbr} (${year}):`, error);
+      await page.close();
+      return statsMap;
+    }
+  }
+
+  /**
+   * Scrape team roster for a given year - gets ALL players on team
+   * @param teamAbbr - Team abbreviation (e.g., 'dal', 'sea', 'nwe')
+   * @param year - Season year
+   * @returns Array of player stats (should be ~50-60 players per team)
    */
   async scrapeTeamRoster(teamAbbr: string, year: number): Promise<PlayerStats[]> {
     await this.initBrowser();
@@ -1149,58 +1456,747 @@ export class ScraperService {
     const page = await this.browser.newPage();
 
     try {
+      scraperDebugLogger.logTeamHeader(teamAbbr, year);
       console.log(`[ScraperService] Scraping roster for ${teamAbbr} (${year})`);
 
-      // Navigate to team page
+      // Navigate to team roster page
       const teamUrl = `https://www.pro-football-reference.com/teams/${teamAbbr}/${year}_roster.htm`;
-      await page.goto(teamUrl, { waitUntil: 'networkidle2' });
+      scraperDebugLogger.log(`URL: ${teamUrl}`);
+      await page.goto(teamUrl, { waitUntil: 'networkidle2', timeout: 15000 });
 
-      // Extract roster
-      const roster = await page.evaluate(() => {
-        const rosterTable = document.querySelector('#games_played_team');
+      // Extract roster - find table by looking for "Roster" caption or column headers
+      const scrapeResult = await page.evaluate((year) => {
         const playerList: any[] = [];
+        const debugInfo: any = {
+          tableFound: false,
+          tableMethod: '',
+          rowsFound: 0,
+          firstThreeRows: [],
+          rejectedRows: []
+        };
 
-        if (rosterTable) {
-          const rows = rosterTable.querySelectorAll('tbody tr');
+        // Strategy 1: Modern pages (2000+) - Try table IDs first
+        const possibleTableIds = ['#games_played_team', '#roster', '#team_roster'];
+        let rosterTable: Element | null = null;
 
-          for (const row of Array.from(rows)) {
-            const player: any = {};
+        for (const tableId of possibleTableIds) {
+          rosterTable = document.querySelector(tableId);
+          if (rosterTable) {
+            debugInfo.tableFound = true;
+            debugInfo.tableMethod = `Modern table ID: ${tableId}`;
+            break;
+          }
+        }
 
-            // Extract player info
-            const nameCell = row.querySelector('th[data-stat="player"] a');
-            const posCell = row.querySelector('td[data-stat="pos"]');
-            const heightCell = row.querySelector('td[data-stat="height"]');
-            const weightCell = row.querySelector('td[data-stat="weight"]');
-            const ageCell = row.querySelector('td[data-stat="age"]');
-            const collegeCell = row.querySelector('td[data-stat="college"] a');
+        // Strategy 2: Historical pages (<2000) - Find table by caption text or column headers
+        if (!rosterTable) {
+          // Find all tables on the page
+          const allTables = document.querySelectorAll('table');
 
-            if (nameCell) player.name = nameCell.textContent?.trim() || '';
-            if (posCell) player.position = posCell.textContent?.trim() || '';
-            if (heightCell) player.height = heightCell.textContent?.trim() || '';
-            if (weightCell) player.weight = parseInt(weightCell.textContent?.trim() || '0');
-            if (ageCell) player.age = parseInt(ageCell.textContent?.trim() || '0');
-            if (collegeCell) player.college = collegeCell.textContent?.trim() || '';
+          for (const table of Array.from(allTables)) {
+            // Check if table has a caption with "Roster" text
+            const caption = table.querySelector('caption');
+            if (caption?.textContent?.includes('Roster')) {
+              debugInfo.tableFound = true;
+              debugInfo.tableMethod = `Caption: "${caption.textContent}"`;
+              rosterTable = table;
+              break;
+            }
 
-            // Only add if we have at least a name
-            if (player.name) {
-              playerList.push(player);
+            // Check if table has column headers matching roster structure
+            const headers = Array.from(table.querySelectorAll('thead th, thead td')).map(h => h.textContent?.trim().toLowerCase());
+            if (headers.includes('player') && headers.includes('pos') && headers.includes('age')) {
+              debugInfo.tableFound = true;
+              debugInfo.tableMethod = `Column headers match`;
+              rosterTable = table;
+              break;
             }
           }
         }
 
-        return playerList;
-      });
+        if (!rosterTable) {
+          return { players: playerList, debug: debugInfo };
+        }
 
-      console.log(`[ScraperService] Scraped ${roster.length} players for ${teamAbbr}`);
+        // Extract players from the roster table
+        const rows = rosterTable.querySelectorAll('tbody tr');
+        debugInfo.rowsFound = rows.length;
+
+        for (const row of Array.from(rows)) {
+          // Skip header rows
+          if (row.classList.contains('thead')) continue;
+
+          const player: any = {};
+          const rowDebug: any = {};
+
+          // Extract player info from different possible cell structures
+          let nameCell = row.querySelector('th[data-stat="player"] a') ||
+                         row.querySelector('td[data-stat="player"] a') ||
+                         row.querySelector('th a') ||
+                         row.querySelector('td a');
+
+          const posCell = row.querySelector('td[data-stat="pos"]');
+          const jerseyCell = row.querySelector('th[data-stat="uniform_number"]') ||
+                              row.querySelector('td[data-stat="uniform_number"]') ||
+                              row.querySelector('th[data-stat="jersey_number"]') ||
+                              row.querySelector('td[data-stat="jersey_number"]') ||
+                              row.querySelector('th[data-stat="number"]') ||
+                              row.querySelector('td[data-stat="number"]');
+          const heightCell = row.querySelector('td[data-stat="height"]') ||
+                             row.querySelector('td[data-stat="ht"]');
+          const weightCell = row.querySelector('td[data-stat="weight"]') ||
+                             row.querySelector('td[data-stat="wt"]');
+          const ageCell = row.querySelector('td[data-stat="age"]');
+
+          // Try multiple possible college selectors
+          const collegeCell = row.querySelector('td[data-stat="college"] a') ||
+                              row.querySelector('td[data-stat="college_id"] a') ||
+                              row.querySelector('td[data-stat="college_name"] a') ||
+                              row.querySelector('td[data-stat="college"]');
+
+          // Extract data
+          if (nameCell) {
+            player.name = nameCell.textContent?.trim() || '';
+          }
+          if (posCell) player.position = posCell.textContent?.trim() || '';
+          if (jerseyCell) {
+            const jerseyNum = parseInt(jerseyCell.textContent?.trim() || '0');
+            if (jerseyNum > 0) player.jerseyNumber = jerseyNum;
+          }
+          if (heightCell) player.height = heightCell.textContent?.trim() || '';
+          if (weightCell) player.weight = parseInt(weightCell.textContent?.trim() || '0');
+          if (ageCell) player.age = parseInt(ageCell.textContent?.trim() || '0');
+          if (collegeCell) {
+            const collegeLink = collegeCell.querySelector('a');
+            player.college = (collegeLink?.textContent || collegeCell.textContent)?.trim() || 'Unknown';
+          }
+
+          // Capture debug info for first 3 rows
+          if (debugInfo.firstThreeRows.length < 3) {
+            rowDebug.hasNameCell = !!nameCell;
+            rowDebug.hasPosCell = !!posCell;
+            rowDebug.name = player.name || 'EMPTY';
+            rowDebug.position = player.position || 'EMPTY';
+            rowDebug.height = player.height || 'N/A';
+            rowDebug.weight = player.weight || 'N/A';
+            rowDebug.age = player.age || 'N/A';
+            rowDebug.college = player.college || 'N/A';
+            debugInfo.firstThreeRows.push(rowDebug);
+          }
+
+          // Only add if we have at least a name and position
+          if (player.name && player.position) {
+            const isDuplicate = playerList.some(p => p.name === player.name);
+            if (!isDuplicate) {
+              playerList.push(player);
+            }
+          } else if (debugInfo.rejectedRows.length < 3) {
+            debugInfo.rejectedRows.push({
+              reason: !player.name ? 'Missing name' : 'Missing position',
+              hasNameCell: !!nameCell,
+              hasPosCell: !!posCell
+            });
+          }
+        }
+
+        return { players: playerList, debug: debugInfo };
+      }, year);
+
+      const roster = scrapeResult.players;
+      const debugInfo = scrapeResult.debug;
+
+      // Log debug info to file
+      scraperDebugLogger.log(`Table found: ${debugInfo.tableFound ? 'YES' : 'NO'}`);
+      if (debugInfo.tableFound) {
+        scraperDebugLogger.log(`Table detection method: ${debugInfo.tableMethod}`);
+      }
+      scraperDebugLogger.log(`Rows in table: ${debugInfo.rowsFound}`);
+      scraperDebugLogger.log(`Players extracted: ${roster.length}`);
+
+      // Log first 3 rows
+      if (debugInfo.firstThreeRows.length > 0) {
+        scraperDebugLogger.log(`\nFirst ${debugInfo.firstThreeRows.length} rows extracted:`);
+        debugInfo.firstThreeRows.forEach((row: any, idx: number) => {
+          scraperDebugLogger.logPlayerRow(idx + 1, row);
+        });
+      }
+
+      // Log rejected rows
+      if (debugInfo.rejectedRows.length > 0) {
+        scraperDebugLogger.log(`\nRejected rows (first ${debugInfo.rejectedRows.length}):`);
+        debugInfo.rejectedRows.forEach((row: any, idx: number) => {
+          scraperDebugLogger.log(`  Row ${idx + 1}: ${row.reason} (hasNameCell: ${row.hasNameCell}, hasPosCell: ${row.hasPosCell})`);
+        });
+      }
+
+      // Log summary
+      scraperDebugLogger.logScrapeSummary(teamAbbr, roster.length, debugInfo.tableFound, debugInfo.rowsFound);
+
+      console.log(`[ScraperService] Scraped ${roster.length} players for ${teamAbbr} (${year})`);
 
       await page.close();
       return roster as PlayerStats[];
 
     } catch (error: any) {
-      console.error('[ScraperService] Error scraping team roster:', error);
+      console.error(`[ScraperService] Error scraping roster for ${teamAbbr} (${year}):`, error);
       await page.close();
       return [];
     }
+  }
+
+  /**
+   * Scrape player data from Wikipedia for biographical info
+   * Gets birth date, hometown, college, draft info, career highlights
+   * @param playerName - Player's full name
+   * @returns Player biographical data
+   */
+  async scrapePlayerWikipedia(playerName: string): Promise<{ birthState?: string; birthDate?: string; college?: string; draftInfo?: string } | null> {
+    await this.initBrowser();
+
+    if (!this.browser) {
+      return null;
+    }
+
+    const page = await this.browser.newPage();
+
+    try {
+      console.log(`[ScraperService] Scraping Wikipedia for ${playerName}`);
+
+      // Search Wikipedia for the player
+      const searchUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(playerName.replace(/ /g, '_'))}`;
+      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 10000 });
+
+      // Extract biographical data from Wikipedia infobox
+      const bioData = await page.evaluate(() => {
+        const data: any = {};
+
+        // Get infobox data
+        const infobox = document.querySelector('.infobox');
+        if (infobox) {
+          const rows = infobox.querySelectorAll('tr');
+
+          for (const row of Array.from(rows)) {
+            const header = row.querySelector('th');
+            const value = row.querySelector('td');
+
+            if (header && value) {
+              const label = header.textContent?.trim().toLowerCase() || '';
+              const text = value.textContent?.trim() || '';
+
+              // Extract birth place (state)
+              if (label.includes('born')) {
+                // Format: "December 25, 1950 (age 73)\nSan Francisco, California, U.S."
+                const stateMatch = text.match(/,\s*([A-Z][a-z]+)\s*,?\s*(U\.S\.|United States)?/);
+                if (stateMatch) {
+                  data.birthPlace = stateMatch[1]; // e.g., "California"
+                }
+
+                // Extract birth date
+                const dateMatch = text.match(/([A-Z][a-z]+ \d+, \d{4})/);
+                if (dateMatch) {
+                  data.birthDate = dateMatch[1]; // e.g., "December 25, 1950"
+                }
+              }
+
+              // Extract college
+              if (label.includes('college')) {
+                data.college = text.split('\n')[0]; // First line is usually the college
+              }
+
+              // Extract draft info
+              if (label.includes('draft') || label.includes('undrafted')) {
+                data.draftInfo = text;
+              }
+
+              // Extract position
+              if (label.includes('position')) {
+                data.position = text;
+              }
+            }
+          }
+        }
+
+        return data;
+      });
+
+      await page.close();
+      return bioData;
+
+    } catch (error) {
+      console.warn(`[ScraperService] Could not scrape Wikipedia for ${playerName}:`, error);
+      await page.close();
+      return null;
+    }
+  }
+
+  /**
+   * Scrape top 10 players per team by Approximate Value (AV)
+   * Gets detailed stats for the best players on the team
+   * NOW WITH WIKIPEDIA DATA for biographical info
+   * @param teamAbbr - Team abbreviation (e.g., 'dal', 'sea', 'ne')
+   * @param year - Season year
+   * @returns Array of top player stats with detailed info
+   */
+  async scrapeTop10PlayersPerTeam(teamAbbr: string, year: number): Promise<PlayerStats[]> {
+    await this.initBrowser();
+
+    if (!this.browser) {
+      throw new Error('Failed to initialize browser');
+    }
+
+    const page = await this.browser.newPage();
+
+    try {
+      console.log(`[ScraperService] Scraping top 10 players for ${teamAbbr} (${year})`);
+
+      // Navigate to team stats page
+      const teamUrl = `https://www.pro-football-reference.com/teams/${teamAbbr}/${year}.htm`;
+      await page.goto(teamUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+      // Extract top players by AV (Approximate Value)
+      const topPlayers = await page.evaluate((year) => {
+        // Look for the roster table
+        const rosterTable = document.querySelector('#roster');
+        const playerList: any[] = [];
+
+        if (rosterTable) {
+          const rows = Array.from(rosterTable.querySelectorAll('tbody tr'));
+
+          // Extract all players with AV data
+          for (const row of rows) {
+            const nameCell = row.querySelector('th[data-stat="player"] a');
+            const posCell = row.querySelector('td[data-stat="pos"]');
+            const ageCell = row.querySelector('td[data-stat="age"]');
+            const gamesCell = row.querySelector('td[data-stat="g"]');
+            const startsCell = row.querySelector('td[data-stat="gs"]');
+            const avCell = row.querySelector('td[data-stat="av"]');
+
+            if (nameCell && avCell) {
+              const av = parseInt(avCell.textContent?.trim() || '0');
+
+              if (av > 0) {
+                playerList.push({
+                  name: nameCell.textContent?.trim() || '',
+                  position: posCell?.textContent?.trim() || '',
+                  age: parseInt(ageCell?.textContent?.trim() || '0'),
+                  careerGames: parseInt(gamesCell?.textContent?.trim() || '0'),
+                  careerStarts: parseInt(startsCell?.textContent?.trim() || '0'),
+                  av: av
+                });
+              }
+            }
+          }
+
+          // Sort by AV descending and take top 10
+          playerList.sort((a, b) => b.av - a.av);
+        }
+
+        return playerList.slice(0, 10);
+      }, year);
+
+      console.log(`[ScraperService] Found ${topPlayers.length} top players for ${teamAbbr}`);
+
+      // For each top player, get their detailed stats AND Wikipedia data
+      const detailedPlayers: PlayerStats[] = [];
+
+      for (const player of topPlayers) {
+        console.log(`[ScraperService] Getting detailed data for ${player.name}...`);
+
+        // Get pro-football-reference stats
+        const stats = await this.scrapePlayerStats(player.name, year);
+
+        // Get Wikipedia biographical data
+        const wikiData = await this.scrapePlayerWikipedia(player.name);
+
+        // Combine the data
+        const combinedData = stats || (player as PlayerStats);
+
+        if (wikiData) {
+          // Add Wikipedia data to the player stats
+          if (wikiData.birthPlace) {
+            (combinedData as any).birthPlace = wikiData.birthPlace;
+          }
+          if (wikiData.birthDate) {
+            (combinedData as any).birthDate = wikiData.birthDate;
+          }
+          if (wikiData.college && !combinedData.college) {
+            combinedData.college = wikiData.college;
+          }
+
+          console.log(`[ScraperService] Enriched ${player.name} with Wikipedia data: ${wikiData.birthPlace}, ${wikiData.birthDate}`);
+        }
+
+        detailedPlayers.push(combinedData);
+      }
+
+      await page.close();
+      return detailedPlayers;
+
+    } catch (error: any) {
+      console.error(`[ScraperService] Error scraping top 10 for ${teamAbbr}:`, error);
+      await page.close();
+      return [];
+    }
+  }
+
+  /**
+   * Get the correct PFR team abbreviation for a given year
+   * Maps historical team names to their current franchise abbreviation
+   * PFR uses franchise continuity - URLs use current abbreviation for all years
+   * @param teamAbbr - Current Madden team abbreviation
+   * @param year - Season year
+   * @returns Object with PFR abbreviation and historical team name
+   */
+  getTeamMapping(teamAbbr: string, year: number): { pfrAbbr: string; historicalName: string; currentName: string } {
+    const abbr = teamAbbr.toLowerCase();
+
+    // Define franchise relocations and name changes
+    // Format: { pfrAbbr, historicalName (for that year), currentName }
+
+    // Tennessee Titans (formerly Houston Oilers)
+    if (abbr === 'oti') {
+      if (year >= 1999) {
+        return { pfrAbbr: 'oti', historicalName: 'Tennessee Titans', currentName: 'Tennessee Titans' };
+      } else if (year >= 1997) {
+        return { pfrAbbr: 'oti', historicalName: 'Tennessee Oilers', currentName: 'Tennessee Titans' };
+      } else {
+        return { pfrAbbr: 'oti', historicalName: 'Houston Oilers', currentName: 'Tennessee Titans' };
+      }
+    }
+
+    // Las Vegas Raiders (formerly Oakland/Los Angeles Raiders)
+    if (abbr === 'rai') {
+      if (year >= 2020) {
+        return { pfrAbbr: 'rai', historicalName: 'Las Vegas Raiders', currentName: 'Las Vegas Raiders' };
+      } else if (year >= 1995) {
+        return { pfrAbbr: 'rai', historicalName: 'Oakland Raiders', currentName: 'Las Vegas Raiders' };
+      } else if (year >= 1982) {
+        return { pfrAbbr: 'rai', historicalName: 'Los Angeles Raiders', currentName: 'Las Vegas Raiders' };
+      } else {
+        return { pfrAbbr: 'rai', historicalName: 'Oakland Raiders', currentName: 'Las Vegas Raiders' };
+      }
+    }
+
+    // Los Angeles Rams (formerly St. Louis/Los Angeles/Cleveland Rams)
+    if (abbr === 'ram') {
+      if (year >= 2016) {
+        return { pfrAbbr: 'ram', historicalName: 'Los Angeles Rams', currentName: 'Los Angeles Rams' };
+      } else if (year >= 1995) {
+        return { pfrAbbr: 'ram', historicalName: 'St. Louis Rams', currentName: 'Los Angeles Rams' };
+      } else if (year >= 1946) {
+        return { pfrAbbr: 'ram', historicalName: 'Los Angeles Rams', currentName: 'Los Angeles Rams' };
+      } else {
+        return { pfrAbbr: 'ram', historicalName: 'Cleveland Rams', currentName: 'Los Angeles Rams' };
+      }
+    }
+
+    // Los Angeles Chargers (formerly San Diego Chargers)
+    if (abbr === 'sdg') {
+      if (year >= 2017) {
+        return { pfrAbbr: 'sdg', historicalName: 'Los Angeles Chargers', currentName: 'Los Angeles Chargers' };
+      } else if (year >= 1961) {
+        return { pfrAbbr: 'sdg', historicalName: 'San Diego Chargers', currentName: 'Los Angeles Chargers' };
+      } else {
+        return { pfrAbbr: 'sdg', historicalName: 'Los Angeles Chargers', currentName: 'Los Angeles Chargers' };
+      }
+    }
+
+    // Indianapolis Colts (formerly Baltimore Colts)
+    if (abbr === 'clt') {
+      if (year >= 1984) {
+        return { pfrAbbr: 'clt', historicalName: 'Indianapolis Colts', currentName: 'Indianapolis Colts' };
+      } else {
+        return { pfrAbbr: 'clt', historicalName: 'Baltimore Colts', currentName: 'Indianapolis Colts' };
+      }
+    }
+
+    // Arizona Cardinals (formerly Phoenix/St. Louis/Chicago Cardinals)
+    if (abbr === 'crd') {
+      if (year >= 1994) {
+        return { pfrAbbr: 'crd', historicalName: 'Arizona Cardinals', currentName: 'Arizona Cardinals' };
+      } else if (year >= 1988) {
+        return { pfrAbbr: 'crd', historicalName: 'Phoenix Cardinals', currentName: 'Arizona Cardinals' };
+      } else if (year >= 1960) {
+        return { pfrAbbr: 'crd', historicalName: 'St. Louis Cardinals', currentName: 'Arizona Cardinals' };
+      } else {
+        return { pfrAbbr: 'crd', historicalName: 'Chicago Cardinals', currentName: 'Arizona Cardinals' };
+      }
+    }
+
+    // Washington Commanders (formerly Washington Football Team/Redskins)
+    if (abbr === 'was') {
+      if (year >= 2022) {
+        return { pfrAbbr: 'was', historicalName: 'Washington Commanders', currentName: 'Washington Commanders' };
+      } else if (year >= 2020) {
+        return { pfrAbbr: 'was', historicalName: 'Washington Football Team', currentName: 'Washington Commanders' };
+      } else if (year >= 1937) {
+        return { pfrAbbr: 'was', historicalName: 'Washington Redskins', currentName: 'Washington Commanders' };
+      } else if (year >= 1933) {
+        return { pfrAbbr: 'was', historicalName: 'Boston Redskins', currentName: 'Washington Commanders' };
+      } else {
+        return { pfrAbbr: 'was', historicalName: 'Boston Braves', currentName: 'Washington Commanders' };
+      }
+    }
+
+    // New England Patriots (formerly Boston Patriots)
+    if (abbr === 'nwe') {
+      if (year >= 1971) {
+        return { pfrAbbr: 'nwe', historicalName: 'New England Patriots', currentName: 'New England Patriots' };
+      } else {
+        return { pfrAbbr: 'nwe', historicalName: 'Boston Patriots', currentName: 'New England Patriots' };
+      }
+    }
+
+    // New York Jets (formerly New York Titans)
+    if (abbr === 'nyj') {
+      if (year >= 1963) {
+        return { pfrAbbr: 'nyj', historicalName: 'New York Jets', currentName: 'New York Jets' };
+      } else {
+        return { pfrAbbr: 'nyj', historicalName: 'New York Titans', currentName: 'New York Jets' };
+      }
+    }
+
+    // Kansas City Chiefs (formerly Dallas Texans)
+    if (abbr === 'kan') {
+      if (year >= 1963) {
+        return { pfrAbbr: 'kan', historicalName: 'Kansas City Chiefs', currentName: 'Kansas City Chiefs' };
+      } else {
+        return { pfrAbbr: 'kan', historicalName: 'Dallas Texans', currentName: 'Kansas City Chiefs' };
+      }
+    }
+
+    // Baltimore Ravens (new franchise 1996, NOT related to Colts)
+    if (abbr === 'rav') {
+      return { pfrAbbr: 'rav', historicalName: 'Baltimore Ravens', currentName: 'Baltimore Ravens' };
+    }
+
+    // Cleveland Browns (reactivated 1999, original team became Ravens)
+    if (abbr === 'cle') {
+      if (year >= 1999) {
+        return { pfrAbbr: 'cle', historicalName: 'Cleveland Browns', currentName: 'Cleveland Browns' };
+      } else if (year >= 1950) {
+        return { pfrAbbr: 'cle', historicalName: 'Cleveland Browns (original)', currentName: 'Cleveland Browns' };
+      } else {
+        return { pfrAbbr: 'cle', historicalName: 'Cleveland Browns', currentName: 'Cleveland Browns' };
+      }
+    }
+
+    // Houston Texans (new franchise 2002, NOT related to Oilers)
+    if (abbr === 'htx') {
+      return { pfrAbbr: 'htx', historicalName: 'Houston Texans', currentName: 'Houston Texans' };
+    }
+
+    // All other teams - no relocation
+    const teamNames: { [key: string]: string } = {
+      'atl': 'Atlanta Falcons',
+      'buf': 'Buffalo Bills',
+      'car': 'Carolina Panthers',
+      'chi': 'Chicago Bears',
+      'cin': 'Cincinnati Bengals',
+      'dal': 'Dallas Cowboys',
+      'den': 'Denver Broncos',
+      'det': 'Detroit Lions',
+      'gnb': 'Green Bay Packers',
+      'jax': 'Jacksonville Jaguars',
+      'mia': 'Miami Dolphins',
+      'min': 'Minnesota Vikings',
+      'nor': 'New Orleans Saints',
+      'nyg': 'New York Giants',
+      'phi': 'Philadelphia Eagles',
+      'pit': 'Pittsburgh Steelers',
+      'sea': 'Seattle Seahawks',
+      'sfo': 'San Francisco 49ers',
+      'tam': 'Tampa Bay Buccaneers'
+    };
+
+    const teamName = teamNames[abbr] || 'Unknown Team';
+    return { pfrAbbr: abbr, historicalName: teamName, currentName: teamName };
+  }
+
+  /**
+   * Check if team existed in a given year
+   * Handles franchise relocations and founding years
+   * @param teamAbbr - Team abbreviation (use CURRENT Madden abbreviation)
+   * @param year - Season year
+   * @returns True if the franchise existed that year (regardless of location)
+   */
+  teamExistedInYear(teamAbbr: string, year: number): boolean {
+    // Franchise founding years (when the FRANCHISE started, regardless of location)
+    // Use the franchise's earliest founding year
+    const franchiseFoundingYears: { [key: string]: number } = {
+      'crd': 1920, // Arizona Cardinals (Chicago 1920-1959, St. Louis 1960-1987, Phoenix 1988-1993, Arizona 1994+)
+      'atl': 1966, // Atlanta Falcons
+      'rav': 1996, // Baltimore Ravens (new franchise, NOT the Colts)
+      'buf': 1960, // Buffalo Bills
+      'car': 1995, // Carolina Panthers
+      'chi': 1920, // Chicago Bears
+      'cin': 1968, // Cincinnati Bengals
+      'cle': 1999, // Cleveland Browns (reactivated 1999, original team moved to Baltimore 1996)
+      'dal': 1960, // Dallas Cowboys
+      'den': 1960, // Denver Broncos
+      'det': 1930, // Detroit Lions
+      'gnb': 1921, // Green Bay Packers
+      'htx': 2002, // Houston Texans (NEW franchise, NOT the Oilers)
+      'clt': 1953, // Indianapolis Colts (Baltimore Colts 1953-1983, Indianapolis 1984+)
+      'jax': 1995, // Jacksonville Jaguars
+      'kan': 1960, // Kansas City Chiefs (Dallas Texans 1960-1962, Kansas City 1963+)
+      'sdg': 1960, // Los Angeles Chargers (LA 1960, San Diego 1961-2016, LA 2017+)
+      'ram': 1937, // Los Angeles Rams (Cleveland 1937-1945, LA 1946-1994, St. Louis 1995-2015, LA 2016+)
+      'rai': 1960, // Las Vegas Raiders (Oakland 1960-1981, LA 1982-1994, Oakland 1995-2019, Las Vegas 2020+)
+      'mia': 1966, // Miami Dolphins
+      'min': 1961, // Minnesota Vikings
+      'nwe': 1960, // New England Patriots (Boston Patriots 1960-1970, New England 1971+)
+      'nor': 1967, // New Orleans Saints
+      'nyg': 1925, // New York Giants
+      'nyj': 1960, // New York Jets (Titans 1960-1962, Jets 1963+)
+      'phi': 1933, // Philadelphia Eagles
+      'pit': 1933, // Pittsburgh Steelers
+      'sea': 1976, // Seattle Seahawks
+      'sfo': 1950, // San Francisco 49ers (AAFC 1946-1949, NFL 1950+)
+      'tam': 1976, // Tampa Bay Buccaneers
+      'oti': 1960, // Tennessee Titans (Houston Oilers 1960-1996, Tennessee Oilers 1997-1998, Tennessee Titans 1999+)
+      'was': 1932  // Washington Commanders (Boston Braves 1932, Boston Redskins 1933-1936, Washington 1937+)
+    };
+
+    const foundingYear = franchiseFoundingYears[teamAbbr.toLowerCase()];
+
+    if (!foundingYear) {
+      console.warn(`[ScraperService] Unknown team abbreviation: ${teamAbbr}`);
+      return false;
+    }
+
+    return year >= foundingYear;
+  }
+
+  /**
+   * Scrape Pro Bowl roster for a given year
+   * Gets all players who made the Pro Bowl that season for rating boosts
+   * @param year - Season year (e.g., 1989 for 1989 Pro Bowl)
+   * @returns Set of player names who made Pro Bowl
+   */
+  async scrapeProBowl(year: number): Promise<Set<string>> {
+    const proBowlers = new Set<string>();
+
+    await this.initBrowser();
+
+    if (!this.browser) {
+      console.warn('[ScraperService] Could not initialize browser for Pro Bowl scraping');
+      return proBowlers;
+    }
+
+    const page = await this.browser.newPage();
+
+    try {
+      console.log(`[ScraperService] Scraping Pro Bowl roster for ${year}`);
+
+      // Pro Bowl URL format
+      const probowlUrl = `https://www.pro-football-reference.com/years/${year}/probowl.htm`;
+      await page.goto(probowlUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+      // Extract Pro Bowl players
+      const players = await page.evaluate(() => {
+        const playerSet: string[] = [];
+
+        // Look for the Pro Bowl roster tables (AFC and NFC)
+        const tables = document.querySelectorAll('table');
+
+        for (const table of Array.from(tables)) {
+          const rows = table.querySelectorAll('tbody tr');
+
+          for (const row of Array.from(rows)) {
+            // Skip header rows
+            if (row.classList.contains('thead')) continue;
+
+            // Try multiple selectors for player names
+            const nameCell = row.querySelector('th[data-stat="player"] a') ||
+                            row.querySelector('td[data-stat="player"] a') ||
+                            row.querySelector('th a') ||
+                            row.querySelector('td a');
+
+            if (nameCell) {
+              const playerName = nameCell.textContent?.trim() || '';
+              if (playerName && !playerSet.includes(playerName)) {
+                playerSet.push(playerName);
+              }
+            }
+          }
+        }
+
+        return playerSet;
+      });
+
+      // Add to Set (automatically handles duplicates)
+      for (const player of players) {
+        proBowlers.add(player);
+      }
+
+      console.log(`[ScraperService] Found ${proBowlers.size} Pro Bowlers for ${year}`);
+
+      await page.close();
+      return proBowlers;
+
+    } catch (error: any) {
+      console.warn(`[ScraperService] Error scraping Pro Bowl for ${year}:`, error.message);
+      await page.close();
+      return proBowlers;
+    }
+  }
+
+  /**
+   * Get HOF players by playing year (not draft year)
+   * Returns all HOF players who MIGHT have played in a given season
+   * Uses draft year + realistic career span (12 years average for HOFers)
+   * @param year - Season year
+   * @returns Map of player name -> HOF status
+   */
+  async getHOFPlayersByYear(year: number): Promise<Map<string, boolean>> {
+    const hofMap = new Map<string, boolean>();
+
+    // Load HOF lookup if not already loaded
+    this.loadHOFLookup();
+
+    if (!this.hofLookup) {
+      console.warn('[ScraperService] HOF lookup data not available');
+      return hofMap;
+    }
+
+    // For roster generation, estimate if player was likely active in this year
+    // HOF careers are typically longer than average (10-17 years)
+    // We use a generous range to catch all possible HOFers
+    let count = 0;
+    for (const [playerName, data] of this.hofLookup.entries()) {
+      const draftYear = data.year;
+
+      // Different career lengths by position
+      const position = data.position.toUpperCase();
+      let careerLength = 12; // Default
+
+      // Position-specific career lengths (HOF players play longer than average)
+      if (position === 'QB' || position === 'K' || position === 'P') {
+        careerLength = 17; // QBs and kickers play longer
+      } else if (position === 'OL' || position === 'OT' || position === 'OG' || position === 'C') {
+        careerLength = 14; // Offensive linemen
+      } else if (position === 'RB' || position === 'CB') {
+        careerLength = 10; // RBs and CBs have shorter careers
+      } else if (position === 'WR' || position === 'TE') {
+        careerLength = 12; // Receivers
+      } else if (position === 'DL' || position === 'LB' || position === 'DE' || position === 'DT') {
+        careerLength = 13; // Defensive front 7
+      } else if (position === 'DB' || position === 'S' || position === 'FS' || position === 'SS') {
+        careerLength = 11; // Defensive backs
+      }
+
+      const typicalCareerStart = draftYear;
+      const typicalCareerEnd = draftYear + careerLength;
+
+      if (year >= typicalCareerStart && year <= typicalCareerEnd) {
+        hofMap.set(playerName, true);
+        count++;
+      }
+    }
+
+    console.log(`[ScraperService] Found ${count} potential HOF players active in ${year} (using position-based career spans)`);
+    return hofMap;
   }
 }
 

@@ -72,7 +72,7 @@ export const MADDEN_FIELDS = {
     'PLTR': { display: 'Trucking', shortDisplay: 'TRK', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
     'PLZC': { display: 'Zone Coverage', shortDisplay: 'ZCV', type: 'numeric', editable: true, width: 110, min: 0, max: 99 },
     'PHGT': { display: 'Height', shortDisplay: 'HGT', type: 'numeric', editable: true, width: 70, min: 65, max: 85 },
-    'PWGT': { display: 'Weight', shortDisplay: 'WGT', type: 'numeric', editable: true, width: 70, min: 160, max: 380 },
+    'PWGT': { display: 'Weight', shortDisplay: 'WGT', type: 'numeric', editable: true, width: 70, min: 160, max: 380, transform: { display: v => v + 160, save: v => v - 160 } },
 
     // Contract fields (stored in hundreds of thousands, displayed in millions - divide by 100 for display, multiply by 100 when saving)
     'PCON': { display: 'Contract Years', shortDisplay: 'CON', type: 'numeric', editable: true, width: 80, min: 0, max: 7 },
@@ -106,6 +106,7 @@ export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"],
     ["PPOS", "Position"], ["PYRP", "Years Pro"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["PHTN", "Hometown"], ["PHSN", "State"],
+    ["POVR", "Overall"],
     ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBKT", "Break Tackle"], ["PBCV", "Vision"],
     ["PBSG", "Block Shed"], ["PBSK", "Break Sack"], ["PCAR", "Carrying"], ["PLCI", "Catch in Traffic"],
     ["PCTH", "Catching"], ["PDRR", "Deep RR"], ["PELU", "Change of Dir"], ["PFMS", "Finesse Moves"],

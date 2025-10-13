@@ -224,7 +224,11 @@ class MaddenEditorApp {
             selectRosterTemplateBtn.addEventListener('click', async () => {
                 const result = await window.electronAPI.file.openDialog();
                 if (result.success && result.filePath && !result.canceled) {
-                    document.getElementById('rosterTemplate').value = result.filePath;
+                    const templateInput = document.getElementById('rosterTemplate');
+                    templateInput.value = result.filePath;
+                    // Trigger change event to re-validate
+                    templateInput.dispatchEvent(new Event('change'));
+                    console.log('[App] Roster template file selected:', result.filePath);
                 }
             });
         }
@@ -308,8 +312,19 @@ class MaddenEditorApp {
         // Roster Creator event listeners
         const generateRosterBtn = document.getElementById('generateRosterBtn');
         if (generateRosterBtn) {
+            console.log('[App] Roster generate button found, adding click listener');
             generateRosterBtn.addEventListener('click', async () => {
+                console.log('[App] Generate roster button clicked!');
                 await this.generateRoster();
+            });
+        } else {
+            console.error('[App] Generate roster button NOT found!');
+        }
+
+        const loadIntoRosterEditorBtn = document.getElementById('loadIntoRosterEditor');
+        if (loadIntoRosterEditorBtn) {
+            loadIntoRosterEditorBtn.addEventListener('click', async () => {
+                await this.loadGeneratedRosterIntoEditor();
             });
         }
 
@@ -337,12 +352,16 @@ class MaddenEditorApp {
             const checkRosterReady = () => {
                 const year = parseInt(rosterYearInput.value);
                 const template = rosterTemplateInput.value;
+                console.log(`[App] Roster validation - Year: ${year}, Template: ${template ? 'SET' : 'NOT SET'}`);
                 if (generateRosterBtn) {
-                    generateRosterBtn.disabled = !year || year < 1920 || year > 2025 || !template;
+                    const shouldDisable = !year || year < 1920 || year > 2025 || !template;
+                    generateRosterBtn.disabled = shouldDisable;
+                    console.log(`[App] Generate roster button ${shouldDisable ? 'DISABLED' : 'ENABLED'}`);
                 }
             };
             rosterYearInput.addEventListener('input', checkRosterReady);
             rosterTemplateInput.addEventListener('change', checkRosterReady);
+            checkRosterReady(); // Check on load
         }
 
         // Load saved paths from localStorage
@@ -731,6 +750,16 @@ class MaddenEditorApp {
                     allowInvalid: true,  // Allow invalid values temporarily
                     readOnly: false  // Make it editable
                 };
+            } else if (fieldName === 'POVR') {
+                // Special handling for POVR (Overall Rating) - calculated dynamically
+                columnConfig = {
+                    ...columnConfig,
+                    type: 'numeric',
+                    format: '0',
+                    width: 70,
+                    readOnly: true,  // Overall is calculated, not editable
+                    renderer: this.ovrRenderer.bind(this)  // Custom renderer that calculates OVR
+                };
             } else if (fieldDef.type === 'numeric') {
                 // Numeric fields - use field width if specified, otherwise let autoColumnSize handle it
                 columnConfig = {
@@ -816,6 +845,11 @@ class MaddenEditorApp {
 
             // Freeze columns
             fixedColumnsStart: 2, // Freeze First Name and Last Name columns
+            preventOverflow: 'horizontal', // Prevent column misalignment during scroll
+
+            // Fix row alignment issues with fixed columns during vertical scroll
+            renderAllRows: false, // Use virtual scrolling
+            viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
 
             // Editing
             enterMoves: { row: 1, col: 0 },
@@ -915,6 +949,13 @@ class MaddenEditorApp {
 
     getPlayerFieldValue(player, fieldName) {
         const fieldDef = getFieldDefinition(fieldName);
+
+        // DEBUG: Log first 5 field reads to see what's being requested
+        if (!this._fieldReadCount) this._fieldReadCount = 0;
+        if (this._fieldReadCount < 5) {
+            console.log(`[getPlayerFieldValue] Field: ${fieldName}, Value in player: ${player[fieldName]}, FieldDef type: ${fieldDef?.type}, FieldDef lookup: ${fieldDef?.lookup}`);
+            this._fieldReadCount++;
+        }
 
         // Handle lookup fields
         if (fieldDef.type === 'lookup' && fieldDef.lookup) {
@@ -1181,6 +1222,234 @@ class MaddenEditorApp {
                 <div class="player-pic-suggestions" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto;"></div>
             </div>
         `;
+        return td;
+    }
+
+    /**
+     * Custom renderer for POVR (Overall Rating) - calculates dynamically based on other ratings
+     * Uses position-specific weighted formulas to calculate the overall rating
+     */
+    ovrRenderer(instance, td, row, col, prop, value, cellProperties) {
+        // Get the full player data for this row
+        const rowData = instance.getDataAtRow(row);
+
+        // Get position index
+        const posIndex = this.currentFieldMapping.indexOf('PPOS');
+        const position = posIndex !== -1 ? rowData[posIndex] : null;
+
+        if (!position) {
+            // No position available, show the stored value
+            Handsontable.renderers.NumericRenderer.apply(this, arguments);
+            td.style.backgroundColor = 'var(--gray-medium)';
+            td.style.color = 'var(--gray-text)';
+            return td;
+        }
+
+        // Build ratings object from current row data
+        const ratings = this.buildRatingsFromRow(rowData);
+
+        // Calculate overall rating asynchronously
+        window.electronAPI.rating.calculateOverall(ratings, position)
+            .then(calculatedOVR => {
+                // Update the cell with calculated OVR
+                td.textContent = calculatedOVR;
+                td.style.backgroundColor = 'var(--gray-dark)';  // Darker to show it's calculated
+                td.style.color = 'var(--primary-orange)';  // Orange to highlight it's special
+                td.style.fontWeight = 'bold';
+                td.style.border = '1px solid var(--border-color)';
+                td.style.fontSize = '0.875rem';
+                td.style.textAlign = 'center';
+
+                // Add title with explanation
+                td.title = 'Calculated Overall Rating (based on position-specific attribute weights)';
+            })
+            .catch(error => {
+                console.error('[ovrRenderer] Error calculating OVR:', error);
+                // Fallback to stored value
+                td.textContent = value || '-';
+                td.style.backgroundColor = 'var(--gray-medium)';
+                td.style.color = 'var(--gray-text)';
+            });
+
+        return td;
+    }
+
+    /**
+     * Build a ratings object from a row's data
+     * Maps the current field mapping to rating attributes
+     */
+    buildRatingsFromRow(rowData) {
+        const ratings = {};
+
+        // Map of field names to rating properties
+        const fieldMapping = {
+            'PACC': 'acceleration',
+            'PAGI': 'agility',
+            'PAWR': 'awareness',
+            'PBCV': 'ballCarrierVision',
+            'PBKS': 'blockShedding',
+            'PBKT': 'breakTackle',
+            'PBRK': 'breakSack',
+            'PCAR': 'carrying',
+            'PCTH': 'catching',
+            'PCIT': 'catchInTraffic',
+            'PCOD': 'changeOfDirection',
+            'PDRR': 'deepRouteRunning',
+            'PFMS': 'finesseMoves',
+            'PHIP': 'hitPower',
+            'PIBK': 'impactBlocking',
+            'PINJ': 'injury',
+            'PJMP': 'jumping',
+            'PJKM': 'jukeMove',
+            'PKAC': 'kickAccuracy',
+            'PKPW': 'kickPower',
+            'PKRT': 'kickReturn',
+            'PLDB': 'leadBlock',
+            'PLNS': 'longSnap',
+            'PMCV': 'manCoverage',
+            'PMRR': 'mediumRouteRunning',
+            'PPBF': 'passBlockFinesse',
+            'PPBS': 'passBlockPower',
+            'PPBK': 'passBlock',
+            'PPLA': 'playAction',
+            'PPLR': 'playRecognition',
+            'PPOW': 'powerMoves',
+            'PPRC': 'pressCoverage',
+            'PPUR': 'pursuit',
+            'PRBF': 'runBlockFinesse',
+            'PRBS': 'runBlockPower',
+            'PRBK': 'runBlock',
+            'PREL': 'release',
+            'PSPC': 'spectacularCatch',
+            'PSPD': 'speed',
+            'PSPM': 'spinMove',
+            'PSTM': 'stamina',
+            'PSTA': 'stiffArm',
+            'PSTR': 'strength',
+            'PSRR': 'shortRouteRunning',
+            'PTAK': 'tackle',
+            'PTGH': 'toughness',
+            'PTAD': 'throwAccuracyDeep',
+            'PTAM': 'throwAccuracyMid',
+            'PTAS': 'throwAccuracyShort',
+            'PTOR': 'throwOnTheRun',
+            'PTHP': 'throwPower',
+            'PTUP': 'throwUnderPressure',
+            'PTRK': 'trucking',
+            'PZCV': 'zoneCoverage'
+        };
+
+        // Extract rating values from row data
+        for (const [fieldName, ratingKey] of Object.entries(fieldMapping)) {
+            const fieldIndex = this.currentFieldMapping.indexOf(fieldName);
+            if (fieldIndex !== -1) {
+                const value = rowData[fieldIndex];
+                if (value !== null && value !== undefined && value !== '') {
+                    ratings[ratingKey] = parseInt(value) || 0;
+                }
+            }
+        }
+
+        return ratings;
+    }
+
+    /**
+     * Custom renderer for OVR column in draft class grid
+     * Calculates overall dynamically using position-specific formulas
+     */
+    draftOvrRenderer(instance, td, row, col, prop, value, cellProperties) {
+        // Get the source data object for this row
+        const rowData = instance.getSourceDataAtRow(row);
+
+        if (!rowData || !rowData.position) {
+            // No position available, show the stored value
+            Handsontable.renderers.NumericRenderer.apply(this, arguments);
+            td.style.backgroundColor = 'var(--gray-medium)';
+            td.style.color = 'var(--gray-text)';
+            return td;
+        }
+
+        // Build ratings object from row data (draft class uses direct property names)
+        const ratings = {
+            acceleration: rowData.acceleration,
+            agility: rowData.agility,
+            awareness: rowData.awareness,
+            ballCarrierVision: rowData.ballCarrierVision,
+            blockShedding: rowData.blockShedding,
+            breakTackle: rowData.breakTackle,
+            breakSack: rowData.breakSack,
+            carrying: rowData.carrying,
+            catching: rowData.catching,
+            catchInTraffic: rowData.catchInTraffic,
+            changeOfDirection: rowData.changeOfDirection,
+            deepRouteRunning: rowData.deepRouteRunning,
+            finesseMoves: rowData.finesseMoves,
+            hitPower: rowData.hitPower,
+            impactBlocking: rowData.impactBlocking,
+            injury: rowData.injury,
+            jumping: rowData.jumping,
+            jukeMove: rowData.jukeMove,
+            kickAccuracy: rowData.kickAccuracy,
+            kickPower: rowData.kickPower,
+            kickReturn: rowData.kickReturn,
+            leadBlock: rowData.leadBlock,
+            longSnap: rowData.longSnap,
+            manCoverage: rowData.manCoverage,
+            mediumRouteRunning: rowData.mediumRouteRunning,
+            passBlock: rowData.passBlock,
+            passBlockFinesse: rowData.passBlockFinesse,
+            passBlockPower: rowData.passBlockPower,
+            playAction: rowData.playAction,
+            playRecognition: rowData.playRecognition,
+            powerMoves: rowData.powerMoves,
+            pressCoverage: rowData.pressCoverage,
+            pursuit: rowData.pursuit,
+            release: rowData.release,
+            runBlock: rowData.runBlock,
+            runBlockFinesse: rowData.runBlockFinesse,
+            runBlockPower: rowData.runBlockPower,
+            shortRouteRunning: rowData.shortRouteRunning,
+            spectacularCatch: rowData.spectacularCatch,
+            speed: rowData.speed,
+            spinMove: rowData.spinMove,
+            stamina: rowData.stamina,
+            stiffArm: rowData.stiffArm,
+            strength: rowData.strength,
+            tackle: rowData.tackle,
+            throwAccuracyDeep: rowData.throwAccuracyDeep,
+            throwAccuracyMid: rowData.throwAccuracyMid,
+            throwAccuracyShort: rowData.throwAccuracyShort,
+            throwOnTheRun: rowData.throwOnTheRun,
+            throwPower: rowData.throwPower,
+            throwUnderPressure: rowData.throwUnderPressure,
+            toughness: rowData.toughness,
+            trucking: rowData.trucking,
+            zoneCoverage: rowData.zoneCoverage
+        };
+
+        // Calculate overall rating asynchronously
+        window.electronAPI.rating.calculateOverall(ratings, rowData.position)
+            .then(calculatedOVR => {
+                // Update the cell with calculated OVR
+                td.textContent = calculatedOVR;
+                td.style.backgroundColor = 'var(--gray-dark)';  // Darker to show it's calculated
+                td.style.color = 'var(--primary-orange)';  // Orange to highlight it's special
+                td.style.fontWeight = 'bold';
+                td.style.border = '1px solid var(--border-color)';
+                td.style.fontSize = '0.875rem';
+                td.style.textAlign = 'center';
+
+                // Add title with explanation
+                td.title = 'Calculated Overall Rating (based on position-specific attribute weights)';
+            })
+            .catch(error => {
+                console.error('[draftOvrRenderer] Error calculating OVR:', error);
+                // Fallback to stored value
+                td.textContent = value || '-';
+                td.style.backgroundColor = 'var(--gray-medium)';
+                td.style.color = 'var(--gray-text)';
+            });
+
         return td;
     }
 
@@ -1955,6 +2224,9 @@ class MaddenEditorApp {
             { data: 'PEPS', title: 'Asset ID (PEPS)', width: 200, type: 'text' },
             { data: 'bodyType', title: 'Body Type', width: 110, type: 'dropdown', source: bodyTypeOptions, allowInvalid: true, renderer: dropdownRenderer },
 
+            // Overall (calculated field using position-specific formulas) - FIRST STAT
+            { data: 'overall', title: 'OVR', width: 70, type: 'numeric', readOnly: true, renderer: this.draftOvrRenderer.bind(this) },
+
             // Ratings (in roster field order)
             { data: 'acceleration', title: 'ACC', width: 70, type: 'numeric' },
             { data: 'agility', title: 'AGI', width: 70, type: 'numeric' },
@@ -2016,10 +2288,7 @@ class MaddenEditorApp {
             { data: 'weight', title: 'Weight', width: 70, type: 'numeric' },
 
             // Dev Trait (editable in draft class)
-            { data: 'devTrait', title: 'Dev Trait', width: 110, type: 'dropdown', source: devTraitOptions, allowInvalid: false, renderer: dropdownRenderer },
-
-            // Overall (calculated field)
-            { data: 'overall', title: 'OVR', width: 70, type: 'numeric' }
+            { data: 'devTrait', title: 'Dev Trait', width: 110, type: 'dropdown', source: devTraitOptions, allowInvalid: false, renderer: dropdownRenderer }
         ];
 
         this.draftGrid = new Handsontable(container, {
@@ -2037,6 +2306,9 @@ class MaddenEditorApp {
             dropdownMenu: false,  // Disable dropdown menu (removes filter arrows)
             contextMenu: true,
             fixedColumnsStart: 3,  // Freeze first 3 columns (Last Name, First Name, Position)
+            preventOverflow: 'horizontal', // Prevent column misalignment during scroll
+            renderAllRows: false, // Use virtual scrolling
+            viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
             columnSorting: {
                 indicator: true,
                 headerAction: true,
@@ -2554,10 +2826,17 @@ class MaddenEditorApp {
      */
     async generateRoster() {
         const yearInput = document.getElementById('rosterYear');
+        const templateInput = document.getElementById('rosterTemplate');
         const year = parseInt(yearInput.value);
+        const templatePath = templateInput.value;
 
         if (!year || year < 1920 || year > 2025) {
             this.showError('Please enter a valid season year (1920-2025)');
+            return;
+        }
+
+        if (!templatePath) {
+            this.showError('Please select a roster template file');
             return;
         }
 
@@ -2569,51 +2848,55 @@ class MaddenEditorApp {
 
         progressDiv.style.display = 'block';
         generateBtn.disabled = true;
-        progressBar.style.width = '10%';
-        progressText.textContent = `Scraping ${year} roster data for all teams...`;
+        progressBar.style.width = '5%';
+        progressText.textContent = `Starting roster generation for ${year}...`;
 
         try {
             console.log(`[Creator] Generating roster for ${year}`);
 
-            // Get all NFL teams (hardcoded list for now)
-            const nflTeams = ['ari', 'atl', 'bal', 'buf', 'car', 'chi', 'cin', 'cle',
-                             'dal', 'den', 'det', 'gnb', 'htx', 'clt', 'jax', 'kan',
-                             'sdg', 'rai', 'ram', 'mia', 'min', 'nwe', 'nor', 'nyg',
-                             'nyj', 'phi', 'pit', 'sfo', 'sea', 'tam', 'oti', 'was'];
+            // Set up progress listener
+            window.electronAPI.rosterCreator.onProgress((data) => {
+                progressBar.style.width = `${data.progress}%`;
+                progressText.textContent = data.message;
+                console.log(`[Creator] Progress: ${data.progress}% - ${data.message}`);
+            });
 
-            progressBar.style.width = '20%';
+            // Call IPC to generate roster (this will take 10-15 minutes)
+            const result = await window.electronAPI.rosterCreator.generate(year, templatePath);
 
-            // Call IPC to generate roster
-            const result = await window.electronAPI.creator.generateRoster(year, nflTeams);
+            // Remove progress listener
+            window.electronAPI.rosterCreator.removeProgressListener();
 
             if (!result.success) {
                 throw new Error(result.error || 'Failed to generate roster');
             }
 
-            console.log(`[Creator] Generated ${result.count} players`);
+            console.log(`[Creator] Generated ${result.players.length} players`);
+            console.log(`[Creator] HOF players: ${result.stats.hofPlayers}`);
+            console.log(`[Creator] Average OVR: ${result.stats.averageOVR}`);
 
-            progressBar.style.width = '70%';
-            progressText.textContent = 'Displaying preview...';
+            progressBar.style.width = '100%';
+            progressText.textContent = `Complete! Generated ${result.players.length} players`;
 
             // Store generated players
             this.generatedRosterPlayers = result.players;
+            this.generatedRosterStats = result.stats;
 
             // Show preview step
             await this.showRosterPreview(result.players);
 
-            progressBar.style.width = '100%';
-            progressText.textContent = 'Complete!';
-
             setTimeout(() => {
                 progressDiv.style.display = 'none';
                 generateBtn.disabled = false;
-            }, 1000);
+            }, 2000);
 
         } catch (error) {
             console.error('[Creator] Error generating roster:', error);
             this.showError(`Failed to generate roster: ${error.message}`);
             progressDiv.style.display = 'none';
             generateBtn.disabled = false;
+            // Remove progress listener on error
+            window.electronAPI.rosterCreator.removeProgressListener();
         }
     }
 
@@ -2842,7 +3125,9 @@ class MaddenEditorApp {
                 stretchH: 'none', // Don't stretch columns, use defined widths
                 width: '100%', // Ensure full width
                 autoWrapRow: true,
-                autoWrapCol: true
+                autoWrapCol: true,
+                renderAllRows: false, // Use virtual scrolling
+                viewportRowRenderingOffset: 100 // Render extra rows to prevent misalignment
             });
         } else {
             this.draftCreatorGrid.loadData(gridData);
@@ -2859,90 +3144,96 @@ class MaddenEditorApp {
 
         // Show preview step
         previewStep.style.display = 'block';
-        previewCount.textContent = `${players.length} players generated`;
 
-        // Convert players to grid data with ALL ratings (same as draft preview)
+        // Display stats
+        const hofCount = players.filter(p => p.isHallOfFamer).length;
+        previewCount.textContent = `${players.length} players generated (${hofCount} Hall of Famers)`;
+
+        // Convert players to grid data
         const gridData = players.map(player => {
-            const r = player.ratings;
             return {
                 // Basic Info
-                firstName: player.firstName,
-                lastName: player.lastName,
-                position: player.position,
-                positionCode: player.positionCode,
-                team: player.team,
-                college: player.college,
-                age: player.age,
-                heightInches: player.heightInches,
-                weight: player.weight,
-                devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][player.devTrait] || 'Normal',
+                firstName: player.PFNA,
+                lastName: player.PLNA,
+                position: player.PPOS,
+                team: player.TGID,
+                age: player.PAGE,
+                jersey: player.PJEN,
+                height: Math.floor(player.PHGT / 12) + '-' + (player.PHGT % 12),
+                weight: player.PWGT,
+                college: player.PCOL,
+                isHOF: player.isHallOfFamer ? 'Yes' : 'No',
 
-                // Core Physical
-                overall: r.overall,
-                speed: r.speed,
-                acceleration: r.acceleration,
-                agility: r.agility,
-                strength: r.strength,
-                awareness: r.awareness,
-                jumping: r.jumping,
-                stamina: r.stamina,
-                injury: r.injury,
+                // Core Ratings
+                overall: player.POVR,
+                speed: player.PSPD,
+                acceleration: player.PACC,
+                agility: player.PAGI,
+                strength: player.PSTR,
+                awareness: player.PAWR,
+                jumping: player.PJMP,
+                stamina: player.PSTA,
+                injury: player.PINJ,
+                toughness: player.PTGH,
 
-                // QB Attributes
-                throwPower: r.throwPower || '-',
-                throwAccShort: r.throwAccuracyShort || '-',
-                throwAccMid: r.throwAccuracyMid || '-',
-                throwAccDeep: r.throwAccuracyDeep || '-',
-                throwOnRun: r.throwOnTheRun || '-',
-                throwUnderPress: r.throwUnderPressure || '-',
-                playAction: r.playAction || '-',
-                breakSack: r.breakSack || '-',
+                // Position-specific attributes (will show '-' if not present)
+                throwPower: player.PTHP || '-',
+                throwAccShort: player.PTHA || '-',
+                throwAccMid: player.PTHM || '-',
+                throwAccDeep: player.PTHD || '-',
+                carrying: player.PCAR || '-',
+                breakTackle: player.PBTK || '-',
+                catching: player.PCTH || '-',
+                catchInTraffic: player.PCIT || '-',
+                routeRunning: player.PRTE || '-',
+                release: player.PREL || '-',
+                runBlock: player.PRBK || '-',
+                passBlock: player.PLBK || '-',
+                tackling: player.PTAK || '-',
+                hitPower: player.PHTP || '-',
+                powerMoves: player.PPOW || '-',
+                finesseMoves: player.PFMS || '-',
+                blockShedding: player.PBSH || '-',
+                manCoverage: player.PMCV || '-',
+                zoneCoverage: player.PZCV || '-',
+                press: player.PPRS || '-',
+                kickPower: player.PKPW || '-',
+                kickAccuracy: player.PKAC || '-',
 
-                // Ball Carrier
-                carrying: r.carrying || '-',
-                bcVision: r.ballCarrierVision || '-',
-                breakTackle: r.breakTackle || '-',
-                trucking: r.trucking || '-',
-                stiffArm: r.stiffArm || '-',
-                spinMove: r.spinMove || '-',
-                jukeMove: r.jukeMove || '-',
+                // Additional Ball Carrier
+                stiffArm: player.PSFA || '-',
+                spinMove: player.PSPM || '-',
+                jukeMove: player.PJKM || '-',
+                trucking: player.PTRK || '-',
+                bcVision: player.PBCV || '-',
 
-                // Receiving
-                catching: r.catching || '-',
-                catchInTraffic: r.catchInTraffic || '-',
-                specCatch: r.spectacularCatch || '-',
-                shortRoute: r.shortRouteRunning || '-',
-                medRoute: r.mediumRouteRunning || '-',
-                deepRoute: r.deepRouteRunning || '-',
-                release: r.release || '-',
+                // Additional Receiving
+                specCatch: player.PSPC || '-',
+                shortRoute: player.PSRR || '-',
+                medRoute: player.PMRR || '-',
+                deepRoute: player.PDRR || '-',
 
-                // Blocking
-                passBlock: r.passBlock || '-',
-                passBlockPower: r.passBlockPower || '-',
-                passBlockFinesse: r.passBlockFinesse || '-',
-                runBlock: r.runBlock || '-',
-                runBlockPower: r.runBlockPower || '-',
-                runBlockFinesse: r.runBlockFinesse || '-',
-                leadBlock: r.leadBlock || '-',
-                impactBlock: r.impactBlocking || '-',
+                // Additional Blocking
+                leadBlock: player.PLBK || '-',
+                impactBlock: player.PIBL || '-',
 
-                // Defense
-                tackle: r.tackle || '-',
-                hitPower: r.hitPower || '-',
-                powerMoves: r.powerMoves || '-',
-                finesseMoves: r.finesseMoves || '-',
-                blockShed: r.blockShedding || '-',
-                pursuit: r.pursuit || '-',
-                playRec: r.playRecognition || '-',
-                manCov: r.manCoverage || '-',
-                zoneCov: r.zoneCoverage || '-',
-                pressCov: r.pressCoverage || '-',
+                // Additional Passing
+                throwOnRun: player.PTHO || '-',
+                throwUnderPress: player.PTHU || '-',
+                playAction: player.PPLA || '-',
+                breakSack: player.PBSK || '-',
+
+                // Additional Defense
+                pursuit: player.PPUR || '-',
+                playRec: player.PPRC || '-',
 
                 // Special Teams
-                kickPower: r.kickPower || '-',
-                kickAcc: r.kickAccuracy || '-',
-                kickReturn: r.kickReturn || '-',
-                longSnap: r.longSnap || '-'
+                kickReturn: player.PKRT || '-',
+
+                // Roster-specific fields
+                heightInches: player.PHGT,
+                positionCode: player.PPOS, // Position code is already in PPOS field
+                devTrait: player.PDEV !== undefined ? ['Normal', 'Star', 'Superstar', 'X-Factor'][player.PDEV] || 'Normal' : '-'
             };
         });
 
@@ -3006,21 +3297,24 @@ class MaddenEditorApp {
             { data: 'impactBlock', header: 'IBL', width: 45 },
 
             // Defense
-            { data: 'tackle', header: 'TAK', width: 45 },
+            { data: 'tackling', header: 'TAK', width: 45 },
             { data: 'hitPower', header: 'POW', width: 45 },
             { data: 'powerMoves', header: 'PMV', width: 45 },
             { data: 'finesseMoves', header: 'FMV', width: 45 },
-            { data: 'blockShed', header: 'BSH', width: 45 },
+            { data: 'blockShedding', header: 'BSH', width: 45 },
             { data: 'pursuit', header: 'PUR', width: 45 },
             { data: 'playRec', header: 'PRC', width: 45 },
-            { data: 'manCov', header: 'MCV', width: 45 },
-            { data: 'zoneCov', header: 'ZCV', width: 45 },
-            { data: 'pressCov', header: 'PRS', width: 45 },
+            { data: 'manCoverage', header: 'MCV', width: 45 },
+            { data: 'zoneCoverage', header: 'ZCV', width: 45 },
+            { data: 'press', header: 'PRS', width: 45 },
 
             // Special Teams
             { data: 'kickPower', header: 'KPW', width: 45 },
-            { data: 'kickAcc', header: 'KAC', width: 45 },
-            { data: 'kickReturn', header: 'KR', width: 45 }
+            { data: 'kickAccuracy', header: 'KAC', width: 45 },
+            { data: 'kickReturn', header: 'KR', width: 45 },
+
+            // HOF Indicator
+            { data: 'isHOF', header: 'HOF', width: 50 }
         ];
 
         // Initialize Handsontable if needed
@@ -3040,7 +3334,9 @@ class MaddenEditorApp {
                 filters: true,
                 dropdownMenu: true,
                 contextMenu: true,
-                stretchH: 'none' // Don't stretch columns, use defined widths
+                stretchH: 'none', // Don't stretch columns, use defined widths
+                renderAllRows: false, // Use virtual scrolling
+                viewportRowRenderingOffset: 100 // Render extra rows to prevent misalignment
             });
         } else {
             this.rosterCreatorGrid.loadData(gridData);
@@ -3286,6 +3582,73 @@ class MaddenEditorApp {
         } catch (error) {
             console.error('[Creator] Error saving roster:', error);
             this.showError(`Failed to save: ${error.message}`);
+        }
+    }
+
+    /**
+     * Load generated roster into the Roster Editor tab
+     */
+    async loadGeneratedRosterIntoEditor() {
+        if (!this.generatedRosterPlayers || this.generatedRosterPlayers.length === 0) {
+            this.showError('No roster data to load');
+            return;
+        }
+
+        try {
+            console.log('[Creator] Loading roster into editor...');
+            console.log(`[Creator] ${this.generatedRosterPlayers.length} players ready`);
+
+            // DEBUG: Log first player's field names
+            if (this.generatedRosterPlayers.length > 0) {
+                const firstPlayer = this.generatedRosterPlayers[0];
+                console.log('[Creator] First player data:');
+                console.log('  - Field names:', Object.keys(firstPlayer));
+                console.log('  - PFNA (First Name):', firstPlayer.PFNA);
+                console.log('  - PLNA (Last Name):', firstPlayer.PLNA);
+                console.log('  - PPOS (Position):', firstPlayer.PPOS);
+                console.log('  - PSPD (Speed):', firstPlayer.PSPD);
+                console.log('  - PCOL (College):', firstPlayer.PCOL);
+                console.log('  - PPID (PID):', firstPlayer.PPID);
+                console.log('  - POVR (Overall):', firstPlayer.POVR);
+                console.log('  - Full first player:', JSON.stringify(firstPlayer, null, 2));
+            }
+
+            // Switch to roster editor tab
+            this.switchTool('roster');
+
+            // Store the generated players as the current roster data
+            this.players = this.generatedRosterPlayers;
+
+            // Render the roster in the editor grid (this method handles Handsontable setup)
+            this.renderRoster();
+
+            // Update UI
+            const fileStatus = document.getElementById('fileStatus');
+            if (fileStatus) {
+                fileStatus.textContent = `Generated Roster (${this.players.length} players) - Ready to save`;
+            }
+
+            // Show save button
+            const saveButton = document.getElementById('saveRosterBtn');
+            if (saveButton) {
+                saveButton.style.display = 'inline-block';
+            }
+
+            // Show success message
+            alert(
+                `Roster Loaded Successfully!\n\n` +
+                `✅ ${this.players.length} players loaded into editor\n` +
+                `✅ ${this.generatedRosterStats.hofPlayers} Hall of Famers\n` +
+                `✅ Average OVR: ${this.generatedRosterStats.averageOVR}\n\n` +
+                `You can now edit players in the Roster Editor tab.\n` +
+                `Click "Save Roster" when ready to save.`
+            );
+
+            console.log('[Creator] Roster loaded into editor successfully');
+
+        } catch (error) {
+            console.error('[Creator] Error loading roster into editor:', error);
+            this.showError(`Failed to load roster into editor: ${error.message}`);
         }
     }
 }
