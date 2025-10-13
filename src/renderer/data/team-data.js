@@ -322,6 +322,16 @@ export const NFL_TEAMS = {
     primary: '#03202F',
     secondary: '#A71930',
     logo: 'https://static.www.nfl.com/league/api/clubs/logos/HOU.svg'
+  },
+  1009: {
+    id: 1009,
+    name: 'Free Agent',
+    city: '',
+    fullName: 'Free Agent',
+    abbr: 'FA',
+    primary: '#808080',
+    secondary: '#C0C0C0',
+    logo: ''
   }
 };
 

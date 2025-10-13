@@ -15,6 +15,7 @@
 
 import { scraperService, PlayerStats, DraftProspect } from './ScraperService';
 import { ratingCalculator, MaddenRatings } from './RatingCalculator';
+import { scraperDebugLogger } from '../utils/DebugLogger';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -174,7 +175,10 @@ export class CreatorService {
     }
 
     const collegeLookup = this.loadCollegeLookup();
-    const normalized = scrapedCollegeName.toLowerCase().replace(/[^a-z\s]/g, '');
+
+    // Expand common abbreviations before normalization
+    const expandedName = this.expandCollegeAbbreviations(scrapedCollegeName);
+    const normalized = expandedName.toLowerCase().replace(/[^a-z\s]/g, '');
 
     // Try exact match first
     for (const [collegeName, collegeId] of collegeLookup.entries()) {
@@ -207,6 +211,67 @@ export class CreatorService {
     // No match found - return "No College" (ID 265)
     console.warn(`[CreatorService] No college match found for "${scrapedCollegeName}" - defaulting to No College (265)`);
     return 265; // No College
+  }
+
+  /**
+   * Expand common college abbreviations to full names
+   * E.g., "Florida St." -> "Florida State", "Ohio St." -> "Ohio State"
+   */
+  private expandCollegeAbbreviations(collegeName: string): string {
+    // Common abbreviation mappings
+    const abbreviations: { [key: string]: string } = {
+      'st\\.': 'state',
+      'st ': 'state ',
+      'univ\\.': 'university',
+      'u\\.': 'university',
+      'tech\\.': 'technology',
+      'int\'l': 'international',
+      'intl': 'international',
+      'n\\.': 'north',
+      's\\.': 'south',
+      'e\\.': 'east',
+      'w\\.': 'west',
+      'mt\\.': 'mount',
+      'ala\\.': 'alabama',
+      'ariz\\.': 'arizona',
+      'ark\\.': 'arkansas',
+      'calif\\.': 'california',
+      'colo\\.': 'colorado',
+      'conn\\.': 'connecticut',
+      'fla\\.': 'florida',
+      'ga\\.': 'georgia',
+      'ill\\.': 'illinois',
+      'ind\\.': 'indiana',
+      'kans\\.': 'kansas',
+      'ky\\.': 'kentucky',
+      'la\\.': 'louisiana',
+      'mass\\.': 'massachusetts',
+      'mich\\.': 'michigan',
+      'minn\\.': 'minnesota',
+      'miss\\.': 'mississippi',
+      'mo\\.': 'missouri',
+      'nebr\\.': 'nebraska',
+      'nev\\.': 'nevada',
+      'okla\\.': 'oklahoma',
+      'ore\\.': 'oregon',
+      'pa\\.': 'pennsylvania',
+      'tenn\\.': 'tennessee',
+      'tex\\.': 'texas',
+      'va\\.': 'virginia',
+      'wash\\.': 'washington',
+      'wis\\.': 'wisconsin',
+      'wyo\\.': 'wyoming'
+    };
+
+    let expanded = collegeName.toLowerCase();
+
+    // Apply each abbreviation replacement
+    for (const [abbr, full] of Object.entries(abbreviations)) {
+      const regex = new RegExp(abbr, 'gi');
+      expanded = expanded.replace(regex, full);
+    }
+
+    return expanded;
   }
 
   /**
@@ -658,9 +723,9 @@ export class CreatorService {
         let roster: PlayerStats[] = [];
 
         if (!teamExisted) {
-          console.log(`[CreatorService] ⚠️ ${teamAbbr} did not exist in ${year}, generating fictional roster (53 players)`);
-          // Generate 53 fictional players for teams that didn't exist
-          roster = this.generateFictionalRoster(teamAbbr, 53);
+          console.log(`[CreatorService] ⚠️ ${teamAbbr} did not exist in ${year}, generating fictional roster (53 players with 30-40 OVR)`);
+          // Generate 53 fictional players for teams that didn't exist (with low ratings for franchise mode)
+          roster = this.generateFictionalRoster(teamAbbr, 53, true); // true = non-existent team
         } else {
           console.log(`[CreatorService] ✅ ${teamAbbr} existed, scraping roster and stats...`);
 
@@ -826,8 +891,11 @@ export class CreatorService {
             console.log(`  - Has ANY stats: ${hasAnyStats}`);
           }
 
-          // Calculate ratings
-          const ratings = ratingCalculator.calculateRatings(playerStats);
+          // Calculate ratings (use low ratings for non-existent teams)
+          const isNonExistentTeam = (playerStats as any)._isNonExistentTeam || false;
+          const ratings = isNonExistentTeam
+            ? this.generateFillerRatings(mappedPosition.name, true) // 30-40 OVR for retro franchise
+            : ratingCalculator.calculateRatings(playerStats);
 
           // DEBUG: Log ratings AFTER calculation
           if (debugDetail) {
@@ -1013,6 +1081,10 @@ export class CreatorService {
       console.log(`[CreatorService] Generated ${generatedPlayers.length} total players`);
       console.log(`[CreatorService] HOF players with X-Factor: ${generatedPlayers.filter(p => p.devTrait === 3).length}`);
 
+      scraperDebugLogger.log(`\n============================================`);
+      scraperDebugLogger.log(`*** ABOUT TO GENERATE FREE AGENT POOL ***`);
+      scraperDebugLogger.log(`============================================\n`);
+
       console.log(`[CreatorService] ============================================`);
       console.log(`[CreatorService] *** ABOUT TO GENERATE FREE AGENT POOL ***`);
       console.log(`[CreatorService] ============================================`);
@@ -1023,11 +1095,22 @@ export class CreatorService {
       const targetTotalPlayers = 3000; // Target similar to official rosters
       const freeAgentsNeeded = Math.max(0, targetTotalPlayers - teamPlayerCount);
 
+      scraperDebugLogger.log(`Team player count: ${teamPlayerCount}`);
+      scraperDebugLogger.log(`Target total: ${targetTotalPlayers}`);
+      scraperDebugLogger.log(`Free agents needed: ${freeAgentsNeeded}\n`);
+
       console.log(`[CreatorService] Team player count: ${teamPlayerCount}`);
       console.log(`[CreatorService] Target total: ${targetTotalPlayers}`);
       console.log(`[CreatorService] Free agents needed: ${freeAgentsNeeded}`);
 
       if (freeAgentsNeeded > 0) {
+        scraperDebugLogger.log(`========================================`);
+        scraperDebugLogger.log(`Generating Free Agent Pool`);
+        scraperDebugLogger.log(`Current players: ${teamPlayerCount}`);
+        scraperDebugLogger.log(`Target total: ${targetTotalPlayers}`);
+        scraperDebugLogger.log(`Free agents needed: ${freeAgentsNeeded}`);
+        scraperDebugLogger.log(`========================================\n`);
+
         console.log(`[CreatorService] ========================================`);
         console.log(`[CreatorService] Generating Free Agent Pool`);
         console.log(`[CreatorService] Current players: ${teamPlayerCount}`);
@@ -1037,6 +1120,7 @@ export class CreatorService {
 
         // Generate fictional free agents with varied positions
         const freeAgentRoster = this.generateFictionalRoster('FA', freeAgentsNeeded);
+        scraperDebugLogger.log(`Generated ${freeAgentRoster.length} fictional FA players\n`);
 
         // Process free agents (same as filler players but with team = 1009)
         for (const faStats of freeAgentRoster) {
@@ -1085,8 +1169,13 @@ export class CreatorService {
           generatedPlayers.push(freeAgent);
         }
 
+        scraperDebugLogger.log(`✓ Added ${freeAgentsNeeded} free agents`);
+        scraperDebugLogger.log(`Final roster size: ${generatedPlayers.length} players\n`);
+
         console.log(`[CreatorService] ✓ Added ${freeAgentsNeeded} free agents`);
         console.log(`[CreatorService] Final roster size: ${generatedPlayers.length} players`);
+      } else {
+        scraperDebugLogger.log(`No free agents needed (already have ${teamPlayerCount} players)\n`);
       }
 
       // Close browser when done
@@ -1188,7 +1277,7 @@ export class CreatorService {
    * Generate low ratings for filler/backup players
    * These are practice squad / backup level players (50-65 OVR)
    */
-  private generateFillerRatings(position: string): MaddenRatings {
+  private generateFillerRatings(position: string, isNonExistentTeam: boolean = false): MaddenRatings {
     // Generate position-appropriate ratings with low base stats
     const mockStats: PlayerStats = {
       name: 'Filler Player',
@@ -1199,43 +1288,45 @@ export class CreatorService {
     // Use rating calculator to get position-appropriate ratings
     const ratings = ratingCalculator.calculateRatings(mockStats);
 
-    // Scale down all ratings to backup/practice squad level (45-60 range)
-    // Keep the relative proportions between ratings, just scale the overall level down
-    const scaleFactor = 0.65; // Scale to ~65% of default ratings
+    // Scale down ratings based on team existence
+    // Non-existent teams: 30-40 OVR (retro franchise mode ease)
+    // Filler players: 45-60 OVR (backup/practice squad level)
+    const scaleFactor = isNonExistentTeam ? 0.45 : 0.65; // 45% or 65% of default ratings
+    const minRating = isNonExistentTeam ? 30 : 45;
 
     const scaledRatings: MaddenRatings = {
-      overall: Math.max(45, Math.floor(ratings.overall * scaleFactor)),
-      speed: Math.max(45, Math.floor(ratings.speed * scaleFactor)),
-      acceleration: Math.max(45, Math.floor(ratings.acceleration * scaleFactor)),
-      agility: Math.max(45, Math.floor(ratings.agility * scaleFactor)),
-      strength: Math.max(45, Math.floor(ratings.strength * scaleFactor)),
-      awareness: Math.max(40, Math.floor(ratings.awareness * scaleFactor)),
-      catching: Math.max(40, Math.floor(ratings.catching * scaleFactor)),
-      carrying: Math.max(40, Math.floor(ratings.carrying * scaleFactor)),
-      throwPower: Math.max(40, Math.floor(ratings.throwPower * scaleFactor)),
-      throwAccuracy: Math.max(40, Math.floor(ratings.throwAccuracy * scaleFactor)),
-      shortThrowAccuracy: Math.max(40, Math.floor(ratings.shortThrowAccuracy * scaleFactor)),
-      mediumThrowAccuracy: Math.max(40, Math.floor(ratings.mediumThrowAccuracy * scaleFactor)),
-      deepThrowAccuracy: Math.max(40, Math.floor(ratings.deepThrowAccuracy * scaleFactor)),
-      runBlock: Math.max(40, Math.floor(ratings.runBlock * scaleFactor)),
-      passBlock: Math.max(40, Math.floor(ratings.passBlock * scaleFactor)),
-      tackle: Math.max(40, Math.floor(ratings.tackle * scaleFactor)),
-      hitPower: Math.max(40, Math.floor(ratings.hitPower * scaleFactor)),
-      manCoverage: Math.max(40, Math.floor(ratings.manCoverage * scaleFactor)),
-      zoneCoverage: Math.max(40, Math.floor(ratings.zoneCoverage * scaleFactor)),
-      press: Math.max(40, Math.floor(ratings.press * scaleFactor)),
-      pursuit: Math.max(40, Math.floor(ratings.pursuit * scaleFactor)),
-      playRecognition: Math.max(40, Math.floor(ratings.playRecognition * scaleFactor)),
-      blockShedding: Math.max(40, Math.floor(ratings.blockShedding * scaleFactor)),
-      finesseMoves: Math.max(40, Math.floor(ratings.finesseMoves * scaleFactor)),
-      powerMoves: Math.max(40, Math.floor(ratings.powerMoves * scaleFactor)),
-      jumping: Math.max(40, Math.floor(ratings.jumping * scaleFactor)),
-      stamina: Math.max(50, Math.floor(ratings.stamina * scaleFactor)),
-      injury: Math.max(50, Math.floor(ratings.injury * scaleFactor)),
-      toughness: Math.max(50, Math.floor(ratings.toughness * scaleFactor)),
-      kickPower: Math.max(40, Math.floor(ratings.kickPower * scaleFactor)),
-      kickAccuracy: Math.max(40, Math.floor(ratings.kickAccuracy * scaleFactor)),
-      kickReturn: Math.max(40, Math.floor(ratings.kickReturn * scaleFactor))
+      overall: Math.max(minRating, Math.floor(ratings.overall * scaleFactor)),
+      speed: Math.max(minRating, Math.floor(ratings.speed * scaleFactor)),
+      acceleration: Math.max(minRating, Math.floor(ratings.acceleration * scaleFactor)),
+      agility: Math.max(minRating, Math.floor(ratings.agility * scaleFactor)),
+      strength: Math.max(minRating, Math.floor(ratings.strength * scaleFactor)),
+      awareness: Math.max(minRating, Math.floor(ratings.awareness * scaleFactor)),
+      catching: Math.max(minRating, Math.floor(ratings.catching * scaleFactor)),
+      carrying: Math.max(minRating, Math.floor(ratings.carrying * scaleFactor)),
+      throwPower: Math.max(minRating, Math.floor(ratings.throwPower * scaleFactor)),
+      throwAccuracy: Math.max(minRating, Math.floor(ratings.throwAccuracy * scaleFactor)),
+      shortThrowAccuracy: Math.max(minRating, Math.floor(ratings.shortThrowAccuracy * scaleFactor)),
+      mediumThrowAccuracy: Math.max(minRating, Math.floor(ratings.mediumThrowAccuracy * scaleFactor)),
+      deepThrowAccuracy: Math.max(minRating, Math.floor(ratings.deepThrowAccuracy * scaleFactor)),
+      runBlock: Math.max(minRating, Math.floor(ratings.runBlock * scaleFactor)),
+      passBlock: Math.max(minRating, Math.floor(ratings.passBlock * scaleFactor)),
+      tackle: Math.max(minRating, Math.floor(ratings.tackle * scaleFactor)),
+      hitPower: Math.max(minRating, Math.floor(ratings.hitPower * scaleFactor)),
+      manCoverage: Math.max(minRating, Math.floor(ratings.manCoverage * scaleFactor)),
+      zoneCoverage: Math.max(minRating, Math.floor(ratings.zoneCoverage * scaleFactor)),
+      press: Math.max(minRating, Math.floor(ratings.press * scaleFactor)),
+      pursuit: Math.max(minRating, Math.floor(ratings.pursuit * scaleFactor)),
+      playRecognition: Math.max(minRating, Math.floor(ratings.playRecognition * scaleFactor)),
+      blockShedding: Math.max(minRating, Math.floor(ratings.blockShedding * scaleFactor)),
+      finesseMoves: Math.max(minRating, Math.floor(ratings.finesseMoves * scaleFactor)),
+      powerMoves: Math.max(minRating, Math.floor(ratings.powerMoves * scaleFactor)),
+      jumping: Math.max(minRating, Math.floor(ratings.jumping * scaleFactor)),
+      stamina: Math.max(minRating + 10, Math.floor(ratings.stamina * scaleFactor)),
+      injury: Math.max(minRating + 10, Math.floor(ratings.injury * scaleFactor)),
+      toughness: Math.max(minRating + 10, Math.floor(ratings.toughness * scaleFactor)),
+      kickPower: Math.max(minRating, Math.floor(ratings.kickPower * scaleFactor)),
+      kickAccuracy: Math.max(minRating, Math.floor(ratings.kickAccuracy * scaleFactor)),
+      kickReturn: Math.max(minRating, Math.floor(ratings.kickReturn * scaleFactor))
     };
 
     return scaledRatings;
@@ -1944,7 +2035,7 @@ export class CreatorService {
    * @param count - Number of players to generate (typically 53)
    * @returns Array of PlayerStats for fictional players
    */
-  private generateFictionalRoster(teamAbbr: string, count: number): PlayerStats[] {
+  private generateFictionalRoster(teamAbbr: string, count: number, isNonExistentTeam: boolean = false): PlayerStats[] {
     const fictionalPlayers: PlayerStats[] = [];
 
     // Common first/last names for fictional players
@@ -1974,10 +2065,11 @@ export class CreatorService {
       'K', 'P', 'LS'              // 3 Specialists
     ];
 
-    for (let i = 0; i < count && i < positions.length; i++) {
+    for (let i = 0; i < count; i++) {
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
       const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-      const position = positions[i];
+      // Cycle through positions array if count > positions.length
+      const position = positions[i % positions.length];
       const college = colleges[Math.floor(Math.random() * colleges.length)];
 
       // Generate realistic physical stats by position
@@ -2048,8 +2140,9 @@ export class CreatorService {
         height: height,
         weight: weight,
         age: 22 + Math.floor(Math.random() * 6), // Age 22-27
-        team: teamAbbr.toUpperCase()
-      });
+        team: teamAbbr.toUpperCase(),
+        _isNonExistentTeam: isNonExistentTeam // Custom flag for rating generation
+      } as any);
     }
 
     console.log(`[CreatorService] Generated ${fictionalPlayers.length} fictional players for ${teamAbbr}`);
