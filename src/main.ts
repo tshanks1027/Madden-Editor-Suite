@@ -27,11 +27,14 @@ import './main/ipc/file-handlers';
 import './main/ipc/lookup-handlers';
 import './main/ipc/draft-class-handlers';
 import './main/ipc/roster-creator-handlers';
+import './main/ipc/portrait-handlers';
 import { registerCreatorHandlers } from './main/ipc/creator-handlers';
 import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';
 import { registerUpdateHandlers } from './main/ipc/update-handlers';
 import { updateChecker } from './main/services/UpdateChecker';
+import { portraitService } from './main/services/PortraitService';
+import { sessionDebugLogger } from './main/utils/DebugLogger';
 
 // Register creator handlers
 registerCreatorHandlers();
@@ -71,8 +74,20 @@ const createWindow = (): void => {
   });
 };
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Clear session debug log on startup
+  sessionDebugLogger.clear();
+  console.log('[main] Session debug log cleared and ready');
+
   createWindow();
+
+  // Initialize portrait service
+  try {
+    await portraitService.initialize();
+    console.log('[main] Portrait service initialized');
+  } catch (error) {
+    console.error('[main] Failed to initialize portrait service:', error);
+  }
 
   // Start checking for updates (checks immediately, then every 4 hours)
   updateChecker.startPeriodicChecks((updateInfo) => {

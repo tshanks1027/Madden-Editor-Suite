@@ -89,7 +89,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   debug: {
     getLog: () => ipcRenderer.invoke('debug:get-log'),
     getLogPath: () => ipcRenderer.invoke('debug:get-log-path'),
-    clearLog: () => ipcRenderer.invoke('debug:clear-log')
+    clearLog: () => ipcRenderer.invoke('debug:clear-log'),
+    sessionLog: (message: string) => ipcRenderer.invoke('debug:session-log', message),
+    getSessionLogPath: () => ipcRenderer.invoke('debug:get-session-log-path')
   },
 
   // Rating APIs

@@ -2166,16 +2166,95 @@ class MaddenEditorApp {
                 console.log('[Draft Class] Player Pic:', playerPic);
             }
 
+            // Create clean object with ONLY the properties needed for Handsontable
+            // Do NOT use spread operator - it can copy extra/corrupted properties from M25→M26 conversion
             return {
-                ...prospect,
-                position: getLookupValue('positions', prospect.position) || prospect.position,
-                college: getLookupValue('colleges', prospect.college) || prospect.college,
+                // Personal Info
+                firstName: prospect.firstName,
+                lastName: prospect.lastName,
+                homeTown: prospect.homeTown || '',
                 homeState: getLookupValue('states', prospect.homeState) || prospect.homeState,
+                college: getLookupValue('colleges', prospect.college) || prospect.college,
+                age: prospect.age,
+                heightInches: prospect.heightInches,
+                weight: prospect.weight,
+                position: getLookupValue('positions', prospect.position) || prospect.position,
+                archetype: prospect.archetype,
+                jerseyNum: prospect.jerseyNum,
+
+                // Draft Info
+                draftable: prospect.draftable,
+                draftPick: prospect.draftPick,
+                draftRound: prospect.draftRound,
                 devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][prospect.devTrait] || prospect.devTrait,
-                PEPS: peps,  // Generic head name from visuals JSON
-                bodyType: ['Lean', 'Athletic', 'Muscular', 'Stocky'][bodyType] || bodyType,  // Convert numeric to label (0=Lean, 1=Athletic, 2=Muscular, 3=Stocky)
-                playerPic: playerPic  // Player name from PID lookup
-                // PID is already parsed from binary at offset 0x92 by M26Parser
+
+                // IDs and Assets
+                PID: prospect.PID,
+                PEPS: peps,
+                bodyType: ['Lean', 'Athletic', 'Muscular', 'Stocky'][bodyType] || bodyType,
+                playerPic: playerPic,
+
+                // All stat fields (explicit list to avoid corruption)
+                speed: prospect.speed,
+                acceleration: prospect.acceleration,
+                agility: prospect.agility,
+                strength: prospect.strength,
+                awareness: prospect.awareness,
+                jumping: prospect.jumping,
+                stamina: prospect.stamina,
+                changeOfDirection: prospect.changeOfDirection,
+                toughness: prospect.toughness,
+                carrying: prospect.carrying,
+                ballCarrierVision: prospect.ballCarrierVision,
+                breakTackle: prospect.breakTackle,
+                trucking: prospect.trucking,
+                stiffArm: prospect.stiffArm,
+                spinMove: prospect.spinMove,
+                jukeMove: prospect.jukeMove,
+                catching: prospect.catching,
+                catchInTraffic: prospect.catchInTraffic,
+                spectacularCatch: prospect.spectacularCatch,
+                shortRouteRunning: prospect.shortRouteRunning,
+                mediumRouteRunning: prospect.mediumRouteRunning,
+                deepRouteRunning: prospect.deepRouteRunning,
+                release: prospect.release,
+                throwPower: prospect.throwPower,
+                throwAccuracyShort: prospect.throwAccuracyShort,
+                throwAccuracyMid: prospect.throwAccuracyMid,
+                throwAccuracyDeep: prospect.throwAccuracyDeep,
+                throwOnTheRun: prospect.throwOnTheRun,
+                throwUnderPressure: prospect.throwUnderPressure,
+                playAction: prospect.playAction,
+                breakSack: prospect.breakSack,
+                passBlock: prospect.passBlock,
+                passBlockPower: prospect.passBlockPower,
+                passBlockFinesse: prospect.passBlockFinesse,
+                runBlock: prospect.runBlock,
+                runBlockPower: prospect.runBlockPower,
+                runBlockFinesse: prospect.runBlockFinesse,
+                leadBlock: prospect.leadBlock,
+                impactBlocking: prospect.impactBlocking,
+                injury: prospect.injury,
+                tackle: prospect.tackle,
+                hitPower: prospect.hitPower,
+                powerMoves: prospect.powerMoves,
+                finesseMoves: prospect.finesseMoves,
+                blockShedding: prospect.blockShedding,
+                pursuit: prospect.pursuit,
+                playRecognition: prospect.playRecognition,
+                manCoverage: prospect.manCoverage,
+                zoneCoverage: prospect.zoneCoverage,
+                pressCoverage: prospect.pressCoverage,
+                kickPower: prospect.kickPower,
+                kickAccuracy: prospect.kickAccuracy,
+                kickReturn: prospect.kickReturn,
+                longSnap: prospect.longSnap,
+                overall: prospect.overall,
+
+                // Metadata
+                visuals: prospect.visuals,
+                draftPosition: prospect.draftPosition !== undefined ? prospect.draftPosition : prospects.indexOf(prospect),
+                index: prospects.indexOf(prospect)
             };
         });
 
@@ -2368,26 +2447,21 @@ class MaddenEditorApp {
                     };
                 }
             },
+            beforeColumnSort: (currentSortConfig, destinationSortConfigs) => {
+                window.electronAPI.debug.sessionLog('[SORT] BEFORE sort - First 5 rows: ' + JSON.stringify(this.draftGrid.getSourceData().slice(0, 5).map(r => ({
+                    firstName: r.firstName,
+                    lastName: r.lastName,
+                    devTrait: r.devTrait,
+                    position: r.position
+                })), null, 2));
+            },
             afterColumnSort: (currentSortConfig, destinationSortConfigs) => {
-                // After sorting, ensure dropdown fields still show friendly names
-                // This prevents them from reverting to numeric IDs
-                const data = this.draftGrid.getSourceData();
-                data.forEach((row) => {
-                    // Re-apply friendly name transformations after sort
-                    if (typeof row.position === 'number') {
-                        row.position = getLookupValue('positions', row.position) || row.position;
-                    }
-                    if (typeof row.college === 'number') {
-                        row.college = getLookupValue('colleges', row.college) || row.college;
-                    }
-                    if (typeof row.homeState === 'number') {
-                        row.homeState = getLookupValue('states', row.homeState) || row.homeState;
-                    }
-                    if (typeof row.devTrait === 'number') {
-                        row.devTrait = ['Normal', 'Star', 'Superstar', 'X-Factor'][row.devTrait] || row.devTrait;
-                    }
-                });
-                this.draftGrid.render();
+                window.electronAPI.debug.sessionLog('[SORT] AFTER sort - First 5 rows: ' + JSON.stringify(this.draftGrid.getSourceData().slice(0, 5).map(r => ({
+                    firstName: r.firstName,
+                    lastName: r.lastName,
+                    devTrait: r.devTrait,
+                    position: r.position
+                })), null, 2));
             },
             afterRowMove: (movedRows, finalIndex, dropIndex, movePossible, orderChanged) => {
                 // Just re-render to update the position numbers (they're calculated from row position)

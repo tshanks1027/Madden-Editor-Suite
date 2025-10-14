@@ -134,3 +134,6 @@ export class DebugLogger {
 
 // Export singleton instance for scraper debugging
 export const scraperDebugLogger = new DebugLogger('scraper-debug.log');
+
+// Export singleton instance for general session debugging (CLEARS ON EACH APP START)
+export const sessionDebugLogger = new DebugLogger('session-debug.log');

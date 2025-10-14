@@ -7,10 +7,11 @@
 **BEFORE responding to ANY user request, you MUST:**
 
 1. **READ THIS ENTIRE CLAUDE.MD FILE** - Every time, no exceptions
-2. **CHECK TECH STACK** - It is LOCKED, verify before any changes
-3. **STAY IN PLAN MODE** - For all code changes, propose first
-4. **USE RESEARCH AGENT** - For ANY parsing/file I/O work, research existing implementations FIRST
-5. **WAIT FOR APPROVAL** - After proposing approach, wait for explicit "proceed" or "approved"
+2. **CHECK SESSION DEBUG LOG** - Read `session-debug.log` to see recent activity and errors
+3. **CHECK TECH STACK** - It is LOCKED, verify before any changes
+4. **STAY IN PLAN MODE** - For all code changes, propose first
+5. **USE RESEARCH AGENT** - For ANY parsing/file I/O work, research existing implementations FIRST
+6. **WAIT FOR APPROVAL** - After proposing approach, wait for explicit "proceed" or "approved"
 
 ---
 
@@ -218,6 +219,38 @@ src/
 - Test binary parsing logic thoroughly
 - Mock Electron APIs for renderer tests
 - Maintain test coverage above 80%
+
+## Debug Logging System
+
+### Session Debug Log
+- **Location**: `%APPDATA%/madden-editor-suite/session-debug.log` (Windows) or `~/Library/Application Support/madden-editor-suite/session-debug.log` (Mac)
+- **Purpose**: Captures ALL console.log output from renderer process automatically
+- **Lifecycle**: Cleared on EVERY app startup - only contains current session data
+- **Access**: Use Read tool to access log file directly - NO need for user to copy/paste anymore
+- **Usage**:
+  - ALWAYS read this file FIRST when debugging user-reported issues
+  - Contains timestamped entries with full context
+  - Includes [SORT DEBUG], [LOAD], [SAVE], and other tagged debug messages
+
+### How to Read Session Log
+```bash
+# Get the log file path first (will tell you exact location for this user)
+# Then use Read tool with that path
+Read(logPath)
+```
+
+### Writing to Session Log from Renderer
+```javascript
+// In renderer code (app.js), use this instead of console.log for debugging:
+window.electronAPI.debug.sessionLog('[TAG] Your debug message here');
+```
+
+### Scraper Debug Log
+- **Location**: `%APPDATA%/madden-editor-suite/scraper-debug.log`
+- **Purpose**: Roster generation and web scraping debug output
+- **NOT cleared automatically** - persists across sessions
+
+---
 
 ## Common Issues
 

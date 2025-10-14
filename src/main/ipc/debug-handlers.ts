@@ -3,7 +3,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { scraperDebugLogger } from '../utils/DebugLogger';
+import { scraperDebugLogger, sessionDebugLogger } from '../utils/DebugLogger';
 
 /**
  * Register debug IPC handlers
@@ -38,6 +38,28 @@ export function registerDebugHandlers(): void {
       return { success: true };
     } catch (error: any) {
       console.error('[IPC] Error clearing debug log:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Write to session log from renderer
+  ipcMain.handle('debug:session-log', async (event, message: string) => {
+    try {
+      sessionDebugLogger.log(message);
+      return { success: true };
+    } catch (error: any) {
+      console.error('[IPC] Error writing to session log:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Get session log path
+  ipcMain.handle('debug:get-session-log-path', async () => {
+    try {
+      const logPath = sessionDebugLogger.getLogFilePath();
+      return { success: true, path: logPath };
+    } catch (error: any) {
+      console.error('[IPC] Error getting session log path:', error);
       return { success: false, error: error.message };
     }
   });
