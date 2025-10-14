@@ -398,23 +398,33 @@ export class CreatorService {
       // Defensive Line
       'DE': { name: 'LEDG', code: 10 }, // Default DEs to LEDG
       'LE': { name: 'LEDG', code: 10 },
+      'LDE': { name: 'LEDG', code: 10 },
       'LEDG': { name: 'LEDG', code: 10 },
       'RE': { name: 'REDG', code: 11 },
+      'RDE': { name: 'REDG', code: 11 },
       'REDG': { name: 'REDG', code: 11 },
       'DT': { name: 'DT', code: 12 },
+      'LDT': { name: 'DT', code: 12 },
+      'RDT': { name: 'DT', code: 12 },
       'NT': { name: 'DT', code: 12 }, // Nose tackles as DT
 
       // Linebackers
       'LB': { name: 'SAM', code: 13 }, // Default LBs to SAM
       'OLB': { name: 'SAM', code: 13 },
+      'LOLB': { name: 'SAM', code: 13 },
+      'ROLB': { name: 'SAM', code: 13 },
       'SAM': { name: 'SAM', code: 13 },
       'MLB': { name: 'Mike', code: 14 },
       'ILB': { name: 'Mike', code: 14 },
+      'LILB': { name: 'Mike', code: 14 },
+      'RILB': { name: 'Mike', code: 14 },
       'Mike': { name: 'Mike', code: 14 },
       'WILL': { name: 'WILL', code: 15 },
 
       // Secondary
       'CB': { name: 'CB', code: 16 },
+      'RCB': { name: 'CB', code: 16 }, // Right cornerback
+      'LCB': { name: 'CB', code: 16 }, // Left cornerback
       'FS': { name: 'FS', code: 17 },
       'SS': { name: 'SS', code: 18 },
       'S': { name: 'FS', code: 17 }, // Default safeties to FS

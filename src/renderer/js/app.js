@@ -3136,7 +3136,9 @@ class MaddenEditorApp {
                 autoWrapRow: true,
                 autoWrapCol: true,
                 renderAllRows: false, // Use virtual scrolling
-                viewportRowRenderingOffset: 100 // Render extra rows to prevent misalignment
+                viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
+                fixedColumnsStart: 3, // Freeze first 3 columns (Last, First, Pos) to prevent alignment issues
+                preventOverflow: 'horizontal' // Prevent horizontal overflow causing misalignment
             });
         } else {
             this.draftCreatorGrid.loadData(gridData);
@@ -3345,7 +3347,9 @@ class MaddenEditorApp {
                 contextMenu: true,
                 stretchH: 'none', // Don't stretch columns, use defined widths
                 renderAllRows: false, // Use virtual scrolling
-                viewportRowRenderingOffset: 100 // Render extra rows to prevent misalignment
+                viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
+                fixedColumnsStart: 3, // Freeze first 3 columns (Last, First, Pos) to prevent alignment issues
+                preventOverflow: 'horizontal' // Prevent horizontal overflow causing misalignment
             });
         } else {
             this.rosterCreatorGrid.loadData(gridData);

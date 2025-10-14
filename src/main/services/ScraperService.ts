@@ -1409,7 +1409,26 @@ export class ScraperService {
       // Navigate to team roster page
       const teamUrl = `https://www.pro-football-reference.com/teams/${teamAbbr}/${year}_roster.htm`;
       scraperDebugLogger.log(`URL: ${teamUrl}`);
-      await page.goto(teamUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+      // Try to load page with retry logic (some pages take longer to load)
+      let pageLoaded = false;
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          await page.goto(teamUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+          pageLoaded = true;
+          break;
+        } catch (error: any) {
+          if (attempt === 1) {
+            console.warn(`[ScraperService] ${teamAbbr} roster load attempt 1 failed, retrying...`);
+            scraperDebugLogger.log(`Page load timeout, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+          } else {
+            console.error(`[ScraperService] ${teamAbbr} roster load attempt 2 failed:`, error.message);
+            scraperDebugLogger.log(`Page load failed after 2 attempts: ${error.message}`);
+            throw error;
+          }
+        }
+      }
 
       // Extract roster - find table by looking for "Roster" caption or column headers
       const scrapeResult = await page.evaluate((year) => {

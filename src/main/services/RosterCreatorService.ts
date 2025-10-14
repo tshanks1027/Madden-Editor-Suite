@@ -200,8 +200,9 @@ export class RosterCreatorService {
           // Dev trait (0-3)
           PDEV: player.devTrait,
 
-          // PID (Player Picture ID) and Years Pro
+          // PID (Player Picture ID), PAM, and Years Pro
           PSXP: player.PID, // Player Picture ID for face/headshot
+          PEPS: player.PEPS || '', // Player Asset Model (PAM) - blank string for historical players
           PYRP: player.yearsPro, // Years in league
           PBOD: player.bodyType,
 
