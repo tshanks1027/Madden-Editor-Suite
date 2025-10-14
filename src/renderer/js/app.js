@@ -2217,10 +2217,41 @@ class MaddenEditorApp {
             Handsontable.renderers.DropdownRenderer.apply(this, [instance, td, row, col, prop, displayValue, cellProperties]);
         };
 
+        // Custom renderer for draft position - ALWAYS display current row position (1-indexed)
+        // Position is NOT stored - it's calculated from the row's physical position in the grid
+        const draftPositionRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+            // Always display the current physical row position (row numbers are 0-indexed, display as 1-indexed)
+            const displayValue = row + 1;
+            Handsontable.renderers.TextRenderer.apply(this, [instance, td, row, col, prop, displayValue, cellProperties]);
+            td.style.textAlign = 'center';
+            td.style.fontWeight = 'bold';
+            td.style.backgroundColor = '#f0f0f0'; // Light gray background to indicate calculated field
+        };
+
         // Map draft class field names to roster editor field names and create columns
         // Following FIELD_ORDER from field-definitions.js, excluding contract fields
         const draftColumns = [
-            // Personal Info (First 3 columns frozen)
+            // Draft Position (First column - for reordering) - displays as 1-indexed but stores as 0-indexed
+            // Editable so users can type a position to move the row there
+            {
+                data: 'draftPosition',
+                title: 'Draft Pos',
+                width: 90,
+                type: 'numeric',
+                readOnly: false,
+                renderer: draftPositionRenderer,
+                validator: function(value, callback) {
+                    const maxPos = this.instance.countRows();
+                    // Convert from 1-indexed input to 0-indexed for validation
+                    const zeroIndexed = value - 1;
+                    if (value >= 1 && value <= maxPos) {
+                        callback(true);
+                    } else {
+                        callback(false);
+                    }
+                }
+            },
+            // Personal Info (Next 3 columns frozen)
             { data: 'lastName', title: 'Last Name', width: 100, type: 'text', editor: 'text' },
             { data: 'firstName', title: 'First Name', width: 100, type: 'text', editor: 'text' },
             { data: 'position', title: 'Pos', width: 90, type: 'dropdown', source: positionOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
@@ -2314,8 +2345,9 @@ class MaddenEditorApp {
             filters: false,  // Disable filters (they require dropdownMenu)
             dropdownMenu: false,  // Disable dropdown menu (removes filter arrows)
             contextMenu: true,
-            fixedColumnsStart: 3,  // Freeze first 3 columns (Last Name, First Name, Position)
+            fixedColumnsStart: 4,  // Freeze first 4 columns (Draft Pos, Last Name, First Name, Position)
             preventOverflow: 'horizontal', // Prevent column misalignment during scroll
+            manualRowMove: true, // Enable row dragging for reordering
             renderAllRows: false, // Use virtual scrolling
             viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
             columnSorting: {
@@ -2357,6 +2389,13 @@ class MaddenEditorApp {
                 });
                 this.draftGrid.render();
             },
+            afterRowMove: (movedRows, finalIndex, dropIndex, movePossible, orderChanged) => {
+                // Just re-render to update the position numbers (they're calculated from row position)
+                if (orderChanged) {
+                    this.draftGrid.render();
+                    console.log('[Draft Editor] Draft order updated - rows reordered');
+                }
+            },
             beforeChange: (changes, source) => {
                 // When a dropdown value is changed, keep it as the friendly name
                 // This prevents it from being converted back to a number
@@ -2365,6 +2404,22 @@ class MaddenEditorApp {
                 changes.forEach(([row, prop, oldValue, newValue]) => {
                     // Position, college, homeState, devTrait should stay as friendly names
                     // They will be converted back to IDs during save
+
+                    // Handle draft position changes - move the row to the new position
+                    if (prop === 'draftPosition' && source !== 'loadData') {
+                        // Convert from 1-indexed user input to 0-indexed row position
+                        const targetRow = newValue - 1;
+                        const currentRow = row; // Use visual row index
+
+                        if (targetRow !== currentRow && targetRow >= 0 && targetRow < this.draftGrid.countRows()) {
+                            // Use Handsontable's plugin to move the row
+                            const plugin = this.draftGrid.getPlugin('manualRowMove');
+                            plugin.moveRow(currentRow, targetRow);
+
+                            // Prevent the default value change since we're moving the row (position is calculated, not stored)
+                            return false;
+                        }
+                    }
                 });
             },
             afterGetColHeader: (col, TH) => {
@@ -2526,6 +2581,10 @@ class MaddenEditorApp {
                     console.log('  visuals.genericHeadName:', updatedProspects[0].visuals.genericHeadName);
                 }
             }
+
+            // Grid data is already in draft order (no sorting needed)
+            // The order of rows in the grid IS the draft order
+            console.log('[Save] Using grid order for draft class (prospects already in correct order)');
 
             // Save via IPC
             // Pass complete draft class data (prevents data loss when saving over same file)
@@ -2936,7 +2995,8 @@ class MaddenEditorApp {
         }
 
         // Convert players to grid data with ALL ratings
-        const gridData = players.map(player => {
+        // NOTE: draftPosition is NOT stored - it's calculated from row order in the grid
+        const gridData = players.map((player, index) => {
             const r = player.ratings;
             return {
                 // Basic Info
@@ -3036,8 +3096,38 @@ class MaddenEditorApp {
             console.log(`[Frontend] ====================================================`);
         }
 
+        // Custom renderer for draft position - display as 1-indexed
+        // Draft position renderer - ALWAYS display current row position (1-indexed)
+        // Position is NOT stored - it's calculated from the row's physical position in the grid
+        const draftPosRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+            // Always display the current physical row position (row numbers are 0-indexed, display as 1-indexed)
+            const displayValue = row + 1;
+            Handsontable.renderers.TextRenderer.apply(this, [instance, td, row, col, prop, displayValue, cellProperties]);
+            td.style.textAlign = 'center';
+            td.style.fontWeight = 'bold';
+            td.style.backgroundColor = '#f0f0f0'; // Light gray background to indicate calculated field
+        };
+
         // Define all columns with readable headers
         const columns = [
+            // Draft Position (for reordering) - displays as 1-indexed but stores as 0-indexed
+            // Editable so users can type a position to move the row there
+            {
+                data: 'draftPosition',
+                header: 'Draft Pos',
+                width: 80,
+                type: 'numeric',
+                renderer: draftPosRenderer,
+                readOnly: false,
+                validator: function(value, callback) {
+                    const maxPos = this.instance.countRows();
+                    if (value >= 1 && value <= maxPos) {
+                        callback(true);
+                    } else {
+                        callback(false);
+                    }
+                }
+            },
             // Basic Info
             { data: 'firstName', header: 'First', width: 70 },
             { data: 'lastName', header: 'Last', width: 90 },
@@ -3122,7 +3212,10 @@ class MaddenEditorApp {
                 columns: columns.map(col => ({
                     data: col.data,
                     type: col.type || 'text',
-                    width: col.width
+                    width: col.width,
+                    renderer: col.renderer,
+                    readOnly: col.readOnly !== undefined ? col.readOnly : true,
+                    validator: col.validator
                 })),
                 rowHeaders: true,
                 height: 500,
@@ -3137,8 +3230,37 @@ class MaddenEditorApp {
                 autoWrapCol: true,
                 renderAllRows: false, // Use virtual scrolling
                 viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
-                fixedColumnsStart: 3, // Freeze first 3 columns (Last, First, Pos) to prevent alignment issues
-                preventOverflow: 'horizontal' // Prevent horizontal overflow causing misalignment
+                fixedColumnsStart: 4, // Freeze first 4 columns (Draft Pos, First, Last, Pos) to prevent alignment issues
+                preventOverflow: 'horizontal', // Prevent horizontal overflow causing misalignment
+                manualRowMove: true, // Enable row dragging for reordering
+                afterRowMove: (movedRows, finalIndex, dropIndex, movePossible, orderChanged) => {
+                    // Just re-render to update the position numbers (they're calculated from row position)
+                    if (orderChanged) {
+                        this.draftCreatorGrid.render();
+                        console.log('[Draft Creator] Draft order updated - rows reordered');
+                    }
+                },
+                beforeChange: (changes, source) => {
+                    if (!changes) return;
+
+                    changes.forEach(([row, prop, oldValue, newValue]) => {
+                        // Handle draft position changes - move the row to the new position
+                        if (prop === 'draftPosition' && source !== 'loadData') {
+                            // Convert from 1-indexed user input to 0-indexed row position
+                            const targetRow = newValue - 1;
+                            const currentRow = row; // Use visual row index
+
+                            if (targetRow !== currentRow && targetRow >= 0 && targetRow < this.draftCreatorGrid.countRows()) {
+                                // Use Handsontable's plugin to move the row
+                                const plugin = this.draftCreatorGrid.getPlugin('manualRowMove');
+                                plugin.moveRow(currentRow, targetRow);
+
+                                // Prevent the default value change since we're moving the row (position is calculated, not stored)
+                                return false;
+                            }
+                        }
+                    });
+                }
             });
         } else {
             this.draftCreatorGrid.loadData(gridData);
@@ -3427,7 +3549,8 @@ class MaddenEditorApp {
             }
 
             // Convert generated players to draft prospect format
-            const prospects = this.generatedDraftPlayers.map(player => ({
+            // NOTE: draftPosition is NOT stored - it's calculated from row order in the grid
+            const prospects = this.generatedDraftPlayers.map((player, index) => ({
                 // Basic Info
                 firstName: player.firstName,
                 lastName: player.lastName,

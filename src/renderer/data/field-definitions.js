@@ -98,7 +98,11 @@ export const MADDEN_FIELDS = {
 
     // Additional system fields
     'PGID': { display: 'Player ID', shortDisplay: 'ID', type: 'numeric', editable: false, width: 80, min: 0, max: 99999 },
-    'POVR': { display: 'Overall Rating', shortDisplay: 'OVR', type: 'numeric', editable: false, width: 70, min: 0, max: 99 }
+    'POVR': { display: 'Overall Rating', shortDisplay: 'OVR', type: 'numeric', editable: false, width: 70, min: 0, max: 99 },
+
+    // Draft class specific fields
+    'PDPI': { display: 'Draft Position', shortDisplay: 'Draft Pos', type: 'numeric', editable: true, width: 90, min: 0, max: 500 },
+    'PDRO': { display: 'Draft Rank', shortDisplay: 'Rank', type: 'numeric', editable: false, width: 80, min: 0, max: 500 }
 };
 
 // Field order for user-friendly editing (Madden game order)
