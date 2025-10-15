@@ -64,5 +64,16 @@ export function registerDebugHandlers(): void {
     }
   });
 
+  // Clear session log
+  ipcMain.handle('debug:clear-session-log', async () => {
+    try {
+      sessionDebugLogger.clear();
+      return { success: true };
+    } catch (error: any) {
+      console.error('[IPC] Error clearing session log:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   console.log('[IPC] Debug handlers registered');
 }

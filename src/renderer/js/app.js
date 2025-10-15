@@ -20,6 +20,56 @@ import {
 } from '../data/field-definitions.js';
 import { NFL_TEAMS, getAllTeams, getTeamById } from '../data/team-data.js';
 
+// Clear session log on renderer load (handles hot reload in dev mode)
+if (typeof window.electronAPI !== 'undefined' && window.electronAPI.debug) {
+    window.electronAPI.debug.clearSessionLog()
+        .then(() => console.log('[App] Session debug log cleared'))
+        .catch(err => console.error('[App] Failed to clear session log:', err));
+}
+
+// Intercept console.log to send to session log
+(function() {
+    const originalLog = console.log;
+    const originalError = console.error;
+    const originalWarn = console.warn;
+
+    console.log = function(...args) {
+        originalLog.apply(console, args);
+        try {
+            const message = args.map(arg =>
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            window.electronAPI?.debug?.sessionLog(`[LOG] ${message}`);
+        } catch (e) {
+            // Silently fail if IPC not ready
+        }
+    };
+
+    console.error = function(...args) {
+        originalError.apply(console, args);
+        try {
+            const message = args.map(arg =>
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            window.electronAPI?.debug?.sessionLog(`[ERROR] ${message}`);
+        } catch (e) {
+            // Silently fail if IPC not ready
+        }
+    };
+
+    console.warn = function(...args) {
+        originalWarn.apply(console, args);
+        try {
+            const message = args.map(arg =>
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            window.electronAPI?.debug?.sessionLog(`[WARN] ${message}`);
+        } catch (e) {
+            // Silently fail if IPC not ready
+        }
+    };
+})();
+
 class MaddenEditorApp {
     constructor() {
         this.currentTool = 'roster';
@@ -43,6 +93,9 @@ class MaddenEditorApp {
         this.currentDraftClass = null;
         this.currentDraftFilePath = null;
         this.draftGrid = null;
+
+        // Portrait cache - persists across renders for performance
+        this.portraitCache = new Map();
 
         this.init();
     }
@@ -133,13 +186,18 @@ class MaddenEditorApp {
 
         // Roster controls
         document.getElementById('teamFilter').addEventListener('change', (e) => {
+            console.log('[TEAM FILTER] Change event fired, value:', e.target.value);
             const teamId = e.target.value ? parseInt(e.target.value) : null;
+            console.log('[TEAM FILTER] Parsed teamId:', teamId);
             this.selectedTeamId = teamId;
             this.enterTeamView(teamId);
         });
 
         document.getElementById('positionFilter').addEventListener('change', (e) => {
+            console.log('[POSITION FILTER] Change event fired, value:', e.target.value);
             this.selectedPosition = e.target.value;
+            console.log('[POSITION FILTER] selectedPosition set to:', this.selectedPosition);
+            console.log('[POSITION FILTER] Calling filterPlayers()...');
             this.filterPlayers();
         });
 
@@ -694,19 +752,119 @@ class MaddenEditorApp {
             this.filteredPlayers.indexOf(player)
         );
 
+        // Pre-load all portraits for this page in batch
+        const psxpIndex = fieldCodes.indexOf('PSXP');
+        let portraitsToLoad = 0;
+        let portraitsLoaded = 0;
+
+        if (psxpIndex !== -1) {
+            paginatedPlayers.forEach(player => {
+                const pid = this.getPlayerFieldValue(player, 'PSXP');
+                if (pid) {
+                    const plpoKey = this.getPlpoFromPID(pid);
+                    if (plpoKey && !this.portraitCache.has(plpoKey)) {
+                        // Mark as loading and fetch
+                        this.portraitCache.set(plpoKey, 'loading');
+                        portraitsToLoad++;
+
+                        window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
+                            this.portraitCache.set(plpoKey, imageData);
+                            portraitsLoaded++;
+
+                            // When all portraits loaded, re-render table once
+                            if (portraitsLoaded === portraitsToLoad && this.hotTable) {
+                                this.hotTable.render();
+                            }
+                        }).catch(() => {
+                            this.portraitCache.set(plpoKey, null);
+                            portraitsLoaded++;
+
+                            // When all portraits loaded (even failures), re-render
+                            if (portraitsLoaded === portraitsToLoad && this.hotTable) {
+                                this.hotTable.render();
+                            }
+                        });
+                    }
+                }
+            });
+
+            // If all portraits already in cache, trigger re-render after table init
+            if (portraitsToLoad === 0) {
+                setTimeout(() => {
+                    if (this.hotTable) {
+                        this.hotTable.render();
+                    }
+                }, 100);
+            }
+        }
+
         // Prepare data and columns for Handsontable (only current page)
         const data = paginatedPlayers.map(player => {
-            return fieldCodes.map(fieldName => {
-                return this.getPlayerFieldValue(player, fieldName);
-            });
+            // Add portrait placeholder as first column (will be rendered from PID)
+            return [
+                '', // Portrait column placeholder
+                ...fieldCodes.map(fieldName => {
+                    return this.getPlayerFieldValue(player, fieldName);
+                })
+            ];
         });
 
-        const columns = fieldCodes.map(fieldName => {
-            const fieldDef = getFieldDefinition(fieldName);
-            let columnConfig = {
-                readOnly: !fieldDef.editable,
-                allowInvalid: false
-            };
+        console.log('[Portrait] Setting up portrait column');
+
+        // Create portrait renderer function (MUST be synchronous for Handsontable)
+        const portraitRenderer = (instance, td, row, col, prop, value, cellProperties) => {
+            // Clear cell and set up styling
+            td.innerHTML = '';
+            td.style.padding = '2px';
+            td.style.textAlign = 'center';
+            td.style.verticalAlign = 'middle';
+            td.style.backgroundColor = '#1a1a1a';
+
+            // Get PID from the row data
+            const rowData = instance.getDataAtRow(row);
+            const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
+            const pid = psxpIndex !== -1 ? rowData[psxpIndex] : null;
+
+            if (!pid) {
+                return td;
+            }
+
+            // Get PLPO key from PID
+            const plpoKey = this.getPlpoFromPID(pid);
+
+            if (!plpoKey) {
+                return td;
+            }
+
+            // ONLY use cache - never trigger new loads during render
+            if (this.portraitCache.has(plpoKey)) {
+                const imageData = this.portraitCache.get(plpoKey);
+                if (imageData && imageData !== 'loading') {
+                    const img = document.createElement('img');
+                    img.src = imageData;
+                    img.style.width = '64px';
+                    img.style.height = '64px';
+                    img.style.objectFit = 'cover';
+                    td.appendChild(img);
+                } else if (imageData === 'loading') {
+                    // Still loading
+                    td.textContent = '...';
+                    td.style.fontSize = '12px';
+                    td.style.color = '#666';
+                }
+            }
+
+            return td;
+        };
+
+        // Build field columns first
+        const fieldColumns = fieldCodes.map((fieldName, index) => {
+                const fieldDef = getFieldDefinition(fieldName);
+                let columnConfig = {
+                    data: index + 1, // +1 because index 0 is portrait column
+                    readOnly: !fieldDef.editable,
+                    allowInvalid: false
+                };
 
             // Configure column type and editor based on field type
             if (fieldDef.type === 'lookup' && fieldDef.lookup) {
@@ -788,17 +946,40 @@ class MaddenEditorApp {
                 };
             }
 
-            return columnConfig;
-        });
+                return columnConfig;
+            });
 
-        // Store field mapping for data changes
-        this.currentFieldMapping = fieldCodes;
+        // NOW construct the final columns array with portrait first
+        const columns = [
+            {
+                data: 0, // Portrait column data index
+                readOnly: true,
+                width: 80,
+                renderer: portraitRenderer
+            },
+            ...fieldColumns
+        ];
+
+        console.log('[DEBUG] columns array length:', columns.length);
+        console.log('[DEBUG] columns[0]:', columns[0]);
+        console.log('[DEBUG] columns[0].renderer:', columns[0].renderer);
+        console.log('[DEBUG] columns[1]:', columns[1]);
+
+        // Store field mapping for data changes (add empty for portrait column)
+        this.currentFieldMapping = ['', ...fieldCodes];
 
         // Create custom column headers with tooltips and sort indicators
         const colHeaders = (colIndex) => {
-            const fieldName = fieldCodes[colIndex];
+            // Portrait column (index 0)
+            if (colIndex === 0) {
+                return '<span title="Player Portrait">📷</span>';
+            }
+
+            // Adjust index for field columns (subtract 1 to account for portrait column)
+            const fieldIndex = colIndex - 1;
+            const fieldName = fieldCodes[fieldIndex];
             const fieldDef = getFieldDefinition(fieldName);
-            const displayName = displayNames[colIndex];
+            const displayName = displayNames[fieldIndex];
 
             // Check if this column is currently sorted
             const sortInfo = this.sortColumns.find(s => s.column === fieldName);
@@ -809,6 +990,13 @@ class MaddenEditorApp {
         };
 
         // Initialize Handsontable with proper validation and editing
+        console.log('[Portrait] About to create Handsontable');
+        console.log('[Portrait] Data rows:', data.length);
+        console.log('[Portrait] Columns count:', columns.length);
+        console.log('[Portrait] First data row:', data[0]);
+        console.log('[Portrait] First column config:', columns[0]);
+        console.log('[Portrait] First column has renderer?', typeof columns[0].renderer);
+
         this.hotTable = new Handsontable(hotContainer, {
             data: data,
             colHeaders: colHeaders,
@@ -830,6 +1018,7 @@ class MaddenEditorApp {
             },
             manualColumnResize: true,
             manualRowResize: false,
+            rowHeights: 70, // Set row height to accommodate 64px portraits
 
             // Column sorting - disable built-in plugins since we handle sorting manually
             columnSorting: false,
@@ -844,7 +1033,7 @@ class MaddenEditorApp {
             scrollV: true,
 
             // Freeze columns
-            fixedColumnsStart: 2, // Freeze First Name and Last Name columns
+            fixedColumnsStart: 3, // Freeze Portrait, First Name, and Last Name columns
             preventOverflow: 'horizontal', // Prevent column misalignment during scroll
 
             // Fix row alignment issues with fixed columns during vertical scroll
@@ -868,6 +1057,14 @@ class MaddenEditorApp {
 
             // Custom renderer for better styling
             cells: (row, col) => {
+                // Column 0 is portrait - use portrait renderer
+                if (col === 0) {
+                    return {
+                        renderer: portraitRenderer,
+                        className: 'readonly-cell'
+                    };
+                }
+
                 const fieldName = this.currentFieldMapping[col];
                 const fieldDef = getFieldDefinition(fieldName);
 
@@ -909,6 +1106,16 @@ class MaddenEditorApp {
 
             // Setup PID event listeners and header click handlers after rendering
             afterRender: () => {
+                console.log('[DEBUG] afterRender: Checking column 0 config');
+                if (this.hotTable && !this.hotTable.isDestroyed) {
+                    try {
+                        const col0Config = this.hotTable.getCellMeta(0, 0);
+                        console.log('[DEBUG] afterRender: Column 0 cell meta:', col0Config);
+                        console.log('[DEBUG] afterRender: Column 0 renderer:', col0Config.renderer);
+                    } catch (e) {
+                        console.log('[DEBUG] afterRender: Could not get cell meta (table may be destroyed)');
+                    }
+                }
                 this.setupPIDEventListeners();
                 this.setupHeaderClickHandlers();
             },
@@ -916,16 +1123,22 @@ class MaddenEditorApp {
 
             // Auto-size columns after loading
             afterLoadData: () => {
-                if (this.hotTable) {
+                if (this.hotTable && !this.hotTable.isDestroyed) {
                     // Force column resize to fit content
                     setTimeout(() => {
-                        const autoColumnSizePlugin = this.hotTable.getPlugin('autoColumnSize');
-                        if (autoColumnSizePlugin) {
-                            // Clear cache first to ensure fresh calculation
-                            autoColumnSizePlugin.clearCache();
-                            autoColumnSizePlugin.calculateAllColumnsWidth();
+                        if (this.hotTable && !this.hotTable.isDestroyed) {
+                            try {
+                                const autoColumnSizePlugin = this.hotTable.getPlugin('autoColumnSize');
+                                if (autoColumnSizePlugin) {
+                                    // Clear cache first to ensure fresh calculation
+                                    autoColumnSizePlugin.clearCache();
+                                    autoColumnSizePlugin.calculateAllColumnsWidth();
+                                }
+                                this.hotTable.render();
+                            } catch (e) {
+                                console.log('[DEBUG] afterLoadData: Could not auto-size (table may be destroyed)');
+                            }
                         }
-                        this.hotTable.render();
                     }, 100);
                 }
             }
@@ -936,13 +1149,17 @@ class MaddenEditorApp {
 
         // Force initial column sizing
         setTimeout(() => {
-            if (this.hotTable) {
-                const autoColumnSizePlugin = this.hotTable.getPlugin('autoColumnSize');
-                if (autoColumnSizePlugin) {
-                    autoColumnSizePlugin.clearCache();
-                    autoColumnSizePlugin.calculateAllColumnsWidth();
+            if (this.hotTable && !this.hotTable.isDestroyed) {
+                try {
+                    const autoColumnSizePlugin = this.hotTable.getPlugin('autoColumnSize');
+                    if (autoColumnSizePlugin) {
+                        autoColumnSizePlugin.clearCache();
+                        autoColumnSizePlugin.calculateAllColumnsWidth();
+                    }
+                    this.hotTable.render();
+                } catch (e) {
+                    console.log('[DEBUG] Force initial sizing: Could not auto-size (table may be destroyed)');
                 }
-                this.hotTable.render();
             }
         }, 200);
 
@@ -1177,6 +1394,24 @@ class MaddenEditorApp {
     }
 
     // Custom renderer for PID field - renders input with autocomplete
+    /**
+     * Portrait renderer - displays player portrait based on PID
+     * This is a read-only column that renders an image from the portrait service
+     */
+    portraitRenderer(instance, td, row, col, prop, value, cellProperties) {
+        console.log('[Portrait] portraitRenderer called for row', row);
+
+        // TEMPORARY TEST - just show "TEST" to verify renderer is working
+        td.innerHTML = 'TEST';
+        td.style.padding = '2px';
+        td.style.textAlign = 'center';
+        td.style.verticalAlign = 'middle';
+        td.style.backgroundColor = '#ff0000'; // Red background to make it obvious
+        td.style.color = '#ffffff'; // White text
+
+        return td;
+    }
+
     pidRenderer(instance, td, row, col, prop, value, cellProperties) {
         const rowData = instance.getDataAtRow(row);
         const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
@@ -1456,6 +1691,20 @@ class MaddenEditorApp {
         return td;
     }
 
+    /**
+     * Get PLPO key from PID number
+     * Uses the PID_lookup.csv to find first name and last name, then creates PLPO key
+     */
+    getPlpoFromPID(pid) {
+        if (!pid || !window.lookupData || !window.lookupData.plpos) {
+            return null;
+        }
+
+        // Direct PID -> PLPO lookup from FullData_Lookup.csv
+        const plpoKey = window.lookupData.plpos.get(pid);
+        return plpoKey || null;
+    }
+
     // Setup event listeners for PID inputs after grid renders
     setupPIDEventListeners() {
         if (!this.hotTable) return;
@@ -1706,21 +1955,54 @@ class MaddenEditorApp {
     }
 
     setupHeaderClickHandlers() {
-        // Add click handlers to sortable headers
+        // Use event delegation on DOCUMENT to ensure we catch all clicks
+        // This works even if headers are in a separate Handsontable container
+
+        // Remove old listener if it exists to prevent duplicates
+        if (this._headerClickHandler) {
+            document.removeEventListener('click', this._headerClickHandler);
+        }
+
+        // Create and store the handler function
+        this._headerClickHandler = (e) => {
+            console.log('[CLICK] Document click detected, target:', e.target.tagName, 'class:', e.target.className);
+
+            // Check if click was on or inside a sortable header
+            const header = e.target.closest('.sortable-header');
+            console.log('[CLICK] Closest sortable-header:', header ? header.tagName : 'NULL', header ? header.dataset.field : '');
+
+            if (!header) return;
+
+            // Make sure this is from our roster table
+            const isInRosterGrid = header.closest('#rosterGrid, #handsontable-container');
+            console.log('[CLICK] Is in roster grid/handsontable container:', !!isInRosterGrid);
+
+            if (!isInRosterGrid) return;
+
+            const fieldName = header.dataset.field;
+            const isShiftKey = e.shiftKey;
+            console.log('[HEADER CLICK] Field:', fieldName, 'Shift:', isShiftKey);
+
+            // Handle column sort
+            this.toggleColumnSort(fieldName, isShiftKey);
+        };
+
+        // Add the new listener to document
+        document.addEventListener('click', this._headerClickHandler);
+        console.log('[SETUP] Header click handler attached to document');
+
+        // Still set cursor on headers when they appear
         const headers = document.querySelectorAll('.sortable-header');
         headers.forEach(header => {
             header.style.cursor = 'pointer';
-            header.addEventListener('click', (e) => {
-                const fieldName = e.target.dataset.field;
-                const isShiftKey = e.shiftKey;
-
-                // Handle column sort
-                this.toggleColumnSort(fieldName, isShiftKey);
-            });
         });
+        console.log('[SETUP] Found', headers.length, 'sortable headers');
     }
 
     toggleColumnSort(fieldName, isMultiColumn) {
+        console.log('[SORT] toggleColumnSort called - field:', fieldName, 'multi:', isMultiColumn);
+        console.log('[SORT] Current sortColumns:', JSON.stringify(this.sortColumns));
+
         // Find existing sort for this column
         const existingSortIndex = this.sortColumns.findIndex(s => s.column === fieldName);
 

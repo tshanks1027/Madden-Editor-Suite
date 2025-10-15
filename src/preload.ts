@@ -91,7 +91,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getLogPath: () => ipcRenderer.invoke('debug:get-log-path'),
     clearLog: () => ipcRenderer.invoke('debug:clear-log'),
     sessionLog: (message: string) => ipcRenderer.invoke('debug:session-log', message),
-    getSessionLogPath: () => ipcRenderer.invoke('debug:get-session-log-path')
+    getSessionLogPath: () => ipcRenderer.invoke('debug:get-session-log-path'),
+    clearSessionLog: () => ipcRenderer.invoke('debug:clear-session-log')
   },
 
   // Rating APIs
@@ -109,5 +110,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Remove update listener
     removeUpdateListener: () =>
       ipcRenderer.removeAllListeners('update-available')
+  },
+
+  // Portrait APIs
+  portrait: {
+    getByPLPO: (plpoKey: string) => ipcRenderer.invoke('portrait:get-image-data-by-plpo', plpoKey)
   }
 });
