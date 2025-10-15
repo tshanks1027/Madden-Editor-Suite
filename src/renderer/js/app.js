@@ -931,6 +931,9 @@ class MaddenEditorApp {
             }
         });
 
+        // Setup floating scrollbar for roster grid
+        this.setupFloatingScrollbar(hotContainer);
+
         // Force initial column sizing
         setTimeout(() => {
             if (this.hotTable) {
@@ -2563,6 +2566,87 @@ class MaddenEditorApp {
                 });
             }
         });
+
+        // Setup floating scrollbar for draft class grid
+        this.setupFloatingScrollbar(container);
+    }
+
+    /**
+     * Setup floating horizontal scrollbar that stays at the bottom of the viewport
+     * @param {HTMLElement} gridContainer - The container where Handsontable is rendered
+     */
+    setupFloatingScrollbar(gridContainer) {
+        // Create floating scrollbar elements
+        const floatingScrollbarContainer = document.createElement('div');
+        floatingScrollbarContainer.className = 'floating-scrollbar-container';
+
+        // Spacer to match frozen columns width
+        const floatingScrollbarSpacer = document.createElement('div');
+        floatingScrollbarSpacer.className = 'floating-scrollbar-spacer';
+
+        // Scrollable area
+        const floatingScrollbarScrollArea = document.createElement('div');
+        floatingScrollbarScrollArea.className = 'floating-scrollbar-scroll-area';
+
+        const floatingScrollbarContent = document.createElement('div');
+        floatingScrollbarContent.className = 'floating-scrollbar-content';
+
+        floatingScrollbarScrollArea.appendChild(floatingScrollbarContent);
+        floatingScrollbarContainer.appendChild(floatingScrollbarSpacer);
+        floatingScrollbarContainer.appendChild(floatingScrollbarScrollArea);
+
+        // Insert into the grid container
+        gridContainer.appendChild(floatingScrollbarContainer);
+
+        // Find the Handsontable holder (the actual scrollable element)
+        const htHolder = gridContainer.querySelector('.wtHolder');
+
+        if (!htHolder) {
+            console.warn('[Floating Scrollbar] Could not find Handsontable holder');
+            return;
+        }
+
+        // Function to sync scrollbar width with grid total width
+        const updateScrollbarWidth = () => {
+            // Get frozen columns width
+            const frozenClone = gridContainer.querySelector('.ht_clone_left');
+            const frozenWidth = frozenClone ? frozenClone.offsetWidth : 0;
+
+            // Set spacer width to match frozen columns
+            floatingScrollbarSpacer.style.width = `${frozenWidth}px`;
+
+            // Set scrollable content width to match grid scroll width
+            const scrollWidth = htHolder.scrollWidth;
+            floatingScrollbarContent.style.width = `${scrollWidth}px`;
+        };
+
+        // Sync floating scrollbar with Handsontable horizontal scroll
+        htHolder.addEventListener('scroll', () => {
+            floatingScrollbarScrollArea.scrollLeft = htHolder.scrollLeft;
+        });
+
+        // Sync Handsontable scroll with floating scrollbar
+        floatingScrollbarScrollArea.addEventListener('scroll', () => {
+            htHolder.scrollLeft = floatingScrollbarScrollArea.scrollLeft;
+        });
+
+        // Update scrollbar width when grid is rendered/resized
+        updateScrollbarWidth();
+
+        // Use ResizeObserver to detect when grid width changes
+        const resizeObserver = new ResizeObserver(() => {
+            updateScrollbarWidth();
+        });
+        resizeObserver.observe(htHolder);
+
+        // Also observe frozen columns for width changes
+        const frozenClone = gridContainer.querySelector('.ht_clone_left');
+        if (frozenClone) {
+            resizeObserver.observe(frozenClone);
+        }
+
+        // Also update on window resize
+        window.addEventListener('resize', updateScrollbarWidth);
     }
 
     async saveDraftClass() {

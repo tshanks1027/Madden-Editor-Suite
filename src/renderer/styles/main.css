@@ -402,6 +402,42 @@ body {
     min-height: 0;
     background: var(--gray-dark);
     position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Floating Horizontal Scrollbar - Always visible at bottom */
+.floating-scrollbar-container {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: var(--gray-medium);
+    border-top: 1px solid var(--border-color);
+    overflow-x: auto;
+    overflow-y: hidden;
+    z-index: 100;
+    flex-shrink: 0;
+    display: flex;
+}
+
+.floating-scrollbar-spacer {
+    flex-shrink: 0;
+    background: var(--gray-light);
+    border-right: 1px solid var(--border-color);
+    /* Width will be set dynamically to match frozen columns width */
+}
+
+.floating-scrollbar-scroll-area {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.floating-scrollbar-content {
+    height: 1px;
+    /* Width will be set dynamically to match grid scrollable width */
 }
 
 /* Info Tooltips */
