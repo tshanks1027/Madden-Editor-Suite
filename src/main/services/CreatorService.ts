@@ -107,21 +107,137 @@ export class CreatorService {
   }
 
   /**
-   * Match player name to PID from lookup table
-   * Returns 0 if no match found
+   * Match player name to PID from lookup table with disambiguation
+   * Uses FullData_Lookup.csv with multiple fields to handle duplicate names
+   * @param firstName Player first name
+   * @param lastName Player last name
+   * @param draftYear Draft year (optional, for disambiguation)
+   * @param position Position name (optional, for disambiguation)
+   * @param college College name (optional, for disambiguation)
+   * @returns PID if found, 0 if no match
    */
-  private matchPID(firstName: string, lastName: string): number {
-    const pidLookup = this.loadPIDLookup();
-    const fullName = `${firstName} ${lastName}`.toLowerCase().replace(/[^a-z\s]/g, '');
+  private matchPID(firstName: string, lastName: string, draftYear?: number, position?: string, college?: string): number {
+    const fullDataLookup = this.loadFullDataLookup();
+    const normalizedFirstName = firstName.trim().toLowerCase().replace(/[^a-z\s]/g, '');
+    const normalizedLastName = lastName.trim().toLowerCase().replace(/[^a-z\s]/g, '');
 
-    // ONLY try exact full name match - no partial matching to avoid false positives
-    if (pidLookup.has(fullName)) {
-      console.log(`[CreatorService] PID match: "${firstName} ${lastName}" -> PID ${pidLookup.get(fullName)}`);
-      return pidLookup.get(fullName)!;
+    // Find all candidates with matching name
+    const candidates: Array<{pid: number, entry: any}> = [];
+
+    fullDataLookup.forEach((entry, pid) => {
+      const entryFirstName = entry.firstName.trim().toLowerCase().replace(/[^a-z\s]/g, '');
+      const entryLastName = entry.lastName.trim().toLowerCase().replace(/[^a-z\s]/g, '');
+
+      if (entryFirstName === normalizedFirstName && entryLastName === normalizedLastName) {
+        candidates.push({ pid, entry });
+      }
+    });
+
+    if (candidates.length === 0) {
+      // No match found
+      return 0;
     }
 
-    // No match - return 0 for generic face
-    return 0;
+    if (candidates.length === 1) {
+      // Only one match - use it
+      console.log(`[CreatorService] PID match: "${firstName} ${lastName}" -> PID ${candidates[0].pid} (unique match)`);
+      return candidates[0].pid;
+    }
+
+    // Multiple candidates - use disambiguating fields
+    console.log(`[CreatorService] Found ${candidates.length} candidates for "${firstName} ${lastName}", using disambiguation`);
+
+    // Strategy 1: Try exact match with draft year + position
+    if (draftYear && position) {
+      const exactMatch = candidates.find(c =>
+        c.entry.draftClass === String(draftYear) &&
+        c.entry.position.toLowerCase() === position.toLowerCase()
+      );
+
+      if (exactMatch) {
+        console.log(`[CreatorService] PID match: "${firstName} ${lastName}" -> PID ${exactMatch.pid} (year=${draftYear}, pos=${position})`);
+        return exactMatch.pid;
+      }
+    }
+
+    // Strategy 2: Try match with draft year only
+    if (draftYear) {
+      const yearMatch = candidates.find(c => c.entry.draftClass === String(draftYear));
+
+      if (yearMatch) {
+        console.log(`[CreatorService] PID match: "${firstName} ${lastName}" -> PID ${yearMatch.pid} (year=${draftYear})`);
+        return yearMatch.pid;
+      }
+    }
+
+    // Strategy 3: Try match with position only
+    if (position) {
+      const posMatch = candidates.find(c => c.entry.position.toLowerCase() === position.toLowerCase());
+
+      if (posMatch) {
+        console.log(`[CreatorService] PID match: "${firstName} ${lastName}" -> PID ${posMatch.pid} (pos=${position})`);
+        return posMatch.pid;
+      }
+    }
+
+    // Strategy 4: Use first candidate as fallback
+    console.warn(`[CreatorService] ⚠️ Ambiguous match for "${firstName} ${lastName}", using first candidate PID ${candidates[0].pid}`);
+    console.warn(`[CreatorService]    Available: ${candidates.map(c => `${c.entry.draftClass} ${c.entry.position} (PID ${c.pid})`).join(', ')}`);
+    return candidates[0].pid;
+  }
+
+  /**
+   * Load FullData lookup CSV into memory
+   * Format: Last Name,First Name,College/Univ,Round,Pick,Draft Class,Position,PhotoID,Player Assets ID,CommID,PresID,PLPO
+   */
+  private fullDataLookupCache?: Map<number, any>;
+
+  private loadFullDataLookup(): Map<number, any> {
+    if (this.fullDataLookupCache) {
+      return this.fullDataLookupCache;
+    }
+
+    this.fullDataLookupCache = new Map<number, any>();
+
+    try {
+      const fullDataLookupPath = path.join(__dirname, '../../data/lookups/FullData_Lookup.csv');
+      const csvContent = fs.readFileSync(fullDataLookupPath, 'utf-8');
+      const lines = csvContent.split('\n');
+
+      // Skip header row
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',');
+        if (parts.length < 12) continue; // Need at least 12 columns
+
+        const pid = parseInt(parts[7].trim());
+
+        if (!isNaN(pid) && pid > 0) {
+          const entry = {
+            lastName: parts[0].trim(),
+            firstName: parts[1].trim(),
+            college: parts[2].trim(),
+            round: parts[3].trim(),
+            pick: parts[4].trim(),
+            draftClass: parts[5].trim(),
+            position: parts[6].trim(),
+            pid: pid,
+            pam: parts[8].trim(),
+            plpo: parts[11].trim()
+          };
+
+          this.fullDataLookupCache.set(pid, entry);
+        }
+      }
+
+      console.log(`[CreatorService] Loaded ${this.fullDataLookupCache.size} entries from FullData_Lookup.csv`);
+    } catch (error) {
+      console.warn('[CreatorService] Failed to load FullData_Lookup.csv:', error);
+    }
+
+    return this.fullDataLookupCache;
   }
 
   /**
@@ -629,8 +745,8 @@ export class CreatorService {
         // Convert weight to Madden offset format (actual - 160)
         const maddenWeight = this.convertWeightToMaddenFormat(weight);
 
-        // Match PID from lookup table
-        const matchedPID = this.matchPID(firstName, lastName);
+        // Match PID from lookup table with disambiguation
+        const matchedPID = this.matchPID(firstName, lastName, year, mappedPosition.name, prospect.college);
 
         // Match college to valid college in lookup (fuzzy matching)
         const matchedCollege = this.matchCollege(prospect.college || 'Unknown');
@@ -940,8 +1056,10 @@ export class CreatorService {
           // Fill missing ratings (ensures NO blanks)
           this.fillMissingRatings(ratings, mappedPosition.name);
 
-          // Match PID from lookup table
-          const matchedPID = this.matchPID(firstName, lastName);
+          // Match PID from lookup table with disambiguation
+          // For roster generation, we don't have draft year, but we have year (season year)
+          // Most players were drafted within ~10 years of their playing year
+          const matchedPID = this.matchPID(firstName, lastName, undefined, mappedPosition.name, collegeName);
 
           // Match college to valid college ID
           const matchedCollege = this.matchCollege(collegeName);
