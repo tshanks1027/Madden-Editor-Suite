@@ -2419,6 +2419,39 @@ class MaddenEditorApp {
         // Store original prospect data with numeric IDs
         this.originalProspectData = prospects.map(p => ({...p}));
 
+        // Pre-load portraits for all prospects in batch
+        let portraitsToLoad = 0;
+        let portraitsLoaded = 0;
+
+        prospects.forEach(prospect => {
+            if (prospect.PID) {
+                const plpoKey = this.getPlpoFromPID(prospect.PID);
+                if (plpoKey && !this.portraitCache.has(plpoKey)) {
+                    // Mark as loading and fetch
+                    this.portraitCache.set(plpoKey, 'loading');
+                    portraitsToLoad++;
+
+                    window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
+                        this.portraitCache.set(plpoKey, imageData);
+                        portraitsLoaded++;
+
+                        // When all portraits loaded, re-render table once
+                        if (portraitsLoaded === portraitsToLoad && this.draftGrid) {
+                            this.draftGrid.render();
+                        }
+                    }).catch(() => {
+                        this.portraitCache.set(plpoKey, null);
+                        portraitsLoaded++;
+
+                        // When all portraits loaded (even failures), re-render
+                        if (portraitsLoaded === portraitsToLoad && this.draftGrid) {
+                            this.draftGrid.render();
+                        }
+                    });
+                }
+            }
+        });
+
         // Transform prospect data: convert numeric IDs to friendly names for dropdown fields
         const transformedProspects = prospects.map(prospect => {
             // Use PEPS from backend (already mapped from assetName or genericHeadName)
@@ -2454,6 +2487,9 @@ class MaddenEditorApp {
             // Create clean object with ONLY the properties needed for Handsontable
             // Do NOT use spread operator - it can copy extra/corrupted properties from M25→M26 conversion
             return {
+                // Portrait (for display only)
+                portrait: '',  // Placeholder, rendered from PID
+
                 // Personal Info
                 firstName: prospect.firstName,
                 lastName: prospect.lastName,
@@ -2592,6 +2628,54 @@ class MaddenEditorApp {
             td.style.backgroundColor = '#f0f0f0'; // Light gray background to indicate calculated field
         };
 
+        // Portrait renderer for draft class
+        const draftPortraitRenderer = (instance, td, row, col, prop, value, cellProperties) => {
+            // Clear cell and set up styling
+            td.innerHTML = '';
+            td.style.padding = '2px';
+            td.style.textAlign = 'center';
+            td.style.verticalAlign = 'middle';
+            td.style.backgroundColor = '#1a1a1a';
+
+            // Get the physical (source) row index to account for sorting/filtering
+            const physicalRow = instance.toPhysicalRow(row);
+
+            // Get PID from the row data using physical row
+            const rowData = instance.getSourceDataAtRow(physicalRow);
+            const pid = rowData ? rowData.PID : null;
+
+            if (!pid) {
+                return td;
+            }
+
+            // Get PLPO key from PID
+            const plpoKey = this.getPlpoFromPID(pid);
+
+            if (!plpoKey) {
+                return td;
+            }
+
+            // ONLY use cache - never trigger new loads during render
+            if (this.portraitCache.has(plpoKey)) {
+                const imageData = this.portraitCache.get(plpoKey);
+                if (imageData && imageData !== 'loading') {
+                    const img = document.createElement('img');
+                    img.src = imageData;
+                    img.style.width = '64px';
+                    img.style.height = '64px';
+                    img.style.objectFit = 'cover';
+                    td.appendChild(img);
+                } else if (imageData === 'loading') {
+                    // Still loading
+                    td.textContent = '...';
+                    td.style.fontSize = '12px';
+                    td.style.color = '#666';
+                }
+            }
+
+            return td;
+        };
+
         // Map draft class field names to roster editor field names and create columns
         // Following FIELD_ORDER from field-definitions.js, excluding contract fields
         const draftColumns = [
@@ -2614,6 +2698,15 @@ class MaddenEditorApp {
                         callback(false);
                     }
                 }
+            },
+            // Portrait column (Second column)
+            {
+                data: 'portrait',
+                title: '📷',
+                width: 80,
+                readOnly: true,
+                renderer: draftPortraitRenderer.bind(this),
+                columnSorting: false  // Disable sorting on portrait column
             },
             // Personal Info (Next 3 columns frozen)
             { data: 'lastName', title: 'Last Name', width: 100, type: 'text', editor: 'text' },
@@ -2701,6 +2794,7 @@ class MaddenEditorApp {
             colHeaders: true,
             rowHeaders: true,
             height: 'calc(100vh - 200px)',
+            rowHeights: 70, // Set row height to accommodate 64px portraits
             licenseKey: 'non-commercial-and-evaluation',
             stretchH: 'none',  // Allow horizontal scrolling instead of stretching columns
             autoColumnSize: true,  // Enable auto column sizing
@@ -2709,7 +2803,7 @@ class MaddenEditorApp {
             filters: false,  // Disable filters (they require dropdownMenu)
             dropdownMenu: false,  // Disable dropdown menu (removes filter arrows)
             contextMenu: true,
-            fixedColumnsStart: 4,  // Freeze first 4 columns (Draft Pos, Last Name, First Name, Position)
+            fixedColumnsStart: 5,  // Freeze first 5 columns (Draft Pos, Portrait, Last Name, First Name, Position)
             preventOverflow: 'horizontal', // Prevent column misalignment during scroll
             manualRowMove: true, // Enable row dragging for reordering
             renderAllRows: false, // Use virtual scrolling
@@ -2733,26 +2827,46 @@ class MaddenEditorApp {
                 }
             },
             beforeColumnSort: (currentSortConfig, destinationSortConfigs) => {
-                window.electronAPI.debug.sessionLog('[SORT] BEFORE sort - First 5 rows: ' + JSON.stringify(this.draftGrid.getSourceData().slice(0, 5).map(r => ({
-                    firstName: r.firstName,
-                    lastName: r.lastName,
-                    devTrait: r.devTrait,
-                    position: r.position
-                })), null, 2));
+                if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                    try {
+                        window.electronAPI.debug.sessionLog('[SORT] BEFORE sort - First 5 rows: ' + JSON.stringify(this.draftGrid.getSourceData().slice(0, 5).map(r => ({
+                            firstName: r.firstName,
+                            lastName: r.lastName,
+                            devTrait: r.devTrait,
+                            position: r.position
+                        })), null, 2));
+                    } catch (e) {
+                        console.log('[Draft] beforeColumnSort: Could not access data (table may be destroyed)');
+                    }
+                }
             },
             afterColumnSort: (currentSortConfig, destinationSortConfigs) => {
-                window.electronAPI.debug.sessionLog('[SORT] AFTER sort - First 5 rows: ' + JSON.stringify(this.draftGrid.getSourceData().slice(0, 5).map(r => ({
-                    firstName: r.firstName,
-                    lastName: r.lastName,
-                    devTrait: r.devTrait,
-                    position: r.position
-                })), null, 2));
+                if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                    try {
+                        window.electronAPI.debug.sessionLog('[SORT] AFTER sort - First 5 rows: ' + JSON.stringify(this.draftGrid.getSourceData().slice(0, 5).map(r => ({
+                            firstName: r.firstName,
+                            lastName: r.lastName,
+                            devTrait: r.devTrait,
+                            position: r.position
+                        })), null, 2));
+
+                        // Force re-render to update portraits after sort
+                        console.log('[Draft] afterColumnSort: Forcing render to update portraits');
+                        this.draftGrid.render();
+                    } catch (e) {
+                        console.log('[Draft] afterColumnSort: Could not access data (table may be destroyed)');
+                    }
+                }
             },
             afterRowMove: (movedRows, finalIndex, dropIndex, movePossible, orderChanged) => {
                 // Just re-render to update the position numbers (they're calculated from row position)
-                if (orderChanged) {
-                    this.draftGrid.render();
-                    console.log('[Draft Editor] Draft order updated - rows reordered');
+                if (orderChanged && this.draftGrid && !this.draftGrid.isDestroyed) {
+                    try {
+                        this.draftGrid.render();
+                        console.log('[Draft Editor] Draft order updated - rows reordered');
+                    } catch (e) {
+                        console.log('[Draft] afterRowMove: Could not render (table may be destroyed)');
+                    }
                 }
             },
             beforeChange: (changes, source) => {
@@ -2766,17 +2880,23 @@ class MaddenEditorApp {
 
                     // Handle draft position changes - move the row to the new position
                     if (prop === 'draftPosition' && source !== 'loadData') {
-                        // Convert from 1-indexed user input to 0-indexed row position
-                        const targetRow = newValue - 1;
-                        const currentRow = row; // Use visual row index
+                        if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                            try {
+                                // Convert from 1-indexed user input to 0-indexed row position
+                                const targetRow = newValue - 1;
+                                const currentRow = row; // Use visual row index
 
-                        if (targetRow !== currentRow && targetRow >= 0 && targetRow < this.draftGrid.countRows()) {
-                            // Use Handsontable's plugin to move the row
-                            const plugin = this.draftGrid.getPlugin('manualRowMove');
-                            plugin.moveRow(currentRow, targetRow);
+                                if (targetRow !== currentRow && targetRow >= 0 && targetRow < this.draftGrid.countRows()) {
+                                    // Use Handsontable's plugin to move the row
+                                    const plugin = this.draftGrid.getPlugin('manualRowMove');
+                                    plugin.moveRow(currentRow, targetRow);
 
-                            // Prevent the default value change since we're moving the row (position is calculated, not stored)
-                            return false;
+                                    // Prevent the default value change since we're moving the row (position is calculated, not stored)
+                                    return false;
+                                }
+                            } catch (e) {
+                                console.log('[Draft] beforeChange: Could not move row (table may be destroyed)');
+                            }
                         }
                     }
                 });
