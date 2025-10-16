@@ -1,706 +1,411 @@
-# Master Plan: Madden Retro Franchise Editor
+# Master Plan: Madden Retro Franchise Manager
 
-**Project Goal:** Create a comprehensive Madden NFL modding tool for creating retro franchise experiences with 17+ specialized editors and tools.
+**Project Goal:** Create an all-in-one retro franchise manager that automates historical NFL/AFL franchise progression from 1920-2024.
+
+**Replaces:** 7 separate manual tools from 1994 Mod V2 with one integrated wizard-style interface.
 
 **Tech Stack:** Vanilla JavaScript + Handsontable + Electron (LOCKED)
 
-**Development Approach:** 8 phases, each with specific features, acceptance criteria, and automated testing.
+---
+
+## Vision
+
+Users can start a franchise in ANY year (1920-2024) and the tool automatically handles:
+- Historical team names, relocations, expansions
+- Era-appropriate schedules
+- Historical coaching staffs
+- Draft pick adjustments for non-existent teams
+- Expansion drafts with historical rules
+- Post-draft cleanup (body types, commentary, FA pool)
+- Period-specific logos and branding
+
+**User Philosophy:** Click-to-proceed workflow. No automatic changes without user approval.
 
 ---
 
-## Project Overview
+## Core Features
 
-The Madden Retro Franchise Editor is a desktop application that enables users to:
-- Edit rosters, draft classes, and franchise saves
-- Create historical rosters from web data
-- Customize uniforms, fields, and visual elements
-- Manage retro mods for specific eras (e.g., 1994 season)
-- Use utility tools for commentary, weather, and exports
+### 1. Timeline Support (1920-2024)
+- **Complete NFL history** including early teams, defunct teams
+- **AFL era (1960-1969)** with separate league support
+- **AFL-NFL Merger (1970)** with conference realignment
+- **All expansion events**: Jaguars (1995), Panthers (1995), Ravens (1996), Texans (2002)
+- **All relocations**: Browns→Ravens (1996), Oilers→Titans (1999), etc.
+- **Inactive team handling**: Browns (1996-1998), then reactivation (1999)
+- **Custom timelines**: User can modify expansion/merger years for "what if" scenarios
 
-### Core Principles
+### 2. Pre-Season Automation
+**Replaces:** handleTeamNames, seasonYearSetup, HandleRetroPicks, transferRetroSchedule tools
 
-1. **Standalone Application** - No external dependencies or online services required
-2. **Data Integrity** - All edits preserve file format and load in Madden game
-3. **Historical Accuracy** - Tools support era-appropriate data and rules
-4. **User-Friendly** - Intuitive UI with Handsontable grids and validation
-5. **Extensible** - Architecture supports adding new tools and features
+```
+Pre-Season Checklist:
+☐ Update team names for current year
+☐ Set season year in franchise
+☐ Adjust draft picks (inactive teams to end)
+☐ Load historical schedule
+☐ Add historical FA coaches
 
----
-
-## Phase 1: Roster Editor (Week 1)
-
-**Status:** 🔴 Not Started (Current Phase)
-
-### Objective
-Create a fully functional roster file editor that can parse Madden roster files, display players in an editable grid, and save back to Madden format that loads in-game.
-
-### Features
-
-#### 1.1 File Parsing
-- Parse Madden 25/26 roster files (PLAY table)
-- Support TDB Legacy, TDB2, and FBCH formats
-- Extract player data with all 131 attributes
-- Handle compressed and uncompressed formats
-- Validate file integrity before parsing
-
-#### 1.2 Data Display
-- Display players in Handsontable grid
-- Show 62 basic fields by default (user-friendly order)
-- Toggle to show all 131 fields (export order)
-- Decode field headers with readable names
-- Position/Team/College/State lookups
-
-#### 1.3 Player Editing
-- Edit all player attributes inline
-- Dropdown editors for lookup fields (Position, Team, College, State)
-- Numeric validation (ratings 0-99, age 18-45)
-- Text editing for names and hometown
-- PID (Player ID) system for player faces
-- Real-time validation with error messages
-
-#### 1.4 File Saving
-- Save roster back to Madden format
-- Preserve all non-edited data
-- Create backup before saving
-- Verify file integrity after save
-- Test that saved file loads in Madden
-
-### Technical Implementation
-
-#### Dependencies
-```json
-{
-  "madden-franchise": "3.8.0",  // Binary parsing
-  "bit-buffer": "^0.2.5",       // Binary operations
-  "handsontable": "16.1.1"      // Data grid
-}
+[Run All] or run individually
 ```
 
-#### File Structure
+**Draft Pick Adjustment Logic:**
+- Move ALL inactive team picks to **END OF ENTIRE DRAFT** (not end of each round)
+- Shift active team picks up to fill gaps
+- Post-draft: Replace any good players (OVR > 65) drafted by inactive teams with worst FAs (OVR < 55)
+- Ensures non-existent teams stay non-competitive
+
+### 3. Expansion Draft System
+**Handles historical expansions with accurate rules**
+
+- 1995: Jaguars, Panthers
+- 1999: Browns (reactivation as expansion team)
+- 2002: Texans
+
+**Features:**
+- Protection list manager (teams protect X players)
+- Draft simulator (alternating picks between expansion teams)
+- Roster application to franchise file
+- Historical expansion draft rules by year
+
+**Special case:** 1996 Browns→Ravens
+- Transfer entire Browns roster to Ravens
+- Deactivate Browns team
+- 1999: Reactivate Browns, run expansion draft
+
+### 4. Post-Draft Automation
+**Replaces:** bodyTypeFixV1.0, commentaryIdFixV1.2, trimFreeAgents tools
+
 ```
-src/main/ipc/
-  ├── parser-handlers.ts      // IPC handlers for parsing
-  └── file-handlers.ts         // File I/O operations
+Post-Draft Checklist:
+☐ Fix body types (300+ lb players)
+☐ Fix commentary IDs
+☐ Replace inactive team drafted players with worst FAs
+☐ Trim FA pool if too large
 
-src/main/parsers/
-  └── RosterParser.js          // Roster file parser (adapt from madden-franchise)
-
-src/renderer/js/
-  └── app.js                   // Main application (already exists)
-
-src/renderer/data/
-  └── field-definitions.js     // Field metadata (already exists)
-```
-
-#### Code Attribution
-- **madden-franchise by bep713** (MIT License) - Binary parsing approach
-- **MyFranchise** - UI patterns and Handsontable integration
-- Reference: RESEARCH_FINDINGS.md sections 2.1 and 3.1
-
-### Acceptance Criteria
-
-- [ ] Opens ROSTER-Official test file without errors
-- [ ] Displays all 3500+ players in Handsontable grid
-- [ ] Shows correct field headers (decoded names)
-- [ ] Basic fields (62) visible by default
-- [ ] "Show All Fields" toggle reveals all 131 fields
-- [ ] Position/Team/College/State dropdowns work
-- [ ] PID lookup shows player names
-- [ ] Can edit any editable field
-- [ ] Validation prevents invalid values (e.g., speed > 99)
-- [ ] Save button appears after editing
-- [ ] Saves file back to Madden format
-- [ ] Backup created before save
-- [ ] Saved file loads in Madden 25/26 without errors
-- [ ] All Playwright tests pass
-- [ ] App packages successfully with electron-forge
-
-### Testing Strategy
-
-#### Automated Tests (Playwright)
-- App launches successfully
-- File dialog opens
-- Roster file loads
-- Players display in grid
-- Edit player attribute
-- Save file
-- Re-open and verify edit persisted
-
-#### Manual Tests
-- Load roster in Madden game
-- Verify player edits show in-game
-- Test with multiple roster files
-- Stress test with large rosters
-
-### Timeline
-
-**Estimated Duration:** 1 week (40 hours)
-
-**Day 1-2:** Parser implementation
-- Install madden-franchise package
-- Create RosterParser.js
-- Implement IPC handlers
-- Test parsing with ROSTER-Official
-
-**Day 3-4:** UI integration
-- Connect parser to Handsontable
-- Implement field definitions
-- Add validation
-- Test editing
-
-**Day 5:** Save functionality
-- Implement file writing
-- Create backup system
-- Test round-trip (load → edit → save → reload)
-
-**Day 6:** Testing and polish
-- Run Playwright test suite
-- Fix any issues
-- Test in Madden game
-- Optimize performance
-
-**Day 7:** Documentation and commit
-- Update ERROR_LOG.md with any issues found
-- Update RELEASE_NOTES.md with Phase 1 completion
-- Git commit with proper attribution
-- Prepare for Phase 2
-
----
-
-## Phase 2: Roster Creator (Week 2)
-
-**Status:** ⚪ Not Started
-
-### Objective
-Build an AI-powered roster generation system that scrapes historical player data from pro-football-reference.com and creates valid Madden roster files.
-
-### Features
-
-#### 2.1 Web Scraping
-- Scrape player data from pro-football-reference.com
-- Extract player stats by season/year
-- Get player biographical data (college, height, weight, age)
-- Handle pagination and rate limiting
-- Cache scraped data locally
-
-#### 2.2 Data Mapping
-- Map real player stats to Madden attributes
-- Algorithm: Convert passing yards → throw power/accuracy
-- Algorithm: Convert rushing yards → speed/acceleration/carrying
-- Position-specific attribute generation
-- Era-appropriate rating scales (1994 vs 2024)
-
-#### 2.3 CSV Management
-- Export scraped data to CSV
-- Import CSV for manual edits
-- CSV templates for each position
-- Validate CSV format before import
-- Merge multiple CSVs
-
-#### 2.4 Roster Generation
-- Convert CSV data to Madden roster format
-- Assign team IDs and jersey numbers
-- Generate Player IDs (PIDs)
-- Set salary cap data
-- Create complete PLAY table
-
-### Technical Implementation
-
-#### Dependencies
-```json
-{
-  "puppeteer": "^24.22.3",  // Web scraping
-  "csv-parser": "^3.0.0",    // CSV parsing
-  "csv-writer": "^1.6.0"     // CSV generation
-}
+[Run All] or run individually
 ```
 
-#### File Structure
-```
-src/main/scrapers/
-  ├── ProFootballReference.js   // PFR scraper
-  └── PlayerDataMapper.js        // Stats to Madden attributes
+### 5. Historical Data
+**All data scraped from Pro Football Reference (1920-2024)**
 
-src/renderer/js/
-  └── roster-creator.js          // Roster creator UI
-```
+- **Coaches**: Names, teams, years, positions, win/loss records
+- **Schedules**: Week-by-week games including AFL schedules
+- **Team timeline**: Expansion years, relocations, name changes, inactive periods
+- **Logo assets**: Period-specific team logos organized by year
 
-#### Code Attribution
-- Web scraping patterns from community tools
-- Mapping algorithms: Custom (documented in code)
+**Coach Management:**
+- NO automatic coaching changes (organic in-game)
+- Tool adds historical FA coaches to replace generic computer coaches
+- Optional manual coach editor if user wants to make changes
 
-### Acceptance Criteria
+### 6. Period-Specific Branding
+- Team logos change based on current franchise year
+- Editor UI shows period-correct logos
+- Examples:
+  - Redskins (1960-2019) → Commanders (2020+)
+  - Browns → Ravens (1996+), Browns reactivated (1999+)
+  - Oilers → Titans (1999+)
 
-- [ ] Scrapes player data from pro-football-reference.com
-- [ ] Generates CSV with all required fields
-- [ ] CSV can be edited manually
-- [ ] Imports CSV and creates roster file
-- [ ] Generated roster loads in Madden game
-- [ ] Player ratings match real-world performance
-- [ ] Historical rosters (e.g., 1994) are accurate
-- [ ] All automated tests pass
-
-### Timeline
-
-**Estimated Duration:** 1 week
+### 7. Optional Future Features (Research Phase)
+- **Historical stats editor** (if M26 supports career stats in franchise)
+- **Uniform/gear editor** (period-appropriate uniforms, helmets, facemasks)
+- **Field editor** (retro field logos, era-specific designs)
 
 ---
 
-## Phase 3: Draft Class Editor (Week 3)
+## Implementation Phases
 
-**Status:** ⚪ Not Started
+### Phase 1: Data Foundation (1-2 weeks)
+**Goal:** Scrape all historical data needed for retro features
 
-### Objective
-Enable editing of Madden draft class files with same functionality as Roster Editor but for draft prospects.
+**Tasks:**
+1. **Complete NFL Timeline Research**
+   - All teams 1920-2024 (including defunct teams)
+   - Expansion events, relocations, inactive periods
+   - Output: `data/lookups/nfl_timeline_complete.csv`
 
-### Features
+2. **Coach Scraper** (1960-2024)
+   - Historical coaches with stats through starting year only
+   - Output: `data/lookups/coach_lookup.csv`
+   - **START HERE** - Build `scripts/build-coach-lookup.js`
 
-#### 3.1 Draft Class Parsing
-- Parse draft class files (CAREERDRAFT format)
-- Extract prospect data
-- Handle 7-round draft classes
-- Support custom draft class sizes
+3. **Schedule Scraper** (1920-2024)
+   - Historical schedules including AFL years
+   - Output: `data/lookups/schedule_lookup.csv`
 
-#### 3.2 Prospect Editing
-- Edit prospect attributes and ratings
-- Set draft positions and teams
-- Modify college and biographical data
-- Assign PIDs for prospect faces
-- Set draft grade and potential
+4. **Logo Asset Collection**
+   - Period-specific team logos
+   - Organize by team and year range
 
-#### 3.3 Draft Class Saving
-- Save back to draft class format
-- Preserve draft order
-- Backup before save
-- Verify loads in franchise mode
+5. **M25 vs M26 Compatibility Research**
+   - Compare franchise file formats
+   - Document differences
+   - Plan version handling
 
-### Technical Implementation
-
-Extend RosterParser to handle draft class format. Similar architecture to Phase 1.
-
-### Acceptance Criteria
-
-- [ ] Opens draft class files
-- [ ] Displays all prospects
-- [ ] Edit prospect attributes
-- [ ] Save draft class
-- [ ] Loads in franchise mode
-- [ ] Draft order preserved
-- [ ] All tests pass
-
-### Timeline
-
-**Estimated Duration:** 1 week
+**Deliverables:**
+- Complete historical database (coaches, schedules, timeline)
+- M25/M26 compatibility document
 
 ---
 
-## Phase 4: Draft Class Creator (Week 4)
+### Phase 2: Core Franchise Modifications (1-2 weeks)
+**Goal:** Build pre-season automation tools
 
-**Status:** ⚪ Not Started
+**Features:**
+1. **Team Manager**
+   - Activate/deactivate teams by year
+   - Handle relocations (Browns→Ravens 1996, Browns reactivation 1999)
+   - Update team names for current year
+   - Apply period-specific logos
 
-### Objective
-AI-powered generation of historical draft classes from real NFL draft data.
+2. **Season Year Setter**
+   - Update franchise season year field
 
-### Features
+3. **Draft Pick Adjuster**
+   - Move ALL inactive team picks to end of entire draft
+   - Shift active team picks up
+   - Post-draft FA replacement logic
 
-#### 4.1 Historical Draft Data
-- Scrape NFL draft history
-- Get prospect scouting reports
-- Extract college stats
-- Map to Madden attributes
+4. **Schedule Loader**
+   - Apply historical schedule for target year
+   - Support AFL schedules (1960-1969)
+   - Handle inactive teams (remove from schedule)
 
-#### 4.2 Prospect Generation
-- Generate realistic prospect distributions
-- Position-specific attribute curves
-- Bust/star probability based on history
-- Era-appropriate prospects (1994 vs 2024)
+5. **Historical Coach Manager**
+   - Load period-accurate FA coaches
+   - Replace generic computer coaches
+   - Optional manual coach editor
 
-#### 4.3 Draft Class Export
-- Create draft class file from generated data
-- Support multiple years/eras
-- Balance draft class quality
-- Assign realistic combine measurables
-
-### Acceptance Criteria
-
-- [ ] Generates historical draft classes
-- [ ] Accurate to real NFL drafts
-- [ ] Balanced prospect distributions
-- [ ] Loads and works in franchise mode
-- [ ] Multiple eras supported
-
-### Timeline
-
-**Estimated Duration:** 1 week
+**Deliverables:**
+- Working pre-season tools
+- Franchise file modification library
 
 ---
 
-## Phase 5: Franchise Editor (Week 5-6)
+### Phase 3: Post-Draft Tools (1 week)
+**Goal:** Automate post-draft cleanup
 
-**Status:** ⚪ Not Started
+**Features:**
+1. **Body Type Fixer**
+   - Scan for 300+ lb players
+   - Apply correct body types
 
-### Objective
-Full franchise save file editor with team management, league settings, and season progression.
+2. **Commentary ID Fixer**
+   - Match players to commentary IDs
+   - Updated for M26 (if format changed)
 
-### Features
+3. **FA Pool Manager**
+   - Replace inactive team drafted players with worst FAs
+   - Trim FA pool if exceeds threshold (prevent draft class load issues)
 
-#### 5.1 Franchise Parsing
-- Parse franchise save files (CAREER format)
-- Extract all tables (teams, players, coaches, schedules, stats)
-- Handle relationships between tables
-- Support all franchise file versions
-
-#### 5.2 Team Management
-- Edit team rosters
-- Modify team finances (salary cap)
-- Change team settings
-- Manage coaching staff
-- Edit team history/records
-
-#### 5.3 League Settings
-- Modify league rules
-- Change sliders and difficulty
-- Set season length
-- Configure playoffs
-- Edit weather settings
-
-#### 5.4 Season Progression
-- Advance/rewind weeks
-- Edit game results
-- Modify player stats
-- Manage injuries
-- Control draft order
-
-### Technical Implementation
-
-**Reference:** MyFranchise implementation (see RESEARCH_FINDINGS.md section 3.1)
-
-Complex multi-table editing with data relationships. Requires careful transaction management to prevent corruption.
-
-### Acceptance Criteria
-
-- [ ] Opens franchise save files
-- [ ] All tables editable
-- [ ] Relationships preserved
-- [ ] Season progression works
-- [ ] Saves load in franchise mode
-- [ ] No data corruption
-- [ ] All tests pass
-
-### Timeline
-
-**Estimated Duration:** 2 weeks (complex feature)
+**Deliverables:**
+- Working post-draft automation
 
 ---
 
-## Phase 6: Coach Editor (Week 7)
+### Phase 4: Expansion Draft System (1-2 weeks)
+**Goal:** Simulate historical expansion drafts
 
-**Status:** ⚪ Not Started
+**Features:**
+1. **Expansion Rules Engine**
+   - Historical rules by year (1976, 1995, 1999, 2002)
+   - User-customizable rules
 
-### Objective
-Edit coach attributes, histories, and photos.
+2. **Protection List Manager**
+   - Teams configure protected players
+   - Validation (can't exceed limits)
 
-### Features
+3. **Draft Simulator**
+   - Alternate picks between expansion teams
+   - Apply results to franchise file
 
-#### 6.1 Coach Data
-- Edit coach ratings and attributes
-- Modify coaching history
-- Change team assignments
-- Set coaching abilities/tendencies
+**Special Cases:**
+- 1996: Browns→Ravens full roster transfer
+- 1999: Browns reactivation with expansion draft
 
-#### 6.2 Coach Photos
-- Import/export coach photos
-- PID system for coach faces
-- Batch photo processing
-- Format conversion (PNG/JPG)
-
-#### 6.3 Historical Records
-- Edit win/loss records
-- Modify playoff history
-- Set coaching achievements
-- Historical team assignments
-
-### Acceptance Criteria
-
-- [ ] Edit all coach attributes
-- [ ] Photo import/export works
-- [ ] History editing functional
-- [ ] Changes load in-game
-- [ ] Tests pass
-
-### Timeline
-
-**Estimated Duration:** 1 week
+**Deliverables:**
+- Functioning expansion draft tool
+- Tested on all historical expansion events
 
 ---
 
-## Phase 7: Retro Mods Suite (Week 8-10)
+### Phase 5: Optional Manual Editors (1 week)
+**Goal:** Provide user-controlled editing tools
 
-**Status:** ⚪ Not Started
+**Features:**
+1. **Manual Coach Editor**
+   - Hire/fire coaches manually
+   - Adjust coach ratings
+   - User-driven, not automatic
 
-### Objective
-Comprehensive retro modding tools for uniforms, fields, stats, and visual customization.
+2. **Historical FA Coach Pool**
+   - Load period-accurate FA coaches
+   - Replace generic coaches
 
-### Features (7 Sub-Tools)
-
-#### 7.1 Uniform Editor
-- DDS texture import/export
-- 3D uniform preview (Three.js)
-- Color picker with team palettes
-- Historical uniform templates
-- Batch uniform generation
-
-**Technical:** Three.js for 3D preview, DDS parser for textures
-
-#### 7.2 History Editor
-- Set franchise start year
-- Load historical rosters
-- Era-appropriate rules
-- Historical schedules
-- Period-accurate salary caps
-
-#### 7.3 Stats Editor
-- Edit career statistics
-- Season-by-season stats
-- Historical stat accuracy
-- Import stats from web
-
-#### 7.4 PIC Editor
-- Player photo management
-- Batch photo processing
-- Face ID assignment
-- Image format conversion
-
-#### 7.5 Expansion Draft
-- Custom expansion rules
-- Team creation
-- Player protection
-- Draft simulation
-
-#### 7.6 Field Editor
-- Stadium customization
-- Field textures and logos
-- Era-appropriate designs
-- End zone customization
-
-#### 7.7 Splash Screen / Scorebug / Equipment Editors
-- Loading screen customization
-- On-screen graphics (scorebugs)
-- Equipment editor (helmets, era-appropriate gear)
-
-### Technical Implementation
-
-**Reference:** 1994 Mod V2 tools (see RESEARCH_FINDINGS.md section 3.2)
-
-Each sub-tool is a separate module with shared UI framework.
-
-### Acceptance Criteria
-
-- [ ] All 7 sub-tools functional
-- [ ] DDS texture handling works
-- [ ] 3D previews render correctly
-- [ ] Historical data accurate
-- [ ] Changes load in-game
-- [ ] Tests pass for each tool
-
-### Timeline
-
-**Estimated Duration:** 3 weeks (7 tools, some complex)
-
-**Week 8:** Uniform, History, Stats editors
-**Week 9:** PIC, Expansion Draft editors
-**Week 10:** Field, Splash/Scorebug/Equipment editors
+**Deliverables:**
+- Optional coach management tools
 
 ---
 
-## Phase 8: Toolkit (Week 11)
+### Phase 6: UI Integration (2 weeks)
+**Goal:** Combine all tools into one wizard interface
 
-**Status:** ⚪ Not Started
+**Features:**
+1. **Timeline Configuration**
+   - Select starting year (1920-2024)
+   - Choose historical vs custom timeline
+   - Edit timeline events (expansion years, etc.)
 
-### Objective
-Utility tools for commentary, export, and weather control.
+2. **Season Progression Wizard**
+   ```
+   ┌─────────────────────────────────────┐
+   │  Retro Season Progression           │
+   ├─────────────────────────────────────┤
+   │  Current Year: 1994 → 1995          │
+   │                                     │
+   │  Pre-Season Checklist:              │
+   │  ☐ Update team names → [Run]        │
+   │  ☐ Set season year → [Run]          │
+   │  ☐ Adjust draft picks → [Run]       │
+   │  ☐ Load schedule → [Run]            │
+   │                                     │
+   │  [Run All Pre-Season]               │
+   │                                     │
+   │  ─────────────────────               │
+   │                                     │
+   │  Post-Draft Checklist:              │
+   │  ☐ Fix body types → [Run]           │
+   │  ☐ Fix commentary → [Run]           │
+   │  ☐ Clean FA pool → [Run]            │
+   │                                     │
+   │  [Run All Post-Draft]               │
+   └─────────────────────────────────────┘
+   ```
 
-### Features (3 Utilities)
+3. **Expansion Draft Interface**
+   - Protection list UI
+   - Draft simulator
+   - Results display
 
-#### 8.1 Commentary ID Editor
-- Player name to commentary mapping
-- Bulk assignment
-- Audio file validation
-- Name pronunciation guide
+**Deliverables:**
+- Complete integrated tool with wizard workflow
 
-**Reference:** presentationIdFixV3.0.exe (see RESEARCH_FINDINGS.md)
+---
 
-#### 8.2 Export Tool
-- Franchise to roster conversion
-- Team extraction
-- Data preservation during export
-- Batch export
+### Phase 7: Research & Future Features (TBD)
+**Goal:** Determine feasibility of advanced editors
 
-**Reference:** franchiseToRosterV0.3.exe (see RESEARCH_FINDINGS.md)
+**Research:**
+1. **Historical Stats Editor**
+   - Does M26 franchise file store career stats?
+   - Can we edit them?
+   - Build editor if supported
 
-#### 8.3 Weather Controls
-- Stadium weather patterns
-- Historical weather data
-- Custom scenarios
-- Seasonal adjustments
+2. **Uniform/Field Editor**
+   - How does M26 store uniforms? (DDS textures? Database fields?)
+   - Can madden-franchise library edit them?
+   - Build editors if feasible
 
-**Reference:** transferRetroSchedule.exe (see RESEARCH_FINDINGS.md)
+**Deliverables:**
+- Feasibility reports
+- Editors if possible
 
-### Acceptance Criteria
+---
 
-- [ ] Commentary IDs assignable
-- [ ] Franchise exports to roster
-- [ ] Weather controls functional
-- [ ] All utilities tested
-- [ ] Tests pass
+## Reference: 1994 Mod V2 Manual Workflow
 
-### Timeline
+**Their painful process (EVERY offseason):**
+1. Run handleTeamNames.exe
+2. Run seasonYearSetup.exe
+3. Run HandleRetroPicks.exe
+4. **Manually play through draft in Madden**
+5. Run bodyTypeFixV1.0.exe
+6. Run transferRetroSchedule.exe
+7. Run commentaryIdFixV1.2.exe (optional)
+8. Run trimFreeAgents.exe (if needed)
 
-**Estimated Duration:** 1 week
+**Our solution:**
+- **Pre-Season:** Click "Run All Pre-Season" → Steps 1-3 done
+- **Post-Draft:** Click "Run All Post-Draft" → Steps 5-8 done
+- **Time saved:** ~30 minutes per offseason
+
+---
+
+## Technical Details
+
+### File Compatibility
+- **Target:** Madden 26 (primary)
+- **Support:** Madden 25 (if format compatible)
+- **Version detection:** Auto-detect file version
+- **Fallback:** Clear warnings if M25-only features used
+
+### Data Storage
+- **SQLite database** for lookups (coaches, schedules, timeline)
+- **CSV files** for scraper output (can be manually edited)
+- **JSON** for configuration (timeline customization)
+
+### Franchise File Modifications
+**Tables modified:**
+- **TEAM** - Team names, abbreviations, active/inactive status
+- **COCH** - Coach assignments, FA coach pool
+- **SCHD** - Schedule data
+- **PLAY** - Body types, commentary IDs
+- **DRFT** - Draft pick order
+
+**Safety:**
+- Always backup before modifications
+- Transaction-based saves (all-or-nothing)
+- Validation before saving
+- Test that modified file loads in-game
 
 ---
 
 ## Success Metrics
 
-### Phase 1 (Roster Editor)
-- ✅ Opens roster files
-- ✅ Edits players
-- ✅ Saves and reloads in-game
-- ✅ All tests pass
+### Phase 1 Complete When:
+- [ ] Coach scraper functional (1960-2024)
+- [ ] Schedule scraper functional (1920-2024)
+- [ ] Complete NFL timeline database built
+- [ ] M25/M26 compatibility documented
 
-### Overall Project
-- 8 phases completed
-- 17+ tools functional
-- All Playwright tests passing (>95% pass rate)
-- App packages for distribution
-- Community adoption (GitHub stars, downloads)
-- Positive user feedback
+### Phase 2 Complete When:
+- [ ] Pre-season tools modify franchise correctly
+- [ ] Changes load in Madden without errors
+- [ ] User can progress through multiple seasons
 
----
-
-## Risk Management
-
-### Technical Risks
-
-**Risk:** Binary file format changes in new Madden versions
-**Mitigation:** Use madden-franchise package (actively maintained), versioned parsers
-
-**Risk:** Performance issues with large datasets
-**Mitigation:** Handsontable virtualization, lazy loading, pagination
-
-**Risk:** File corruption during save
-**Mitigation:** Mandatory backups, transaction-based saves, integrity validation
-
-### Project Risks
-
-**Risk:** Scope creep (adding features mid-phase)
-**Mitigation:** Strict phase definitions, approval required for changes
-
-**Risk:** Time overruns
-**Mitigation:** Weekly milestones, buffer weeks, MVP first approach
-
-**Risk:** AI workflow violations
-**Mitigation:** CLAUDE.md enforcement, WORKFLOW.md checkpoints, user oversight
+### Overall Project Complete When:
+- [ ] All 7 phases done
+- [ ] Wizard interface functional
+- [ ] User can run retro franchise from any year (1920-2024)
+- [ ] All manual 1994 Mod tools replaced with automation
+- [ ] M25 and M26 compatibility confirmed
+- [ ] Community adoption (GitHub stars, downloads)
 
 ---
 
-## Development Workflow (Per Phase)
+## Credits
 
-```
-Week N: Phase X
-├── Day 1-2: Research and Planning
-│   ├── Review RESEARCH_FINDINGS.md
-│   ├── Study reference implementations
-│   ├── Create detailed technical spec
-│   └── User approval
-├── Day 3-5: Implementation
-│   ├── Write code (following WORKFLOW.md)
-│   ├── Testing agent runs Playwright tests
-│   ├── Fix issues
-│   └── User testing
-├── Day 6: Integration and Optimization
-│   ├── Packaging agent verifies build
-│   ├── Optimizer agent checks code
-│   ├── Performance testing
-│   └── Fix any issues
-└── Day 7: Documentation and Commit
-    ├── Update ERROR_LOG.md
-    ├── Update RELEASE_NOTES.md
-    ├── Git commit (user approval)
-    └── Prepare next phase
-```
+### Reference Tools
+- **1994 Mod V2** - Workflow inspiration, tool functionality reference
+- **madden-franchise** by bep713 (MIT) - Franchise file parsing
+- **MyFranchise** - UI patterns
+
+### Data Sources
+- **Pro Football Reference** - Coaches, schedules, team history
+- **NFL.com** - Historical records
+- **Community mods** - Logo assets, uniform designs
 
 ---
 
-## Post-Launch (Beyond Week 11)
+## Next Steps
 
-### Version 1.1
-- Bug fixes from user feedback
-- Performance optimizations
-- Additional test coverage
-
-### Version 1.2
-- Plugin system for community tools
-- Cloud sync (optional)
-- Online roster sharing
-
-### Version 2.0
-- Multi-language support
-- Mobile companion app
-- Advanced AI features (auto-rating generation)
+**Immediate:**
+1. ✅ Save this plan to MASTER_PLAN.md
+2. ⏭️ Commit to git with message: "Add Retro Franchise Manager master plan"
+3. ⏭️ Start Phase 1: Build coach scraper (`scripts/build-coach-lookup.js`)
+4. ⏭️ Check draft scraper status and fix timeout issues
 
 ---
 
-## Resources
-
-### Documentation
-- **CLAUDE.md** - Rules and tech stack
-- **WORKFLOW.md** - Development workflow
-- **RESEARCH_FINDINGS.md** - All reference implementations
-- **ERROR_LOG.md** - Known issues and solutions
-- **RELEASE_NOTES.md** - Version history
-
-### Reference Implementations
-- **madden-franchise** (npm package) - Primary parser
-- **MyFranchise** (local tool) - UI patterns
-- **1994 Mod V2** (local tools) - Retro modding examples
-
-### Test Files
-- **ROSTER-Official** (6.1 MB) - Test roster
-- **CAREER-AUG07-02h00m07p-AUTOSAVE** (5.5 MB) - Test franchise
-- **CAREERDRAFT-2026DRAFT7RND** (1.9 MB) - Test draft class
-
-Location: `C:/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/Madden Files/`
-
----
-
-## Credits and Attribution
-
-### Phase 1-8 Code Attribution
-
-**Primary References:**
-- **madden-franchise** by bep713 (MIT License) - Binary parsing
-- **MyFranchise** by bep713 - UI architecture
-- **1994 Mod V2** tools - Retro modding patterns
-
-**Community Resources:**
-- kn1meR/MaddenRosterEditor
-- ethpec/MaddenTools
-- Sinthros/madden-franchise-utils
-
-**Data Sources:**
-- pro-football-reference.com - Historical player data
-- Madden modding community - Tools and knowledge
-
----
-
-## Conclusion
-
-This master plan provides a clear roadmap for building the Madden Retro Franchise Editor. Each phase builds on the previous, ensuring a solid foundation. By following the WORKFLOW.md process and using reference implementations from RESEARCH_FINDINGS.md, we can deliver a professional, feature-rich modding tool.
-
-**Next Step:** Begin Phase 1 - Roster Editor
-
----
-
-*Last Updated: 2025-09-30*
-*Version: 1.0 (Initial Plan)*
+*Last Updated: 2025-10-16*
+*Version: 2.0 (Retro Franchise Manager)*
