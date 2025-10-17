@@ -2174,6 +2174,97 @@ export class ScraperService {
     console.log(`[ScraperService] Found ${count} potential HOF players active in ${year} (using position-based career spans)`);
     return hofMap;
   }
+
+  /**
+   * Scrape team roster from JT-SW (PRIMARY - cleaner tables, easier to scrape)
+   * Falls back to PFR if JT-SW fails
+   * JT-SW has cleaner HTML and is easier to scrape than PFR
+   * @param teamCode - JT-SW team code (e.g., 'sf', 'dal', 'gb')
+   * @param year - Season year
+   * @returns Array of player stats with name + position (get rest from MASTER_LOOKUP)
+   */
+  async scrapeTeamRosterFromJTSW(teamCode: string, year: number): Promise<PlayerStats[]> {
+    await this.initBrowser();
+
+    if (!this.browser) {
+      throw new Error('Failed to initialize browser');
+    }
+
+    const page = await this.browser.newPage();
+
+    try {
+      console.log(`[ScraperService] Scraping roster from JT-SW for ${teamCode} (${year})`);
+
+      // Navigate to JT-SW roster page
+      const jtswUrl = `https://www.jt-sw.com/football/pro/rosters.nsf/Annual/${year}-${teamCode}`;
+      console.log(`[ScraperService] URL: ${jtswUrl}`);
+
+      await page.goto(jtswUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+      // Extract roster from table
+      const roster = await page.evaluate(() => {
+        const playerList: any[] = [];
+
+        // Find the main roster table
+        const table = document.querySelector('table');
+
+        if (!table) {
+          return playerList;
+        }
+
+        const rows = table.querySelectorAll('tbody tr');
+
+        for (const row of Array.from(rows)) {
+          const cells = row.querySelectorAll('td');
+
+          if (cells.length < 3) continue;
+
+          // JT-SW table structure (from WebFetch analysis):
+          // Column 0: Position
+          // Column 1: Jersey Number
+          // Column 2: Player Name
+          // Additional columns: GP, GS, College, etc.
+
+          const posCell = cells[0];
+          const jerseyCell = cells[1];
+          const nameCell = cells[2];
+
+          if (!nameCell || !posCell) continue;
+
+          const playerName = nameCell.textContent?.trim() || '';
+          const position = posCell.textContent?.trim() || '';
+          const jerseyNum = parseInt(jerseyCell?.textContent?.trim() || '0');
+
+          // Remove HOF indicator (*) from name
+          const cleanName = playerName.replace(/\*/g, '').trim();
+
+          if (cleanName && position) {
+            playerList.push({
+              name: cleanName,
+              position: position,
+              jerseyNumber: jerseyNum > 0 ? jerseyNum : undefined
+            });
+          }
+        }
+
+        return playerList;
+      });
+
+      console.log(`[ScraperService] Scraped ${roster.length} players from JT-SW for ${teamCode} (${year})`);
+
+      await page.close();
+      return roster as PlayerStats[];
+
+    } catch (error: any) {
+      console.warn(`[ScraperService] JT-SW scrape failed for ${teamCode} (${year}):`, error.message);
+      console.log(`[ScraperService] Falling back to PFR scraping...`);
+      await page.close();
+
+      // FALLBACK: Use existing PFR scraper
+      // Map JT-SW team code to PFR team code (they're usually the same)
+      return this.scrapeTeamRoster(teamCode, year);
+    }
+  }
 }
 
 // Export singleton instance

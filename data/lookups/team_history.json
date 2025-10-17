@@ -1,0 +1,129 @@
+{
+  "afl_teams": {
+    "1960-1969": [
+      "buf", "bos", "oti", "nwe", "nyj", "mia", "rai", "sdg", "den", "kan", "crd", "cin"
+    ]
+  },
+  "nfl_teams": {
+    "1960-1969": [
+      "chi", "gnb", "det", "min", "sfo", "ram", "clt", "nyg", "was", "phi", "pit", "cle",
+      "dal", "atl", "nor"
+    ]
+  },
+  "team_relocations": {
+    "dal_texans": {
+      "years": "1960-1962",
+      "league": "AFL",
+      "became": "kan",
+      "new_name": "Kansas City Chiefs",
+      "move_year": 1963
+    },
+    "houston_oilers": {
+      "years": "1960-1996",
+      "league": "AFL/NFL",
+      "code": "oti",
+      "became": "oti",
+      "new_name": "Tennessee Oilers/Titans",
+      "move_year": 1997
+    },
+    "los_angeles_chargers": {
+      "years": "1960",
+      "league": "AFL",
+      "became": "sdg",
+      "new_name": "San Diego Chargers",
+      "move_year": 1961
+    },
+    "boston_patriots": {
+      "years": "1960-1970",
+      "league": "AFL",
+      "code": "bos",
+      "became": "nwe",
+      "new_name": "New England Patriots",
+      "move_year": 1971
+    },
+    "baltimore_colts": {
+      "years": "1953-1983",
+      "league": "NFL",
+      "code": "clt",
+      "became": "clt",
+      "new_name": "Indianapolis Colts",
+      "move_year": 1984
+    },
+    "st_louis_cardinals": {
+      "years": "1960-1987",
+      "league": "NFL",
+      "code": "crd",
+      "became": "crd",
+      "new_name": "Phoenix/Arizona Cardinals",
+      "move_year": 1988
+    },
+    "los_angeles_rams": {
+      "years": "1946-1994",
+      "league": "NFL",
+      "code": "ram",
+      "became": "ram",
+      "new_name": "St. Louis Rams",
+      "move_year": 1995,
+      "note": "Moved back to LA in 2016"
+    },
+    "oakland_raiders": {
+      "years": "1960-1981, 1995-2019",
+      "league": "AFL/NFL",
+      "code": "rai",
+      "moved_to_la": "1982-1994",
+      "moved_to_lv": 2020
+    }
+  },
+  "team_name_mappings": {
+    "jt_sw_to_pfr": {
+      "Atlanta Falcons": "atl",
+      "Arizona Cardinals": "crd",
+      "Baltimore Colts": "clt",
+      "Baltimore Ravens": "rav",
+      "Buffalo Bills": "buf",
+      "Carolina Panthers": "car",
+      "Chicago Bears": "chi",
+      "Cincinnati Bengals": "cin",
+      "Cleveland Browns": "cle",
+      "Dallas Cowboys": "dal",
+      "Dallas Texans": "dal_texans",
+      "Denver Broncos": "den",
+      "Detroit Lions": "det",
+      "Green Bay Packers": "gnb",
+      "Houston Oilers": "oti",
+      "Houston Texans": "htx",
+      "Indianapolis Colts": "clt",
+      "Jacksonville Jaguars": "jax",
+      "Kansas City Chiefs": "kan",
+      "Las Vegas Raiders": "rai",
+      "Los Angeles Chargers": "sdg",
+      "Los Angeles Rams": "ram",
+      "Miami Dolphins": "mia",
+      "Minnesota Vikings": "min",
+      "New England Patriots": "nwe",
+      "New Orleans Saints": "nor",
+      "New York Giants": "nyg",
+      "New York Jets": "nyj",
+      "Oakland Raiders": "rai",
+      "Philadelphia Eagles": "phi",
+      "Phoenix Cardinals": "crd",
+      "Pittsburgh Steelers": "pit",
+      "San Diego Chargers": "sdg",
+      "San Francisco 49ers": "sfo",
+      "Seattle Seahawks": "sea",
+      "St. Louis Cardinals": "crd",
+      "St. Louis Rams": "ram",
+      "Tampa Bay Buccaneers": "tam",
+      "Tennessee Titans": "oti",
+      "Tennessee Oilers": "oti",
+      "Washington Redskins": "was",
+      "Washington Football Team": "was",
+      "Washington Commanders": "was"
+    }
+  },
+  "notes": {
+    "afl_nfl_merger": "AFL and NFL merged in 1970. Prior to 1970, they were separate leagues.",
+    "dallas_texans": "Dallas Texans (AFL 1960-1962) became Kansas City Chiefs in 1963. NOT related to Dallas Cowboys (NFL) or Houston Texans (NFL 2002+).",
+    "usage": "Use this file to determine which teams were in AFL vs NFL for 1960-1969 rosters."
+  }
+}
