@@ -450,6 +450,84 @@ export class CreatorService {
   }
 
   /**
+   * Calculate pro-rated wAV for a player at a specific point in their career
+   * Used for roster generation to avoid rating rookies as GOATs based on full career stats
+   * @param careerWAV - Full career wAV from MASTER_LOOKUP
+   * @param totalYears - Total years played in career (To - From + 1)
+   * @param yearsPlayed - Years played so far (roster_year - From + 1)
+   * @returns Pro-rated wAV for current season
+   */
+  private calculateProRatedWAV(
+    careerWAV: number,
+    totalYears: number,
+    yearsPlayed: number
+  ): number {
+    if (totalYears === 0 || yearsPlayed === 0 || careerWAV === 0) {
+      return 0;
+    }
+
+    const wAVPerYear = careerWAV / totalYears;
+    const proRatedWAV = wAVPerYear * yearsPlayed;
+
+    console.log(`[CreatorService] Pro-rated wAV: ${careerWAV} / ${totalYears} years = ${wAVPerYear.toFixed(2)} per year * ${yearsPlayed} years = ${proRatedWAV.toFixed(2)}`);
+
+    return proRatedWAV;
+  }
+
+  /**
+   * Find player in MASTER_LOOKUP by name and year range
+   * For roster generation, we need to find players who were active in a specific year
+   * @param firstName - Player's first name
+   * @param lastName - Player's last name
+   * @param rosterYear - Year of the roster we're generating
+   * @returns MASTER_LOOKUP entry or null if not found
+   */
+  private findPlayerInMASTERLookup(
+    firstName: string,
+    lastName: string,
+    rosterYear: number
+  ): any | null {
+    const masterLookup = this.loadMasterLookup();
+
+    // Normalize names
+    const normalizedFirst = firstName.toLowerCase().trim();
+    const normalizedLast = lastName.toLowerCase().trim();
+
+    // Search through all entries
+    for (const [key, entry] of masterLookup.entries()) {
+      const entryFirst = (entry['First Name'] || '').toLowerCase().trim();
+      const entryLast = (entry['Last Name'] || '').toLowerCase().trim();
+
+      // Name must match
+      if (entryFirst !== normalizedFirst || entryLast !== normalizedLast) {
+        continue;
+      }
+
+      // Check if player was active in this year
+      const from = parseInt(entry['From']) || 0;
+      const to = parseInt(entry['To']) || 0;
+
+      // If From/To are available, check if roster year is in range
+      if (from > 0 && to > 0) {
+        if (rosterYear >= from && rosterYear <= to) {
+          console.log(`[CreatorService] Found ${firstName} ${lastName} in MASTER_LOOKUP (active ${from}-${to}, roster year ${rosterYear})`);
+          return entry;
+        }
+      } else {
+        // If From/To not available, try draft year match (rookie season)
+        const draftClass = parseInt(entry['Draft Class']) || 0;
+        if (draftClass > 0 && Math.abs(rosterYear - draftClass) <= 15) {
+          console.log(`[CreatorService] Found ${firstName} ${lastName} in MASTER_LOOKUP (drafted ${draftClass}, roster year ${rosterYear})`);
+          return entry;
+        }
+      }
+    }
+
+    console.log(`[CreatorService] Player ${firstName} ${lastName} not found in MASTER_LOOKUP for year ${rosterYear}`);
+    return null;
+  }
+
+  /**
    * DEPRECATED: Load FullData lookup CSV into memory
    * REPLACED BY: loadMasterLookup() which has 76% more players
    * Kept for backwards compatibility
