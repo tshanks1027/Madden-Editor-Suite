@@ -7,7 +7,7 @@ export const MADDEN_FIELDS = {
     // User-friendly fields based on FIELD_ORDER
     'PLNA': { display: 'Last Name', shortDisplay: 'Last Name', type: 'text', editable: true, width: 100 },
     'PFNA': { display: 'First Name', shortDisplay: 'First Name', type: 'text', editable: true, width: 100 },
-    'PSXP': { display: 'Pic ID', shortDisplay: 'PID', type: 'numeric', editable: true, width: 200, min: 0, max: 10861 },
+    'PSXP': { display: 'Pic ID', shortDisplay: 'PID', type: 'numeric', editable: true, width: 60, min: 0, max: 10861 },
     'PLAYERPIC': { display: 'Player Pic', shortDisplay: 'Player Pic', type: 'autocomplete', editable: true, width: 120, lookup: 'pids' },
     'PEPS': { display: 'Player Asset Model', shortDisplay: 'PAM', type: 'text', editable: true },
     'PPOS': { display: 'Position', shortDisplay: 'POS', type: 'lookup', editable: true, width: 80, lookup: 'positions' },
@@ -173,6 +173,7 @@ let LOOKUP_DATA = {
     pids: new Map(),
     pidsByName: new Map(),
     pidsCapitalized: new Map(), // Maps PID -> Capitalized Name
+    plpos: new Map(), // Maps PID -> PLPO key (for portraits)
     devtraits: new Map([
         [0, 'Normal'],
         [1, 'Star'],
@@ -369,8 +370,48 @@ export async function loadLookupData() {
             console.error('Failed to load PID lookup:', error);
         }
 
+        // Load PLPO data from FullData_Lookup.csv for portrait mapping
+        console.log('Loading PLPO lookup data via IPC...');
+
+        try {
+            const plpoOptions = await window.electronAPI.lookup.getDropdownOptions('FullData_Lookup.csv');
+
+            console.log(`Loaded ${plpoOptions.length} PLPO entries from FullData lookup`);
+
+            // Populate plpos map (PID -> PLPO key)
+            plpoOptions.forEach(option => {
+                // option.value is PhotoID (PID), option.plpo is the PLPO key
+                if (option.plpo && option.plpo.trim()) {
+                    LOOKUP_DATA.plpos.set(option.value, option.plpo.trim());
+                }
+            });
+
+            console.log(`Processed ${LOOKUP_DATA.plpos.size} PLPO mappings from FullData_Lookup`);
+        } catch (error) {
+            console.error('Failed to load PLPO lookup:', error);
+        }
+
+        // Load additional PID -> PLPO mappings from PID_Portrait_Mapping.csv (for generic faces)
+        console.log('Loading PID_Portrait_Mapping.csv for generic faces...');
+        try {
+            const pidMappingData = await window.electronAPI.lookup.getPIDPortraitMapping();
+
+            console.log(`Loaded ${pidMappingData.length} entries from PID_Portrait_Mapping.csv`);
+
+            // Merge into plpos map
+            pidMappingData.forEach(entry => {
+                if (entry.pid && entry.portrait) {
+                    LOOKUP_DATA.plpos.set(entry.pid, entry.portrait);
+                }
+            });
+
+            console.log(`Total PLPO mappings after merge: ${LOOKUP_DATA.plpos.size}`);
+        } catch (error) {
+            console.error('Failed to load PID_Portrait_Mapping.csv:', error);
+        }
+
         console.log('Lookup data loaded successfully');
-        console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}, PIDs: ${LOOKUP_DATA.pids.size}`);
+        console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}, PIDs: ${LOOKUP_DATA.pids.size}, PLPOs: ${LOOKUP_DATA.plpos.size}`);
 
         // Expose LOOKUP_DATA on window for two-way PID sync
         window.lookupData = LOOKUP_DATA;

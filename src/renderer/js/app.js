@@ -79,6 +79,8 @@ class MaddenEditorApp {
         this.lookupReady = false;
         this.selectedPosition = '';
         this.selectedTeamId = null; // null = all teams, number = specific team
+        this.rosterSearchTerm = ''; // Search term for roster editor
+        this.draftSearchTerm = ''; // Search term for draft class editor
         this.disableChangeEvents = false;
 
         // Pagination settings
@@ -201,6 +203,12 @@ class MaddenEditorApp {
             this.filterPlayers();
         });
 
+        // Roster search input
+        document.getElementById('rosterSearchInput').addEventListener('input', (e) => {
+            this.rosterSearchTerm = e.target.value.toLowerCase().trim();
+            this.filterPlayers();
+        });
+
         // Back to all teams button
         document.getElementById('backToAllTeams').addEventListener('click', () => {
             this.exitTeamView();
@@ -225,6 +233,12 @@ class MaddenEditorApp {
 
         document.getElementById('draftPositionFilter').addEventListener('change', (e) => {
             this.selectedDraftPosition = e.target.value;
+            this.filterDraftProspects();
+        });
+
+        // Draft search input
+        document.getElementById('draftSearchInput').addEventListener('input', (e) => {
+            this.draftSearchTerm = e.target.value.toLowerCase().trim();
             this.filterDraftProspects();
         });
 
@@ -280,7 +294,7 @@ class MaddenEditorApp {
         const selectRosterTemplateBtn = document.getElementById('selectRosterTemplate');
         if (selectRosterTemplateBtn) {
             selectRosterTemplateBtn.addEventListener('click', async () => {
-                const result = await window.electronAPI.file.openDialog();
+                const result = await window.electronAPI.file.openDialog(null);
                 if (result.success && result.filePath && !result.canceled) {
                     const templateInput = document.getElementById('rosterTemplate');
                     templateInput.value = result.filePath;
@@ -294,7 +308,7 @@ class MaddenEditorApp {
         const selectDraftTemplateBtn = document.getElementById('selectDraftTemplate');
         if (selectDraftTemplateBtn) {
             selectDraftTemplateBtn.addEventListener('click', async () => {
-                const result = await window.electronAPI.file.openDialog();
+                const result = await window.electronAPI.file.openDialog(null);
                 if (result.success && result.filePath && !result.canceled) {
                     document.getElementById('draftTemplate').value = result.filePath;
                 }
@@ -305,10 +319,19 @@ class MaddenEditorApp {
         const selectM25DraftBtn = document.getElementById('selectM25Draft');
         if (selectM25DraftBtn) {
             selectM25DraftBtn.addEventListener('click', async () => {
-                const result = await window.electronAPI.file.openDialog();
+                // Use separate directory memory for source files
+                const lastSourceDir = localStorage.getItem('m25SourceDirectory');
+                const result = await window.electronAPI.file.openDialog(lastSourceDir ? lastSourceDir : null);
                 if (result.success && result.filePath && !result.canceled) {
                     document.getElementById('m25DraftFile').value = result.filePath;
+                    // Store full path and directory separately
                     localStorage.setItem('m25DraftPath', result.filePath);
+                    const dir = result.filePath.substring(0, result.filePath.lastIndexOf('\\'));
+                    localStorage.setItem('m25SourceDirectory', dir);
+                    // Update filename display
+                    const filename = result.filePath.substring(result.filePath.lastIndexOf('\\') + 1);
+                    const filenameDisplay = document.getElementById('m25DraftFilename');
+                    if (filenameDisplay) filenameDisplay.textContent = filename;
                     this.checkConverterReady();
                 }
             });
@@ -317,10 +340,22 @@ class MaddenEditorApp {
         const selectM26TemplateBtn = document.getElementById('selectM26Template');
         if (selectM26TemplateBtn) {
             selectM26TemplateBtn.addEventListener('click', async () => {
-                const result = await window.electronAPI.file.openDialog();
+                // Use destination directory memory for M26 template (it's also a M26 file)
+                const lastDestDir = localStorage.getItem('m26DestinationDirectory');
+                const result = await window.electronAPI.file.openDialog(lastDestDir ? lastDestDir : null);
                 if (result.success && result.filePath && !result.canceled) {
                     document.getElementById('m26TemplateFile').value = result.filePath;
                     localStorage.setItem('m26TemplatePath', result.filePath);
+                    // Update the destination directory memory from template selection too
+                    const dir = result.filePath.substring(0, result.filePath.lastIndexOf('\\'));
+                    localStorage.setItem('m26DestinationDirectory', dir);
+                    // Update filename display
+                    const filename = result.filePath.substring(result.filePath.lastIndexOf('\\') + 1);
+                    const filenameDisplay = document.getElementById('m26TemplateFilename');
+                    if (filenameDisplay) {
+                        filenameDisplay.textContent = filename;
+                        filenameDisplay.style.color = '#2196F3';
+                    }
                     this.checkConverterReady();
                 }
             });
@@ -329,10 +364,19 @@ class MaddenEditorApp {
         const selectM26OutputBtn = document.getElementById('selectM26Output');
         if (selectM26OutputBtn) {
             selectM26OutputBtn.addEventListener('click', async () => {
-                const result = await window.electronAPI.file.saveDialog();
+                // Use separate directory memory for destination files
+                const lastDestDir = localStorage.getItem('m26DestinationDirectory');
+                const result = await window.electronAPI.file.saveDialog(lastDestDir ? lastDestDir : null);
                 if (result.success && result.filePath && !result.canceled) {
                     document.getElementById('m26OutputFile').value = result.filePath;
+                    // Store full path and directory separately
                     localStorage.setItem('m26OutputPath', result.filePath);
+                    const dir = result.filePath.substring(0, result.filePath.lastIndexOf('\\'));
+                    localStorage.setItem('m26DestinationDirectory', dir);
+                    // Update filename display
+                    const filename = result.filePath.substring(result.filePath.lastIndexOf('\\') + 1);
+                    const filenameDisplay = document.getElementById('m26OutputFilename');
+                    if (filenameDisplay) filenameDisplay.textContent = filename;
                     this.checkConverterReady();
                 }
             });
@@ -448,10 +492,7 @@ class MaddenEditorApp {
         try {
             if (typeof window.electronAPI !== 'undefined') {
                 console.log('[app.js] Step 1: Calling file.openDialog()...');
-                const result = await window.electronAPI.file.openDialog([
-                    { name: 'All Files', extensions: ['*'] },
-                    { name: 'Roster Files', extensions: [] }
-                ]);
+                const result = await window.electronAPI.file.openDialog(null);
                 console.log('[app.js] Step 2: Dialog result:', result);
 
                 if (result.success && result.filePath) {
@@ -754,20 +795,26 @@ class MaddenEditorApp {
 
         // Pre-load all portraits for this page in batch
         const psxpIndex = fieldCodes.indexOf('PSXP');
+        console.log('[Portrait Loading] PSXP index in fieldCodes:', psxpIndex, 'fieldCodes:', fieldCodes.slice(0, 10));
         let portraitsToLoad = 0;
         let portraitsLoaded = 0;
 
         if (psxpIndex !== -1) {
-            paginatedPlayers.forEach(player => {
+            console.log('[Portrait Loading] Starting loop for', paginatedPlayers.length, 'players');
+            paginatedPlayers.forEach((player, idx) => {
                 const pid = this.getPlayerFieldValue(player, 'PSXP');
+                if (idx < 2) console.log(`[Portrait Loading] Player ${idx} PID:`, pid);
                 if (pid) {
                     const plpoKey = this.getPlpoFromPID(pid);
+                    if (idx < 2) console.log(`[Portrait Loading] Player ${idx} PLPO:`, plpoKey, 'Cached:', this.portraitCache.has(plpoKey));
                     if (plpoKey && !this.portraitCache.has(plpoKey)) {
                         // Mark as loading and fetch
+                        console.log(`[Portrait Loading] Fetching for ${plpoKey}`);
                         this.portraitCache.set(plpoKey, 'loading');
                         portraitsToLoad++;
 
                         window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
+                            console.log(`[Portrait Loading] SUCCESS ${plpoKey}`);
                             this.portraitCache.set(plpoKey, imageData);
                             portraitsLoaded++;
 
@@ -823,22 +870,30 @@ class MaddenEditorApp {
             // Get PID from the row data
             const rowData = instance.getDataAtRow(row);
             const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
+            // currentFieldMapping already accounts for portrait column offset
             const pid = psxpIndex !== -1 ? rowData[psxpIndex] : null;
 
+            if (row < 2) console.log(`[Portrait Renderer] Row ${row}: psxpIndex=${psxpIndex}, pid=${pid}, rowData length=${rowData?.length}`);
+
             if (!pid) {
+                if (row < 2) console.log(`[Portrait Renderer] Row ${row}: NO PID, returning empty`);
                 return td;
             }
 
             // Get PLPO key from PID
             const plpoKey = this.getPlpoFromPID(pid);
 
+            if (row < 2) console.log(`[Portrait Renderer] Row ${row}: plpoKey=${plpoKey}, inCache=${this.portraitCache.has(plpoKey)}`);
+
             if (!plpoKey) {
+                if (row < 2) console.log(`[Portrait Renderer] Row ${row}: NO PLPO, returning empty`);
                 return td;
             }
 
             // ONLY use cache - never trigger new loads during render
             if (this.portraitCache.has(plpoKey)) {
                 const imageData = this.portraitCache.get(plpoKey);
+                if (row < 2) console.log(`[Portrait Renderer] Row ${row}: imageData type=${typeof imageData}, length=${imageData?.length}, is loading=${imageData === 'loading'}`);
                 if (imageData && imageData !== 'loading') {
                     const img = document.createElement('img');
                     img.src = imageData;
@@ -846,12 +901,16 @@ class MaddenEditorApp {
                     img.style.height = '64px';
                     img.style.objectFit = 'cover';
                     td.appendChild(img);
+                    if (row < 2) console.log(`[Portrait Renderer] Row ${row}: IMAGE ADDED`);
                 } else if (imageData === 'loading') {
                     // Still loading
                     td.textContent = '...';
                     td.style.fontSize = '12px';
                     td.style.color = '#666';
+                    if (row < 2) console.log(`[Portrait Renderer] Row ${row}: Showing loading...`);
                 }
+            } else {
+                if (row < 2) console.log(`[Portrait Renderer] Row ${row}: NOT IN CACHE`);
             }
 
             return td;
@@ -867,34 +926,8 @@ class MaddenEditorApp {
                 };
 
             // Configure column type and editor based on field type
-            if (fieldDef.type === 'lookup' && fieldDef.lookup) {
-                // Dropdown for lookup fields - let autoColumnSize handle width
-                const options = getLookupOptions(fieldDef.lookup);
-                columnConfig = {
-                    ...columnConfig,
-                    type: 'dropdown',
-                    source: options.map(opt => opt.label),  // Display names for dropdown
-                    allowInvalid: false,
-                    validator: fieldDef.editable ? (value, callback) => {
-                        // Check if the selected value is valid
-                        const isValid = options.some(opt => opt.label === value);
-                        callback(isValid);
-                    } : undefined
-                };
-            } else if (fieldName === 'PSXP') {
-                // Special handling for PID field with custom renderer - fixed width
-                columnConfig = {
-                    ...columnConfig,
-                    type: 'text',
-                    width: 50,
-                    renderer: this.pidRenderer.bind(this),
-                    readOnly: false,  // Override to ensure it's editable
-                    validator: fieldDef.editable ? (value, callback) => {
-                        const validation = validateFieldValue(fieldName, value);
-                        callback(validation.isValid);
-                    } : undefined
-                };
-            } else if (fieldName === 'PLAYERPIC') {
+            // IMPORTANT: Check specific field names FIRST before generic type checks
+            if (fieldName === 'PLAYERPIC') {
                 // Special handling for Player Pic field with autocomplete - let autoColumnSize handle width
                 columnConfig = {
                     ...columnConfig,
@@ -917,6 +950,20 @@ class MaddenEditorApp {
                     width: 70,
                     readOnly: true,  // Overall is calculated, not editable
                     renderer: this.ovrRenderer.bind(this)  // Custom renderer that calculates OVR
+                };
+            } else if (fieldDef.type === 'lookup' && fieldDef.lookup) {
+                // Dropdown for lookup fields - let autoColumnSize handle width
+                const options = getLookupOptions(fieldDef.lookup);
+                columnConfig = {
+                    ...columnConfig,
+                    type: 'dropdown',
+                    source: options.map(opt => opt.label),  // Display names for dropdown
+                    allowInvalid: false,
+                    validator: fieldDef.editable ? (value, callback) => {
+                        // Check if the selected value is valid
+                        const isValid = options.some(opt => opt.label === value);
+                        callback(isValid);
+                    } : undefined
                 };
             } else if (fieldDef.type === 'numeric') {
                 // Numeric fields - use field width if specified, otherwise let autoColumnSize handle it
@@ -997,6 +1044,20 @@ class MaddenEditorApp {
         console.log('[Portrait] First column config:', columns[0]);
         console.log('[Portrait] First column has renderer?', typeof columns[0].renderer);
 
+        // DEBUG: Find and log PSXP column configuration
+        const psxpColumnIndex = columns.findIndex(col => {
+            const fieldIndex = col.data - 1; // -1 because col.data is offset by portrait column
+            return fieldIndex >= 0 && this.currentFieldMapping[fieldIndex] === 'PSXP';
+        });
+        console.log('[DEBUG PSXP] PSXP column index:', psxpColumnIndex);
+        if (psxpColumnIndex !== -1) {
+            console.log('[DEBUG PSXP] PSXP column config:', JSON.stringify(columns[psxpColumnIndex], null, 2));
+            console.log('[DEBUG PSXP] Has renderer?', typeof columns[psxpColumnIndex].renderer);
+            console.log('[DEBUG PSXP] Has editor?', columns[psxpColumnIndex].editor);
+            console.log('[DEBUG PSXP] Has type?', columns[psxpColumnIndex].type);
+            console.log('[DEBUG PSXP] ReadOnly?', columns[psxpColumnIndex].readOnly);
+        }
+
         this.hotTable = new Handsontable(hotContainer, {
             data: data,
             colHeaders: colHeaders,
@@ -1068,6 +1129,11 @@ class MaddenEditorApp {
                 const fieldName = this.currentFieldMapping[col];
                 const fieldDef = getFieldDefinition(fieldName);
 
+                // PSXP and POVR have custom renderers defined in columns config - don't override them
+                if (fieldName === 'PSXP' || fieldName === 'POVR') {
+                    return {}; // Return empty object to use column config
+                }
+
                 // Add dropdown-cell class for lookup fields
                 let cellClass = fieldDef.editable ? 'editable-cell' : 'readonly-cell';
                 if (fieldDef.type === 'lookup' && fieldDef.lookup) {
@@ -1093,9 +1159,53 @@ class MaddenEditorApp {
             },
 
             // Update data when changed
+            beforeChange: (changes, source) => {
+                console.log('[DEBUG beforeChange] Source:', source, 'Changes count:', changes ? changes.length : 0);
+                if (changes && changes.length > 0) {
+                    console.log('[DEBUG beforeChange] First change:', changes[0]);
+                }
+            },
             afterChange: (changes, source) => {
+                console.log('[DEBUG afterChange] Source:', source, 'Changes count:', changes ? changes.length : 0);
+                if (changes && changes.length > 0) {
+                    console.log('[DEBUG afterChange] First change:', changes[0]);
+                }
                 if (source !== 'loadData' && changes) {
                     this.handlePlayerDataChange(changes);
+
+                    // Re-render portrait when PID (PSXP) changes
+                    changes.forEach(([row, col, oldValue, newValue]) => {
+                        const fieldName = this.currentFieldMapping[col]; // currentFieldMapping already has portrait at index 0
+                        if (fieldName === 'PSXP' && newValue !== oldValue) {
+                            console.log(`[Portrait Update] PID changed to ${newValue} on row ${row}`);
+
+                            // Fetch portrait for new PID
+                            const plpoKey = this.getPlpoFromPID(parseInt(newValue));
+                            if (plpoKey && !this.portraitCache.has(plpoKey)) {
+                                console.log(`[Roster] Fetching portrait for new PID ${newValue} (PLPO: ${plpoKey})`);
+                                this.portraitCache.set(plpoKey, 'loading');
+
+                                window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
+                                    console.log(`[Roster] Portrait fetched for ${plpoKey}`);
+                                    this.portraitCache.set(plpoKey, imageData);
+                                    // Re-render to show the new portrait
+                                    if (this.hotTable && !this.hotTable.isDestroyed) {
+                                        this.hotTable.render();
+                                    }
+                                }).catch((error) => {
+                                    console.error(`[Roster] Failed to fetch portrait for ${plpoKey}:`, error);
+                                    this.portraitCache.set(plpoKey, null);
+                                    if (this.hotTable && !this.hotTable.isDestroyed) {
+                                        this.hotTable.render();
+                                    }
+                                });
+                            } else {
+                                // Portrait already in cache or no PLPO found, just re-render
+                                console.log(`[Portrait Update] Portrait already cached or no PLPO, re-rendering`);
+                                this.hotTable.render();
+                            }
+                        }
+                    });
                 }
             },
 
@@ -1408,35 +1518,6 @@ class MaddenEditorApp {
         td.style.verticalAlign = 'middle';
         td.style.backgroundColor = '#ff0000'; // Red background to make it obvious
         td.style.color = '#ffffff'; // White text
-
-        return td;
-    }
-
-    pidRenderer(instance, td, row, col, prop, value, cellProperties) {
-        const rowData = instance.getDataAtRow(row);
-        const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
-        const picIndex = this.currentFieldMapping.indexOf('PLAYERPIC');
-        const currentPID = psxpIndex !== -1 ? rowData[psxpIndex] : '';
-        const currentName = getPlayerNameFromPID(currentPID);
-
-        td.innerHTML = `
-            <div class="pid-input-container">
-                <input type="number"
-                       class="pid-number-input"
-                       value="${currentPID || ''}"
-                       data-row="${row}"
-                       data-col="${col}"
-                       style="width: 60px; display: inline-block; margin-right: 5px;">
-                <input type="text"
-                       class="pid-name-input"
-                       value="${currentName}"
-                       data-row="${row}"
-                       data-col="${col}"
-                       placeholder="Type player name..."
-                       style="width: 120px; display: inline-block;">
-                <div class="pid-suggestions" style="display: none; position: absolute; z-index: 1000; background: white; border: 1px solid #ccc; max-height: 200px; overflow-y: auto;"></div>
-            </div>
-        `;
 
         return td;
     }
@@ -1912,6 +1993,16 @@ class MaddenEditorApp {
             });
         }
 
+        // Apply search filter
+        if (this.rosterSearchTerm) {
+            filtered = filtered.filter(player => {
+                const firstName = (player.PFNA || '').toLowerCase();
+                const lastName = (player.PLNA || '').toLowerCase();
+                const fullName = `${firstName} ${lastName}`;
+                return fullName.includes(this.rosterSearchTerm);
+            });
+        }
+
         // Apply sorting
         if (this.sortColumns.length > 0) {
             filtered.sort((a, b) => {
@@ -2354,10 +2445,7 @@ class MaddenEditorApp {
     async openDraftClassDialog() {
         try {
             if (typeof window.electronAPI !== 'undefined') {
-                const result = await window.electronAPI.file.openDialog([
-                    { name: 'All Files', extensions: ['*'] },
-                    { name: 'Draft Class Files', extensions: [] }
-                ]);
+                const result = await window.electronAPI.file.openDialog(null);
 
                 if (result.success && result.filePath) {
                     await this.loadDraftClass(result.filePath);
@@ -2934,11 +3022,49 @@ class MaddenEditorApp {
                 // Two-way sync between PID and Player Pic
                 changes.forEach(([row, prop, oldValue, newValue]) => {
                     if (prop === 'PID' && newValue !== oldValue) {
-                        // PID changed - update Player Pic
+                        // PID changed - update Player Pic AND fetch portrait
                         console.log(`PID changed to ${newValue}, looking up player name...`);
                         const playerPic = window.lookupData.pidsCapitalized.get(parseInt(newValue)) || 'Generic Face';
                         console.log(`Setting Player Pic to: ${playerPic}`);
                         this.draftGrid.setDataAtRowProp(row, 'playerPic', playerPic, 'pid_sync');
+
+                        // Fetch portrait for new PID
+                        const plpoKey = this.getPlpoFromPID(parseInt(newValue));
+                        if (plpoKey && !this.portraitCache.has(plpoKey)) {
+                            console.log(`[Draft] Fetching portrait for new PID ${newValue} (PLPO: ${plpoKey})`);
+                            this.portraitCache.set(plpoKey, 'loading');
+
+                            window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
+                                console.log(`[Draft] Portrait fetched successfully for ${plpoKey}, data length:`, imageData ? imageData.length : 'null');
+                                this.portraitCache.set(plpoKey, imageData);
+                                // Re-render the specific cell in the portrait column (column 1)
+                                if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                                    console.log(`[Draft] Rendering portrait cell at row ${row}, col 1`);
+                                    // Force render of the entire table to update portrait
+                                    setTimeout(() => {
+                                        if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                                            this.draftGrid.render();
+                                        }
+                                    }, 100);
+                                }
+                            }).catch((error) => {
+                                console.error(`[Draft] Failed to fetch portrait for ${plpoKey}:`, error);
+                                this.portraitCache.set(plpoKey, null);
+                                if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                                    this.draftGrid.render();
+                                }
+                            });
+                        } else if (plpoKey) {
+                            // Portrait already in cache, just re-render to update
+                            console.log(`[Draft] Portrait already cached for PID ${newValue}`);
+                            if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                                setTimeout(() => {
+                                    if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                                        this.draftGrid.render();
+                                    }
+                                }, 100);
+                            }
+                        }
                     } else if (prop === 'playerPic' && newValue !== oldValue) {
                         // Player Pic changed - update PID
                         console.log(`Player Pic changed from "${oldValue}" to "${newValue}", looking up PID...`);
@@ -3212,12 +3338,34 @@ class MaddenEditorApp {
 
         if (m25Path && document.getElementById('m25DraftFile')) {
             document.getElementById('m25DraftFile').value = m25Path;
+            // Update filename display
+            const filename = m25Path.substring(m25Path.lastIndexOf('\\') + 1);
+            const filenameDisplay = document.getElementById('m25DraftFilename');
+            if (filenameDisplay) filenameDisplay.textContent = filename;
         }
         if (m26TemplatePath && document.getElementById('m26TemplateFile')) {
             document.getElementById('m26TemplateFile').value = m26TemplatePath;
+            // Update filename display
+            const filename = m26TemplatePath.substring(m26TemplatePath.lastIndexOf('\\') + 1);
+            const filenameDisplay = document.getElementById('m26TemplateFilename');
+            if (filenameDisplay) {
+                filenameDisplay.textContent = filename;
+                filenameDisplay.style.color = '#2196F3';
+            }
+        } else {
+            // Reset to default if no path
+            const filenameDisplay = document.getElementById('m26TemplateFilename');
+            if (filenameDisplay) {
+                filenameDisplay.textContent = 'No template selected';
+                filenameDisplay.style.color = '#999';
+            }
         }
         if (m26OutputPath && document.getElementById('m26OutputFile')) {
             document.getElementById('m26OutputFile').value = m26OutputPath;
+            // Update filename display
+            const filename = m26OutputPath.substring(m26OutputPath.lastIndexOf('\\') + 1);
+            const filenameDisplay = document.getElementById('m26OutputFilename');
+            if (filenameDisplay) filenameDisplay.textContent = filename;
         }
 
         this.checkConverterReady();
@@ -3302,7 +3450,7 @@ class MaddenEditorApp {
     async convertM25toM26() {
         try {
             // Prompt user to select M25 file
-            const inputResult = await window.electronAPI.file.openDialog();
+            const inputResult = await window.electronAPI.file.openDialog(null);
 
             if (!inputResult.success || inputResult.canceled) {
                 return;
@@ -3313,7 +3461,7 @@ class MaddenEditorApp {
 
             // Prompt user to select M26 template file
             alert('Step 2: Select a Madden 26 draft class file to use as template\n(This provides the correct M26 file structure)');
-            const templateResult = await window.electronAPI.file.openDialog();
+            const templateResult = await window.electronAPI.file.openDialog(null);
 
             if (!templateResult.success || templateResult.canceled) {
                 return;
@@ -3375,6 +3523,16 @@ class MaddenEditorApp {
             filtered = filtered.filter(prospect => {
                 const position = getLookupValue('positions', prospect.position);
                 return position === this.selectedDraftPosition;
+            });
+        }
+
+        // Apply search filter
+        if (this.draftSearchTerm) {
+            filtered = filtered.filter(prospect => {
+                const firstName = (prospect.firstName || '').toLowerCase();
+                const lastName = (prospect.lastName || '').toLowerCase();
+                const fullName = `${firstName} ${lastName}`;
+                return fullName.includes(this.draftSearchTerm);
             });
         }
 
@@ -3472,12 +3630,14 @@ class MaddenEditorApp {
         const progressDiv = document.getElementById('rosterGenerateProgress');
         const progressBar = document.getElementById('rosterProgressBar');
         const progressText = document.getElementById('rosterProgressText');
+        const currentTeamText = document.getElementById('rosterCurrentTeam');
         const generateBtn = document.getElementById('generateRosterBtn');
 
         progressDiv.style.display = 'block';
         generateBtn.disabled = true;
         progressBar.style.width = '5%';
         progressText.textContent = `Starting roster generation for ${year}...`;
+        currentTeamText.textContent = '';
 
         try {
             console.log(`[Creator] Generating roster for ${year}`);
@@ -3486,7 +3646,13 @@ class MaddenEditorApp {
             window.electronAPI.rosterCreator.onProgress((data) => {
                 progressBar.style.width = `${data.progress}%`;
                 progressText.textContent = data.message;
-                console.log(`[Creator] Progress: ${data.progress}% - ${data.message}`);
+                // Show current team being processed
+                if (data.currentTeam) {
+                    currentTeamText.textContent = `Processing: ${data.currentTeam}`;
+                } else {
+                    currentTeamText.textContent = '';
+                }
+                console.log(`[Creator] Progress: ${data.progress}% - ${data.message}${data.currentTeam ? ` (${data.currentTeam})` : ''}`);
             });
 
             // Call IPC to generate roster (this will take 10-15 minutes)
@@ -4430,9 +4596,15 @@ class MaddenEditorApp {
 }
 
 // Global function for modal close button
-function closeErrorModal() {
+window.closeErrorModal = function() {
     if (window.app) {
         window.app.closeErrorModal();
+    } else {
+        // Fallback if app not initialized yet
+        const modal = document.getElementById('errorModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
     }
 }
 

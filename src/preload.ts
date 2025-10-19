@@ -18,8 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // File APIs
   file: {
-    openDialog: (filters?: any[]) =>
-      ipcRenderer.invoke('file:open-dialog', filters),
+    openDialog: (defaultPath?: string) =>
+      ipcRenderer.invoke('file:open-dialog', defaultPath),
     saveDialog: (defaultPath?: string) =>
       ipcRenderer.invoke('file:save-dialog', defaultPath),
     createBackup: (filePath: string) =>
@@ -36,7 +36,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   lookup: {
     isReady: () => ipcRenderer.invoke('lookup:is-ready'),
     reload: () => ipcRenderer.invoke('lookup:reload'),
-    getDropdownOptions: (fileName: string) => ipcRenderer.invoke('lookup:get-dropdown-options', fileName)
+    getDropdownOptions: (fileName: string) => ipcRenderer.invoke('lookup:get-dropdown-options', fileName),
+    getPIDPortraitMapping: () => ipcRenderer.invoke('lookup:get-pid-portrait-mapping')
   },
 
   // Draft Class APIs
@@ -78,7 +79,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getStats: (players: any[]) =>
       ipcRenderer.invoke('roster-creator:get-stats', players),
     // Listen for progress updates
-    onProgress: (callback: (data: { progress: number; message: string }) => void) =>
+    onProgress: (callback: (data: { progress: number; message: string; currentTeam?: string }) => void) =>
       ipcRenderer.on('roster-creator:progress', (_event, data) => callback(data)),
     // Remove progress listener
     removeProgressListener: () =>

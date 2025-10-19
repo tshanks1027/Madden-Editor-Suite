@@ -148,6 +148,28 @@ export class PortraitService {
       if (portraitPath) {
         console.log(`[PortraitService] Found legend portrait: ${legendKey} -> ${portraitPath}`);
       }
+
+      // If still not found, try with '_Profile' suffix for legends
+      if (!portraitPath) {
+        const profileKey = legendKey + '_profile';
+        console.log(`[PortraitService] Legend lookup failed, trying profile key: ${profileKey}`);
+        portraitPath = this.portraitCache.get(profileKey);
+
+        if (portraitPath) {
+          console.log(`[PortraitService] Found legend profile portrait: ${profileKey} -> ${portraitPath}`);
+        }
+      }
+    }
+
+    // If not found and it's a generic face, try with '_morphed' suffix
+    if (!portraitPath && key.startsWith('plpo_generic_')) {
+      const morphedKey = key + '_morphed';
+      console.log(`[PortraitService] Regular lookup failed for ${key}, trying morphed key: ${morphedKey}`);
+      portraitPath = this.portraitCache.get(morphedKey);
+
+      if (portraitPath) {
+        console.log(`[PortraitService] Found morphed portrait: ${morphedKey} -> ${portraitPath}`);
+      }
     }
 
     return portraitPath || null;

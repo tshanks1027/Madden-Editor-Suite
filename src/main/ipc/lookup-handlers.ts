@@ -45,12 +45,22 @@ ipcMain.handle('lookup:get-dropdown-options', async (event, fileName: string) =>
     let options;
     if (fileName === 'PID_lookup.csv') {
       options = lookupService.getPIDOptions();
+      // Transform {id, name} to {value, label} for renderer
+      return options.map(opt => ({ value: opt.id, label: opt.name }));
+    } else if (fileName === 'FullData_Lookup.csv') {
+      // For FullData_Lookup, getDropdownOptions returns full entries with PLPO
+      options = lookupService.getDropdownOptions(fileName);
+      // Transform to include all fields (id -> value, name -> label, plpo -> plpo)
+      return options.map(opt => ({
+        value: opt.id,
+        label: opt.name,
+        plpo: opt.plpo || ''
+      }));
     } else {
       options = lookupService.getDropdownOptions(fileName);
+      // Transform {id, name} to {value, label} for renderer
+      return options.map(opt => ({ value: opt.id, label: opt.name }));
     }
-
-    // Transform {id, name} to {value, label} for renderer
-    return options.map(opt => ({ value: opt.id, label: opt.name }));
   } catch (error) {
     console.error('Error getting dropdown options:', error);
     return [];
@@ -80,6 +90,53 @@ ipcMain.handle('lookup:reload', async (event) => {
 });
 
 /**
+ * Handle: lookup:get-pid-portrait-mapping
+ * Load PID -> Portrait PLPO mappings from PID_Portrait_Mapping.csv
+ */
+ipcMain.handle('lookup:get-pid-portrait-mapping', async (event) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const { app } = await import('electron');
+
+    const dataPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app', 'data', 'lookups', 'PID_Portrait_Mapping.csv')
+      : path.join(__dirname, '../../data/lookups/PID_Portrait_Mapping.csv');
+
+    console.log('[PID Portrait Mapping] Loading from:', dataPath);
+
+    const content = fs.readFileSync(dataPath, 'utf-8');
+    const lines = content.split('\n');
+
+    const mappings: Array<{pid: number, type: string, portrait: string}> = [];
+
+    // Parse CSV (skip header line)
+    // Format: PID,Type,Portrait
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = line.split(',');
+      if (parts.length < 3) continue;
+
+      const pid = parseInt(parts[0].trim());
+      const type = parts[1].trim();
+      const portrait = parts[2].trim();
+
+      if (!isNaN(pid) && portrait) {
+        mappings.push({ pid, type, portrait });
+      }
+    }
+
+    console.log(`[PID Portrait Mapping] Loaded ${mappings.length} mappings`);
+    return mappings;
+  } catch (error) {
+    console.error('Error loading PID_Portrait_Mapping.csv:', error);
+    return [];
+  }
+});
+
+/**
  * Handle: lookup:get-status
  * Get lookup service status/debugging info
  */
@@ -93,6 +150,99 @@ ipcMain.handle('lookup:get-status', async (event) => {
   } catch (error: any) {
     console.error('Error getting lookup status:', error);
     return { ready: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: lookup:get-pam-entry
+ * Get PAM entry by PAM name
+ */
+ipcMain.handle('lookup:get-pam-entry', async (event, pamName: string) => {
+  try {
+    return lookupService.getPAMEntry(pamName);
+  } catch (error) {
+    console.error('Error getting PAM entry:', error);
+    return undefined;
+  }
+});
+
+/**
+ * Handle: lookup:get-pams-by-pid
+ * Get all PAMs associated with a PID
+ */
+ipcMain.handle('lookup:get-pams-by-pid', async (event, pid: number) => {
+  try {
+    return lookupService.getPAMsByPID(pid);
+  } catch (error) {
+    console.error('Error getting PAMs by PID:', error);
+    return [];
+  }
+});
+
+/**
+ * Handle: lookup:get-all-pams
+ * Get all PAM entries
+ */
+ipcMain.handle('lookup:get-all-pams', async (event) => {
+  try {
+    return lookupService.getAllPAMs();
+  } catch (error) {
+    console.error('Error getting all PAMs:', error);
+    return [];
+  }
+});
+
+/**
+ * Handle: lookup:get-pam-options
+ * Get formatted PAM options for dropdowns
+ */
+ipcMain.handle('lookup:get-pam-options', async (event) => {
+  try {
+    const options = lookupService.getPAMOptions();
+    // Transform to {value, label} format for renderer
+    return options.map(opt => ({ value: opt.value, label: opt.name, metadata: opt.metadata }));
+  } catch (error) {
+    console.error('Error getting PAM options:', error);
+    return [];
+  }
+});
+
+/**
+ * Handle: lookup:search-pams
+ * Search PAMs by query string
+ */
+ipcMain.handle('lookup:search-pams', async (event, query: string) => {
+  try {
+    return lookupService.searchPAMs(query);
+  } catch (error) {
+    console.error('Error searching PAMs:', error);
+    return [];
+  }
+});
+
+/**
+ * Handle: lookup:get-pams-by-ethnicity
+ * Get PAMs filtered by ethnicity
+ */
+ipcMain.handle('lookup:get-pams-by-ethnicity', async (event, ethnicity: string) => {
+  try {
+    return lookupService.getPAMsByEthnicity(ethnicity);
+  } catch (error) {
+    console.error('Error getting PAMs by ethnicity:', error);
+    return [];
+  }
+});
+
+/**
+ * Handle: lookup:get-pams-by-generation
+ * Get PAMs filtered by generation
+ */
+ipcMain.handle('lookup:get-pams-by-generation', async (event, generation: number) => {
+  try {
+    return lookupService.getPAMsByGeneration(generation);
+  } catch (error) {
+    console.error('Error getting PAMs by generation:', error);
+    return [];
   }
 });
 

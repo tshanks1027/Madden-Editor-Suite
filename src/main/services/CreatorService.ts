@@ -1618,11 +1618,39 @@ export class CreatorService {
    * @param maxPlayers - Maximum number of players (from template roster, default 3000)
    * @returns Array of generated players
    */
-  async generateRoster(year: number, teams: string[], maxPlayers: number = 3000): Promise<GeneratedPlayer[]> {
-    console.log(`[CreatorService] Generating roster for ${year} (${teams.length} teams, max ${maxPlayers} players)`);
+  async generateRoster(year: number, teams: string[], maxPlayers: number = 3000, league?: string): Promise<GeneratedPlayer[]> {
+    console.log(`[CreatorService] Generating roster for ${year} (${teams.length} teams, max ${maxPlayers} players, league: ${league || 'all'})`);
 
     try {
       const generatedPlayers: GeneratedPlayer[] = [];
+
+      // Step 0: Load MASTER_LOOKUP and team history
+      console.log(`[CreatorService] Loading MASTER_LOOKUP...`);
+      const masterLookup = this.loadMasterLookup();
+
+      // Load team history for AFL/NFL filtering
+      let teamHistory: any = null;
+      try {
+        const teamHistoryPath = path.join(__dirname, '../../data/lookups/team_history.json');
+        teamHistory = JSON.parse(fs.readFileSync(teamHistoryPath, 'utf-8'));
+
+        // Filter teams by AFL/NFL if year 1960-1969
+        if (league && year >= 1960 && year <= 1969) {
+          const aflTeams = teamHistory.afl_teams['1960-1969'];
+          const nflTeams = teamHistory.nfl_teams['1960-1969'];
+
+          if (league.toLowerCase() === 'afl') {
+            teams = teams.filter((t: string) => aflTeams.includes(t.toLowerCase()));
+            console.log(`[CreatorService] Filtered to ${teams.length} AFL teams`);
+          } else if (league.toLowerCase() === 'nfl') {
+            teams = teams.filter((t: string) => nflTeams.includes(t.toLowerCase()));
+            console.log(`[CreatorService] Filtered to ${teams.length} NFL teams`);
+          }
+          // 'combined' means use all teams (no filtering)
+        }
+      } catch (error) {
+        console.warn('[CreatorService] Could not load team_history.json, skipping league filtering');
+      }
 
       // Step 1: Get HOF players active in this year
       // NOTE: getHOFPlayersByYear returns Map<string, boolean>
@@ -1655,8 +1683,8 @@ export class CreatorService {
         } else {
           console.log(`[CreatorService] ✅ ${teamAbbr} existed, scraping roster and stats...`);
 
-          // Step 1: Scrape roster (basic info: name, position, height, weight, college, age, jersey)
-          roster = await scraperService.scrapeTeamRoster(teamAbbr, year);
+          // Step 1: Scrape roster using JT-SW as primary (cleaner tables), PFR as fallback
+          roster = await scraperService.scrapeTeamRosterFromJTSW(teamAbbr, year);
           console.log(`[CreatorService] ✓ Scraped ${roster.length} players from roster page`);
 
           if (roster.length === 0) {
