@@ -158,6 +158,25 @@ export class PortraitService {
         if (portraitPath) {
           console.log(`[PortraitService] Found legend profile portrait: ${profileKey} -> ${portraitPath}`);
         }
+
+        // If STILL not found, try swapping name order (e.g., moonwarren -> warrenmoon)
+        // Some legends are stored as FirstNameLastName instead of LastNameFirstName
+        if (!portraitPath && legendKey.startsWith('plpo_legends_')) {
+          const namePart = legendKey.replace('plpo_legends_', '');
+          // Try to split the name (heuristic: look for capital letter in middle)
+          const words = namePart.match(/[a-z]+/g);
+          if (words && words.length >= 2) {
+            // Swap first two words
+            const swapped = words.slice(1).concat(words.slice(0, 1)).join('');
+            const swappedKey = `plpo_legends_${swapped}_profile`;
+            console.log(`[PortraitService] Trying name swap: ${profileKey} -> ${swappedKey}`);
+            portraitPath = this.portraitCache.get(swappedKey);
+
+            if (portraitPath) {
+              console.log(`[PortraitService] Found with swapped name: ${swappedKey} -> ${portraitPath}`);
+            }
+          }
+        }
       }
     }
 
