@@ -8,7 +8,7 @@
 
 ; Product Information
 !define PRODUCT_NAME "Madden Editor Suite"
-!define PRODUCT_VERSION "1.0.0"
+!define PRODUCT_VERSION "1.9.0"
 !define PRODUCT_PUBLISHER "KRaZyNuttZ"
 !define PRODUCT_WEB_SITE "https://github.com/tshanks1027"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -79,7 +79,7 @@ Section "MainSection" SEC01
   ClearErrors
 
   ; Copy all files from Electron Forge package output
-  File /r "out\Madden Editor Suite-win32-x64\*.*"
+  File /r /x *.log "out\Madden Editor Suite-win32-x64\*"
 
   ; Check if file copy succeeded
   IfErrors 0 +3
