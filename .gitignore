@@ -149,3 +149,6 @@ build/
 *.trace
 *.heapsnapshot
 *.cpuprofile
+
+# Windows nul file created by bash/Windows command mix
+nul
