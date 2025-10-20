@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Madden Editor Suite</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+    />
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/creator.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash" class="splash-screen">
+        <div class="splash-content">
+            <img src="assets/splash.png" alt="Madden Editor Suite" class="splash-image">
+            <div class="splash-loader">
+                <div class="loader-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-top">
+                <div class="header-left">
+                    <img src="assets/banner.png" alt="KNuttZ Madden Editor" class="app-logo">
+                    <h1 class="app-title">Madden Editor Suite</h1>
+                </div>
+
+                <div class="header-right">
+                    <button id="openFileBtn" class="btn btn-primary">
+                        <span class="btn-icon">📁</span>
+                        Open File
+                    </button>
+                    <input type="file" id="fileInput" accept="*" style="display: none;">
+
+                    <div id="currentFile" class="current-file" style="display: none;">
+                        <span class="file-icon">📄</span>
+                        <span id="fileName" class="file-name"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tool Navigation Tabs (Below Banner) -->
+            <nav class="tool-tabs">
+                <button class="tool-tab active" data-tool="roster">
+                    <span class="tab-icon">👤</span>
+                    Roster Editor
+                </button>
+                <button class="tool-tab" data-tool="draft">
+                    <span class="tab-icon">🏈</span>
+                    Draft Class
+                </button>
+                <button class="tool-tab" data-tool="create-roster">
+                    <span class="tab-icon">⚡</span>
+                    Create Roster
+                </button>
+                <button class="tool-tab" data-tool="create-draft">
+                    <span class="tab-icon">✨</span>
+                    Create Draft Class
+                </button>
+                <button class="tool-tab" data-tool="converter">
+                    <span class="tab-icon">🔄</span>
+                    M25→M26 Converter
+                </button>
+                <button class="tool-tab" data-tool="coach">
+                    <span class="tab-icon">👔</span>
+                    Coach Editor
+                </button>
+                <button class="tool-tab" data-tool="franchise">
+                    <span class="tab-icon">🏆</span>
+                    Franchise
+                </button>
+            </nav>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="app-main">
+            <!-- Roster Editor Tool -->
+            <div id="roster-tool" class="tool-panel active">
+                <!-- Info Tooltips -->
+                <div class="info-tooltips">
+                    <div class="info-tip">
+                        <span class="info-icon">ℹ️</span>
+                        <span class="info-text">Click row numbers to open player cards.</span>
+                    </div>
+                    <div class="info-tip">
+                        <span class="info-icon">ℹ️</span>
+                        <span class="info-text">Click column headers to sort. Shift+click to sort by multiple columns.</span>
+                    </div>
+                    <div class="info-tip">
+                        <span class="info-icon">ℹ️</span>
+                        <span class="info-text">Players tagged with (R) can be replaced easily in Mods.</span>
+                    </div>
+                </div>
+
+                <!-- Team View Header (hidden by default) -->
+                <div id="teamViewHeader" class="team-view-header" style="display: none;">
+                    <button id="backToAllTeams" class="btn btn-secondary team-back-btn">
+                        <span class="btn-icon">←</span>
+                        Back to All Teams
+                    </button>
+                    <div class="team-branding">
+                        <h2 id="teamName" class="team-name"></h2>
+                        <div id="teamLogo" class="team-logo"></div>
+                    </div>
+                </div>
+
+                <!-- Roster Controls -->
+                <div class="tool-controls">
+                    <div class="controls-left">
+                        <div class="control-group">
+                            <label for="teamFilter" class="control-label">Team:</label>
+                            <select id="teamFilter" class="control-select">
+                                <option value="">All Teams</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="positionFilter" class="control-label">Position:</label>
+                            <select id="positionFilter" class="control-select">
+                                <option value="">All Positions</option>
+                                <option value="QB">Quarterbacks</option>
+                                <option value="HB">Running Backs</option>
+                                <option value="WR">Wide Receivers</option>
+                                <option value="TE">Tight Ends</option>
+                                <option value="LT">Left Tackles</option>
+                                <option value="LG">Left Guards</option>
+                                <option value="C">Centers</option>
+                                <option value="RG">Right Guards</option>
+                                <option value="RT">Right Tackles</option>
+                                <option value="DT">Defensive Tackles</option>
+                                <option value="LEDG">Left Ends</option>
+                                <option value="REDG">Right Ends</option>
+                                <option value="SAM">SAM Linebackers</option>
+                                <option value="Mike">Mike Linebackers</option>
+                                <option value="WILL">WILL Linebackers</option>
+                                <option value="CB">Cornerbacks</option>
+                                <option value="FS">Free Safeties</option>
+                                <option value="SS">Strong Safeties</option>
+                                <option value="K">Kickers</option>
+                                <option value="P">Punters</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="controls-right">
+                        <button id="saveRosterBtn" class="btn btn-success" style="display: none;">
+                            <span class="btn-icon">💾</span>
+                            Save Roster
+                        </button>
+
+                        <div class="player-stats">
+                            <span id="playerCount" class="stat-item">0 players</span>
+                            <span id="visibleFields" class="stat-item">0 visible fields</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Grid Container -->
+                <div id="rosterGrid" class="data-grid-container">
+                    <div class="empty-state">
+                        <div class="empty-icon">📊</div>
+                        <h3 class="empty-title">No players loaded</h3>
+                        <p class="empty-description">Open a roster file to begin editing</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Draft Class Tool -->
+            <div id="draft-tool" class="tool-panel">
+                <div class="tool-header">
+                    <div class="file-info">
+                        <span id="draft-file-name" class="file-name">No file loaded</span>
+                        <span id="draft-file-stats" class="file-stats"></span>
+                    </div>
+                    <div class="tool-actions">
+                        <button id="open-draft-btn" class="btn btn-primary">
+                            <span class="btn-icon">📂</span>
+                            Open Draft Class
+                        </button>
+                        <button id="save-draft-btn" class="btn btn-success" disabled>
+                            <span class="btn-icon">💾</span>
+                            Save Draft Class
+                        </button>
+                        <button id="export-draft-json-btn" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">📤</span>
+                            Export JSON
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-controls" style="padding: 10px; background-color: #2a2a2a; border-bottom: 1px solid #444;">
+                    <div class="control-group">
+                        <label for="draftPositionFilter" class="control-label">Position:</label>
+                        <select id="draftPositionFilter" class="control-select">
+                            <option value="">All Positions</option>
+                            <option value="QB">Quarterbacks</option>
+                            <option value="HB">Running Backs</option>
+                            <option value="FB">Fullbacks</option>
+                            <option value="WR">Wide Receivers</option>
+                            <option value="TE">Tight Ends</option>
+                            <option value="LT">Left Tackles</option>
+                            <option value="LG">Left Guards</option>
+                            <option value="C">Centers</option>
+                            <option value="RG">Right Guards</option>
+                            <option value="RT">Right Tackles</option>
+                            <option value="LE">Left Ends</option>
+                            <option value="RE">Right Ends</option>
+                            <option value="DT">Defensive Tackles</option>
+                            <option value="LOLB">Outside Linebackers</option>
+                            <option value="MLB">Middle Linebackers</option>
+                            <option value="CB">Cornerbacks</option>
+                            <option value="FS">Free Safeties</option>
+                            <option value="SS">Strong Safeties</option>
+                            <option value="K">Kickers</option>
+                            <option value="P">Punters</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="draft-grid-container" class="grid-container">
+                    <!-- Handsontable will be inserted here -->
+                </div>
+            </div>
+
+            <div id="coach-tool" class="tool-panel">
+                <div class="coming-soon">
+                    <div class="coming-soon-icon">🚧</div>
+                    <h2 class="coming-soon-title">Coming Soon</h2>
+                    <p class="coming-soon-description">The Coach Editor is under development.</p>
+                    <p class="coming-soon-note">Try the Roster Editor for now!</p>
+                </div>
+            </div>
+
+            <div id="franchise-tool" class="tool-panel">
+                <div class="coming-soon">
+                    <div class="coming-soon-icon">🚧</div>
+                    <h2 class="coming-soon-title">Coming Soon</h2>
+                    <p class="coming-soon-description">The Franchise Editor is under development.</p>
+                    <p class="coming-soon-note">Try the Roster Editor for now!</p>
+                </div>
+            </div>
+
+            <!-- M25→M26 Converter Tool -->
+            <div id="converter-tool" class="tool-panel">
+                <div class="creator-container">
+                    <div class="creator-header">
+                        <h2 class="creator-title">🔄 M25→M26 Draft Class Converter</h2>
+                        <p class="creator-subtitle">Convert Madden 25 draft classes to Madden 26 format</p>
+                    </div>
+
+                    <div class="creator-workflow">
+                        <!-- Step 1: Select M25 Draft Class -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">1</span>
+                                <h3 class="step-title">Select M25 Draft Class</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="m25DraftFile" class="form-label">Madden 25 Draft Class File:</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="m25DraftFile" class="form-input" placeholder="Browse for M25 draft class..." readonly style="flex: 1;">
+                                        <button id="selectM25Draft" class="btn btn-secondary">
+                                            <span class="btn-icon">📂</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">Default location: C:\Users\[YourName]\Documents\Madden NFL 25\saves</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Select M26 Template -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">2</span>
+                                <h3 class="step-title">Select M26 Template Draft Class</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="m26TemplateFile" class="form-label">Madden 26 Template File:</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="m26TemplateFile" class="form-input" placeholder="Browse for M26 draft class template..." readonly style="flex: 1;">
+                                        <button id="selectM26Template" class="btn btn-secondary">
+                                            <span class="btn-icon">📂</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">This provides the M26 file structure for conversion</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Save Location -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">3</span>
+                                <h3 class="step-title">Save Converted File</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="m26OutputFile" class="form-label">Save As (Madden 26 format):</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="m26OutputFile" class="form-input" placeholder="Choose save location..." readonly style="flex: 1;">
+                                        <button id="selectM26Output" class="btn btn-secondary">
+                                            <span class="btn-icon">💾</span>
+                                            Save As
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">Default location: C:\Users\[YourName]\Documents\Madden NFL 26\saves</span>
+                                </div>
+                                <div class="info-box">
+                                    <span class="info-icon">ℹ️</span>
+                                    <div class="info-text">
+                                        <strong>File Naming:</strong>
+                                        <p>Use Madden's format: CAREERDRAFT-YYYY (e.g., CAREERDRAFT-2025DRAFT7RND)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Convert -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">4</span>
+                                <h3 class="step-title">Convert</h3>
+                            </div>
+                            <div class="step-content">
+                                <button id="convertM25ToM26Btn" class="btn btn-primary btn-large" disabled>
+                                    <span class="btn-icon">🔄</span>
+                                    Convert to M26
+                                </button>
+                                <div id="conversionProgress" class="generate-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div id="conversionProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <p id="conversionProgressText" class="progress-text">Converting...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Roster Tool -->
+            <div id="create-roster-tool" class="tool-panel">
+                <div class="creator-container">
+                    <div class="creator-header">
+                        <h2 class="creator-title">⚡ Create Historical Roster</h2>
+                        <p class="creator-subtitle">Generate a roster from real NFL data using web scraping</p>
+                    </div>
+
+                    <div class="creator-workflow">
+                        <!-- Step 1: Year & Template Selection -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">1</span>
+                                <h3 class="step-title">Select Season Year & Template</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="rosterYear" class="form-label">Season Year:</label>
+                                    <input type="number" id="rosterYear" class="form-input" placeholder="e.g., 2019" min="1920" max="2025">
+                                    <span class="form-hint">All teams from this year will be included automatically (NFL founded 1920)</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="rosterTemplate" class="form-label">Template Roster (for file structure):</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="rosterTemplate" class="form-input" placeholder="Select a roster file to use as template..." readonly>
+                                        <button id="selectRosterTemplate" class="btn btn-secondary">
+                                            <span class="btn-icon">📂</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">This provides the correct file structure for the output</span>
+                                </div>
+                                <div class="info-box">
+                                    <span class="info-icon">ℹ️</span>
+                                    <div class="info-text">
+                                        <strong>What this does:</strong>
+                                        <p>Scrapes complete team rosters from pro-football-reference.com for all 32 NFL teams (or fewer for historical years). Generates ~1,700 rostered players plus ~1,300 free agents to match official roster size (~3,000 total players). Converts season stats into Madden ratings.</p>
+                                        <p><strong>⏱️ Estimated Time:</strong> 10-15 minutes for full roster generation (varies by internet speed and year)</p>
+                                        <p><strong>🎯 Quality Notice:</strong> This process is not perfect but will give you a good starting roster for that year. Player ratings are calculated from stats - you may want to adjust manually.</p>
+                                        <p><strong>🏆 Hall of Fame Detection:</strong> Hall of Famers automatically get X-Factor dev trait and boosted ratings!</p>
+                                        <p><strong>📊 Roster Composition:</strong> ~53 players per team + large FA pool (~3,000 total like official rosters)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Generate -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">2</span>
+                                <h3 class="step-title">Generate Roster</h3>
+                            </div>
+                            <div class="step-content">
+                                <button id="generateRosterBtn" class="btn btn-primary btn-large" disabled>
+                                    <span class="btn-icon">🚀</span>
+                                    Generate Roster
+                                </button>
+                                <div id="rosterGenerateProgress" class="generate-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div id="rosterProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <p id="rosterProgressText" class="progress-text">Scraping data...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Preview & Edit -->
+                        <div class="creator-step" id="rosterPreviewStep" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">3</span>
+                                <h3 class="step-title">Preview & Edit</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="preview-controls">
+                                    <span id="rosterPreviewCount" class="preview-count"></span>
+                                    <button id="loadIntoRosterEditor" class="btn btn-primary">
+                                        <span class="btn-icon">📝</span>
+                                        Load into Roster Editor
+                                    </button>
+                                    <button id="saveGeneratedRoster" class="btn btn-success">
+                                        <span class="btn-icon">💾</span>
+                                        Save Roster
+                                    </button>
+                                </div>
+                                <div id="rosterPreviewGrid" class="preview-grid-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Create Draft Class Tool -->
+            <div id="create-draft-tool" class="tool-panel">
+                <div class="creator-container">
+                    <div class="creator-header">
+                        <h2 class="creator-title">✨ Create Draft Class</h2>
+                        <p class="creator-subtitle">Generate a draft class from real NFL Draft data</p>
+                    </div>
+
+                    <div class="creator-workflow">
+                        <!-- Step 1: Year & Template Selection -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">1</span>
+                                <h3 class="step-title">Select Draft Year & Template</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="form-group">
+                                    <label for="draftYear" class="form-label">Draft Year:</label>
+                                    <input type="number" id="draftYear" class="form-input" placeholder="e.g., 2023" min="1936" max="2030">
+                                    <span class="form-hint">Enter a year between 1936-2030 (first NFL draft was 1936)</span>
+                                </div>
+                                <div class="form-group">
+                                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                        <input type="checkbox" id="testingMode" style="width: auto;">
+                                        <span>Testing Mode (5 players per round, faster generation)</span>
+                                    </label>
+                                    <span class="form-hint">Use for testing - generates ~40 players instead of 400</span>
+                                </div>
+                                <div class="form-group">
+                                    <label for="draftTemplate" class="form-label">Template Draft Class (for file structure):</label>
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="draftTemplate" class="form-input" placeholder="Select a draft class file to use as template..." readonly>
+                                        <button id="selectDraftTemplate" class="btn btn-secondary">
+                                            <span class="btn-icon">📂</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">This provides the correct file structure for the output</span>
+                                </div>
+                                <div class="info-box">
+                                    <span class="info-icon">ℹ️</span>
+                                    <div class="info-text">
+                                        <strong>What this does:</strong>
+                                        <p>Scrapes draft prospect data from pro-football-reference.com including drafted players (~260-300), undrafted free agents (UDFAs), and top college players to create a full class of 380-400 prospects. Converts their college stats into Madden ratings. PID values will be matched from PID_lookup.csv when names match, body type calculated from height/weight, and colleges matched to college_lookup.</p>
+                                        <p><strong>⏱️ Estimated Time:</strong> 5-10 minutes for ~400 prospects (varies by internet speed)</p>
+                                        <p><strong>📊 Class Composition:</strong> Drafted prospects + UDFAs + College stars (like Jeff Samardzija, Charlie Ward)</p>
+                                        <p><strong>🏆 Hall of Fame Detection:</strong> Future Hall of Famers automatically get X-Factor dev trait!</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Generate -->
+                        <div class="creator-step">
+                            <div class="step-header">
+                                <span class="step-number">2</span>
+                                <h3 class="step-title">Generate Draft Class</h3>
+                            </div>
+                            <div class="step-content">
+                                <button id="generateDraftBtn" class="btn btn-primary btn-large">
+                                    <span class="btn-icon">🚀</span>
+                                    Generate Draft Class
+                                </button>
+                                <div id="draftGenerateProgress" class="generate-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div id="draftProgressBar" class="progress-fill"></div>
+                                    </div>
+                                    <p id="draftProgressText" class="progress-text">Scraping draft data...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Preview & Edit -->
+                        <div class="creator-step" id="draftPreviewStep" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">3</span>
+                                <h3 class="step-title">Preview & Edit</h3>
+                            </div>
+                            <div class="step-content">
+                                <div class="preview-controls">
+                                    <span id="draftPreviewCount" class="preview-count"></span>
+                                    <button id="loadIntoDraftEditor" class="btn btn-primary">
+                                        <span class="btn-icon">📝</span>
+                                        Load into Draft Class Editor
+                                    </button>
+                                    <button id="saveGeneratedDraft" class="btn btn-success">
+                                        <span class="btn-icon">💾</span>
+                                        Save Draft Class
+                                    </button>
+                                </div>
+                                <div id="draftPreviewGrid" class="preview-grid-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Status Bar -->
+        <footer class="app-footer">
+            <div class="status-left">
+                <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                    <div class="spinner"></div>
+                    <div class="loading-bar-container">
+                        <div id="loadingBar" class="loading-bar"></div>
+                    </div>
+                    <span id="loadingText" class="loading-text">Loading...</span>
+                </div>
+            </div>
+
+            <div class="status-right">
+                <span id="statusText" class="status-text">Ready</span>
+            </div>
+        </footer>
+
+        <!-- Pagination Controls (hidden by default) -->
+        <div id="paginationControls" class="pagination-controls" style="display: none;">
+            <div class="pagination-info">
+                <span id="paginationInfo">Showing 1-100 of 3000 players</span>
+            </div>
+            <div class="pagination-buttons">
+                <button id="firstPageBtn" class="pagination-btn">« First</button>
+                <button id="prevPageBtn" class="pagination-btn">‹ Previous</button>
+                <span id="currentPageIndicator" class="pagination-info">Page 1 of 30</span>
+                <button id="nextPageBtn" class="pagination-btn">Next ›</button>
+                <button id="lastPageBtn" class="pagination-btn">Last »</button>
+            </div>
+            <div class="page-jump">
+                <label for="pageInput" class="pagination-info">Go to page:</label>
+                <input type="number" id="pageInput" class="page-input" min="1" placeholder="1">
+                <button id="goToPageBtn" class="pagination-btn">Go</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="modal" style="display: none;">
+        <div class="modal-content error-modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Error</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage" class="error-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="closeErrorModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Player Card Modal -->
+    <div id="playerCardModal" class="modal" style="display: none;">
+        <div class="modal-content player-card-modal">
+            <div class="player-card-header">
+                <div class="player-card-team-stripe"></div>
+                <button class="modal-close player-card-close">&times;</button>
+                <div class="player-card-header-content">
+                    <div class="player-card-number" id="playerCardNumber">99</div>
+                    <div class="player-card-name-section">
+                        <h2 class="player-card-name" id="playerCardName">Player Name</h2>
+                        <div class="player-card-meta">
+                            <span id="playerCardPosition" class="player-card-position">QB</span>
+                            <span class="player-card-separator">|</span>
+                            <span id="playerCardTeam" class="player-card-team">Team Name</span>
+                        </div>
+                    </div>
+                    <div class="player-card-overall" id="playerCardOverall">99</div>
+                </div>
+            </div>
+
+            <div class="modal-body player-card-body">
+                <!-- Player Info Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Player Info</h3>
+                    <div class="player-card-info-grid">
+                        <div class="player-info-item">
+                            <span class="info-label">Age</span>
+                            <span class="info-value" id="playerCardAge">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Years Pro</span>
+                            <span class="info-value" id="playerCardYearsPro">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Height</span>
+                            <span class="info-value" id="playerCardHeight">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Weight</span>
+                            <span class="info-value" id="playerCardWeight">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">College</span>
+                            <span class="info-value" id="playerCardCollege">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Jersey</span>
+                            <span class="info-value" id="playerCardJersey">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ratings Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Ratings</h3>
+                    <div id="playerCardRatings" class="player-card-ratings-grid">
+                        <!-- Dynamically populated based on position -->
+                    </div>
+                </div>
+
+                <!-- Contract Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Contract</h3>
+                    <div class="player-card-info-grid">
+                        <div class="player-info-item">
+                            <span class="info-label">Years Left</span>
+                            <span class="info-value" id="playerCardYearsLeft">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Total Value</span>
+                            <span class="info-value" id="playerCardTotalSalary">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Signing Bonus</span>
+                            <span class="info-value" id="playerCardBonus">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Current Year Salary</span>
+                            <span class="info-value" id="playerCardCurrentSalary">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/app.js"></script>
+    <script src="update-notification.js"></script>
+</body>
+</html>

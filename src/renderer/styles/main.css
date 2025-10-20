@@ -1,0 +1,1295 @@
+/* MyFranchise-inspired Professional Madden Editor Suite Styles */
+
+/* CSS Variables - MyFranchise Color Scheme */
+:root {
+    --primary-orange: #e98819;
+    --orange-hover: #d47915;
+    --orange-light: #f4a742;
+    --gray-dark: #1a1a1a;
+    --gray-medium: #2a2a2a;
+    --gray-light: #3a3a3a;
+    --gray-lighter: #4a4a4a;
+    --gray-text: #cccccc;
+    --gray-text-secondary: #999999;
+    --white: #ffffff;
+    --black: #000000;
+    --border-color: #333333;
+    --success-green: #28a745;
+    --danger-red: #dc3545;
+    --warning-yellow: #ffc107;
+    --info-blue: #17a2b8;
+
+    /* Team colors - default to orange, overridden when team selected */
+    --team-primary: #e98819;
+    --team-secondary: #d47915;
+}
+
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--gray-dark);
+    color: var(--gray-text);
+    overflow: hidden;
+    height: 100vh;
+    user-select: none;
+}
+
+/* Splash Screen */
+.splash-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: opacity 0.5s ease-out;
+}
+
+.splash-content {
+    text-align: center;
+}
+
+.splash-image {
+    max-width: 80%;
+    max-height: 60vh;
+    object-fit: contain;
+    margin-bottom: 2rem;
+}
+
+.splash-loader {
+    width: 200px;
+    height: 4px;
+    background: var(--gray-light);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+.loader-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-orange), var(--orange-light));
+    width: 0%;
+    border-radius: 2px;
+    animation: loading 2s ease-out forwards;
+}
+
+@keyframes loading {
+    0% { width: 0%; }
+    100% { width: 100%; }
+}
+
+/* Main Application */
+.app-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transition: opacity 0.3s ease-in;
+}
+
+.app-container.show {
+    opacity: 1;
+}
+
+/* Header */
+.app-header {
+    background: linear-gradient(180deg, var(--gray-medium) 0%, var(--gray-light) 100%);
+    border-bottom: 2px solid var(--border-color);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    min-height: 60px;
+    gap: 1rem;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 250px;
+}
+
+.app-logo {
+    height: 50px;
+    max-width: 200px;
+    object-fit: contain;
+}
+
+.app-title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--white);
+    margin: 0;
+    white-space: nowrap;
+}
+
+.header-center {
+    flex: 1;
+    max-width: 800px;
+    display: flex;
+    justify-content: center;
+    max-width: 600px;
+    margin: 0 2rem;
+}
+
+/* Tool Navigation Tabs */
+.tool-tabs {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--gray-dark);
+    padding: 0.5rem 1rem;
+    overflow-x: auto;
+    border-top: 1px solid var(--border-color);
+}
+
+.tool-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    color: var(--gray-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 400;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.tool-tab:hover {
+    background: var(--gray-lighter);
+    color: var(--gray-text);
+}
+
+.tool-tab.active {
+    background: var(--primary-orange);
+    color: var(--white);
+    font-weight: 500;
+}
+
+.tab-icon {
+    font-size: 1rem;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--gray-medium);
+    color: var(--gray-text);
+    font-size: 0.875rem;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    user-select: none;
+}
+
+.btn:hover {
+    background: var(--gray-light);
+    border-color: var(--gray-lighter);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+.btn-primary {
+    background: var(--primary-orange);
+    border-color: var(--primary-orange);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background: var(--orange-hover);
+    border-color: var(--orange-hover);
+}
+
+.btn-success {
+    background: var(--success-green);
+    border-color: var(--success-green);
+    color: var(--white);
+}
+
+.btn-success:hover {
+    background: #218838;
+    border-color: #218838;
+}
+
+.btn-icon {
+    font-size: 0.875rem;
+}
+
+/* Current File Indicator */
+.current-file {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--gray-light);
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.file-icon {
+    color: var(--primary-orange);
+}
+
+.file-name {
+    color: var(--gray-text);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Main Content */
+.app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Tool Panels */
+.tool-panel {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tool-panel.active {
+    display: flex;
+}
+
+/* Tool Controls */
+.tool-controls {
+    background: var(--gray-medium);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.controls-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.controls-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.control-label {
+    font-size: 0.875rem;
+    color: var(--gray-text);
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.control-select {
+    background: var(--gray-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--gray-text);
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+    min-width: 150px;
+}
+
+.control-select:focus {
+    outline: none;
+    border-color: var(--primary-orange);
+    box-shadow: 0 0 0 1px var(--primary-orange);
+}
+
+/* Checkbox */
+.control-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--gray-text);
+}
+
+.control-checkbox input[type="checkbox"] {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 2px;
+    background: var(--gray-dark);
+    cursor: pointer;
+    position: relative;
+}
+
+.control-checkbox input[type="checkbox"]:checked {
+    background: var(--primary-orange);
+    border-color: var(--primary-orange);
+}
+
+.control-checkbox input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: -1px;
+    left: 2px;
+    color: var(--white);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Player Stats */
+.player-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: var(--gray-text-secondary);
+}
+
+.stat-item {
+    white-space: nowrap;
+}
+
+/* Data Grid Container */
+.data-grid-container {
+    flex: 1;
+    min-height: 0;
+    background: var(--gray-dark);
+    position: relative;
+}
+
+/* Info Tooltips */
+.info-tooltips {
+    background: var(--gray-medium);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.info-tip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--gray-text-secondary);
+}
+
+.info-icon {
+    font-size: 1rem;
+    color: var(--info-blue);
+}
+
+.info-text {
+    color: var(--gray-text);
+}
+
+/* Team View Header */
+.team-view-header {
+    background: var(--gray-medium);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    position: relative;
+}
+
+.team-back-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--white);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.team-back-btn:hover {
+    background: rgba(0, 0, 0, 0.5);
+    border-color: var(--primary-orange);
+}
+
+.team-branding {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex: 1;
+    justify-content: center;
+}
+
+.team-name {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--white);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    margin: 0;
+}
+
+.team-logo {
+    position: absolute;
+    right: 2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.team-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    color: var(--gray-text-secondary);
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: 1.5rem;
+    font-weight: 400;
+    margin-bottom: 0.5rem;
+    color: var(--gray-text);
+}
+
+.empty-description {
+    font-size: 1rem;
+    max-width: 400px;
+}
+
+/* Coming Soon */
+.coming-soon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    color: var(--gray-text-secondary);
+    padding: 2rem;
+}
+
+.coming-soon-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.7;
+}
+
+.coming-soon-title {
+    font-size: 2rem;
+    font-weight: 400;
+    margin-bottom: 1rem;
+    color: var(--gray-text);
+}
+
+.coming-soon-description {
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+    max-width: 500px;
+}
+
+.coming-soon-note {
+    font-size: 1rem;
+    color: var(--primary-orange);
+    font-weight: 500;
+}
+
+/* Footer / Status Bar */
+.app-footer {
+    background: var(--gray-medium);
+    border-top: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 32px;
+    flex-shrink: 0;
+    font-size: 0.875rem;
+}
+
+/* Loading Indicator */
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--gray-light);
+    border-top: 2px solid var(--primary-orange);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-bar-container {
+    flex: 1;
+    max-width: 300px;
+    height: 6px;
+    background: var(--gray-light);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.loading-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-orange), var(--orange-light));
+    width: 0%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.loading-text {
+    color: var(--gray-text);
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.status-text {
+    color: var(--gray-text-secondary);
+}
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--gray-medium);
+    border-top: 1px solid var(--border-color);
+}
+
+.pagination-info {
+    color: var(--gray-text);
+    font-size: 0.875rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pagination-btn {
+    padding: 0.375rem 0.75rem;
+    background: var(--gray-light);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--gray-text);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: var(--gray-lighter);
+    border-color: var(--primary-orange);
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-btn.active {
+    background: var(--primary-orange);
+    border-color: var(--primary-orange);
+    color: var(--white);
+}
+
+.page-jump {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.page-input {
+    width: 60px;
+    padding: 0.375rem 0.5rem;
+    background: var(--gray-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--gray-text);
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.page-input:focus {
+    outline: none;
+    border-color: var(--primary-orange);
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal-content {
+    background: var(--gray-medium);
+    border-radius: 8px;
+    min-width: 400px;
+    max-width: 600px;
+    margin: 2rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--white);
+    margin: 0;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: var(--gray-text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: var(--gray-text);
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.error-modal .modal-title {
+    color: var(--danger-red);
+}
+
+.error-message {
+    color: var(--gray-text);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Player Card Modal Styling */
+.player-card-modal {
+    min-width: 600px;
+    max-width: 800px;
+    background: linear-gradient(180deg, var(--gray-medium) 0%, var(--gray-dark) 100%);
+}
+
+.player-card-header {
+    position: relative;
+    padding: 2rem 1.5rem 1.5rem;
+    background: linear-gradient(135deg, var(--gray-light) 0%, var(--gray-medium) 100%);
+    border-bottom: 3px solid var(--primary-orange);
+    overflow: hidden;
+}
+
+.player-card-team-stripe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: linear-gradient(90deg, var(--primary-orange), var(--orange-light));
+}
+
+.player-card-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1;
+}
+
+.player-card-header-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.player-card-number {
+    font-size: 4rem;
+    font-weight: 700;
+    color: var(--primary-orange);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    min-width: 80px;
+    text-align: center;
+}
+
+.player-card-name-section {
+    flex: 1;
+}
+
+.player-card-name {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--white);
+    margin: 0 0 0.5rem 0;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.player-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1rem;
+    color: var(--gray-text);
+}
+
+.player-card-position {
+    font-weight: 600;
+    color: var(--primary-orange);
+    font-size: 1.125rem;
+}
+
+.player-card-separator {
+    color: var(--gray-text-secondary);
+}
+
+.player-card-team {
+    font-weight: 500;
+}
+
+.player-card-overall {
+    font-size: 5rem;
+    font-weight: 700;
+    color: var(--white);
+    background: var(--primary-orange);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    min-width: 120px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(233, 136, 25, 0.4);
+}
+
+.player-card-body {
+    padding: 1.5rem;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.player-card-section {
+    margin-bottom: 1.5rem;
+}
+
+.player-card-section:last-child {
+    margin-bottom: 0;
+}
+
+.player-card-section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--primary-orange);
+    margin: 0 0 1rem 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.player-card-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.player-info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background: var(--gray-medium);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary-orange);
+}
+
+.info-label {
+    font-size: 0.75rem;
+    color: var(--gray-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.info-value {
+    font-size: 1.125rem;
+    color: var(--white);
+    font-weight: 600;
+}
+
+.player-card-ratings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+}
+
+.rating-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--gray-medium);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.rating-item:hover {
+    background: var(--gray-light);
+    transform: translateY(-2px);
+}
+
+.rating-label {
+    font-size: 0.75rem;
+    color: var(--gray-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.rating-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--gray-light) 0%, var(--gray-medium) 100%);
+    border: 2px solid var(--border-color);
+}
+
+/* Rating color coding */
+.rating-value.elite {
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+    border-color: #4CAF50;
+    color: var(--white);
+}
+
+.rating-value.great {
+    background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
+    border-color: #2196F3;
+    color: var(--white);
+}
+
+.rating-value.good {
+    background: linear-gradient(135deg, var(--primary-orange) 0%, var(--orange-hover) 100%);
+    border-color: var(--primary-orange);
+    color: var(--white);
+}
+
+.rating-value.average {
+    background: linear-gradient(135deg, #FFC107 0%, #F57C00 100%);
+    border-color: #FFC107;
+    color: var(--white);
+}
+
+.rating-value.poor {
+    background: linear-gradient(135deg, #F44336 0%, #C62828 100%);
+    border-color: #F44336;
+    color: var(--white);
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .header-center {
+        margin: 0 1rem;
+        max-width: 400px;
+    }
+
+    .tool-tab {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .tab-icon {
+        font-size: 0.875rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .app-header {
+        flex-wrap: wrap;
+        padding: 0.75rem;
+        gap: 0.5rem;
+    }
+
+    .header-center {
+        order: 3;
+        flex: 1 0 100%;
+        margin: 0.5rem 0 0 0;
+        max-width: none;
+    }
+
+    .tool-controls {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .controls-left,
+    .controls-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gray-medium);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--gray-lighter);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-orange);
+}
+
+/* Focus States */
+button:focus,
+select:focus,
+input:focus {
+    outline: 2px solid var(--primary-orange);
+    outline-offset: 2px;
+}
+
+/* Transitions */
+* {
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Handsontable Styling Override */
+.handsontable {
+    background-color: var(--gray-dark) !important;
+    color: var(--gray-text) !important;
+}
+
+.handsontable .ht_master .wtHolder {
+    background-color: var(--gray-dark) !important;
+}
+
+.handsontable td, .handsontable th {
+    background-color: var(--gray-medium) !important;
+    color: var(--gray-text) !important;
+    border-color: var(--border-color) !important;
+    white-space: nowrap !important;
+}
+
+.handsontable .colHeader {
+    background: linear-gradient(180deg, var(--gray-light) 0%, var(--gray-medium) 100%) !important;
+    color: var(--white) !important;
+    font-weight: 500 !important;
+    border-color: var(--border-color) !important;
+}
+
+.handsontable .sortable-header {
+    cursor: pointer !important;
+    user-select: none !important;
+    transition: color 0.2s ease;
+}
+
+.handsontable .sortable-header:hover {
+    color: var(--primary-orange) !important;
+}
+
+.handsontable .rowHeader {
+    background: linear-gradient(90deg, var(--gray-light) 0%, var(--gray-medium) 100%) !important;
+    color: var(--gray-text) !important;
+    border-color: var(--border-color) !important;
+    cursor: pointer !important;
+    transition: background 0.2s ease !important;
+}
+
+.handsontable .rowHeader:hover {
+    background: linear-gradient(90deg, var(--primary-orange) 0%, var(--orange-hover) 100%) !important;
+    color: var(--white) !important;
+}
+
+.handsontable .currentRow {
+    background-color: var(--gray-lighter) !important;
+}
+
+.handsontable .currentCol {
+    background-color: var(--gray-lighter) !important;
+}
+
+.handsontable .area {
+    background-color: rgba(233, 136, 25, 0.3) !important;
+}
+
+.handsontable .current {
+    background-color: var(--primary-orange) !important;
+    color: var(--white) !important;
+}
+
+.handsontable .htCommentCell::after {
+    border-color: var(--primary-orange) !important;
+}
+
+/* Context Menu Styling */
+.htContextMenu {
+    background-color: var(--gray-medium) !important;
+    color: var(--gray-text) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.htContextMenu .ht_master .wtHolder {
+    background-color: var(--gray-medium) !important;
+}
+
+.htContextMenu td {
+    background-color: var(--gray-medium) !important;
+    color: var(--gray-text) !important;
+    border-color: var(--border-color) !important;
+}
+
+.htContextMenu td:hover {
+    background-color: var(--primary-orange) !important;
+    color: var(--white) !important;
+}
+
+.htContextMenu .htSeparator {
+    border-color: var(--border-color) !important;
+}
+
+/* Selection styling */
+.handsontable .wtBorder {
+    border-color: var(--primary-orange) !important;
+}
+
+.handsontable .wtBorder.corner {
+    background-color: var(--primary-orange) !important;
+}
+
+.handsontable .fill {
+    background-color: var(--primary-orange) !important;
+}
+
+/* Scrollbars for Handsontable */
+.handsontable .wtHolder::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.handsontable .wtHolder::-webkit-scrollbar-track {
+    background: var(--gray-medium);
+}
+
+.handsontable .wtHolder::-webkit-scrollbar-thumb {
+    background: var(--gray-lighter);
+    border-radius: 4px;
+}
+
+.handsontable .wtHolder::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-orange);
+}
+
+/* Custom cell styling */
+.editable-cell {
+    background-color: var(--gray-medium) !important;
+    color: var(--gray-text) !important;
+}
+
+.editable-cell:hover {
+    background-color: var(--gray-lighter) !important;
+}
+
+.readonly-cell {
+    background-color: var(--gray-light) !important;
+    color: var(--gray-text-secondary) !important;
+    font-style: italic;
+}
+
+.readonly-cell:hover {
+    background-color: var(--gray-light) !important;
+}
+
+/* Invalid cell styling */
+.htInvalid {
+    background-color: rgba(220, 53, 69, 0.3) !important;
+    color: var(--white) !important;
+}
+
+/* Dropdown cell styling - classic dropdown appearance */
+.handsontable td.dropdown-cell {
+    background: linear-gradient(180deg, var(--gray-light) 0%, var(--gray-medium) 100%) !important;
+    border: 1px solid var(--border-color) !important;
+    cursor: pointer !important;
+}
+
+.handsontable td.dropdown-cell:hover {
+    background: linear-gradient(180deg, var(--gray-lighter) 0%, var(--gray-light) 100%) !important;
+    border-color: var(--primary-orange) !important;
+}
+
+/* Dropdown editor styling */
+.handsontableInput {
+    background-color: var(--gray-dark) !important;
+    color: var(--gray-text) !important;
+    border: 1px solid var(--primary-orange) !important;
+}
+
+/* Autocomplete dropdown list */
+.htAutocompleteArrow {
+    background-color: var(--gray-medium) !important;
+    color: var(--gray-text) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.htAutocompleteArrow td {
+    background-color: var(--gray-medium) !important;
+    color: var(--gray-text) !important;
+}
+
+.htAutocompleteArrow td.current,
+.htAutocompleteArrow td:hover {
+    background-color: var(--primary-orange) !important;
+    color: var(--white) !important;
+}
+
+/* Team View Styling - Cell Selection and Comments with Team Colors */
+/* When team is selected, use team colors for selection and tooltips */
+.team-view-active .handsontable td.area {
+    background-color: var(--team-primary) !important;
+    opacity: 0.3;
+}
+
+.team-view-active .handsontable td.current {
+    background-color: var(--team-primary) !important;
+    border: 2px solid var(--team-secondary) !important;
+}
+
+.team-view-active .handsontable td.current.area {
+    background-color: var(--team-primary) !important;
+    opacity: 0.5;
+}
+
+/* Team-colored comments/tooltips */
+.team-view-active .htComments {
+    background-color: var(--team-primary) !important;
+    border-color: var(--team-secondary) !important;
+}
+
+.team-view-active .htCommentCell::after {
+    border-color: transparent transparent var(--team-secondary) var(--team-secondary) !important;
+}
+
+/* Autocomplete dropdown in team view */
+.team-view-active .htAutocompleteArrow td.current,
+.team-view-active .htAutocompleteArrow td:hover {
+    background-color: var(--team-primary) !important;
+    color: var(--white) !important;
+}
