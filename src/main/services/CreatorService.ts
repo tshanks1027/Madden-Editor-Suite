@@ -506,25 +506,86 @@ export class CreatorService {
       // Check if player was active in this year
       const from = parseInt(entry['From']) || 0;
       const to = parseInt(entry['To']) || 0;
+      const draftClass = parseInt(entry['Draft Class']) || 0;
 
-      // If From/To are available, check if roster year is in range
+      // PRIORITY 1: If From/To are available and roster year is in range - EXACT MATCH
       if (from > 0 && to > 0) {
         if (rosterYear >= from && rosterYear <= to) {
-          console.log(`[CreatorService] Found ${firstName} ${lastName} in MASTER_LOOKUP (active ${from}-${to}, roster year ${rosterYear})`);
+          console.log(`[CreatorService] ✅ Found ${firstName} ${lastName} in MASTER_LOOKUP (active ${from}-${to}, roster year ${rosterYear})`);
           return entry;
         }
-      } else {
-        // If From/To not available, try draft year match (rookie season)
-        const draftClass = parseInt(entry['Draft Class']) || 0;
-        if (draftClass > 0 && Math.abs(rosterYear - draftClass) <= 15) {
-          console.log(`[CreatorService] Found ${firstName} ${lastName} in MASTER_LOOKUP (drafted ${draftClass}, roster year ${rosterYear})`);
+        // If From/To exist but year is out of range, skip this entry (wrong player with same name)
+        continue;
+      }
+
+      // PRIORITY 2: If only draft year available, check if within reasonable range (career length)
+      if (draftClass > 0) {
+        const careerLength = rosterYear - draftClass;
+        // Most careers are 3-15 years, but allow up to 25 years for long careers
+        if (careerLength >= 0 && careerLength <= 25) {
+          console.log(`[CreatorService] ✅ Found ${firstName} ${lastName} in MASTER_LOOKUP (drafted ${draftClass}, ${careerLength} years into career)`);
           return entry;
+        }
+        // If career length is unreasonable, skip (wrong player with same name)
+        continue;
+      }
+
+      // PRIORITY 3: No year data at all - match by name only (risky but better than nothing)
+      console.log(`[CreatorService] ⚠️ Found ${firstName} ${lastName} in MASTER_LOOKUP (no year data, matching by name only)`);
+      return entry;
+    }
+
+    console.log(`[CreatorService] ❌ Player ${firstName} ${lastName} not found in MASTER_LOOKUP for year ${rosterYear}`);
+    return null;
+  }
+
+  /**
+   * Generate UFA/UDFA free agents from MASTER_LOOKUP
+   * Looks for players from last 5 years marked "UD" (undrafted) in Round column
+   * Excludes players already on rosters
+   * @param year - Current roster year
+   * @param existingPlayerNames - Set of player names already on team rosters
+   * @param count - Number of UFAs to generate
+   * @returns Array of UFA player entries from MASTER_LOOKUP
+   */
+  private generateUFAsFromLookup(
+    year: number,
+    existingPlayerNames: Set<string>,
+    count: number
+  ): any[] {
+    console.log(`[CreatorService] Generating ${count} UFAs from last 5 years (${year - 5} to ${year - 1})`);
+
+    const masterLookup = this.loadMasterLookup();
+    const ufaCandidates: any[] = [];
+
+    // Find all undrafted players from last 5 years who aren't already on rosters
+    for (const [key, entry] of masterLookup.entries()) {
+      const round = (entry['Round'] || '').toString().toUpperCase();
+      const draftClass = parseInt(entry['Draft Class']) || 0;
+
+      // Check if undrafted AND drafted in last 5 years
+      if (round === 'UD' && draftClass >= (year - 5) && draftClass < year) {
+        const fullName = `${entry['First Name']} ${entry['Last Name']}`;
+
+        // Skip if already on a roster
+        if (!existingPlayerNames.has(fullName)) {
+          ufaCandidates.push(entry);
         }
       }
     }
 
-    console.log(`[CreatorService] Player ${firstName} ${lastName} not found in MASTER_LOOKUP for year ${rosterYear}`);
-    return null;
+    console.log(`[CreatorService] Found ${ufaCandidates.length} UFA candidates`);
+
+    // Return random sample of UFAs up to count
+    const selectedUFAs: any[] = [];
+    const shuffled = ufaCandidates.sort(() => Math.random() - 0.5);
+
+    for (let i = 0; i < Math.min(count, shuffled.length); i++) {
+      selectedUFAs.push(shuffled[i]);
+    }
+
+    console.log(`[CreatorService] Selected ${selectedUFAs.length} UFAs for free agent pool`);
+    return selectedUFAs;
   }
 
   /**
@@ -1281,6 +1342,9 @@ export class CreatorService {
         // Get race data from MASTER_LOOKUP for generic face assignment
         const raceData = lookupEntry ? lookupEntry['Race'] : undefined;
 
+        // Get PAM (Player Assets ID) from MASTER_LOOKUP
+        const playerAssetId = lookupEntry ? lookupEntry['Player Assets ID'] : undefined;
+
         // If no real portrait found, assign appropriate generic face WITH race data
         if (matchedPID === 0) {
           matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
@@ -1316,7 +1380,7 @@ export class CreatorService {
           devTrait: this.determineDevTrait(prospect.round, prospect.pick, ratings.overall, prospect.isHallOfFamer, wAV),
           ratings,
           PID: matchedPID,
-          PEPS: null, // Generic head
+          PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
           bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
           yearsPro: 0,
           _sourceStats: stats || undefined
@@ -1556,6 +1620,9 @@ export class CreatorService {
         // Get race data from MASTER_LOOKUP for generic face assignment
         const raceData = lookupEntry ? lookupEntry['Race'] : undefined;
 
+        // Get PAM (Player Assets ID) from MASTER_LOOKUP
+        const playerAssetId = lookupEntry ? lookupEntry['Player Assets ID'] : undefined;
+
         // If no real portrait found, assign appropriate generic face WITH race data
         if (matchedPID === 0) {
           matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
@@ -1586,7 +1653,7 @@ export class CreatorService {
           devTrait,
           ratings,
           PID: matchedPID,
-          PEPS: null,
+          PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
           bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
           yearsPro: 0,
           _sourceStats: stats || undefined
@@ -1618,7 +1685,13 @@ export class CreatorService {
    * @param maxPlayers - Maximum number of players (from template roster, default 3000)
    * @returns Array of generated players
    */
-  async generateRoster(year: number, teams: string[], maxPlayers: number = 3000, league?: string): Promise<GeneratedPlayer[]> {
+  async generateRoster(
+    year: number,
+    teams: string[],
+    maxPlayers: number = 3000,
+    league?: string,
+    progressCallback?: (progress: number, message: string, currentTeam?: string) => void
+  ): Promise<GeneratedPlayer[]> {
     console.log(`[CreatorService] Generating roster for ${year} (${teams.length} teams, max ${maxPlayers} players, league: ${league || 'all'})`);
 
     try {
@@ -1667,8 +1740,13 @@ export class CreatorService {
       console.log(`[CreatorService] Found ${proBowlers.size} Pro Bowlers for ${year}`);
 
       // For each team, scrape roster
-      for (const teamAbbr of teams) {
-        console.log(`[CreatorService] ========== PROCESSING TEAM: ${teamAbbr.toUpperCase()} ==========`);
+      for (let teamIndex = 0; teamIndex < teams.length; teamIndex++) {
+        const teamAbbr = teams[teamIndex];
+        console.log(`[CreatorService] ========== PROCESSING TEAM: ${teamAbbr.toUpperCase()} (${teamIndex + 1}/${teams.length}) ==========`);
+
+        // Report progress with current team
+        const teamProgress = Math.floor(10 + (teamIndex / teams.length) * 70); // 10-80% range for team processing
+        progressCallback?.(teamProgress, `Processing ${teamAbbr.toUpperCase()} roster (${teamIndex + 1}/${teams.length})...`, teamAbbr.toUpperCase());
 
         // Check if team existed in this year
         const teamExisted = scraperService.teamExistedInYear(teamAbbr, year);
@@ -1683,114 +1761,62 @@ export class CreatorService {
         } else {
           console.log(`[CreatorService] ✅ ${teamAbbr} existed, scraping roster and stats...`);
 
-          // Step 1: Scrape roster using JT-SW as primary (cleaner tables), PFR as fallback
-          roster = await scraperService.scrapeTeamRosterFromJTSW(teamAbbr, year);
+          // Step 1: Scrape roster from PFR (has name, position, height, weight, college, age, years pro)
+          roster = await scraperService.scrapeTeamRoster(teamAbbr, year);
+          console.log(`[CreatorService] ========== ROSTER SCRAPE RESULT FOR ${teamAbbr} (${year}) ==========`);
           console.log(`[CreatorService] ✓ Scraped ${roster.length} players from roster page`);
+          console.log(`[CreatorService] ALL SCRAPED PLAYERS FROM PFR ROSTER PAGE:`);
+          for (let i = 0; i < roster.length; i++) {
+            console.log(`[CreatorService]   ${i + 1}. ${roster[i].name} (${roster[i].position})`);
+          }
+          console.log(`[CreatorService] ====================================================================`);
 
           if (roster.length === 0) {
             console.warn(`[CreatorService] ⚠️ WARNING: ${teamAbbr} scraper returned ZERO players, generating fictional roster instead!`);
             roster = this.generateFictionalRoster(teamAbbr, 53);
           } else {
-            // Step 2: Scrape team stats (passing, rushing, receiving, defense stats)
-            console.log(`[CreatorService] Scraping team stats for ${teamAbbr}...`);
+            // Step 2: Scrape team stats to find additional player names not on roster page
+            // This catches players like Bernie Kosar (supplemental draft) who appear in stats but not roster
+            console.log(`[CreatorService] Scraping team stats to find additional players...`);
             const teamStats = await scraperService.scrapeTeamStats(teamAbbr, year);
-            console.log(`[CreatorService] ✓ Scraped stats for ${teamStats.size} players from team stats page`);
+            console.log(`[CreatorService] ✓ Found ${teamStats.size} players in team stats`);
 
-            // Step 3: Merge stats into roster data by player name
-            let mergedCount = 0;
-            let notFoundCount = 0;
-            const unmatchedPlayers: string[] = [];
-            const matchedPlayers: string[] = [];
+            // Add any players from stats that aren't already in roster
+            const rosterNames = new Set(roster.map(p => p.name));
+            let addedCount = 0;
 
-            console.log(`[CreatorService] ========== STATS MERGE DEBUG ==========`);
-            console.log(`[CreatorService] Roster has ${roster.length} players`);
-            console.log(`[CreatorService] Team stats has ${teamStats.size} players with stats`);
-
-            // DEBUG: Log first 5 names from each source
-            console.log(`[CreatorService] First 5 roster names:`);
-            for (let i = 0; i < Math.min(5, roster.length); i++) {
-              console.log(`  ${i + 1}. "${roster[i].name}" (${roster[i].position})`);
-            }
-
-            console.log(`[CreatorService] First 5 teamStats names:`);
-            let statsIdx = 0;
             for (const [name, stats] of teamStats.entries()) {
-              if (statsIdx >= 5) break;
-              console.log(`  ${statsIdx + 1}. "${name}" (${stats.position})`);
-              statsIdx++;
-            }
-            console.log(`[CreatorService] ========================================`);
-
-            for (const player of roster) {
-              const stats = teamStats.get(player.name);
-              if (stats) {
-                // Merge stats into player object
-                player.passCompletions = stats.passCompletions;
-                player.passAttempts = stats.passAttempts;
-                player.passYards = stats.passYards;
-                player.passTDs = stats.passTDs;
-                player.interceptions = stats.interceptions;
-
-                player.rushAttempts = stats.rushAttempts;
-                player.rushYards = stats.rushYards;
-                player.rushTDs = stats.rushTDs;
-
-                player.receptions = stats.receptions;
-                player.recYards = stats.recYards;
-                player.recTDs = stats.recTDs;
-                player.targets = stats.targets;
-
-                player.tackles = stats.tackles;
-                player.sacks = stats.sacks;
-                player.forcedFumbles = stats.forcedFumbles;
-                player.interceptionsCaught = stats.interceptionsCaught;
-                player.passDefended = stats.passDefended;
-
-                mergedCount++;
-                matchedPlayers.push(player.name);
-
-                // DEBUG: Log ALL merged players (not just first 3)
-                if (mergedCount <= 10) {
-                  console.log(`[CreatorService] ✓ Merged stats for "${player.name}" (${player.position}):`);
-                  console.log(`  - Pass: cmp=${player.passCompletions}, att=${player.passAttempts}, yds=${player.passYards}, TD=${player.passTDs}, INT=${player.interceptions}`);
-                  console.log(`  - Rush: att=${player.rushAttempts}, yds=${player.rushYards}, TD=${player.rushTDs}`);
-                  console.log(`  - Rec: rec=${player.receptions}, yds=${player.recYards}, TD=${player.recTDs}, tgt=${player.targets}`);
-                  console.log(`  - Def: tkl=${player.tackles}, sacks=${player.sacks}, FF=${player.forcedFumbles}, INT=${player.interceptionsCaught}, PD=${player.passDefended}`);
-                }
-              } else {
-                notFoundCount++;
-                unmatchedPlayers.push(player.name);
-                if (notFoundCount <= 10) {
-                  console.warn(`[CreatorService] ⚠️ No stats found for "${player.name}" (${player.position}) - will use generic ratings`);
-                }
+              if (!rosterNames.has(name)) {
+                // This player appears in stats but not roster - add them with stats data
+                roster.push({
+                  name,
+                  position: stats.position || 'WR',
+                  // We don't have height/weight/age from stats page, will get from MASTER_LOOKUP or use defaults
+                  college: 'Unknown',
+                  ...stats // Include all the stats we scraped
+                });
+                addedCount++;
+                console.log(`[CreatorService] ➕ Added ${name} from team stats (not on roster page)`);
               }
             }
 
-            console.log(`[CreatorService] ========== MERGE SUMMARY ==========`);
-            console.log(`[CreatorService] ✓ Stats merge complete for ${teamAbbr}:`);
-            console.log(`[CreatorService]   - ${mergedCount} players WITH stats (${(mergedCount/roster.length*100).toFixed(1)}%)`);
-            console.log(`[CreatorService]   - ${notFoundCount} players WITHOUT stats (${(notFoundCount/roster.length*100).toFixed(1)}%)`);
-            if (unmatchedPlayers.length > 0 && unmatchedPlayers.length <= 20) {
-              console.warn(`[CreatorService] Unmatched players: ${unmatchedPlayers.join(', ')}`);
+            console.log(`[CreatorService] ✓ Added ${addedCount} additional players from team stats`);
+            console.log(`[CreatorService] ========== FINAL ROSTER COUNT FOR ${teamAbbr} ==========`);
+            console.log(`[CreatorService] TOTAL PLAYERS: ${roster.length}`);
+            console.log(`[CreatorService] All player names:`);
+            for (let i = 0; i < roster.length; i++) {
+              console.log(`[CreatorService]   ${i + 1}. ${roster[i].name} (${roster[i].position})`);
             }
-            console.log(`[CreatorService] ===================================`);
+            console.log(`[CreatorService] ==========================================================`);
           }
         }
 
         console.log(`[CreatorService] Processing ${roster.length} players from ${teamAbbr}...`);
 
-        // DEBUG: Log ALL roster data to see if stats are present
-        console.log(`[CreatorService] ========== FULL ROSTER DATA FOR ${teamAbbr} ==========`);
-        for (let idx = 0; idx < Math.min(5, roster.length); idx++) {
-          const p = roster[idx];
-          console.log(`[CreatorService] Player ${idx + 1}: ${p.name} (${p.position})`);
-          console.log(`  - Basic: age=${p.age}, height=${p.height}, weight=${p.weight}, college=${p.college}, jersey=${(p as any).jerseyNumber}`);
-          console.log(`  - Pass: cmp=${p.passCompletions}, att=${p.passAttempts}, yds=${p.passYards}, TD=${p.passTDs}, INT=${p.interceptions}`);
-          console.log(`  - Rush: att=${p.rushAttempts}, yds=${p.rushYards}, TD=${p.rushTDs}`);
-          console.log(`  - Rec: rec=${p.receptions}, yds=${p.recYards}, TD=${p.recTDs}, tgt=${p.targets}`);
-          console.log(`  - Def: tkl=${p.tackles}, sacks=${p.sacks}, FF=${p.forcedFumbles}, INT=${p.interceptionsCaught}, PD=${p.passDefended}`);
-        }
-        console.log(`[CreatorService] ==================================================`);
+        // Track MASTER_LOOKUP match stats
+        let matchedCount = 0;
+        let notMatchedCount = 0;
+        const notMatchedPlayers: string[] = [];
 
         // Convert each player to GeneratedPlayer
         for (let playerIdx = 0; playerIdx < roster.length; playerIdx++) {
@@ -1810,14 +1836,75 @@ export class CreatorService {
           const firstName = nameParts[0] || 'John';
           const lastName = nameParts.slice(1).join(' ') || 'Doe';
 
-          // Check if player is HOF
+          // **NEW: MATCH PLAYER TO MASTER_LOOKUP**
+          const lookupEntry = this.findPlayerInMASTERLookup(firstName, lastName, year);
+
+          let proRatedWAV = 0;
+          let weight = playerStats.weight || 0;
+          let heightInches = 0;
+          let raceData: string | undefined = undefined;
+          let playerAssetId: string | undefined = undefined;
+          let draftYear: number | undefined = undefined;
+          let collegeName = playerStats.college || 'Unknown';
+
+          if (lookupEntry) {
+            matchedCount++;
+            if (debugDetail) {
+              console.log(`[CreatorService] ✅ MATCHED to MASTER_LOOKUP`);
+            }
+          } else {
+            notMatchedCount++;
+            notMatchedPlayers.push(`${firstName} ${lastName}`);
+            if (debugDetail) {
+              console.log(`[CreatorService] ❌ NOT FOUND in MASTER_LOOKUP - will use fallback ratings`);
+            }
+          }
+
+          if (lookupEntry) {
+            // Extract career wAV and calculate pro-rated wAV
+            const careerWAV = parseFloat(lookupEntry['wAV']) || 0;
+            const from = parseInt(lookupEntry['From']) || year;
+            const to = parseInt(lookupEntry['To']) || year;
+
+            // **CALCULATE PRO-RATED wAV**
+            const totalYears = to - from + 1;
+            const yearsPlayed = year - from + 1;
+            proRatedWAV = this.calculateProRatedWAV(careerWAV, totalYears, yearsPlayed);
+
+            if (debugDetail) {
+              console.log(`[CreatorService] 📊 wAV: Career=${careerWAV}, Pro-rated=${proRatedWAV.toFixed(2)} (${yearsPlayed}/${totalYears} years)`);
+            }
+
+            // Get height/weight from MASTER_LOOKUP if missing from scrape
+            if (!weight && lookupEntry['Weight']) {
+              weight = parseInt(lookupEntry['Weight']) || 0;
+            }
+            if (lookupEntry['Height']) {
+              heightInches = parseInt(lookupEntry['Height']) || 0;
+            }
+
+            // Get race data for generic face matching
+            raceData = lookupEntry['Race'] || undefined;
+
+            // Get PAM (Player Assets ID) from MASTER_LOOKUP
+            playerAssetId = lookupEntry['Player Assets ID'] || undefined;
+
+            // Get draft year for years pro calculation
+            draftYear = parseInt(lookupEntry['Draft Class']) || undefined;
+
+            // Get college from MASTER_LOOKUP if not scraped
+            if (collegeName === 'Unknown' && lookupEntry['College']) {
+              collegeName = lookupEntry['College'];
+            }
+          }
+
+          // Check if player is HOF (still useful for logging)
           const isHOF = hofPlayers.has(playerStats.name);
           if (debugDetail && isHOF) {
             console.log(`[CreatorService] 🏆 HALL OF FAMER DETECTED!`);
           }
 
-          // Get college: use HOF lookup if available, otherwise use scraped data
-          let collegeName = playerStats.college || 'Unknown';
+          // Get college: use HOF lookup if available
           if (isHOF && hofLookup) {
             const hofData = hofLookup.get(playerStats.name);
             if (hofData && hofData.college) {
@@ -1826,87 +1913,88 @@ export class CreatorService {
             }
           }
 
-          // Map position to M26 format
-          const mappedPosition = this.mapPosition(playerStats.position);
+          // **HISTORICAL POSITION MAPPING** (replaces mapPosition)
+          const mappedPosition = this.mapHistoricalPosition(
+            playerStats.position,
+            year,
+            weight,
+            heightInches
+          );
           if (debugDetail) {
             console.log(`[CreatorService] Position mapped: "${playerStats.position}" -> "${mappedPosition.name}" (code ${mappedPosition.code})`);
           }
 
-          // DEBUG: Log stats BEFORE rating calculation
-          if (debugDetail) {
-            console.log(`[CreatorService] Raw stats before rating calc:`);
-            console.log(`  - Pass: cmp=${playerStats.passCompletions}, att=${playerStats.passAttempts}, yds=${playerStats.passYards}, TD=${playerStats.passTDs}, INT=${playerStats.interceptions}`);
-            console.log(`  - Rush: att=${playerStats.rushAttempts}, yds=${playerStats.rushYards}, TD=${playerStats.rushTDs}`);
-            console.log(`  - Rec: rec=${playerStats.receptions}, yds=${playerStats.recYards}, TD=${playerStats.recTDs}, tgt=${playerStats.targets}`);
-            console.log(`  - Def: tkl=${playerStats.tackles}, sacks=${playerStats.sacks}, FF=${playerStats.forcedFumbles}, INT=${playerStats.interceptionsCaught}, PD=${playerStats.passDefended}`);
-
-            // Check if ANY stats exist
-            const hasAnyStats = !!(playerStats.passAttempts || playerStats.rushAttempts || playerStats.receptions || playerStats.tackles);
-            console.log(`  - Has ANY stats: ${hasAnyStats}`);
-          }
-
-          // Calculate ratings (use low ratings for non-existent teams)
+          // **GENERATE RATINGS FROM wAV (PRIMARY) OR STATS (FALLBACK)**
           const isNonExistentTeam = (playerStats as any)._isNonExistentTeam || false;
-          const ratings = isNonExistentTeam
-            ? this.generateFillerRatings(mappedPosition.name, true) // 30-40 OVR for retro franchise
-            : ratingCalculator.calculateRatings(playerStats);
+          let ratings: MaddenRatings;
 
-          // DEBUG: Log ratings AFTER calculation
-          if (debugDetail) {
-            console.log(`[CreatorService] Ratings after calc:`);
-            console.log(`  - Overall: ${ratings.overall}`);
-            console.log(`  - Physical: SPD=${ratings.speed}, ACC=${ratings.acceleration}, AGI=${ratings.agility}, STR=${ratings.strength}, AWR=${ratings.awareness}`);
-            console.log(`  - Pass: THP=${ratings.throwPower}, TAS=${ratings.throwAccuracyShort}, TAM=${ratings.throwAccuracyMid}, TAD=${ratings.throwAccuracyDeep}`);
-            console.log(`  - Rush: CAR=${ratings.carrying}, BCV=${ratings.ballCarrierVision}, BTK=${ratings.breakTackle}, TRK=${ratings.trucking}`);
-            console.log(`  - Rec: CTH=${ratings.catching}, CIT=${ratings.catchInTraffic}, SPC=${ratings.spectacularCatch}, SRR=${ratings.shortRouteRunning}`);
-            console.log(`  - Def: TAK=${ratings.tackle}, HTP=${ratings.hitPower}, PMV=${ratings.powerMoves}, BSH=${ratings.blockShedding}, MCV=${ratings.manCoverage}, ZCV=${ratings.zoneCoverage}`);
-          }
+          if (proRatedWAV > 0) {
+            // Use wAV-based ratings (already accounts for position scaling)
+            // isRookie=false for roster players (allows up to 99 OVR)
+            ratings = this.generateRatingsFromWAV(proRatedWAV, mappedPosition.name, false, false);
 
-          // Apply tiered rating boosts based on accomplishments
-          const isProBowler = proBowlers.has(playerStats.name);
-          if (isHOF) {
-            // Tier 1: Hall of Famers - elite ratings (85-99 overall)
-            this.applyHOFBoost(ratings, mappedPosition.name, playerStats);
-            if (debugDetail) console.log(`[CreatorService] 🏆 Applied HOF rating boost`);
-          } else if (isProBowler) {
-            // Tier 1: Pro Bowlers - high ratings (80-90 overall)
-            this.applyProBowlBoost(ratings, mappedPosition.name, playerStats);
-            if (debugDetail) console.log(`[CreatorService] ⭐ Applied Pro Bowl rating boost`);
-          } else if (this.hasStrongStats(playerStats, mappedPosition.name)) {
-            // Tier 2: Players with strong stats - good starter ratings (75-85 overall)
-            this.applyStrongStatsBoost(ratings, mappedPosition.name);
-            if (debugDetail) console.log(`[CreatorService] ✓ Applied strong stats boost`);
+            if (debugDetail) {
+              console.log(`[CreatorService] ✅ Using wAV-based ratings: OVR ${ratings.overall}`);
+            }
+          } else {
+            // Fallback: No wAV data found - use generic ratings
+            // For non-existent teams use low ratings, otherwise use average starter ratings
+            if (isNonExistentTeam) {
+              ratings = this.generateFillerRatings(mappedPosition.name, true); // 30-40 OVR for retro franchise
+            } else {
+              // Generate average starter ratings (65-70 OVR)
+              // isRookie=false for roster players
+              ratings = this.generateRatingsFromWAV(10, mappedPosition.name, false, false); // 10 wAV = average backup
+
+              // Boost for HOF/Pro Bowl players if no wAV data available
+              const isProBowler = proBowlers.has(playerStats.name);
+              if (isHOF) {
+                // HOF without wAV data = assume high career value
+                ratings = this.generateRatingsFromWAV(120, mappedPosition.name, false, false); // Elite tier
+                if (debugDetail) console.log(`[CreatorService] 🏆 HOF player without wAV - using Elite tier (120 wAV)`);
+              } else if (isProBowler) {
+                // Pro Bowler without wAV data = assume quality starter
+                ratings = this.generateRatingsFromWAV(40, mappedPosition.name, false, false); // Quality starter tier
+                if (debugDetail) console.log(`[CreatorService] ⭐ Pro Bowl player without wAV - using Quality Starter tier (40 wAV)`);
+              }
+            }
+
+            if (debugDetail) {
+              console.log(`[CreatorService] ℹ️ Using fallback ratings (no wAV data): OVR ${ratings.overall}`);
+            }
           }
-          // Tier 3: Average/backup players - no boost (ratings as calculated)
-          // Tier 4: Players with weak/no stats - ratings remain low
 
           // Fill missing ratings (ensures NO blanks)
           this.fillMissingRatings(ratings, mappedPosition.name);
 
-          // Match PID from lookup table with disambiguation
-          // For roster generation, we don't have draft year, but we have year (season year)
-          // Most players were drafted within ~10 years of their playing year
-          let matchedPID = this.matchPID(firstName, lastName, undefined, mappedPosition.name, collegeName);
+          // Cap ratings by position (veterans can exceed 80 OVR)
+          this.capRatingsByPosition(ratings, mappedPosition.name, false);
 
-          // If no real portrait found, assign appropriate generic face
-          if (matchedPID === 0) {
-            matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name);
+          // **CALCULATE YEARS PRO FROM DRAFT YEAR** (more accurate than age estimation)
+          let yearsPro = 0;
+          if (draftYear) {
+            yearsPro = year - draftYear;
+            if (debugDetail) {
+              console.log(`[CreatorService] Years Pro: ${yearsPro} (${year} - ${draftYear})`);
+            }
+          } else if (playerStats.yearsPro !== undefined && playerStats.yearsPro !== null) {
+            // Use scraped value ("Rook" becomes 0, numbers are parsed)
+            yearsPro = playerStats.yearsPro;
+          } else {
+            // Fallback: estimate from age (assume NFL entry at 22)
+            const playerAge = playerStats.age || 25;
+            yearsPro = Math.max(0, playerAge - 22);
           }
 
-          // Match college to valid college ID
-          const matchedCollege = this.matchCollege(collegeName);
+          // Parse height if needed
+          if (heightInches === 0 && playerStats.height) {
+            heightInches = this.parseHeight(playerStats.height);
+          }
+          if (heightInches === 0) {
+            heightInches = this.generateHeight(mappedPosition.name);
+          }
 
-          // Use scraped jersey number if available, otherwise generate
-          const jerseyNum = (playerStats as any).jerseyNumber || this.generateJerseyNumber(mappedPosition.name);
-
-          // Get height with proper defaults
-          const heightInches = playerStats.height
-            ? this.parseHeight(playerStats.height)
-            : this.generateHeight(mappedPosition.name);
-
-          // Get weight with proper defaults and validation
-          // Weight validation: if weight is unrealistic (>400 or <150), use position default
-          let weight = playerStats.weight || 0;
+          // Validate weight
           if (weight > 400 || weight < 150 || weight === 0) {
             if (debugDetail && weight > 400) {
               console.warn(`[CreatorService] ⚠️ Invalid weight ${weight} for ${playerStats.name}, using default for ${mappedPosition.name}`);
@@ -1917,23 +2005,34 @@ export class CreatorService {
           // Convert weight to Madden offset format (actual - 160)
           const maddenWeight = this.convertWeightToMaddenFormat(weight);
 
+          // Calculate age
+          const playerAge = playerStats.age || (yearsPro > 0 ? 22 + yearsPro : 25);
+
+          // Use scraped jersey number if available, otherwise generate
+          const jerseyNum = (playerStats as any).jerseyNumber || this.generateJerseyNumber(mappedPosition.name);
+
+          // **MATCH PID WITH RACE DATA**
+          let matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, collegeName);
+
+          // If no real portrait found, assign generic face with race data
+          if (matchedPID === 0) {
+            matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
+          }
+
+          // Match college to valid college ID
+          const matchedCollege = this.matchCollege(collegeName);
+
           // Match homestate (generate if not available)
           const homeStateId = this.matchHomeState(this.generateHomeState());
 
-          // Determine dev trait: HOFers get X-Factor, others based on overall rating
-          const devTrait = isHOF ? 3 : this.determineDevTraitFromRating(ratings.overall);
-
-          // Use scraped years pro if available, otherwise calculate from age
-          const playerAge = playerStats.age || 25;
-          let yearsPro = 0;
-          if (playerStats.yearsPro !== undefined && playerStats.yearsPro !== null) {
-            // Use scraped value ("Rook" becomes 0, numbers are parsed)
-            yearsPro = playerStats.yearsPro;
-          } else {
-            // Fallback: estimate from age (assume NFL entry at 22)
-            const typicalRookieAge = 22;
-            yearsPro = Math.max(0, playerAge - typicalRookieAge);
-          }
+          // **DETERMINE DEV TRAIT FROM wAV** (replaces HOF = X-Factor logic)
+          const devTrait = this.determineDevTrait(
+            undefined, // round
+            undefined, // pick
+            ratings.overall,
+            isHOF,
+            proRatedWAV  // Use pro-rated wAV for dev trait calculation
+          );
 
           const player: GeneratedPlayer = {
             firstName,
@@ -1950,18 +2049,34 @@ export class CreatorService {
             devTrait,
             ratings,
             PID: matchedPID,
-            PEPS: null,
+            PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             yearsPro,
             _sourceStats: playerStats
           };
 
-          if (isHOF) {
-            console.log(`[CreatorService] 🏆 HOF player: ${playerStats.name} (${mappedPosition.name}) - OVR ${ratings.overall}, Dev Trait ${devTrait}`);
+          if (isHOF || proRatedWAV > 60) {
+            console.log(`[CreatorService] ⭐ Notable player: ${playerStats.name} (${mappedPosition.name}) - OVR ${ratings.overall}, wAV ${proRatedWAV.toFixed(1)}, Dev Trait ${devTrait}`);
           }
 
           generatedPlayers.push(player);
         }
+
+        // Log MASTER_LOOKUP match statistics
+        console.log(`[CreatorService] ========== MASTER_LOOKUP MATCH STATS FOR ${teamAbbr} ==========`);
+        console.log(`[CreatorService] Total players processed: ${roster.length}`);
+        console.log(`[CreatorService] ✅ Matched to MASTER_LOOKUP: ${matchedCount} (${(matchedCount / roster.length * 100).toFixed(1)}%)`);
+        console.log(`[CreatorService] ❌ NOT found in MASTER_LOOKUP: ${notMatchedCount} (${(notMatchedCount / roster.length * 100).toFixed(1)}%)`);
+        if (notMatchedPlayers.length > 0) {
+          console.log(`[CreatorService] Players NOT in MASTER_LOOKUP:`);
+          for (let i = 0; i < Math.min(20, notMatchedPlayers.length); i++) {
+            console.log(`[CreatorService]   - ${notMatchedPlayers[i]}`);
+          }
+          if (notMatchedPlayers.length > 20) {
+            console.log(`[CreatorService]   ... and ${notMatchedPlayers.length - 20} more`);
+          }
+        }
+        console.log(`[CreatorService] ================================================================`);
 
         // Pad roster to 53 players if needed
         const teamPlayerCount = roster.length;
@@ -2009,6 +2124,9 @@ export class CreatorService {
             // Dev trait (mostly Normal, some Star Potential for young players)
             const devTrait = age <= 23 && Math.random() < 0.15 ? 1 : 0; // 15% Star for young players
 
+            // Assign generic face to fictional players
+            const genericPID = this.assignGenericFace(firstName, lastName, mappedPosition.name);
+
             const fillerPlayer: GeneratedPlayer = {
               firstName,
               lastName,
@@ -2024,7 +2142,7 @@ export class CreatorService {
               homeState: homeStateId,
               devTrait,
               ratings,
-              PID: -1, // No player ID for fictional players
+              PID: genericPID, // Use generic face for fictional players
               PEPS: null,
               bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
               _sourceStats: fillerStats
@@ -2079,11 +2197,100 @@ export class CreatorService {
         console.log(`[CreatorService] Free agents needed: ${freeAgentsNeeded}`);
         console.log(`[CreatorService] ========================================`);
 
-        // Generate fictional free agents with varied positions
-        const freeAgentRoster = this.generateFictionalRoster('FA', freeAgentsNeeded);
-        scraperDebugLogger.log(`Generated ${freeAgentRoster.length} fictional FA players\n`);
+        // Build set of existing player names to exclude from UFA pool
+        const existingPlayerNames = new Set<string>();
+        for (const player of generatedPlayers) {
+          existingPlayerNames.add(`${player.firstName} ${player.lastName}`);
+        }
 
-        // Process free agents (same as filler players but with team = 1009)
+        // Generate real UFAs from MASTER_LOOKUP (undrafted players from last 5 years)
+        const ufaEntries = this.generateUFAsFromLookup(year, existingPlayerNames, freeAgentsNeeded);
+        scraperDebugLogger.log(`Found ${ufaEntries.length} real UFAs from MASTER_LOOKUP\n`);
+
+        // If not enough real UFAs, fill remainder with fictional players
+        let freeAgentRoster: any[] = [];
+        if (ufaEntries.length < freeAgentsNeeded) {
+          const fictionalNeeded = freeAgentsNeeded - ufaEntries.length;
+          freeAgentRoster = this.generateFictionalRoster('FA', fictionalNeeded);
+          console.log(`[CreatorService] Not enough UFAs (${ufaEntries.length}), generating ${fictionalNeeded} fictional FAs`);
+        }
+
+        // Process REAL UFAs from MASTER_LOOKUP first
+        for (const ufaEntry of ufaEntries) {
+          const firstName = ufaEntry['First Name'] || 'John';
+          const lastName = ufaEntry['Last Name'] || 'Doe';
+          const draftYear = parseInt(ufaEntry['Draft Class']) || year - 1;
+          const yearsPro = year - draftYear;
+
+          // Get wAV and calculate pro-rated value
+          const careerWAV = parseFloat(ufaEntry['wAV']) || 0;
+          const from = parseInt(ufaEntry['From']) || draftYear;
+          const to = parseInt(ufaEntry['To']) || year;
+          const totalYears = to - from + 1;
+          const yearsPlayed = year - from + 1;
+          const proRatedWAV = this.calculateProRatedWAV(careerWAV, totalYears, yearsPlayed);
+
+          // Map position
+          const position = ufaEntry['Position'] || 'WR';
+          const height = parseInt(ufaEntry['Height']) || 0;
+          const weight = parseInt(ufaEntry['Weight']) || 0;
+          const mappedPosition = this.mapHistoricalPosition(position, year, weight, height);
+
+          // Generate ratings from wAV
+          // isRookie=false for UFAs (veteran free agents, not draft prospects)
+          const ratings = proRatedWAV > 0
+            ? this.generateRatingsFromWAV(proRatedWAV, mappedPosition.name, false, false)
+            : this.generateFillerRatings(mappedPosition.name);
+
+          // Fill missing ratings
+          this.fillMissingRatings(ratings, mappedPosition.name);
+          this.capRatingsByPosition(ratings, mappedPosition.name, false); // UFAs are veterans
+
+          // Other attributes
+          const heightInches = height > 0 ? height : this.generateHeight(mappedPosition.name);
+          const maddenWeight = this.convertWeightToMaddenFormat(weight > 0 ? weight : this.getDefaultWeight(mappedPosition.name));
+          const college = this.matchCollege(ufaEntry['College/Univ'] || 'Unknown');
+          const homeStateId = this.matchHomeState(this.generateHomeState());
+          const age = 22 + yearsPro; // Rookie at 22
+          const jerseyNum = this.generateJerseyNumber(mappedPosition.name);
+          const raceData = ufaEntry['Race'] || undefined;
+
+          // Match PID with race data
+          let matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, ufaEntry['College/Univ']);
+          if (matchedPID === 0) {
+            matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
+          }
+
+          // Dev trait from wAV
+          const devTrait = this.determineDevTrait(undefined, undefined, ratings.overall, false, proRatedWAV);
+
+          const freeAgent: GeneratedPlayer = {
+            firstName,
+            lastName,
+            position: mappedPosition.name,
+            positionCode: mappedPosition.code,
+            team: 'FA',
+            jerseyNum,
+            yearsPro,
+            college,
+            age,
+            heightInches,
+            weight: maddenWeight,
+            homeState: homeStateId,
+            devTrait,
+            ratings,
+            PID: matchedPID,
+            PEPS: null,
+            bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
+            _sourceStats: null
+          };
+
+          generatedPlayers.push(freeAgent);
+        }
+
+        console.log(`[CreatorService] ✓ Added ${ufaEntries.length} real UFAs from MASTER_LOOKUP`);
+
+        // Process FICTIONAL free agents if needed
         for (const faStats of freeAgentRoster) {
           const nameParts = faStats.name.split(' ');
           const firstName = nameParts[0] || 'John';
@@ -2106,6 +2313,9 @@ export class CreatorService {
           // Dev trait (mostly Normal, occasional Star for young FAs)
           const devTrait = age <= 23 && Math.random() < 0.10 ? 1 : 0; // 10% Star for young FAs
 
+          // Assign generic face to fictional free agents
+          const genericPID = this.assignGenericFace(firstName, lastName, mappedPosition.name);
+
           const freeAgent: GeneratedPlayer = {
             firstName,
             lastName,
@@ -2121,7 +2331,7 @@ export class CreatorService {
             homeState: homeStateId,
             devTrait,
             ratings,
-            PID: -1,
+            PID: genericPID, // Use generic face for fictional FAs
             PEPS: null,
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             _sourceStats: faStats
@@ -2202,15 +2412,16 @@ export class CreatorService {
   /**
    * wAV (Weighted Approximate Value) Rating Tiers
    * Used to calculate ratings from career performance data
+   * BOOSTED for realistic ratings - elite players should be in 90s!
    */
   private readonly WAV_TIERS = [
-    { name: 'Hall of Fame Legend', minWAV: 150, maxWAV: 999, baseOVR: 85, ovrRange: 5, devTraitWeight: 3.0 },
-    { name: 'Elite', minWAV: 100, maxWAV: 149, baseOVR: 82, ovrRange: 4, devTraitWeight: 2.5 },
-    { name: 'Pro Bowl', minWAV: 60, maxWAV: 99, baseOVR: 77, ovrRange: 5, devTraitWeight: 2.0 },
-    { name: 'Quality Starter', minWAV: 30, maxWAV: 59, baseOVR: 72, ovrRange: 5, devTraitWeight: 1.5 },
-    { name: 'Average Starter', minWAV: 15, maxWAV: 29, baseOVR: 68, ovrRange: 4, devTraitWeight: 1.0 },
-    { name: 'Backup', minWAV: 5, maxWAV: 14, baseOVR: 63, ovrRange: 4, devTraitWeight: 0.5 },
-    { name: 'Bust', minWAV: 0, maxWAV: 4, baseOVR: 58, ovrRange: 5, devTraitWeight: 0.1 }
+    { name: 'Hall of Fame Legend', minWAV: 150, maxWAV: 999, baseOVR: 93, ovrRange: 6, devTraitWeight: 3.0 },  // 93-99 OVR
+    { name: 'Elite', minWAV: 100, maxWAV: 149, baseOVR: 88, ovrRange: 5, devTraitWeight: 2.5 },                // 88-93 OVR
+    { name: 'Pro Bowl', minWAV: 60, maxWAV: 99, baseOVR: 83, ovrRange: 5, devTraitWeight: 2.0 },               // 83-88 OVR
+    { name: 'Quality Starter', minWAV: 30, maxWAV: 59, baseOVR: 77, ovrRange: 6, devTraitWeight: 1.5 },        // 77-83 OVR
+    { name: 'Average Starter', minWAV: 15, maxWAV: 29, baseOVR: 72, ovrRange: 5, devTraitWeight: 1.0 },        // 72-77 OVR
+    { name: 'Backup', minWAV: 5, maxWAV: 14, baseOVR: 66, ovrRange: 6, devTraitWeight: 0.5 },                  // 66-72 OVR
+    { name: 'Bust', minWAV: 0, maxWAV: 4, baseOVR: 60, ovrRange: 6, devTraitWeight: 0.1 }                      // 60-66 OVR
   ];
 
   /**
@@ -2248,9 +2459,10 @@ export class CreatorService {
    * @param wAV - Weighted Approximate Value from MASTER_LOOKUP
    * @param position - Player position (for scaling)
    * @param isHOF - Hall of Fame flag (overrides to high tier)
+   * @param isRookie - If true, cap at 80 OVR (draft prospects). If false, allow up to 99 OVR (roster players)
    * @returns Base OVR (before attribute distribution)
    */
-  private calculateBaseOVRFromWAV(wAV: number, position: string, isHOF: boolean = false): number {
+  private calculateBaseOVRFromWAV(wAV: number, position: string, isHOF: boolean = false, isRookie: boolean = true): number {
     // HOF players always get elite tier minimum
     if (isHOF && wAV < 150) {
       wAV = 150;
@@ -2276,10 +2488,12 @@ export class CreatorService {
       console.log(`[CreatorService] Position scaling for ${position}: ${scaling}x`);
     }
 
-    // Clamp to valid range (50-80 for rookies)
-    baseOVR = Math.max(50, Math.min(80, Math.round(baseOVR)));
+    // Clamp to valid range
+    // Rookies capped at 80, roster players can go up to 99
+    const maxOVR = isRookie ? 80 : 99;
+    baseOVR = Math.max(50, Math.min(maxOVR, Math.round(baseOVR)));
 
-    console.log(`[CreatorService] wAV ${wAV} -> Tier "${tier.name}" -> Base OVR ${baseOVR} (position: ${position})`);
+    console.log(`[CreatorService] wAV ${wAV} -> Tier "${tier.name}" -> Base OVR ${baseOVR} (position: ${position}, ${isRookie ? 'ROOKIE' : 'VETERAN'})`);
 
     return baseOVR;
   }
@@ -2324,9 +2538,9 @@ export class CreatorService {
    * Generate ratings based on wAV tier system
    * Uses calculateBaseOVRFromWAV() to get target OVR, then distributes attributes
    */
-  private generateRatingsFromWAV(wAV: number, position: string, isHallOfFamer: boolean = false): MaddenRatings {
+  private generateRatingsFromWAV(wAV: number, position: string, isHallOfFamer: boolean = false, isRookie: boolean = false): MaddenRatings {
     // Get base OVR from wAV tier system
-    const baseOVR = this.calculateBaseOVRFromWAV(wAV, position, isHallOfFamer);
+    const baseOVR = this.calculateBaseOVRFromWAV(wAV, position, isHallOfFamer, isRookie);
 
     // Create mock stats with career performance hint
     const mockStats: PlayerStats = {
@@ -2363,7 +2577,7 @@ export class CreatorService {
 
   /**
    * Generate low ratings for filler/backup players
-   * These are practice squad / backup level players (50-65 OVR)
+   * These are practice squad / backup level players (50-60 OVR)
    */
   private generateFillerRatings(position: string, isNonExistentTeam: boolean = false): MaddenRatings {
     // Generate position-appropriate ratings with low base stats
@@ -2378,9 +2592,9 @@ export class CreatorService {
 
     // Scale down ratings based on team existence
     // Non-existent teams: 30-40 OVR (retro franchise mode ease)
-    // Filler players: 45-60 OVR (backup/practice squad level)
-    const scaleFactor = isNonExistentTeam ? 0.45 : 0.65; // 45% or 65% of default ratings
-    const minRating = isNonExistentTeam ? 30 : 45;
+    // Filler players: 50-60 OVR (backup/practice squad level)
+    const scaleFactor = isNonExistentTeam ? 0.45 : 0.68; // 45% or 68% of default ratings
+    const minRating = isNonExistentTeam ? 30 : 50;
 
     const scaledRatings: MaddenRatings = {
       overall: Math.max(minRating, Math.floor(ratings.overall * scaleFactor)),
@@ -2944,11 +3158,11 @@ export class CreatorService {
   }
 
   /**
-   * Cap ratings based on position for rookies
+   * Cap ratings based on position
    * Prevents unrealistic ratings (e.g. LB with 99 zone coverage)
-   * Remember: these are ROOKIES, not veterans. Even HOF players shouldn't exceed 79-80 overall.
+   * @param isRookie - If true, cap overall at 80 (draft prospects). If false, allow up to 99 (roster veterans)
    */
-  private capRatingsByPosition(ratings: MaddenRatings, position: string): void {
+  private capRatingsByPosition(ratings: MaddenRatings, position: string, isRookie: boolean = true): void {
     const pos = position.toUpperCase();
 
     // Helper function to cap a rating
@@ -3046,8 +3260,12 @@ export class CreatorService {
       cap('kickAccuracy', 92);
     }
 
-    // Overall cap: NO rookie should exceed 80 overall (even HOF players)
-    cap('overall', 80);
+    // Overall cap: Rookies capped at 80, veterans can reach 99
+    if (isRookie) {
+      cap('overall', 80);
+    } else {
+      cap('overall', 99);
+    }
   }
 
   /**
