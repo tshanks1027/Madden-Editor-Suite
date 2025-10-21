@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Madden Editor Suite - UI Mockups</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #0f0f10 50%, #1a1a1a 100%);
+            color: #e4e4e7;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #e98819 0%, #f4a742 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: 800;
+            color: white;
+            margin: 0 auto 20px;
+            box-shadow: 0 12px 40px rgba(233, 136, 25, 0.3);
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #ffffff 0%, #e4e4e7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 20px;
+            color: #a1a1aa;
+            margin-bottom: 12px;
+        }
+
+        .intro {
+            font-size: 16px;
+            color: #71717a;
+            max-width: 700px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+
+        .option-card {
+            background: rgba(24, 24, 27, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .option-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(233, 136, 25, 0.5);
+            box-shadow: 0 16px 48px rgba(233, 136, 25, 0.2);
+        }
+
+        .option-number {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, #e98819 0%, #f4a742 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .option-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #fafafa;
+        }
+
+        .option-description {
+            font-size: 15px;
+            color: #a1a1aa;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .option-features {
+            list-style: none;
+            margin-bottom: 24px;
+        }
+
+        .option-features li {
+            font-size: 14px;
+            color: #d4d4d8;
+            padding: 8px 0;
+            padding-left: 24px;
+            position: relative;
+        }
+
+        .option-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: #22c55e;
+            font-weight: 700;
+        }
+
+        .view-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #e98819 0%, #f4a742 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .view-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 24px rgba(233, 136, 25, 0.4);
+        }
+
+        .recommendation {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #22c55e;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .cta {
+            background: rgba(24, 24, 27, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: #fafafa;
+        }
+
+        .cta p {
+            font-size: 16px;
+            color: #a1a1aa;
+            margin-bottom: 24px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #71717a;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">M</div>
+            <h1>Madden Editor Suite</h1>
+            <p class="subtitle">UI Redesign Mockups</p>
+            <p class="intro">
+                Choose the UI style that best fits your vision for the Madden Editor Suite.
+                Each option below demonstrates a different design approach you can implement.
+                Click on any option to view the full interactive mockup.
+            </p>
+        </div>
+
+        <div class="options-grid">
+            <!-- Option 1 -->
+            <a href="option1-modern-icons.html" class="option-card">
+                <div class="option-number">1</div>
+                <h3 class="option-title">Modern Icons & Refined UI</h3>
+                <p class="option-description">
+                    Replace emojis with professional SVG icons and refine the overall design with better spacing, shadows, and modern UI patterns.
+                </p>
+                <ul class="option-features">
+                    <li>Professional SVG icon library</li>
+                    <li>Improved button and control styling</li>
+                    <li>Better visual hierarchy</li>
+                    <li>Smoother animations</li>
+                    <li>Enhanced accessibility</li>
+                </ul>
+                <div class="recommendation">⭐ Most Professional Look</div>
+                <button class="view-btn">View Mockup →</button>
+            </a>
+
+            <!-- Option 2 -->
+            <a href="option2-glassmorphism.html" class="option-card">
+                <div class="option-number">2</div>
+                <h3 class="option-title">Glassmorphism & Modern Cards</h3>
+                <p class="option-description">
+                    Embrace the latest design trend with frosted glass effects, vibrant gradients, and floating card-based layouts.
+                </p>
+                <ul class="option-features">
+                    <li>Frosted glass (glassmorphism) effects</li>
+                    <li>Gradient backgrounds and accents</li>
+                    <li>Elevated card-based UI</li>
+                    <li>Backdrop blur effects</li>
+                    <li>Premium, modern aesthetic</li>
+                </ul>
+                <div class="recommendation">✨ Most Eye-Catching</div>
+                <button class="view-btn">View Mockup →</button>
+            </a>
+
+            <!-- Option 3 -->
+            <a href="option3-enhanced-tables.html" class="option-card">
+                <div class="option-number">3</div>
+                <h3 class="option-title">Enhanced Data Tables</h3>
+                <p class="option-description">
+                    Focus on what matters most - the data. Enhanced table design with better readability, smart badges, and quick actions.
+                </p>
+                <ul class="option-features">
+                    <li>Color-coded rating badges</li>
+                    <li>Hover-based quick actions</li>
+                    <li>Smart column formatting</li>
+                    <li>Advanced search and filters</li>
+                    <li>Better data visualization</li>
+                </ul>
+                <div class="recommendation">📊 Best for Data-Heavy Workflows</div>
+                <button class="view-btn">View Mockup →</button>
+            </a>
+
+            <!-- Option 4 -->
+            <a href="option4-color-schemes.html" class="option-card">
+                <div class="option-number">4</div>
+                <h3 class="option-title">Color Scheme Options</h3>
+                <p class="option-description">
+                    Explore different color palettes to find the perfect mood for your editor. From NFL blue to cyberpunk purple.
+                </p>
+                <ul class="option-features">
+                    <li>6 unique color schemes</li>
+                    <li>NFL & Madden-inspired themes</li>
+                    <li>Modern color palettes</li>
+                    <li>Easy theme switching</li>
+                    <li>Customizable accents</li>
+                </ul>
+                <button class="view-btn">View All Schemes →</button>
+            </a>
+        </div>
+
+        <div class="cta">
+            <h2>Ready to Choose?</h2>
+            <p>
+                After reviewing the mockups, let me know which style you prefer, or if you'd like to combine elements from multiple options.
+                I can implement your chosen design and customize it further to match your exact vision.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>Madden Editor Suite UI Mockups • Created for your review</p>
+            <p style="margin-top: 8px; color: #52525b;">These are interactive HTML mockups. Click around and explore!</p>
+        </div>
+    </div>
+</body>
+</html>

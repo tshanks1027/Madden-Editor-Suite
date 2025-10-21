@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option 4: Color Scheme Options</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a1a;
+            color: #e4e4e7;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .mockup-label {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(233, 136, 25, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #e98819 0%, #f4a742 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #a1a1aa;
+            font-size: 16px;
+        }
+
+        .schemes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .scheme-card {
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .scheme-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .scheme-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .scheme-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .scheme-description {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        .scheme-preview {
+            padding: 20px;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .preview-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preview-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+        }
+
+        .preview-tab {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preview-content {
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 13px;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .color-swatch {
+            width: 50px;
+            height: 50px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        /* Scheme 1: Current (Orange & Dark) */
+        .scheme-current .scheme-header {
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            color: #ffffff;
+        }
+
+        .scheme-current .scheme-preview {
+            background: #1a1a1a;
+        }
+
+        .scheme-current .preview-btn {
+            background: linear-gradient(135deg, #e98819 0%, #f4a742 100%);
+            color: white;
+        }
+
+        .scheme-current .preview-tab {
+            background: #2a2a2a;
+            color: #999999;
+        }
+
+        .scheme-current .preview-tab.active {
+            background: #e98819;
+            color: white;
+        }
+
+        .scheme-current .preview-content {
+            background: #2a2a2a;
+            color: #cccccc;
+        }
+
+        /* Scheme 2: NFL Blue & Red */
+        .scheme-nfl .scheme-header {
+            background: linear-gradient(135deg, #013369 0%, #d50a0a 100%);
+            color: #ffffff;
+        }
+
+        .scheme-nfl .scheme-preview {
+            background: #0a1929;
+        }
+
+        .scheme-nfl .preview-btn {
+            background: linear-gradient(135deg, #013369 0%, #0059b3 100%);
+            color: white;
+        }
+
+        .scheme-nfl .preview-tab {
+            background: #1e3a5f;
+            color: #8ab4f8;
+        }
+
+        .scheme-nfl .preview-tab.active {
+            background: #d50a0a;
+            color: white;
+        }
+
+        .scheme-nfl .preview-content {
+            background: #1e3a5f;
+            color: #e3f2fd;
+        }
+
+        /* Scheme 3: Madden Green & Gold */
+        .scheme-madden .scheme-header {
+            background: linear-gradient(135deg, #1a4d2e 0%, #ffd700 100%);
+            color: #ffffff;
+        }
+
+        .scheme-madden .scheme-preview {
+            background: #0d1b0f;
+        }
+
+        .scheme-madden .preview-btn {
+            background: linear-gradient(135deg, #1a4d2e 0%, #2d8659 100%);
+            color: white;
+        }
+
+        .scheme-madden .preview-tab {
+            background: #1a4d2e;
+            color: #a8d5ba;
+        }
+
+        .scheme-madden .preview-tab.active {
+            background: #ffd700;
+            color: #1a4d2e;
+        }
+
+        .scheme-madden .preview-content {
+            background: #1a4d2e;
+            color: #e8f5e9;
+        }
+
+        /* Scheme 4: Cyberpunk Purple */
+        .scheme-cyber .scheme-header {
+            background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
+            color: #ffffff;
+        }
+
+        .scheme-cyber .scheme-preview {
+            background: #0f0a1a;
+        }
+
+        .scheme-cyber .preview-btn {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+            color: white;
+        }
+
+        .scheme-cyber .preview-tab {
+            background: #2d1b4e;
+            color: #d8b4fe;
+        }
+
+        .scheme-cyber .preview-tab.active {
+            background: #7c3aed;
+            color: white;
+        }
+
+        .scheme-cyber .preview-content {
+            background: #2d1b4e;
+            color: #f3e8ff;
+        }
+
+        /* Scheme 5: Sleek Silver */
+        .scheme-silver .scheme-header {
+            background: linear-gradient(135deg, #4a5568 0%, #cbd5e0 100%);
+            color: #1a202c;
+        }
+
+        .scheme-silver .scheme-preview {
+            background: #1a202c;
+        }
+
+        .scheme-silver .preview-btn {
+            background: linear-gradient(135deg, #718096 0%, #a0aec0 100%);
+            color: white;
+        }
+
+        .scheme-silver .preview-tab {
+            background: #2d3748;
+            color: #cbd5e0;
+        }
+
+        .scheme-silver .preview-tab.active {
+            background: #718096;
+            color: white;
+        }
+
+        .scheme-silver .preview-content {
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+
+        /* Scheme 6: Teal & Coral */
+        .scheme-teal .scheme-header {
+            background: linear-gradient(135deg, #0891b2 0%, #f43f5e 100%);
+            color: #ffffff;
+        }
+
+        .scheme-teal .scheme-preview {
+            background: #0a1e23;
+        }
+
+        .scheme-teal .preview-btn {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+            color: white;
+        }
+
+        .scheme-teal .preview-tab {
+            background: #164e63;
+            color: #99f6e4;
+        }
+
+        .scheme-teal .preview-tab.active {
+            background: #0891b2;
+            color: white;
+        }
+
+        .scheme-teal .preview-content {
+            background: #164e63;
+            color: #ccfbf1;
+        }
+
+        .recommendation {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #22c55e;
+        }
+    </style>
+</head>
+<body>
+    <div class="mockup-label">OPTION 4: Color Scheme Comparison</div>
+
+    <div class="header">
+        <h1>Choose Your Color Scheme</h1>
+        <p>Select a color palette that matches your style and enhances your editing experience</p>
+    </div>
+
+    <div class="schemes-grid">
+        <!-- Scheme 1: Current -->
+        <div class="scheme-card scheme-current">
+            <div class="scheme-header">
+                <h3 class="scheme-name">Current - Orange & Dark</h3>
+                <p class="scheme-description">Your existing MyFranchise-inspired theme</p>
+            </div>
+            <div class="scheme-preview">
+                <div class="preview-header">
+                    <span style="font-size: 13px; font-weight: 600; color: #cccccc;">Roster Editor</span>
+                    <button class="preview-btn">Open File</button>
+                </div>
+                <div class="preview-tabs">
+                    <button class="preview-tab active">Roster</button>
+                    <button class="preview-tab">Draft Class</button>
+                    <button class="preview-tab">Creator</button>
+                </div>
+                <div class="preview-content">
+                    Professional, warm, and familiar. Good contrast with the orange accent.
+                </div>
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #e98819;" title="Primary Orange"></div>
+                    <div class="color-swatch" style="background: #f4a742;" title="Orange Light"></div>
+                    <div class="color-swatch" style="background: #1a1a1a;" title="Dark Background"></div>
+                    <div class="color-swatch" style="background: #2a2a2a;" title="Medium Gray"></div>
+                    <div class="color-swatch" style="background: #cccccc;" title="Text Color"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scheme 2: NFL -->
+        <div class="scheme-card scheme-nfl">
+            <div class="scheme-header">
+                <h3 class="scheme-name">NFL Classic - Blue & Red</h3>
+                <p class="scheme-description">Inspired by official NFL branding</p>
+            </div>
+            <div class="scheme-preview">
+                <div class="preview-header">
+                    <span style="font-size: 13px; font-weight: 600; color: #e3f2fd;">Roster Editor</span>
+                    <button class="preview-btn">Open File</button>
+                </div>
+                <div class="preview-tabs">
+                    <button class="preview-tab active">Roster</button>
+                    <button class="preview-tab">Draft Class</button>
+                    <button class="preview-tab">Creator</button>
+                </div>
+                <div class="preview-content">
+                    Bold and authoritative. Perfect for those who want official NFL vibes.
+                </div>
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #013369;" title="NFL Blue"></div>
+                    <div class="color-swatch" style="background: #d50a0a;" title="NFL Red"></div>
+                    <div class="color-swatch" style="background: #0a1929;" title="Dark Blue BG"></div>
+                    <div class="color-swatch" style="background: #1e3a5f;" title="Medium Blue"></div>
+                    <div class="color-swatch" style="background: #e3f2fd;" title="Light Text"></div>
+                </div>
+                <div class="recommendation">✨ Great for authentic NFL feel</div>
+            </div>
+        </div>
+
+        <!-- Scheme 3: Madden -->
+        <div class="scheme-card scheme-madden">
+            <div class="scheme-header">
+                <h3 class="scheme-name">Madden Elite - Green & Gold</h3>
+                <p class="scheme-description">Inspired by Madden game branding</p>
+            </div>
+            <div class="scheme-preview">
+                <div class="preview-header">
+                    <span style="font-size: 13px; font-weight: 600; color: #e8f5e9;">Roster Editor</span>
+                    <button class="preview-btn">Open File</button>
+                </div>
+                <div class="preview-tabs">
+                    <button class="preview-tab active">Roster</button>
+                    <button class="preview-tab">Draft Class</button>
+                    <button class="preview-tab">Creator</button>
+                </div>
+                <div class="preview-content">
+                    Energetic and game-inspired. Matches the Madden game aesthetic.
+                </div>
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #1a4d2e;" title="Madden Green"></div>
+                    <div class="color-swatch" style="background: #ffd700;" title="Gold Accent"></div>
+                    <div class="color-swatch" style="background: #0d1b0f;" title="Dark Green BG"></div>
+                    <div class="color-swatch" style="background: #2d8659;" title="Light Green"></div>
+                    <div class="color-swatch" style="background: #e8f5e9;" title="Light Text"></div>
+                </div>
+                <div class="recommendation">✨ Perfect for Madden enthusiasts</div>
+            </div>
+        </div>
+
+        <!-- Scheme 4: Cyberpunk -->
+        <div class="scheme-card scheme-cyber">
+            <div class="scheme-header">
+                <h3 class="scheme-name">Cyberpunk - Purple & Pink</h3>
+                <p class="scheme-description">Modern, vibrant, and eye-catching</p>
+            </div>
+            <div class="scheme-preview">
+                <div class="preview-header">
+                    <span style="font-size: 13px; font-weight: 600; color: #f3e8ff;">Roster Editor</span>
+                    <button class="preview-btn">Open File</button>
+                </div>
+                <div class="preview-tabs">
+                    <button class="preview-tab active">Roster</button>
+                    <button class="preview-tab">Draft Class</button>
+                    <button class="preview-tab">Creator</button>
+                </div>
+                <div class="preview-content">
+                    Futuristic and bold. Stand out with vibrant purple gradients.
+                </div>
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #7c3aed;" title="Primary Purple"></div>
+                    <div class="color-swatch" style="background: #ec4899;" title="Pink Accent"></div>
+                    <div class="color-swatch" style="background: #0f0a1a;" title="Dark BG"></div>
+                    <div class="color-swatch" style="background: #2d1b4e;" title="Medium Purple"></div>
+                    <div class="color-swatch" style="background: #f3e8ff;" title="Light Text"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scheme 5: Silver -->
+        <div class="scheme-card scheme-silver">
+            <div class="scheme-header">
+                <h3 class="scheme-name">Sleek Silver - Professional Gray</h3>
+                <p class="scheme-description">Clean, minimal, and sophisticated</p>
+            </div>
+            <div class="scheme-preview">
+                <div class="preview-header">
+                    <span style="font-size: 13px; font-weight: 600; color: #e2e8f0;">Roster Editor</span>
+                    <button class="preview-btn">Open File</button>
+                </div>
+                <div class="preview-tabs">
+                    <button class="preview-tab active">Roster</button>
+                    <button class="preview-tab">Draft Class</button>
+                    <button class="preview-tab">Creator</button>
+                </div>
+                <div class="preview-content">
+                    Understated and professional. Perfect for minimalist preference.
+                </div>
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #718096;" title="Silver Gray"></div>
+                    <div class="color-swatch" style="background: #cbd5e0;" title="Light Silver"></div>
+                    <div class="color-swatch" style="background: #1a202c;" title="Dark BG"></div>
+                    <div class="color-swatch" style="background: #2d3748;" title="Medium Gray"></div>
+                    <div class="color-swatch" style="background: #e2e8f0;" title="Light Text"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scheme 6: Teal -->
+        <div class="scheme-card scheme-teal">
+            <div class="scheme-header">
+                <h3 class="scheme-name">Ocean Teal - Fresh & Modern</h3>
+                <p class="scheme-description">Refreshing teal with coral accents</p>
+            </div>
+            <div class="scheme-preview">
+                <div class="preview-header">
+                    <span style="font-size: 13px; font-weight: 600; color: #ccfbf1;">Roster Editor</span>
+                    <button class="preview-btn">Open File</button>
+                </div>
+                <div class="preview-tabs">
+                    <button class="preview-tab active">Roster</button>
+                    <button class="preview-tab">Draft Class</button>
+                    <button class="preview-tab">Creator</button>
+                </div>
+                <div class="preview-content">
+                    Cool and modern. Easy on the eyes with excellent readability.
+                </div>
+                <div class="color-palette">
+                    <div class="color-swatch" style="background: #0891b2;" title="Teal"></div>
+                    <div class="color-swatch" style="background: #f43f5e;" title="Coral Accent"></div>
+                    <div class="color-swatch" style="background: #0a1e23;" title="Dark Teal BG"></div>
+                    <div class="color-swatch" style="background: #164e63;" title="Medium Teal"></div>
+                    <div class="color-swatch" style="background: #ccfbf1;" title="Light Text"></div>
+                </div>
+                <div class="recommendation">✨ Easy on the eyes for long editing sessions</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

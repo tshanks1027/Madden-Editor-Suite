@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Option 3: Enhanced Data Tables</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0b;
+            color: #e4e4e7;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .mockup-label {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(233, 136, 25, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Compact Header */
+        .app-header {
+            background: #18181b;
+            border-bottom: 1px solid #27272a;
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .app-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fafafa;
+        }
+
+        /* Compact Tabs */
+        .tool-tabs {
+            display: flex;
+            gap: 2px;
+            background: #0a0a0b;
+            padding: 0 20px;
+        }
+
+        .tool-tab {
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #71717a;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tool-tab.active {
+            color: #f4a742;
+            border-bottom-color: #e98819;
+        }
+
+        /* Main Content - Focus on Table */
+        .app-main {
+            flex: 1;
+            padding: 16px 20px;
+            overflow-y: auto;
+            background: #0a0a0b;
+        }
+
+        /* Inline Compact Controls */
+        .tool-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .controls-left {
+            display: flex;
+            gap: 12px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-label {
+            font-size: 13px;
+            color: #71717a;
+        }
+
+        .control-select {
+            padding: 6px 10px;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            color: #e4e4e7;
+            font-size: 13px;
+            cursor: pointer;
+            min-width: 140px;
+        }
+
+        /* Enhanced Table Container */
+        .data-grid-container {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+
+        /* Modern Table Styles */
+        .modern-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+        }
+
+        .modern-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .modern-table th {
+            background: linear-gradient(180deg, #27272a 0%, #1f1f23 100%);
+            color: #d4d4d8;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid #3f3f46;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s ease;
+        }
+
+        .modern-table th:hover {
+            background: #3f3f46;
+        }
+
+        .modern-table th.sortable::after {
+            content: ' ↕';
+            opacity: 0.3;
+            font-size: 10px;
+        }
+
+        .modern-table th.sorted-asc::after {
+            content: ' ↑';
+            opacity: 1;
+            color: #e98819;
+        }
+
+        .modern-table th.sorted-desc::after {
+            content: ' ↓';
+            opacity: 1;
+            color: #e98819;
+        }
+
+        .modern-table tbody tr {
+            transition: all 0.2s ease;
+        }
+
+        .modern-table tbody tr:nth-child(even) {
+            background: #141416;
+        }
+
+        .modern-table tbody tr:hover {
+            background: #27272a;
+            transform: scale(1.002);
+            box-shadow: 0 2px 8px rgba(233, 136, 25, 0.1);
+        }
+
+        .modern-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #1f1f23;
+            color: #e4e4e7;
+        }
+
+        .modern-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Column Type Styling */
+        .col-name {
+            font-weight: 600;
+            color: #fafafa;
+        }
+
+        .col-rating {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .col-position {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #27272a;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #e98819;
+            border: 1px solid #3f3f46;
+        }
+
+        .col-team {
+            font-size: 12px;
+            color: #a1a1aa;
+        }
+
+        /* Rating Badge Colors */
+        .rating-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 13px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .rating-99 { background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%); color: white; }
+        .rating-90 { background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%); color: white; }
+        .rating-80 { background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; }
+        .rating-70 { background: linear-gradient(135deg, #e98819 0%, #f4a742 100%); color: white; }
+        .rating-60 { background: linear-gradient(135deg, #71717a 0%, #a1a1aa 100%); color: white; }
+
+        /* Dev Trait Badge */
+        .dev-trait {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 6px;
+        }
+
+        .dev-xfactor { background: #7c3aed; color: white; }
+        .dev-superstar { background: #0891b2; color: white; }
+        .dev-star { background: #059669; color: white; }
+        .dev-normal { background: #3f3f46; color: #a1a1aa; }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .modern-table tbody tr:hover .quick-actions {
+            opacity: 1;
+        }
+
+        .quick-btn {
+            padding: 4px 8px;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            border-radius: 4px;
+            color: #a1a1aa;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .quick-btn:hover {
+            background: #3f3f46;
+            color: #e4e4e7;
+            border-color: #52525b;
+        }
+
+        /* Search/Filter Bar */
+        .search-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #0a0a0b;
+            border-bottom: 1px solid #27272a;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 8px 12px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 6px;
+            color: #e4e4e7;
+            font-size: 13px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #e98819;
+            box-shadow: 0 0 0 3px rgba(233, 136, 25, 0.1);
+        }
+
+        .filter-badge {
+            padding: 6px 12px;
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            border-radius: 6px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Stats Row */
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: #0a0a0b;
+            border-top: 1px solid #27272a;
+            font-size: 12px;
+            color: #71717a;
+        }
+
+        .table-wrapper {
+            max-height: 550px;
+            overflow-y: auto;
+        }
+
+        /* Custom Scrollbar */
+        .table-wrapper::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-track {
+            background: #0a0a0b;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb {
+            background: #27272a;
+            border-radius: 5px;
+        }
+
+        .table-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #3f3f46;
+        }
+    </style>
+</head>
+<body>
+    <div class="mockup-label">OPTION 3: Enhanced Data Tables</div>
+
+    <div class="app-container">
+        <header class="app-header">
+            <div class="header-top">
+                <div class="header-left">
+                    <h1 class="app-title">Madden Editor Suite - Roster Editor</h1>
+                </div>
+            </div>
+
+            <nav class="tool-tabs">
+                <button class="tool-tab active">Roster Editor</button>
+                <button class="tool-tab">Draft Class</button>
+                <button class="tool-tab">Create Roster</button>
+                <button class="tool-tab">Create Draft Class</button>
+                <button class="tool-tab">M25→M26 Converter</button>
+            </nav>
+        </header>
+
+        <main class="app-main">
+            <div class="tool-controls">
+                <div class="controls-left">
+                    <div class="control-group">
+                        <label class="control-label">Team:</label>
+                        <select class="control-select">
+                            <option>Kansas City Chiefs</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label class="control-label">Position:</label>
+                        <select class="control-select">
+                            <option>All Positions</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="player-stats" style="display: flex; gap: 12px;">
+                    <span style="font-size: 13px; color: #71717a;">53 players</span>
+                </div>
+            </div>
+
+            <div class="data-grid-container">
+                <div class="search-bar">
+                    <input type="text" class="search-input" placeholder="Search players by name, position, or rating...">
+                    <div class="filter-badge">
+                        <span>QB</span>
+                        <span style="cursor: pointer;">×</span>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="modern-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable sorted-desc">Name</th>
+                                <th class="sortable">Pos</th>
+                                <th class="sortable">OVR</th>
+                                <th class="sortable">Age</th>
+                                <th class="sortable">Exp</th>
+                                <th class="sortable">Dev</th>
+                                <th>Team</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="col-name">Patrick Mahomes</td>
+                                <td><span class="col-position">QB</span></td>
+                                <td><span class="rating-badge rating-99">99</span></td>
+                                <td>28</td>
+                                <td>7</td>
+                                <td><span class="dev-trait dev-xfactor">X-Factor</span></td>
+                                <td class="col-team">Kansas City Chiefs</td>
+                                <td>
+                                    <div class="quick-actions">
+                                        <button class="quick-btn">Edit</button>
+                                        <button class="quick-btn">View</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="col-name">Travis Kelce</td>
+                                <td><span class="col-position">TE</span></td>
+                                <td><span class="rating-badge rating-90">96</span></td>
+                                <td>34</td>
+                                <td>11</td>
+                                <td><span class="dev-trait dev-superstar">Superstar</span></td>
+                                <td class="col-team">Kansas City Chiefs</td>
+                                <td>
+                                    <div class="quick-actions">
+                                        <button class="quick-btn">Edit</button>
+                                        <button class="quick-btn">View</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="col-name">Chris Jones</td>
+                                <td><span class="col-position">DT</span></td>
+                                <td><span class="rating-badge rating-90">95</span></td>
+                                <td>30</td>
+                                <td>8</td>
+                                <td><span class="dev-trait dev-superstar">Superstar</span></td>
+                                <td class="col-team">Kansas City Chiefs</td>
+                                <td>
+                                    <div class="quick-actions">
+                                        <button class="quick-btn">Edit</button>
+                                        <button class="quick-btn">View</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="col-name">Isiah Pacheco</td>
+                                <td><span class="col-position">HB</span></td>
+                                <td><span class="rating-badge rating-80">82</span></td>
+                                <td>25</td>
+                                <td>3</td>
+                                <td><span class="dev-trait dev-star">Star</span></td>
+                                <td class="col-team">Kansas City Chiefs</td>
+                                <td>
+                                    <div class="quick-actions">
+                                        <button class="quick-btn">Edit</button>
+                                        <button class="quick-btn">View</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="col-name">Trent McDuffie</td>
+                                <td><span class="col-position">CB</span></td>
+                                <td><span class="rating-badge rating-80">88</span></td>
+                                <td>24</td>
+                                <td>3</td>
+                                <td><span class="dev-trait dev-star">Star</span></td>
+                                <td class="col-team">Kansas City Chiefs</td>
+                                <td>
+                                    <div class="quick-actions">
+                                        <button class="quick-btn">Edit</button>
+                                        <button class="quick-btn">View</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="col-name">L'Jarius Sneed</td>
+                                <td><span class="col-position">CB</span></td>
+                                <td><span class="rating-badge rating-80">86</span></td>
+                                <td>27</td>
+                                <td>5</td>
+                                <td><span class="dev-trait dev-normal">Normal</span></td>
+                                <td class="col-team">Kansas City Chiefs</td>
+                                <td>
+                                    <div class="quick-actions">
+                                        <button class="quick-btn">Edit</button>
+                                        <button class="quick-btn">View</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="col-name">Creed Humphrey</td>
+                                <td><span class="col-position">C</span></td>
+                                <td><span class="rating-badge rating-90">93</span></td>
+                                <td>25</td>
+                                <td>4</td>
+                                <td><span class="dev-trait dev-superstar">Superstar</span></td>
+                                <td class="col-team">Kansas City Chiefs</td>
+                                <td>
+                                    <div class="quick-actions">
+                                        <button class="quick-btn">Edit</button>
+                                        <button class="quick-btn">View</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="stats-row">
+                    <span>Showing 7 of 53 players</span>
+                    <span>Average OVR: 91.3</span>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
