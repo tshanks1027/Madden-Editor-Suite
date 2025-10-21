@@ -1,0 +1,107 @@
+# Draft Prospect Scraper Configuration
+
+# Data Sources Priority (1 = highest priority)
+data_sources:
+  sports_reference:
+    enabled: true
+    priority: 1
+    base_url: "https://www.sports-reference.com/cfb/"
+
+  espn:
+    enabled: true
+    priority: 2
+    base_url: "https://www.espn.com/college-football/"
+
+  recruiting_247:
+    enabled: true
+    priority: 1
+    base_url: "https://247sports.com/"
+
+  rivals:
+    enabled: false
+    priority: 2
+    base_url: "https://www.rivals.com/"
+
+# Scraping Settings
+scraping:
+  rate_limit_seconds: 2.0
+  timeout_seconds: 30
+  max_retries: 3
+  user_agent_rotation: true
+  cache_enabled: true
+  cache_expiry_days: 7
+
+# Draft Prediction Weights
+prediction:
+  # Weights for different factors (must sum to 1.0)
+  recruiting_rank_weight: 0.35
+  college_stats_weight: 0.40
+  awards_weight: 0.15
+  mock_drafts_weight: 0.10
+
+  # Recruiting rank to draft round mapping
+  recruiting_to_round:
+    5_star: [1, 1]      # min, max round
+    4_star: [1, 3]
+    3_star: [3, 7]
+    2_star: [5, 7]
+    unranked: [6, 7]
+
+# Position Mappings (source -> Madden position)
+position_mapping:
+  QB: "QB"
+  RB: "RB"
+  FB: "FB"
+  WR: "WR"
+  TE: "TE"
+  OT: "LT"  # Will need specific left/right designation
+  OG: "LG"
+  C: "C"
+  DE: "DE"
+  DT: "DT"
+  LB: "MLB"
+  ILB: "MLB"
+  OLB: "ROLB"
+  CB: "CB"
+  S: "SS"
+  FS: "FS"
+  SS: "SS"
+  K: "K"
+  P: "P"
+
+# Output Settings
+output:
+  format: "csv"
+  directory: "output"
+  filename_pattern: "draft_class_{year}.csv"
+  include_headers: true
+
+# Fields to scrape (maps to your schema)
+fields:
+  required:
+    - last_name
+    - first_name
+    - college
+    - draft_class
+    - position
+
+  optional:
+    - round
+    - pick
+    - height
+    - weight
+    - photo_id
+    - wiki_image_url
+    - pfr_image_url
+    - home_state
+    - race
+
+  calculated:
+    - predicted_round
+    - predicted_pick
+    - confidence_score
+
+# Draft Classes to Scrape
+draft_classes:
+  current_college_range: [2026, 2030]  # Players currently in college
+  recruiting_range: [2031, 2035]       # High school recruits
