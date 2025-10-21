@@ -43,12 +43,8 @@ ipcMain.handle('lookup:get-numeric-id', async (event, fileName: string, displayN
 ipcMain.handle('lookup:get-dropdown-options', async (event, fileName: string) => {
   try {
     let options;
-    if (fileName === 'PID_lookup.csv') {
-      options = lookupService.getPIDOptions();
-      // Transform {id, name} to {value, label} for renderer
-      return options.map(opt => ({ value: opt.id, label: opt.name }));
-    } else if (fileName === 'FullData_Lookup.csv') {
-      // For FullData_Lookup, getDropdownOptions returns full entries with PLPO
+    // ALLDATA_Lookup.csv is the ONE source for all player data (20,634 players with ALL data)
+    if (fileName === 'ALLDATA_Lookup.csv') {
       options = lookupService.getDropdownOptions(fileName);
       // Transform to include all fields (id -> value, name -> label, plpo -> plpo)
       return options.map(opt => ({
@@ -57,6 +53,7 @@ ipcMain.handle('lookup:get-dropdown-options', async (event, fileName: string) =>
         plpo: opt.plpo || ''
       }));
     } else {
+      // All other lookups (position, team, college, state) remain the same
       options = lookupService.getDropdownOptions(fileName);
       // Transform {id, name} to {value, label} for renderer
       return options.map(opt => ({ value: opt.id, label: opt.name }));

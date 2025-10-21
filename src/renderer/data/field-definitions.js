@@ -200,7 +200,7 @@ function capitalizeName(name) {
 export async function loadLookupData() {
     try {
         // Load PID data (embedded sample data - working demonstration)
-        // PID data will be loaded via IPC from PID_lookup.csv (see below)
+        // PID data will be loaded via IPC from ALLDATA_Lookup.csv (see below)
 
         // For now, use static data since file loading might have path issues
         // Complete college data from college_lookup.csv (493 colleges)
@@ -347,11 +347,11 @@ export async function loadLookupData() {
             }
         });
 
-        // Load PID data from PID_lookup.csv using IPC lookup handler
+        // Load PID data from ALLDATA_Lookup.csv using IPC lookup handler
         console.log('Loading PID lookup data via IPC...');
 
         try {
-            const pidOptions = await window.electronAPI.lookup.getDropdownOptions('PID_lookup.csv');
+            const pidOptions = await window.electronAPI.lookup.getDropdownOptions('ALLDATA_Lookup.csv');
 
             console.log(`Loaded ${pidOptions.length} PID lookups from lookup service`);
 
@@ -370,13 +370,13 @@ export async function loadLookupData() {
             console.error('Failed to load PID lookup:', error);
         }
 
-        // Load PLPO data from FullData_Lookup.csv for portrait mapping
+        // Load PLPO data from ALLDATA_Lookup.csv for portrait mapping
         console.log('Loading PLPO lookup data via IPC...');
 
         try {
-            const plpoOptions = await window.electronAPI.lookup.getDropdownOptions('FullData_Lookup.csv');
+            const plpoOptions = await window.electronAPI.lookup.getDropdownOptions('ALLDATA_Lookup.csv');
 
-            console.log(`Loaded ${plpoOptions.length} PLPO entries from FullData lookup`);
+            console.log(`Loaded ${plpoOptions.length} PLPO entries from ALLDATA lookup`);
 
             // Populate plpos map (PID -> PLPO key)
             plpoOptions.forEach(option => {

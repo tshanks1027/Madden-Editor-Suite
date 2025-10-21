@@ -7,6 +7,31 @@ export interface LookupEntry {
   name: string;
 }
 
+export interface FullDataEntry {
+  pid: number;           // PhotoID
+  lastName: string;
+  firstName: string;
+  college: string;
+  round: string;
+  pick: string;
+  draftClass: string;
+  position: string;
+  pam: string;           // Player Assets ID
+  commID: string;
+  presID: string;
+  plpo: string;          // PLPO portrait key
+}
+
+export interface PAMEntry {
+  pam: string;
+  pid: number;
+  type: 'generic' | 'player' | 'legend';
+  ethnicity?: string;
+  generation?: number;
+  faceShape?: string;
+  description?: string;
+}
+
 export interface LookupCache {
   [fileName: string]: Map<number, string>;
 }
@@ -14,6 +39,9 @@ export interface LookupCache {
 export class LookupService {
   private cache: LookupCache = {};
   private reverseCache: { [fileName: string]: Map<string, number> } = {};
+  private pamCache: Map<string, PAMEntry> = new Map(); // PAM name → PAMEntry
+  private pamByPIDCache: Map<number, PAMEntry[]> = new Map(); // PID → PAMEntry[]
+  private fullDataCache: Map<number, FullDataEntry> = new Map(); // PID → FullDataEntry
 
   constructor() {
     this.initializeLookups();
@@ -31,12 +59,13 @@ export class LookupService {
 
   private async initializeLookups(): Promise<void> {
     try {
+      // ONLY load Madden code lookups + ALLDATA_Lookup for ALL player data
       const lookupFiles = [
-        'position_lookup.csv',
-        'team_lookup.csv',
-        'college_lookup.csv',
-        'state_lookup.csv',
-        'PID_lookup.csv'
+        'position_lookup.csv',        // Madden position codes
+        'team_lookup.csv',            // Madden team codes
+        'college_lookup.csv',         // Madden college codes
+        'state_lookup.csv',           // Madden state codes
+        'ALLDATA_Lookup.csv'          // ALL PLAYER DATA - 20,634 players with EVERYTHING
       ];
 
       for (const fileName of lookupFiles) {
@@ -51,6 +80,18 @@ export class LookupService {
 
   private async loadLookupFile(fileName: string): Promise<void> {
     try {
+      // Special handling for PAM_lookup.csv
+      if (fileName === 'PAM_lookup.csv') {
+        await this.loadPAMLookupFile(fileName);
+        return;
+      }
+
+      // Special handling for ALLDATA_Lookup.csv (the ONE source for all player data)
+      if (fileName === 'ALLDATA_Lookup.csv') {
+        await this.loadFullDataLookupFile(fileName);
+        return;
+      }
+
       const filePath = this.resolveDataPath(fileName);
 
       if (!fs.existsSync(filePath)) {
@@ -99,6 +140,118 @@ export class LookupService {
     }
   }
 
+  private async loadPAMLookupFile(fileName: string): Promise<void> {
+    try {
+      const filePath = this.resolveDataPath(fileName);
+
+      if (!fs.existsSync(filePath)) {
+        console.warn(`PAM lookup file not found: ${filePath}`);
+        return;
+      }
+
+      const csvContent = fs.readFileSync(filePath, 'utf-8');
+      const lines = csvContent.trim().split('\n');
+
+      if (lines.length < 2) {
+        console.warn(`Invalid PAM lookup file format: ${fileName}`);
+        return;
+      }
+
+      // Clear existing PAM caches
+      this.pamCache.clear();
+      this.pamByPIDCache.clear();
+
+      // Parse PAM data (skip header)
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Format: PAM,PID,Type,Ethnicity,Generation,FaceShape,Description
+        const parts = line.split(',');
+        if (parts.length < 3) continue;
+
+        const pamEntry: PAMEntry = {
+          pam: parts[0].trim(),
+          pid: parseInt(parts[1].trim()),
+          type: parts[2].trim() as 'generic' | 'player' | 'legend',
+          ethnicity: parts[3]?.trim(),
+          generation: parts[4] ? parseInt(parts[4].trim()) : undefined,
+          faceShape: parts[5]?.trim(),
+          description: parts[6]?.trim()
+        };
+
+        // Store in PAM cache (by PAM name)
+        this.pamCache.set(pamEntry.pam, pamEntry);
+
+        // Store in PID cache (for reverse lookup)
+        if (!this.pamByPIDCache.has(pamEntry.pid)) {
+          this.pamByPIDCache.set(pamEntry.pid, []);
+        }
+        this.pamByPIDCache.get(pamEntry.pid)!.push(pamEntry);
+      }
+
+      console.log(`Loaded ${this.pamCache.size} PAM entries from ${fileName}`);
+    } catch (error) {
+      console.error(`Error loading PAM lookup file ${fileName}:`, error);
+    }
+  }
+
+  private async loadFullDataLookupFile(fileName: string): Promise<void> {
+    try {
+      const filePath = this.resolveDataPath(fileName);
+
+      if (!fs.existsSync(filePath)) {
+        console.warn(`FullData lookup file not found: ${filePath}`);
+        return;
+      }
+
+      const csvContent = fs.readFileSync(filePath, 'utf-8');
+      const lines = csvContent.trim().split('\n');
+
+      if (lines.length < 2) {
+        console.warn(`Invalid FullData lookup file format: ${fileName}`);
+        return;
+      }
+
+      // Clear existing cache
+      this.fullDataCache.clear();
+
+      // Parse FullData entries (skip header)
+      // Format: Last Name,First Name,College/Univ,Round,Pick,Draft Class,Position,PhotoID,Player Assets ID,CommID,PresID,PLPO
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',');
+        if (parts.length < 12) continue; // Need at least 12 columns including PLPO
+
+        const entry: FullDataEntry = {
+          lastName: parts[0].trim(),
+          firstName: parts[1].trim(),
+          college: parts[2].trim(),
+          round: parts[3].trim(),
+          pick: parts[4].trim(),
+          draftClass: parts[5].trim(),
+          position: parts[6].trim(),
+          pid: parseInt(parts[7].trim()),
+          pam: parts[8].trim(),
+          commID: parts[9].trim(),
+          presID: parts[10].trim(),
+          plpo: parts[11].trim()
+        };
+
+        // Store by PID
+        if (!isNaN(entry.pid)) {
+          this.fullDataCache.set(entry.pid, entry);
+        }
+      }
+
+      console.log(`Loaded ${this.fullDataCache.size} FullData entries from ${fileName}`);
+    } catch (error) {
+      console.error(`Error loading FullData lookup file ${fileName}:`, error);
+    }
+  }
+
   // Convert numeric ID to display name
   public getDisplayName(fileName: string, id: number): string {
     const lookup = this.cache[fileName];
@@ -122,7 +275,12 @@ export class LookupService {
   }
 
   // Get all options for a dropdown
-  public getDropdownOptions(fileName: string): LookupEntry[] {
+  public getDropdownOptions(fileName: string): any[] {
+    // Special handling for ALLDATA_Lookup.csv - return full entries with PLPO
+    if (fileName === 'ALLDATA_Lookup.csv') {
+      return this.getFullDataOptions();
+    }
+
     const lookup = this.cache[fileName];
     if (!lookup) {
       return [];
@@ -137,17 +295,30 @@ export class LookupService {
     return options.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  // Special handling for PID lookup which has player names
-  public getPIDOptions(): LookupEntry[] {
-    const lookup = this.cache['PID_lookup.csv'];
-    if (!lookup) {
-      return [];
-    }
+  // Get ALLDATA_Lookup.csv options with all fields including PLPO
+  public getFullDataOptions(): Array<{id: number, name: string, plpo: string, entry: FullDataEntry}> {
+    const options: Array<{id: number, name: string, plpo: string, entry: FullDataEntry}> = [];
 
+    this.fullDataCache.forEach((entry, pid) => {
+      const displayName = `${entry.firstName} ${entry.lastName}`;
+      options.push({
+        id: pid,
+        name: displayName,
+        plpo: entry.plpo,
+        entry: entry
+      });
+    });
+
+    return options.sort((a, b) => a.id - b.id);
+  }
+
+  // Get PID options from ALLDATA_Lookup.csv (no longer separate PID_lookup.csv)
+  public getPIDOptions(): LookupEntry[] {
     const options: LookupEntry[] = [];
-    lookup.forEach((playerName, portraitId) => {
-      // Just show the player name
-      options.push({ id: portraitId, name: playerName });
+
+    this.fullDataCache.forEach((entry, pid) => {
+      const displayName = `${entry.firstName} ${entry.lastName}`;
+      options.push({ id: pid, name: displayName });
     });
 
     return options.sort((a, b) => a.id - b.id);
@@ -176,6 +347,43 @@ export class LookupService {
       stats[fileName] = this.cache[fileName].size;
     });
     return stats;
+  }
+
+  // PAM-specific lookup methods
+  public getPAMEntry(pamName: string): PAMEntry | undefined {
+    return this.pamCache.get(pamName);
+  }
+
+  public getPAMsByPID(pid: number): PAMEntry[] {
+    return this.pamByPIDCache.get(pid) || [];
+  }
+
+  public getAllPAMs(): PAMEntry[] {
+    return Array.from(this.pamCache.values());
+  }
+
+  public getPAMsByEthnicity(ethnicity: string): PAMEntry[] {
+    return Array.from(this.pamCache.values()).filter(pam => pam.ethnicity === ethnicity);
+  }
+
+  public getPAMsByGeneration(generation: number): PAMEntry[] {
+    return Array.from(this.pamCache.values()).filter(pam => pam.generation === generation);
+  }
+
+  public searchPAMs(query: string): PAMEntry[] {
+    const lowerQuery = query.toLowerCase();
+    return Array.from(this.pamCache.values()).filter(pam =>
+      pam.pam.toLowerCase().includes(lowerQuery) ||
+      pam.description?.toLowerCase().includes(lowerQuery)
+    );
+  }
+
+  public getPAMOptions(): Array<{name: string, value: string, metadata: PAMEntry}> {
+    return Array.from(this.pamCache.values()).map(pam => ({
+      name: pam.description || pam.pam,
+      value: pam.pam,
+      metadata: pam
+    }));
   }
 }
 

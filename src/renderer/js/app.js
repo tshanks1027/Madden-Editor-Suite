@@ -1775,14 +1775,14 @@ class MaddenEditorApp {
 
     /**
      * Get PLPO key from PID number
-     * Uses the PID_lookup.csv to find first name and last name, then creates PLPO key
+     * Uses ALLDATA_Lookup.csv to find first name and last name, then creates PLPO key
      */
     getPlpoFromPID(pid) {
         if (!pid || !window.lookupData || !window.lookupData.plpos) {
             return null;
         }
 
-        // Direct PID -> PLPO lookup from FullData_Lookup.csv
+        // Direct PID -> PLPO lookup from ALLDATA_Lookup.csv
         const plpoKey = window.lookupData.plpos.get(pid);
         return plpoKey || null;
     }

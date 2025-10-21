@@ -60,55 +60,16 @@ export interface GeneratedPlayer {
  * Creator Service Class
  */
 export class CreatorService {
-  // PID lookup cache: player name -> PID
-  private pidLookupCache: Map<string, number> | null = null;
   // College lookup cache: college name -> college ID
   private collegeLookupCache: Map<string, number> | null = null;
   // State lookup cache: state abbreviation -> state ID
   private stateLookupCache: Map<string, number> | null = null;
 
-  /**
-   * Load PID lookup CSV into memory
-   * Format: PID,Player Name
-   */
-  private loadPIDLookup(): Map<string, number> {
-    if (this.pidLookupCache) {
-      return this.pidLookupCache;
-    }
-
-    this.pidLookupCache = new Map<string, number>();
-
-    try {
-      const pidLookupPath = path.join(__dirname, '../../data/lookups/PID_lookup.csv');
-      const csvContent = fs.readFileSync(pidLookupPath, 'utf-8');
-      const lines = csvContent.split('\n');
-
-      // Skip header row
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const [pidStr, playerName] = line.split(',');
-        const pid = parseInt(pidStr);
-
-        if (!isNaN(pid) && playerName) {
-          // Normalize player name: lowercase, remove special chars
-          const normalizedName = playerName.trim().toLowerCase().replace(/[^a-z\s]/g, '');
-          this.pidLookupCache.set(normalizedName, pid);
-        }
-      }
-
-      console.log(`[CreatorService] Loaded ${this.pidLookupCache.size} PIDs from PID_lookup.csv`);
-    } catch (error) {
-      console.warn('[CreatorService] Failed to load PID_lookup.csv:', error);
-    }
-
-    return this.pidLookupCache;
-  }
+  // DELETED: loadPIDLookup() - no longer needed, all PID data comes from ALLDATA_Lookup.csv
 
   /**
    * Match player name to PID from lookup table with disambiguation
-   * Uses MASTER_LOOKUP_FINAL.csv with multiple fields to handle duplicate names
+   * Uses ALLDATA_Lookup.csv with multiple fields to handle duplicate names
    * NOW WITH: 26,034 players (76% more than old FullData_Lookup!)
    * @param firstName Player first name
    * @param lastName Player last name
@@ -210,6 +171,19 @@ export class CreatorService {
     console.warn(`[CreatorService] ⚠️ Ambiguous match for "${firstName} ${lastName}", using first candidate PID ${candidates[0].pid}`);
     console.warn(`[CreatorService]    Available: ${candidates.map(c => `${c.entry['Draft Class']} ${c.entry['Position']} ${c.entry['League'] || 'NFL'} (PID ${c.pid})`).join(', ')}`);
     return candidates[0].pid;
+  }
+
+  /**
+   * NO LONGER NEEDED - ALLDATA_Lookup.csv already has preferred PIDs (no (R) tags)
+   * Kept as no-op for backward compatibility
+   * @param pid Portrait ID
+   * @param playerName Player name (unused)
+   * @returns Original PID unchanged
+   */
+  private getPreferredPID(pid: number, playerName: string): number {
+    // ALLDATA_Lookup.csv already contains the preferred PIDs (non-(R) versions)
+    // No need to check PID_lookup.csv anymore
+    return pid;
   }
 
   /**
@@ -329,6 +303,62 @@ export class CreatorService {
   }
 
   /**
+   * Assign generic asset (PAM/PEPS) based on player's PID
+   * Maps PID to corresponding generic asset name for in-game body models
+   *
+   * CRITICAL: Must match the EXACT format the PID's portrait uses!
+   * Returns NULL for players with generic faces - let game handle with PID only
+   *
+   * @param pid Player Portrait ID
+   * @param raceData Race string from MASTER_LOOKUP (if available)
+   * @returns NULL (game uses PID for generic assets)
+   */
+  private assignGenericAsset(pid: number, raceData?: string): string | null {
+    // Look up the PID in PID_Portrait_Mapping.csv to get the portrait name
+    // Then convert the portrait name to PEPS format (GEN_X_Y_Z_NNN)
+
+    try {
+      const pidPortraitPath = path.join(__dirname, '../../data/lookups/PID_Portrait_Mapping.csv');
+      const csvContent = fs.readFileSync(pidPortraitPath, 'utf-8');
+      const lines = csvContent.split('\n');
+
+      // Find the portrait for this PID
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const [pidStr, type, portrait] = line.split(',');
+        const linePID = parseInt(pidStr);
+
+        if (linePID === pid && portrait) {
+          const portraitName = portrait.trim();
+
+          // Convert portrait name to PEPS format
+          // Example: plpo_generic_2_B_S_001 -> GEN_2_B_S_001
+          // Example: plpo_generic_1_001_morphed -> GEN_1_001
+
+          let pepsName = portraitName
+            .replace('plpo_', '')           // Remove plpo_ prefix
+            .replace('generic_', 'GEN_')    // Replace generic_ with GEN_
+            .replace('_morphed', '')        // Remove _morphed suffix
+            .toUpperCase();                 // Convert to uppercase
+
+          console.log(`[CreatorService] ✓ Converted PID ${pid} portrait "${portraitName}" -> PEPS "${pepsName}"`);
+          return pepsName;
+        }
+      }
+
+      // If no portrait found for this PID, return null
+      console.log(`[CreatorService] No portrait mapping found for PID ${pid} - returning NULL`);
+      return null;
+
+    } catch (error) {
+      console.error('[CreatorService] Error looking up PID portrait mapping:', error);
+      return null;
+    }
+  }
+
+  /**
    * Map race string from MASTER_LOOKUP to generic face category
    * Returns category number (1-7) or 0 if unknown
    */
@@ -370,7 +400,7 @@ export class CreatorService {
   }
 
   /**
-   * Load MASTER_LOOKUP_FINAL.csv into memory (REPLACES FullData_Lookup.csv)
+   * Load ALLDATA_Lookup.csv into memory (REPLACES ALL other lookups)
    * Format: Last Name,First Name,College/Univ,Round,Pick,Draft Class,Position,PhotoID,Player Assets ID,CommID,PLPO,Height,Weight,From,To,AP1,PB,St,wAV,League,Race,Home State,Wiki_Image_URL,PFR_Image_URL
    * 26,034 players vs 14,879 in FullData_Lookup (76% more!)
    */
@@ -384,7 +414,7 @@ export class CreatorService {
     this.masterLookupCache = new Map<string, any>();
 
     try {
-      const masterLookupPath = path.join(__dirname, '../../data/lookups/MASTER_LOOKUP_FINAL.csv');
+      const masterLookupPath = path.join(__dirname, '../../data/lookups/ALLDATA_Lookup.csv');
       const csvContent = fs.readFileSync(masterLookupPath, 'utf-8');
       const lines = csvContent.split('\n');
 
@@ -416,9 +446,9 @@ export class CreatorService {
         }
       }
 
-      console.log(`[CreatorService] Loaded ${this.masterLookupCache.size} players from MASTER_LOOKUP_FINAL.csv`);
+      console.log(`[CreatorService] Loaded ${this.masterLookupCache.size} players from ALLDATA_Lookup.csv`);
     } catch (error) {
-      console.error('[CreatorService] Failed to load MASTER_LOOKUP_FINAL.csv:', error);
+      console.error('[CreatorService] Failed to load ALLDATA_Lookup.csv:', error);
     }
 
     return this.masterLookupCache;
@@ -601,7 +631,7 @@ export class CreatorService {
     }
 
     // Forward to MASTER_LOOKUP and convert to old format
-    console.warn('[CreatorService] FullData_Lookup is deprecated, using MASTER_LOOKUP_FINAL instead');
+    console.warn('[CreatorService] FullData_Lookup is deprecated, using ALLDATA_Lookup instead');
     this.fullDataLookupCache = new Map<number, any>();
 
     const masterLookup = this.loadMasterLookup();
@@ -724,6 +754,22 @@ export class CreatorService {
   private expandCollegeAbbreviations(collegeName: string): string {
     // Common abbreviation mappings
     const abbreviations: { [key: string]: string } = {
+      // Common school abbreviations
+      '^fsu$': 'florida state',
+      '^osu$': 'ohio state',
+      '^bucks$': 'ohio state',
+      '^usc$': 'southern california',
+      '^lsu$': 'louisiana state',
+      '^tcu$': 'texas christian',
+      '^smu$': 'southern methodist',
+      '^byu$': 'brigham young',
+      '^ucf$': 'central florida',
+      '^usc$': 'south carolina',
+      // State typo fixes
+      'virgina': 'virginia',
+      'pensylvania': 'pennsylvania',
+      'missippi': 'mississippi',
+      // General abbreviations
       'st\\.': 'state',
       'st ': 'state ',
       'univ\\.': 'university',
@@ -1339,15 +1385,28 @@ export class CreatorService {
         // Match PID from lookup table with disambiguation
         let matchedPID = this.matchPID(firstName, lastName, year, mappedPosition.name, prospect.college);
 
+        // Check for (R) tag and replace with preferred non-(R) version if available
+        if (matchedPID > 0) {
+          matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
+        }
+
         // Get race data from MASTER_LOOKUP for generic face assignment
         const raceData = lookupEntry ? lookupEntry['Race'] : undefined;
 
         // Get PAM (Player Assets ID) from MASTER_LOOKUP
-        const playerAssetId = lookupEntry ? lookupEntry['Player Assets ID'] : undefined;
+        let playerAssetId = lookupEntry ? lookupEntry['Player Assets ID'] : undefined;
 
         // If no real portrait found, assign appropriate generic face WITH race data
         if (matchedPID === 0) {
           matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
+        }
+
+        // Auto-populate asset ID if missing:
+        // 1. Use real asset from MASTER_LOOKUP if available
+        // 2. If no asset but has PID, assign generic asset matching their portrait
+        // 3. If neither, assign generic asset based on race
+        if (!playerAssetId || playerAssetId.trim() === '') {
+          playerAssetId = this.assignGenericAsset(matchedPID, raceData);
         }
 
         // Match college to valid college in lookup (fuzzy matching)
@@ -1398,6 +1457,7 @@ export class CreatorService {
         console.log(`[CreatorService] Name: ${firstPlayer.firstName} ${firstPlayer.lastName}`);
         console.log(`[CreatorService] Position: ${firstPlayer.position} (code ${firstPlayer.positionCode})`);
         console.log(`[CreatorService] College ID: ${firstPlayer.college}, HomeState ID: ${firstPlayer.homeState}, Body Type: ${firstPlayer.bodyType}`);
+        console.log(`[CreatorService] PID: ${firstPlayer.PID}, PEPS: ${firstPlayer.PEPS || 'NULL'}`);
         console.log(`[CreatorService] Ratings:`, JSON.stringify(firstPlayer.ratings, null, 2));
         console.log(`[CreatorService] ================================================`);
       }
@@ -1416,7 +1476,7 @@ export class CreatorService {
 
   /**
    * Generate draft class from MASTER_LOOKUP (OPTIMIZED - 95%+ faster!)
-   * Loads players directly from MASTER_LOOKUP_FINAL.csv instead of web scraping
+   * Loads players directly from ALLDATA_Lookup.csv instead of web scraping
    * Falls back to scraping ONLY for missing height/weight data
    *
    * @param year - Draft year
@@ -1617,15 +1677,28 @@ export class CreatorService {
         // Match PID from lookup table with disambiguation
         let matchedPID = this.matchPID(firstName, lastName, year, mappedPosition.name, prospect.college);
 
+        // Check for (R) tag and replace with preferred non-(R) version if available
+        if (matchedPID > 0) {
+          matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
+        }
+
         // Get race data from MASTER_LOOKUP for generic face assignment
         const raceData = lookupEntry ? lookupEntry['Race'] : undefined;
 
         // Get PAM (Player Assets ID) from MASTER_LOOKUP
-        const playerAssetId = lookupEntry ? lookupEntry['Player Assets ID'] : undefined;
+        let playerAssetId = lookupEntry ? lookupEntry['Player Assets ID'] : undefined;
 
         // If no real portrait found, assign appropriate generic face WITH race data
         if (matchedPID === 0) {
           matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
+        }
+
+        // Auto-populate asset ID if missing:
+        // 1. Use real asset from MASTER_LOOKUP if available
+        // 2. If no asset but has PID, assign generic asset matching their portrait
+        // 3. If neither, assign generic asset based on race
+        if (!playerAssetId || playerAssetId.trim() === '') {
+          playerAssetId = this.assignGenericAsset(matchedPID, raceData);
         }
 
         // Match college to valid college in lookup (fuzzy matching)
@@ -1663,7 +1736,91 @@ export class CreatorService {
       }
 
       const totalTime = Date.now() - startTime;
-      console.log(`[CreatorService] ⚡ Generated ${generatedPlayers.length} players in ${totalTime}ms (${(totalTime / 1000).toFixed(2)}s)`);
+      console.log(`[CreatorService] ⚡ Generated ${generatedPlayers.length} drafted players in ${totalTime}ms (${(totalTime / 1000).toFixed(2)}s)`);
+
+      // FILL TO 402 SLOTS: Add UFAs if we have fewer than 402 prospects
+      const DRAFT_CLASS_SIZE = 402;
+      if (generatedPlayers.length < DRAFT_CLASS_SIZE) {
+        const ufasNeeded = DRAFT_CLASS_SIZE - generatedPlayers.length;
+        console.log(`[CreatorService] Filling remaining ${ufasNeeded} slots with UFAs (target: ${DRAFT_CLASS_SIZE} total)`);
+
+        // Get existing player names to avoid duplicates
+        const existingNames = new Set(generatedPlayers.map(p => `${p.firstName.toLowerCase()} ${p.lastName.toLowerCase()}`));
+
+        // Generate UFAs from MASTER_LOOKUP
+        const ufaEntries = this.generateUFAsFromLookup(year, existingNames, ufasNeeded);
+        console.log(`[CreatorService] Found ${ufaEntries.length} UFA candidates`);
+
+        // Convert UFA entries to GeneratedPlayer format (treating them as late-round prospects)
+        for (const ufaEntry of ufaEntries) {
+          const firstName = ufaEntry['First Name'] || 'John';
+          const lastName = ufaEntry['Last Name'] || 'Doe';
+          const draftYear = parseInt(ufaEntry['Draft Class']) || year - 1;
+          const position = ufaEntry['Position'] || 'WR';
+          const heightInches = parseInt(ufaEntry['Height']) || 0;
+          const weight = parseInt(ufaEntry['Weight']) || 0;
+          const college = ufaEntry['College/Univ'] || 'Unknown';
+          const raceData = ufaEntry['Race'] || undefined;
+
+          // Map position using mapPosition helper
+          const mappedPosition = this.mapPosition(position);
+
+          // Generate ratings as weak prospects (UDFAs)
+          const ratings = this.generateDefaultRatings({
+            name: `${firstName} ${lastName}`,
+            round: 8, // Treat as 8th round (weak prospects)
+            pick: 250,
+            team: 'UFA',
+            position,
+            college,
+            careerAV: 0
+          });
+
+          this.fillMissingRatings(ratings, mappedPosition.name);
+          this.capRatingsByPosition(ratings, mappedPosition.name); // Apply rookie caps
+
+          // Match PID and asset
+          let matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, college);
+          if (matchedPID > 0) {
+            matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
+          }
+          if (matchedPID === 0) {
+            matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
+          }
+
+          const playerAssetId = ufaEntry['Player Assets ID'] || this.assignGenericAsset(matchedPID, raceData);
+          const matchedCollege = this.matchCollege(college);
+          const homeState = this.generateHomeState();
+          const homeStateId = this.matchHomeState(homeState);
+          const jerseyNum = this.generateJerseyNumber(mappedPosition.name);
+          const age = 22; // UFAs are typically 22-23
+          const finalHeight = heightInches || this.generateHeight(mappedPosition.name);
+          const finalWeight = weight || this.getDefaultWeight(mappedPosition.name);
+          const bodyType = this.determineBodyType(mappedPosition.name, finalWeight, finalHeight);
+
+          const ufaPlayer: GeneratedPlayer = {
+            firstName,
+            lastName,
+            position: mappedPosition.name,
+            positionCode: mappedPosition.code,
+            college: matchedCollege,
+            jerseyNum,
+            age,
+            heightInches: finalHeight,
+            weight: finalWeight,
+            homeState: homeStateId,
+            bodyType,
+            devTrait: 0, // Normal dev trait for UFAs
+            PID: matchedPID,
+            PEPS: playerAssetId,
+            ratings
+          };
+
+          generatedPlayers.push(ufaPlayer);
+        }
+
+        console.log(`[CreatorService] ✓ Total draft class size: ${generatedPlayers.length} (${generatedPlayers.length - (generatedPlayers.length - ufaEntries.length)} drafted + ${ufaEntries.length} UFAs)`);
+      }
 
       // Close browser if we opened it
       await scraperService.closeBrowser();
@@ -1844,6 +2001,7 @@ export class CreatorService {
           let heightInches = 0;
           let raceData: string | undefined = undefined;
           let playerAssetId: string | undefined = undefined;
+          let matchedPID = 0; // Initialize PID for PID matching
           let draftYear: number | undefined = undefined;
           let collegeName = playerStats.college || 'Unknown';
 
@@ -1888,6 +2046,11 @@ export class CreatorService {
 
             // Get PAM (Player Assets ID) from MASTER_LOOKUP
             playerAssetId = lookupEntry['Player Assets ID'] || undefined;
+
+            // Auto-populate asset ID if missing
+            if (!playerAssetId || playerAssetId.trim() === '') {
+              playerAssetId = this.assignGenericAsset(matchedPID, raceData);
+            }
 
             // Get draft year for years pro calculation
             draftYear = parseInt(lookupEntry['Draft Class']) || undefined;
@@ -2012,7 +2175,12 @@ export class CreatorService {
           const jerseyNum = (playerStats as any).jerseyNumber || this.generateJerseyNumber(mappedPosition.name);
 
           // **MATCH PID WITH RACE DATA**
-          let matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, collegeName);
+          matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, collegeName);
+
+          // Check for (R) tag and replace with preferred non-(R) version
+          if (matchedPID > 0) {
+            matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
+          }
 
           // If no real portrait found, assign generic face with race data
           if (matchedPID === 0) {
@@ -2127,6 +2295,9 @@ export class CreatorService {
             // Assign generic face to fictional players
             const genericPID = this.assignGenericFace(firstName, lastName, mappedPosition.name);
 
+            // Assign generic asset matching the generic face
+            const genericAsset = this.assignGenericAsset(genericPID, undefined);
+
             const fillerPlayer: GeneratedPlayer = {
               firstName,
               lastName,
@@ -2143,7 +2314,7 @@ export class CreatorService {
               devTrait,
               ratings,
               PID: genericPID, // Use generic face for fictional players
-              PEPS: null,
+              PEPS: genericAsset,
               bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
               _sourceStats: fillerStats
             };
@@ -2257,9 +2428,18 @@ export class CreatorService {
 
           // Match PID with race data
           let matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, ufaEntry['College/Univ']);
+
+          // Check for (R) tag and replace with preferred non-(R) version
+          if (matchedPID > 0) {
+            matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
+          }
+
           if (matchedPID === 0) {
             matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
           }
+
+          // Assign generic asset for UFA players (no real assets in MASTER_LOOKUP)
+          const ufaAsset = this.assignGenericAsset(matchedPID, raceData);
 
           // Dev trait from wAV
           const devTrait = this.determineDevTrait(undefined, undefined, ratings.overall, false, proRatedWAV);
@@ -2280,7 +2460,7 @@ export class CreatorService {
             devTrait,
             ratings,
             PID: matchedPID,
-            PEPS: null,
+            PEPS: ufaAsset,
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             _sourceStats: null
           };
@@ -2316,6 +2496,9 @@ export class CreatorService {
           // Assign generic face to fictional free agents
           const genericPID = this.assignGenericFace(firstName, lastName, mappedPosition.name);
 
+          // Assign generic asset matching the generic face
+          const faAsset = this.assignGenericAsset(genericPID, undefined);
+
           const freeAgent: GeneratedPlayer = {
             firstName,
             lastName,
@@ -2332,7 +2515,7 @@ export class CreatorService {
             devTrait,
             ratings,
             PID: genericPID, // Use generic face for fictional FAs
-            PEPS: null,
+            PEPS: faAsset,
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             _sourceStats: faStats
           };

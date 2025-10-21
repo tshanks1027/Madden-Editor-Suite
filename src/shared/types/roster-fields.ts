@@ -471,7 +471,7 @@ export const ROSTER_FIELD_DEFINITIONS: Record<string, RosterField> = {
     category: 'basic',
     dataType: 'lookup',
     lookupType: 'pid',
-    lookupFile: 'PID_lookup.csv',
+    lookupFile: 'ALLDATA_Lookup.csv',
     priority: 'medium',
     defaultVisible: false,
     width: 90,
