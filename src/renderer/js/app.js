@@ -11,6 +11,7 @@ import {
     validateFieldValue,
     POSITION_MAPPINGS,
     TEAM_MAPPINGS,
+    LOOKUP_DATA,
     loadLookupData,
     getLookupOptions,
     getLookupValue,
@@ -2088,6 +2089,89 @@ class MaddenEditorApp {
             header.style.cursor = 'pointer';
         });
         console.log('[SETUP] Found', headers.length, 'sortable headers');
+
+        // ========================================
+        // Player Card - Row Header Click Handler
+        // ========================================
+
+        // Remove old row header click listener if it exists
+        if (this._rowHeaderClickHandler) {
+            document.removeEventListener('click', this._rowHeaderClickHandler);
+        }
+
+        // Create and store the row header click handler
+        this._rowHeaderClickHandler = (e) => {
+            // Check multiple possible row header selectors
+            let rowHeader = null;
+
+            // Try different selectors for row headers
+            if (e.target.matches('th.rowHeader')) {
+                rowHeader = e.target;
+            } else if (e.target.closest('th.rowHeader')) {
+                rowHeader = e.target.closest('th.rowHeader');
+            } else if (e.target.matches('.ht_clone_left th')) {
+                rowHeader = e.target;
+            } else if (e.target.closest('.ht_clone_left th')) {
+                rowHeader = e.target.closest('.ht_clone_left th');
+            }
+
+            if (!rowHeader) {
+                // Debug: log what was clicked
+                if (e.target.matches('th') || e.target.closest('th')) {
+                    console.log('[Player Card Debug] Clicked a TH but not recognized as row header:', e.target);
+                }
+                return;
+            }
+
+            console.log('[Player Card] Row header clicked:', rowHeader.textContent);
+
+            // Get the row index from the row header
+            const row = parseInt(rowHeader.textContent.trim()) - 1; // Row headers are 1-indexed
+
+            if (isNaN(row) || row < 0) {
+                console.log('[Player Card] Invalid row number:', rowHeader.textContent);
+                return;
+            }
+
+            // Get player data for this row
+            if (this.hotTable && !this.hotTable.isDestroyed && this.players[row]) {
+                console.log('[Player Card] Opening card for row:', row, 'Player:', this.players[row].PFNA, this.players[row].PLNA);
+                this.openPlayerCard(this.players[row], row);
+            } else {
+                console.log('[Player Card] No player data for row:', row);
+            }
+        };
+
+        // Add row header click listener to document
+        document.addEventListener('click', this._rowHeaderClickHandler);
+        console.log('[SETUP] Row header click handler attached for player cards');
+
+        // Style row headers to show they're clickable - try multiple selectors
+        const rowHeaderSelectors = [
+            '.ht_clone_left th.rowHeader',
+            '.ht_clone_left th',
+            'th.rowHeader',
+            '.ht_clone_left .htCore tbody th'
+        ];
+
+        let rowHeaders = [];
+        for (const selector of rowHeaderSelectors) {
+            const headers = document.querySelectorAll(selector);
+            if (headers.length > 0) {
+                rowHeaders = headers;
+                console.log('[SETUP] Found', headers.length, 'row headers using selector:', selector);
+                break;
+            }
+        }
+
+        rowHeaders.forEach(header => {
+            header.style.cursor = 'pointer';
+            header.title = 'Click to view player card';
+        });
+
+        if (rowHeaders.length === 0) {
+            console.warn('[SETUP] No row headers found! Player cards may not work.');
+        }
     }
 
     toggleColumnSort(fieldName, isMultiColumn) {
@@ -2492,6 +2576,10 @@ class MaddenEditorApp {
     }
 
     createDraftGrid(prospects) {
+        console.log('[DEBUG createDraftGrid] Called with prospects.length:', prospects.length);
+        console.log('[DEBUG createDraftGrid] First prospect:', prospects[0]);
+        console.log('[DEBUG createDraftGrid] Last prospect:', prospects[prospects.length - 1]);
+
         const container = document.getElementById('draft-grid-container');
 
         // Clear existing grid
@@ -2666,6 +2754,10 @@ class MaddenEditorApp {
                 index: prospects.indexOf(prospect)
             };
         });
+
+        console.log('[DEBUG createDraftGrid] transformedProspects.length:', transformedProspects.length);
+        console.log('[DEBUG createDraftGrid] transformedProspects[0]:', transformedProspects[0]);
+        console.log('[DEBUG createDraftGrid] transformedProspects[last]:', transformedProspects[transformedProspects.length - 1]);
 
         // Get lookup options for dropdowns
         const positionOptions = getLookupOptions('positions').map(opt => opt.label);
@@ -2894,8 +2986,8 @@ class MaddenEditorApp {
             fixedColumnsStart: 5,  // Freeze first 5 columns (Draft Pos, Portrait, Last Name, First Name, Position)
             preventOverflow: 'horizontal', // Prevent column misalignment during scroll
             manualRowMove: true, // Enable row dragging for reordering
-            renderAllRows: false, // Use virtual scrolling
-            viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
+            renderAllRows: true, // Render all rows (disable virtual scrolling for debugging)
+            // viewportRowRenderingOffset: 100, // Not needed when renderAllRows is true
             columnSorting: {
                 indicator: true,
                 headerAction: true,
@@ -3097,6 +3189,12 @@ class MaddenEditorApp {
 
         // Setup floating scrollbar for draft class grid
         this.setupFloatingScrollbar(container);
+
+        // DEBUG: Check Handsontable row count after initialization
+        console.log('[DEBUG createDraftGrid] Handsontable initialized');
+        console.log('[DEBUG createDraftGrid] this.draftGrid.countRows():', this.draftGrid.countRows());
+        console.log('[DEBUG createDraftGrid] this.draftGrid.getData().length:', this.draftGrid.getData().length);
+        console.log('[DEBUG createDraftGrid] this.draftGrid.getSourceData().length:', this.draftGrid.getSourceData().length);
     }
 
     /**
@@ -3193,6 +3291,8 @@ class MaddenEditorApp {
 
             // Get updated data from grid INCLUDING user edits (has friendly names)
             const gridData = this.draftGrid.getSourceData();
+            console.log('[DEBUG saveDraftClass] gridData.length:', gridData.length);
+            console.log('[DEBUG saveDraftClass] this.originalProspectData.length:', this.originalProspectData.length);
 
             // Debug: Log first prospect to see what we're getting
             if (gridData.length > 0) {
@@ -4274,9 +4374,16 @@ class MaddenEditorApp {
                 return;
             }
 
-            // Convert generated players to draft prospect format
-            // NOTE: draftPosition is NOT stored - it's calculated from row order in the grid
-            const prospects = this.generatedDraftPlayers.map((player, index) => ({
+            // Backend now generates ALL 402 prospects (drafted + UFAs)
+            // Copy visuals from template and update with generated player data
+            console.log(`[Creator] Converting ${this.generatedDraftPlayers.length} generated players to draft format`);
+            console.log(`[Creator] Template has ${templateData.prospects.length} prospect slots with visuals`);
+
+            const prospects = this.generatedDraftPlayers.map((player, index) => {
+                // Get template prospect's visuals (for M26Writer to update)
+                const templateVisuals = templateData.prospects[index]?.visuals || null;
+
+                return {
                 // Basic Info
                 firstName: player.firstName,
                 lastName: player.lastName,
@@ -4357,17 +4464,21 @@ class MaddenEditorApp {
                 kickReturn: player.ratings.kickReturn || 0,
                 longSnap: player.ratings.longSnap || 0,
 
-                // Visuals
+                // Visuals - CRITICAL: Include template visuals so M26Writer can update them
                 PID: player.PID || 0,
                 PEPS: player.PEPS || null,
                 bodyType: player.bodyType || 1,
+                visuals: templateVisuals, // Copy template visuals structure
 
                 // Draft info (optional, can be filled in editor)
                 round: 0,
                 pick: 0,
                 draftTeam: 0,
                 homeState: player.homeState || 0
-            }));
+                };
+            });
+
+            console.log(`[Creator] Converted ${prospects.length} total prospects (drafted + UFAs)`);
 
             // Set up draft class data structure
             // If we have template data, use its buffer and version for saving
@@ -4593,6 +4704,303 @@ class MaddenEditorApp {
             this.showError(`Failed to load roster into editor: ${error.message}`);
         }
     }
+
+    // ========================================
+    // Player Card Methods
+    // ========================================
+
+    openPlayerCard(playerData, rowIndex) {
+        // Store current player data for saving
+        this.currentPlayerCardData = playerData;
+        this.currentPlayerCardRow = rowIndex;
+
+        // Populate player card with data
+        const position = getLookupValue('positions', playerData.PPOS) || 'FA';
+        const team = getLookupValue('teams', playerData.TGID) || 'Free Agent';
+        const college = getLookupValue('colleges', playerData.PCOL) || '--';
+
+        // Header section - display only
+        document.getElementById('playerCardNumber').textContent = playerData.PJEN || '0';
+        document.getElementById('playerCardName').textContent = `${playerData.PFNA || ''} ${playerData.PLNA || 'Unknown'}`.trim();
+        document.getElementById('playerCardPosition').textContent = position;
+        document.getElementById('playerCardTeam').textContent = team;
+        document.getElementById('playerCardOverall').textContent = playerData.POVR || '0';
+
+        // Portrait section
+        const pid = playerData.PSXP;
+        const plpoKey = pid ? this.getPlpoFromPID(parseInt(pid)) : null;
+        const portraitImg = document.getElementById('playerCardPortrait');
+
+        if (plpoKey && this.portraitCache.has(plpoKey)) {
+            const imageData = this.portraitCache.get(plpoKey);
+            if (imageData && imageData !== 'loading') {
+                portraitImg.src = imageData;
+                portraitImg.style.display = 'block';
+            } else {
+                portraitImg.style.display = 'none';
+            }
+        } else {
+            portraitImg.style.display = 'none';
+        }
+
+        // Populate PID dropdown for portrait selection
+        const pidSelect = document.getElementById('playerCardPIDSelect');
+        pidSelect.innerHTML = '<option value="">Select Portrait...</option>';
+
+        if (window.lookupData && window.lookupData.pidsCapitalized) {
+            const sortedPIDs = Array.from(window.lookupData.pidsCapitalized.entries())
+                .sort((a, b) => a[1].localeCompare(b[1]));
+
+            sortedPIDs.forEach(([pidValue, playerName]) => {
+                const option = document.createElement('option');
+                option.value = pidValue;
+                option.textContent = playerName;
+                if (parseInt(pidValue) === parseInt(pid)) {
+                    option.selected = true;
+                }
+                pidSelect.appendChild(option);
+            });
+        }
+
+        // Player info section - editable inputs
+        document.getElementById('playerCardAge').value = playerData.PAGE || '';
+        document.getElementById('playerCardYearsPro').value = playerData.PYRP !== undefined ? playerData.PYRP : '';
+        document.getElementById('playerCardHeight').value = playerData.PHGT || '';
+        document.getElementById('playerCardWeight').value = playerData.PWGT ? playerData.PWGT + 160 : '';
+
+        // Populate college dropdown
+        const collegeSelect = document.getElementById('playerCardCollege');
+        collegeSelect.innerHTML = '';
+
+        // Get colleges from LOOKUP_DATA (imported from field-definitions.js)
+        if (LOOKUP_DATA && LOOKUP_DATA.colleges && LOOKUP_DATA.colleges.size > 0) {
+            const sortedColleges = Array.from(LOOKUP_DATA.colleges.entries())
+                .sort((a, b) => a[1].localeCompare(b[1]));
+
+            sortedColleges.forEach(([collegeId, collegeName]) => {
+                const option = document.createElement('option');
+                option.value = collegeId;
+                option.textContent = collegeName;
+                if (parseInt(collegeId) === parseInt(playerData.PCOL)) {
+                    option.selected = true;
+                }
+                collegeSelect.appendChild(option);
+            });
+        } else {
+            // Fallback if LOOKUP_DATA not loaded yet
+            const option = document.createElement('option');
+            option.value = playerData.PCOL || '';
+            option.textContent = college;
+            option.selected = true;
+            collegeSelect.appendChild(option);
+        }
+
+        document.getElementById('playerCardJersey').value = playerData.PJEN || '';
+
+        // Contract section - display only
+        const yearsLeft = playerData.PCYL !== undefined ? playerData.PCYL : '--';
+        const totalSalary = this.calculateTotalSalary(playerData);
+        const bonus = playerData.PSBO ? `$${(playerData.PSBO / 100).toFixed(1)}M` : '--';
+        const currentSalary = playerData.PSA0 ? `$${(playerData.PSA0 / 100).toFixed(1)}M` : '--';
+
+        document.getElementById('playerCardYearsLeft').textContent = yearsLeft;
+        document.getElementById('playerCardTotalSalary').textContent = totalSalary !== '--' ? `$${totalSalary}M` : '--';
+        document.getElementById('playerCardBonus').textContent = bonus;
+        document.getElementById('playerCardCurrentSalary').textContent = currentSalary;
+
+        // Ratings section - populate based on position
+        this.populatePlayerRatings(playerData, position);
+
+        // Show modal
+        document.getElementById('playerCardModal').style.display = 'flex';
+    }
+
+    closePlayerCard() {
+        document.getElementById('playerCardModal').style.display = 'none';
+    }
+
+    savePlayerCard() {
+        if (!this.currentPlayerCardData || this.currentPlayerCardRow === undefined) {
+            console.error('[Player Card] No player data to save');
+            return;
+        }
+
+        // Get updated values from inputs
+        const age = parseInt(document.getElementById('playerCardAge').value) || 0;
+        const yearsPro = parseInt(document.getElementById('playerCardYearsPro').value) || 0;
+        const height = parseInt(document.getElementById('playerCardHeight').value) || 0;
+        const weight = parseInt(document.getElementById('playerCardWeight').value) || 160;
+        const college = parseInt(document.getElementById('playerCardCollege').value) || 0;
+        const jersey = parseInt(document.getElementById('playerCardJersey').value) || 0;
+        const pid = parseInt(document.getElementById('playerCardPIDSelect').value) || this.currentPlayerCardData.PSXP;
+
+        // Update player data
+        this.currentPlayerCardData.PAGE = age;
+        this.currentPlayerCardData.PYRP = yearsPro;
+        this.currentPlayerCardData.PHGT = height;
+        this.currentPlayerCardData.PWGT = weight - 160; // Weight is stored as offset from 160
+        this.currentPlayerCardData.PCOL = college;
+        this.currentPlayerCardData.PJEN = jersey;
+        this.currentPlayerCardData.PSXP = pid;
+
+        // Update ratings from editable inputs
+        if (this.currentPlayerCardRatings) {
+            this.currentPlayerCardRatings.forEach(fieldCode => {
+                const input = document.getElementById(`playerCardRating_${fieldCode}`);
+                if (input) {
+                    this.currentPlayerCardData[fieldCode] = parseInt(input.value) || 0;
+                }
+            });
+        }
+
+        // Update the players array
+        this.players[this.currentPlayerCardRow] = this.currentPlayerCardData;
+
+        // Re-render the grid to show updated data
+        if (this.hotTable && !this.hotTable.isDestroyed) {
+            this.hotTable.render();
+            console.log('[Player Card] Saved changes for row:', this.currentPlayerCardRow);
+        }
+
+        // Close the modal
+        this.closePlayerCard();
+    }
+
+    updatePlayerCardPortrait(newPid) {
+        if (!newPid) {
+            return;
+        }
+
+        const plpoKey = this.getPlpoFromPID(parseInt(newPid));
+        const portraitImg = document.getElementById('playerCardPortrait');
+
+        if (plpoKey && this.portraitCache.has(plpoKey)) {
+            const imageData = this.portraitCache.get(plpoKey);
+            if (imageData && imageData !== 'loading') {
+                portraitImg.src = imageData;
+                portraitImg.style.display = 'block';
+            } else {
+                portraitImg.style.display = 'none';
+            }
+        } else if (plpoKey) {
+            // Portrait not in cache, fetch it
+            portraitImg.style.display = 'none';
+            this.portraitCache.set(plpoKey, 'loading');
+
+            window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
+                this.portraitCache.set(plpoKey, imageData);
+                // Update portrait if still on same player
+                const currentPid = document.getElementById('playerCardPIDSelect').value;
+                if (parseInt(currentPid) === parseInt(newPid)) {
+                    portraitImg.src = imageData;
+                    portraitImg.style.display = 'block';
+                }
+            }).catch((error) => {
+                console.error(`[Player Card] Failed to fetch portrait for ${plpoKey}:`, error);
+                this.portraitCache.set(plpoKey, null);
+            });
+        } else {
+            portraitImg.style.display = 'none';
+        }
+    }
+
+    formatHeight(heightInches) {
+        if (!heightInches) return '--';
+        const feet = Math.floor(heightInches / 12);
+        const inches = heightInches % 12;
+        return `${feet}'${inches}"`;
+    }
+
+    calculateTotalSalary(playerData) {
+        const salaryFields = ['PSA0', 'PSA1', 'PSA2', 'PSA3', 'PSA4', 'PSA5', 'PSA6'];
+        let total = 0;
+        for (const field of salaryFields) {
+            if (playerData[field]) {
+                total += playerData[field];
+            }
+        }
+        return total > 0 ? (total / 100).toFixed(1) : '--';
+    }
+
+    getRatingClass(value) {
+        if (value >= 90) return 'elite';
+        if (value >= 80) return 'great';
+        if (value >= 70) return 'good';
+        if (value >= 60) return 'average';
+        return 'poor';
+    }
+
+    populatePlayerRatings(playerData, position) {
+        const ratingsContainer = document.getElementById('playerCardRatings');
+        ratingsContainer.innerHTML = '';
+
+        // Define position-specific key ratings
+        const positionRatings = {
+            'QB': ['PSPD', 'PACC', 'PAWR', 'PTAS', 'PTAM', 'PTAD', 'PTHP', 'PTOR', 'PTUP', 'PPLA'],
+            'HB': ['PSPD', 'PACC', 'PAGI', 'PBCV', 'PCAR', 'PLTR', 'PBKT', 'PLJM', 'PLSM', 'PLSA', 'PCTH'],
+            'FB': ['PSPD', 'PSTR', 'PBKT', 'PLTR', 'PLIB', 'PRBK', 'PCTH'],
+            'WR': ['PSPD', 'PACC', 'PAGI', 'PCTH', 'PLCI', 'PLSC', 'SRRN', 'PMRR', 'PDRR', 'PLRL'],
+            'TE': ['PSPD', 'PSTR', 'PCTH', 'PLCI', 'PLSC', 'SRRN', 'PMRR', 'PRBK', 'PLIB'],
+            'LT': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'LG': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'C': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'RG': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'RT': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'LE': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
+            'RE': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
+            'DT': ['PSPD', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
+            'LOLB': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'MLB': ['PSPD', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'ROLB': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'CB': ['PSPD', 'PACC', 'PAGI', 'PAWR', 'PLMC', 'PLZC', 'PLPE', 'PLPR', 'PCTH', 'PTAK'],
+            'FS': ['PSPD', 'PACC', 'PAGI', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PCTH', 'PTAK', 'PLHT'],
+            'SS': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'K': ['PKAC', 'PKPR', 'PAWR'],
+            'P': ['PKAC', 'PKPR', 'PAWR']
+        };
+
+        // Get ratings for this position, default to common ratings
+        const ratings = positionRatings[position] || ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PAWR', 'PCTH', 'PTAK'];
+
+        // Store the current ratings list for saving later
+        this.currentPlayerCardRatings = ratings;
+
+        // Create rating items with editable inputs
+        ratings.forEach(fieldCode => {
+            const fieldDef = getFieldDefinition(fieldCode);
+            const value = playerData[fieldCode] || 0;
+            const ratingClass = this.getRatingClass(value);
+
+            const ratingItem = document.createElement('div');
+            ratingItem.className = 'rating-item';
+
+            // Create label
+            const label = document.createElement('div');
+            label.className = 'rating-label';
+            label.textContent = fieldDef.shortDisplay || fieldDef.display;
+
+            // Create editable input
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = `rating-value ${ratingClass}`;
+            input.id = `playerCardRating_${fieldCode}`;
+            input.value = value;
+            input.min = 0;
+            input.max = 99;
+            input.dataset.fieldCode = fieldCode;
+
+            // Update color class on input change
+            input.addEventListener('input', (e) => {
+                const newValue = parseInt(e.target.value) || 0;
+                const newClass = this.getRatingClass(newValue);
+                e.target.className = `rating-value ${newClass}`;
+            });
+
+            ratingItem.appendChild(label);
+            ratingItem.appendChild(input);
+            ratingsContainer.appendChild(ratingItem);
+        });
+    }
 }
 
 // Global function for modal close button
@@ -4611,6 +5019,60 @@ window.closeErrorModal = function() {
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new MaddenEditorApp();
+
+    // ========================================
+    // Player Card Modal Event Listeners
+    // ========================================
+
+    // Close button
+    const playerCardCloseBtn = document.querySelector('.player-card-close');
+    if (playerCardCloseBtn) {
+        playerCardCloseBtn.addEventListener('click', () => {
+            if (window.app) {
+                window.app.closePlayerCard();
+            }
+        });
+    }
+
+    // Click outside modal to close
+    const playerCardModal = document.getElementById('playerCardModal');
+    if (playerCardModal) {
+        playerCardModal.addEventListener('click', (e) => {
+            if (e.target === playerCardModal && window.app) {
+                window.app.closePlayerCard();
+            }
+        });
+    }
+
+    // ESC key to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && window.app) {
+            const modal = document.getElementById('playerCardModal');
+            if (modal && modal.style.display === 'flex') {
+                window.app.closePlayerCard();
+            }
+        }
+    });
+
+    // Save button
+    const savePlayerCardBtn = document.getElementById('savePlayerCardBtn');
+    if (savePlayerCardBtn) {
+        savePlayerCardBtn.addEventListener('click', () => {
+            if (window.app) {
+                window.app.savePlayerCard();
+            }
+        });
+    }
+
+    // PID dropdown change - update portrait
+    const pidSelect = document.getElementById('playerCardPIDSelect');
+    if (pidSelect) {
+        pidSelect.addEventListener('change', (e) => {
+            if (window.app) {
+                window.app.updatePlayerCardPortrait(e.target.value);
+            }
+        });
+    }
 
     // Debug function for testing PID lookups in browser console
     window.testPIDLookup = function() {

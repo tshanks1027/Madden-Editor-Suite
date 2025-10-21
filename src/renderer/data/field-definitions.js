@@ -164,8 +164,8 @@ export const TEAM_MAPPINGS = {
     24: 'NYJ', 25: 'PHI', 26: 'PIT', 27: 'SF', 28: 'SEA', 29: 'TB', 30: 'TEN', 31: 'WAS'
 };
 
-// Lookup data storage
-let LOOKUP_DATA = {
+// Lookup data storage - exported for use in other modules
+export let LOOKUP_DATA = {
     colleges: new Map(),
     states: new Map(),
     positions: new Map(),
