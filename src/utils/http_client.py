@@ -64,9 +64,13 @@ class RateLimitedClient:
         }
 
         if self.user_agent_rotation and self.ua:
-            headers['User-Agent'] = self.ua.random
+            try:
+                headers['User-Agent'] = self.ua.random
+            except:
+                # Fallback if user agent rotation fails
+                headers['User-Agent'] = 'Mozilla/5.0 (compatible; MaddenEditorSuite/1.0; Educational purpose)'
         else:
-            headers['User-Agent'] = 'Mozilla/5.0 (Madden Draft Prospect Scraper/1.0)'
+            headers['User-Agent'] = 'Mozilla/5.0 (compatible; MaddenEditorSuite/1.0; Educational purpose)'
 
         return headers
 
