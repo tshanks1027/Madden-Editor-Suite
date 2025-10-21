@@ -59,13 +59,13 @@ export class LookupService {
 
   private async initializeLookups(): Promise<void> {
     try {
-      // ONLY load Madden code lookups + ALLDATA_Lookup for ALL player data
+      // ONLY load Madden code lookups + MASTER_PLAYER_LOOKUP for ALL player data
       const lookupFiles = [
         'position_lookup.csv',        // Madden position codes
         'team_lookup.csv',            // Madden team codes
         'college_lookup.csv',         // Madden college codes
         'state_lookup.csv',           // Madden state codes
-        'ALLDATA_Lookup.csv'          // ALL PLAYER DATA - 20,634 players with EVERYTHING
+        'MASTER_PLAYER_LOOKUP.csv'    // ALL PLAYER DATA - 27,680 players with EVERYTHING
       ];
 
       for (const fileName of lookupFiles) {
@@ -86,8 +86,8 @@ export class LookupService {
         return;
       }
 
-      // Special handling for ALLDATA_Lookup.csv (the ONE source for all player data)
-      if (fileName === 'ALLDATA_Lookup.csv') {
+      // Special handling for MASTER_PLAYER_LOOKUP.csv (the ONE source for all player data)
+      if (fileName === 'MASTER_PLAYER_LOOKUP.csv') {
         await this.loadFullDataLookupFile(fileName);
         return;
       }
@@ -276,8 +276,8 @@ export class LookupService {
 
   // Get all options for a dropdown
   public getDropdownOptions(fileName: string): any[] {
-    // Special handling for ALLDATA_Lookup.csv - return full entries with PLPO
-    if (fileName === 'ALLDATA_Lookup.csv') {
+    // Special handling for MASTER_PLAYER_LOOKUP.csv - return full entries with PLPO
+    if (fileName === 'MASTER_PLAYER_LOOKUP.csv') {
       return this.getFullDataOptions();
     }
 
@@ -295,7 +295,7 @@ export class LookupService {
     return options.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  // Get ALLDATA_Lookup.csv options with all fields including PLPO
+  // Get MASTER_PLAYER_LOOKUP.csv options with all fields including PLPO
   public getFullDataOptions(): Array<{id: number, name: string, plpo: string, entry: FullDataEntry}> {
     const options: Array<{id: number, name: string, plpo: string, entry: FullDataEntry}> = [];
 
@@ -312,7 +312,7 @@ export class LookupService {
     return options.sort((a, b) => a.id - b.id);
   }
 
-  // Get PID options from ALLDATA_Lookup.csv (no longer separate PID_lookup.csv)
+  // Get PID options from MASTER_PLAYER_LOOKUP.csv (no longer separate PID_lookup.csv)
   public getPIDOptions(): LookupEntry[] {
     const options: LookupEntry[] = [];
 
