@@ -1,0 +1,168 @@
+PAM,PID,Type,SkinTone,Generation,FaceShape,Description
+gen_1_B_B_005,64,generic,VeryDark,1,Round,Gen 1 Very Dark Round Face
+gen_1_B_G_01,188,generic,VeryDark,1,Generic,Gen 1 Very Dark Generic
+gen_1_B_N_007,296,generic,VeryDark,1,Normal,Gen 1 Very Dark Normal Face
+gen_1_B_N_01,448,generic,VeryDark,1,Normal,Gen 1 Very Dark Normal Face
+gen_1_B_N_010,613,generic,VeryDark,1,Normal,Gen 1 Very Dark Normal Face
+gen_1_B_N_011,629,generic,VeryDark,1,Normal,Gen 1 Very Dark Normal Face
+gen_1_B_N_03,662,generic,VeryDark,1,Normal,Gen 1 Very Dark Normal Face
+gen_1_B_S_001,666,generic,VeryDark,1,Square,Gen 1 Very Dark Square Face
+gen_1_H_BD_01,671,generic,Medium,1,Diamond,Gen 1 Medium Diamond Face
+gen_1_H_N_015,719,generic,Medium,1,Normal,Gen 1 Medium Normal Face
+gen_1_H_S_003,721,generic,Medium,1,Square,Gen 1 Medium Square Face
+gen_1_M_N_02,725,generic,LightMedium,1,Normal,Gen 1 Light-Medium Normal Face
+gen_2_BMH_S_002,727,generic,MixedTone,2,Square,Gen 2 Mixed Tone Square Face
+gen_2_BMH_S_004,728,generic,MixedTone,2,Square,Gen 2 Mixed Tone Square Face
+gen_2_BMH_S_010,730,generic,MixedTone,2,Square,Gen 2 Mixed Tone Square Face
+gen_2_B_BD_03,731,generic,VeryDark,2,Diamond,Gen 2 Very Dark Diamond Face
+gen_2_B_B_004,871,generic,VeryDark,2,Round,Gen 2 Very Dark Round Face
+gen_2_B_B_005,913,generic,VeryDark,2,Round,Gen 2 Very Dark Round Face
+gen_2_B_B_006,916,generic,VeryDark,2,Round,Gen 2 Very Dark Round Face
+gen_2_B_N_0010,953,generic,VeryDark,2,Normal,Gen 2 Very Dark Normal Face
+gen_2_B_N_0012,961,generic,VeryDark,2,Normal,Gen 2 Very Dark Normal Face
+gen_2_B_N_0017,1308,generic,VeryDark,2,Normal,Gen 2 Very Dark Normal Face
+gen_2_B_N_0018,1419,generic,VeryDark,2,Normal,Gen 2 Very Dark Normal Face
+gen_2_B_N_02,1490,generic,VeryDark,2,Normal,Gen 2 Very Dark Normal Face
+gen_2_B_S_007,1592,generic,VeryDark,2,Square,Gen 2 Very Dark Square Face
+gen_2_B_S_009,1661,generic,VeryDark,2,Square,Gen 2 Very Dark Square Face
+gen_2_H_BD_03,1681,generic,Medium,2,Diamond,Gen 2 Medium Diamond Face
+gen_2_H_B_004,1682,generic,Medium,2,Round,Gen 2 Medium Round Face
+gen_2_H_B_005,1698,generic,Medium,2,Round,Gen 2 Medium Round Face
+gen_2_H_B_010,1715,generic,Medium,2,Round,Gen 2 Medium Round Face
+gen_2_H_GM_004,1733,generic,Medium,2,Generic,Gen 2 Medium Generic
+gen_2_H_G_01,1822,generic,Medium,2,Generic,Gen 2 Medium Generic
+gen_2_H_MB_012,1926,generic,Medium,2,MuscularBroad,Gen 2 Medium Muscular Face
+gen_2_H_N_007,1944,generic,Medium,2,Normal,Gen 2 Medium Normal Face
+gen_2_H_N_009,1974,generic,Medium,2,Normal,Gen 2 Medium Normal Face
+gen_2_M_B_01,2075,generic,LightMedium,2,Round,Gen 2 Light-Medium Round Face
+gen_2_M_B_02,2082,generic,LightMedium,2,Round,Gen 2 Light-Medium Round Face
+gen_2_M_N_007,2085,generic,LightMedium,2,Normal,Gen 2 Light-Medium Normal Face
+gen_2_M_N_04,2086,generic,LightMedium,2,Normal,Gen 2 Light-Medium Normal Face
+gen_2_M_N_05,2131,generic,LightMedium,2,Normal,Gen 2 Light-Medium Normal Face
+gen_2_M_N_22,2153,generic,LightMedium,2,Normal,Gen 2 Light-Medium Normal Face
+gen_2_M_S_011,2159,generic,LightMedium,2,Square,Gen 2 Light-Medium Square Face
+gen_2_T_N_01,2161,generic,Light,2,Normal,Gen 2 Light Normal Face
+gen_2_T_N_02,2211,generic,Light,2,Normal,Gen 2 Light Normal Face
+gen_3_B_B_009,2238,generic,VeryDark,3,Round,Gen 3 Very Dark Round Face
+gen_3_B_N_02,2249,generic,VeryDark,3,Normal,Gen 3 Very Dark Normal Face
+gen_3_B_S_010,2250,generic,VeryDark,3,Square,Gen 3 Very Dark Square Face
+gen_3_B_S_011,2256,generic,VeryDark,3,Square,Gen 3 Very Dark Square Face
+gen_3_H_BD_01,2270,generic,Medium,3,Diamond,Gen 3 Medium Diamond Face
+gen_3_H_B_008,2271,generic,Medium,3,Round,Gen 3 Medium Round Face
+gen_3_H_B_01,2317,generic,Medium,3,Round,Gen 3 Medium Round Face
+gen_3_H_S_001,2325,generic,Medium,3,Square,Gen 3 Medium Square Face
+gen_3_M_N_01,2373,generic,LightMedium,3,Normal,Gen 3 Light-Medium Normal Face
+gen_3_T_N_01,2418,generic,Light,3,Normal,Gen 3 Light Normal Face
+gen_4_B_BM_01,2438,generic,VeryDark,4,MuscularBroad,Gen 4 Very Dark Muscular Face
+gen_4_B_B_004,2472,generic,VeryDark,4,Round,Gen 4 Very Dark Round Face
+gen_4_B_G_003,2490,generic,VeryDark,4,Generic,Gen 4 Very Dark Generic
+gen_4_B_MS_01,2517,generic,VeryDark,4,MuscularSquare,Gen 4 Very Dark Muscular Square Face
+gen_4_B_N_002,2546,generic,VeryDark,4,Normal,Gen 4 Very Dark Normal Face
+gen_4_B_N_004,2547,generic,VeryDark,4,Normal,Gen 4 Very Dark Normal Face
+gen_4_B_N_005,2558,generic,VeryDark,4,Normal,Gen 4 Very Dark Normal Face
+gen_4_H_N_004,2583,generic,Medium,4,Normal,Gen 4 Medium Normal Face
+gen_4_M_M_005,2586,generic,LightMedium,4,Generic,Gen 4 Light-Medium Generic
+gen_4_M_N_01,2587,generic,LightMedium,4,Normal,Gen 4 Light-Medium Normal Face
+gen_5_BHM_M_002,2589,generic,MixedTone,5,Generic,Gen 5 Mixed Tone Generic
+gen_5_BHTM_GS_001,2591,generic,MixedTone,5,GenericSquare,Gen 5 Mixed Tone Square
+gen_5_B_BD_02,2644,generic,VeryDark,5,Diamond,Gen 5 Very Dark Diamond Face
+gen_5_B_BD_03,2650,generic,VeryDark,5,Diamond,Gen 5 Very Dark Diamond Face
+gen_5_B_G_01,2652,generic,VeryDark,5,Generic,Gen 5 Very Dark Generic
+gen_5_B_MS_02,2657,generic,VeryDark,5,MuscularSquare,Gen 5 Very Dark Muscular Square Face
+gen_5_B_N_01,2664,generic,VeryDark,5,Normal,Gen 5 Very Dark Normal Face
+gen_5_B_N_02,2666,generic,VeryDark,5,Normal,Gen 5 Very Dark Normal Face
+gen_5_B_N_03,2675,generic,VeryDark,5,Normal,Gen 5 Very Dark Normal Face
+gen_5_B_S_002,2680,generic,VeryDark,5,Square,Gen 5 Very Dark Square Face
+gen_5_H_BD_02,2685,generic,Medium,5,Diamond,Gen 5 Medium Diamond Face
+gen_5_H_N_01,2692,generic,Medium,5,Normal,Gen 5 Medium Normal Face
+gen_5_M_BD_02,2693,generic,LightMedium,5,Diamond,Gen 5 Light-Medium Diamond Face
+gen_5_M_B_001,2694,generic,LightMedium,5,Round,Gen 5 Light-Medium Round Face
+gen_5_M_M_005,2695,generic,LightMedium,5,Generic,Gen 5 Light-Medium Generic
+gen_5_M_N_009,2705,generic,LightMedium,5,Normal,Gen 5 Light-Medium Normal Face
+gen_5_M_N_01,2710,generic,LightMedium,5,Normal,Gen 5 Light-Medium Normal Face
+gen_5_M_N_02,2717,generic,LightMedium,5,Normal,Gen 5 Light-Medium Normal Face
+gen_5_T_G_01,2718,generic,Light,5,Generic,Gen 5 Light Generic
+gen_6_BHM_BM_004,2719,generic,MixedTone,6,MuscularBroad,Gen 6 Mixed Tone Muscular
+gen_6_BHM_B_01,2720,generic,MixedTone,6,Round,Gen 6 Mixed Tone Round Face
+gen_6_BHM_G_002,2721,generic,MixedTone,6,Generic,Gen 6 Mixed Tone Generic
+gen_6_BMH_N_003,2735,generic,MixedTone,6,Normal,Gen 6 Mixed Tone Normal Face
+gen_6_BM_MG_008,2743,generic,MixedTone,6,Generic,Gen 6 Mixed Tone Generic
+gen_6_BM_N_009,2745,generic,MixedTone,6,Normal,Gen 6 Mixed Tone Normal Face
+gen_6_BTM_BM_001,2748,generic,MixedTone,6,MuscularBroad,Gen 6 Mixed Tone Muscular
+gen_6_B_G_03,2749,generic,VeryDark,6,Generic,Gen 6 Very Dark Generic
+gen_6_B_G_04,2750,generic,VeryDark,6,Generic,Gen 6 Very Dark Generic
+gen_6_B_G_05,2751,generic,VeryDark,6,Generic,Gen 6 Very Dark Generic
+gen_6_B_MS_01,2753,generic,VeryDark,6,MuscularSquare,Gen 6 Very Dark Muscular Square Face
+gen_6_B_N_0010,2755,generic,VeryDark,6,Normal,Gen 6 Very Dark Normal Face
+gen_6_B_N_003,2758,generic,VeryDark,6,Normal,Gen 6 Very Dark Normal Face
+gen_6_B_N_007,2761,generic,VeryDark,6,Normal,Gen 6 Very Dark Normal Face
+gen_6_B_N_008,2762,generic,VeryDark,6,Normal,Gen 6 Very Dark Normal Face
+gen_6_B_N_009,2763,generic,VeryDark,6,Normal,Gen 6 Very Dark Normal Face
+gen_6_B_N_01,2767,generic,VeryDark,6,Normal,Gen 6 Very Dark Normal Face
+gen_6_B_N_03,2768,generic,VeryDark,6,Normal,Gen 6 Very Dark Normal Face
+gen_6_B_S_02,2769,generic,VeryDark,6,Square,Gen 6 Very Dark Square Face
+gen_6_H_BM_02,2770,generic,Medium,6,MuscularBroad,Gen 6 Medium Muscular Face
+gen_6_H_B_002,2771,generic,Medium,6,Round,Gen 6 Medium Round Face
+gen_6_H_G_01,2789,generic,Medium,6,Generic,Gen 6 Medium Generic
+gen_6_H_G_012,2790,generic,Medium,6,Generic,Gen 6 Medium Generic
+gen_6_H_MS_01,2793,generic,Medium,6,MuscularSquare,Gen 6 Medium Muscular Square Face
+gen_6_H_N_001,2794,generic,Medium,6,Normal,Gen 6 Medium Normal Face
+gen_6_H_N_006,2795,generic,Medium,6,Normal,Gen 6 Medium Normal Face
+gen_6_H_N_01,2799,generic,Medium,6,Normal,Gen 6 Medium Normal Face
+gen_6_H_N_20,2800,generic,Medium,6,Normal,Gen 6 Medium Normal Face
+gen_6_M_MB_011,2801,generic,LightMedium,6,MuscularBroad,Gen 6 Light-Medium Muscular Face
+gen_6_M_N_01,2802,generic,LightMedium,6,Normal,Gen 6 Light-Medium Normal Face
+gen_6_M_N_02,2803,generic,LightMedium,6,Normal,Gen 6 Light-Medium Normal Face
+gen_6_N_MG_009,2806,generic,VeryLight,6,Generic,Gen 6 Very Light Generic
+gen_6_T_MG_006,2810,generic,Light,6,Generic,Gen 6 Light Generic
+gen_6_T_N_009,2811,generic,Light,6,Normal,Gen 6 Light Normal Face
+gen_7_BHM_MG_007,2812,generic,MixedTone,7,Generic,Gen 7 Mixed Tone Generic
+gen_7_BHM_MG_022,2813,generic,MixedTone,7,Generic,Gen 7 Mixed Tone Generic
+gen_7_BHM_N_002,2814,generic,MixedTone,7,Normal,Gen 7 Mixed Tone Normal Face
+gen_7_BHM_S_010,2815,generic,MixedTone,7,Square,Gen 7 Mixed Tone Square Face
+gen_7_BMH_GS_011,2816,generic,MixedTone,7,GenericSquare,Gen 7 Mixed Tone Square
+gen_7_BMH_MB_019,2819,generic,MixedTone,7,MuscularBroad,Gen 7 Mixed Tone Muscular
+gen_7_BMH_MG_001,2820,generic,MixedTone,7,Generic,Gen 7 Mixed Tone Generic
+gen_7_BMH_MG_003,2824,generic,MixedTone,7,Generic,Gen 7 Mixed Tone Generic
+gen_7_BMH_S_008,2827,generic,MixedTone,7,Square,Gen 7 Mixed Tone Square Face
+gen_7_BMTH_N_003,2829,generic,MixedTone,7,Normal,Gen 7 Mixed Tone Normal Face
+gen_7_BMT_BM_012,2832,generic,MixedTone,7,MuscularBroad,Gen 7 Mixed Tone Muscular
+gen_7_BTM_N_007,2833,generic,MixedTone,7,Normal,Gen 7 Mixed Tone Normal Face
+gen_7_B_B_001,2836,generic,VeryDark,7,Round,Gen 7 Very Dark Round Face
+gen_7_B_B_002,2838,generic,VeryDark,7,Round,Gen 7 Very Dark Round Face
+gen_7_B_G_0010,2839,generic,VeryDark,7,Generic,Gen 7 Very Dark Generic
+gen_7_B_G_004,2840,generic,VeryDark,7,Generic,Gen 7 Very Dark Generic
+gen_7_B_G_005,2841,generic,VeryDark,7,Generic,Gen 7 Very Dark Generic
+gen_7_B_G_008,2843,generic,VeryDark,7,Generic,Gen 7 Very Dark Generic
+gen_7_B_G_009,2851,generic,VeryDark,7,Generic,Gen 7 Very Dark Generic
+gen_7_B_N_0011,2852,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_0012,2853,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_0013,2855,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_009,2858,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_011,2862,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_012,2863,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_013,2865,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_016,2866,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_019,2867,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_B_N_07,2868,generic,VeryDark,7,Normal,Gen 7 Very Dark Normal Face
+gen_7_H_BD_03,2869,generic,Medium,7,Diamond,Gen 7 Medium Diamond Face
+gen_7_H_BMS_013,2870,generic,Medium,7,MuscularSquare,Gen 7 Medium Muscular Square Face
+gen_7_H_G_004,2871,generic,Medium,7,Generic,Gen 7 Medium Generic
+gen_7_H_G_009,2872,generic,Medium,7,Generic,Gen 7 Medium Generic
+gen_7_H_G_02,2873,generic,Medium,7,Generic,Gen 7 Medium Generic
+gen_7_H_N_01,2874,generic,Medium,7,Normal,Gen 7 Medium Normal Face
+gen_7_M_BD_01,2875,generic,LightMedium,7,Diamond,Gen 7 Light-Medium Diamond Face
+gen_7_M_BD_02,2877,generic,LightMedium,7,Diamond,Gen 7 Light-Medium Diamond Face
+gen_7_M_BM_014,2878,generic,LightMedium,7,MuscularBroad,Gen 7 Light-Medium Muscular
+gen_7_M_GS_015,2880,generic,LightMedium,7,GenericSquare,Gen 7 Light-Medium Square
+gen_7_M_MB_009,2882,generic,LightMedium,7,MuscularBroad,Gen 7 Light-Medium Muscular
+gen_7_M_MG_025,2884,generic,LightMedium,7,Generic,Gen 7 Light-Medium Generic
+gen_7_M_N_001,2888,generic,LightMedium,7,Normal,Gen 7 Light-Medium Normal Face
+gen_7_M_N_005,2892,generic,LightMedium,7,Normal,Gen 7 Light-Medium Normal Face
+gen_7_M_N_006,2893,generic,LightMedium,7,Normal,Gen 7 Light-Medium Normal Face
+gen_7_M_N_024,2895,generic,LightMedium,7,Normal,Gen 7 Light-Medium Normal Face
+gen_7_T_G_004,2897,generic,Light,7,Generic,Gen 7 Light Generic
+gen_7_T_G_007,2898,generic,Light,7,Generic,Gen 7 Light Generic
+gen_7_T_N_001,2901,generic,Light,7,Normal,Gen 7 Light Normal Face
+gen_7_T_N_009,2902,generic,Light,7,Normal,Gen 7 Light Normal Face
+gen_7_T_S_004,2904,generic,Light,7,Square,Gen 7 Light Square Face

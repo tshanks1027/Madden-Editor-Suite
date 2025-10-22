@@ -1,0 +1,35 @@
+{
+  "categories": {
+    "1": {
+      "description": "Caucasian/White",
+      "count": 41,
+      "range": [1, 41]
+    },
+    "2": {
+      "description": "African American/Black - Light",
+      "count": 63,
+      "range": [1, 63]
+    },
+    "3": {
+      "description": "African American/Black - Dark",
+      "count": 38,
+      "range": [1, 38]
+    },
+    "5": {
+      "description": "Hispanic/Latino",
+      "count": 94,
+      "range": [1, 94]
+    },
+    "6": {
+      "description": "Mixed/Multi-Racial",
+      "count": 98,
+      "range": [2, 98]
+    },
+    "7": {
+      "description": "African American/Black - Medium",
+      "count": 164,
+      "range": [1, 164]
+    }
+  },
+  "notes": "Generic face categories based on Madden 26 asset library. Numbers represent plpo_generic_X_YYY where X is category and YYY is face number."
+}

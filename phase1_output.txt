@@ -1,0 +1,1525 @@
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+================================================================================
+PHASE 1: PROCESS XLS DRAFT FILES
+================================================================================
+Input directory: C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\Drafts
+Output file: C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\data\lookups\phase1_drafted_players.csv
+
+Found 100 XLS files
+
+============================================================
+Processing: 1936.xls
+  Draft Year: 1936
+  League: NFL
+  Rows: 81
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1937.xls
+  Draft Year: 1937
+  League: NFL
+  Rows: 100
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1938.xls
+  Draft Year: 1938
+  League: NFL
+  Rows: 110
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1939.xls
+  Draft Year: 1939
+  League: NFL
+  Rows: 200
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1940.xls
+  Draft Year: 1940
+  League: NFL
+  Rows: 200
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1941.xls
+  Draft Year: 1941
+  League: NFL
+  Rows: 204
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1942.xls
+  Draft Year: 1942
+  League: NFL
+  Rows: 200
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1943.xls
+  Draft Year: 1943
+  League: NFL
+  Rows: 300
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1944.xls
+  Draft Year: 1944
+  League: NFL
+  Rows: 330
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1945.xls
+  Draft Year: 1945
+  League: NFL
+  Rows: 330
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1946.xls
+  Draft Year: 1946
+  League: NFL
+  Rows: 300
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1947.xls
+  Draft Year: 1947
+  League: NFL
+  Rows: 300
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1948.xls
+  Draft Year: 1948
+  League: NFL
+  Rows: 298
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1949.xls
+  Draft Year: 1949
+  League: NFL
+  Rows: 251
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1950.xls
+  Draft Year: 1950
+  League: NFL
+  Rows: 391
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1951.xls
+  Draft Year: 1951
+  League: NFL
+  Rows: 362
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1952.xls
+  Draft Year: 1952
+  League: NFL
+  Rows: 360
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1953.xls
+  Draft Year: 1953
+  League: NFL
+  Rows: 361
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1954.xls
+  Draft Year: 1954
+  League: NFL
+  Rows: 360
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1955.xls
+  Draft Year: 1955
+  League: NFL
+  Rows: 360
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1956.xls
+  Draft Year: 1956
+  League: NFL
+  Rows: 360
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1957.xls
+  Draft Year: 1957
+  League: NFL
+  Rows: 360
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1958.xls
+  Draft Year: 1958
+  League: NFL
+  Rows: 360
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1959.xls
+  Draft Year: 1959
+  League: NFL
+  Rows: 360
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1960 AFL.xls
+  Draft Year: 1960
+  League: AFL
+  Rows: 419
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1960.xls
+  Draft Year: 1960
+  League: NFL
+  Rows: 240
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1961 AFL.xls
+  Draft Year: 1961
+  League: AFL
+  Rows: 240
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1961.xls
+  Draft Year: 1961
+  League: NFL
+  Rows: 280
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1962 AFL.xls
+  Draft Year: 1962
+  League: AFL
+  Rows: 272
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1962.xls
+  Draft Year: 1962
+  League: NFL
+  Rows: 280
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1963 AFL.xls
+  Draft Year: 1963
+  League: AFL
+  Rows: 232
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1963.xls
+  Draft Year: 1963
+  League: NFL
+  Rows: 280
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1964 AFL.xls
+  Draft Year: 1964
+  League: AFL
+  Rows: 208Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1964.xls
+  Draft Year: 1964
+  League: NFL
+  Rows: 280
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1965 AFL.xls
+  Draft Year: 1965
+  League: AFL
+  Rows: 160
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1965.xls
+  Draft Year: 1965
+  League: NFL
+  Rows: 280
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1966 AFL.xls
+  Draft Year: 1966
+  League: AFL
+  Rows: 180
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1966.xls
+  Draft Year: 1966
+  League: NFL
+  Rows: 305
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1967 AFL.xls
+  Draft Year: 1967
+  League: AFL
+  Rows: 445
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1967.xls
+  Draft Year: 1967
+  League: NFL
+  Rows: 445
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1968 AFL.xls
+  Draft Year: 1968
+  League: AFL
+  Rows: 462
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1968.xls
+  Draft Year: 1968
+  League: NFL
+  Rows: 462
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1969 AFL.xls
+  Draft Year: 1969
+  League: AFL
+  Rows: 442
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1969.xls
+  Draft Year: 1969
+  League: NFL
+  Rows: 442
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1970.xls
+  Draft Year: 1970
+  League: NFL
+  Rows: 442
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1971.xls
+  Draft Year: 1971
+  League: NFL
+  Rows: 442
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1972.xls
+  Draft Year: 1972
+  League: NFL
+  Rows: 442
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1973.xls
+  Draft Year: 1973
+  League: NFL
+  Rows: 442
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1974.xls
+  Draft Year: 1974
+  League: NFL
+  Rows: 442
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1975.xls
+  Draft Year: 1975
+  League: NFL
+  Rows: 442
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1976.xls
+  Draft Year: 1976
+  League: NFL
+  Rows: 487
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1977.xls
+  Draft Year: 1977
+  League: NFL
+  Rows: 335
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1978.xls
+  Draft Year: 1978
+  League: NFL
+  Rows: 334
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1979.xls
+  Draft Year: 1979
+  League: NFL
+  Rows: 330
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1980.xls
+  Draft Year: 1980
+  League: NFL
+  Rows: 333
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1981.xls
+  Draft Year: 1981
+  League: NFL
+  Rows: 332
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1982.xls
+  Draft Year: 1982
+  League: NFL
+  Rows: 334
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1983.xls
+  Draft Year: 1983
+  League: NFL
+  Rows: 335
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1984.xls
+  Draft Year: 1984
+  League: NFL
+  Rows: 336
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1985.xls
+  Draft Year: 1985
+  League: NFL
+  Rows: 336
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1986.xls
+  Draft Year: 1986
+  League: NFL
+  Rows: 333
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1987.xls
+  Draft Year: 1987
+  League: NFL
+  Rows: 335
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1988.xls
+  Draft Year: 1988
+  League: NFL
+  Rows: 333
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1989.xls
+  Draft Year: 1989
+  League: NFL
+  Rows: 335
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1990.xls
+  Draft Year: 1990
+  League: NFL
+  Rows: 331
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1991.xls
+  Draft Year: 1991
+  League: NFL
+  Rows: 334
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1992.xls
+  Draft Year: 1992
+  League: NFL
+  Rows: 336
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 186, in process_xls_file
+    print(f"  \u2713 Extracted {len(players)} players")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+Processing: 1993.xls
+  Draft Year: 1993
+  League: NFL
+  Rows: 224
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1994.xls
+  Draft Year: 1994
+  League: NFL
+  Rows: 222
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1995.xls
+  Draft Year: 1995
+  League: NFL
+  Rows: 249
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1996.xls
+  Draft Year: 1996
+  League: NFL
+  Rows: 254
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1997.xls
+  Draft Year: 1997
+  League: NFL
+  Rows: 240
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1998.xls
+  Draft Year: 1998
+  League: NFL
+  Rows: 241
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 1999.xls
+  Draft Year: 1999
+  League: NFL
+  Rows: 253
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2000.xls
+  Draft Year: 2000
+  League: NFL
+  Rows: 254
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2001.xls
+  Draft Year: 2001
+  League: NFL
+  Rows: 246
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2002.xls
+  Draft Year: 2002
+  League: NFL
+  Rows: 261
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2003.xls
+  Draft Year: 2003
+  League: NFL
+  Rows: 262
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2004.xls
+  Draft Year: 2004
+  League: NFL
+  Rows: 255
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2005.xls
+  Draft Year: 2005
+  League: NFL
+  Rows: 255
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2006.xls
+  Draft Year: 2006
+  League: NFL
+  Rows: 255
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2007.xls
+  Draft Year: 2007
+  League: NFL
+  Rows: 255
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2008.xls
+  Draft Year: 2008
+  League: NFL
+  Rows: 252
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2009.xls
+  Draft Year: 2009
+  League: NFL
+  Rows: 256
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2010.xls
+  Draft Year: 2010
+  League: NFL
+  Rows: 255
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2011.xls
+  Draft Year: 2011
+  League: NFL
+  Rows: 254
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2012.xls
+  Draft Year: 2012
+  League: NFL
+  Rows: 253
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2013.xls
+  Draft Year: 2013
+  League: NFL
+  Rows: 254
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2014.xls
+  Draft Year: 2014
+  League: NFL
+  Rows: 256
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2015.xls
+  Draft Year: 2015
+  League: NFL
+  Rows: 256
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2016.xls
+  Draft Year: 2016
+  League: NFL
+  Rows: 253
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2017.xls
+  Draft Year: 2017
+  League: NFL
+  Rows: 253
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2018.xls
+  Draft Year: 2018
+  League: NFL
+  Rows: 256
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2019.xls
+  Draft Year: 2019
+  League: NFL
+  Rows: 254
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2020.xls
+  Draft Year: 2020
+  League: NFL
+  Rows: 255
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2021.xls
+  Draft Year: 2021
+  League: NFL
+  Rows: 259
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2022.xls
+  Draft Year: 2022
+  League: NFL
+  Rows: 262
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2023.xls
+  Draft Year: 2023
+  League: NFL
+  Rows: 259
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2024.xls
+  Draft Year: 2024
+  League: NFL
+  Rows: 257
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+============================================================
+Processing: 2025.xls
+  Draft Year: 2025
+  League: NFL
+  Rows: 257
+  ERROR: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
+
+================================================================================
+SUMMARY
+================================================================================
+Files processed: 0
+Files with errors: 100
+Total players extracted: 0
+Traceback (most recent call last):
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 267, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\tshan\OneDrive\Documents\Madden Files\KNuttZFranchiseSandBox\madden-editor-suite\scripts\phase1_process_xls_drafts.py", line 241, in main
+    print(f"\n\u2713 Created {output_file}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.13_3.13.2544.0_x64__qbz5n2kfra8p0\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 2: character maps to <undefined>
