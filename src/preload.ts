@@ -60,8 +60,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Creator APIs (web scraping and rating generation)
   creator: {
-    generateDraftClass: (year: number) =>
-      ipcRenderer.invoke('creator:generate-draft-class', year),
+    generateDraftClass: (year: number, testingMode: boolean = false) =>
+      ipcRenderer.invoke('creator:generate-draft-class', year, testingMode),
+    generateDecadeDraftClass: (startYear: number, endYear: number) =>
+      ipcRenderer.invoke('creator:generate-decade-draft-class', startYear, endYear),
     generateRoster: (year: number, teams: string[]) =>
       ipcRenderer.invoke('creator:generate-roster', year, teams),
     testScraper: (year: number) =>
@@ -116,5 +118,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Portrait APIs
   portrait: {
     getByPLPO: (plpoKey: string) => ipcRenderer.invoke('portrait:get-image-data-by-plpo', plpoKey)
+  },
+
+  // Window Management APIs
+  openFranchiseWindow: (isRetro: boolean) => ipcRenderer.invoke('window:open-franchise', isRetro),
+  openMainEditorWithData: (data: { players?: any[]; draftClass?: any[]; type: string }) =>
+    ipcRenderer.invoke('window:open-main-editor', data),
+  getSharedData: () => ipcRenderer.invoke('window:get-shared-data'),
+
+  // Franchise APIs
+  franchise: {
+    selectFile: () => ipcRenderer.invoke('franchise:select-file'),
+    loadFile: (filePath: string) => ipcRenderer.invoke('franchise:load-file', filePath),
+    getTableData: (filePath: string, tableName: string) => ipcRenderer.invoke('franchise:get-table-data', filePath, tableName),
+    saveFile: (filePath: string, savePath: string) => ipcRenderer.invoke('franchise:save-file', filePath, savePath)
   }
 });

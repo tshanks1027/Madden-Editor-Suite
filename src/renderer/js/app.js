@@ -117,6 +117,9 @@ class MaddenEditorApp {
         // Initialize lookup system
         await this.initializeLookup();
 
+        // Check for shared data from franchise editor
+        await this.checkForSharedData();
+
         // Setup event listeners
         this.setupEventListeners();
 
@@ -124,10 +127,50 @@ class MaddenEditorApp {
         this.populateTeamDropdown();
 
         // Don't load sample data - app should start blank until file is loaded
-        this.players = [];
-        this.renderRoster();
+        if (this.players.length === 0) {
+            this.renderRoster();
+        }
 
         console.log('Application initialized successfully');
+    }
+
+    async checkForSharedData() {
+        try {
+            // Check if we have shared data from franchise editor
+            if (typeof window.electronAPI !== 'undefined' && window.electronAPI.getSharedData) {
+                console.log('[App] Checking for shared data...');
+                const sharedData = await window.electronAPI.getSharedData();
+
+                if (sharedData) {
+                    console.log(`[App] Received shared data type: ${sharedData.type}`);
+
+                    if (sharedData.players && sharedData.players.length > 0) {
+                        console.log(`[App] Loading ${sharedData.players.length} players from franchise`);
+                        this.players = sharedData.players;
+                        this.renderRoster();
+                        this.setStatus(`Loaded ${this.players.length} players from franchise file`);
+
+                        // Switch to Roster tab
+                        const rosterTab = document.querySelector('[data-tab="roster"]');
+                        if (rosterTab) rosterTab.click();
+                    }
+
+                    if (sharedData.draftClass && sharedData.draftClass.length > 0) {
+                        console.log(`[App] Loading ${sharedData.draftClass.length} draft prospects from franchise`);
+                        this.currentDraftClass = { prospects: sharedData.draftClass };
+                        this.currentDraftFilePath = 'Franchise Draft Class';
+                        this.createDraftGrid(sharedData.draftClass);
+                        this.setStatus(`Loaded ${sharedData.draftClass.length} draft prospects from franchise file`);
+
+                        // Switch to Draft Class tab
+                        const draftTab = document.querySelector('[data-tab="draft"]');
+                        if (draftTab) draftTab.click();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[App] Error checking for shared data:', error);
+        }
     }
 
     hideSplashScreen() {
@@ -472,6 +515,13 @@ class MaddenEditorApp {
     }
 
     switchTool(toolName) {
+        // Special handling for franchise and retro-franchise - open new window
+        if (toolName === 'franchise' || toolName === 'retro-franchise') {
+            const isRetro = toolName === 'retro-franchise';
+            window.electronAPI.openFranchiseWindow(isRetro);
+            return;
+        }
+
         // Update active tab
         document.querySelectorAll('.tool-tab').forEach(tab => {
             tab.classList.remove('active');
@@ -3647,9 +3697,19 @@ class MaddenEditorApp {
      */
     async generateDraftClass() {
         const yearInput = document.getElementById('draftYear');
+        const draftClassTypeSelect = document.getElementById('draftClassType');
         const year = parseInt(yearInput.value);
-        const testingModeCheckbox = document.getElementById('testingMode');
-        const testingMode = testingModeCheckbox ? testingModeCheckbox.checked : false;
+        const draftClassType = draftClassTypeSelect ? draftClassTypeSelect.value : 'single';
+
+        // Determine if this is a decade class
+        const isDecadeClass = draftClassType !== 'single';
+        let decadeStart, decadeEnd;
+
+        if (isDecadeClass) {
+            // Extract decade from value like "1990s"
+            decadeStart = parseInt(draftClassType.substring(0, 4));
+            decadeEnd = decadeStart + 9;
+        }
 
         if (!year || year < 1936 || year > 2030) {
             this.showError('Please enter a valid draft year (1936-2030)');
@@ -3665,16 +3725,18 @@ class MaddenEditorApp {
         progressDiv.style.display = 'block';
         generateBtn.disabled = true;
         progressBar.style.width = '10%';
-        progressText.textContent = testingMode ?
-            `Generating test class (~40 players)...` :
+        progressText.textContent = isDecadeClass ?
+            `Generating ${draftClassType} decade class (best players from ${decadeStart}-${decadeEnd})...` :
             `Scraping ${year} draft class data...`;
 
         try {
-            console.log(`[Creator] Generating draft class for ${year} (Testing Mode: ${testingMode})`);
+            console.log(`[Creator] Generating draft class for ${year} (Type: ${draftClassType})`);
 
-            // Call IPC to generate draft class with testing mode flag
+            // Call IPC to generate draft class with decade info if applicable
             progressBar.style.width = '30%';
-            const result = await window.electronAPI.creator.generateDraftClass(year, testingMode);
+            const result = isDecadeClass ?
+                await window.electronAPI.creator.generateDecadeDraftClass(decadeStart, decadeEnd) :
+                await window.electronAPI.creator.generateDraftClass(year, false);
 
             if (!result.success) {
                 throw new Error(result.error || 'Failed to generate draft class');
