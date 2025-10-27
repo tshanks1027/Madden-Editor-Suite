@@ -109,32 +109,61 @@ class FranchiseEditor {
             });
         });
 
-        // Roster filters - team filter navigates to team detail page
+        // Roster filters - team filter filters the current roster view
         const teamFilter = document.getElementById('franchiseTeamFilter');
+        console.log('[FILTER DEBUG] Team filter element found:', teamFilter ? 'YES' : 'NO', teamFilter);
         if (teamFilter) {
             teamFilter.addEventListener('change', (e) => {
-                const teamId = e.target.value ? parseInt(e.target.value) : null;
+                console.log('[TEAM FILTER] Raw value:', e.target.value);
+                const value = e.target.value;
 
-                if (teamId !== null) {
-                    // Navigate to team detail page
-                    console.log('[TEAM FILTER] Navigating to team:', teamId);
-                    this.viewTeam(teamId);
+                // FIXED: Set selectedTeamId and call filterAndRenderRoster, don't call enterTeamView
+                if (value && value !== '') {
+                    this.selectedTeamId = parseInt(value, 10);
+                    if (isNaN(this.selectedTeamId)) {
+                        console.error('[TEAM FILTER] Failed to parse teamId from:', value);
+                        this.selectedTeamId = null;
+                    } else {
+                        // Apply team colors when a team is selected
+                        const team = getTeamById(this.selectedTeamId);
+                        if (team) {
+                            this.applyTeamColors(team);
+                        }
+                    }
                 } else {
-                    // "All Teams" selected - stay on roster view
-                    this.selectedTeamId = null;
-                    this.currentPage = 1;
-                    this.filterAndRenderRoster();
+                    this.selectedTeamId = null; // "All Teams" selected
+                    this.resetColors(); // Reset colors when "All Teams" is selected
                 }
+
+                console.log('[TEAM FILTER] Selected team ID:', this.selectedTeamId);
+                this.currentPage = 1;
+                this.filterAndRenderRoster();
+            });
+            console.log('[FILTER DEBUG] Team filter event listener attached successfully');
+        } else {
+            console.error('[FILTER DEBUG] Team filter element NOT FOUND - cannot attach listener');
+        }
+
+        // Exit team view button
+        const exitTeamViewBtn = document.getElementById('franchiseExitTeamView');
+        if (exitTeamViewBtn) {
+            exitTeamViewBtn.addEventListener('click', () => {
+                this.exitTeamView();
             });
         }
 
         const positionFilter = document.getElementById('franchisePositionFilter');
+        console.log('[FILTER DEBUG] Position filter element found:', positionFilter ? 'YES' : 'NO', positionFilter);
         if (positionFilter) {
             positionFilter.addEventListener('change', (e) => {
+                console.log('[POSITION FILTER] Changed to:', e.target.value);
                 this.selectedPosition = e.target.value;
                 this.currentPage = 1;
                 this.filterAndRenderRoster();
             });
+            console.log('[FILTER DEBUG] Position filter event listener attached successfully');
+        } else {
+            console.error('[FILTER DEBUG] Position filter element NOT FOUND - cannot attach listener');
         }
 
         const searchInput = document.getElementById('franchiseSearchInput');
@@ -180,6 +209,54 @@ class FranchiseEditor {
             lastPage.addEventListener('click', () => {
                 this.currentPage = this.totalPages;
                 this.filterAndRenderRoster();
+            });
+        }
+
+        // ========================================
+        // Player Card Modal Event Listeners
+        // ========================================
+
+        // Close button
+        const playerCardCloseBtn = document.querySelector('.player-card-close');
+        if (playerCardCloseBtn) {
+            playerCardCloseBtn.addEventListener('click', () => {
+                this.closePlayerCard();
+            });
+        }
+
+        // Click outside modal to close
+        const playerCardModal = document.getElementById('playerCardModal');
+        if (playerCardModal) {
+            playerCardModal.addEventListener('click', (e) => {
+                if (e.target === playerCardModal) {
+                    this.closePlayerCard();
+                }
+            });
+        }
+
+        // ESC key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('playerCardModal');
+                if (modal && modal.style.display === 'flex') {
+                    this.closePlayerCard();
+                }
+            }
+        });
+
+        // Save button
+        const savePlayerCardBtn = document.getElementById('savePlayerCardBtn');
+        if (savePlayerCardBtn) {
+            savePlayerCardBtn.addEventListener('click', () => {
+                this.savePlayerCard();
+            });
+        }
+
+        // PID dropdown change - update portrait
+        const pidSelect = document.getElementById('playerCardPIDSelect');
+        if (pidSelect) {
+            pidSelect.addEventListener('change', (e) => {
+                this.updatePlayerCardPortrait(e.target.value);
             });
         }
     }
@@ -562,7 +639,7 @@ class FranchiseEditor {
             window.electronAPI.debug.sessionLog(`[DEBUG] ChangeOfDirectionRating: ${firstPlayer.ChangeOfDirectionRating}`);
             window.electronAPI.debug.sessionLog(`[DEBUG] FinesseMovesRating: ${firstPlayer.FinesseMovesRating}`);
             window.electronAPI.debug.sessionLog(`[DEBUG] HitPowerRating: ${firstPlayer.HitPowerRating}`);
-            window.electronAPI.debug.sessionLog(`[DEBUG] College: ${firstPlayer.College}`);
+            window.electronAPI.debug.sessionLog(`[DEBUG] College (PCOL): ${firstPlayer.PCOL}`);
 
             // Check ALL field codes for missing mappings
             const unmappedCodes = [];
@@ -635,9 +712,20 @@ class FranchiseEditor {
         const collegeRenderer = (instance, td, row, col, prop, value, cellProperties) => {
             Handsontable.renderers.TextRenderer(instance, td, row, col, prop, value, cellProperties);
 
-            if (value !== null && value !== undefined && typeof value === 'number') {
-                const collegeName = getLookupValue('colleges', value);
-                td.textContent = collegeName || `College ${value}`;
+            if (value !== null && value !== undefined) {
+                let collegeId = value;
+
+                // If it's a binary string (e.g., "10000000000000000000011110110000"), convert to number
+                if (typeof value === 'string' && value.match(/^[01]+$/)) {
+                    collegeId = parseInt(value, 2); // Parse as binary
+                    console.log('[College Parse] Binary:', value, '→ Decimal:', collegeId);
+                }
+
+                // If it's a number, look it up
+                if (typeof collegeId === 'number') {
+                    const collegeName = getLookupValue('colleges', collegeId);
+                    td.textContent = collegeName || `College ${collegeId}`;
+                }
             }
             return td;
         };
@@ -857,6 +945,16 @@ class FranchiseEditor {
                 }
             },
 
+            // AfterRender callback to style row headers for player cards
+            afterRender: () => {
+                // Style row headers as clickable
+                const rowHeaders = document.querySelectorAll('.ht_clone_left th.rowHeader, .ht_clone_left th, th.rowHeader');
+                rowHeaders.forEach(header => {
+                    header.style.cursor = 'pointer';
+                    header.title = 'Click to view player card';
+                });
+            },
+
             // Custom cell styling to match roster editor
             cells: (row, col) => {
                 // Column 0 is portrait - use portrait renderer
@@ -908,6 +1006,9 @@ class FranchiseEditor {
 
         // Setup click handlers for column sorting
         this.setupHeaderClickHandlers();
+
+        // Setup row header click handlers for player cards
+        this.setupRowHeaderHandlers();
     }
 
     initializeDraftGrid() {
@@ -1402,6 +1503,137 @@ class FranchiseEditor {
         this.displayTeams();
     }
 
+    // Team view methods - ported from main editor (src/renderer/js/app.js:2300-2393)
+    enterTeamView(teamId) {
+        console.log('[FRANCHISE TEAM VIEW] enterTeamView called with teamId:', teamId);
+
+        if (!teamId) {
+            // "All Teams" selected - exit team view
+            console.log('[FRANCHISE TEAM VIEW] No teamId - exiting team view');
+            this.exitTeamView();
+            return;
+        }
+
+        const team = getTeamById(teamId);
+        console.log('[FRANCHISE TEAM VIEW] Got team:', team ? team.fullName : 'NULL');
+        if (!team) return;
+
+        // Store selected team
+        this.selectedTeamId = teamId;
+
+        // Show team header
+        const teamHeader = document.getElementById('franchiseTeamViewHeader');
+        const teamName = document.getElementById('franchiseTeamName');
+        const teamLogo = document.getElementById('franchiseTeamLogo');
+
+        console.log('[FRANCHISE TEAM VIEW] Team header element:', !!teamHeader);
+        console.log('[FRANCHISE TEAM VIEW] Team name element:', !!teamName);
+        console.log('[FRANCHISE TEAM VIEW] Team logo element:', !!teamLogo);
+
+        if (teamHeader) {
+            teamHeader.style.display = 'flex';
+            console.log('[FRANCHISE TEAM VIEW] Team header display set to flex');
+        }
+
+        if (teamName) {
+            teamName.textContent = team.fullName;
+            console.log('[FRANCHISE TEAM VIEW] Team name set to:', team.fullName);
+        }
+
+        // Set team logo if available
+        if (teamLogo) {
+            if (team.logo) {
+                teamLogo.innerHTML = `<img src="${team.logo}" alt="${team.fullName} logo" style="width: 64px; height: 64px; object-fit: contain;">`;
+            } else {
+                teamLogo.innerHTML = '';
+            }
+        }
+
+        // Apply team colors
+        console.log('[FRANCHISE TEAM VIEW] Applying team colors:', team.primary, team.secondary);
+        this.applyTeamColors(team);
+
+        // Filter and render
+        this.currentPage = 1;
+        console.log('[FRANCHISE TEAM VIEW] Calling filterAndRenderRoster');
+        this.filterAndRenderRoster();
+    }
+
+    exitTeamView() {
+        // Hide team header
+        const teamHeader = document.getElementById('franchiseTeamViewHeader');
+        if (teamHeader) {
+            teamHeader.style.display = 'none';
+        }
+
+        // Reset team filter dropdown
+        const teamFilter = document.getElementById('franchiseTeamFilter');
+        if (teamFilter) {
+            teamFilter.value = '';
+        }
+        this.selectedTeamId = null;
+
+        // Reset colors to default
+        this.resetColors();
+
+        // Re-render
+        this.currentPage = 1;
+        this.filterAndRenderRoster();
+    }
+
+    applyTeamColors(team) {
+        const root = document.documentElement;
+        root.style.setProperty('--team-primary', team.primary);
+        root.style.setProperty('--team-secondary', team.secondary);
+
+        // Apply team colors to header
+        const teamHeader = document.getElementById('franchiseTeamViewHeader');
+        if (teamHeader) {
+            teamHeader.style.background = `linear-gradient(135deg, ${team.primary} 0%, ${team.secondary} 100%)`;
+        }
+
+        // Apply team colors to data grid container
+        const gridContainer = document.getElementById('franchiseRosterGrid');
+        if (gridContainer) {
+            gridContainer.style.background = `linear-gradient(135deg, ${team.primary} 0%, ${team.secondary} 100%)`;
+            gridContainer.style.padding = '2px'; // Small padding to show gradient border
+            gridContainer.classList.add('team-view-active'); // Enable team-colored selections
+        }
+
+        // Apply subtle team-colored overlay to Handsontable
+        const hotContainer = document.getElementById('franchise-handsontable-container');
+        if (hotContainer) {
+            hotContainer.style.position = 'relative';
+            hotContainer.style.background = '#1a1a1a'; // Keep table dark for readability
+        }
+    }
+
+    resetColors() {
+        const root = document.documentElement;
+        root.style.removeProperty('--team-primary');
+        root.style.removeProperty('--team-secondary');
+
+        // Reset header
+        const teamHeader = document.getElementById('franchiseTeamViewHeader');
+        if (teamHeader) {
+            teamHeader.style.background = '';
+        }
+
+        // Reset grid container
+        const gridContainer = document.getElementById('franchiseRosterGrid');
+        if (gridContainer) {
+            gridContainer.style.background = '';
+            gridContainer.style.padding = '';
+            gridContainer.classList.remove('team-view-active'); // Disable team-colored selections
+        }
+
+        // Reset Handsontable container
+        const hotContainer = document.getElementById('franchise-handsontable-container');
+        if (hotContainer) {
+            hotContainer.style.background = '';
+        }
+    }
+
     populateTradeTeamSelects() {
         const teamASelect = document.getElementById('teamA-select');
         const teamBSelect = document.getElementById('teamB-select');
@@ -1581,7 +1813,20 @@ class FranchiseEditor {
         this.updateStatus('Saving franchise...');
 
         try {
-            const result = await window.electronAPI.franchise.saveFile(this.currentFile, this.currentFile);
+            // Collect player updates from franchiseData
+            // The Handsontable grid edits are already applied to the franchiseData.players array
+            // because Handsontable modifies the source data directly when cells are edited
+            const playerUpdates = this.franchiseData.players || [];
+
+            console.log('[Franchise Editor] Preparing to save', playerUpdates.length, 'players');
+
+            // Save with player updates
+            // API signature: saveFile(filePath, updates, savePath?)
+            const result = await window.electronAPI.franchise.saveFile(
+                this.currentFile,
+                playerUpdates,
+                this.currentFile
+            );
 
             if (!result.success) {
                 throw new Error(result.error);
@@ -1642,17 +1887,23 @@ class FranchiseEditor {
 
         // Create and store the handler function
         this._headerClickHandler = (e) => {
+            console.log('[FRANCHISE CLICK] Document click detected, target:', e.target.tagName, 'class:', e.target.className);
+
             // Check if click was on or inside a sortable header
             const header = e.target.closest('.sortable-header');
+            console.log('[FRANCHISE CLICK] Closest sortable-header:', header ? header.tagName : 'NULL', header ? header.dataset.field : '');
+
             if (!header) return;
 
             // Make sure this is from our roster grid
-            const isInRosterGrid = header.closest('#franchise-handsontable-container');
+            const isInRosterGrid = header.closest('#franchiseRosterGrid, #franchise-handsontable-container');
+            console.log('[FRANCHISE CLICK] Is in roster grid/handsontable container:', !!isInRosterGrid);
+
             if (!isInRosterGrid) return;
 
             const fieldName = header.dataset.field;
             const isShiftKey = e.shiftKey;
-            console.log('[Franchise] Header click - Field:', fieldName, 'Shift:', isShiftKey);
+            console.log('[FRANCHISE HEADER CLICK] Field:', fieldName, 'Shift:', isShiftKey);
 
             // Handle column sort
             this.toggleColumnSort(fieldName, isShiftKey);
@@ -1660,34 +1911,42 @@ class FranchiseEditor {
 
         // Add the new listener to document
         document.addEventListener('click', this._headerClickHandler);
+        console.log('[FRANCHISE SETUP] Header click handler attached to document');
 
         // Set cursor on headers when they appear
         const headers = document.querySelectorAll('.sortable-header');
         headers.forEach(header => {
             header.style.cursor = 'pointer';
         });
+        console.log('[FRANCHISE SETUP] Found', headers.length, 'sortable headers');
     }
 
     toggleColumnSort(fieldName, isMultiColumn) {
         console.log('[Franchise Sort] Toggle sort - field:', fieldName, 'multi:', isMultiColumn);
+        console.log('[Franchise Sort] Current sortColumns:', JSON.stringify(this.sortColumns));
 
         // Find existing sort for this column
         const existingSortIndex = this.sortColumns.findIndex(s => s.column === fieldName);
+        console.log('[Franchise Sort] Existing sort index:', existingSortIndex);
 
         if (!isMultiColumn) {
             // Single column sort - clear all other sorts
             if (existingSortIndex >= 0) {
                 // Toggle between asc/desc/none
                 const currentOrder = this.sortColumns[existingSortIndex].order;
+                console.log('[Franchise Sort] Current order:', currentOrder);
                 if (currentOrder === 'asc') {
                     this.sortColumns = [{ column: fieldName, order: 'desc' }];
+                    console.log('[Franchise Sort] Changed to DESC');
                 } else {
                     // desc -> remove sort
                     this.sortColumns = [];
+                    console.log('[Franchise Sort] Removed sort');
                 }
             } else {
                 // Start with ascending
                 this.sortColumns = [{ column: fieldName, order: 'asc' }];
+                console.log('[Franchise Sort] Started ASC sort');
             }
         } else {
             // Multi-column sort - add or toggle this column
@@ -1705,6 +1964,8 @@ class FranchiseEditor {
                 this.sortColumns.push({ column: fieldName, order: 'asc' });
             }
         }
+
+        console.log('[Franchise Sort] New sortColumns:', JSON.stringify(this.sortColumns));
 
         // Reset to first page and re-render
         this.currentPage = 1;
@@ -1859,29 +2120,80 @@ class FranchiseEditor {
 
         // Team filter
         if (this.selectedTeamId !== null) {
-            filtered = filtered.filter(p => p.TeamIndex === this.selectedTeamId);
+            console.log('[TEAM FILTER DEBUG] Filtering by team ID:', this.selectedTeamId);
+            console.log('[TEAM FILTER DEBUG] Total players before filter:', filtered.length);
+
+            let matchCount = 0;
+            filtered = filtered.filter((p, idx) => {
+                // Debug first 3 players
+                if (idx < 3) {
+                    console.log(`[TEAM FILTER DEBUG] Player ${idx} TGID:`, p.TGID, `vs selectedTeamId:`, this.selectedTeamId);
+                }
+
+                // FIXED: Franchise data uses TGID field, not TeamIndex
+                const matches = p.TGID === this.selectedTeamId;
+                if (matches) matchCount++;
+                return matches;
+            });
+
+            console.log('[TEAM FILTER DEBUG] Players after team filter:', filtered.length, `(${matchCount} matched)`);
         }
 
         // Position filter
         if (this.selectedPosition) {
-            filtered = filtered.filter(p => {
-                const posValue = p.Position;
+            console.log('[FILTER DEBUG] Filtering by position:', this.selectedPosition);
+            console.log('[FILTER DEBUG] Total players before filter:', filtered.length);
+
+            let matchCount = 0;
+            filtered = filtered.filter((p, idx) => {
+                const posValue = p.PPOS; // Use PPOS field
+
+                // Debug first 3 players
+                if (idx < 3) {
+                    console.log(`[FILTER DEBUG] Player ${idx} PPOS field:`, posValue);
+                }
+
                 if (posValue === undefined || posValue === null) return false;
 
-                // Get position name from lookup
-                const posName = getLookupValue('positions', posValue);
-                return posName === this.selectedPosition;
+                // FIXED: Franchise data uses string codes ("HB", "QB"), compare directly
+                // No need for lookup - the PPOS field already has the position code
+
+                // Debug first 3 comparisons
+                if (idx < 3) {
+                    console.log(`[FILTER DEBUG] Player ${idx} comparing "${posValue}" === "${this.selectedPosition}":`, posValue === this.selectedPosition);
+                }
+
+                const matches = posValue === this.selectedPosition;
+                if (matches) matchCount++;
+                return matches;
             });
+
+            console.log('[FILTER DEBUG] Players after position filter:', filtered.length, `(${matchCount} matched)`);
         }
 
         // Search filter
         if (this.searchTerm) {
-            filtered = filtered.filter(p => {
-                const firstName = (p.FirstName || '').toLowerCase();
-                const lastName = (p.LastName || '').toLowerCase();
+            console.log('[SEARCH FILTER] Searching for:', this.searchTerm);
+            console.log('[SEARCH FILTER] Total players before filter:', filtered.length);
+
+            let matchCount = 0;
+            filtered = filtered.filter((p, idx) => {
+                // FIXED: Use PFNA/PLNA fields, not FirstName/LastName
+                const firstName = (p.PFNA || '').toLowerCase();
+                const lastName = (p.PLNA || '').toLowerCase();
                 const fullName = `${firstName} ${lastName}`;
-                return fullName.includes(this.searchTerm);
+
+                // Debug first 3 players
+                if (idx < 3) {
+                    console.log(`[SEARCH FILTER] Player ${idx} name: "${fullName}" (PFNA: "${p.PFNA}", PLNA: "${p.PLNA}")`);
+                }
+
+                const matches = fullName.includes(this.searchTerm);
+                if (matches) matchCount++;
+                return matches;
             });
+
+            console.log('[SEARCH FILTER] Players after search filter:', filtered.length, `(${matchCount} matched)`);
         }
 
         // Apply sorting (ported from roster editor)
@@ -1998,9 +2310,596 @@ class FranchiseEditor {
         // Add real teams (1-32)
         getAllTeams().forEach(team => {
             const option = document.createElement('option');
-            option.value = team.TeamIndex;
+            option.value = team.id; // FIXED: Use team.id instead of team.TeamIndex
             option.textContent = team.fullName;
             teamFilter.appendChild(option);
+        });
+    }
+
+    applyTeamColors(team) {
+        // Set CSS variables for team colors
+        const root = document.documentElement;
+        root.style.setProperty('--team-primary', team.primary);
+        root.style.setProperty('--team-secondary', team.secondary);
+
+        // Apply team colors to franchise roster grid container (just border gradient)
+        const gridContainer = document.getElementById('franchiseRosterGrid');
+        if (gridContainer) {
+            gridContainer.style.background = `linear-gradient(135deg, ${team.primary} 0%, ${team.secondary} 100%)`;
+            gridContainer.style.padding = '2px';
+            gridContainer.classList.add('team-view-active');
+        }
+
+        // Ensure Handsontable container has dark background
+        const hotContainer = gridContainer?.querySelector('.handsontable');
+        if (hotContainer) {
+            hotContainer.style.position = 'relative';
+            hotContainer.style.background = '#1a1a1a';
+        }
+
+        // Show team header with gradient background
+        const teamHeader = document.getElementById('franchiseTeamViewHeader');
+        const teamLogo = document.getElementById('franchiseTeamLogo');
+        const teamName = document.getElementById('franchiseTeamName');
+
+        if (teamHeader && teamLogo && teamName) {
+            teamHeader.style.display = 'flex';
+            teamName.textContent = team.fullName;
+
+            // Display team logo as simple img tag
+            if (team.logo) {
+                teamLogo.innerHTML = `<img src="${team.logo}" alt="${team.fullName} logo" style="width: 100%; height: 100%; object-fit: contain;">`;
+            } else {
+                teamLogo.innerHTML = '';
+            }
+
+            // Apply gradient to team header
+            teamHeader.style.background = `linear-gradient(135deg, ${team.primary} 0%, ${team.secondary} 100%)`;
+        }
+    }
+
+    resetColors() {
+        const root = document.documentElement;
+
+        // Set NFL colors as CSS variables
+        const nflRed = '#D50A0A';
+        const nflBlue = '#013369';
+        root.style.setProperty('--team-primary', nflBlue);
+        root.style.setProperty('--team-secondary', nflRed);
+
+        // Show NFL shield and "All Teams" in header
+        const teamHeader = document.getElementById('franchiseTeamViewHeader');
+        const teamLogo = document.getElementById('franchiseTeamLogo');
+        const teamName = document.getElementById('franchiseTeamName');
+
+        if (teamHeader && teamLogo && teamName) {
+            teamHeader.style.display = 'flex';
+            teamName.textContent = 'All Teams';
+
+            // Display NFL shield logo with proper sizing
+            teamLogo.innerHTML = `<img src="https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg" alt="NFL Shield" style="width: 100%; height: 100%; object-fit: contain;">`;
+
+            // Apply NFL gradient to header
+            teamHeader.style.background = `linear-gradient(135deg, ${nflBlue} 0%, ${nflRed} 100%)`;
+        }
+
+        // Apply NFL-themed gradient to grid container (border only)
+        const gridContainer = document.getElementById('franchiseRosterGrid');
+        if (gridContainer) {
+            gridContainer.style.background = `linear-gradient(135deg, ${nflBlue} 0%, ${nflRed} 100%)`;
+            gridContainer.style.padding = '2px';
+            gridContainer.classList.remove('team-view-active');
+        }
+
+        // Ensure Handsontable container has dark background
+        const hotContainer = gridContainer?.querySelector('.handsontable');
+        if (hotContainer) {
+            hotContainer.style.position = 'relative';
+            hotContainer.style.background = '#1a1a1a';
+        }
+    }
+
+    // ========================================
+    // Player Card Methods
+    // ========================================
+
+    setupRowHeaderHandlers() {
+        // Store the handler as instance variable so it can be removed if needed
+        this._rowHeaderClickHandler = (e) => {
+            // Check various selectors for row header clicks
+            let rowHeader = null;
+            if (e.target.matches('th.rowHeader')) {
+                rowHeader = e.target;
+            } else if (e.target.closest('th.rowHeader')) {
+                rowHeader = e.target.closest('th.rowHeader');
+            } else if (e.target.matches('.ht_clone_left th')) {
+                rowHeader = e.target;
+            } else if (e.target.closest('.ht_clone_left th')) {
+                rowHeader = e.target.closest('.ht_clone_left th');
+            }
+
+            if (!rowHeader) {
+                return;
+            }
+
+            console.log('[Player Card] Row header clicked:', rowHeader.textContent);
+
+            // Get the row index from the row header
+            const row = parseInt(rowHeader.textContent.trim()) - 1; // Row headers are 1-indexed
+
+            if (isNaN(row) || row < 0) {
+                console.log('[Player Card] Invalid row number:', rowHeader.textContent);
+                return;
+            }
+
+            // Get player data for this row using Handsontable's getSourceDataAtRow
+            // This correctly handles sorted/filtered data
+            if (this.rosterGrid && !this.rosterGrid.isDestroyed) {
+                const playerData = this.rosterGrid.getSourceDataAtRow(row);
+                console.log('[Player Card] Player data from row:', row, playerData);
+                console.log('[Player Card] Field mapping:', this.currentFieldMapping);
+                console.log('[Player Card] Is array:', Array.isArray(playerData));
+
+                if (playerData && Array.isArray(playerData)) {
+                    // Data is an array: ['', lastName, firstName, ...]
+                    // Find indices for FirstName and LastName in currentFieldMapping
+                    // Field mapping already includes portrait column at index 0, so no need to add 1
+                    const lastNameIdx = this.currentFieldMapping.indexOf('PLNA');
+                    const firstNameIdx = this.currentFieldMapping.indexOf('PFNA');
+
+                    const lastName = playerData[lastNameIdx];
+                    const firstName = playerData[firstNameIdx];
+
+                    console.log('[Player Card] Extracted names from array:', { firstName, lastName, firstNameIdx, lastNameIdx });
+
+                    // Find the actual player object by matching names
+                    const actualPlayer = this.filteredPlayers.find(p =>
+                        (p.FirstName === firstName || p.PFNA === firstName || p.LastName === lastName) &&
+                        (p.LastName === lastName || p.PLNA === lastName || p.FirstName === firstName)
+                    );
+
+                    if (actualPlayer) {
+                        const playerIndex = this.filteredPlayers.indexOf(actualPlayer);
+                        console.log('[Player Card] Found player at index:', playerIndex);
+                        this.openPlayerCard(actualPlayer, playerIndex);
+                    } else {
+                        console.log('[Player Card] No player found matching names:', { firstName, lastName });
+                        console.log('[Player Card] First 3 filteredPlayers:', this.filteredPlayers.slice(0, 3).map(p => ({
+                            FirstName: p.FirstName,
+                            LastName: p.LastName,
+                            PFNA: p.PFNA,
+                            PLNA: p.PLNA
+                        })));
+                    }
+                } else {
+                    console.log('[Player Card] No player data or not array for row:', row);
+                }
+            } else {
+                console.log('[Player Card] Handsontable not available');
+            }
+        };
+
+        // Add row header click listener to document
+        document.addEventListener('click', this._rowHeaderClickHandler);
+        console.log('[SETUP] Row header click handler attached for player cards');
+
+        // Style row headers to show they're clickable - use polling to wait for DOM
+        let attempts = 0;
+        const maxAttempts = 20; // Try for up to 2 seconds
+        const pollInterval = 100;
+
+        const styleRowHeaders = () => {
+            attempts++;
+            const rowHeaderSelectors = [
+                '.ht_clone_left th.rowHeader',
+                '.ht_clone_left th',
+                'th.rowHeader',
+                '.ht_clone_left .htCore tbody th'
+            ];
+
+            let rowHeaders = [];
+            for (const selector of rowHeaderSelectors) {
+                const headers = document.querySelectorAll(selector);
+                if (headers.length > 0) {
+                    rowHeaders = headers;
+                    console.log('[SETUP] Found', headers.length, 'row headers using selector:', selector, 'after', attempts * pollInterval, 'ms');
+                    break;
+                }
+            }
+
+            if (rowHeaders.length > 0) {
+                rowHeaders.forEach(header => {
+                    header.style.cursor = 'pointer';
+                    header.title = 'Click to view player card';
+                });
+                console.log('[SETUP] Row headers styled successfully');
+            } else if (attempts < maxAttempts) {
+                // Try again
+                setTimeout(styleRowHeaders, pollInterval);
+            } else {
+                console.warn('[SETUP] No row headers found after', attempts * pollInterval, 'ms! Player cards may not work.');
+            }
+        };
+
+        // Start polling
+        setTimeout(styleRowHeaders, pollInterval);
+    }
+
+    openPlayerCard(playerData, playerIndex) {
+        console.log('[Player Card] openPlayerCard called with:', { playerIndex, playerData });
+
+        try {
+            // Store current player data for saving
+            this.currentPlayerCardData = playerData;
+            this.currentPlayerCardIndex = playerIndex;
+            console.log('[Player Card] Stored player data');
+
+            // Get display values using lookup system (use franchise field codes)
+            const position = getLookupValue('positions', playerData.PPOS || playerData.Position) || 'FA';
+            const team = getLookupValue('teams', playerData.TGID || playerData.TeamIndex) || 'Free Agent';
+            const college = getLookupValue('colleges', playerData.PCOL || playerData.College) || '--';
+            console.log('[Player Card] Got lookup values:', { position, team, college });
+
+            // Header section - display only (use franchise field codes)
+            document.getElementById('playerCardNumber').textContent = playerData.PJEN || playerData.JerseyNum || '0';
+            document.getElementById('playerCardName').textContent = `${playerData.PFNA || playerData.FirstName || ''} ${playerData.PLNA || playerData.LastName || 'Unknown'}`.trim();
+            document.getElementById('playerCardPosition').textContent = position;
+            document.getElementById('playerCardTeam').textContent = team;
+            document.getElementById('playerCardOverall').textContent = playerData.POVR || playerData.OverallRating || '0';
+            console.log('[Player Card] Set header section');
+
+        // Portrait section (use franchise field codes)
+        const pid = playerData.PSXP || playerData.PresentationId;
+        const plpoKey = pid ? this.getPlpoFromPID(parseInt(pid)) : null;
+        const portraitImg = document.getElementById('playerCardPortrait');
+
+        if (plpoKey && this.portraitCache.has(plpoKey)) {
+            const imageData = this.portraitCache.get(plpoKey);
+            if (imageData && imageData !== 'loading') {
+                portraitImg.src = imageData;
+                portraitImg.style.display = 'block';
+            } else {
+                portraitImg.style.display = 'none';
+            }
+        } else {
+            portraitImg.style.display = 'none';
+        }
+
+        // Populate PID dropdown for portrait selection
+        const pidSelect = document.getElementById('playerCardPIDSelect');
+        pidSelect.innerHTML = '<option value="">Select Portrait...</option>';
+
+        if (window.lookupData && window.lookupData.pidsCapitalized) {
+            const sortedPIDs = Array.from(window.lookupData.pidsCapitalized.entries())
+                .sort((a, b) => a[1].localeCompare(b[1]));
+
+            sortedPIDs.forEach(([pidValue, playerName]) => {
+                const option = document.createElement('option');
+                option.value = pidValue;
+                option.textContent = playerName;
+                if (parseInt(pidValue) === parseInt(pid)) {
+                    option.selected = true;
+                }
+                pidSelect.appendChild(option);
+            });
+        }
+
+        // Player info section - editable inputs (use franchise field codes)
+        document.getElementById('playerCardAge').value = playerData.PAGE || playerData.Age || '';
+        document.getElementById('playerCardYearsPro').value = playerData.PYRP !== undefined ? playerData.PYRP : (playerData.YearsPro !== undefined ? playerData.YearsPro : '');
+        document.getElementById('playerCardHeight').value = playerData.PHGT || playerData.Height || '';
+        const weight = playerData.PWGT !== undefined ? playerData.PWGT : playerData.Weight;
+        document.getElementById('playerCardWeight').value = weight !== undefined && weight !== '' ? weight + 160 : '';
+
+        // Populate college dropdown
+        const collegeSelect = document.getElementById('playerCardCollege');
+        collegeSelect.innerHTML = '';
+
+        // Get colleges from LOOKUP_DATA (imported from field-definitions.js)
+        if (LOOKUP_DATA && LOOKUP_DATA.colleges && LOOKUP_DATA.colleges.size > 0) {
+            const sortedColleges = Array.from(LOOKUP_DATA.colleges.entries())
+                .sort((a, b) => a[1].localeCompare(b[1]));
+
+            sortedColleges.forEach(([collegeId, collegeName]) => {
+                const option = document.createElement('option');
+                option.value = collegeId;
+                option.textContent = collegeName;
+                if (parseInt(collegeId) === parseInt(playerData.PCOL || playerData.College)) {
+                    option.selected = true;
+                }
+                collegeSelect.appendChild(option);
+            });
+        } else {
+            // Fallback if LOOKUP_DATA not loaded yet
+            const option = document.createElement('option');
+            option.value = playerData.PCOL || playerData.College || '';
+            option.textContent = college;
+            option.selected = true;
+            collegeSelect.appendChild(option);
+        }
+
+        document.getElementById('playerCardJersey').value = playerData.PJEN || playerData.JerseyNum || '';
+
+        // Contract section - display only
+        const yearsLeft = playerData.ContractYearsLeft !== undefined ? playerData.ContractYearsLeft : '--';
+        const totalSalary = this.calculateTotalSalary(playerData);
+        const bonus = playerData.ContractBonus ? `$${(playerData.ContractBonus / 100).toFixed(1)}M` : '--';
+        const currentSalary = playerData.ContractSalary ? `$${(playerData.ContractSalary / 100).toFixed(1)}M` : '--';
+
+        document.getElementById('playerCardYearsLeft').textContent = yearsLeft;
+        document.getElementById('playerCardTotalSalary').textContent = totalSalary !== '--' ? `$${totalSalary}M` : '--';
+        document.getElementById('playerCardBonus').textContent = bonus;
+        document.getElementById('playerCardCurrentSalary').textContent = currentSalary;
+
+            // Ratings section - populate based on position
+            this.populatePlayerRatings(playerData, position);
+            console.log('[Player Card] Populated ratings');
+
+            // Show modal
+            const modal = document.getElementById('playerCardModal');
+            console.log('[Player Card] Modal element:', modal);
+            if (modal) {
+                modal.style.display = 'flex';
+                console.log('[Player Card] Modal display set to flex');
+            } else {
+                console.error('[Player Card] Modal element not found!');
+            }
+        } catch (error) {
+            console.error('[Player Card] Error in openPlayerCard:', error);
+            console.error('[Player Card] Stack trace:', error.stack);
+        }
+    }
+
+    closePlayerCard() {
+        document.getElementById('playerCardModal').style.display = 'none';
+    }
+
+    savePlayerCard() {
+        if (!this.currentPlayerCardData || this.currentPlayerCardIndex === undefined) {
+            console.error('[Player Card] No player data to save');
+            return;
+        }
+
+        // Get updated values from inputs
+        const age = parseInt(document.getElementById('playerCardAge').value) || 0;
+        const yearsPro = parseInt(document.getElementById('playerCardYearsPro').value) || 0;
+        const height = parseInt(document.getElementById('playerCardHeight').value) || 0;
+        const weight = parseInt(document.getElementById('playerCardWeight').value) || 160;
+        const college = parseInt(document.getElementById('playerCardCollege').value) || 0;
+        const jersey = parseInt(document.getElementById('playerCardJersey').value) || 0;
+        const pid = parseInt(document.getElementById('playerCardPIDSelect').value) || this.currentPlayerCardData.PSXP || this.currentPlayerCardData.PresentationId;
+
+        // Update player data (use franchise field codes with roster fallbacks)
+        if ('PAGE' in this.currentPlayerCardData) {
+            this.currentPlayerCardData.PAGE = age;
+        } else {
+            this.currentPlayerCardData.Age = age;
+        }
+
+        if ('PYRP' in this.currentPlayerCardData) {
+            this.currentPlayerCardData.PYRP = yearsPro;
+        } else {
+            this.currentPlayerCardData.YearsPro = yearsPro;
+        }
+
+        if ('PHGT' in this.currentPlayerCardData) {
+            this.currentPlayerCardData.PHGT = height;
+        } else {
+            this.currentPlayerCardData.Height = height;
+        }
+
+        if ('PWGT' in this.currentPlayerCardData) {
+            this.currentPlayerCardData.PWGT = weight - 160; // Weight is stored as offset from 160
+        } else {
+            this.currentPlayerCardData.Weight = weight - 160;
+        }
+
+        if ('PCOL' in this.currentPlayerCardData) {
+            this.currentPlayerCardData.PCOL = college;
+        } else {
+            this.currentPlayerCardData.College = college;
+        }
+
+        if ('PJEN' in this.currentPlayerCardData) {
+            this.currentPlayerCardData.PJEN = jersey;
+        } else {
+            this.currentPlayerCardData.JerseyNum = jersey;
+        }
+
+        if ('PSXP' in this.currentPlayerCardData) {
+            this.currentPlayerCardData.PSXP = pid;
+        } else {
+            this.currentPlayerCardData.PresentationId = pid;
+        }
+
+        // Update ratings from editable inputs
+        if (this.currentPlayerCardRatings) {
+            this.currentPlayerCardRatings.forEach(fieldCode => {
+                const input = document.getElementById(`playerCardRating_${fieldCode}`);
+                if (input) {
+                    // Map field code to franchise field name
+                    const franchiseFieldName = this.getRatingFieldName(fieldCode);
+                    if (franchiseFieldName) {
+                        this.currentPlayerCardData[franchiseFieldName] = parseInt(input.value) || 0;
+                    }
+                }
+            });
+        }
+
+        // Update the filtered players array
+        this.filteredPlayers[this.currentPlayerCardIndex] = this.currentPlayerCardData;
+
+        // Re-render the grid to show updated data
+        if (this.rosterGrid && !this.rosterGrid.isDestroyed) {
+            this.rosterGrid.render();
+            console.log('[Player Card] Saved changes for player index:', this.currentPlayerCardIndex);
+        }
+
+        // Close the modal
+        this.closePlayerCard();
+    }
+
+    getRatingFieldName(fieldCode) {
+        // Map field codes to franchise field names for ratings
+        const ratingFieldMap = {
+            'PSPD': 'SpeedRating', 'PACC': 'AccelerationRating', 'PAGI': 'AgilityRating',
+            'PSTR': 'StrengthRating', 'PAWR': 'AwarenessRating', 'PCTH': 'CatchingRating',
+            'PLCI': 'CatchInTrafficRating', 'PLSC': 'SpectacularCatchRating', 'PBCV': 'BallCarrierVisionRating',
+            'PCAR': 'CarryingRating', 'PLTR': 'TruckingRating', 'PBKT': 'BreakTackleRating',
+            'PLJM': 'JukeRating', 'PLSM': 'SpinRating', 'PLSA': 'StiffArmRating',
+            'PTAS': 'ThrowAccuracyShortRating', 'PTAM': 'ThrowAccuracyMidRating',
+            'PTAD': 'ThrowAccuracyDeepRating', 'PTHP': 'ThrowPowerRating',
+            'PTOR': 'ThrowOnTheRunRating', 'PTUP': 'ThrowUnderPressureRating',
+            'PPLA': 'PlayActionRating', 'PRBK': 'RunBlockRating', 'PRBS': 'RunBlockStrengthRating',
+            'PRBF': 'RunBlockFootworkRating', 'PPBK': 'PassBlockRating',
+            'PPBS': 'PassBlockStrengthRating', 'PPBF': 'PassBlockFootworkRating',
+            'PLPM': 'PowerMovesRating', 'PFMS': 'FinesseMovesRating', 'PBSG': 'BlockSheddingRating',
+            'PLPU': 'PursuitRating', 'PTAK': 'TackleRating', 'PLMC': 'ManCoverageRating',
+            'PLZC': 'ZoneCoverageRating', 'PLPE': 'PressRating', 'PLPR': 'PlayRecognitionRating',
+            'PLHT': 'HitPowerRating', 'SRRN': 'ShortRouteRunningRating',
+            'PMRR': 'MediumRouteRunningRating', 'PDRR': 'DeepRouteRunningRating',
+            'PLRL': 'ReleaseRating', 'PLIB': 'LeadBlockRating',
+            'PKAC': 'KickAccuracyRating', 'PKPR': 'KickPowerRating'
+        };
+        return ratingFieldMap[fieldCode] || null;
+    }
+
+    updatePlayerCardPortrait(newPid) {
+        if (!newPid) {
+            return;
+        }
+
+        const plpoKey = this.getPlpoFromPID(parseInt(newPid));
+        const portraitImg = document.getElementById('playerCardPortrait');
+
+        if (plpoKey && this.portraitCache.has(plpoKey)) {
+            const imageData = this.portraitCache.get(plpoKey);
+            if (imageData && imageData !== 'loading') {
+                portraitImg.src = imageData;
+                portraitImg.style.display = 'block';
+            } else {
+                portraitImg.style.display = 'none';
+            }
+        } else if (plpoKey) {
+            // Portrait not in cache, fetch it
+            portraitImg.style.display = 'none';
+            this.portraitCache.set(plpoKey, 'loading');
+
+            window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
+                this.portraitCache.set(plpoKey, imageData);
+                // Update portrait if still on same player
+                const currentPid = document.getElementById('playerCardPIDSelect').value;
+                if (parseInt(currentPid) === parseInt(newPid)) {
+                    portraitImg.src = imageData;
+                    portraitImg.style.display = 'block';
+                }
+            }).catch((error) => {
+                console.error(`[Player Card] Failed to fetch portrait for ${plpoKey}:`, error);
+                this.portraitCache.set(plpoKey, null);
+            });
+        } else {
+            portraitImg.style.display = 'none';
+        }
+    }
+
+    formatHeight(heightInches) {
+        if (!heightInches) return '--';
+        const feet = Math.floor(heightInches / 12);
+        const inches = heightInches % 12;
+        return `${feet}'${inches}"`;
+    }
+
+    calculateTotalSalary(playerData) {
+        // Franchise files may have different salary field names
+        const salaryFields = ['ContractSalary', 'ContractYear1', 'ContractYear2', 'ContractYear3', 'ContractYear4', 'ContractYear5', 'ContractYear6'];
+        let total = 0;
+        for (const field of salaryFields) {
+            if (playerData[field]) {
+                total += playerData[field];
+            }
+        }
+        return total > 0 ? (total / 100).toFixed(1) : '--';
+    }
+
+    getRatingClass(value) {
+        if (value >= 90) return 'elite';
+        if (value >= 80) return 'great';
+        if (value >= 70) return 'good';
+        if (value >= 60) return 'average';
+        return 'poor';
+    }
+
+    populatePlayerRatings(playerData, position) {
+        const ratingsContainer = document.getElementById('playerCardRatings');
+        ratingsContainer.innerHTML = '';
+
+        // Define position-specific key ratings
+        const positionRatings = {
+            'QB': ['PSPD', 'PACC', 'PAWR', 'PTAS', 'PTAM', 'PTAD', 'PTHP', 'PTOR', 'PTUP', 'PPLA'],
+            'HB': ['PSPD', 'PACC', 'PAGI', 'PBCV', 'PCAR', 'PLTR', 'PBKT', 'PLJM', 'PLSM', 'PLSA', 'PCTH'],
+            'FB': ['PSPD', 'PSTR', 'PBKT', 'PLTR', 'PLIB', 'PRBK', 'PCTH'],
+            'WR': ['PSPD', 'PACC', 'PAGI', 'PCTH', 'PLCI', 'PLSC', 'SRRN', 'PMRR', 'PDRR', 'PLRL'],
+            'TE': ['PSPD', 'PSTR', 'PCTH', 'PLCI', 'PLSC', 'SRRN', 'PMRR', 'PRBK', 'PLIB'],
+            'LT': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'LG': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'C': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'RG': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'RT': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
+            'LE': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
+            'RE': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
+            'DT': ['PSPD', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
+            'LOLB': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'MLB': ['PSPD', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'ROLB': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'CB': ['PSPD', 'PACC', 'PAGI', 'PAWR', 'PLMC', 'PLZC', 'PLPE', 'PLPR', 'PCTH', 'PTAK'],
+            'FS': ['PSPD', 'PACC', 'PAGI', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PCTH', 'PTAK', 'PLHT'],
+            'SS': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'K': ['PKAC', 'PKPR', 'PAWR'],
+            'P': ['PKAC', 'PKPR', 'PAWR']
+        };
+
+        // Get ratings for this position, default to common ratings
+        const ratings = positionRatings[position] || ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PAWR', 'PCTH', 'PTAK'];
+
+        // Store the current ratings list for saving later
+        this.currentPlayerCardRatings = ratings;
+
+        // Create rating items with editable inputs
+        ratings.forEach(fieldCode => {
+            const fieldDef = getFieldDefinition(fieldCode);
+            const franchiseFieldName = this.getRatingFieldName(fieldCode);
+            // Try field code first (PSPD, PACC, etc.), then franchise field name (SpeedRating, etc.), then 0
+            const value = playerData[fieldCode] !== undefined ? playerData[fieldCode] : (franchiseFieldName && playerData[franchiseFieldName] !== undefined ? playerData[franchiseFieldName] : 0);
+            const ratingClass = this.getRatingClass(value);
+
+            const ratingItem = document.createElement('div');
+            ratingItem.className = 'rating-item';
+
+            // Create label
+            const label = document.createElement('div');
+            label.className = 'rating-label';
+            label.textContent = fieldDef.shortDisplay || fieldDef.display;
+
+            // Create editable input
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = `rating-value ${ratingClass}`;
+            input.id = `playerCardRating_${fieldCode}`;
+            input.value = value;
+            input.min = 0;
+            input.max = 99;
+            input.dataset.fieldCode = fieldCode;
+
+            // Update color class on input change
+            input.addEventListener('input', (e) => {
+                const newValue = parseInt(e.target.value) || 0;
+                const newClass = this.getRatingClass(newValue);
+                e.target.className = `rating-value ${newClass}`;
+            });
+
+            ratingItem.appendChild(label);
+            ratingItem.appendChild(input);
+            ratingsContainer.appendChild(ratingItem);
         });
     }
 

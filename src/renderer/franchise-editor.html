@@ -727,6 +727,417 @@
             background: linear-gradient(180deg, var(--gray-lighter) 0%, var(--gray-light) 100%) !important;
             border-color: var(--primary-orange) !important;
         }
+
+        /* Team-colored selections when team view is active */
+        .team-view-active .handsontable .wtBorder {
+            background-color: var(--team-primary) !important;
+        }
+
+        .team-view-active .handsontable .area {
+            background-color: var(--team-primary) !important;
+            opacity: 0.3;
+        }
+
+        .team-view-active .handsontable .current {
+            background-color: var(--team-primary) !important;
+        }
+
+        .team-view-active .handsontable .highlight {
+            background-color: var(--team-secondary) !important;
+            opacity: 0.2;
+        }
+
+        .team-view-active .handsontable .fill {
+            background-color: var(--team-secondary) !important;
+        }
+
+        /* Team-colored cell highlighting */
+        .team-view-active .handsontable td.area::before {
+            border-color: var(--team-primary) !important;
+        }
+
+        .team-view-active .handsontable thead th.ht__highlight,
+        .team-view-active .handsontable tbody th.ht__highlight {
+            background-color: var(--team-primary) !important;
+            opacity: 0.5;
+        }
+
+        /* ========================================
+           Modal Styles
+           ======================================== */
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .modal-content {
+            background: var(--gray-medium);
+            border-radius: 8px;
+            min-width: 400px;
+            max-width: 600px;
+            margin: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 500;
+            color: var(--white);
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--gray-text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-close:hover {
+            color: var(--gray-text);
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .error-modal .modal-title {
+            color: var(--danger-red);
+        }
+
+        .error-message {
+            color: var(--gray-text);
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        /* ========================================
+           Player Card Modal
+           ======================================== */
+
+        .player-card-modal {
+            min-width: 600px;
+            max-width: 800px;
+            background: linear-gradient(180deg, var(--gray-medium) 0%, var(--gray-dark) 100%);
+        }
+
+        .player-card-header {
+            position: relative;
+            padding: 2rem 1.5rem 1.5rem;
+            background: linear-gradient(135deg, var(--gray-light) 0%, var(--gray-medium) 100%);
+            border-bottom: 3px solid var(--primary-orange);
+            overflow: hidden;
+        }
+
+        .player-card-team-stripe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg, var(--primary-orange), var(--orange-light));
+        }
+
+        .player-card-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1;
+        }
+
+        .player-card-header-content {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .player-card-portrait-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .player-card-portrait {
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            border: 3px solid var(--primary-orange);
+            object-fit: cover;
+            background: var(--gray-medium);
+        }
+
+        .player-card-pid-select {
+            width: 100px;
+            padding: 0.25rem;
+            font-size: 0.75rem;
+            background: var(--gray-medium);
+            color: var(--gray-text);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .player-card-number {
+            font-size: 4rem;
+            font-weight: 700;
+            color: var(--primary-orange);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .player-card-name-section {
+            flex: 1;
+        }
+
+        .player-card-name {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--white);
+            margin: 0 0 0.5rem 0;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+        }
+
+        .player-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1rem;
+            color: var(--gray-text);
+        }
+
+        .player-card-position {
+            font-weight: 600;
+            color: var(--primary-orange);
+            font-size: 1.125rem;
+        }
+
+        .player-card-separator {
+            color: var(--gray-text-secondary);
+        }
+
+        .player-card-team {
+            font-weight: 500;
+        }
+
+        .player-card-overall {
+            font-size: 5rem;
+            font-weight: 700;
+            color: var(--white);
+            background: var(--primary-orange);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            min-width: 120px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(233, 136, 25, 0.4);
+        }
+
+        .player-card-body {
+            padding: 1.5rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .player-card-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .player-card-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .player-card-section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--primary-orange);
+            margin: 0 0 1rem 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .player-card-info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .player-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 0.75rem;
+            background: var(--gray-medium);
+            border-radius: 6px;
+            border-left: 3px solid var(--primary-orange);
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            color: var(--gray-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 1.125rem;
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .info-input {
+            font-size: 1rem;
+            color: var(--white);
+            font-weight: 600;
+            background: var(--gray-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 0.5rem;
+            width: 100%;
+        }
+
+        .info-input:focus {
+            outline: 2px solid var(--primary-orange);
+            outline-offset: 2px;
+            border-color: var(--primary-orange);
+        }
+
+        .btn-small {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .player-card-ratings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .rating-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: var(--gray-medium);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .rating-item:hover {
+            background: var(--gray-light);
+            transform: translateY(-2px);
+        }
+
+        .rating-label {
+            font-size: 0.75rem;
+            color: var(--gray-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .rating-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--gray-light) 0%, var(--gray-medium) 100%);
+            border: 2px solid var(--border-color);
+        }
+
+        /* Rating input fields */
+        input.rating-value {
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            -moz-appearance: textfield;
+        }
+
+        input.rating-value::-webkit-inner-spin-button,
+        input.rating-value::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input.rating-value:hover {
+            transform: scale(1.05);
+        }
+
+        input.rating-value:focus {
+            outline: 3px solid rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        /* Rating color coding */
+        .rating-value.elite {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            border-color: #4CAF50;
+            color: var(--white);
+        }
+
+        .rating-value.great {
+            background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
+            border-color: #2196F3;
+            color: var(--white);
+        }
+
+        .rating-value.good {
+            background: linear-gradient(135deg, var(--primary-orange) 0%, var(--orange-hover) 100%);
+            border-color: var(--primary-orange);
+            color: var(--white);
+        }
+
+        .rating-value.average {
+            background: linear-gradient(135deg, #FFC107 0%, #F57C00 100%);
+            border-color: #FFC107;
+            color: var(--white);
+        }
+
+        .rating-value.poor {
+            background: linear-gradient(135deg, #F44336 0%, #C62828 100%);
+            border-color: #F44336;
+            color: var(--white);
+        }
     </style>
 </head>
 <body>
@@ -889,6 +1300,15 @@
                             <span id="franchisePageInfo" class="stat-item">Page 1 of 1</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Team View Header (hidden by default) -->
+                <div id="franchiseTeamViewHeader" style="display: none; align-items: center; justify-content: space-between; padding: 1.5rem 2rem; margin: 1rem 0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); min-height: 80px;">
+                    <button id="franchiseExitTeamView" class="btn btn-secondary" style="background: rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 0.5rem 1rem; font-weight: bold;">
+                        ← Back to All Teams
+                    </button>
+                    <h2 id="franchiseTeamName" style="margin: 0; color: white; font-size: 2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.7); font-weight: bold; text-align: center; flex: 1;"></h2>
+                    <div id="franchiseTeamLogo" style="flex-shrink: 0; width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;"></div>
                 </div>
 
                 <!-- Info Tooltips -->
@@ -1207,6 +1627,103 @@
             </div>
             <div class="status-text">Madden Editor Suite v1.9.1</div>
         </footer>
+    </div>
+
+    <!-- Player Card Modal -->
+    <div id="playerCardModal" class="modal" style="display: none;">
+        <div class="modal-content player-card-modal">
+            <div class="player-card-header">
+                <div class="player-card-team-stripe"></div>
+                <button class="modal-close player-card-close">&times;</button>
+                <div class="player-card-header-content">
+                    <!-- Player Portrait -->
+                    <div class="player-card-portrait-section">
+                        <img id="playerCardPortrait" class="player-card-portrait" src="" alt="Player Portrait">
+                        <select id="playerCardPIDSelect" class="player-card-pid-select" title="Change Player Portrait">
+                            <option value="">Select Portrait...</option>
+                        </select>
+                    </div>
+
+                    <div class="player-card-number" id="playerCardNumber">99</div>
+                    <div class="player-card-name-section">
+                        <h2 class="player-card-name" id="playerCardName">Player Name</h2>
+                        <div class="player-card-meta">
+                            <span id="playerCardPosition" class="player-card-position">QB</span>
+                            <span class="player-card-separator">|</span>
+                            <span id="playerCardTeam" class="player-card-team">Team Name</span>
+                        </div>
+                    </div>
+                    <div class="player-card-overall" id="playerCardOverall">99</div>
+                </div>
+            </div>
+
+            <div class="modal-body player-card-body">
+                <!-- Player Info Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">
+                        Player Info
+                        <button id="savePlayerCardBtn" class="btn btn-primary btn-small" style="float: right;">Save Changes</button>
+                    </h3>
+                    <div class="player-card-info-grid">
+                        <div class="player-info-item">
+                            <span class="info-label">Age</span>
+                            <input type="number" class="info-input" id="playerCardAge" min="18" max="50">
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Years Pro</span>
+                            <input type="number" class="info-input" id="playerCardYearsPro" min="0" max="30">
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Height (inches)</span>
+                            <input type="number" class="info-input" id="playerCardHeight" min="60" max="90">
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Weight (lbs)</span>
+                            <input type="number" class="info-input" id="playerCardWeight" min="160" max="400">
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">College</span>
+                            <select class="info-input" id="playerCardCollege"></select>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Jersey</span>
+                            <input type="number" class="info-input" id="playerCardJersey" min="0" max="99">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ratings Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Ratings</h3>
+                    <div id="playerCardRatings" class="player-card-ratings-grid">
+                        <!-- Dynamically populated based on position -->
+                    </div>
+                </div>
+
+                <!-- Contract Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Contract</h3>
+                    <div class="player-card-info-grid">
+                        <div class="player-info-item">
+                            <span class="info-label">Years Left</span>
+                            <span class="info-value" id="playerCardYearsLeft">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Total Value</span>
+                            <span class="info-value" id="playerCardTotalSalary">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Signing Bonus</span>
+                            <span class="info-value" id="playerCardBonus">--</span>
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Current Year Salary</span>
+                            <span class="info-value" id="playerCardCurrentSalary">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="js/franchise-editor.js"></script>

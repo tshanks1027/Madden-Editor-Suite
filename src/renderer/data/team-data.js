@@ -329,9 +329,9 @@ export const NFL_TEAMS = {
     city: '',
     fullName: 'Free Agent',
     abbr: 'FA',
-    primary: '#808080',
-    secondary: '#C0C0C0',
-    logo: ''
+    primary: '#013369',
+    secondary: '#D50A0A',
+    logo: 'https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg'
   }
 };
 

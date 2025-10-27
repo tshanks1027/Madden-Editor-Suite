@@ -16,6 +16,7 @@ import {
     getLookupOptions,
     getLookupValue,
     getPIDFromName,
+    getPIDFromPLPO,
     getPlayerNameFromPID,
     searchPIDNames
 } from '../data/field-definitions.js';
@@ -2183,12 +2184,49 @@ class MaddenEditorApp {
                 return;
             }
 
-            // Get player data for this row
-            if (this.hotTable && !this.hotTable.isDestroyed && this.players[row]) {
-                console.log('[Player Card] Opening card for row:', row, 'Player:', this.players[row].PFNA, this.players[row].PLNA);
-                this.openPlayerCard(this.players[row], row);
+            // Get player data for this row using Handsontable's getSourceDataAtRow
+            // This correctly handles sorted/filtered data
+            if (this.hotTable && !this.hotTable.isDestroyed) {
+                const playerData = this.hotTable.getSourceDataAtRow(row);
+                console.log('[Player Card Debug] Row:', row);
+                console.log('[Player Card Debug] playerData type:', typeof playerData);
+                console.log('[Player Card Debug] playerData is array:', Array.isArray(playerData));
+                if (Array.isArray(playerData)) {
+                    console.log('[Player Card Debug] Array length:', playerData.length, 'First items:', playerData.slice(0, 5));
+                } else if (playerData && typeof playerData === 'object') {
+                    console.log('[Player Card Debug] Object keys:', Object.keys(playerData).slice(0, 10));
+                    console.log('[Player Card Debug] Sample values:', {
+                        PFNA: playerData.PFNA,
+                        PLNA: playerData.PLNA,
+                        FirstName: playerData.FirstName,
+                        LastName: playerData.LastName
+                    });
+                }
+
+                if (playerData && Array.isArray(playerData)) {
+                    // Handsontable returns row as array. Extract last name and first name.
+                    // Based on logs: ["","Amegadjie","Kiran",9999,"Kiran Amegadjie"]
+                    // Index 1 = Last Name, Index 2 = First Name
+                    const lastName = playerData[1];
+                    const firstName = playerData[2];
+
+                    // Find the actual player object by matching names
+                    const actualPlayer = this.players.find(p =>
+                        p.PLNA === lastName && p.PFNA === firstName
+                    );
+
+                    if (actualPlayer) {
+                        const playerIndex = this.players.indexOf(actualPlayer);
+                        console.log('[Player Card] Opening card - Player:', actualPlayer.PFNA, actualPlayer.PLNA, 'Index:', playerIndex);
+                        this.openPlayerCard(actualPlayer, playerIndex);
+                    } else {
+                        console.log('[Player Card] Could not find player:', firstName, lastName);
+                    }
+                } else {
+                    console.log('[Player Card] No player data for row:', row);
+                }
             } else {
-                console.log('[Player Card] No player data for row:', row);
+                console.log('[Player Card] Handsontable not available');
             }
         };
 
@@ -2694,11 +2732,20 @@ class MaddenEditorApp {
 
             // Look up player name from PID for the "Player Pic" column
             let playerPic = 'Generic Face';
-            if (prospect.PID && window.lookupData && window.lookupData.pidsCapitalized) {
+
+            // Handle PID=0 case (show blank)
+            if (prospect.PID === 0) {
+                playerPic = '';
+            } else if (prospect.PID && window.lookupData && window.lookupData.pidsCapitalized) {
                 const capitalizedName = window.lookupData.pidsCapitalized.get(prospect.PID);
                 if (capitalizedName) {
                     playerPic = capitalizedName;
                 }
+            }
+
+            // Fallback to PEPS if lookup failed (for generic faces)
+            if (playerPic === 'Generic Face' && prospect.PEPS) {
+                playerPic = prospect.PEPS;
             }
 
             // Debug: Log first prospect to check visuals
@@ -2874,12 +2921,23 @@ class MaddenEditorApp {
             const rowData = instance.getSourceDataAtRow(physicalRow);
             const pid = rowData ? rowData.PID : null;
 
-            if (!pid) {
+            if (!pid || pid === 0) {
                 return td;
             }
 
             // Get PLPO key from PID
-            const plpoKey = this.getPlpoFromPID(pid);
+            let plpoKey = this.getPlpoFromPID(pid);
+
+            // Fallback to PEPS field for generic faces when PID lookup fails
+            if (!plpoKey && rowData && rowData.PEPS) {
+                // Add plpo_ prefix if it's a generic face (gen_X_Y_Z format)
+                const peps = rowData.PEPS;
+                if (peps && peps.startsWith('gen_')) {
+                    plpoKey = `plpo_${peps}`;
+                } else {
+                    plpoKey = peps;
+                }
+            }
 
             if (!plpoKey) {
                 return td;
@@ -3245,6 +3303,57 @@ class MaddenEditorApp {
         console.log('[DEBUG createDraftGrid] this.draftGrid.countRows():', this.draftGrid.countRows());
         console.log('[DEBUG createDraftGrid] this.draftGrid.getData().length:', this.draftGrid.getData().length);
         console.log('[DEBUG createDraftGrid] this.draftGrid.getSourceData().length:', this.draftGrid.getSourceData().length);
+
+        // Pre-load portraits for draft class prospects
+        console.log('[Draft Portrait] Pre-loading portraits for draft class');
+        const draftPortraitsToLoad = [];
+
+        transformedProspects.forEach((prospect, index) => {
+            if (!prospect.PID || prospect.PID === 0) {
+                return;
+            }
+
+            // Get PLPO key from PID
+            let plpoKey = this.getPlpoFromPID(prospect.PID);
+
+            // Fallback to PEPS for generic faces
+            if (!plpoKey && prospect.PEPS) {
+                // Add plpo_ prefix if it's a generic face (gen_X_Y_Z format)
+                const peps = prospect.PEPS;
+                if (peps && peps.startsWith('gen_')) {
+                    plpoKey = `plpo_${peps}`;
+                } else {
+                    plpoKey = peps;
+                }
+            }
+
+            if (plpoKey && !this.portraitCache.has(plpoKey)) {
+                draftPortraitsToLoad.push(plpoKey);
+            }
+        });
+
+        console.log(`[Draft Portrait] Loading ${draftPortraitsToLoad.length} unique portraits`);
+
+        // Load portraits in batches
+        draftPortraitsToLoad.forEach(plpoKey => {
+            this.portraitCache.set(plpoKey, 'loading');
+
+            window.electronAPI.portrait.getByPLPO(plpoKey).then((imageData) => {
+                if (imageData) {
+                    this.portraitCache.set(plpoKey, imageData);
+                    // Re-render grid to show newly loaded portrait
+                    if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                        this.draftGrid.render();
+                    }
+                } else {
+                    console.warn(`[Draft Portrait] No image data for ${plpoKey}`);
+                    this.portraitCache.set(plpoKey, null);
+                }
+            }).catch((error) => {
+                console.error(`[Draft Portrait] Error loading ${plpoKey}:`, error);
+                this.portraitCache.set(plpoKey, null);
+            });
+        });
     }
 
     /**
@@ -3711,8 +3820,8 @@ class MaddenEditorApp {
             decadeEnd = decadeStart + 9;
         }
 
-        if (!year || year < 1936 || year > 2030) {
-            this.showError('Please enter a valid draft year (1936-2030)');
+        if (!isDecadeClass && (!year || year < 1936 || year > 2030)) {
+            this.showError('Please enter a valid draft year (1936-2030) or select a decade class');
             return;
         }
 
