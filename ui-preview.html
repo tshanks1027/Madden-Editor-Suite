@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Style Preview - Choose Your Look</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0b;
+            color: #e4e4e7;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #e98819 0%, #f4a742 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #a1a1aa;
+            margin-bottom: 40px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 40px;
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #fafafa;
+        }
+
+        .section-description {
+            font-size: 16px;
+            color: #71717a;
+            margin-bottom: 32px;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            margin-bottom: 20px;
+        }
+
+        .option {
+            background: #0f0f10;
+            border: 2px solid #27272a;
+            border-radius: 12px;
+            padding: 24px;
+            transition: border-color 0.3s ease;
+        }
+
+        .option:hover {
+            border-color: #e98819;
+        }
+
+        .option-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e98819;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+        }
+
+        .demo-area {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 24px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        /* CURRENT STYLE - Your existing buttons */
+        .btn-current {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid #333333;
+            border-radius: 4px;
+            background: #2a2a2a;
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-current:hover {
+            background: #3a3a3a;
+            border-color: #4a4a4a;
+        }
+
+        .btn-current-primary {
+            background: #e98819;
+            border-color: #e98819;
+            color: white;
+        }
+
+        .btn-current-primary:hover {
+            background: #d47915;
+        }
+
+        /* GLASS 3D STYLE */
+        .btn-glass {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            background: rgba(39, 39, 42, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: #e4e4e7;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-glass::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn-glass:hover {
+            background: rgba(63, 63, 70, 0.7);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-glass:hover::before {
+            opacity: 1;
+        }
+
+        .btn-glass-primary {
+            background: linear-gradient(135deg, rgba(233, 136, 25, 0.9) 0%, rgba(244, 167, 66, 0.9) 100%);
+            border: 1px solid rgba(233, 136, 25, 0.5);
+            color: white;
+            box-shadow: 0 4px 16px rgba(233, 136, 25, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-glass-primary:hover {
+            background: linear-gradient(135deg, rgba(233, 136, 25, 1) 0%, rgba(244, 167, 66, 1) 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(233, 136, 25, 0.4),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        /* PANELS */
+        .panel-current {
+            background: #2a2a2a;
+            border: 1px solid #333333;
+            border-radius: 4px;
+            padding: 20px;
+            width: 100%;
+        }
+
+        .panel-glass {
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        /* TABLES */
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 13px;
+        }
+
+        /* Current Table Style */
+        .table-current {
+            background: #2a2a2a;
+        }
+
+        .table-current th {
+            background: #3a3a3a;
+            color: #cccccc;
+            font-weight: 500;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 1px solid #333333;
+        }
+
+        .table-current td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #333333;
+            color: #cccccc;
+        }
+
+        .table-current tbody tr:hover {
+            background: #3a3a3a;
+        }
+
+        /* Glass Table Style */
+        .table-glass {
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table-glass th {
+            background: linear-gradient(180deg, #27272a 0%, #1f1f23 100%);
+            color: #d4d4d8;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid #3f3f46;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .table-glass tbody tr:nth-child(even) {
+            background: rgba(20, 20, 22, 0.5);
+        }
+
+        .table-glass tbody tr:hover {
+            background: rgba(39, 39, 42, 0.7);
+            transform: scale(1.002);
+            box-shadow: 0 2px 8px rgba(233, 136, 25, 0.1);
+        }
+
+        .table-glass td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #1f1f23;
+            color: #e4e4e7;
+        }
+
+        .rating-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 13px;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .rating-99 {
+            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+        }
+
+        .rating-90 {
+            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(8, 145, 178, 0.3);
+        }
+
+        /* TABS */
+        .tabs-current {
+            display: flex;
+            gap: 4px;
+            background: #1a1a1a;
+            padding: 8px 16px;
+            border-radius: 4px;
+        }
+
+        .tab-current {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: #999999;
+            font-size: 14px;
+            font-weight: 400;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-current.active {
+            background: #e98819;
+            color: white;
+        }
+
+        .tabs-glass {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            background: rgba(24, 24, 27, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+        }
+
+        .tab-glass {
+            padding: 10px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(39, 39, 42, 0.5);
+            backdrop-filter: blur(10px);
+            color: #a1a1aa;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tab-glass.active {
+            background: linear-gradient(135deg, rgba(233, 136, 25, 0.2) 0%, rgba(244, 167, 66, 0.2) 100%);
+            border: 1px solid rgba(233, 136, 25, 0.5);
+            color: #f4a742;
+            box-shadow: 0 4px 20px rgba(233, 136, 25, 0.2);
+        }
+
+        .note {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-top: 16px;
+            font-size: 14px;
+            color: #22c55e;
+        }
+
+        @media (max-width: 900px) {
+            .comparison {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>UI Style Preview</h1>
+        <p class="subtitle">Compare current vs. glass 3D styling • All examples are interactive - hover and click around!</p>
+    </div>
+
+    <div class="container">
+        <!-- BUTTONS SECTION -->
+        <div class="section">
+            <h2 class="section-title">1. Buttons</h2>
+            <p class="section-description">Compare your current flat buttons with glass 3D effect buttons</p>
+
+            <div class="comparison">
+                <div class="option">
+                    <div class="option-label">Current Style</div>
+                    <div class="demo-area">
+                        <button class="btn-current">📁 Open File</button>
+                        <button class="btn-current-primary">💾 Save Changes</button>
+                        <button class="btn-current">Cancel</button>
+                    </div>
+                    <div class="note">✓ Simple, functional, flat design</div>
+                </div>
+
+                <div class="option">
+                    <div class="option-label">Glass 3D Effect</div>
+                    <div class="demo-area">
+                        <button class="btn-glass">📁 Open File</button>
+                        <button class="btn-glass-primary">💾 Save Changes</button>
+                        <button class="btn-glass">Cancel</button>
+                    </div>
+                    <div class="note">✓ Frosted glass, 3D depth, lifts on hover, inner shine</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANELS SECTION -->
+        <div class="section">
+            <h2 class="section-title">2. Panels & Cards</h2>
+            <p class="section-description">Control panels, info boxes, and container styling</p>
+
+            <div class="comparison">
+                <div class="option">
+                    <div class="option-label">Current Style</div>
+                    <div class="demo-area">
+                        <div class="panel-current">
+                            <div style="font-weight: 600; margin-bottom: 8px; color: #fafafa;">Team Filter</div>
+                            <div style="color: #999;">Select team: Kansas City Chiefs</div>
+                            <div style="color: #999; margin-top: 8px;">53 players loaded</div>
+                        </div>
+                    </div>
+                    <div class="note">✓ Solid background, clear borders</div>
+                </div>
+
+                <div class="option">
+                    <div class="option-label">Glass Effect</div>
+                    <div class="demo-area" style="background: linear-gradient(135deg, #1a1625 0%, #0f0f10 50%, #1a1a0f 100%);">
+                        <div class="panel-glass">
+                            <div style="font-weight: 600; margin-bottom: 8px; color: #fafafa;">Team Filter</div>
+                            <div style="color: #a1a1aa;">Select team: Kansas City Chiefs</div>
+                            <div style="color: #a1a1aa; margin-top: 8px;">53 players loaded</div>
+                        </div>
+                    </div>
+                    <div class="note">✓ Frosted glass transparency, depth shadows</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABS SECTION -->
+        <div class="section">
+            <h2 class="section-title">3. Tabs</h2>
+            <p class="section-description">Navigation tabs for switching between tools</p>
+
+            <div class="comparison">
+                <div class="option">
+                    <div class="option-label">Current Style</div>
+                    <div class="demo-area">
+                        <div class="tabs-current">
+                            <button class="tab-current active">Roster Editor</button>
+                            <button class="tab-current">Draft Class</button>
+                            <button class="tab-current">Create Roster</button>
+                        </div>
+                    </div>
+                    <div class="note">✓ Simple, clear active state</div>
+                </div>
+
+                <div class="option">
+                    <div class="option-label">Glass Effect</div>
+                    <div class="demo-area" style="background: linear-gradient(135deg, #1a1625 0%, #0f0f10 50%, #1a1a0f 100%);">
+                        <div class="tabs-glass">
+                            <button class="tab-glass active">Roster Editor</button>
+                            <button class="tab-glass">Draft Class</button>
+                            <button class="tab-glass">Create Roster</button>
+                        </div>
+                    </div>
+                    <div class="note">✓ Frosted glass, orange glow on active, smooth transitions</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TABLES SECTION -->
+        <div class="section">
+            <h2 class="section-title">4. Data Tables</h2>
+            <p class="section-description">The most important part - your player data grids</p>
+
+            <div class="comparison">
+                <div class="option">
+                    <div class="option-label">Current Style</div>
+                    <div class="demo-area">
+                        <div class="table-wrapper">
+                            <table class="table-current">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Pos</th>
+                                        <th>OVR</th>
+                                        <th>Team</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Patrick Mahomes</td>
+                                        <td>QB</td>
+                                        <td>99</td>
+                                        <td>Kansas City Chiefs</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Travis Kelce</td>
+                                        <td>TE</td>
+                                        <td>96</td>
+                                        <td>Kansas City Chiefs</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Chris Jones</td>
+                                        <td>DT</td>
+                                        <td>95</td>
+                                        <td>Kansas City Chiefs</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="note">✓ Clear, readable data</div>
+                </div>
+
+                <div class="option">
+                    <div class="option-label">Glass Effect + Color Badges</div>
+                    <div class="demo-area">
+                        <div class="table-wrapper">
+                            <table class="table-glass">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Pos</th>
+                                        <th>OVR</th>
+                                        <th>Team</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="font-weight: 600; color: #fafafa;">Patrick Mahomes</td>
+                                        <td><span style="background: #27272a; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #e98819;">QB</span></td>
+                                        <td><span class="rating-badge rating-99">99</span></td>
+                                        <td style="color: #a1a1aa;">Kansas City Chiefs</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600; color: #fafafa;">Travis Kelce</td>
+                                        <td><span style="background: #27272a; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #e98819;">TE</span></td>
+                                        <td><span class="rating-badge rating-90">96</span></td>
+                                        <td style="color: #a1a1aa;">Kansas City Chiefs</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="font-weight: 600; color: #fafafa;">Chris Jones</td>
+                                        <td><span style="background: #27272a; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #e98819;">DT</span></td>
+                                        <td><span class="rating-badge rating-90">95</span></td>
+                                        <td style="color: #a1a1aa;">Kansas City Chiefs</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="note">✓ Frosted glass, color-coded ratings (99=purple, 90=cyan), hover effects, better hierarchy</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DECISION -->
+        <div class="section" style="background: linear-gradient(135deg, rgba(233, 136, 25, 0.1) 0%, rgba(244, 167, 66, 0.05) 100%); border-color: rgba(233, 136, 25, 0.3);">
+            <h2 class="section-title">What do you think?</h2>
+            <p class="section-description">Tell me which style you prefer, or if you want to mix elements from both!</p>
+            <div style="margin-top: 20px; line-height: 1.8; color: #d4d4d8;">
+                <strong style="color: #fafafa;">Options:</strong><br>
+                • "I like the glass effect! Apply it to everything"<br>
+                • "Just the buttons, keep the rest current"<br>
+                • "Glass buttons and tabs, but keep tables simple"<br>
+                • "I want the table badges but without the glass effect"<br>
+                • "Show me more variations"<br>
+                • "I don't like it, keep my current style"
+            </div>
+        </div>
+    </div>
+</body>
+</html>
