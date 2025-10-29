@@ -2093,7 +2093,6 @@ class FranchiseEditor {
         return td;
     }
 
-    customCellRenderer(instance, td, row, col, prop, value, cellProperties) {
         // Use appropriate renderer based on cell type
         if (cellProperties.type === 'dropdown') {
             // Use dropdown renderer for dropdown cells
