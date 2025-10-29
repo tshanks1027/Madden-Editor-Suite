@@ -1099,9 +1099,17 @@ class FranchiseEditor {
             'PTGH': 'ToughnessRating', 'PTRK': 'TruckingRating', 'PZCV': 'ZoneCoverageRating'
         };
 
+        // Build portrait column first
+        const portraitColumn = {
+            data: 0,
+            readOnly: true,
+            width: 80,
+            renderer: this.portraitRenderer.bind(this)
+        };
+
         // Map franchise draft data to match field codes
         const data = this.franchiseData.draftClass.map(prospect => {
-            return fieldCodes.map(fieldCode => {
+            const rowData = fieldCodes.map(fieldCode => {
                 // Use mapping if available
                 const franchiseFieldName = FIELD_MAPPING[fieldCode];
                 if (franchiseFieldName && prospect[franchiseFieldName] !== undefined) {
@@ -1116,6 +1124,8 @@ class FranchiseEditor {
                 // No match found
                 return null;
             });
+            // Prepend empty value for portrait column
+            return ['', ...rowData];
         });
 
         // Custom renderers (same as roster)
@@ -1154,7 +1164,7 @@ class FranchiseEditor {
         const columns = fieldCodes.map((fieldName, index) => {
             const fieldDef = getFieldDefinition(fieldName);
             let columnConfig = {
-                data: index,
+                data: index + 1, // +1 because portrait is column 0
                 readOnly: !fieldDef.editable,
                 allowInvalid: false
             };
@@ -1224,12 +1234,15 @@ class FranchiseEditor {
             return columnConfig;
         });
 
-        console.log('[Franchise Editor] Creating Draft Handsontable with', columns.length, 'columns');
+        // Prepend portrait column
+        const finalColumns = [portraitColumn, ...columns];
+
+        console.log('[Franchise Editor] Creating Draft Handsontable with', finalColumns.length, 'columns');
 
         this.draftGrid = new Handsontable(hotContainer, {
             data: data,
-            columns: columns,
-            colHeaders: displayNames,
+            columns: finalColumns,
+            colHeaders: ['', ...displayNames], // Empty header for portrait
             rowHeaders: true,
             width: '100%',
             height: '100%',
@@ -1275,6 +1288,9 @@ class FranchiseEditor {
         });
 
         console.log('[Franchise Editor] Draft grid initialized successfully');
+
+        // Preload portraits
+        this.preloadPortraits(this.franchiseData.draftClass);
     }
 
     initializeFreeAgentsGrid() {
