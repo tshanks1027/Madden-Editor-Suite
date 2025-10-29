@@ -1,6 +1,119 @@
 {
   "agents": [
     {
+      "name": "mandatory-pre-task-workflow",
+      "type": "required-process",
+      "description": "MANDATORY 5-step workflow that MUST execute before ANY action on ANY user request",
+      "trigger": "automatic-on-every-prompt",
+      "priority": "HIGHEST",
+      "when_to_use": [
+        "EVERY SINGLE USER REQUEST",
+        "Before any code changes",
+        "Before any file modifications",
+        "Before any git operations",
+        "Before any research",
+        "Before any planning",
+        "LITERALLY ALWAYS"
+      ],
+      "mandatory_steps": [
+        {
+          "step": 1,
+          "name": "READ PROJECT INSTRUCTIONS",
+          "action": "Read the entire CLAUDE.md file",
+          "verification": "Can answer: What are the 3 Electron process types? Where are IPC handlers registered?",
+          "tool_required": "Read",
+          "file": "CLAUDE.md",
+          "skip_allowed": false
+        },
+        {
+          "step": 2,
+          "name": "READ GIT STATUS AND RECENT COMMITS",
+          "action": "Check git status, last 10 commits, and uncommitted changes",
+          "verification": "Can answer: What files are modified? What was last commit?",
+          "tool_required": "Bash",
+          "commands": [
+            "git status",
+            "git log --oneline -10",
+            "git diff --stat"
+          ],
+          "skip_allowed": false
+        },
+        {
+          "step": 3,
+          "name": "IDENTIFY WHAT USER IS ASKING FOR",
+          "action": "State in your own words what the user wants",
+          "format": "USER REQUEST ANALYSIS:\\n- Primary goal: [what they want]\\n- Affected files: [which files]\\n- Type of task: [bug fix/feature/refactor/investigation]\\n- Success criteria: [how to know it's done]",
+          "verification": "User confirms understanding is correct",
+          "skip_allowed": false
+        },
+        {
+          "step": 4,
+          "name": "STATE YOUR PLAN (3-5 BULLET POINTS)",
+          "action": "Write specific plan with file names and line numbers",
+          "format": "EXECUTION PLAN:\\n1. [Specific action with file:line]\\n2. [Next action]\\n3. [Testing step]\\n4. [Commit if applicable]",
+          "requirements": [
+            "Be SPECIFIC with file paths and line numbers",
+            "Include verification method",
+            "Include commit message if code changes",
+            "NO vague statements like 'fix the bug'"
+          ],
+          "skip_allowed": false
+        },
+        {
+          "step": 5,
+          "name": "WAIT FOR USER APPROVAL",
+          "action": "Explicitly ask 'Proceed with this plan?' and WAIT",
+          "forbidden_actions": [
+            "Starting execution immediately",
+            "Assuming approval",
+            "Making any file modifications",
+            "Running any non-readonly tools"
+          ],
+          "wait_for": [
+            "User says 'yes'",
+            "User says 'go ahead'",
+            "User says 'proceed'",
+            "User provides explicit confirmation"
+          ],
+          "skip_allowed": false
+        }
+      ],
+      "critical_rules": [
+        "YOU MUST COMPLETE ALL 5 STEPS BEFORE ANY ACTION",
+        "NO EXCEPTIONS - not for 'simple' tasks, not for 'quick fixes'",
+        "If you skip any step, you WILL break something",
+        "Reference WORKFLOW-RULES.md for detailed guidance",
+        "This exists because you broke the user's code and wasted their entire day"
+      ],
+      "failure_examples": [
+        {
+          "date": "2025-10-29",
+          "failure": "Spent 9 hours finding portrait rendering bug without fixing it",
+          "violated_steps": [4, 5],
+          "what_went_wrong": "Skipped stating plan and getting approval, used sed/awk which corrupted file, suggested user fix it",
+          "correct_approach": "State plan ('Add portraitColumn at line 1103'), wait for approval, use Write tool, verify, commit"
+        },
+        {
+          "date": "2025-10-28",
+          "failure": "User asked to commit working code, didn't commit it",
+          "violated_steps": [3],
+          "what_went_wrong": "Didn't identify that user wanted immediate commit",
+          "correct_approach": "When user says 'commit this', immediately run git commit"
+        }
+      ],
+      "enforcement": {
+        "output_format": "You MUST output all 5 steps in your response before taking action",
+        "checklist": [
+          "[ ] Read CLAUDE.md",
+          "[ ] Checked git status and commits",
+          "[ ] Identified user request",
+          "[ ] Stated specific plan",
+          "[ ] Waiting for approval"
+        ],
+        "if_skipped": "STOP IMMEDIATELY and restart from Step 1"
+      }
+    },
+    {
       "name": "auto-research",
       "type": "task",
       "description": "Research existing implementations before coding - MANDATORY for parsing/IPC/file work",
@@ -146,8 +259,9 @@
   ],
   "workflow": {
     "phases": [
+      "0. mandatory-pre-task-workflow (AUTOMATIC - ALWAYS FIRST)",
       "1. User Request",
-      "2. AI reads CLAUDE.md",
+      "2. AI reads CLAUDE.md and WORKFLOW-RULES.md",
       "3. auto-research (MANDATORY for parsing/IPC work)",
       "4. Plan Mode - Propose Approach",
       "5. User Approval",
@@ -159,11 +273,19 @@
       "11. auto-git-commit"
     ],
     "rules": [
+      "MANDATORY: Execute mandatory-pre-task-workflow BEFORE EVERYTHING",
+      "NEVER skip the 5-step workflow",
       "NEVER skip phases",
       "ALWAYS wait for user approval",
       "STOP if any phase fails",
       "Return to implementation if tests/packaging fail",
-      "Fix issues before proceeding"
+      "Fix issues before proceeding",
+      "Read WORKFLOW-RULES.md for detailed enforcement"
+    ],
+    "references": [
+      "WORKFLOW-RULES.md - Detailed 5-step workflow enforcement",
+      "CLAUDE.md - Project architecture and guidelines",
+      "RESEARCH_FINDINGS.md - Past research and solutions"
     ]
   },
   "documentation": {
