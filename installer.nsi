@@ -30,8 +30,8 @@ ShowUnInstDetails show
 RequestExecutionLevel admin
 
 ; Branding
-!define MUI_ICON "..\Branding\madden.ico"
-!define MUI_UNICON "..\Branding\madden.ico"
+!define MUI_ICON "build-assets\madden.ico"
+!define MUI_UNICON "build-assets\madden.ico"
 
 ; Interface Settings
 !define MUI_ABORTWARNING

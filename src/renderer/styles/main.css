@@ -1043,10 +1043,20 @@ input:focus {
 }
 
 /* Dropdown editor styling */
-.handsontableInput {
+.handsontableInput,
+.handsontableInputHolder textarea,
+.htEditor textarea,
+.handsontable textarea {
     background-color: var(--gray-dark) !important;
-    color: var(--gray-text) !important;
+    color: var(--white) !important;
     border: 1px solid var(--primary-orange) !important;
+    font-weight: 500 !important;
+}
+
+/* Ensure text input editors also have white text */
+.handsontable input[type="text"] {
+    color: var(--white) !important;
+    background-color: var(--gray-dark) !important;
 }
 
 /* Autocomplete dropdown list */

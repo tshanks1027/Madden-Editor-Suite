@@ -1082,18 +1082,20 @@ ipcMain.handle('franchise:get-team-roster', async (_event, { filePath, teamIndex
       .filter(({ record }: any) => !record.isEmpty && record.TeamIndex === teamIndex)
       .map(({ record, index }: any) => ({
         recordIndex: index, // CRITICAL: Store for save operations
-        firstName: record.FirstName || '',
-        lastName: record.LastName || '',
-        position: record.Position || '',
-        overall: record.Overall || 0,
-        age: record.Age || 0,
-        yearsPro: record.YearsPro || 0,
-        jerseyNum: record.JerseyNum || 0,
-        contractStatus: record.ContractStatus || '',
-        college: record.College || '',
-        teamIndex: record.TeamIndex,
-        height: record.Height || 0,
-        weight: record.Weight || 0
+        PFNA: record.FirstName || '',
+        PLNA: record.LastName || '',
+        PPOS: record.Position || '',
+        POVR: record.Overall || 0,
+        PAGE: record.Age || 0,
+        PYRP: record.YearsPro || 0,
+        PJEN: record.JerseyNum || 0,
+        ContractStatus: record.ContractStatus || '',
+        PCOL: record.College || '',
+        TGID: record.TeamIndex,
+        PHGT: record.Height || 0,
+        PWGT: record.Weight || 0,
+        PSXP: record.PresentationId || 0,
+        PEPS: record.PLYR_PORTRAIT || ''
       }));
 
     console.log(`[Franchise] Found ${teamPlayers.length} players for team ${teamIndex}`);
@@ -1152,19 +1154,21 @@ ipcMain.handle('franchise:save-team-changes', async (_event, { filePath, changes
         continue;
       }
 
-      // Map frontend field names to franchise field names
+      // Map roster field codes to franchise field names
       const FIELD_NAME_MAP: Record<string, string> = {
-        'firstName': 'FirstName',
-        'lastName': 'LastName',
-        'position': 'Position',
-        'overall': 'Overall',
-        'age': 'Age',
-        'yearsPro': 'YearsPro',
-        'jerseyNum': 'JerseyNum',
-        'contractStatus': 'ContractStatus',
-        'college': 'College',
-        'height': 'Height',
-        'weight': 'Weight'
+        'PFNA': 'FirstName',
+        'PLNA': 'LastName',
+        'PPOS': 'Position',
+        'POVR': 'Overall',
+        'PAGE': 'Age',
+        'PYRP': 'YearsPro',
+        'PJEN': 'JerseyNum',
+        'ContractStatus': 'ContractStatus',
+        'PCOL': 'College',
+        'PHGT': 'Height',
+        'PWGT': 'Weight',
+        'PSXP': 'PresentationId',
+        'PEPS': 'PLYR_PORTRAIT'
       };
 
       const franchiseFieldName = FIELD_NAME_MAP[field] || field;

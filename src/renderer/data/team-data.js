@@ -3,6 +3,16 @@
 // Logos scraped by scrape-agent from NFL.com official CDN
 
 export const NFL_TEAMS = {
+  0: {
+    id: 0,
+    name: 'Texans',
+    city: 'Houston',
+    fullName: 'Houston Texans',
+    abbr: 'HOU',
+    primary: '#03202F',
+    secondary: '#A71930',
+    logo: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/hou.png'
+  },
   1: {
     id: 1,
     name: 'Bears',
@@ -81,7 +91,7 @@ export const NFL_TEAMS = {
     abbr: 'LAC',
     primary: '#0080C6',
     secondary: '#FFC20E',
-    logo: 'https://static.www.nfl.com/league/api/clubs/logos/LAC.svg'
+    logo: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/lac.png'
   },
   9: {
     id: 9,
@@ -131,7 +141,7 @@ export const NFL_TEAMS = {
     abbr: 'PHI',
     primary: '#004C54',
     secondary: '#A5ACAF',
-    logo: 'https://static.www.nfl.com/league/api/clubs/logos/PHI.svg'
+    logo: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/phi.png'
   },
   14: {
     id: 14,

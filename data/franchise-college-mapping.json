@@ -1,0 +1,1042 @@
+[
+  {
+    "franchiseId": 33,
+    "rosterId": 255,
+    "collegeName": "West Virgina"
+  },
+  {
+    "franchiseId": 10,
+    "rosterId": 42,
+    "collegeName": "Colorado"
+  },
+  {
+    "franchiseId": 137,
+    "rosterId": 141,
+    "collegeName": "North Carolina Central"
+  },
+  {
+    "franchiseId": 235,
+    "rosterId": 212,
+    "collegeName": "Tennessee"
+  },
+  {
+    "franchiseId": 243,
+    "rosterId": 29,
+    "collegeName": "California"
+  },
+  {
+    "franchiseId": 4,
+    "rosterId": 39,
+    "collegeName": "Clemson"
+  },
+  {
+    "franchiseId": 3,
+    "rosterId": 232,
+    "collegeName": "USC"
+  },
+  {
+    "franchiseId": 222,
+    "rosterId": 201,
+    "collegeName": "Stanford"
+  },
+  {
+    "franchiseId": 1,
+    "rosterId": 37,
+    "collegeName": "Cincinnati"
+  },
+  {
+    "franchiseId": 165,
+    "rosterId": 158,
+    "collegeName": "Oklahoma"
+  },
+  {
+    "franchiseId": 15,
+    "rosterId": 242,
+    "collegeName": "Virgina Tech"
+  },
+  {
+    "franchiseId": 173,
+    "rosterId": 165,
+    "collegeName": "Penn State"
+  },
+  {
+    "franchiseId": 48,
+    "rosterId": 262,
+    "collegeName": "Yale"
+  },
+  {
+    "franchiseId": 67,
+    "rosterId": 85,
+    "collegeName": "Illinois"
+  },
+  {
+    "franchiseId": 50,
+    "rosterId": 71,
+    "collegeName": "Georgia"
+  },
+  {
+    "franchiseId": 231,
+    "rosterId": 21,
+    "collegeName": "Boston College"
+  },
+  {
+    "franchiseId": 126,
+    "rosterId": 491,
+    "collegeName": "Houston Christian"
+  },
+  {
+    "franchiseId": 168,
+    "rosterId": 161,
+    "collegeName": "Oregon"
+  },
+  {
+    "franchiseId": 114,
+    "rosterId": 55,
+    "collegeName": "Mississippi State"
+  },
+  {
+    "franchiseId": 189,
+    "rosterId": 178,
+    "collegeName": "South Dakota State"
+  },
+  {
+    "franchiseId": 14,
+    "rosterId": 445,
+    "collegeName": "Univ. British Columbia"
+  },
+  {
+    "franchiseId": 100,
+    "rosterId": 112,
+    "collegeName": "Maryland"
+  },
+  {
+    "franchiseId": 164,
+    "rosterId": 157,
+    "collegeName": "Ohio State"
+  },
+  {
+    "franchiseId": 115,
+    "rosterId": 123,
+    "collegeName": "Missouri"
+  },
+  {
+    "franchiseId": 167,
+    "rosterId": 160,
+    "collegeName": "Ole Miss"
+  },
+  {
+    "franchiseId": 29,
+    "rosterId": 253,
+    "collegeName": "Washington"
+  },
+  {
+    "franchiseId": 23,
+    "rosterId": 53,
+    "collegeName": "Duke"
+  },
+  {
+    "franchiseId": 176,
+    "rosterId": 167,
+    "collegeName": "Pittsburgh"
+  },
+  {
+    "franchiseId": 147,
+    "rosterId": 314,
+    "collegeName": "None"
+  },
+  {
+    "franchiseId": 72,
+    "rosterId": 90,
+    "collegeName": "Iowa"
+  },
+  {
+    "franchiseId": 253,
+    "rosterId": 225,
+    "collegeName": "UAB"
+  },
+  {
+    "franchiseId": 154,
+    "rosterId": 151,
+    "collegeName": "Northern Iowa"
+  },
+  {
+    "franchiseId": 99,
+    "rosterId": 111,
+    "collegeName": "Marshall"
+  },
+  {
+    "franchiseId": 37,
+    "rosterId": 362,
+    "collegeName": "Georgia State"
+  },
+  {
+    "franchiseId": 254,
+    "rosterId": 226,
+    "collegeName": "UCF"
+  },
+  {
+    "franchiseId": 142,
+    "rosterId": 266,
+    "collegeName": "New Hampshire"
+  },
+  {
+    "franchiseId": 203,
+    "rosterId": 189,
+    "collegeName": "SE Missouri State"
+  },
+  {
+    "franchiseId": 7,
+    "rosterId": 236,
+    "collegeName": "UTEP"
+  },
+  {
+    "franchiseId": 158,
+    "rosterId": 153,
+    "collegeName": "Notre Dame"
+  },
+  {
+    "franchiseId": 106,
+    "rosterId": 116,
+    "collegeName": "Miami"
+  },
+  {
+    "franchiseId": 210,
+    "rosterId": 328,
+    "collegeName": "South Dakota"
+  },
+  {
+    "franchiseId": 109,
+    "rosterId": 119,
+    "collegeName": "Michigan State"
+  },
+  {
+    "franchiseId": 5,
+    "rosterId": 234,
+    "collegeName": "Utah"
+  },
+  {
+    "franchiseId": 26,
+    "rosterId": 57,
+    "collegeName": "Eastern Kentucky"
+  },
+  {
+    "franchiseId": 62,
+    "rosterId": 80,
+    "collegeName": "Holy Cross"
+  },
+  {
+    "franchiseId": 179,
+    "rosterId": 170,
+    "collegeName": "Purdue"
+  },
+  {
+    "franchiseId": 80,
+    "rosterId": 97,
+    "collegeName": "Kansas State"
+  },
+  {
+    "franchiseId": 209,
+    "rosterId": 136,
+    "collegeName": "South Carolina"
+  },
+  {
+    "franchiseId": 108,
+    "rosterId": 118,
+    "collegeName": "Michigan"
+  },
+  {
+    "franchiseId": 169,
+    "rosterId": 162,
+    "collegeName": "Oregon State"
+  },
+  {
+    "franchiseId": 218,
+    "rosterId": 11,
+    "collegeName": "Arkansas"
+  },
+  {
+    "franchiseId": 69,
+    "rosterId": 87,
+    "collegeName": "Indiana"
+  },
+  {
+    "franchiseId": 46,
+    "rosterId": 68,
+    "collegeName": "Furman"
+  },
+  {
+    "franchiseId": 27,
+    "rosterId": 252,
+    "collegeName": "Washington State"
+  },
+  {
+    "franchiseId": 41,
+    "rosterId": 65,
+    "collegeName": "Flordia State"
+  },
+  {
+    "franchiseId": 28,
+    "rosterId": 59,
+    "collegeName": "East Carolina"
+  },
+  {
+    "franchiseId": 236,
+    "rosterId": 25,
+    "collegeName": "Buffalo"
+  },
+  {
+    "franchiseId": 51,
+    "rosterId": 72,
+    "collegeName": "Georgia Tech"
+  },
+  {
+    "franchiseId": 6,
+    "rosterId": 290,
+    "collegeName": "Coastal Carolina"
+  },
+  {
+    "franchiseId": 44,
+    "rosterId": 259,
+    "collegeName": "Wisconsin"
+  },
+  {
+    "franchiseId": 82,
+    "rosterId": 355,
+    "collegeName": "UTSA"
+  },
+  {
+    "franchiseId": 128,
+    "rosterId": 493,
+    "collegeName": "Barton"
+  },
+  {
+    "franchiseId": 244,
+    "rosterId": 219,
+    "collegeName": "Toleda"
+  },
+  {
+    "franchiseId": 215,
+    "rosterId": 8,
+    "collegeName": "Appalachian State"
+  },
+  {
+    "franchiseId": 186,
+    "rosterId": 379,
+    "collegeName": "South Alabama"
+  },
+  {
+    "franchiseId": 47,
+    "rosterId": 69,
+    "collegeName": "Georgia Southern"
+  },
+  {
+    "franchiseId": 40,
+    "rosterId": 257,
+    "collegeName": "William & Mary"
+  },
+  {
+    "franchiseId": 239,
+    "rosterId": 27,
+    "collegeName": "BYU"
+  },
+  {
+    "franchiseId": 0,
+    "rosterId": 229,
+    "collegeName": "UL Lafayette"
+  },
+  {
+    "franchiseId": 65,
+    "rosterId": 83,
+    "collegeName": "Idaho"
+  },
+  {
+    "franchiseId": 225,
+    "rosterId": 17,
+    "collegeName": "Ball State"
+  },
+  {
+    "franchiseId": 232,
+    "rosterId": 209,
+    "collegeName": "Temple"
+  },
+  {
+    "franchiseId": 134,
+    "rosterId": 139,
+    "collegeName": "NC State"
+  },
+  {
+    "franchiseId": 207,
+    "rosterId": 193,
+    "collegeName": "SMU"
+  },
+  {
+    "franchiseId": 93,
+    "rosterId": 106,
+    "collegeName": "Louisville"
+  },
+  {
+    "franchiseId": 247,
+    "rosterId": 221,
+    "collegeName": "Troy"
+  },
+  {
+    "franchiseId": 175,
+    "rosterId": 166,
+    "collegeName": "Pittsburgh State"
+  },
+  {
+    "franchiseId": 151,
+    "rosterId": 315,
+    "collegeName": "North Dakota State"
+  },
+  {
+    "franchiseId": 30,
+    "rosterId": 34,
+    "collegeName": "Eastern Michigan"
+  },
+  {
+    "franchiseId": 242,
+    "rosterId": 218,
+    "collegeName": "Texas Tech"
+  },
+  {
+    "franchiseId": 255,
+    "rosterId": 227,
+    "collegeName": "UCLA"
+  },
+  {
+    "franchiseId": 217,
+    "rosterId": 10,
+    "collegeName": "Arizona State"
+  },
+  {
+    "franchiseId": 12,
+    "rosterId": 239,
+    "collegeName": "Vanderbilt"
+  },
+  {
+    "franchiseId": 149,
+    "rosterId": 122,
+    "collegeName": "North Carolina"
+  },
+  {
+    "franchiseId": 31,
+    "rosterId": 254,
+    "collegeName": "Weber State"
+  },
+  {
+    "franchiseId": 74,
+    "rosterId": 273,
+    "collegeName": "IUP"
+  },
+  {
+    "franchiseId": 75,
+    "rosterId": 92,
+    "collegeName": "James Madison"
+  },
+  {
+    "franchiseId": 56,
+    "rosterId": 76,
+    "collegeName": "Harvard"
+  },
+  {
+    "franchiseId": 45,
+    "rosterId": 67,
+    "collegeName": "Fresno State"
+  },
+  {
+    "franchiseId": 63,
+    "rosterId": 81,
+    "collegeName": "Houston"
+  },
+  {
+    "franchiseId": 11,
+    "rosterId": 43,
+    "collegeName": "Colorado State"
+  },
+  {
+    "franchiseId": 68,
+    "rosterId": 86,
+    "collegeName": "Illinois State"
+  },
+  {
+    "franchiseId": 213,
+    "rosterId": 195,
+    "collegeName": "Southern Miss"
+  },
+  {
+    "franchiseId": 192,
+    "rosterId": 181,
+    "collegeName": "San Diego State"
+  },
+  {
+    "franchiseId": 127,
+    "rosterId": 492,
+    "collegeName": "Minot State"
+  },
+  {
+    "franchiseId": 49,
+    "rosterId": 263,
+    "collegeName": "Youngstown State"
+  },
+  {
+    "franchiseId": 187,
+    "rosterId": 176,
+    "collegeName": "Rutgers"
+  },
+  {
+    "franchiseId": 201,
+    "rosterId": 330,
+    "collegeName": "SE Louisiana"
+  },
+  {
+    "franchiseId": 199,
+    "rosterId": 186,
+    "collegeName": "San Jose State"
+  },
+  {
+    "franchiseId": 249,
+    "rosterId": 222,
+    "collegeName": "Tulane"
+  },
+  {
+    "franchiseId": 183,
+    "rosterId": 172,
+    "collegeName": "Rice"
+  },
+  {
+    "franchiseId": 185,
+    "rosterId": 378,
+    "collegeName": "CSU-Pueblo"
+  },
+  {
+    "franchiseId": 139,
+    "rosterId": 143,
+    "collegeName": "Nebraska"
+  },
+  {
+    "franchiseId": 190,
+    "rosterId": 179,
+    "collegeName": "Southern Illinois"
+  },
+  {
+    "franchiseId": 94,
+    "rosterId": 107,
+    "collegeName": "LSU"
+  },
+  {
+    "franchiseId": 39,
+    "rosterId": 63,
+    "collegeName": "Flordia"
+  },
+  {
+    "franchiseId": 136,
+    "rosterId": 140,
+    "collegeName": "Navy"
+  },
+  {
+    "franchiseId": 103,
+    "rosterId": 115,
+    "collegeName": "Memphis"
+  },
+  {
+    "franchiseId": 238,
+    "rosterId": 215,
+    "collegeName": "Texas"
+  },
+  {
+    "franchiseId": 156,
+    "rosterId": 152,
+    "collegeName": "Northwestern"
+  },
+  {
+    "franchiseId": 113,
+    "rosterId": 307,
+    "collegeName": "California (PA)"
+  },
+  {
+    "franchiseId": 98,
+    "rosterId": 110,
+    "collegeName": "Marist"
+  },
+  {
+    "franchiseId": 251,
+    "rosterId": 288,
+    "collegeName": "Central Arkansas"
+  },
+  {
+    "franchiseId": 211,
+    "rosterId": 5,
+    "collegeName": "Alabama A&M"
+  },
+  {
+    "franchiseId": 193,
+    "rosterId": 325,
+    "collegeName": "Sacranento State"
+  },
+  {
+    "franchiseId": 120,
+    "rosterId": 125,
+    "collegeName": "Montana"
+  },
+  {
+    "franchiseId": 133,
+    "rosterId": 138,
+    "collegeName": "Northern Illinois"
+  },
+  {
+    "franchiseId": 191,
+    "rosterId": 180,
+    "collegeName": "South Carolina State"
+  },
+  {
+    "franchiseId": 226,
+    "rosterId": 18,
+    "collegeName": "Baylor"
+  },
+  {
+    "franchiseId": 25,
+    "rosterId": 250,
+    "collegeName": "Wake Forrest"
+  },
+  {
+    "franchiseId": 107,
+    "rosterId": 117,
+    "collegeName": "Miami of Ohio"
+  },
+  {
+    "franchiseId": 112,
+    "rosterId": 121,
+    "collegeName": "Minnesota"
+  },
+  {
+    "franchiseId": 166,
+    "rosterId": 159,
+    "collegeName": "Oklahoma State"
+  },
+  {
+    "franchiseId": 241,
+    "rosterId": 332,
+    "collegeName": "Texas State"
+  },
+  {
+    "franchiseId": 230,
+    "rosterId": 20,
+    "collegeName": "Boise State"
+  },
+  {
+    "franchiseId": 73,
+    "rosterId": 91,
+    "collegeName": "Iowa State"
+  },
+  {
+    "franchiseId": 21,
+    "rosterId": 247,
+    "collegeName": "W. Michigan"
+  },
+  {
+    "franchiseId": 79,
+    "rosterId": 96,
+    "collegeName": "Kansas"
+  },
+  {
+    "franchiseId": 32,
+    "rosterId": 60,
+    "collegeName": "Eastern Washington"
+  },
+  {
+    "franchiseId": 245,
+    "rosterId": 220,
+    "collegeName": "Towson"
+  },
+  {
+    "franchiseId": 36,
+    "rosterId": 308,
+    "collegeName": "FAU"
+  },
+  {
+    "franchiseId": 228,
+    "rosterId": 206,
+    "collegeName": "Syracuse"
+  },
+  {
+    "franchiseId": 162,
+    "rosterId": 156,
+    "collegeName": "Ohio"
+  },
+  {
+    "franchiseId": 234,
+    "rosterId": 211,
+    "collegeName": "Tenn-Chattanooga"
+  },
+  {
+    "franchiseId": 124,
+    "rosterId": 129,
+    "collegeName": "Morgan State"
+  },
+  {
+    "franchiseId": 118,
+    "rosterId": 311,
+    "collegeName": "Missouri Western State"
+  },
+  {
+    "franchiseId": 96,
+    "rosterId": 109,
+    "collegeName": "Maine"
+  },
+  {
+    "franchiseId": 240,
+    "rosterId": 28,
+    "collegeName": "Cal Poly SLO"
+  },
+  {
+    "franchiseId": 2,
+    "rosterId": 231,
+    "collegeName": "UNLV"
+  },
+  {
+    "franchiseId": 220,
+    "rosterId": 13,
+    "collegeName": "Arkansas State"
+  },
+  {
+    "franchiseId": 182,
+    "rosterId": 171,
+    "collegeName": "Rhode Island"
+  },
+  {
+    "franchiseId": 221,
+    "rosterId": 14,
+    "collegeName": "Army"
+  },
+  {
+    "franchiseId": 195,
+    "rosterId": 274,
+    "collegeName": "Saginaw Valley"
+  },
+  {
+    "franchiseId": 141,
+    "rosterId": 144,
+    "collegeName": "Nevada"
+  },
+  {
+    "franchiseId": 252,
+    "rosterId": 283,
+    "collegeName": "Central Michigan"
+  },
+  {
+    "franchiseId": 172,
+    "rosterId": 164,
+    "collegeName": "Penn"
+  },
+  {
+    "franchiseId": 20,
+    "rosterId": 246,
+    "collegeName": "W. Kentucky"
+  },
+  {
+    "franchiseId": 13,
+    "rosterId": 240,
+    "collegeName": "Villanova"
+  },
+  {
+    "franchiseId": 38,
+    "rosterId": 297,
+    "collegeName": "FIU"
+  },
+  {
+    "franchiseId": 22,
+    "rosterId": 52,
+    "collegeName": "Drake"
+  },
+  {
+    "franchiseId": 86,
+    "rosterId": 102,
+    "collegeName": "LA Tech"
+  },
+  {
+    "franchiseId": 123,
+    "rosterId": 488,
+    "collegeName": "Albany State"
+  },
+  {
+    "franchiseId": 198,
+    "rosterId": 327,
+    "collegeName": "San Diego"
+  },
+  {
+    "franchiseId": 58,
+    "rosterId": 77,
+    "collegeName": "Hawaii"
+  },
+  {
+    "franchiseId": 223,
+    "rosterId": 177,
+    "collegeName": "Augustana"
+  },
+  {
+    "franchiseId": 101,
+    "rosterId": 113,
+    "collegeName": "Massachusetts"
+  },
+  {
+    "franchiseId": 216,
+    "rosterId": 9,
+    "collegeName": "Arizona"
+  },
+  {
+    "franchiseId": 77,
+    "rosterId": 94,
+    "collegeName": "Jacksonville State"
+  },
+  {
+    "franchiseId": 42,
+    "rosterId": 66,
+    "collegeName": "Fordham"
+  },
+  {
+    "franchiseId": 152,
+    "rosterId": 149,
+    "collegeName": "North Texas"
+  },
+  {
+    "franchiseId": 19,
+    "rosterId": 50,
+    "collegeName": "Delaware"
+  },
+  {
+    "franchiseId": 131,
+    "rosterId": 135,
+    "collegeName": "Tennessee"
+  },
+  {
+    "franchiseId": 144,
+    "rosterId": 146,
+    "collegeName": "New Mexico"
+  },
+  {
+    "franchiseId": 146,
+    "rosterId": 265,
+    "collegeName": "No College"
+  },
+  {
+    "franchiseId": 18,
+    "rosterId": 244,
+    "collegeName": "W. Carolina"
+  },
+  {
+    "franchiseId": 110,
+    "rosterId": 120,
+    "collegeName": "Middle Tennessee State"
+  },
+  {
+    "franchiseId": 16,
+    "rosterId": 447,
+    "collegeName": "Sioux Falls"
+  },
+  {
+    "franchiseId": 24,
+    "rosterId": 54,
+    "collegeName": "Duquesne"
+  },
+  {
+    "franchiseId": 52,
+    "rosterId": 73,
+    "collegeName": "Grambling State"
+  },
+  {
+    "franchiseId": 212,
+    "rosterId": 205,
+    "collegeName": "Southern Arkansas"
+  },
+  {
+    "franchiseId": 70,
+    "rosterId": 88,
+    "collegeName": "Indiana State"
+  },
+  {
+    "franchiseId": 171,
+    "rosterId": 163,
+    "collegeName": "Prarie View A&M"
+  },
+  {
+    "franchiseId": 208,
+    "rosterId": 2,
+    "collegeName": "Air Force"
+  },
+  {
+    "franchiseId": 53,
+    "rosterId": 74,
+    "collegeName": "Grand Valley State"
+  },
+  {
+    "franchiseId": 214,
+    "rosterId": 196,
+    "collegeName": "Southern Utah"
+  },
+  {
+    "franchiseId": 197,
+    "rosterId": 185,
+    "collegeName": "Samford"
+  },
+  {
+    "franchiseId": 97,
+    "rosterId": 348,
+    "collegeName": "Manitoba"
+  },
+  {
+    "franchiseId": 237,
+    "rosterId": 434,
+    "collegeName": "Stetson"
+  },
+  {
+    "franchiseId": 246,
+    "rosterId": 31,
+    "collegeName": "Malone"
+  },
+  {
+    "franchiseId": 219,
+    "rosterId": 12,
+    "collegeName": "Arkansas Pine Bluff"
+  },
+  {
+    "franchiseId": 200,
+    "rosterId": 391,
+    "collegeName": "Assumption"
+  },
+  {
+    "franchiseId": 196,
+    "rosterId": 184,
+    "collegeName": "Sam Houston"
+  },
+  {
+    "franchiseId": 92,
+    "rosterId": 324,
+    "collegeName": "Lindenwood"
+  },
+  {
+    "franchiseId": 121,
+    "rosterId": 126,
+    "collegeName": "Montana State"
+  },
+  {
+    "franchiseId": 84,
+    "rosterId": 100,
+    "collegeName": "Kutztown"
+  },
+  {
+    "franchiseId": 181,
+    "rosterId": 323,
+    "collegeName": "Regina"
+  },
+  {
+    "franchiseId": 178,
+    "rosterId": 169,
+    "collegeName": "Princeton"
+  },
+  {
+    "franchiseId": 250,
+    "rosterId": 223,
+    "collegeName": "Tulsa"
+  },
+  {
+    "franchiseId": 130,
+    "rosterId": 134,
+    "collegeName": "Northern Arizona"
+  },
+  {
+    "franchiseId": 194,
+    "rosterId": 385,
+    "collegeName": "Central Missouri"
+  },
+  {
+    "franchiseId": 148,
+    "rosterId": 148,
+    "collegeName": "Norfolk State"
+  },
+  {
+    "franchiseId": 135,
+    "rosterId": 0,
+    "collegeName": "Blank"
+  },
+  {
+    "franchiseId": 91,
+    "rosterId": 105,
+    "collegeName": "Liberty"
+  },
+  {
+    "franchiseId": 150,
+    "rosterId": 270,
+    "collegeName": "North Dakota"
+  },
+  {
+    "franchiseId": 76,
+    "rosterId": 93,
+    "collegeName": "Jackson State"
+  },
+  {
+    "franchiseId": 66,
+    "rosterId": 84,
+    "collegeName": "Idaho State"
+  },
+  {
+    "franchiseId": 117,
+    "rosterId": 310,
+    "collegeName": "Missouri State"
+  },
+  {
+    "franchiseId": 159,
+    "rosterId": 317,
+    "collegeName": "NW Missouri State"
+  },
+  {
+    "franchiseId": 35,
+    "rosterId": 487,
+    "collegeName": "York University"
+  },
+  {
+    "franchiseId": 204,
+    "rosterId": 395,
+    "collegeName": "Shepherd University"
+  },
+  {
+    "franchiseId": 43,
+    "rosterId": 462,
+    "collegeName": "Kennesaw State"
+  },
+  {
+    "franchiseId": 132,
+    "rosterId": 137,
+    "collegeName": "Northern Colorado"
+  },
+  {
+    "franchiseId": 87,
+    "rosterId": 302,
+    "collegeName": "Lafayette"
+  },
+  {
+    "franchiseId": 17,
+    "rosterId": 410,
+    "collegeName": "Campbell University"
+  },
+  {
+    "franchiseId": 125,
+    "rosterId": 490,
+    "collegeName": "Baldwin Wallace"
+  },
+  {
+    "franchiseId": 57,
+    "rosterId": 476,
+    "collegeName": "Friends University"
+  },
+  {
+    "franchiseId": 89,
+    "rosterId": 303,
+    "collegeName": "Lane"
+  },
+  {
+    "franchiseId": 224,
+    "rosterId": 16,
+    "collegeName": "Austin Peay"
+  }
+]

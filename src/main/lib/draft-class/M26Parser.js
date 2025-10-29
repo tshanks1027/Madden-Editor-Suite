@@ -46,8 +46,16 @@ function parseM26Prospects(buffer, header) {
     }
 
     // Try to parse visual JSON (if present)
+    // Search for ANY JSON block starting with { (not just {"bodyType")
+    // Some prospects start with {"genericHeadName" instead
     let visuals = null;
-    const jsonStartIndex = buffer.indexOf(JSON_START_MARKER, blockStart);
+    let jsonStartIndex = blockStart;
+    while (jsonStartIndex < blockStart + 0x1000 && buffer[jsonStartIndex] !== 123) {
+      jsonStartIndex++;
+    }
+    if (jsonStartIndex >= blockStart + 0x1000 || buffer[jsonStartIndex] !== 123) {
+      jsonStartIndex = -1;
+    }
 
     if (jsonStartIndex !== -1 && jsonStartIndex < blockStart + 0x1000) {
       // This prospect has visual data

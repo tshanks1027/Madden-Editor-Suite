@@ -1,0 +1,62 @@
+==============================================
+  DEPTH CHART BINARY REFERENCE DECODER
+==============================================
+
+Found 2 Team table(s)
+
+Found 35 real teams
+
+Team: 49ers
+TeamIndex: 14
+
+DepthChart Binary Reference: 00101101111011100000000000000000
+
+DepthChart Table ID: 4979
+DepthChart Records: 1
+
+Decoded DepthChart Reference:
+  Table ID: 11758
+  Row Number: 0
+
+Depth Chart Positions:
+----------------------
+QB     → Table 11110, Row 21
+HB     → Table 11110, Row 7
+FB     → Table 11110, Row 4
+WR     → Table 11110, Row 34
+TE     → Table 11110, Row 33
+LT     → Table 11110, Row 15
+LG     → Table 11110, Row 12
+C      → Table 11110, Row 1
+RG     → Table 11110, Row 24
+RT     → Table 11110, Row 28
+LE     → Table 11110, Row 11
+RE     → Table 11110, Row 23
+DT     → Table 11110, Row 3
+LOLB   → Table 11110, Row 13
+MLB    → Table 11110, Row 16
+ROLB   → Table 11110, Row 26
+CB     → Table 11110, Row 2
+FS     → Table 11110, Row 5
+SS     → Table 11110, Row 31
+K      → Table 11110, Row 8
+P      → Table 11110, Row 18
+
+
+Finding Depth Chart Player Table:
+----------------------------------
+Target Table ID from references: 11110
+
+❌ Could not find table with ID 11110
+
+
+==============================================
+  DEPTH CHART STRUCTURE DECODED
+==============================================
+
+Key Findings:
+-------------
+1. Team.DepthChart → DepthChart table (DepthChart)
+2. DepthChart.QB/HB/etc → Depth Chart Player Slots table (NOT FOUND)
+3. Depth Chart Player Slots.Starter0/Backup0/etc → Player table
+

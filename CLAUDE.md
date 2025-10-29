@@ -1,292 +1,276 @@
 # CLAUDE.md
 
-# ⚠️ MANDATORY - READ THIS FIRST BEFORE ANY ACTION ⚠️
-
-## CRITICAL RULES - ENFORCED AT ALL TIMES
-
-**BEFORE responding to ANY user request, you MUST:**
-
-1. **READ THIS ENTIRE CLAUDE.MD FILE** - Every time, no exceptions
-2. **CHECK SESSION DEBUG LOG** - Read `session-debug.log` to see recent activity and errors
-3. **CHECK TECH STACK** - It is LOCKED, verify before any changes
-4. **STAY IN PLAN MODE** - For all code changes, propose first
-5. **USE RESEARCH AGENT** - For ANY parsing/file I/O work, research existing implementations FIRST
-6. **WAIT FOR APPROVAL** - After proposing approach, wait for explicit "proceed" or "approved"
-
----
-
-## LOCKED TECH STACK - NO CHANGES ALLOWED WITHOUT EXPLICIT APPROVAL
-
-**Current Stack:**
-- ✅ **Vanilla JavaScript** - Renderer uses pure JS (NO React, NO Vue, NO Angular, NO frameworks)
-- ✅ **Handsontable 16.1.1** - Data grid component (NOT AG-Grid, NOT any other grid)
-- ✅ **Electron 38.1.2** - Desktop application framework
-- ✅ **Playwright** - E2E automated testing
-- ✅ **Vite 5** - Build tool and development server
-- ✅ **TypeScript 4.5** - Type-safe JavaScript (main process only)
-
-**Dependencies Available:**
-- madden-franchise@3.8.0 - Binary parsing (see RESEARCH_FINDINGS.md)
-- bit-buffer - Binary operations
-- SQLite3 - Local database for lookups
-- Sharp - Image processing
-
-❌ **FORBIDDEN:** Adding React, Vue, Angular, or ANY new framework
-❌ **FORBIDDEN:** Changing from Handsontable to another grid
-❌ **FORBIDDEN:** Adding new dependencies without explicit approval
-
----
-
-## ABSOLUTE RULES
-
-### Rule 1: NO FILE DELETIONS
-- **NEVER delete ANY file without explicit permission for that specific file**
-- If you think a file is unnecessary, **ASK FIRST**, show contents, explain why
-- User will decide - you cannot override
-
-### Rule 2: RESEARCH BEFORE IMPLEMENTATION
-- **BEFORE writing parsers, IPC handlers, or complex logic:**
-  1. Use Task agent (general-purpose) to research existing implementations
-  2. Check RESEARCH_FINDINGS.md for documented solutions
-  3. Create markdown document with findings
-  4. Show user the research
-  5. Wait for approval to proceed
-- **NO "I'll just write it from scratch"** - always use reference implementations
-
-### Rule 3: NEVER BYPASS WORKFLOW
-- Follow the exact workflow defined in WORKFLOW.md
-- Each phase has agent handoffs (coding → testing → packaging → optimization → git)
-- **DO NOT skip steps** - testing agent MUST run before user testing
-- **DO NOT commit** without explicit user approval
-
-### Rule 4: PLAN MODE FOR CODE CHANGES
-- Stay in plan mode for ANY file edits/creation
-- Propose your approach with file list and changes
-- Wait for "approved" or "proceed" before executing
-- If user says "no" or raises concerns, STOP and revise
-
-### Rule 5: ATTRIBUTION AND DOCUMENTATION
-- When using code from reference implementations, **ANNOTATE source**
-- Add comments like: `// Source: madden-franchise by bep713 (MIT License)`
-- Update ERROR_LOG.md when fixing issues
-- Update RELEASE_NOTES.md when completing features
-
----
-
-## DEVELOPMENT WORKFLOW
-
-**Your workflow for EVERY feature:**
-
-```
-1. User Request → You read CLAUDE.md (this file)
-2. Research (if needed) → Task agent researches, creates findings doc
-3. Plan Mode → Propose approach, list files to change
-4. User Approval → Wait for "proceed" or "approved"
-5. Implementation → Write code
-6. Testing Agent → Playwright runs automated tests
-   - If FAIL → back to step 5
-   - If PASS → continue
-7. User Testing → User manually verifies
-   - If issues → back to step 5
-   - If confirmed working → continue
-8. Packaging Agent → Test electron-forge package
-   - If issues → back to step 5
-   - If success → continue
-9. Optimizer Agent → Check for code issues
-   - If issues found → fix them
-   - If clean → continue
-10. Git Commit → User says "commit this" → Git agent commits
-```
-
-**DO NOT skip steps. DO NOT proceed without approval.**
-
----
-
-## REFERENCE DOCUMENTATION
-
-**Always check these files BEFORE starting work:**
-
-- **RESEARCH_FINDINGS.md** - All available tools, parsers, reference code
-- **WORKFLOW.md** - Detailed workflow with agent configurations
-- **MASTER_PLAN.md** - 8 phases of development with acceptance criteria
-- **ERROR_LOG.md** - Known issues and solutions
-- **RELEASE_NOTES.md** - Completed features and versions
-
----
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Commands
+## Project Overview
 
-### Development
-- `npm start` - Start development server with hot reload
-- `npm run dev` - Alias for npm start
-- `npm run build` - Full build with typecheck, lint, test, and package
-- `npm run typecheck` - TypeScript type checking
-- `npm run lint` - ESLint code linting
-- `npm run lint:fix` - Fix linting issues automatically
-- `npm run test` - Run Jest tests
-- `npm run test:watch` - Run tests in watch mode
-- `npm run test:coverage` - Generate test coverage report
+**Madden Editor Suite** is a professional Electron-based desktop application for editing Madden NFL files. It provides 17+ specialized tools for roster editing, franchise management, draft class creation, and visual customization. The application uses Electron Forge with Vite for building and packaging.
 
-### Building and Packaging
-- `npm run package` - Create platform-specific package
-- `npm run make` - Create distributable packages
-- `npm run publish` - Publish the application
-- `npm run clean` - Clean build artifacts
+**Key Features:**
+- Roster Editor with full player attribute control
+- Draft Class Editor and M25→M26 converter
+- Historical roster/draft class generator (scrapes pro-football-reference.com)
+- Franchise file editor with team management and trade forcing
+- Player portrait management using sprite sheets
+- Coach portrait management
+- Retro Franchise mode for historical season setup
 
 ## Architecture
 
-### Technology Stack
-- **Electron 38.1.2** - Desktop application framework
-- **Vite 5** - Build tool and development server
-- **TypeScript 4.5** - Type-safe JavaScript
-- **Vanilla JavaScript** - Renderer process uses pure JS + Handsontable
-- **Handsontable** - Data grid component (NOT AG-Grid)
-- **SQLite3** - Local database for lookups
-- **Sharp** - Image processing
+### Electron Process Structure
 
-### Project Structure
-```
-src/
-├── main/                    # Electron main process
-│   ├── ipc/                # IPC handlers for renderer communication
-│   │   ├── parser-handlers.ts    # File parsing operations
-│   │   ├── lookup-handlers.ts    # Lookup system operations
-│   │   └── file-handlers.ts      # File I/O operations
-│   ├── parsers/            # Binary file parsers
-│   │   ├── BinaryReader.js       # Binary reading utilities
-│   │   └── TDBFileValidator.js   # TDB format validation
-│   └── services/           # Business logic services
-├── renderer/               # Frontend (Electron renderer)
-│   ├── js/                 # Vanilla JavaScript application code
-│   │   └── app.js          # Main application logic
-│   ├── data/               # Field definitions and lookup data
-│   └── hooks/              # React-style hooks (if using React)
-└── shared/                 # Shared types and utilities
-    └── types/              # TypeScript type definitions
-```
+This is a multi-process Electron app:
 
-### Key Files
-- **src/main.ts** - Main Electron process entry point
-- **src/preload.ts** - Preload script exposing APIs to renderer
-- **src/renderer/js/app.js** - Main frontend application
-- **src/main/parsers/BinaryReader.js** - Binary file reading utilities
-- **src/main/parsers/TDBFileValidator.js** - Madden file format detection
-- **src/main/ipc/parser-handlers.ts** - File parsing IPC handlers
+1. **Main Process** (`src/main.ts`) - Node.js backend
+   - Manages app lifecycle and window creation
+   - Loads IPC handlers on startup
+   - Initializes portrait sprite services
+   - Handles auto-updates
 
-### Data Flow
-1. **File Selection**: Frontend → IPC → File handlers
-2. **File Parsing**: File handlers → Parser handlers → Binary readers → Frontend
-3. **Data Display**: Frontend uses Handsontable for data grid display
-4. **Data Editing**: Handsontable → Frontend validation → Player data updates
-5. **File Saving**: Frontend → IPC → Parser handlers → Binary writers
+2. **Preload Script** (`src/preload.ts`) - Security bridge
+   - Exposes safe APIs to renderer via `contextBridge`
+   - All renderer→main communication goes through IPC channels defined here
 
-## Important Patterns
+3. **Renderer Process** - Browser frontend
+   - `src/renderer/index.html` - Main editor (roster/draft class/creators)
+   - `src/renderer/franchise-editor.html` - Franchise management interface
+   - Uses vanilla JavaScript with Handsontable for data grids
+   - No React/Vue/Angular - pure DOM manipulation
 
-### IPC Communication
-- All file operations go through IPC handlers
-- Use `window.electronAPI` in renderer for main process communication
-- Parser operations are asynchronous and return promises
+### IPC Handler Organization
 
-### File Parsing
-- Files are validated using TDBFileValidator before parsing
-- BinaryReader handles low-level binary operations
-- Parser handlers contain format-specific parsing logic
-- Fallback to sample data if parsing fails
+All IPC handlers are in `src/main/ipc/`:
+- `parser-handlers.ts` - Roster file parsing
+- `draft-class-handlers.ts` - Draft class operations
+- `franchise-handlers.ts` - Franchise file operations
+- `creator-handlers.ts` - Web scraping for historical data
+- `roster-creator-handlers.ts` - Historical roster generation
+- `lookup-handlers.ts` - Dropdown data and mappings
+- `portrait-handlers.ts` - Player portrait management
+- `file-handlers.ts` - File system operations
+- `window-handlers.ts` - Multi-window management
+- `update-handlers.ts` - Auto-update checking
+- `rating-handlers.ts` - OVR calculation
+- `debug-handlers.ts` - Debug logging
 
-### Error Handling
-- Always wrap IPC calls in try-catch blocks
-- Display user-friendly error messages
-- Log detailed error information to console
-- Maintain application state even when operations fail
+**Important:** IPC handlers are registered in `src/main.ts`. New handlers must be imported and registered there.
 
-## Development Guidelines
+### File Parsing Libraries
 
-### Module System
-- Main process uses ES6 imports (`import`/`export`)
-- Parser files (BinaryReader, TDBFileValidator) use ES6 exports
-- Avoid mixing CommonJS (`require`) with ES6 imports
+The app vendors two critical libraries in `src/main/lib/`:
 
-### File Structure Conventions
-- Keep binary parsers in `src/main/parsers/`
-- IPC handlers go in `src/main/ipc/`
-- Frontend JavaScript in `src/renderer/js/`
-- Shared types in `src/shared/types/`
+1. **madden-franchise** (`lib/filetypes/`) - Franchise file parsing
+   - TDB/TDB2 database table handling
+   - AST file format support
+   - EBX/TOC/CAS file support
+   - Used via: `const Franchise = require('madden-franchise')`
 
-### Testing
-- Use Jest for unit tests
-- Test binary parsing logic thoroughly
-- Mock Electron APIs for renderer tests
-- Maintain test coverage above 80%
+2. **madden-draft-class** (`lib/draft-class/`) - Draft class file parsing
+   - M25/M26 format support
+   - Compression/decompression
+   - Binary structure parsing
+   - M25→M26 conversion
 
-## Debug Logging System
+These are **vendored** (not npm packages) because they need CommonJS require() and have been customized.
 
-### Session Debug Log
-- **Location**: `%APPDATA%/madden-editor-suite/session-debug.log` (Windows) or `~/Library/Application Support/madden-editor-suite/session-debug.log` (Mac)
-- **Purpose**: Captures ALL console.log output from renderer process automatically
-- **Lifecycle**: Cleared on EVERY app startup - only contains current session data
-- **Access**: Use Read tool to access log file directly - NO need for user to copy/paste anymore
-- **Usage**:
-  - ALWAYS read this file FIRST when debugging user-reported issues
-  - Contains timestamped entries with full context
-  - Includes [SORT DEBUG], [LOAD], [SAVE], and other tagged debug messages
+### Service Layer
 
-### How to Read Session Log
+Services in `src/main/services/`:
+- `lookup-service.ts` - Manages CSV lookup files for dropdowns
+- `PortraitSpriteService.ts` - Player portrait sprite sheet handling
+- `CoachPortraitService.ts` - Coach portrait management
+- `CreatorService.ts` - Orchestrates web scraping
+- `ScraperService.ts` - Puppeteer-based scraping
+- `RosterCreatorService.ts` - Historical roster generation
+- `DraftClassService.ts` - Draft class operations
+- `RatingCalculator.ts` - OVR calculation formulas
+- `UpdateChecker.ts` - GitHub release checking
+
+### Data Files
+
+`data/lookups/` contains CSV files for dropdowns and mappings:
+- `ALL_PLAYER_LOOKUP.csv` - 27,680+ real players with PID/PAM/PLPO mappings
+- `Coach_lookup.csv` - Coach PID/PAM mappings
+- `college_lookup.csv`, `position_lookup.csv`, `team_lookup.csv`, `state_lookup.csv` - Madden enums
+- `PID_Portrait_Mapping.csv` - Generic face mappings
+
+`data/portrait-sprites/` and `data/portrait-atlas.json` contain player portraits (optimized from 1.8GB individuals).
+`data/coach-sprites/` and `data/coach-atlas.json` contain coach portraits.
+
+**Important:** These files are copied to build output by Vite plugins and must be accessed using `app.getAppPath()` at runtime.
+
+### Build System
+
+- **Vite** compiles TypeScript and bundles code
+- **Electron Forge** packages the app with electron-builder
+- **forge.config.ts** - Packaging configuration
+- **vite.main.config.ts** - Main process build (copies data/lib to `.vite/build/`)
+- **vite.preload.config.ts** - Preload script build
+- **vite.renderer.config.ts** - Renderer build (multiple HTML entry points)
+- **electron-builder.yml** - NSIS installer configuration
+
+The build copies:
+1. CSV files from `data/lookups/` → `.vite/build/data/lookups/`
+2. Vendored libs from `src/main/lib/` → `.vite/build/lib/`
+3. Required node_modules (bit-buffer, stream-parser, crc-32, fzstd) → `.vite/build/node_modules/`
+
+## Development Commands
+
 ```bash
-# Get the log file path first (will tell you exact location for this user)
-# Then use Read tool with that path
-Read(logPath)
+# Start development server
+npm start
+npm run dev           # alias
+
+# Build for production
+npm run package       # Package with Electron Forge
+npm run dist          # Create installer with electron-builder
+npm run dist:simple   # Quick build without NSIS installer
+
+# Testing
+npm test              # Run Playwright E2E tests
+npm run test:jest     # Run Jest unit tests
+npm run test:coverage # Coverage report
+
+# Code quality
+npm run lint          # ESLint
+npm run lint:fix      # Auto-fix linting issues
+npm run format        # Prettier format
+npm run format:check  # Check formatting
+npm run typecheck     # TypeScript type checking
+
+# Utilities
+npm run clean         # Remove dist/out/coverage/.vite
 ```
 
-### Writing to Session Log from Renderer
+## Development Workflow
+
+### Adding a New Feature
+
+1. **Identify the layer:**
+   - Renderer UI change? Edit `src/renderer/*.html` and `src/renderer/js/*.js`
+   - Backend logic? Add service in `src/main/services/`
+   - IPC needed? Add handler in `src/main/ipc/` and register in `src/main.ts`
+   - Update preload API in `src/preload.ts`
+
+2. **Testing:**
+   - E2E tests in `tests/e2e/*.spec.js` (Playwright)
+   - Unit tests in `src/main/**/*.test.ts` (Jest)
+   - Manual testing: `npm start`
+
+3. **Build verification:**
+   - Run `npm run package` to test packaging
+   - Check `.vite/build/` contains required files (CSVs, libs)
+
+### Working with Franchise Files
+
+Franchise files use the `madden-franchise` library:
+
 ```javascript
-// In renderer code (app.js), use this instead of console.log for debugging:
-window.electronAPI.debug.sessionLog('[TAG] Your debug message here');
+const Franchise = require('madden-franchise');
+const franchise = new Franchise(filePath);
+const tables = await franchise.readFile();
+const playerTable = tables.find(t => t.name === 'Player');
+const players = playerTable.records;
+// Access fields: player.FirstName, player.LastName, player.Overall, etc.
 ```
 
-### Scraper Debug Log
-- **Location**: `%APPDATA%/madden-editor-suite/scraper-debug.log`
-- **Purpose**: Roster generation and web scraping debug output
-- **NOT cleared automatically** - persists across sessions
+**Important:** Field names are PascalCase in the library. Roster files use different field names than franchise files (e.g., `FirstName` vs `firstName`).
 
----
+### Working with Draft Class Files
 
-## Common Issues
+Draft class files use the vendored `lib/draft-class/` parser:
 
-### Module Import Errors
-If you see "Cannot find module" errors:
-1. Check that ES6 imports/exports are used consistently
-2. Verify file paths are correct relative to importing file
-3. Ensure Vite configuration includes necessary files
+```javascript
+const { M26Parser } = require('./lib/draft-class/M26Parser');
+const parser = new M26Parser(filePath);
+const prospects = parser.parse(); // Returns array of prospect objects
+```
 
-### Electron App Not Starting
-1. Check main.ts for syntax errors
-2. Verify preload.ts exposes required APIs
-3. Ensure all IPC handlers are registered
-4. Check console for detailed error messages
+M25→M26 conversion uses `M25toM26Converter.js` which requires a template M26 file for structure.
 
-### Parser Not Working
-1. Verify TDBFileValidator and BinaryReader imports
-2. Check file path resolution in IPC handlers
-3. Test with known good Madden files
-4. Review parser-handlers.ts for errors
+### Portrait Management
 
-## Madden File Formats
+Player portraits are stored as sprite sheets to reduce size (from 1.8GB to 124MB):
 
-### Supported Formats
-- **TDB Legacy** - Original format with "TDB\0" signature
-- **TDB2 Compressed** - zlib-compressed format
-- **TDB2 Uncompressed** - "TDB\x02" signature
-- **FBCH** - Modern Madden format with "FBCH" signature
+```javascript
+import { portraitSpriteService } from './services/PortraitSpriteService';
+await portraitSpriteService.initialize();
+const imageData = await portraitSpriteService.getPortraitByPLPO('PLPO_1234');
+// Returns base64 image data or null
+```
 
-### File Extensions
-- Madden files often have NO file extension
-- Examples: "ROSTER-Official", "CAREER-DRAFT", etc.
-- Use file content validation instead of extension checking
+Coaches use separate sprite sheets via `CoachPortraitService`.
 
-### Binary Structure
-- Little-endian byte order
-- Variable-length strings with null terminators
-- Multiple table structures within single file
-- Requires binary reader for proper parsing
+### Lookup Service
+
+Lookup data for dropdowns is cached on startup:
+
+```javascript
+import { lookupService } from './services/lookup-service';
+const collegeOptions = await lookupService.getDropdownOptions('college_lookup.csv');
+// Returns array of { id, name } objects
+```
+
+**Note:** `ALL_PLAYER_LOOKUP.csv` contains full player data, not just names. Use `lookupService.getFullDataByPID(pid)` to get complete player info.
+
+## Common Pitfalls
+
+1. **CSV files not found in packaged app**
+   - Ensure `vite.main.config.ts` copies files to `.vite/build/data/lookups/`
+   - Use `app.getAppPath()` or `app.isPackaged` checks for path resolution
+
+2. **Require errors for vendored libs**
+   - The vendored libs use CommonJS `require()`
+   - Ensure `node_modules` subdirectories (bit-buffer, stream-parser) are copied to build
+
+3. **IPC not working**
+   - Check handler is imported in `src/main.ts`
+   - Check API is exposed in `src/preload.ts`
+   - Verify channel names match exactly
+
+4. **Handsontable not rendering**
+   - Ensure container has explicit height (flex or fixed)
+   - Check data format matches column definitions
+
+5. **Puppeteer crashes in packaged app**
+   - Puppeteer is bundled for scraping (historical rosters/draft classes)
+   - Don't exclude from packaging in `forge.config.ts`
+
+## File Structure Notes
+
+- **Main window:** `src/renderer/index.html` - Multi-tool editor (roster/draft/creators)
+- **Franchise window:** `src/renderer/franchise-editor.html` - Separate franchise management UI
+- **Shared data:** Window-to-window communication uses `window-handlers.ts` with shared state
+- **Modals:** Player cards and dialogs are inline in HTML, controlled via display toggles
+
+## Madden-Specific Knowledge
+
+### Player IDs
+
+- **PID (PhotoID):** Unique player identifier in roster files
+- **PAM (Player Assets):** Asset ID linking to player appearance/portrait
+- **PLPO:** Portrait key format (e.g., "PLPO_Brady_Tom")
+
+### Field Mappings
+
+Franchise files and roster files use different field names for the same data:
+- Roster: `firstName`, `lastName` → Franchise: `FirstName`, `LastName`
+- Roster: `college` (string) → Franchise: `CollegeId` (integer, mapped via college_lookup.csv)
+
+### College ID Mapping
+
+College IDs differ between roster and franchise files. Use `data/franchise-college-mapping.json` for translation when converting between formats.
+
+## Testing Notes
+
+- **E2E tests:** Launch app, load file, verify UI (Playwright)
+- **Run tests:** `npm test` (headless) or `npx playwright test --ui` (UI mode)
+- **Test reports:** Generated in `test-reports/html/`
+- **Screenshots:** Captured in `test-reports/screenshots/` on failure
+
+## Debugging
+
+- **Main process:** Logs to console (visible in terminal when running `npm start`)
+- **Renderer process:** Open DevTools (F12 in app window)
+- **Session log:** Written to temp file via `debug-handlers.ts`
+- **Access log:** `window.electronAPI.debug.getSessionLogPath()`

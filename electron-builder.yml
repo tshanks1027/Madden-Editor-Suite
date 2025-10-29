@@ -28,6 +28,7 @@ win:
   icon: build-assets/madden.ico
   artifactName: ${productName}-Setup-${version}.${ext}
   forceCodeSigning: false  # Disable code signing
+  signAndEditExecutable: false  # Skip signing executables
   compression: normal  # Use normal compression instead of maximum for faster install
 
 nsis:

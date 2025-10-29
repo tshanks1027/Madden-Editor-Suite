@@ -8,8 +8,8 @@ export const MADDEN_FIELDS = {
     'PLNA': { display: 'Last Name', shortDisplay: 'Last Name', type: 'text', editable: true, width: 100 },
     'PFNA': { display: 'First Name', shortDisplay: 'First Name', type: 'text', editable: true, width: 100 },
     'PSXP': { display: 'Pic ID', shortDisplay: 'PID', type: 'numeric', editable: true, width: 60, min: 0, max: 10861 },
-    'PLAYERPIC': { display: 'Player Pic', shortDisplay: 'Player Pic', type: 'autocomplete', editable: true, width: 120, lookup: 'pids' },
-    'PEPS': { display: 'Player Asset Model', shortDisplay: 'PAM', type: 'text', editable: true },
+    'PLAYERPIC': { display: 'Player Pic', shortDisplay: 'Player Pic', type: 'autocomplete', editable: true, width: 180, lookup: 'pids' },
+    'PEPS': { display: 'PAM', shortDisplay: 'PAM', type: 'text', editable: true, width: 180 },
     'PPOS': { display: 'Position', shortDisplay: 'POS', type: 'lookup', editable: true, width: 80, lookup: 'positions' },
     'PYRP': { display: 'Years Pro', shortDisplay: 'YRS', type: 'numeric', editable: true, width: 80, min: 0, max: 25 },
     'TGID': { display: 'Team', shortDisplay: 'Team', type: 'lookup', editable: true, width: 80, lookup: 'teams' },
@@ -174,6 +174,7 @@ export let LOOKUP_DATA = {
     pidsByName: new Map(),
     pidsCapitalized: new Map(), // Maps PID -> Capitalized Name
     plpos: new Map(), // Maps PID -> PLPO key (for portraits)
+    plpoToPid: new Map(), // Maps PLPO key -> PID (REVERSE lookup for generic faces)
     devtraits: new Map([
         [0, 'Normal'],
         [1, 'Star'],
@@ -378,15 +379,18 @@ export async function loadLookupData() {
 
             console.log(`Loaded ${plpoOptions.length} PLPO entries from ALLDATA lookup`);
 
-            // Populate plpos map (PID -> PLPO key)
+            // Populate plpos map (PID -> PLPO key) AND reverse map (PLPO -> PID)
             plpoOptions.forEach(option => {
                 // option.value is PhotoID (PID), option.plpo is the PLPO key
                 if (option.plpo && option.plpo.trim()) {
-                    LOOKUP_DATA.plpos.set(option.value, option.plpo.trim());
+                    const plpoKey = option.plpo.trim();
+                    LOOKUP_DATA.plpos.set(option.value, plpoKey);
+                    LOOKUP_DATA.plpoToPid.set(plpoKey, option.value); // REVERSE lookup
                 }
             });
 
             console.log(`Processed ${LOOKUP_DATA.plpos.size} PLPO mappings from FullData_Lookup`);
+            console.log(`Processed ${LOOKUP_DATA.plpoToPid.size} PLPO->PID reverse mappings from FullData_Lookup`);
         } catch (error) {
             console.error('Failed to load PLPO lookup:', error);
         }
@@ -398,14 +402,16 @@ export async function loadLookupData() {
 
             console.log(`Loaded ${pidMappingData.length} entries from PID_Portrait_Mapping.csv`);
 
-            // Merge into plpos map
+            // Merge into plpos map AND create reverse lookup (PLPO -> PID)
             pidMappingData.forEach(entry => {
                 if (entry.pid && entry.portrait) {
                     LOOKUP_DATA.plpos.set(entry.pid, entry.portrait);
+                    LOOKUP_DATA.plpoToPid.set(entry.portrait, entry.pid); // REVERSE lookup
                 }
             });
 
             console.log(`Total PLPO mappings after merge: ${LOOKUP_DATA.plpos.size}`);
+            console.log(`Total PLPO->PID reverse mappings: ${LOOKUP_DATA.plpoToPid.size}`);
         } catch (error) {
             console.error('Failed to load PID_Portrait_Mapping.csv:', error);
         }
@@ -551,12 +557,86 @@ export function getPIDFromName(playerName) {
 }
 
 /**
+ * Get PID from PLPO key (reverse lookup)
+ * @param {string} plpo - PLPO key to look up
+ * @returns {number|null} PID or null if not found
+ */
+export function getPIDFromPLPO(plpo) {
+    if (!plpo || typeof plpo !== 'string') return null;
+
+    // Try exact match first
+    let pid = LOOKUP_DATA.plpoToPid.get(plpo);
+    if (pid) return pid;
+
+    // Try removing common suffixes (_morphed, _portrait, etc.)
+    const suffixes = ['_morphed', '_portrait', '_base'];
+    for (const suffix of suffixes) {
+        if (plpo.endsWith(suffix)) {
+            const basePlpo = plpo.substring(0, plpo.length - suffix.length);
+            pid = LOOKUP_DATA.plpoToPid.get(basePlpo);
+            if (pid) return pid;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Get player name from PID
  * @param {number} pid - PID to look up
  * @returns {string} Player name or 'Generic Name'
  */
 export function getPlayerNameFromPID(pid) {
-    return LOOKUP_DATA.pids.get(pid) || 'Generic Face';
+    // If PID is 0, return blank (no player assigned)
+    if (!pid || pid === 0) {
+        return '';
+    }
+
+    // Check ALL_PLAYER_LOOKUP.csv for player name
+    // This contains real NFL player names with their official PIDs
+    const playerName = LOOKUP_DATA.pids.get(pid);
+
+    // Debug logging for first 5 lookups
+    if (!window._pidLookupCount) window._pidLookupCount = 0;
+    if (window._pidLookupCount < 5) {
+        console.log(`[getPlayerNameFromPID] PID=${pid}, playerName="${playerName}", pids.size=${LOOKUP_DATA.pids.size}`);
+        window._pidLookupCount++;
+    }
+
+    if (playerName) {
+        return playerName;
+    }
+
+    // If PID not found in ALL_PLAYER_LOOKUP, check PLPO
+    const plpo = LOOKUP_DATA.plpos.get(pid);
+    if (plpo && typeof plpo === 'string') {
+        // Check if it's a generic face (handles both "gen_X_X_XXX" and "plpo_generic_X_XXX" formats)
+        if (plpo.startsWith('gen_') || plpo.includes('generic')) {
+            // Extract generic face identifier
+            // "gen_5_M_M_005" → "gen_5_M_M_005"
+            // "plpo_generic_1_001" → "1_001"
+            let genericId = plpo;
+            if (plpo.includes('plpo_generic_')) {
+                genericId = plpo.replace('plpo_generic_', '');
+            } else if (plpo.startsWith('plpo_gen_')) {
+                genericId = plpo.replace('plpo_', '');
+            }
+            return genericId;
+        }
+
+        // Real player with portrait but not in lookup - extract name from PLPO
+        // e.g., "plpo_CodringtonBrandon" → "Codrington Brandon"
+        const nameMatch = plpo.match(/plpo_(.+)/);
+        if (nameMatch) {
+            const camelCase = nameMatch[1];
+            // Split camelCase: "CodringtonBrandon" → "Codrington Brandon"
+            const name = camelCase.replace(/([A-Z])/g, ' $1').trim();
+            return name;
+        }
+    }
+
+    // If no mapping found at all, return default
+    return 'Generic Face';
 }
 
 /**

@@ -1,0 +1,96 @@
+<div class="table-editor-wrapper">
+  <div class="content">
+    <div class="table-wrapper">
+      <div class="tab-wrapper">
+      </div>
+      <div class="table-list">
+        <div class="table-list-top-bar">
+          <div class="action-button back-link disabled">&lt; Back</div>
+          <select class="table-selector"></select>
+          <div class="jump-to-column table-action-link action-button">Jump to column</div>
+        </div>
+        <div class="table-pins-wrapper">
+          <span class="pin-icon"></span>
+          <div class="pins-list">
+          </div>
+        </div>        
+      </div>
+      <div class="table-main-wrapper">
+        <div class="table-content-wrapper">
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="jump-to-column-modal modal hidden">
+    <div class="modal-header">
+      <h2 class="title">Jump to column</h2>
+      <div class="close-modal">X</div>
+    </div>
+    <div class="modal-content">
+      <p>Jump to the following column at the following row</p>
+      <div class="year-select-wrapper">
+        <select name="available-columns" id="available-columns"></select>
+        <input type="text" name="row-index" class="jump-row" value="1">
+        <button class="btn btn-go-jump-to-column">Go</button>
+      </div>
+    </div>
+  </div>
+  <div id="reference-modal" class="reference-modal modal hidden">
+    <div class="modal-header">
+      <h2 class="title">References</h2>
+      <div class="close-modal">X</div>
+    </div>
+    <div class="modal-content">
+      <div class="reference-header">
+        <span>The following tables reference </span>
+        <span id="referenced-record-text"></span>
+      </div>
+      <div id="reference-list-wrapper" class="reference-list-wrapper">
+
+      </div>
+    </div>
+  </div>
+  <div class="spline-editor-wrapper">
+    <div id="spline-editor-area"></div>
+  </div>
+  <div id="blob-editor-modal" class="blob-editor-modal modal hidden">
+    <div class="modal-header">
+      <h2 class="title">Edit Blob Data</h2>
+      <div class="close-modal">Apply Changes</div>
+    </div>
+    <div class="modal-content">
+      <div id="blob-editor"></div>
+    </div>
+  </div>
+  <div class="blob-editor-underlay underlay-editor hidden"></div>
+  <div id="reference-editor-wrapper" class="reference-editor-wrapper hidden">
+    <div class="reference-editor-underlay underlay-editor"></div>
+    <div id="reference-editor-highlight" class="reference-editor-highlight"></div>
+    <div id="reference-editor-content" class="reference-editor-content">
+      <div class="reference-title-wrapper">
+        Edit cell reference
+        <button class="close">X</button>
+      </div>
+      <div class="reference-values-wrapper">
+        <div class="table-reference filter">
+          <label for="reference-editor-table">Table</label>
+          <select id="reference-editor-table" class="filter-input"></select>
+        </div>
+        <div class="row-reference filter">
+          <label for="reference-editor-row">Row Index</label>
+          <input type="number" min="0" id="reference-editor-row" class="filter-input" />
+        </div>
+        <div class="row-reference filter">
+          <label for="reference-editor-row">Binary</label>
+          <input type="text" id="reference-editor-binary" maxlength=32 class="filter-input" />
+        </div>
+        <button id="btn-change-reference" class="form-button form-button--no-bg-color">Change</button>
+      </div>
+    </div>
+  </div>
+  <div class="underlay hidden"></div>
+  <div class="loader-wrapper hidden">
+    <div class="loader"></div>
+  </div>
+</div>

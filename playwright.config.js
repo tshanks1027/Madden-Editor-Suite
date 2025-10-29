@@ -48,7 +48,7 @@ module.exports = defineConfig({
   projects: [
     {
       name: 'electron-tests',
-      testMatch: 'roster-load.spec.js', // ONLY run roster-load test
+      testMatch: '**/*.(spec|test).js', // Run all spec/test files
       testIgnore: '**/archive/**', // Ignore archived tests
     },
   ],

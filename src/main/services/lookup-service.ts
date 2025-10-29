@@ -32,6 +32,14 @@ export interface PAMEntry {
   description?: string;
 }
 
+export interface CoachLookupEntry {
+  lastName: string;
+  firstName: string;
+  pam: string;
+  pid: number;
+  displayName: string; // Generated from firstName + lastName
+}
+
 export interface LookupCache {
   [fileName: string]: Map<number, string>;
 }
@@ -42,6 +50,8 @@ export class LookupService {
   private pamCache: Map<string, PAMEntry> = new Map(); // PAM name → PAMEntry
   private pamByPIDCache: Map<number, PAMEntry[]> = new Map(); // PID → PAMEntry[]
   private fullDataCache: Map<number, FullDataEntry> = new Map(); // PID → FullDataEntry
+  private coachCache: Map<number, CoachLookupEntry> = new Map(); // PID → CoachLookupEntry
+  private coachByPAMCache: Map<string, CoachLookupEntry> = new Map(); // PAM → CoachLookupEntry
 
   constructor() {
     this.initializeLookups();
@@ -59,13 +69,14 @@ export class LookupService {
 
   private async initializeLookups(): Promise<void> {
     try {
-      // ONLY load Madden code lookups + MASTER_PLAYER_LOOKUP for ALL player data
+      // ONLY load Madden code lookups + ALL_PLAYER_LOOKUP for ALL player data + Coach lookup
       const lookupFiles = [
         'position_lookup.csv',        // Madden position codes
         'team_lookup.csv',            // Madden team codes
         'college_lookup.csv',         // Madden college codes
         'state_lookup.csv',           // Madden state codes
-        'MASTER_PLAYER_LOOKUP.csv'    // ALL PLAYER DATA - 27,680 players with EVERYTHING
+        'ALL_PLAYER_LOOKUP.csv',      // ALL PLAYER DATA - 27,680 players with EVERYTHING
+        'Coach_lookup.csv'            // Coach portraits and PAM mappings
       ];
 
       for (const fileName of lookupFiles) {
@@ -86,8 +97,14 @@ export class LookupService {
         return;
       }
 
-      // Special handling for MASTER_PLAYER_LOOKUP.csv (the ONE source for all player data)
-      if (fileName === 'MASTER_PLAYER_LOOKUP.csv') {
+      // Special handling for Coach_lookup.csv
+      if (fileName === 'Coach_lookup.csv') {
+        await this.loadCoachLookupFile(fileName);
+        return;
+      }
+
+      // Special handling for ALL_PLAYER_LOOKUP.csv (the ONE source for all player data)
+      if (fileName === 'ALL_PLAYER_LOOKUP.csv') {
         await this.loadFullDataLookupFile(fileName);
         return;
       }
@@ -196,6 +213,131 @@ export class LookupService {
     }
   }
 
+  private async loadCoachLookupFile(fileName: string): Promise<void> {
+    try {
+      const filePath = this.resolveDataPath(fileName);
+
+      if (!fs.existsSync(filePath)) {
+        console.warn(`Coach lookup file not found: ${filePath}`);
+        return;
+      }
+
+      const csvContent = fs.readFileSync(filePath, 'utf-8');
+      const lines = csvContent.trim().split('\n');
+
+      if (lines.length < 1) {
+        console.warn(`Invalid Coach lookup file format: ${fileName}`);
+        return;
+      }
+
+      // Clear existing coach caches
+      this.coachCache.clear();
+      this.coachByPAMCache.clear();
+
+      // Parse coach data (format: LastName,FirstName,PAM,PID)
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',');
+        if (parts.length < 4) continue;
+
+        const lastName = parts[0].trim();
+        const firstName = parts[1].trim();
+        const pam = parts[2].trim();
+        const pid = parseInt(parts[3].trim());
+
+        if (isNaN(pid)) continue;
+
+        const displayName = firstName && lastName ? `${firstName} ${lastName}` : (firstName || lastName || `Coach ${pid}`);
+
+        const coachEntry: CoachLookupEntry = {
+          lastName,
+          firstName,
+          pam,
+          pid,
+          displayName
+        };
+
+        // Store in PID cache
+        this.coachCache.set(pid, coachEntry);
+
+        // Store in PAM cache (if PAM is present)
+        if (pam) {
+          this.coachByPAMCache.set(pam, coachEntry);
+        }
+      }
+
+      console.log(`Loaded ${this.coachCache.size} coach entries from ${fileName}`);
+
+      // Also load PAM names from coach portrait files in "Coach and Owners" directory
+      await this.loadCoachPortraitPAMs();
+
+    } catch (error) {
+      console.error(`Error loading Coach lookup file ${fileName}:`, error);
+    }
+  }
+
+  private async loadCoachPortraitPAMs(): Promise<void> {
+    try {
+      const path = await import('path');
+
+      // Path to coach portraits directory
+      const portraitsDir = app.isPackaged
+        ? path.join(process.resourcesPath, 'app', 'data', 'Coach info', 'Coach and Owners')
+        : path.join(__dirname, '../../data/Coach info/Coach and Owners');
+
+      if (!fs.existsSync(portraitsDir)) {
+        console.warn(`Coach portraits directory not found: ${portraitsDir}`);
+        return;
+      }
+
+      // Read all portrait files
+      const files = fs.readdirSync(portraitsDir);
+      let addedCount = 0;
+
+      for (const file of files) {
+        // Match pattern: mapo_coachportraits_LastNameFirstName.png
+        const match = file.match(/^mapo_coachportraits_(.+)\.png$/);
+        if (!match) continue;
+
+        const namePart = match[1]; // e.g., "BowlesTodd", "CampbellDan"
+
+        // Parse name - find where last name ends and first name begins
+        // Most names follow pattern: uppercase letter for last name, then uppercase for first name
+        const nameMatch = namePart.match(/^([A-Z][a-z]+)([A-Z][a-z]+)$/);
+        if (!nameMatch) continue;
+
+        const lastName = nameMatch[1];
+        const firstName = nameMatch[2];
+        const displayName = `${firstName} ${lastName}`;
+        const pamValue = `mapo_coachportraits_${namePart}`;
+
+        // Check if we already have this PAM in the cache
+        if (!this.coachByPAMCache.has(pamValue)) {
+          // Add as a new entry with a high PID (to avoid conflicts with real PIDs)
+          const pseudoPID = 1000000 + addedCount;
+
+          const coachEntry: CoachLookupEntry = {
+            lastName,
+            firstName,
+            pam: pamValue,
+            pid: pseudoPID,
+            displayName
+          };
+
+          this.coachCache.set(pseudoPID, coachEntry);
+          this.coachByPAMCache.set(pamValue, coachEntry);
+          addedCount++;
+        }
+      }
+
+      console.log(`Added ${addedCount} coach PAM entries from portrait files`);
+    } catch (error) {
+      console.error('Error loading coach portrait PAMs:', error);
+    }
+  }
+
   private async loadFullDataLookupFile(fileName: string): Promise<void> {
     try {
       const filePath = this.resolveDataPath(fileName);
@@ -217,7 +359,7 @@ export class LookupService {
       this.fullDataCache.clear();
 
       // Parse FullData entries (skip header)
-      // Format: Last Name,First Name,College/Univ,Round,Pick,Draft Class,Position,PhotoID,Player Assets ID,CommID,PresID,PLPO
+      // Format: Last Name,First Name,College/Univ,Round,Pick,Draft Class,Position,Jersey,PhotoID,Player Assets ID,CommID,PLPO,...
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -233,10 +375,10 @@ export class LookupService {
           pick: parts[4].trim(),
           draftClass: parts[5].trim(),
           position: parts[6].trim(),
-          pid: parseInt(parts[7].trim()),
-          pam: parts[8].trim(),
-          commID: parts[9].trim(),
-          presID: parts[10].trim(),
+          pid: parseInt(parts[8].trim()),  // PhotoID is column 8 (after Jersey column 7)
+          pam: parts[9].trim(),            // Player Assets ID
+          commID: parts[10].trim(),
+          presID: parts[10].trim(),        // Use same as CommID since PresID not in this file
           plpo: parts[11].trim()
         };
 
@@ -276,8 +418,8 @@ export class LookupService {
 
   // Get all options for a dropdown
   public getDropdownOptions(fileName: string): any[] {
-    // Special handling for MASTER_PLAYER_LOOKUP.csv - return full entries with PLPO
-    if (fileName === 'MASTER_PLAYER_LOOKUP.csv') {
+    // Special handling for ALL_PLAYER_LOOKUP.csv - return full entries with PLPO
+    if (fileName === 'ALL_PLAYER_LOOKUP.csv') {
       return this.getFullDataOptions();
     }
 
@@ -384,6 +526,38 @@ export class LookupService {
       value: pam.pam,
       metadata: pam
     }));
+  }
+
+  // Coach lookup methods
+  public getCoachByPID(pid: number): CoachLookupEntry | undefined {
+    return this.coachCache.get(pid);
+  }
+
+  public getCoachByPAM(pam: string): CoachLookupEntry | undefined {
+    return this.coachByPAMCache.get(pam);
+  }
+
+  public getAllCoaches(): CoachLookupEntry[] {
+    return Array.from(this.coachCache.values());
+  }
+
+  public getCoachPAMOptions(): Array<{name: string, value: string, pid: number}> {
+    return Array.from(this.coachCache.values())
+      .filter(coach => coach.pam) // Only coaches with PAM
+      .map(coach => ({
+        name: coach.displayName,
+        value: coach.pam,
+        pid: coach.pid
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  public getCoachPIDFromPAM(pam: string): number | undefined {
+    return this.coachByPAMCache.get(pam)?.pid;
+  }
+
+  public getCoachPAMFromPID(pid: number): string | undefined {
+    return this.coachCache.get(pid)?.pam;
   }
 }
 

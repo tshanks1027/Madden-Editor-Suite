@@ -44,8 +44,9 @@ ipcMain.handle('lookup:get-dropdown-options', async (event, fileName: string) =>
   try {
     let options;
     // ALLDATA_Lookup.csv is the ONE source for all player data (20,634 players with ALL data)
+    // Map frontend request to actual loaded file
     if (fileName === 'ALLDATA_Lookup.csv') {
-      options = lookupService.getDropdownOptions(fileName);
+      options = lookupService.getDropdownOptions('ALL_PLAYER_LOOKUP.csv');
       // Transform to include all fields (id -> value, name -> label, plpo -> plpo)
       return options.map(opt => ({
         value: opt.id,
@@ -240,6 +241,106 @@ ipcMain.handle('lookup:get-pams-by-generation', async (event, generation: number
   } catch (error) {
     console.error('Error getting PAMs by generation:', error);
     return [];
+  }
+});
+
+/**
+ * Handle: lookup:get-coach-pam-options
+ * Get all coach PAM options for dropdown
+ */
+ipcMain.handle('lookup:get-coach-pam-options', async (event) => {
+  try {
+    return lookupService.getCoachPAMOptions();
+  } catch (error) {
+    console.error('Error getting coach PAM options:', error);
+    return [];
+  }
+});
+
+/**
+ * Handle: lookup:get-coach-by-pid
+ * Get coach entry by PID
+ */
+ipcMain.handle('lookup:get-coach-by-pid', async (event, pid: number) => {
+  try {
+    return lookupService.getCoachByPID(pid);
+  } catch (error) {
+    console.error('Error getting coach by PID:', error);
+    return null;
+  }
+});
+
+/**
+ * Handle: lookup:get-coach-pid-from-pam
+ * Get coach PID from PAM
+ */
+ipcMain.handle('lookup:get-coach-pid-from-pam', async (event, pam: string) => {
+  try {
+    return lookupService.getCoachPIDFromPAM(pam);
+  } catch (error) {
+    console.error('Error getting coach PID from PAM:', error);
+    return null;
+  }
+});
+
+/**
+ * Handle: lookup:get-coach-pam-from-pid
+ * Get coach PAM from PID
+ */
+ipcMain.handle('lookup:get-coach-pam-from-pid', async (event, pid: number) => {
+  try {
+    return lookupService.getCoachPAMFromPID(pid);
+  } catch (error) {
+    console.error('Error getting coach PAM from PID:', error);
+    return null;
+  }
+});
+
+/**
+ * Handle: lookup:get-coach-lookup
+ * Get all coach lookup data (LastName, FirstName, PAM, PID)
+ */
+ipcMain.handle('lookup:get-coach-lookup', async (event) => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const { app } = await import('electron');
+
+    const dataPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'app', 'data', 'lookups', 'Coach_lookup.csv')
+      : path.join(__dirname, '../../data/lookups/Coach_lookup.csv');
+
+    console.log('[Coach Lookup] Loading from:', dataPath);
+
+    const content = fs.readFileSync(dataPath, 'utf-8');
+    const lines = content.split('\n');
+
+    const coaches: Array<{LastName: string, FirstName: string, PAM: string, PID: number}> = [];
+
+    // Parse CSV (no header line)
+    // Format: LastName,FirstName,PAM,PID
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = line.split(',');
+      if (parts.length < 4) continue;
+
+      const lastName = parts[0].trim();
+      const firstName = parts[1].trim();
+      const pam = parts[2].trim();
+      const pid = parseInt(parts[3].trim());
+
+      if (!isNaN(pid)) {
+        coaches.push({ LastName: lastName, FirstName: firstName, PAM: pam, PID: pid });
+      }
+    }
+
+    console.log(`[Coach Lookup] Loaded ${coaches.length} coaches from lookup`);
+    return { success: true, coaches };
+  } catch (error: any) {
+    console.error('Error loading coach lookup:', error);
+    return { success: false, error: error.message, coaches: [] };
   }
 });
 

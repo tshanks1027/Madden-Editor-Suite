@@ -35,7 +35,8 @@ import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';
 import { registerUpdateHandlers } from './main/ipc/update-handlers';
 import { updateChecker } from './main/services/UpdateChecker';
-import { portraitService } from './main/services/PortraitService';
+import { portraitSpriteService } from './main/services/PortraitSpriteService';
+import { coachPortraitService } from './main/services/CoachPortraitService';
 import { sessionDebugLogger } from './main/utils/DebugLogger';
 
 // Register creator handlers
@@ -83,12 +84,20 @@ app.whenReady().then(async () => {
 
   createWindow();
 
-  // Initialize portrait service
+  // Initialize portrait sprite service
   try {
-    await portraitService.initialize();
-    console.log('[main] Portrait service initialized');
+    await portraitSpriteService.initialize();
+    console.log('[main] Portrait sprite service initialized');
   } catch (error) {
-    console.error('[main] Failed to initialize portrait service:', error);
+    console.error('[main] Failed to initialize portrait sprite service:', error);
+  }
+
+  // Initialize coach portrait service
+  try {
+    await coachPortraitService.initialize();
+    console.log('[main] Coach portrait service initialized');
+  } catch (error) {
+    console.error('[main] Failed to initialize coach portrait service:', error);
   }
 
   // Start checking for updates (checks immediately, then every 4 hours)

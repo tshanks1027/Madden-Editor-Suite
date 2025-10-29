@@ -428,7 +428,8 @@ class FranchiseEditor {
             };
 
             // Get team players for this TeamIndex
-            const teamPlayers = this.franchiseData.players.filter(p => p.TeamIndex === teamIndex);
+            // Backend returns TGID (roster field code), not TeamIndex (franchise field name)
+            const teamPlayers = this.franchiseData.players.filter(p => p.TGID === teamIndex);
 
             // Get team coaches for this TeamIndex
             const teamCoaches = this.franchiseData.coaches ? this.franchiseData.coaches.filter(c => c.TeamIndex === teamIndex) : [];
@@ -3026,17 +3027,17 @@ class FranchiseEditor {
             this.teamRosterGrid = null;
         }
 
-        // Define columns for team roster
+        // Define columns for team roster (using roster field codes)
         const columns = [
-            { data: 'position', title: 'Pos', width: 60 },
-            { data: 'firstName', title: 'First Name', width: 120 },
-            { data: 'lastName', title: 'Last Name', width: 120 },
-            { data: 'overall', title: 'OVR', width: 60, type: 'numeric' },
-            { data: 'jerseyNum', title: '#', width: 50, type: 'numeric' },
-            { data: 'age', title: 'Age', width: 60, type: 'numeric' },
-            { data: 'yearsPro', title: 'Exp', width: 60, type: 'numeric' },
-            { data: 'contractStatus', title: 'Contract', width: 100 },
-            { data: 'college', title: 'College', width: 150 }
+            { data: 'PPOS', title: 'Pos', width: 60 },
+            { data: 'PFNA', title: 'First Name', width: 120 },
+            { data: 'PLNA', title: 'Last Name', width: 120 },
+            { data: 'POVR', title: 'OVR', width: 60, type: 'numeric' },
+            { data: 'PJEN', title: '#', width: 50, type: 'numeric' },
+            { data: 'PAGE', title: 'Age', width: 60, type: 'numeric' },
+            { data: 'PYRP', title: 'Exp', width: 60, type: 'numeric' },
+            { data: 'ContractStatus', title: 'Contract', width: 100 },
+            { data: 'PCOL', title: 'College', width: 150 }
         ];
 
         // Create Handsontable
@@ -3060,16 +3061,16 @@ class FranchiseEditor {
                         const player = players[row];
                         if (!player) return;
 
-                        // Map column name to field name
-                        const fieldName = prop; // firstName, lastName, overall, etc.
+                        // Field name is roster field code (PFNA, PLNA, POVR, etc.)
+                        const fieldCode = prop;
                         const recordIndex = player.recordIndex; // Critical for save!
 
-                        console.log(`[Team Roster] Change: Player ${recordIndex}, ${fieldName}: ${oldValue} → ${newValue}`);
+                        console.log(`[Team Roster] Change: Player ${recordIndex}, ${fieldCode}: ${oldValue} → ${newValue}`);
 
                         // Add to pending changes
                         this.pendingTeamChanges.push({
                             recordIndex: recordIndex,
-                            field: fieldName,
+                            field: fieldCode,
                             oldValue: oldValue,
                             newValue: newValue
                         });

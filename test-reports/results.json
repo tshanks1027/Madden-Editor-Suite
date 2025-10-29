@@ -1,7 +1,7 @@
 {
   "config": {
-    "configFile": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\playwright.config.js",
-    "rootDir": "C:/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/madden-editor-suite/tests/e2e",
+    "configFile": "C:\\Users\\tshan\\Documents\\Dev\\madden-editor-suite\\playwright.config.js",
+    "rootDir": "C:/Users/tshan/Documents/Dev/madden-editor-suite/tests/e2e",
     "forbidOnly": false,
     "fullyParallel": false,
     "globalSetup": null,
@@ -10,9 +10,7 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {
-      "actualWorkers": 1
-    },
+    "metadata": {},
     "preserveOutput": "always",
     "reporter": [
       [
@@ -40,22 +38,20 @@
     "quiet": false,
     "projects": [
       {
-        "outputDir": "C:/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/madden-editor-suite/test-results",
+        "outputDir": "C:/Users/tshan/Documents/Dev/madden-editor-suite/test-results",
         "repeatEach": 1,
         "retries": 1,
-        "metadata": {
-          "actualWorkers": 1
-        },
+        "metadata": {},
         "id": "electron-tests",
         "name": "electron-tests",
-        "testDir": "C:/Users/tshan/OneDrive/Documents/Madden Files/KNuttZFranchiseSandBox/madden-editor-suite/tests/e2e",
+        "testDir": "C:/Users/tshan/Documents/Dev/madden-editor-suite/tests/e2e",
         "testIgnore": [
           "**/archive/**"
         ],
         "testMatch": [
-          "roster-load.spec.js"
+          "**/*.(spec|test).js"
         ],
-        "timeout": 60000
+        "timeout": 180000
       }
     ],
     "shard": null,
@@ -72,124 +68,19 @@
       "stderr": "pipe"
     }
   },
-  "suites": [
+  "suites": [],
+  "errors": [
     {
-      "title": "roster-load.spec.js",
-      "file": "roster-load.spec.js",
-      "column": 0,
-      "line": 0,
-      "specs": [
-        {
-          "title": "Load ROSTER-Official and capture console logs",
-          "ok": false,
-          "tags": [],
-          "tests": [
-            {
-              "timeout": 60000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "electron-tests",
-              "projectName": "electron-tests",
-              "results": [
-                {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 2368,
-                  "error": {
-                    "message": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=17796\u001b[22m\n\u001b[2m  - [pid=17796][out]\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger listening on ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - [pid=17796][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=17796] <kill>\u001b[22m\n\u001b[2m  - [pid=17796] <will force kill>\u001b[22m\n\u001b[2m  - [pid=17796] taskkill stderr: ERROR: The process \"17796\" not found.\u001b[22m\n\u001b[2m  - [pid=17796] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=17796] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=17796] finished temporary directories cleanup\u001b[22m\n",
-                    "stack": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=17796\u001b[22m\n\u001b[2m  - [pid=17796][out]\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger listening on ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - [pid=17796][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=17796] <kill>\u001b[22m\n\u001b[2m  - [pid=17796] <will force kill>\u001b[22m\n\u001b[2m  - [pid=17796] taskkill stderr: ERROR: The process \"17796\" not found.\u001b[22m\n\u001b[2m  - [pid=17796] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=17796] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=17796] finished temporary directories cleanup\u001b[22m\n\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js:21:23",
-                    "location": {
-                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
-                      "column": 23,
-                      "line": 21
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 19 |\u001b[39m\n \u001b[90m 20 |\u001b[39m   \u001b[90m// Launch Electron app\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 21 |\u001b[39m   \u001b[36mconst\u001b[39m electronApp \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m electron\u001b[33m.\u001b[39mlaunch({\n \u001b[90m    |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 22 |\u001b[39m     args\u001b[33m:\u001b[39m [\u001b[32m'.vite/build/main.js'\u001b[39m]\u001b[33m,\u001b[39m\n \u001b[90m 23 |\u001b[39m     env\u001b[33m:\u001b[39m {\n \u001b[90m 24 |\u001b[39m       \u001b[33m...\u001b[39mprocess\u001b[33m.\u001b[39menv\u001b[33m,\u001b[39m\u001b[0m"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
-                        "column": 23,
-                        "line": 21
-                      },
-                      "message": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=17796\u001b[22m\n\u001b[2m  - [pid=17796][out]\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger listening on ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - [pid=17796][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=17796][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60074/0379fc4d-e020-4bf7-b274-87357ff6bf03 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=17796] <kill>\u001b[22m\n\u001b[2m  - [pid=17796] <will force kill>\u001b[22m\n\u001b[2m  - [pid=17796] taskkill stderr: ERROR: The process \"17796\" not found.\u001b[22m\n\u001b[2m  - [pid=17796] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=17796] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=17796] finished temporary directories cleanup\u001b[22m\n\n\n  19 |\n  20 |   // Launch Electron app\n> 21 |   const electronApp = await electron.launch({\n     |                       ^\n  22 |     args: ['.vite/build/main.js'],\n  23 |     env: {\n  24 |       ...process.env,\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js:21:23"
-                    }
-                  ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2025-10-01T16:54:40.616Z",
-                  "annotations": [],
-                  "attachments": [],
-                  "errorLocation": {
-                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
-                    "column": 23,
-                    "line": 21
-                  }
-                },
-                {
-                  "workerIndex": 1,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 36133,
-                  "error": {
-                    "message": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=7984\u001b[22m\n\u001b[2m  - [pid=7984][out]\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger listening on ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - [pid=7984][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=7984] <kill>\u001b[22m\n\u001b[2m  - [pid=7984] <will force kill>\u001b[22m\n\u001b[2m  - [pid=7984] taskkill stderr: ERROR: The process \"7984\" not found.\u001b[22m\n\u001b[2m  - [pid=7984] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=7984] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=7984] finished temporary directories cleanup\u001b[22m\n",
-                    "stack": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=7984\u001b[22m\n\u001b[2m  - [pid=7984][out]\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger listening on ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - [pid=7984][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=7984] <kill>\u001b[22m\n\u001b[2m  - [pid=7984] <will force kill>\u001b[22m\n\u001b[2m  - [pid=7984] taskkill stderr: ERROR: The process \"7984\" not found.\u001b[22m\n\u001b[2m  - [pid=7984] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=7984] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=7984] finished temporary directories cleanup\u001b[22m\n\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js:21:23",
-                    "location": {
-                      "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
-                      "column": 23,
-                      "line": 21
-                    },
-                    "snippet": "\u001b[0m \u001b[90m 19 |\u001b[39m\n \u001b[90m 20 |\u001b[39m   \u001b[90m// Launch Electron app\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 21 |\u001b[39m   \u001b[36mconst\u001b[39m electronApp \u001b[33m=\u001b[39m \u001b[36mawait\u001b[39m electron\u001b[33m.\u001b[39mlaunch({\n \u001b[90m    |\u001b[39m                       \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 22 |\u001b[39m     args\u001b[33m:\u001b[39m [\u001b[32m'.vite/build/main.js'\u001b[39m]\u001b[33m,\u001b[39m\n \u001b[90m 23 |\u001b[39m     env\u001b[33m:\u001b[39m {\n \u001b[90m 24 |\u001b[39m       \u001b[33m...\u001b[39mprocess\u001b[33m.\u001b[39menv\u001b[33m,\u001b[39m\u001b[0m"
-                  },
-                  "errors": [
-                    {
-                      "location": {
-                        "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
-                        "column": 23,
-                        "line": 21
-                      },
-                      "message": "Error: electron.launch: Process failed to launch!\nCall log:\n\u001b[2m  - <launching> \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\electron\\dist\\electron.exe\" \"-r\" \"C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\node_modules\\playwright-core\\lib\\server\\electron\\loader.js\" \"--inspect=0\" \"--remote-debugging-port=0\" \".vite/build/main.js\"\u001b[22m\n\u001b[2m  - <launched> pid=7984\u001b[22m\n\u001b[2m  - [pid=7984][out]\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger listening on ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws connecting> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - [pid=7984][err] For help, see: https://nodejs.org/en/docs/inspector\u001b[22m\n\u001b[2m  - [pid=7984][err] Debugger attached.\u001b[22m\n\u001b[2m  - <ws connected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825\u001b[22m\n\u001b[2m  - <ws disconnected> ws://127.0.0.1:60076/84e342ae-5012-4038-887f-92e87152c825 code=1006 reason=\u001b[22m\n\u001b[2m  - [pid=7984] <kill>\u001b[22m\n\u001b[2m  - [pid=7984] <will force kill>\u001b[22m\n\u001b[2m  - [pid=7984] taskkill stderr: ERROR: The process \"7984\" not found.\u001b[22m\n\u001b[2m  - [pid=7984] <process did exit: exitCode=1, signal=null>\u001b[22m\n\u001b[2m  - [pid=7984] starting temporary directories cleanup\u001b[22m\n\u001b[2m  - [pid=7984] finished temporary directories cleanup\u001b[22m\n\n\n  19 |\n  20 |   // Launch Electron app\n> 21 |   const electronApp = await electron.launch({\n     |                       ^\n  22 |     args: ['.vite/build/main.js'],\n  23 |     env: {\n  24 |       ...process.env,\n    at C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js:21:23"
-                    }
-                  ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 1,
-                  "startTime": "2025-10-01T16:54:44.651Z",
-                  "annotations": [],
-                  "attachments": [
-                    {
-                      "name": "trace",
-                      "contentType": "application/zip",
-                      "path": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\test-results\\roster-load-Load-ROSTER-Official-and-capture-console-logs-electron-tests-retry1\\trace.zip"
-                    }
-                  ],
-                  "errorLocation": {
-                    "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden Files\\KNuttZFranchiseSandBox\\madden-editor-suite\\tests\\e2e\\roster-load.spec.js",
-                    "column": 23,
-                    "line": 21
-                  }
-                }
-              ],
-              "status": "unexpected"
-            }
-          ],
-          "id": "3e5d9668e5bc1bf73dc2-4e2e612bcc42c5a80975",
-          "file": "roster-load.spec.js",
-          "line": 17,
-          "column": 1
-        }
-      ]
+      "message": "Error: No tests found",
+      "stack": "Error: No tests found"
     }
   ],
-  "errors": [],
   "stats": {
-    "startTime": "2025-10-01T16:54:35.331Z",
-    "duration": 45553.581,
+    "startTime": "2025-10-27T13:28:42.559Z",
+    "duration": 6619.006,
     "expected": 0,
     "skipped": 0,
-    "unexpected": 1,
+    "unexpected": 0,
     "flaky": 0
   }
 }
