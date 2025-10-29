@@ -41,7 +41,11 @@
       "Bash(tee:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Skill(superpowers:executing-plans)"
+      "Skill(superpowers:executing-plans)",
+      "Bash(git checkout:*)",
+      "Bash(git log:*)",
+      "Read(//c/Users/tshan/OneDrive/Pictures/Screenshots/**)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": []
