@@ -148,6 +148,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getDraftClass: (filePath: string) => ipcRenderer.invoke('franchise:get-draft-class', filePath),
     getCollegeLookup: (filePath: string) => ipcRenderer.invoke('franchise:get-college-lookup', filePath),
     saveFile: (filePath: string, updates: any[], savePath?: string) => ipcRenderer.invoke('franchise:save-file', filePath, updates, savePath),
-    getTeamRoster: (filePath: string, teamIndex: number) => ipcRenderer.invoke('franchise:get-team-roster', { filePath, teamIndex })
+    getTeamRoster: (filePath: string, teamIndex: number) => ipcRenderer.invoke('franchise:get-team-roster', { filePath, teamIndex }),
+    saveTeamChanges: (filePath: string, changes: any[]) => ipcRenderer.invoke('franchise:save-team-changes', { filePath, changes })
   }
 });

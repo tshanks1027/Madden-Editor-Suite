@@ -1119,3 +1119,92 @@ ipcMain.handle('franchise:get-team-roster', async (_event, { filePath, teamIndex
     };
   }
 });
+
+ipcMain.handle('franchise:save-team-changes', async (_event, { filePath, changes }: { filePath: string, changes: any[] }) => {
+  console.log(`[Franchise] Saving ${changes.length} team roster changes to ${filePath}`);
+
+  try {
+    // CRITICAL: Create backup FIRST
+    const backupPath = `${filePath}.backup-${Date.now()}`;
+    console.log(`[Franchise] Creating backup: ${backupPath}`);
+    fs.copyFileSync(filePath, backupPath);
+    console.log(`[Franchise] ✓ Backup created successfully`);
+
+    // Load franchise file
+    const franchise = await Franchise.create(filePath, {
+      gameYearOverride: 26
+    });
+
+    // Get Player table
+    const playerTable = franchise.getTableByName('Player');
+    await playerTable.readRecords();
+
+    console.log(`[Franchise] Applying ${changes.length} changes to Player table...`);
+
+    // Apply each change
+    for (const change of changes) {
+      const { recordIndex, field, oldValue, newValue } = change;
+
+      // Get the player record
+      const record = playerTable.records[recordIndex];
+      if (!record || record.isEmpty) {
+        console.warn(`[Franchise] Warning: Record ${recordIndex} not found or empty`);
+        continue;
+      }
+
+      // Map frontend field names to franchise field names
+      const FIELD_NAME_MAP: Record<string, string> = {
+        'firstName': 'FirstName',
+        'lastName': 'LastName',
+        'position': 'Position',
+        'overall': 'Overall',
+        'age': 'Age',
+        'yearsPro': 'YearsPro',
+        'jerseyNum': 'JerseyNum',
+        'contractStatus': 'ContractStatus',
+        'college': 'College',
+        'height': 'Height',
+        'weight': 'Weight'
+      };
+
+      const franchiseFieldName = FIELD_NAME_MAP[field] || field;
+
+      // Only update if field exists on record
+      if (record[franchiseFieldName] !== undefined) {
+        const currentValue = record[franchiseFieldName];
+
+        console.log(`[Franchise] Player ${recordIndex}: ${franchiseFieldName} = ${currentValue} → ${newValue}`);
+
+        record[franchiseFieldName] = newValue;
+      } else {
+        console.warn(`[Franchise] Field ${franchiseFieldName} not found on record ${recordIndex}`);
+      }
+    }
+
+    console.log(`[Franchise] All changes applied, saving file...`);
+
+    // Save the franchise file
+    await new Promise((resolve, reject) => {
+      franchise.save(filePath, (err: any) => {
+        if (err) reject(err);
+        else resolve(true);
+      });
+    });
+
+    console.log(`[Franchise] ✓ File saved successfully`);
+    console.log(`[Franchise] Backup retained at: ${backupPath}`);
+
+    return {
+      success: true,
+      backupPath: backupPath,
+      changesApplied: changes.length
+    };
+
+  } catch (error: any) {
+    console.error('[Franchise] Error saving team changes:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});

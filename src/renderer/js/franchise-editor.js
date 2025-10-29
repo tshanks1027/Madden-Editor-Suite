@@ -52,6 +52,10 @@ class FranchiseEditor {
         this.currentView = 'home'; // home, team-detail
         this.currentTeamIndex = null;
 
+        // Team roster change tracking
+        this.pendingTeamChanges = []; // Array of { recordIndex, field, oldValue, newValue }
+        this.teamRosterPlayers = []; // Current team's player data with recordIndex
+
         // Field mappings for grids
         this.currentFieldMapping = [];
 
@@ -2957,6 +2961,16 @@ class FranchiseEditor {
         document.getElementById('team-detail-record').textContent =
             `${teamInfo.wins}-${teamInfo.losses}-${teamInfo.ties}`;
 
+        // Store players data for change tracking
+        this.teamRosterPlayers = players;
+        this.pendingTeamChanges = []; // Clear any previous changes
+
+        // Hide save button
+        const saveBtn = document.getElementById('save-team-changes-btn');
+        if (saveBtn) {
+            saveBtn.style.display = 'none';
+        }
+
         // Render roster in Handsontable
         this.renderTeamRosterGrid(players);
 
@@ -2964,6 +2978,11 @@ class FranchiseEditor {
         const backBtn = document.getElementById('back-to-teams-btn');
         if (backBtn) {
             backBtn.onclick = () => this.hideTeamDetailView();
+        }
+
+        // Set up save button
+        if (saveBtn) {
+            saveBtn.onclick = () => this.saveTeamChanges();
         }
 
         this.currentView = 'team-detail';
@@ -3032,9 +3051,28 @@ class FranchiseEditor {
             dropdownMenu: true,
             contextMenu: true,
             afterChange: (changes, source) => {
-                if (source === 'edit') {
-                    console.log('[Team Roster] Player edited:', changes);
-                    // TODO: Track changes for save
+                if (source === 'edit' && changes) {
+                    // Track each change
+                    changes.forEach(([row, prop, oldValue, newValue]) => {
+                        const player = players[row];
+                        if (!player) return;
+
+                        // Map column name to field name
+                        const fieldName = prop; // firstName, lastName, overall, etc.
+                        const recordIndex = player.recordIndex; // Critical for save!
+
+                        console.log(`[Team Roster] Change: Player ${recordIndex}, ${fieldName}: ${oldValue} → ${newValue}`);
+
+                        // Add to pending changes
+                        this.pendingTeamChanges.push({
+                            recordIndex: recordIndex,
+                            field: fieldName,
+                            oldValue: oldValue,
+                            newValue: newValue
+                        });
+                    });
+
+                    console.log(`[Team Roster] Total pending changes: ${this.pendingTeamChanges.length}`);
                     this.showSaveButton();
                 }
             }
@@ -3047,6 +3085,55 @@ class FranchiseEditor {
         const saveBtn = document.getElementById('save-team-changes-btn');
         if (saveBtn) {
             saveBtn.style.display = 'inline-flex';
+        }
+    }
+
+    async saveTeamChanges() {
+        if (!this.currentFile) {
+            alert('No franchise file loaded');
+            return;
+        }
+
+        if (this.pendingTeamChanges.length === 0) {
+            alert('No changes to save');
+            return;
+        }
+
+        const changeCount = this.pendingTeamChanges.length;
+        console.log(`[Franchise Editor] Saving ${changeCount} team roster changes...`);
+        this.updateStatus(`Saving ${changeCount} changes...`);
+
+        try {
+            // Call the save handler
+            const result = await window.electronAPI.franchise.saveTeamChanges(
+                this.currentFile,
+                this.pendingTeamChanges
+            );
+
+            if (!result.success) {
+                throw new Error(result.error);
+            }
+
+            console.log(`[Franchise Editor] ✓ Saved successfully`);
+            console.log(`[Franchise Editor] Backup: ${result.backupPath}`);
+
+            // Clear pending changes
+            this.pendingTeamChanges = [];
+
+            // Hide save button
+            const saveBtn = document.getElementById('save-team-changes-btn');
+            if (saveBtn) {
+                saveBtn.style.display = 'none';
+            }
+
+            alert(`✓ Successfully saved ${result.changesApplied} changes!\n\nBackup created at:\n${result.backupPath}\n\nYou should now test loading this file in Madden 26.`);
+
+            this.updateStatus(`Saved ${result.changesApplied} changes`);
+
+        } catch (error) {
+            console.error('[Franchise Editor] Error saving changes:', error);
+            alert(`Error saving changes: ${error.message}`);
+            this.updateStatus('Error saving changes');
         }
     }
 
