@@ -321,7 +321,6 @@ class FranchiseEditor {
             if (teamResult.success) {
                 this.franchiseData.teams = teamResult.records;
                 console.log(`[Franchise Editor] Loaded ${teamResult.count} teams`);
-                this.displayTeams();
                 this.populateTradeTeamSelects();
             }
         }
@@ -349,6 +348,9 @@ class FranchiseEditor {
                 // Update UI and render
                 this.updatePaginationUI();
                 this.initializeRosterGrid();
+
+                // NOW display teams (after players are loaded)
+                this.displayTeams();
             }
         }
 
@@ -361,14 +363,15 @@ class FranchiseEditor {
             }
         }
 
-        // Load draft class if exists
-        if (metadata.tables.includes('DraftPick')) {
-            const draftResult = await window.electronAPI.franchise.getTableData(filePath, 'DraftPick');
-            if (draftResult.success) {
-                this.franchiseData.draftClass = draftResult.records;
-                console.log(`[Franchise Editor] Loaded ${draftResult.count} draft picks`);
-                this.initializeDraftGrid();
-            }
+        // Load draft class (prospects) using dedicated handler
+        this.updateStatus('Loading draft class...');
+        const draftResult = await window.electronAPI.franchise.getDraftClass(filePath);
+        if (draftResult.success) {
+            this.franchiseData.draftClass = draftResult.records;
+            console.log(`[Franchise Editor] Loaded ${draftResult.count} draft prospects`);
+            this.initializeDraftGrid();
+        } else {
+            console.log('[Franchise Editor] No draft class data or error:', draftResult.error);
         }
 
         // Initialize free agents grid
