@@ -392,39 +392,41 @@ class FranchiseEditor {
 
         grid.innerHTML = '';
 
-        if (!this.franchiseData.teams || this.franchiseData.teams.length === 0) {
-            grid.innerHTML = '<p class="status-text">No teams loaded</p>';
+        if (!this.franchiseData.players || this.franchiseData.players.length === 0) {
+            grid.innerHTML = '<p class="status-text">No players loaded</p>';
             return;
         }
 
-        // Filter out free agents (TeamIndex >= 1009 are free agents/practice squad)
-        const realTeams = this.franchiseData.teams.filter(team => {
-            const teamId = team.TeamIndex !== undefined ? team.TeamIndex : -1;
-            return teamId >= 1 && teamId <= 32; // Only show real NFL teams (1-32), exclude Team 0 placeholder
-        });
+        // Franchise TeamIndex (0-31) is alphabetical by mascot, NOT matching NFL_TEAMS array indices
+        // TeamIndex 0 = Bears, 1 = Bengals, 2 = Bills, etc.
+        const FRANCHISE_TEAMINDEX_TO_NAME = [
+            'Bears', 'Bengals', 'Bills', 'Broncos', 'Browns', 'Buccs', 'Cards',
+            'Chargers', 'Chiefs', 'Colts', 'Cowboys', 'Dolphins', 'Eagles', 'Falcons',
+            '49ers', 'Giants', 'Jags', 'Jets', 'Lions', 'Packers', 'Panthers',
+            'Pats', 'Raiders', 'Rams', 'Ravens', 'Commanders', 'Saints', 'Seahawks',
+            'Steelers', 'Titans', 'Vikings', 'Texans'
+        ];
 
-        // Show team cards with real team data
-        realTeams.forEach((team, index) => {
-            const teamId = team.TeamIndex !== undefined ? team.TeamIndex : index;
-            const teamData = NFL_TEAMS[teamId] || {
-                fullName: `Team ${teamId}`,
+        // Generate 32 NFL team cards based on players' TeamIndex
+        for (let teamIndex = 0; teamIndex < 32; teamIndex++) {
+            const teamName = FRANCHISE_TEAMINDEX_TO_NAME[teamIndex];
+
+            // Find matching team in NFL_TEAMS by name
+            const teamData = Object.values(NFL_TEAMS).find(t => t.name === teamName) || {
+                fullName: `Team ${teamIndex}`,
                 abbr: 'UNK',
                 primary: '#1a1a1a',
                 secondary: '#e98819',
                 logo: null
             };
 
-            const wins = team.SeasonWins || team.HomeWin || 0;
-            const losses = team.SeasonLosses || team.HomeLoss || 0;
-            const ties = team.SeasonTies || team.HomeTie || 0;
+            // Get team players for this TeamIndex
+            const teamPlayers = this.franchiseData.players.filter(p => p.TeamIndex === teamIndex);
 
-            // Get team coaches
-            const teamCoaches = this.franchiseData.coaches.filter(c => c.TeamIndex === teamId);
+            // Get team coaches for this TeamIndex
+            const teamCoaches = this.franchiseData.coaches ? this.franchiseData.coaches.filter(c => c.TeamIndex === teamIndex) : [];
             const headCoach = teamCoaches.find(c => c.Position === 'Head Coach' || c.Position === 0);
             const coachName = headCoach ? `${headCoach.FirstName} ${headCoach.LastName}` : 'No HC';
-
-            // Get team player count
-            const teamPlayers = this.franchiseData.players.filter(p => p.TeamIndex === teamId);
 
             const card = document.createElement('div');
             card.className = 'team-card';
@@ -441,7 +443,7 @@ class FranchiseEditor {
                     ${teamData.fullName}
                 </div>
                 <div style="color: rgba(255,255,255,0.9); font-size: 0.875rem; margin-bottom: 0.25rem;">
-                    ${wins}-${losses}${ties > 0 ? '-' + ties : ''}
+                    0-0
                 </div>
                 <div style="color: rgba(255,255,255,0.8); font-size: 0.75rem; margin-bottom: 0.25rem;">
                     HC: ${coachName}
@@ -451,12 +453,12 @@ class FranchiseEditor {
                 </div>
             `;
 
-            card.addEventListener('click', () => this.viewTeam(index));
+            card.addEventListener('click', () => this.viewTeamByTeamIndex(teamIndex));
 
             grid.appendChild(card);
-        });
+        }
 
-        console.log(`[Franchise Editor] Displayed ${realTeams.length} teams`);
+        console.log(`[Franchise Editor] Displayed 32 NFL teams`);
     }
 
     initializeRosterGrid() {
@@ -2901,6 +2903,151 @@ class FranchiseEditor {
             ratingItem.appendChild(input);
             ratingsContainer.appendChild(ratingItem);
         });
+    }
+
+    // ========================================
+    // Team Detail View Methods
+    // ========================================
+
+    async viewTeamByTeamIndex(teamIndex) {
+        console.log(`[Franchise Editor] Opening team view for TeamIndex ${teamIndex}`);
+
+        if (!this.currentFile) {
+            alert('Please load a franchise file first');
+            return;
+        }
+
+        this.updateStatus(`Loading roster for team ${teamIndex}...`);
+
+        try {
+            // Load team roster data via IPC
+            const result = await window.electronAPI.franchise.getTeamRoster(this.currentFile, teamIndex);
+
+            if (!result.success) {
+                throw new Error(result.error);
+            }
+
+            this.currentTeamIndex = teamIndex;
+            const { teamInfo, players } = result;
+
+            console.log(`[Franchise Editor] Loaded ${players.length} players for ${teamInfo.displayName}`);
+
+            // Show team detail view
+            this.showTeamDetailView(teamInfo, players);
+
+            this.updateStatus(`Viewing: ${teamInfo.displayName}`);
+
+        } catch (error) {
+            console.error('[Franchise Editor] Error loading team roster:', error);
+            alert(`Error loading team roster: ${error.message}`);
+            this.updateStatus('Error loading team roster');
+        }
+    }
+
+    showTeamDetailView(teamInfo, players) {
+        // Hide teams grid
+        const teamsHomeView = document.getElementById('teams-home-view');
+        const teamDetailView = document.getElementById('team-detail-view');
+
+        if (teamsHomeView) teamsHomeView.style.display = 'none';
+        if (teamDetailView) teamDetailView.style.display = 'block';
+
+        // Update team header
+        document.getElementById('team-detail-name').textContent = teamInfo.displayName;
+        document.getElementById('team-detail-record').textContent =
+            `${teamInfo.wins}-${teamInfo.losses}-${teamInfo.ties}`;
+
+        // Render roster in Handsontable
+        this.renderTeamRosterGrid(players);
+
+        // Set up back button
+        const backBtn = document.getElementById('back-to-teams-btn');
+        if (backBtn) {
+            backBtn.onclick = () => this.hideTeamDetailView();
+        }
+
+        this.currentView = 'team-detail';
+    }
+
+    hideTeamDetailView() {
+        // Show teams grid
+        const teamsHomeView = document.getElementById('teams-home-view');
+        const teamDetailView = document.getElementById('team-detail-view');
+
+        if (teamsHomeView) teamsHomeView.style.display = 'block';
+        if (teamDetailView) teamDetailView.style.display = 'none';
+
+        // Destroy team roster grid if exists
+        if (this.teamRosterGrid) {
+            this.teamRosterGrid.destroy();
+            this.teamRosterGrid = null;
+        }
+
+        this.currentView = 'home';
+        this.currentTeamIndex = null;
+
+        this.updateStatus('Viewing all teams');
+    }
+
+    renderTeamRosterGrid(players) {
+        const container = document.getElementById('team-roster-grid');
+        if (!container) {
+            console.error('[Franchise Editor] Team roster grid container not found');
+            return;
+        }
+
+        container.innerHTML = ''; // Clear loading message
+
+        // Destroy existing grid
+        if (this.teamRosterGrid) {
+            this.teamRosterGrid.destroy();
+            this.teamRosterGrid = null;
+        }
+
+        // Define columns for team roster
+        const columns = [
+            { data: 'position', title: 'Pos', width: 60 },
+            { data: 'firstName', title: 'First Name', width: 120 },
+            { data: 'lastName', title: 'Last Name', width: 120 },
+            { data: 'overall', title: 'OVR', width: 60, type: 'numeric' },
+            { data: 'jerseyNum', title: '#', width: 50, type: 'numeric' },
+            { data: 'age', title: 'Age', width: 60, type: 'numeric' },
+            { data: 'yearsPro', title: 'Exp', width: 60, type: 'numeric' },
+            { data: 'contractStatus', title: 'Contract', width: 100 },
+            { data: 'college', title: 'College', width: 150 }
+        ];
+
+        // Create Handsontable
+        this.teamRosterGrid = new Handsontable(container, {
+            data: players,
+            columns: columns,
+            colHeaders: true,
+            rowHeaders: true,
+            height: '100%',
+            width: '100%',
+            stretchH: 'all',
+            licenseKey: 'non-commercial-and-evaluation',
+            columnSorting: true,
+            filters: true,
+            dropdownMenu: true,
+            contextMenu: true,
+            afterChange: (changes, source) => {
+                if (source === 'edit') {
+                    console.log('[Team Roster] Player edited:', changes);
+                    // TODO: Track changes for save
+                    this.showSaveButton();
+                }
+            }
+        });
+
+        console.log(`[Franchise Editor] Rendered team roster grid with ${players.length} players`);
+    }
+
+    showSaveButton() {
+        const saveBtn = document.getElementById('save-team-changes-btn');
+        if (saveBtn) {
+            saveBtn.style.display = 'inline-flex';
+        }
     }
 
     updateStatus(message) {

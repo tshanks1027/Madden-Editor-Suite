@@ -728,6 +728,42 @@
             border-color: var(--primary-orange) !important;
         }
 
+        /* Input editor styling - ensure white text when editing */
+        .handsontableInput,
+        .handsontableInputHolder textarea,
+        .htEditor textarea,
+        .handsontable textarea {
+            background-color: var(--gray-dark) !important;
+            color: var(--white) !important;
+            border: 1px solid var(--primary-orange) !important;
+            font-weight: 500 !important;
+        }
+
+        /* Ensure text input editors also have white text */
+        .handsontable input[type="text"] {
+            color: var(--white) !important;
+            background-color: var(--gray-dark) !important;
+        }
+
+        /* Autocomplete dropdown list */
+        .htAutocompleteArrow {
+            background-color: var(--gray-medium) !important;
+            color: var(--gray-text) !important;
+            border: 1px solid var(--border-color) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+        }
+
+        .htAutocompleteArrow td {
+            background-color: var(--gray-medium) !important;
+            color: var(--gray-text) !important;
+        }
+
+        .htAutocompleteArrow td.current,
+        .htAutocompleteArrow td:hover {
+            background-color: var(--gray-lighter) !important;
+            color: var(--white) !important;
+        }
+
         /* Team-colored selections when team view is active */
         .team-view-active .handsontable .wtBorder {
             background-color: var(--team-primary) !important;
@@ -1178,6 +1214,7 @@
                 <button class="tool-tab" data-tab="roster">👤 Roster</button>
                 <button class="tool-tab" data-tab="draft">🎓 Draft Class</button>
                 <button class="tool-tab" data-tab="teams">🏈 Teams</button>
+                <button class="tool-tab" data-tab="free-agent-coaches">👔 Free Agent Coaches</button>
                 <button class="tool-tab" data-tab="trades">🔄 Trades</button>
                 <button class="tool-tab" data-tab="free-agency">✍️ Free Agency</button>
                 <button class="tool-tab" data-tab="league">🏆 League</button>
@@ -1372,7 +1409,8 @@
 
             <!-- Teams Tab -->
             <div id="teams-panel" class="tool-panel">
-                <div class="panel-content">
+                <!-- Teams Grid (Home View) -->
+                <div id="teams-home-view" class="panel-content">
                     <div class="content-section">
                         <h2 class="section-title">
                             <span class="section-icon">🏈</span>
@@ -1380,6 +1418,96 @@
                         </h2>
                         <div class="teams-grid" id="teams-grid">
                             <p class="status-text">Load a franchise file to view teams</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Team Detail View (Hidden by default) -->
+                <div id="team-detail-view" class="panel-content" style="display: none;">
+                    <!-- Team Header with Back Button -->
+                    <div class="content-section">
+                        <div class="section-header">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <button id="back-to-teams-btn" class="btn">
+                                    <span>←</span>
+                                    <span>Back to Teams</span>
+                                </button>
+                                <h2 class="section-title">
+                                    <span class="section-icon">🏈</span>
+                                    <span id="team-detail-name">Team Name</span>
+                                </h2>
+                            </div>
+                            <div>
+                                <button id="save-team-changes-btn" class="btn btn-success" style="display: none;">
+                                    <span>💾</span>
+                                    <span>Save Changes</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Team Record -->
+                        <div class="section-description">
+                            <span id="team-detail-record">0-0-0</span>
+                        </div>
+                    </div>
+
+                    <!-- Team Tabs -->
+                    <div class="content-section" style="padding-top: 0;">
+                        <div class="tool-tabs">
+                            <button class="tool-tab active" data-team-tab="roster">
+                                <span>📋</span>
+                                <span>Roster</span>
+                            </button>
+                            <button class="tool-tab" data-team-tab="depth-chart" disabled>
+                                <span>📊</span>
+                                <span>Depth Chart</span>
+                                <span style="font-size: 0.75rem; opacity: 0.7;">(Coming Soon)</span>
+                            </button>
+                            <button class="tool-tab" data-team-tab="coaches" disabled>
+                                <span>👔</span>
+                                <span>Coaches</span>
+                                <span style="font-size: 0.75rem; opacity: 0.7;">(Coming Soon)</span>
+                            </button>
+                        </div>
+
+                        <!-- Roster Tab Content -->
+                        <div id="team-roster-tab" class="team-tab-content">
+                            <div id="team-roster-grid" class="data-grid-container" style="margin-top: 1rem;">
+                                <p class="status-text">Loading roster...</p>
+                            </div>
+                        </div>
+
+                        <!-- Depth Chart Tab (Placeholder) -->
+                        <div id="team-depth-chart-tab" class="team-tab-content" style="display: none;">
+                            <div class="coming-soon">
+                                <div class="coming-soon-icon">📊</div>
+                                <div class="coming-soon-title">Depth Chart Editor</div>
+                                <div class="coming-soon-description">Coming in Phase 2</div>
+                            </div>
+                        </div>
+
+                        <!-- Coaches Tab (Placeholder) -->
+                        <div id="team-coaches-tab" class="team-tab-content" style="display: none;">
+                            <div class="coming-soon">
+                                <div class="coming-soon-icon">👔</div>
+                                <div class="coming-soon-title">Coaching Staff</div>
+                                <div class="coming-soon-description">Coming in Phase 2</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Free Agent Coaches Tab -->
+            <div id="free-agent-coaches-panel" class="tool-panel">
+                <div class="panel-content">
+                    <div class="content-section">
+                        <h2 class="section-title">
+                            <span class="section-icon">👔</span>
+                            Free Agent Coaches
+                        </h2>
+                        <div id="free-agent-coaches-grid" class="data-grid-container">
+                            <p class="status-text">Load a franchise file to view free agent coaches</p>
                         </div>
                     </div>
                 </div>

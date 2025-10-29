@@ -37,7 +37,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     isReady: () => ipcRenderer.invoke('lookup:is-ready'),
     reload: () => ipcRenderer.invoke('lookup:reload'),
     getDropdownOptions: (fileName: string) => ipcRenderer.invoke('lookup:get-dropdown-options', fileName),
-    getPIDPortraitMapping: () => ipcRenderer.invoke('lookup:get-pid-portrait-mapping')
+    getPIDPortraitMapping: () => ipcRenderer.invoke('lookup:get-pid-portrait-mapping'),
+    // Coach lookup methods
+    getCoachPAMOptions: () => ipcRenderer.invoke('lookup:get-coach-pam-options'),
+    getCoachByPID: (pid: number) => ipcRenderer.invoke('lookup:get-coach-by-pid', pid),
+    getCoachPIDFromPAM: (pam: string) => ipcRenderer.invoke('lookup:get-coach-pid-from-pam', pam),
+    getCoachPAMFromPID: (pid: number) => ipcRenderer.invoke('lookup:get-coach-pam-from-pid', pid),
+    getCoachLookup: () => ipcRenderer.invoke('lookup:get-coach-lookup')
   },
 
   // Draft Class APIs
@@ -120,6 +126,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getByPLPO: (plpoKey: string) => ipcRenderer.invoke('portrait:get-image-data-by-plpo', plpoKey)
   },
 
+  // Coach Portrait APIs
+  coachPortrait: {
+    initialize: () => ipcRenderer.invoke('coach-portrait:initialize'),
+    getByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-by-pid', pid),
+    getImageDataByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-image-data-by-pid', pid),
+    hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid)
+  },
+
   // Window Management APIs
   openFranchiseWindow: (isRetro: boolean) => ipcRenderer.invoke('window:open-franchise', isRetro),
   openMainEditorWithData: (data: { players?: any[]; draftClass?: any[]; type: string }) =>
@@ -131,6 +145,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     selectFile: () => ipcRenderer.invoke('franchise:select-file'),
     loadFile: (filePath: string) => ipcRenderer.invoke('franchise:load-file', filePath),
     getTableData: (filePath: string, tableName: string) => ipcRenderer.invoke('franchise:get-table-data', filePath, tableName),
-    saveFile: (filePath: string, savePath: string) => ipcRenderer.invoke('franchise:save-file', filePath, savePath)
+    getDraftClass: (filePath: string) => ipcRenderer.invoke('franchise:get-draft-class', filePath),
+    getCollegeLookup: (filePath: string) => ipcRenderer.invoke('franchise:get-college-lookup', filePath),
+    saveFile: (filePath: string, updates: any[], savePath?: string) => ipcRenderer.invoke('franchise:save-file', filePath, updates, savePath),
+    getTeamRoster: (filePath: string, teamIndex: number) => ipcRenderer.invoke('franchise:get-team-roster', { filePath, teamIndex })
   }
 });
