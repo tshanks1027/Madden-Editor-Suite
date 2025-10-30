@@ -132,23 +132,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-by-pid', pid),
     getImageDataByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-image-data-by-pid', pid),
     hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid)
-  },
-
-  // Window Management APIs
-  openFranchiseWindow: (isRetro: boolean) => ipcRenderer.invoke('window:open-franchise', isRetro),
-  openMainEditorWithData: (data: { players?: any[]; draftClass?: any[]; type: string }) =>
-    ipcRenderer.invoke('window:open-main-editor', data),
-  getSharedData: () => ipcRenderer.invoke('window:get-shared-data'),
-
-  // Franchise APIs
-  franchise: {
-    selectFile: () => ipcRenderer.invoke('franchise:select-file'),
-    loadFile: (filePath: string) => ipcRenderer.invoke('franchise:load-file', filePath),
-    getTableData: (filePath: string, tableName: string) => ipcRenderer.invoke('franchise:get-table-data', filePath, tableName),
-    getDraftClass: (filePath: string) => ipcRenderer.invoke('franchise:get-draft-class', filePath),
-    getCollegeLookup: (filePath: string) => ipcRenderer.invoke('franchise:get-college-lookup', filePath),
-    saveFile: (filePath: string, updates: any[], savePath?: string) => ipcRenderer.invoke('franchise:save-file', filePath, updates, savePath),
-    getTeamRoster: (filePath: string, teamIndex: number) => ipcRenderer.invoke('franchise:get-team-roster', { filePath, teamIndex }),
-    saveTeamChanges: (filePath: string, changes: any[]) => ipcRenderer.invoke('franchise:save-team-changes', { filePath, changes })
   }
 });

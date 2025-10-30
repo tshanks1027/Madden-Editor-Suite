@@ -118,9 +118,6 @@ class MaddenEditorApp {
         // Initialize lookup system
         await this.initializeLookup();
 
-        // Check for shared data from franchise editor
-        await this.checkForSharedData();
-
         // Setup event listeners
         this.setupEventListeners();
 
@@ -133,45 +130,6 @@ class MaddenEditorApp {
         }
 
         console.log('Application initialized successfully');
-    }
-
-    async checkForSharedData() {
-        try {
-            // Check if we have shared data from franchise editor
-            if (typeof window.electronAPI !== 'undefined' && window.electronAPI.getSharedData) {
-                console.log('[App] Checking for shared data...');
-                const sharedData = await window.electronAPI.getSharedData();
-
-                if (sharedData) {
-                    console.log(`[App] Received shared data type: ${sharedData.type}`);
-
-                    if (sharedData.players && sharedData.players.length > 0) {
-                        console.log(`[App] Loading ${sharedData.players.length} players from franchise`);
-                        this.players = sharedData.players;
-                        this.renderRoster();
-                        this.setStatus(`Loaded ${this.players.length} players from franchise file`);
-
-                        // Switch to Roster tab
-                        const rosterTab = document.querySelector('[data-tab="roster"]');
-                        if (rosterTab) rosterTab.click();
-                    }
-
-                    if (sharedData.draftClass && sharedData.draftClass.length > 0) {
-                        console.log(`[App] Loading ${sharedData.draftClass.length} draft prospects from franchise`);
-                        this.currentDraftClass = { prospects: sharedData.draftClass };
-                        this.currentDraftFilePath = 'Franchise Draft Class';
-                        this.createDraftGrid(sharedData.draftClass);
-                        this.setStatus(`Loaded ${sharedData.draftClass.length} draft prospects from franchise file`);
-
-                        // Switch to Draft Class tab
-                        const draftTab = document.querySelector('[data-tab="draft"]');
-                        if (draftTab) draftTab.click();
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('[App] Error checking for shared data:', error);
-        }
     }
 
     hideSplashScreen() {
@@ -516,13 +474,6 @@ class MaddenEditorApp {
     }
 
     switchTool(toolName) {
-        // Special handling for franchise and retro-franchise - open new window
-        if (toolName === 'franchise' || toolName === 'retro-franchise') {
-            const isRetro = toolName === 'retro-franchise';
-            window.electronAPI.openFranchiseWindow(isRetro);
-            return;
-        }
-
         // Update active tab
         document.querySelectorAll('.tool-tab').forEach(tab => {
             tab.classList.remove('active');
