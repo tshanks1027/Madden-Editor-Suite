@@ -106,23 +106,24 @@ ipcMain.handle('lookup:get-pid-portrait-mapping', async (event) => {
     const content = fs.readFileSync(dataPath, 'utf-8');
     const lines = content.split('\n');
 
-    const mappings: Array<{pid: number, type: string, portrait: string}> = [];
+    const mappings: Array<{pid: number, name: string, type: string, portrait: string}> = [];
 
     // Parse CSV (skip header line)
-    // Format: PID,Type,Portrait
+    // Format: PID,Player Name,Type,Portrait
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
 
       const parts = line.split(',');
-      if (parts.length < 3) continue;
+      if (parts.length < 4) continue;
 
       const pid = parseInt(parts[0].trim());
-      const type = parts[1].trim();
-      const portrait = parts[2].trim();
+      const name = parts[1].trim();
+      const type = parts[2].trim();
+      const portrait = parts[3].trim();
 
       if (!isNaN(pid) && portrait) {
-        mappings.push({ pid, type, portrait });
+        mappings.push({ pid, name, type, portrait });
       }
     }
 

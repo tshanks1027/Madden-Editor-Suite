@@ -11,7 +11,7 @@ export default defineConfig({
         'sqlite3',
         'sharp',
         'puppeteer',
-        // Do NOT externalize bit-buffer, stream-parser - they need to be bundled
+        // Do NOT externalize bit-buffer, stream-parser, papaparse - they need to be bundled
         // so they're available when RosterParser.js requires them at runtime
       ],
     },

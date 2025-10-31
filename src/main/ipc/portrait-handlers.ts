@@ -51,6 +51,19 @@ ipcMain.handle('portrait:get-by-plpo', async (event, plpoName: string) => {
 });
 
 /**
+ * Handle: portrait:get-by-pid
+ * Get portrait sprite info by PID
+ */
+ipcMain.handle('portrait:get-by-pid', async (event, pid: number) => {
+  try {
+    return portraitSpriteService.getPortraitByPID(pid);
+  } catch (error) {
+    console.error('Error getting portrait by PID:', error);
+    return null;
+  }
+});
+
+/**
  * Handle: portrait:search
  * Search portraits by query string
  */
@@ -225,6 +238,39 @@ ipcMain.handle('portrait:get-image-data-by-plpo', async (event, plpoName: string
     return dataUrl;
   } catch (error) {
     console.error('Error getting portrait image data by PLPO:', error);
+    return null;
+  }
+});
+
+/**
+ * Handle: portrait:get-image-data-by-pid
+ * Get portrait image data by PID (extracted from sprite sheet)
+ */
+ipcMain.handle('portrait:get-image-data-by-pid', async (event, pid: number) => {
+  try {
+    const spriteInfo = portraitSpriteService.getPortraitByPID(pid);
+
+    if (!spriteInfo) {
+      return null;
+    }
+
+    // Extract portrait region from sprite sheet using Sharp
+    const imageBuffer = await sharp(spriteInfo.sheetPath)
+      .extract({
+        left: spriteInfo.x,
+        top: spriteInfo.y,
+        width: spriteInfo.width,
+        height: spriteInfo.height
+      })
+      .png()
+      .toBuffer();
+
+    const base64Image = imageBuffer.toString('base64');
+    const dataUrl = `data:image/png;base64,${base64Image}`;
+
+    return dataUrl;
+  } catch (error) {
+    console.error('Error getting portrait image data by PID:', error);
     return null;
   }
 });

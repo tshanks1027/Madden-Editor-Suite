@@ -175,6 +175,7 @@ export let LOOKUP_DATA = {
     pidsCapitalized: new Map(), // Maps PID -> Capitalized Name
     plpos: new Map(), // Maps PID -> PLPO key (for portraits)
     plpoToPid: new Map(), // Maps PLPO key -> PID (REVERSE lookup for generic faces)
+    pidNames: new Map(), // Maps PID -> { firstName, lastName, fullName } (for Photo Name column)
     devtraits: new Map([
         [0, 'Normal'],
         [1, 'Star'],
@@ -380,6 +381,7 @@ export async function loadLookupData() {
             console.log(`Loaded ${plpoOptions.length} PLPO entries from ALLDATA lookup`);
 
             // Populate plpos map (PID -> PLPO key) AND reverse map (PLPO -> PID)
+            // ALSO populate PID -> Name mapping for Photo Name column
             plpoOptions.forEach(option => {
                 // option.value is PhotoID (PID), option.plpo is the PLPO key
                 if (option.plpo && option.plpo.trim()) {
@@ -387,34 +389,62 @@ export async function loadLookupData() {
                     LOOKUP_DATA.plpos.set(option.value, plpoKey);
                     LOOKUP_DATA.plpoToPid.set(plpoKey, option.value); // REVERSE lookup
                 }
+
+                // Store PID -> Name mapping (firstName, lastName from label which is "LastName, FirstName")
+                if (option.label && option.value) {
+                    const [lastName, firstName] = option.label.split(',').map(s => s.trim());
+                    LOOKUP_DATA.pidNames.set(option.value, {
+                        firstName: firstName || '',
+                        lastName: lastName || '',
+                        fullName: firstName ? `${firstName} ${lastName}` : lastName
+                    });
+                }
             });
 
             console.log(`Processed ${LOOKUP_DATA.plpos.size} PLPO mappings from FullData_Lookup`);
             console.log(`Processed ${LOOKUP_DATA.plpoToPid.size} PLPO->PID reverse mappings from FullData_Lookup`);
+            console.log(`Processed ${LOOKUP_DATA.pidNames.size} PID->Name mappings from FullData_Lookup`);
         } catch (error) {
             console.error('Failed to load PLPO lookup:', error);
         }
 
-        // Load additional PID -> PLPO mappings from PID_Portrait_Mapping.csv (for generic faces)
-        console.log('Loading PID_Portrait_Mapping.csv for generic faces...');
+        // Load PID_Portrait_Mapping.csv (combined file with PID, Name, Type, Portrait)
         try {
-            const pidMappingData = await window.electronAPI.lookup.getPIDPortraitMapping();
+            const pidPortraitMapping = await window.electronAPI.lookup.getPIDPortraitMapping();
+            console.log(`Loaded ${pidPortraitMapping.length} entries from PID_Portrait_Mapping.csv`);
 
-            console.log(`Loaded ${pidMappingData.length} entries from PID_Portrait_Mapping.csv`);
+            let addedCount = 0;
+            let skippedCount = 0;
 
-            // Merge into plpos map AND create reverse lookup (PLPO -> PID)
-            pidMappingData.forEach(entry => {
-                if (entry.pid && entry.portrait) {
-                    LOOKUP_DATA.plpos.set(entry.pid, entry.portrait);
-                    LOOKUP_DATA.plpoToPid.set(entry.portrait, entry.pid); // REVERSE lookup
+            pidPortraitMapping.forEach(mapping => {
+                // Only add if PID is NOT already mapped (preserves real player portraits from ALL_PLAYER_LOOKUP)
+                if (!LOOKUP_DATA.plpos.has(mapping.pid)) {
+                    LOOKUP_DATA.plpos.set(mapping.pid, mapping.portrait);
+                    LOOKUP_DATA.plpoToPid.set(mapping.portrait, mapping.pid);
+                    addedCount++;
+                } else {
+                    skippedCount++;
+                }
+
+                // Add name mapping for ALL PIDs (from combined file)
+                if (!LOOKUP_DATA.pidNames.has(mapping.pid)) {
+                    LOOKUP_DATA.pidNames.set(mapping.pid, {
+                        firstName: '',  // Combined file only has full name
+                        lastName: '',
+                        fullName: mapping.name
+                    });
                 }
             });
 
-            console.log(`Total PLPO mappings after merge: ${LOOKUP_DATA.plpos.size}`);
-            console.log(`Total PLPO->PID reverse mappings: ${LOOKUP_DATA.plpoToPid.size}`);
+            console.log(`Added ${addedCount} PIDs from PID_Portrait_Mapping.csv`);
+            console.log(`Skipped ${skippedCount} PIDs (already mapped to real players)`);
+            console.log(`Loaded ${LOOKUP_DATA.pidNames.size} PID -> Name mappings`);
         } catch (error) {
             console.error('Failed to load PID_Portrait_Mapping.csv:', error);
         }
+
+        console.log(`Total PLPO mappings: ${LOOKUP_DATA.plpos.size}`);
+        console.log(`Total PLPO->PID reverse mappings: ${LOOKUP_DATA.plpoToPid.size}`);
 
         console.log('Lookup data loaded successfully');
         console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}, PIDs: ${LOOKUP_DATA.pids.size}, PLPOs: ${LOOKUP_DATA.plpos.size}`);
@@ -592,19 +622,18 @@ export function getPlayerNameFromPID(pid) {
         return '';
     }
 
-    // Check ALL_PLAYER_LOOKUP.csv for player name
-    // This contains real NFL player names with their official PIDs
-    const playerName = LOOKUP_DATA.pids.get(pid);
+    // Check PID_lookup.csv for player name
+    const nameData = LOOKUP_DATA.pidNames.get(pid);
 
     // Debug logging for first 5 lookups
     if (!window._pidLookupCount) window._pidLookupCount = 0;
     if (window._pidLookupCount < 5) {
-        console.log(`[getPlayerNameFromPID] PID=${pid}, playerName="${playerName}", pids.size=${LOOKUP_DATA.pids.size}`);
+        console.log(`[getPlayerNameFromPID] PID=${pid}, nameData="${nameData?.fullName}", pidNames.size=${LOOKUP_DATA.pidNames.size}`);
         window._pidLookupCount++;
     }
 
-    if (playerName) {
-        return playerName;
+    if (nameData && nameData.fullName) {
+        return nameData.fullName;
     }
 
     // If PID not found in ALL_PLAYER_LOOKUP, check PLPO

@@ -807,29 +807,35 @@ class MaddenEditorApp {
             paginatedPlayers.forEach((player, idx) => {
                 const pid = this.getPlayerFieldValue(player, 'PSXP');
                 if (idx < 2) console.log(`[Portrait Loading] Player ${idx} PID:`, pid);
-                if (pid) {
-                    const plpoKey = this.getPlpoFromPID(pid);
-                    if (idx < 2) console.log(`[Portrait Loading] Player ${idx} PLPO:`, plpoKey, 'Cached:', this.portraitCache.has(plpoKey));
-                    if (plpoKey && !this.portraitCache.has(plpoKey)) {
+                // Allow PID 0 (blank silhouette)
+                if (pid !== null && pid !== undefined) {
+                    // Use PID as cache key directly
+                    const cacheKey = `pid_${pid}`;
+
+                    if (idx < 2) console.log(`[Portrait Loading] Player ${idx} PID ${pid} Cached:`, this.portraitCache.has(cacheKey));
+
+                    if (!this.portraitCache.has(cacheKey)) {
                         // Mark as loading and fetch
-                        console.log(`[Portrait Loading] Fetching for ${plpoKey}`);
-                        this.portraitCache.set(plpoKey, 'loading');
+                        console.log(`[Portrait Loading] Fetching portrait for PID ${pid}`);
+                        this.portraitCache.set(cacheKey, 'loading');
                         portraitsToLoad++;
 
-                        window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
-                            console.log(`[Portrait Loading] SUCCESS ${plpoKey}`);
-                            this.portraitCache.set(plpoKey, imageData);
+                        window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                            if (imageData && imageData.length > 0) {
+                                console.log(`[Portrait Loading] SUCCESS PID ${pid}`);
+                                this.portraitCache.set(cacheKey, imageData);
+                            } else {
+                                console.log(`[Portrait Loading] FAILED PID ${pid} - no sprite found`);
+                                this.portraitCache.set(cacheKey, null);
+                            }
                             portraitsLoaded++;
-
-                            // When all portraits loaded, re-render table once
                             if (portraitsLoaded === portraitsToLoad && this.hotTable) {
                                 this.hotTable.render();
                             }
-                        }).catch(() => {
-                            this.portraitCache.set(plpoKey, null);
+                        }).catch((error) => {
+                            console.error(`[Portrait Loading] ERROR PID ${pid}:`, error);
+                            this.portraitCache.set(cacheKey, null);
                             portraitsLoaded++;
-
-                            // When all portraits loaded (even failures), re-render
                             if (portraitsLoaded === portraitsToLoad && this.hotTable) {
                                 this.hotTable.render();
                             }
@@ -878,24 +884,20 @@ class MaddenEditorApp {
 
             if (row < 2) console.log(`[Portrait Renderer] Row ${row}: psxpIndex=${psxpIndex}, pid=${pid}, rowData length=${rowData?.length}`);
 
-            if (!pid) {
+            // Check for null/undefined, but allow PID 0 (blank silhouette)
+            if (pid === null || pid === undefined) {
                 if (row < 2) console.log(`[Portrait Renderer] Row ${row}: NO PID, returning empty`);
                 return td;
             }
 
-            // Get PLPO key from PID
-            const plpoKey = this.getPlpoFromPID(pid);
+            // Use PID as cache key
+            const cacheKey = `pid_${pid}`;
 
-            if (row < 2) console.log(`[Portrait Renderer] Row ${row}: plpoKey=${plpoKey}, inCache=${this.portraitCache.has(plpoKey)}`);
-
-            if (!plpoKey) {
-                if (row < 2) console.log(`[Portrait Renderer] Row ${row}: NO PLPO, returning empty`);
-                return td;
-            }
+            if (row < 2) console.log(`[Portrait Renderer] Row ${row}: cacheKey=${cacheKey}, inCache=${this.portraitCache.has(cacheKey)}`);
 
             // ONLY use cache - never trigger new loads during render
-            if (this.portraitCache.has(plpoKey)) {
-                const imageData = this.portraitCache.get(plpoKey);
+            if (this.portraitCache.has(cacheKey)) {
+                const imageData = this.portraitCache.get(cacheKey);
                 if (row < 2) console.log(`[Portrait Renderer] Row ${row}: imageData type=${typeof imageData}, length=${imageData?.length}, is loading=${imageData === 'loading'}`);
                 if (imageData && imageData !== 'loading') {
                     const img = document.createElement('img');
@@ -1182,33 +1184,65 @@ class MaddenEditorApp {
                         if (fieldName === 'PSXP' && newValue !== oldValue) {
                             console.log(`[Portrait Update] PID changed to ${newValue} on row ${row}`);
 
-                            // Fetch portrait for new PID
-                            const plpoKey = this.getPlpoFromPID(parseInt(newValue));
-                            if (plpoKey && !this.portraitCache.has(plpoKey)) {
-                                console.log(`[Roster] Fetching portrait for new PID ${newValue} (PLPO: ${plpoKey})`);
-                                this.portraitCache.set(plpoKey, 'loading');
+                            const pid = parseInt(newValue);
+                            const cacheKey = `pid_${pid}`;
 
-                                window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
-                                    console.log(`[Roster] Portrait fetched for ${plpoKey}`);
-                                    this.portraitCache.set(plpoKey, imageData);
-                                    // Re-render to show the new portrait
+                            if (!this.portraitCache.has(cacheKey)) {
+                                console.log(`[Roster] Fetching portrait for PID ${pid}`);
+                                this.portraitCache.set(cacheKey, 'loading');
+
+                                window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                                    if (imageData && imageData.length > 0) {
+                                        console.log(`[Roster] SUCCESS PID ${pid}`);
+                                        this.portraitCache.set(cacheKey, imageData);
+                                    } else {
+                                        console.log(`[Roster] FAILED PID ${pid} - no sprite`);
+                                        this.portraitCache.set(cacheKey, null);
+                                    }
                                     if (this.hotTable && !this.hotTable.isDestroyed) {
                                         this.hotTable.render();
                                     }
                                 }).catch((error) => {
-                                    console.error(`[Roster] Failed to fetch portrait for ${plpoKey}:`, error);
-                                    this.portraitCache.set(plpoKey, null);
+                                    console.error(`[Roster] ERROR PID ${pid}:`, error);
+                                    this.portraitCache.set(cacheKey, null);
                                     if (this.hotTable && !this.hotTable.isDestroyed) {
                                         this.hotTable.render();
                                     }
                                 });
                             } else {
-                                // Portrait already in cache or no PLPO found, just re-render
-                                console.log(`[Portrait Update] Portrait already cached or no PLPO, re-rendering`);
+                                // Portrait already in cache, just re-render
+                                console.log(`[Portrait Update] Portrait already cached, re-rendering`);
                                 this.hotTable.render();
                             }
                         }
                     });
+                }
+            },
+
+            // Highlight entire row on selection
+            afterSelection: (row, column, row2, column2, preventScrolling, selectionLayerLevel) => {
+                if (!this.hotTable) return;
+
+                // Remove previous row highlights from all clones
+                const container = this.hotTable.rootElement;
+                if (container) {
+                    const previousHighlights = container.querySelectorAll('tr.row-selected');
+                    previousHighlights.forEach(tr => tr.classList.remove('row-selected'));
+
+                    // Add highlight to selected row(s) in ALL clones (frozen + scrollable)
+                    for (let r = Math.min(row, row2); r <= Math.max(row, row2); r++) {
+                        // Target all Handsontable clones: master (scrollable), clone_left (frozen), etc.
+                        const clones = ['.ht_master', '.ht_clone_left', '.ht_clone_top', '.ht_clone_top_left_corner'];
+                        clones.forEach(cloneClass => {
+                            const clone = container.querySelector(cloneClass);
+                            if (clone) {
+                                const rowElement = clone.querySelector(`tbody tr:nth-child(${r + 1})`);
+                                if (rowElement) {
+                                    rowElement.classList.add('row-selected');
+                                }
+                            }
+                        });
+                    }
                 }
             },
 
@@ -1219,6 +1253,9 @@ class MaddenEditorApp {
 
             // Setup PID event listeners and header click handlers after rendering
             afterRender: () => {
+                // Setup hover handlers for entire row highlighting
+                this.setupRowHoverHandlers();
+
                 console.log('[DEBUG] afterRender: Checking column 0 config');
                 if (this.hotTable && !this.hotTable.isDestroyed) {
                     try {
@@ -1780,13 +1817,30 @@ class MaddenEditorApp {
      * Uses ALLDATA_Lookup.csv to find first name and last name, then creates PLPO key
      */
     getPlpoFromPID(pid) {
-        if (!pid || !window.lookupData || !window.lookupData.plpos) {
+        if (!window.lookupData || !window.lookupData.plpos) {
             return null;
+        }
+
+        // PID 0 = blank silhouette
+        if (!pid || pid === 0) {
+            return 'plpo_Blank';
         }
 
         // Direct PID -> PLPO lookup from ALLDATA_Lookup.csv
         const plpoKey = window.lookupData.plpos.get(pid);
-        return plpoKey || null;
+
+        // If no mapping found, assign a random generic face based on PID
+        if (!plpoKey) {
+            // Use PID to deterministically select a generic face
+            const genericFaces = [
+                'plpo_generic_1_001_morphed', 'plpo_generic_2_055_morphed', 'plpo_generic_3_015_morphed',
+                'plpo_generic_5_002_morphed', 'plpo_generic_6_013_morphed', 'plpo_generic_7_020_morphed'
+            ];
+            const index = pid % genericFaces.length;
+            return genericFaces[index];
+        }
+
+        return plpoKey;
     }
 
     // Setup event listeners for PID inputs after grid renders
@@ -2211,6 +2265,59 @@ class MaddenEditorApp {
         if (rowHeaders.length === 0) {
             console.warn('[SETUP] No row headers found! Player cards may not work.');
         }
+    }
+
+    /**
+     * Setup hover handlers to highlight entire rows across frozen and scrollable sections
+     */
+    setupRowHoverHandlers() {
+        if (!this.hotTable || !this.hotTable.rootElement) return;
+
+        const container = this.hotTable.rootElement;
+        const clones = ['.ht_master', '.ht_clone_left', '.ht_clone_top', '.ht_clone_top_left_corner'];
+
+        clones.forEach(cloneClass => {
+            const clone = container.querySelector(cloneClass);
+            if (!clone) return;
+
+            const tbody = clone.querySelector('tbody');
+            if (!tbody) return;
+
+            // Add event delegation for row hover
+            tbody.addEventListener('mouseenter', (e) => {
+                const tr = e.target.closest('tr');
+                if (!tr) return;
+
+                // Get row index
+                const rowIndex = Array.from(tbody.querySelectorAll('tr')).indexOf(tr);
+                if (rowIndex < 0) return;
+
+                // Add hover class to same row in all clones
+                clones.forEach(cls => {
+                    const c = container.querySelector(cls);
+                    if (c) {
+                        const targetRow = c.querySelector(`tbody tr:nth-child(${rowIndex + 1})`);
+                        if (targetRow) {
+                            targetRow.classList.add('row-hover');
+                        }
+                    }
+                });
+            }, true);
+
+            tbody.addEventListener('mouseleave', (e) => {
+                const tr = e.target.closest('tr');
+                if (!tr) return;
+
+                // Remove hover class from all rows in all clones
+                clones.forEach(cls => {
+                    const c = container.querySelector(cls);
+                    if (c) {
+                        const rows = c.querySelectorAll('tbody tr.row-hover');
+                        rows.forEach(r => r.classList.remove('row-hover'));
+                    }
+                });
+            }, true);
+        });
     }
 
     toggleColumnSort(fieldName, isMultiColumn) {
@@ -2639,15 +2746,15 @@ class MaddenEditorApp {
         let portraitsLoaded = 0;
 
         prospects.forEach(prospect => {
-            if (prospect.PID) {
-                const plpoKey = this.getPlpoFromPID(prospect.PID);
-                if (plpoKey && !this.portraitCache.has(plpoKey)) {
+            if (prospect.PID !== null && prospect.PID !== undefined) {
+                const cacheKey = `pid_${prospect.PID}`;
+                if (!this.portraitCache.has(cacheKey)) {
                     // Mark as loading and fetch
-                    this.portraitCache.set(plpoKey, 'loading');
+                    this.portraitCache.set(cacheKey, 'loading');
                     portraitsToLoad++;
 
-                    window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
-                        this.portraitCache.set(plpoKey, imageData);
+                    window.electronAPI.portrait.getByPID(prospect.PID).then(imageData => {
+                        this.portraitCache.set(cacheKey, imageData);
                         portraitsLoaded++;
 
                         // When all portraits loaded, re-render table once
@@ -2655,7 +2762,7 @@ class MaddenEditorApp {
                             this.draftGrid.render();
                         }
                     }).catch(() => {
-                        this.portraitCache.set(plpoKey, null);
+                        this.portraitCache.set(cacheKey, null);
                         portraitsLoaded++;
 
                         // When all portraits loaded (even failures), re-render
@@ -2876,27 +2983,12 @@ class MaddenEditorApp {
                 return td;
             }
 
-            // Get PLPO key from PID
-            let plpoKey = this.getPlpoFromPID(pid);
-
-            // Fallback to PEPS field for generic faces when PID lookup fails
-            if (!plpoKey && rowData && rowData.PEPS) {
-                // Add plpo_ prefix if it's a generic face (gen_X_Y_Z format)
-                const peps = rowData.PEPS;
-                if (peps && peps.startsWith('gen_')) {
-                    plpoKey = `plpo_${peps}`;
-                } else {
-                    plpoKey = peps;
-                }
-            }
-
-            if (!plpoKey) {
-                return td;
-            }
+            // Use PID as cache key
+            const cacheKey = `pid_${pid}`;
 
             // ONLY use cache - never trigger new loads during render
-            if (this.portraitCache.has(plpoKey)) {
-                const imageData = this.portraitCache.get(plpoKey);
+            if (this.portraitCache.has(cacheKey)) {
+                const imageData = this.portraitCache.get(cacheKey);
                 if (imageData && imageData !== 'loading') {
                     const img = document.createElement('img');
                     img.src = imageData;
@@ -3042,6 +3134,7 @@ class MaddenEditorApp {
             filters: false,  // Disable filters (they require dropdownMenu)
             dropdownMenu: false,  // Disable dropdown menu (removes filter arrows)
             contextMenu: true,
+            selectionMode: 'multiple',
             fixedColumnsStart: 5,  // Freeze first 5 columns (Draft Pos, Portrait, Last Name, First Name, Position)
             preventOverflow: 'horizontal', // Prevent column misalignment during scroll
             manualRowMove: true, // Enable row dragging for reordering
@@ -3105,6 +3198,31 @@ class MaddenEditorApp {
                         console.log('[Draft Editor] Draft order updated - rows reordered');
                     } catch (e) {
                         console.log('[Draft] afterRowMove: Could not render (table may be destroyed)');
+                    }
+                }
+            },
+            // Highlight entire row on selection
+            afterSelection: (row, column, row2, column2, preventScrolling, selectionLayerLevel) => {
+                if (!this.draftGrid) return;
+
+                // Remove previous row highlights from all clones
+                const container = this.draftGrid.rootElement;
+                if (container) {
+                    const previousHighlights = container.querySelectorAll('tr.row-selected');
+                    previousHighlights.forEach(tr => tr.classList.remove('row-selected'));
+
+                    // Add highlight to selected row(s) in ALL clones (frozen + scrollable)
+                    for (let r = Math.min(row, row2); r <= Math.max(row, row2); r++) {
+                        const clones = ['.ht_master', '.ht_clone_left', '.ht_clone_top', '.ht_clone_top_left_corner'];
+                        clones.forEach(cloneClass => {
+                            const clone = container.querySelector(cloneClass);
+                            if (clone) {
+                                const rowElement = clone.querySelector(`tbody tr:nth-child(${r + 1})`);
+                                if (rowElement) {
+                                    rowElement.classList.add('row-selected');
+                                }
+                            }
+                        });
                     }
                 }
             },
@@ -3180,14 +3298,15 @@ class MaddenEditorApp {
                         this.draftGrid.setDataAtRowProp(row, 'playerPic', playerPic, 'pid_sync');
 
                         // Fetch portrait for new PID
-                        const plpoKey = this.getPlpoFromPID(parseInt(newValue));
-                        if (plpoKey && !this.portraitCache.has(plpoKey)) {
-                            console.log(`[Draft] Fetching portrait for new PID ${newValue} (PLPO: ${plpoKey})`);
-                            this.portraitCache.set(plpoKey, 'loading');
+                        const pid = parseInt(newValue);
+                        const cacheKey = `pid_${pid}`;
+                        if (!this.portraitCache.has(cacheKey)) {
+                            console.log(`[Draft] Fetching portrait for new PID ${pid}`);
+                            this.portraitCache.set(cacheKey, 'loading');
 
-                            window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
-                                console.log(`[Draft] Portrait fetched successfully for ${plpoKey}, data length:`, imageData ? imageData.length : 'null');
-                                this.portraitCache.set(plpoKey, imageData);
+                            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                                console.log(`[Draft] Portrait fetched successfully for PID ${pid}, data length:`, imageData ? imageData.length : 'null');
+                                this.portraitCache.set(cacheKey, imageData);
                                 // Re-render the specific cell in the portrait column (column 1)
                                 if (this.draftGrid && !this.draftGrid.isDestroyed) {
                                     console.log(`[Draft] Rendering portrait cell at row ${row}, col 1`);
@@ -3199,15 +3318,15 @@ class MaddenEditorApp {
                                     }, 100);
                                 }
                             }).catch((error) => {
-                                console.error(`[Draft] Failed to fetch portrait for ${plpoKey}:`, error);
-                                this.portraitCache.set(plpoKey, null);
+                                console.error(`[Draft] Failed to fetch portrait for PID ${pid}:`, error);
+                                this.portraitCache.set(cacheKey, null);
                                 if (this.draftGrid && !this.draftGrid.isDestroyed) {
                                     this.draftGrid.render();
                                 }
                             });
-                        } else if (plpoKey) {
+                        } else {
                             // Portrait already in cache, just re-render to update
-                            console.log(`[Draft] Portrait already cached for PID ${newValue}`);
+                            console.log(`[Draft] Portrait already cached for PID ${pid}`);
                             if (this.draftGrid && !this.draftGrid.isDestroyed) {
                                 setTimeout(() => {
                                     if (this.draftGrid && !this.draftGrid.isDestroyed) {
@@ -4172,6 +4291,7 @@ class MaddenEditorApp {
                 filters: true,
                 dropdownMenu: true,
                 contextMenu: true,
+                selectionMode: 'multiple',
                 stretchH: 'none', // Don't stretch columns, use defined widths
                 width: '100%', // Ensure full width
                 autoWrapRow: true,
@@ -4186,6 +4306,29 @@ class MaddenEditorApp {
                     if (orderChanged) {
                         this.draftCreatorGrid.render();
                         console.log('[Draft Creator] Draft order updated - rows reordered');
+                    }
+                },
+                // Highlight entire row on selection
+                afterSelection: (row, column, row2, column2, preventScrolling, selectionLayerLevel) => {
+                    if (!this.draftCreatorGrid) return;
+
+                    const container = this.draftCreatorGrid.rootElement;
+                    if (container) {
+                        const previousHighlights = container.querySelectorAll('tr.row-selected');
+                        previousHighlights.forEach(tr => tr.classList.remove('row-selected'));
+
+                        for (let r = Math.min(row, row2); r <= Math.max(row, row2); r++) {
+                            const clones = ['.ht_master', '.ht_clone_left', '.ht_clone_top', '.ht_clone_top_left_corner'];
+                            clones.forEach(cloneClass => {
+                                const clone = container.querySelector(cloneClass);
+                                if (clone) {
+                                    const rowElement = clone.querySelector(`tbody tr:nth-child(${r + 1})`);
+                                    if (rowElement) {
+                                        rowElement.classList.add('row-selected');
+                                    }
+                                }
+                            });
+                        }
                     }
                 },
                 beforeChange: (changes, source) => {
@@ -4415,11 +4558,35 @@ class MaddenEditorApp {
                 filters: true,
                 dropdownMenu: true,
                 contextMenu: true,
+                selectionMode: 'multiple',
                 stretchH: 'none', // Don't stretch columns, use defined widths
                 renderAllRows: false, // Use virtual scrolling
                 viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
                 fixedColumnsStart: 3, // Freeze first 3 columns (Last, First, Pos) to prevent alignment issues
-                preventOverflow: 'horizontal' // Prevent horizontal overflow causing misalignment
+                preventOverflow: 'horizontal', // Prevent horizontal overflow causing misalignment
+                // Highlight entire row on selection
+                afterSelection: (row, column, row2, column2, preventScrolling, selectionLayerLevel) => {
+                    if (!this.rosterCreatorGrid) return;
+
+                    const container = this.rosterCreatorGrid.rootElement;
+                    if (container) {
+                        const previousHighlights = container.querySelectorAll('tr.row-selected');
+                        previousHighlights.forEach(tr => tr.classList.remove('row-selected'));
+
+                        for (let r = Math.min(row, row2); r <= Math.max(row, row2); r++) {
+                            const clones = ['.ht_master', '.ht_clone_left', '.ht_clone_top', '.ht_clone_top_left_corner'];
+                            clones.forEach(cloneClass => {
+                                const clone = container.querySelector(cloneClass);
+                                if (clone) {
+                                    const rowElement = clone.querySelector(`tbody tr:nth-child(${r + 1})`);
+                                    if (rowElement) {
+                                        rowElement.classList.add('row-selected');
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
             });
         } else {
             this.rosterCreatorGrid.loadData(gridData);
@@ -4841,6 +5008,22 @@ class MaddenEditorApp {
         const team = getLookupValue('teams', playerData.TGID) || 'Free Agent';
         const college = getLookupValue('colleges', playerData.PCOL) || '--';
 
+        // Apply team colors to player card
+        const teamData = getTeamById(playerData.TGID);
+        const root = document.documentElement;
+        const modal = document.getElementById('playerCardModal');
+
+        if (teamData && teamData.primary && teamData.secondary) {
+            root.style.setProperty('--card-team-primary', teamData.primary);
+            root.style.setProperty('--card-team-secondary', teamData.secondary);
+            modal.classList.add('team-colored-card');
+        } else {
+            // Fallback to default orange colors
+            root.style.setProperty('--card-team-primary', '#ff8c00');
+            root.style.setProperty('--card-team-secondary', '#ff7700');
+            modal.classList.add('team-colored-card');
+        }
+
         // Header section - display only
         document.getElementById('playerCardNumber').textContent = playerData.PJEN || '0';
         document.getElementById('playerCardName').textContent = `${playerData.PFNA || ''} ${playerData.PLNA || 'Unknown'}`.trim();
@@ -4938,7 +5121,9 @@ class MaddenEditorApp {
     }
 
     closePlayerCard() {
-        document.getElementById('playerCardModal').style.display = 'none';
+        const modal = document.getElementById('playerCardModal');
+        modal.style.display = 'none';
+        modal.classList.remove('team-colored-card');
     }
 
     savePlayerCard() {

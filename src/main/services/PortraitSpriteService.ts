@@ -43,8 +43,10 @@ export interface SpritePortraitInfo {
 export class PortraitSpriteService {
   private atlas: Atlas | null = null;
   private portraitMap: Map<string, AtlasEntry> = new Map();
+  private pidMap: Map<number, AtlasEntry> = new Map(); // PID -> AtlasEntry mapping
   private spritesDir: string;
   private atlasPath: string;
+  private pidMappingPath: string;
   private initialized: boolean = false;
 
   constructor() {
@@ -68,10 +70,22 @@ export class PortraitSpriteService {
 
     this.atlasPath = possibleAtlasPaths.find(p => fs.existsSync(p)) || possibleAtlasPaths[0];
 
+    // PID Portrait Mapping CSV path
+    const possibleMappingPaths = [
+      path.join(process.cwd(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+      path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+      path.join(app.getAppPath(), '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+      path.join(__dirname, '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+    ];
+
+    this.pidMappingPath = possibleMappingPaths.find(p => fs.existsSync(p)) || possibleMappingPaths[0];
+
     console.log('[PortraitSpriteService] Sprites directory:', this.spritesDir);
     console.log('[PortraitSpriteService] Sprites directory exists:', fs.existsSync(this.spritesDir));
     console.log('[PortraitSpriteService] Atlas path:', this.atlasPath);
     console.log('[PortraitSpriteService] Atlas file exists:', fs.existsSync(this.atlasPath));
+    console.log('[PortraitSpriteService] PID Mapping path:', this.pidMappingPath);
+    console.log('[PortraitSpriteService] PID Mapping file exists:', fs.existsSync(this.pidMappingPath));
   }
 
   /**
@@ -123,10 +137,77 @@ export class PortraitSpriteService {
         }
       }
 
+      // Load PID Portrait Mapping CSV
+      await this.loadPIDMapping();
+
       this.initialized = true;
       console.log('[PortraitSpriteService] Portrait map initialized with', this.portraitMap.size, 'keys');
+      console.log('[PortraitSpriteService] PID map initialized with', this.pidMap.size, 'entries');
     } catch (err) {
       console.error('[PortraitSpriteService] Error loading atlas:', err);
+    }
+  }
+
+  /**
+   * Load PID Portrait Mapping CSV and build PID -> AtlasEntry map
+   */
+  private async loadPIDMapping(): Promise<void> {
+    if (!fs.existsSync(this.pidMappingPath)) {
+      console.error('[PortraitSpriteService] PID Mapping file not found:', this.pidMappingPath);
+      return;
+    }
+
+    try {
+      const csvContent = fs.readFileSync(this.pidMappingPath, 'utf8');
+      const lines = csvContent.split('\n');
+
+      console.log(`[PortraitSpriteService] Loading PID mappings from ${this.pidMappingPath}`);
+
+      let mappedCount = 0;
+      let skippedCount = 0;
+
+      // Skip header line, start at index 1
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',');
+        if (parts.length < 3) continue;
+
+        const pid = parseInt(parts[0].trim());
+        const portrait = parts[2].trim();
+
+        if (isNaN(pid) && pid !== 0) {
+          skippedCount++;
+          continue;
+        }
+
+        if (!portrait) {
+          skippedCount++;
+          continue;
+        }
+
+        // Look up the portrait in the existing portraitMap
+        const key = portrait.toLowerCase().replace('.dds', '').replace('.png', '');
+        let entry = this.portraitMap.get(key);
+
+        // Try with _morphed suffix for generic faces
+        if (!entry && portrait.startsWith('plpo_generic_')) {
+          entry = this.portraitMap.get(key + '_morphed');
+        }
+
+        if (entry) {
+          this.pidMap.set(pid, entry);
+          mappedCount++;
+        } else {
+          console.warn(`[PortraitSpriteService] Portrait not found in atlas for PID ${pid}: ${portrait}`);
+          skippedCount++;
+        }
+      }
+
+      console.log(`[PortraitSpriteService] Mapped ${mappedCount} PIDs to portraits, skipped ${skippedCount}`);
+    } catch (err) {
+      console.error('[PortraitSpriteService] Error loading PID mapping:', err);
     }
   }
 
@@ -189,6 +270,32 @@ export class PortraitSpriteService {
     if (!entry && key.startsWith('plpo_generic_')) {
       entry = this.portraitMap.get(key + '_morphed');
     }
+
+    if (!entry) {
+      return null;
+    }
+
+    return {
+      sheetPath: path.join(this.spritesDir, `portraits-sheet-${entry.sheet}.png`),
+      x: entry.x,
+      y: entry.y,
+      width: entry.width,
+      height: entry.height
+    };
+  }
+
+  /**
+   * Get sprite portrait info by PID
+   * @param pid Player ID (Photo ID)
+   * @returns Sprite sheet info or null
+   */
+  public getPortraitByPID(pid: number): SpritePortraitInfo | null {
+    if (!this.initialized || !this.atlas) {
+      console.warn('[PortraitSpriteService] Service not initialized');
+      return null;
+    }
+
+    const entry = this.pidMap.get(pid);
 
     if (!entry) {
       return null;

@@ -123,7 +123,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Portrait APIs
   portrait: {
-    getByPLPO: (plpoKey: string) => ipcRenderer.invoke('portrait:get-image-data-by-plpo', plpoKey)
+    getByPLPO: (plpoKey: string) => ipcRenderer.invoke('portrait:get-image-data-by-plpo', plpoKey),
+    getByPID: (pid: number) => ipcRenderer.invoke('portrait:get-image-data-by-pid', pid)
   },
 
   // Coach Portrait APIs
