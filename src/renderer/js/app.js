@@ -798,34 +798,26 @@ class MaddenEditorApp {
 
         // Pre-load all portraits for this page in batch
         const psxpIndex = fieldCodes.indexOf('PSXP');
-        console.log('[Portrait Loading] PSXP index in fieldCodes:', psxpIndex, 'fieldCodes:', fieldCodes.slice(0, 10));
         let portraitsToLoad = 0;
         let portraitsLoaded = 0;
 
         if (psxpIndex !== -1) {
-            console.log('[Portrait Loading] Starting loop for', paginatedPlayers.length, 'players');
-            paginatedPlayers.forEach((player, idx) => {
+            paginatedPlayers.forEach((player) => {
                 const pid = this.getPlayerFieldValue(player, 'PSXP');
-                if (idx < 2) console.log(`[Portrait Loading] Player ${idx} PID:`, pid);
                 // Allow PID 0 (blank silhouette)
                 if (pid !== null && pid !== undefined) {
                     // Use PID as cache key directly
                     const cacheKey = `pid_${pid}`;
 
-                    if (idx < 2) console.log(`[Portrait Loading] Player ${idx} PID ${pid} Cached:`, this.portraitCache.has(cacheKey));
-
                     if (!this.portraitCache.has(cacheKey)) {
                         // Mark as loading and fetch
-                        console.log(`[Portrait Loading] Fetching portrait for PID ${pid}`);
                         this.portraitCache.set(cacheKey, 'loading');
                         portraitsToLoad++;
 
                         window.electronAPI.portrait.getByPID(pid).then(imageData => {
                             if (imageData && imageData.length > 0) {
-                                console.log(`[Portrait Loading] SUCCESS PID ${pid}`);
                                 this.portraitCache.set(cacheKey, imageData);
                             } else {
-                                console.log(`[Portrait Loading] FAILED PID ${pid} - no sprite found`);
                                 this.portraitCache.set(cacheKey, null);
                             }
                             portraitsLoaded++;
@@ -833,7 +825,7 @@ class MaddenEditorApp {
                                 this.hotTable.render();
                             }
                         }).catch((error) => {
-                            console.error(`[Portrait Loading] ERROR PID ${pid}:`, error);
+                            console.error(`Error loading portrait for PID ${pid}:`, error);
                             this.portraitCache.set(cacheKey, null);
                             portraitsLoaded++;
                             if (portraitsLoaded === portraitsToLoad && this.hotTable) {
@@ -865,8 +857,6 @@ class MaddenEditorApp {
             ];
         });
 
-        console.log('[Portrait] Setting up portrait column');
-
         // Create portrait renderer function (MUST be synchronous for Handsontable)
         const portraitRenderer = (instance, td, row, col, prop, value, cellProperties) => {
             // Clear cell and set up styling
@@ -882,23 +872,17 @@ class MaddenEditorApp {
             // currentFieldMapping already accounts for portrait column offset
             const pid = psxpIndex !== -1 ? rowData[psxpIndex] : null;
 
-            if (row < 2) console.log(`[Portrait Renderer] Row ${row}: psxpIndex=${psxpIndex}, pid=${pid}, rowData length=${rowData?.length}`);
-
             // Check for null/undefined, but allow PID 0 (blank silhouette)
             if (pid === null || pid === undefined) {
-                if (row < 2) console.log(`[Portrait Renderer] Row ${row}: NO PID, returning empty`);
                 return td;
             }
 
             // Use PID as cache key
             const cacheKey = `pid_${pid}`;
 
-            if (row < 2) console.log(`[Portrait Renderer] Row ${row}: cacheKey=${cacheKey}, inCache=${this.portraitCache.has(cacheKey)}`);
-
             // ONLY use cache - never trigger new loads during render
             if (this.portraitCache.has(cacheKey)) {
                 const imageData = this.portraitCache.get(cacheKey);
-                if (row < 2) console.log(`[Portrait Renderer] Row ${row}: imageData type=${typeof imageData}, length=${imageData?.length}, is loading=${imageData === 'loading'}`);
                 if (imageData && imageData !== 'loading') {
                     const img = document.createElement('img');
                     img.src = imageData;
@@ -906,16 +890,12 @@ class MaddenEditorApp {
                     img.style.height = '64px';
                     img.style.objectFit = 'cover';
                     td.appendChild(img);
-                    if (row < 2) console.log(`[Portrait Renderer] Row ${row}: IMAGE ADDED`);
                 } else if (imageData === 'loading') {
                     // Still loading
                     td.textContent = '...';
                     td.style.fontSize = '12px';
                     td.style.color = '#666';
-                    if (row < 2) console.log(`[Portrait Renderer] Row ${row}: Showing loading...`);
                 }
-            } else {
-                if (row < 2) console.log(`[Portrait Renderer] Row ${row}: NOT IN CACHE`);
             }
 
             return td;
@@ -1012,11 +992,6 @@ class MaddenEditorApp {
             ...fieldColumns
         ];
 
-        console.log('[DEBUG] columns array length:', columns.length);
-        console.log('[DEBUG] columns[0]:', columns[0]);
-        console.log('[DEBUG] columns[0].renderer:', columns[0].renderer);
-        console.log('[DEBUG] columns[1]:', columns[1]);
-
         // Store field mapping for data changes (add empty for portrait column)
         this.currentFieldMapping = ['', ...fieldCodes];
 
@@ -1042,27 +1017,6 @@ class MaddenEditorApp {
         };
 
         // Initialize Handsontable with proper validation and editing
-        console.log('[Portrait] About to create Handsontable');
-        console.log('[Portrait] Data rows:', data.length);
-        console.log('[Portrait] Columns count:', columns.length);
-        console.log('[Portrait] First data row:', data[0]);
-        console.log('[Portrait] First column config:', columns[0]);
-        console.log('[Portrait] First column has renderer?', typeof columns[0].renderer);
-
-        // DEBUG: Find and log PSXP column configuration
-        const psxpColumnIndex = columns.findIndex(col => {
-            const fieldIndex = col.data - 1; // -1 because col.data is offset by portrait column
-            return fieldIndex >= 0 && this.currentFieldMapping[fieldIndex] === 'PSXP';
-        });
-        console.log('[DEBUG PSXP] PSXP column index:', psxpColumnIndex);
-        if (psxpColumnIndex !== -1) {
-            console.log('[DEBUG PSXP] PSXP column config:', JSON.stringify(columns[psxpColumnIndex], null, 2));
-            console.log('[DEBUG PSXP] Has renderer?', typeof columns[psxpColumnIndex].renderer);
-            console.log('[DEBUG PSXP] Has editor?', columns[psxpColumnIndex].editor);
-            console.log('[DEBUG PSXP] Has type?', columns[psxpColumnIndex].type);
-            console.log('[DEBUG PSXP] ReadOnly?', columns[psxpColumnIndex].readOnly);
-        }
-
         this.hotTable = new Handsontable(hotContainer, {
             data: data,
             colHeaders: colHeaders,
@@ -1165,16 +1119,9 @@ class MaddenEditorApp {
 
             // Update data when changed
             beforeChange: (changes, source) => {
-                console.log('[DEBUG beforeChange] Source:', source, 'Changes count:', changes ? changes.length : 0);
-                if (changes && changes.length > 0) {
-                    console.log('[DEBUG beforeChange] First change:', changes[0]);
-                }
+                // Hook for validation if needed
             },
             afterChange: (changes, source) => {
-                console.log('[DEBUG afterChange] Source:', source, 'Changes count:', changes ? changes.length : 0);
-                if (changes && changes.length > 0) {
-                    console.log('[DEBUG afterChange] First change:', changes[0]);
-                }
                 if (source !== 'loadData' && changes) {
                     this.handlePlayerDataChange(changes);
 
@@ -1182,28 +1129,23 @@ class MaddenEditorApp {
                     changes.forEach(([row, col, oldValue, newValue]) => {
                         const fieldName = this.currentFieldMapping[col]; // currentFieldMapping already has portrait at index 0
                         if (fieldName === 'PSXP' && newValue !== oldValue) {
-                            console.log(`[Portrait Update] PID changed to ${newValue} on row ${row}`);
-
                             const pid = parseInt(newValue);
                             const cacheKey = `pid_${pid}`;
 
                             if (!this.portraitCache.has(cacheKey)) {
-                                console.log(`[Roster] Fetching portrait for PID ${pid}`);
                                 this.portraitCache.set(cacheKey, 'loading');
 
                                 window.electronAPI.portrait.getByPID(pid).then(imageData => {
                                     if (imageData && imageData.length > 0) {
-                                        console.log(`[Roster] SUCCESS PID ${pid}`);
                                         this.portraitCache.set(cacheKey, imageData);
                                     } else {
-                                        console.log(`[Roster] FAILED PID ${pid} - no sprite`);
                                         this.portraitCache.set(cacheKey, null);
                                     }
                                     if (this.hotTable && !this.hotTable.isDestroyed) {
                                         this.hotTable.render();
                                     }
                                 }).catch((error) => {
-                                    console.error(`[Roster] ERROR PID ${pid}:`, error);
+                                    console.error(`Error loading portrait for PID ${pid}:`, error);
                                     this.portraitCache.set(cacheKey, null);
                                     if (this.hotTable && !this.hotTable.isDestroyed) {
                                         this.hotTable.render();
@@ -1211,7 +1153,6 @@ class MaddenEditorApp {
                                 });
                             } else {
                                 // Portrait already in cache, just re-render
-                                console.log(`[Portrait Update] Portrait already cached, re-rendering`);
                                 this.hotTable.render();
                             }
                         }
@@ -1256,17 +1197,8 @@ class MaddenEditorApp {
                 // Setup hover handlers for entire row highlighting
                 this.setupRowHoverHandlers();
 
-                console.log('[DEBUG] afterRender: Checking column 0 config');
-                if (this.hotTable && !this.hotTable.isDestroyed) {
-                    try {
-                        const col0Config = this.hotTable.getCellMeta(0, 0);
-                        console.log('[DEBUG] afterRender: Column 0 cell meta:', col0Config);
-                        console.log('[DEBUG] afterRender: Column 0 renderer:', col0Config.renderer);
-                    } catch (e) {
-                        console.log('[DEBUG] afterRender: Could not get cell meta (table may be destroyed)');
-                    }
-                }
                 this.setupPIDEventListeners();
+                this.setupScrollWheelEditing();
                 this.setupHeaderClickHandlers();
             },
 
@@ -1286,7 +1218,6 @@ class MaddenEditorApp {
                                 }
                                 this.hotTable.render();
                             } catch (e) {
-                                console.log('[DEBUG] afterLoadData: Could not auto-size (table may be destroyed)');
                             }
                         }
                     }, 100);
@@ -1308,7 +1239,6 @@ class MaddenEditorApp {
                     }
                     this.hotTable.render();
                 } catch (e) {
-                    console.log('[DEBUG] Force initial sizing: Could not auto-size (table may be destroyed)');
                 }
             }
         }, 200);
@@ -1549,8 +1479,6 @@ class MaddenEditorApp {
      * This is a read-only column that renders an image from the portrait service
      */
     portraitRenderer(instance, td, row, col, prop, value, cellProperties) {
-        console.log('[Portrait] portraitRenderer called for row', row);
-
         // TEMPORARY TEST - just show "TEST" to verify renderer is working
         td.innerHTML = 'TEST';
         td.style.padding = '2px';
@@ -1812,37 +1740,6 @@ class MaddenEditorApp {
         return td;
     }
 
-    /**
-     * Get PLPO key from PID number
-     * Uses ALLDATA_Lookup.csv to find first name and last name, then creates PLPO key
-     */
-    getPlpoFromPID(pid) {
-        if (!window.lookupData || !window.lookupData.plpos) {
-            return null;
-        }
-
-        // PID 0 = blank silhouette
-        if (!pid || pid === 0) {
-            return 'plpo_Blank';
-        }
-
-        // Direct PID -> PLPO lookup from ALLDATA_Lookup.csv
-        const plpoKey = window.lookupData.plpos.get(pid);
-
-        // If no mapping found, assign a random generic face based on PID
-        if (!plpoKey) {
-            // Use PID to deterministically select a generic face
-            const genericFaces = [
-                'plpo_generic_1_001_morphed', 'plpo_generic_2_055_morphed', 'plpo_generic_3_015_morphed',
-                'plpo_generic_5_002_morphed', 'plpo_generic_6_013_morphed', 'plpo_generic_7_020_morphed'
-            ];
-            const index = pid % genericFaces.length;
-            return genericFaces[index];
-        }
-
-        return plpoKey;
-    }
-
     // Setup event listeners for PID inputs after grid renders
     setupPIDEventListeners() {
         if (!this.hotTable) return;
@@ -2100,6 +1997,254 @@ class MaddenEditorApp {
 
         // Store filtered and sorted result
         this.filteredPlayers = filtered;
+    }
+
+    setupScrollWheelEditing(table = this.hotTable, fieldMapping = this.currentFieldMapping) {
+        if (!table) return;
+
+        const container = table.rootElement;
+        if (!container) return;
+
+        // Use unique handler keys for each table
+        const handlerKey = table === this.hotTable ? '_scrollWheelHandler' : '_draftScrollWheelHandler';
+        const selectionHandlerKey = table === this.hotTable ? '_scrollWheelSelectionHandler' : '_draftScrollWheelSelectionHandler';
+        const lockedCellKey = table === this.hotTable ? '_lockedCell' : '_draftLockedCell';
+        const setupCompleteKey = table === this.hotTable ? '_scrollWheelSetupComplete' : '_draftScrollWheelSetupComplete';
+
+        // Only set up once - don't re-run on every afterRender
+        if (this[setupCompleteKey]) {
+            return;
+        }
+
+        // Initialize locked cell tracker
+        this[lockedCellKey] = null;
+
+        // Remove existing listeners to avoid duplicates
+        if (this[handlerKey]) {
+            window.removeEventListener('wheel', this[handlerKey], { capture: true });
+        }
+
+        // Use Handsontable's afterSelectionEnd hook to detect cell clicks
+        if (this[selectionHandlerKey]) {
+            table.removeHook('afterSelectionEnd', this[selectionHandlerKey]);
+        }
+
+        this[selectionHandlerKey] = (row, col, row2, col2) => {
+            // Only handle single cell selection
+            if (row !== row2 || col !== col2) {
+                this[lockedCellKey] = null;
+                return;
+            }
+
+            // Check if clicking on same cell (toggle lock)
+            if (this[lockedCellKey] &&
+                this[lockedCellKey].row === row &&
+                this[lockedCellKey].col === col) {
+                // Unlock the cell
+                this[lockedCellKey] = null;
+            } else {
+                // Lock the new cell
+                this[lockedCellKey] = { row, col };
+            }
+        };
+
+        table.addHook('afterSelectionEnd', this[selectionHandlerKey]);
+
+        // Wheel handler - intercept ALL wheel events on window to prevent page scroll when locked
+        this[handlerKey] = (e) => {
+            // Check if a cell is locked - if not, allow normal scrolling
+            if (!this[lockedCellKey]) {
+                return;
+            }
+
+            // Cell is locked - STOP ALL SCROLLING IMMEDIATELY at the window level
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            const { row, col } = this[lockedCellKey];
+
+            // Verify the locked cell is still selected
+            const selected = table.getSelected();
+            if (!selected || selected.length !== 1) {
+                this[lockedCellKey] = null;
+                return;
+            }
+
+            const [selRow, selCol, selRow2, selCol2] = selected[0];
+            if (selRow !== row || selCol !== col || selRow !== selRow2 || selCol !== selCol2) {
+                // Selection changed, unlock
+                this[lockedCellKey] = null;
+                return;
+            }
+
+            // Get field name for this column
+            let fieldName, fieldDef;
+            if (fieldMapping && fieldMapping[col]) {
+                // Roster editor: use field mapping
+                fieldName = fieldMapping[col];
+                fieldDef = getFieldDefinition(fieldName);
+            } else {
+                // Draft class editor: get column meta directly
+                const colMeta = table.getCellMeta(row, col);
+                if (!colMeta || colMeta.readOnly) return;
+
+                // For draft class, handle type directly from column definition
+                const currentValue = table.getDataAtCell(row, col);
+
+                // Simple scroll direction - one click = one change
+                const direction = e.deltaY > 0 ? -1 : 1;
+                let newValue = currentValue;
+
+                if (colMeta.type === 'numeric') {
+                    const step = e.shiftKey ? 10 : 1;
+                    newValue = (parseInt(currentValue) || 0) + (direction * step);
+                    if (newValue !== currentValue) {
+                        table.setDataAtCell(row, col, newValue);
+                    }
+                } else if (colMeta.type === 'dropdown' && colMeta.source) {
+                    const options = colMeta.source;
+                    const currentIndex = options.indexOf(currentValue);
+                    let newIndex = currentIndex + direction;
+                    if (newIndex < 0) newIndex = options.length - 1;
+                    if (newIndex >= options.length) newIndex = 0;
+                    newValue = options[newIndex];
+                    if (newValue !== currentValue) {
+                        table.setDataAtCell(row, col, newValue);
+                    }
+                }
+                return;
+            }
+
+            if (!fieldDef || !fieldDef.editable) return;
+
+            const currentValue = table.getDataAtCell(row, col);
+
+            // Simple scroll direction - one click = one change
+            const direction = e.deltaY > 0 ? -1 : 1;
+            let newValue = currentValue;
+
+            // Handle different field types
+            if (fieldDef.type === 'numeric') {
+                // Numeric fields: increment/decrement
+                const step = e.shiftKey ? 10 : 1;
+                newValue = (parseInt(currentValue) || 0) + (direction * step);
+
+                // Respect min/max bounds
+                if (fieldDef.min !== undefined && newValue < fieldDef.min) {
+                    newValue = fieldDef.min;
+                }
+                if (fieldDef.max !== undefined && newValue > fieldDef.max) {
+                    newValue = fieldDef.max;
+                }
+            } else if (fieldDef.type === 'lookup' && fieldDef.lookup) {
+                // Lookup fields: cycle through options
+                const options = getLookupOptions(fieldDef.lookup);
+                if (options && options.length > 0) {
+                    // Find current value by LABEL (display name), not value (numeric ID)
+                    const currentIndex = options.findIndex(opt => opt.label === currentValue);
+                    let newIndex = currentIndex + direction;
+
+                    // Wrap around
+                    if (newIndex < 0) newIndex = options.length - 1;
+                    if (newIndex >= options.length) newIndex = 0;
+
+                    // Set the new LABEL (display name)
+                    newValue = options[newIndex].label;
+                }
+            } else if (fieldDef.type === 'autocomplete' && fieldDef.lookup === 'pids') {
+                // Player Pic autocomplete: cycle through PID names (only one at a time)
+                const allNames = Array.from(LOOKUP_DATA.pidNames.values());
+                if (allNames.length > 0) {
+                    const currentIndex = allNames.findIndex(n => n.fullName === currentValue);
+                    let newIndex = currentIndex + direction;
+
+                    // Wrap around
+                    if (newIndex < 0) newIndex = allNames.length - 1;
+                    if (newIndex >= allNames.length) newIndex = 0;
+
+                    newValue = allNames[newIndex].fullName;
+                }
+            }
+
+            // Update cell if value changed
+            if (newValue !== currentValue) {
+                table.setDataAtCell(row, col, newValue);
+            }
+        };
+
+        // Add to WINDOW with capture to intercept before it reaches the page
+        window.addEventListener('wheel', this[handlerKey], { passive: false, capture: true });
+
+        // Mark setup as complete
+        this[setupCompleteKey] = true;
+    }
+
+    setupPlayerCardScrollWheelEditing() {
+        const modal = document.getElementById('playerCardModal');
+        if (!modal) return;
+
+        // Remove existing listener to avoid duplicates
+        if (this._playerCardScrollWheelHandler) {
+            modal.removeEventListener('wheel', this._playerCardScrollWheelHandler);
+        }
+
+        this._playerCardScrollWheelHandler = (e) => {
+            // Only handle if target is an input or select element
+            const target = e.target;
+            if (!target || (target.tagName !== 'INPUT' && target.tagName !== 'SELECT')) return;
+
+            // Skip read-only or disabled inputs
+            if (target.readOnly || target.disabled) return;
+
+            // Only handle number inputs and selects
+            if (target.tagName === 'INPUT' && target.type !== 'number') return;
+
+            // PREVENT DEFAULT SCROLL - this is key!
+            e.preventDefault();
+            e.stopPropagation();
+
+            const delta = Math.sign(e.deltaY);
+            const change = delta > 0 ? -1 : 1;
+
+            if (target.tagName === 'INPUT' && target.type === 'number') {
+                // Numeric input: increment/decrement
+                const step = e.shiftKey ? 10 : 1;
+                let currentValue = parseInt(target.value) || 0;
+                let newValue = currentValue + (change * step);
+
+                // Respect min/max bounds
+                const min = target.min !== '' ? parseInt(target.min) : undefined;
+                const max = target.max !== '' ? parseInt(target.max) : undefined;
+
+                if (min !== undefined && newValue < min) {
+                    newValue = min;
+                }
+                if (max !== undefined && newValue > max) {
+                    newValue = max;
+                }
+
+                target.value = newValue;
+                target.dispatchEvent(new Event('change', { bubbles: true }));
+            } else if (target.tagName === 'SELECT') {
+                // Select dropdown: cycle through options
+                const options = Array.from(target.options);
+                if (options.length === 0) return;
+
+                const currentIndex = target.selectedIndex;
+                let newIndex = currentIndex + change;
+
+                // Wrap around
+                if (newIndex < 0) newIndex = options.length - 1;
+                if (newIndex >= options.length) newIndex = 0;
+
+                target.selectedIndex = newIndex;
+                target.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        };
+
+        modal.addEventListener('wheel', this._playerCardScrollWheelHandler, { passive: false });
+        console.log('[Scroll Wheel] Event listener attached to player card modal');
     }
 
     setupHeaderClickHandlers() {
@@ -2722,9 +2867,6 @@ class MaddenEditorApp {
     }
 
     createDraftGrid(prospects) {
-        console.log('[DEBUG createDraftGrid] Called with prospects.length:', prospects.length);
-        console.log('[DEBUG createDraftGrid] First prospect:', prospects[0]);
-        console.log('[DEBUG createDraftGrid] Last prospect:', prospects[prospects.length - 1]);
 
         const container = document.getElementById('draft-grid-container');
 
@@ -2910,9 +3052,6 @@ class MaddenEditorApp {
             };
         });
 
-        console.log('[DEBUG createDraftGrid] transformedProspects.length:', transformedProspects.length);
-        console.log('[DEBUG createDraftGrid] transformedProspects[0]:', transformedProspects[0]);
-        console.log('[DEBUG createDraftGrid] transformedProspects[last]:', transformedProspects[transformedProspects.length - 1]);
 
         // Get lookup options for dropdowns
         const positionOptions = getLookupOptions('positions').map(opt => opt.label);
@@ -3337,24 +3476,16 @@ class MaddenEditorApp {
                         }
                     } else if (prop === 'playerPic' && newValue !== oldValue) {
                         // Player Pic changed - update PID
-                        console.log(`Player Pic changed from "${oldValue}" to "${newValue}", looking up PID...`);
-                        console.log('Available keys in pidsByName:', Array.from(window.lookupData.pidsByName.keys()).slice(0, 5));
-
                         if (newValue === 'Generic Face' || !newValue) {
-                            console.log('Generic Face selected, not changing PID');
                             return;
                         }
                         const pid = window.lookupData.pidsByName.get(newValue);
-                        console.log(`Lookup result for "${newValue}": ${pid}`);
                         if (pid) {
-                            console.log(`Setting PID to: ${pid}`);
                             this.draftGrid.setDataAtRowProp(row, 'PID', pid, 'pic_sync');
                         } else {
-                            console.log(`No PID found for player: ${newValue}`);
                             // Try case-insensitive search
                             for (const [name, id] of window.lookupData.pidsByName.entries()) {
                                 if (name.toLowerCase() === newValue.toLowerCase()) {
-                                    console.log(`Found case-insensitive match: ${name} -> ${id}`);
                                     this.draftGrid.setDataAtRowProp(row, 'PID', id, 'pic_sync');
                                     break;
                                 }
@@ -3368,60 +3499,43 @@ class MaddenEditorApp {
         // Setup floating scrollbar for draft class grid
         this.setupFloatingScrollbar(container);
 
-        // DEBUG: Check Handsontable row count after initialization
-        console.log('[DEBUG createDraftGrid] Handsontable initialized');
-        console.log('[DEBUG createDraftGrid] this.draftGrid.countRows():', this.draftGrid.countRows());
-        console.log('[DEBUG createDraftGrid] this.draftGrid.getData().length:', this.draftGrid.getData().length);
-        console.log('[DEBUG createDraftGrid] this.draftGrid.getSourceData().length:', this.draftGrid.getSourceData().length);
+        // Setup scroll wheel editing for draft class
+        this.setupScrollWheelEditing(this.draftGrid, null);
 
         // Pre-load portraits for draft class prospects
-        console.log('[Draft Portrait] Pre-loading portraits for draft class');
         const draftPortraitsToLoad = [];
 
-        transformedProspects.forEach((prospect, index) => {
+        transformedProspects.forEach((prospect) => {
             if (!prospect.PID || prospect.PID === 0) {
                 return;
             }
 
-            // Get PLPO key from PID
-            let plpoKey = this.getPlpoFromPID(prospect.PID);
+            const pid = parseInt(prospect.PID);
+            const cacheKey = `pid_${pid}`;
 
-            // Fallback to PEPS for generic faces
-            if (!plpoKey && prospect.PEPS) {
-                // Add plpo_ prefix if it's a generic face (gen_X_Y_Z format)
-                const peps = prospect.PEPS;
-                if (peps && peps.startsWith('gen_')) {
-                    plpoKey = `plpo_${peps}`;
-                } else {
-                    plpoKey = peps;
-                }
-            }
-
-            if (plpoKey && !this.portraitCache.has(plpoKey)) {
-                draftPortraitsToLoad.push(plpoKey);
+            if (!this.portraitCache.has(cacheKey)) {
+                draftPortraitsToLoad.push(pid);
             }
         });
 
-        console.log(`[Draft Portrait] Loading ${draftPortraitsToLoad.length} unique portraits`);
+        // Load portraits in batches by PID
+        draftPortraitsToLoad.forEach(pid => {
+            const cacheKey = `pid_${pid}`;
+            this.portraitCache.set(cacheKey, 'loading');
 
-        // Load portraits in batches
-        draftPortraitsToLoad.forEach(plpoKey => {
-            this.portraitCache.set(plpoKey, 'loading');
-
-            window.electronAPI.portrait.getByPLPO(plpoKey).then((imageData) => {
+            window.electronAPI.portrait.getByPID(pid).then((imageData) => {
                 if (imageData) {
-                    this.portraitCache.set(plpoKey, imageData);
+                    this.portraitCache.set(cacheKey, imageData);
                     // Re-render grid to show newly loaded portrait
                     if (this.draftGrid && !this.draftGrid.isDestroyed) {
                         this.draftGrid.render();
                     }
                 } else {
-                    console.warn(`[Draft Portrait] No image data for ${plpoKey}`);
-                    this.portraitCache.set(plpoKey, null);
+                    this.portraitCache.set(cacheKey, null);
                 }
             }).catch((error) => {
-                console.error(`[Draft Portrait] Error loading ${plpoKey}:`, error);
-                this.portraitCache.set(plpoKey, null);
+                console.error(`Error loading draft class portrait for PID ${pid}:`, error);
+                this.portraitCache.set(cacheKey, null);
             });
         });
     }
@@ -3520,8 +3634,6 @@ class MaddenEditorApp {
 
             // Get updated data from grid INCLUDING user edits (has friendly names)
             const gridData = this.draftGrid.getSourceData();
-            console.log('[DEBUG saveDraftClass] gridData.length:', gridData.length);
-            console.log('[DEBUG saveDraftClass] this.originalProspectData.length:', this.originalProspectData.length);
 
             // Debug: Log first prospect to see what we're getting
             if (gridData.length > 0) {
@@ -5033,11 +5145,11 @@ class MaddenEditorApp {
 
         // Portrait section
         const pid = playerData.PSXP;
-        const plpoKey = pid ? this.getPlpoFromPID(parseInt(pid)) : null;
+        const cacheKey = pid ? `pid_${parseInt(pid)}` : null;
         const portraitImg = document.getElementById('playerCardPortrait');
 
-        if (plpoKey && this.portraitCache.has(plpoKey)) {
-            const imageData = this.portraitCache.get(plpoKey);
+        if (cacheKey && this.portraitCache.has(cacheKey)) {
+            const imageData = this.portraitCache.get(cacheKey);
             if (imageData && imageData !== 'loading') {
                 portraitImg.src = imageData;
                 portraitImg.style.display = 'block';
@@ -5116,6 +5228,9 @@ class MaddenEditorApp {
         // Ratings section - populate based on position
         this.populatePlayerRatings(playerData, position);
 
+        // Setup scroll wheel editing for player card
+        this.setupPlayerCardScrollWheelEditing();
+
         // Show modal
         document.getElementById('playerCardModal').style.display = 'flex';
     }
@@ -5124,6 +5239,11 @@ class MaddenEditorApp {
         const modal = document.getElementById('playerCardModal');
         modal.style.display = 'none';
         modal.classList.remove('team-colored-card');
+
+        // Clean up scroll wheel listener
+        if (this._playerCardScrollWheelHandler) {
+            modal.removeEventListener('wheel', this._playerCardScrollWheelHandler);
+        }
     }
 
     savePlayerCard() {
@@ -5178,36 +5298,35 @@ class MaddenEditorApp {
             return;
         }
 
-        const plpoKey = this.getPlpoFromPID(parseInt(newPid));
+        const pid = parseInt(newPid);
+        const cacheKey = `pid_${pid}`;
         const portraitImg = document.getElementById('playerCardPortrait');
 
-        if (plpoKey && this.portraitCache.has(plpoKey)) {
-            const imageData = this.portraitCache.get(plpoKey);
+        if (this.portraitCache.has(cacheKey)) {
+            const imageData = this.portraitCache.get(cacheKey);
             if (imageData && imageData !== 'loading') {
                 portraitImg.src = imageData;
                 portraitImg.style.display = 'block';
             } else {
                 portraitImg.style.display = 'none';
             }
-        } else if (plpoKey) {
-            // Portrait not in cache, fetch it
+        } else {
+            // Portrait not in cache, fetch it by PID
             portraitImg.style.display = 'none';
-            this.portraitCache.set(plpoKey, 'loading');
+            this.portraitCache.set(cacheKey, 'loading');
 
-            window.electronAPI.portrait.getByPLPO(plpoKey).then(imageData => {
-                this.portraitCache.set(plpoKey, imageData);
+            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                this.portraitCache.set(cacheKey, imageData);
                 // Update portrait if still on same player
                 const currentPid = document.getElementById('playerCardPIDSelect').value;
-                if (parseInt(currentPid) === parseInt(newPid)) {
+                if (parseInt(currentPid) === pid) {
                     portraitImg.src = imageData;
                     portraitImg.style.display = 'block';
                 }
             }).catch((error) => {
-                console.error(`[Player Card] Failed to fetch portrait for ${plpoKey}:`, error);
-                this.portraitCache.set(plpoKey, null);
+                console.error(`[Player Card] Failed to fetch portrait for PID ${pid}:`, error);
+                this.portraitCache.set(cacheKey, null);
             });
-        } else {
-            portraitImg.style.display = 'none';
         }
     }
 
