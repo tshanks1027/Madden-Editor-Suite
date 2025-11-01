@@ -65,11 +65,11 @@ export class CreatorService {
   // State lookup cache: state abbreviation -> state ID
   private stateLookupCache: Map<string, number> | null = null;
 
-  // DELETED: loadPIDLookup() - no longer needed, all PID data comes from ALLDATA_Lookup.csv
+  // DELETED: loadPIDLookup() - no longer needed, all PID data comes from ALL_PLAYER_LOOKUP.csv
 
   /**
    * Match player name to PID from lookup table with disambiguation
-   * Uses ALLDATA_Lookup.csv with multiple fields to handle duplicate names
+   * Uses ALL_PLAYER_LOOKUP.csv with multiple fields to handle duplicate names
    * NOW WITH: 26,034 players (76% more than old FullData_Lookup!)
    * @param firstName Player first name
    * @param lastName Player last name
@@ -174,14 +174,14 @@ export class CreatorService {
   }
 
   /**
-   * NO LONGER NEEDED - ALLDATA_Lookup.csv already has preferred PIDs (no (R) tags)
+   * NO LONGER NEEDED - ALL_PLAYER_LOOKUP.csv already has preferred PIDs (no (R) tags)
    * Kept as no-op for backward compatibility
    * @param pid Portrait ID
    * @param playerName Player name (unused)
    * @returns Original PID unchanged
    */
   private getPreferredPID(pid: number, playerName: string): number {
-    // ALLDATA_Lookup.csv already contains the preferred PIDs (non-(R) versions)
+    // ALL_PLAYER_LOOKUP.csv already contains the preferred PIDs (non-(R) versions)
     // No need to check PID_lookup.csv anymore
     return pid;
   }
@@ -400,7 +400,7 @@ export class CreatorService {
   }
 
   /**
-   * Load ALLDATA_Lookup.csv into memory (REPLACES ALL other lookups)
+   * Load ALL_PLAYER_LOOKUP.csv into memory (REPLACES ALL other lookups)
    * Format: Last Name,First Name,College/Univ,Round,Pick,Draft Class,Position,PhotoID,Player Assets ID,CommID,PLPO,Height,Weight,From,To,AP1,PB,St,wAV,League,Race,Home State,Wiki_Image_URL,PFR_Image_URL
    * 26,034 players vs 14,879 in FullData_Lookup (76% more!)
    */
@@ -414,7 +414,7 @@ export class CreatorService {
     this.masterLookupCache = new Map<string, any>();
 
     try {
-      const masterLookupPath = path.join(__dirname, '../../data/lookups/ALLDATA_Lookup.csv');
+      const masterLookupPath = path.join(__dirname, '../../data/lookups/ALL_PLAYER_LOOKUP.csv');
       const csvContent = fs.readFileSync(masterLookupPath, 'utf-8');
       const lines = csvContent.split('\n');
 
@@ -446,9 +446,9 @@ export class CreatorService {
         }
       }
 
-      console.log(`[CreatorService] Loaded ${this.masterLookupCache.size} players from ALLDATA_Lookup.csv`);
+      console.log(`[CreatorService] Loaded ${this.masterLookupCache.size} players from ALL_PLAYER_LOOKUP.csv`);
     } catch (error) {
-      console.error('[CreatorService] Failed to load ALLDATA_Lookup.csv:', error);
+      console.error('[CreatorService] Failed to load ALL_PLAYER_LOOKUP.csv:', error);
     }
 
     return this.masterLookupCache;
@@ -631,7 +631,7 @@ export class CreatorService {
     }
 
     // Forward to MASTER_LOOKUP and convert to old format
-    console.warn('[CreatorService] FullData_Lookup is deprecated, using ALLDATA_Lookup instead');
+    console.warn('[CreatorService] FullData_Lookup is deprecated, using ALL_PLAYER_LOOKUP instead');
     this.fullDataLookupCache = new Map<number, any>();
 
     const masterLookup = this.loadMasterLookup();
@@ -1476,7 +1476,7 @@ export class CreatorService {
 
   /**
    * Generate draft class from MASTER_LOOKUP (OPTIMIZED - 95%+ faster!)
-   * Loads players directly from ALLDATA_Lookup.csv instead of web scraping
+   * Loads players directly from ALL_PLAYER_LOOKUP.csv instead of web scraping
    * Falls back to scraping ONLY for missing height/weight data
    *
    * @param year - Draft year

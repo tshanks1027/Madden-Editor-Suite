@@ -9,6 +9,17 @@ import { ipcMain } from 'electron';
 import { portraitSpriteService } from '../services/PortraitSpriteService';
 import { coachPortraitService } from '../services/CoachPortraitService';
 import sharp from 'sharp';
+import fs from 'fs';
+import path from 'path';
+
+// Debug: Test if this module loads
+try {
+  const testLogPath = path.join(process.cwd(), 'portrait-handlers-loaded.log');
+  fs.appendFileSync(testLogPath, `${new Date().toISOString()} portrait-handlers.ts loaded\n`);
+  fs.appendFileSync(testLogPath, `${new Date().toISOString()} portraitSpriteService: ${portraitSpriteService ? 'EXISTS' : 'NULL'}\n`);
+} catch (e) {
+  console.error('Failed to write portrait-handlers debug log:', e);
+}
 
 /**
  * Handle: portrait:initialize

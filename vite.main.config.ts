@@ -55,6 +55,58 @@ export default defineConfig({
               }
             });
           }
+
+          // Copy portrait atlas JSON
+          const atlasFile = path.join(srcDataDir, 'portrait-atlas.json');
+          if (existsSync(atlasFile)) {
+            const destAtlasFile = path.join(destDataDir, 'portrait-atlas.json');
+            copyFileSync(atlasFile, destAtlasFile);
+            console.log('Copied portrait-atlas.json to build output');
+          }
+
+          // Copy coach portrait atlas JSON
+          const coachAtlasFile = path.join(srcDataDir, 'coach-atlas.json');
+          if (existsSync(coachAtlasFile)) {
+            const destCoachAtlasFile = path.join(destDataDir, 'coach-atlas.json');
+            copyFileSync(coachAtlasFile, destCoachAtlasFile);
+            console.log('Copied coach-atlas.json to build output');
+          }
+
+          // Copy portrait sprites directory
+          const srcPortraitSpritesDir = path.join(srcDataDir, 'portrait-sprites');
+          const destPortraitSpritesDir = path.join(destDataDir, 'portrait-sprites');
+          if (existsSync(srcPortraitSpritesDir)) {
+            if (!existsSync(destPortraitSpritesDir)) {
+              mkdirSync(destPortraitSpritesDir, { recursive: true });
+            }
+            const portraitFiles = fs.readdirSync(srcPortraitSpritesDir);
+            portraitFiles.forEach(file => {
+              if (file.endsWith('.png')) {
+                const srcFile = path.join(srcPortraitSpritesDir, file);
+                const destFile = path.join(destPortraitSpritesDir, file);
+                copyFileSync(srcFile, destFile);
+              }
+            });
+            console.log(`Copied ${portraitFiles.filter(f => f.endsWith('.png')).length} portrait sprite sheets`);
+          }
+
+          // Copy coach sprites directory
+          const srcCoachSpritesDir = path.join(srcDataDir, 'coach-sprites');
+          const destCoachSpritesDir = path.join(destDataDir, 'coach-sprites');
+          if (existsSync(srcCoachSpritesDir)) {
+            if (!existsSync(destCoachSpritesDir)) {
+              mkdirSync(destCoachSpritesDir, { recursive: true });
+            }
+            const coachFiles = fs.readdirSync(srcCoachSpritesDir);
+            coachFiles.forEach(file => {
+              if (file.endsWith('.png')) {
+                const srcFile = path.join(srcCoachSpritesDir, file);
+                const destFile = path.join(destCoachSpritesDir, file);
+                copyFileSync(srcFile, destFile);
+              }
+            });
+            console.log(`Copied ${coachFiles.filter(f => f.endsWith('.png')).length} coach sprite sheets`);
+          }
         }
 
         // Copy parsers directory to build output

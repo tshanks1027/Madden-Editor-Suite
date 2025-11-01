@@ -50,6 +50,21 @@ export class PortraitSpriteService {
   private initialized: boolean = false;
 
   constructor() {
+    // Debug log to file
+    const debugLog = (msg: string) => {
+      try {
+        const logPath = path.join(process.cwd(), 'portrait-service-debug.log');
+        fs.appendFileSync(logPath, `${new Date().toISOString()} ${msg}\n`);
+      } catch (e) {
+        // Ignore file write errors
+      }
+    };
+
+    debugLog('[Constructor] Starting PortraitSpriteService constructor');
+    debugLog(`[Constructor] process.cwd() = ${process.cwd()}`);
+    debugLog(`[Constructor] app.getAppPath() = ${app.getAppPath()}`);
+    debugLog(`[Constructor] __dirname = ${__dirname}`);
+
     // Sprite sheets directory - check multiple locations
     const possibleSpritesPaths = [
       path.join(process.cwd(), 'data', 'portrait-sprites'),
@@ -58,7 +73,14 @@ export class PortraitSpriteService {
       path.join(__dirname, '..', '..', 'data', 'portrait-sprites'),
     ];
 
+    debugLog('[Constructor] Checking sprite paths:');
+    possibleSpritesPaths.forEach((p, i) => {
+      const exists = fs.existsSync(p);
+      debugLog(`[Constructor]   ${i}: ${p} - exists: ${exists}`);
+    });
+
     this.spritesDir = possibleSpritesPaths.find(p => fs.existsSync(p)) || possibleSpritesPaths[0];
+    debugLog(`[Constructor] Selected sprites dir: ${this.spritesDir}`);
 
     // Atlas file path
     const possibleAtlasPaths = [
@@ -68,7 +90,14 @@ export class PortraitSpriteService {
       path.join(__dirname, '..', '..', 'data', 'portrait-atlas.json'),
     ];
 
+    debugLog('[Constructor] Checking atlas paths:');
+    possibleAtlasPaths.forEach((p, i) => {
+      const exists = fs.existsSync(p);
+      debugLog(`[Constructor]   ${i}: ${p} - exists: ${exists}`);
+    });
+
     this.atlasPath = possibleAtlasPaths.find(p => fs.existsSync(p)) || possibleAtlasPaths[0];
+    debugLog(`[Constructor] Selected atlas path: ${this.atlasPath}`);
 
     // PID Portrait Mapping CSV path
     const possibleMappingPaths = [
@@ -78,7 +107,14 @@ export class PortraitSpriteService {
       path.join(__dirname, '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
     ];
 
+    debugLog('[Constructor] Checking mapping paths:');
+    possibleMappingPaths.forEach((p, i) => {
+      const exists = fs.existsSync(p);
+      debugLog(`[Constructor]   ${i}: ${p} - exists: ${exists}`);
+    });
+
     this.pidMappingPath = possibleMappingPaths.find(p => fs.existsSync(p)) || possibleMappingPaths[0];
+    debugLog(`[Constructor] Selected mapping path: ${this.pidMappingPath}`);
 
     console.log('[PortraitSpriteService] Sprites directory:', this.spritesDir);
     console.log('[PortraitSpriteService] Sprites directory exists:', fs.existsSync(this.spritesDir));
@@ -92,15 +128,31 @@ export class PortraitSpriteService {
    * Initialize sprite service and load atlas
    */
   public async initialize(): Promise<void> {
+    const debugLog = (msg: string) => {
+      try {
+        const logPath = path.join(process.cwd(), 'portrait-service-debug.log');
+        fs.appendFileSync(logPath, `${new Date().toISOString()} ${msg}\n`);
+      } catch (e) {
+        // Ignore
+      }
+    };
+
+    debugLog('[Initialize] Called - initialized status: ' + this.initialized);
+
     if (this.initialized) {
+      debugLog('[Initialize] Already initialized, returning');
       return;
     }
 
     console.log('[PortraitSpriteService] Initializing sprite service...');
+    debugLog('[Initialize] Starting initialization');
+    debugLog('[Initialize] Atlas path: ' + this.atlasPath);
+    debugLog('[Initialize] Atlas exists: ' + fs.existsSync(this.atlasPath));
 
     // Load atlas JSON
     if (!fs.existsSync(this.atlasPath)) {
       console.error('[PortraitSpriteService] Atlas file not found:', this.atlasPath);
+      debugLog('[Initialize] ERROR: Atlas file not found');
       return;
     }
 
@@ -290,14 +342,29 @@ export class PortraitSpriteService {
    * @returns Sprite sheet info or null
    */
   public getPortraitByPID(pid: number): SpritePortraitInfo | null {
+    const debugLog = (msg: string) => {
+      try {
+        const logPath = path.join(process.cwd(), 'portrait-service-debug.log');
+        fs.appendFileSync(logPath, `${new Date().toISOString()} ${msg}\n`);
+      } catch (e) {
+        // Ignore
+      }
+    };
+
+    debugLog(`[GetByPID] Called with PID ${pid}`);
+    debugLog(`[GetByPID] Initialized: ${this.initialized}, Has Atlas: ${!!this.atlas}, PID Map Size: ${this.pidMap.size}`);
+
     if (!this.initialized || !this.atlas) {
       console.warn('[PortraitSpriteService] Service not initialized');
+      debugLog('[GetByPID] Service not initialized, returning null');
       return null;
     }
 
     const entry = this.pidMap.get(pid);
+    debugLog(`[GetByPID] PID Map lookup result: ${entry ? entry.id : 'NOT FOUND'}`);
 
     if (!entry) {
+      debugLog(`[GetByPID] No entry found for PID ${pid}`);
       return null;
     }
 

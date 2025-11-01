@@ -11,7 +11,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'src/renderer/index.html'),
-        franchise: resolve(__dirname, 'src/renderer/franchise-editor.html'),
       },
     },
   },

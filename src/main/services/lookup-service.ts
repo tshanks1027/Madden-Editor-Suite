@@ -360,12 +360,19 @@ export class LookupService {
 
       // Parse FullData entries (skip header)
       // Format: Last Name,First Name,College/Univ,Round,Pick,Draft Class,Position,Jersey,PhotoID,Player Assets ID,CommID,PLPO,...
+      console.log(`[lookup-service] Parsing ${lines.length - 1} lines from ${fileName}`);
+
+      let entriesWithPLPO = 0;
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        const parts = line.split(',');
-        if (parts.length < 12) continue; // Need at least 12 columns including PLPO
+        // Proper CSV parsing that handles quoted fields with commas
+        const parts = this.parseCSVLine(line);
+        if (parts.length < 12) {
+          if (i < 5) console.log(`[lookup-service] Line ${i}: Only ${parts.length} parts, skipping`);
+          continue; // Need at least 12 columns including PLPO
+        }
 
         const entry: FullDataEntry = {
           lastName: parts[0].trim(),
@@ -382,16 +389,57 @@ export class LookupService {
           plpo: parts[11].trim()
         };
 
+        // Debug first 3 entries
+        if (i <= 3) {
+          console.log(`[lookup-service] Line ${i}: PID=${entry.pid}, Name=${entry.firstName} ${entry.lastName}, PLPO="${entry.plpo}", Parts=${parts.length}`);
+        }
+
+        if (entry.plpo) entriesWithPLPO++;
+
         // Store by PID
         if (!isNaN(entry.pid)) {
           this.fullDataCache.set(entry.pid, entry);
         }
       }
 
-      console.log(`Loaded ${this.fullDataCache.size} FullData entries from ${fileName}`);
+      console.log(`[lookup-service] Loaded ${this.fullDataCache.size} FullData entries from ${fileName}, ${entriesWithPLPO} have PLPO`);
     } catch (error) {
       console.error(`Error loading FullData lookup file ${fileName}:`, error);
     }
+  }
+
+  // Parse a CSV line properly handling quoted fields with commas
+  private parseCSVLine(line: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = line[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote
+          current += '"';
+          i++; // Skip next quote
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // Field separator
+        result.push(current);
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    // Add last field
+    result.push(current);
+
+    return result;
   }
 
   // Convert numeric ID to display name
