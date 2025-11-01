@@ -986,13 +986,13 @@ input:focus {
 }
 
 .handsontable .ht_master .wtHolder {
-    background-color: var(--gray-dark) !important;
+    background-color: #1a1612 !important;
 }
 
 .handsontable td, .handsontable th {
-    background-color: var(--gray-medium) !important;
+    background-color: #1a1612 !important;
     color: var(--gray-text) !important;
-    border-color: var(--border-color) !important;
+    border-color: #2a2420 !important;
     white-space: nowrap !important;
 }
 
@@ -1132,13 +1132,13 @@ input:focus {
 
 /* Dropdown cell styling - classic dropdown appearance */
 .handsontable td.dropdown-cell {
-    background: linear-gradient(180deg, var(--gray-light) 0%, var(--gray-medium) 100%) !important;
+    background: #1a1612 !important;
     border: 1px solid var(--border-color) !important;
     cursor: pointer !important;
 }
 
 .handsontable td.dropdown-cell:hover {
-    background: linear-gradient(180deg, var(--gray-lighter) 0%, var(--gray-light) 100%) !important;
+    background: #2a2420 !important;
     border-color: var(--primary-orange) !important;
 }
 
