@@ -597,6 +597,8 @@ class MaddenEditorApp {
 
         document.getElementById('fileName').textContent = fileName;
         document.getElementById('currentFile').style.display = 'flex';
+        document.getElementById('exportCsvBtn').style.display = 'inline-flex';
+        document.getElementById('importCsvBtn').style.display = 'inline-flex';
         document.getElementById('saveRosterBtn').style.display = 'inline-flex';
     }
 
