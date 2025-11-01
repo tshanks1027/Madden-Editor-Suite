@@ -478,19 +478,27 @@ body {
 }
 
 .control-select {
-    background: var(--gray-dark);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
+    background: transparent;
+    border: 1.5px solid rgba(255, 140, 0, 0.3);
+    border-radius: 20px;
     color: var(--gray-text);
     font-size: 0.875rem;
-    padding: 0.375rem 0.75rem;
+    padding: 10px 16px;
     min-width: 150px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.control-select:hover {
+    background: rgba(255, 140, 0, 0.08);
+    border-color: rgba(255, 140, 0, 0.6);
 }
 
 .control-select:focus {
     outline: none;
-    border-color: var(--primary-orange);
-    box-shadow: 0 0 0 1px var(--primary-orange);
+    border-color: #ff8c00;
+    background: rgba(255, 140, 0, 0.08);
+    box-shadow: 0 0 16px rgba(255, 140, 0, 0.25);
 }
 
 /* Checkbox */
@@ -1045,16 +1053,35 @@ input:focus {
 .handsontable td, .handsontable th {
     background-color: #1a1612 !important;
     color: var(--gray-text) !important;
-    border: 1px solid rgba(42, 36, 32, 0.5) !important;
+    border: none !important;
     white-space: nowrap !important;
     padding: 6px 8px !important;
-    font-size: 13px !important;
+    font-size: 15px !important;
     font-weight: 400 !important;
     line-height: 1.4 !important;
     vertical-align: middle !important;
     height: 33px !important;
+    max-height: 33px !important;
     box-sizing: border-box !important;
-    transition: background-color 0.15s ease, color 0.15s ease !important;
+    transition: background-color 0.2s ease, color 0.2s ease !important;
+    overflow: hidden !important;
+}
+
+/* Ensure images in cells don't expand row height */
+.handsontable td img,
+.handsontable th img {
+    max-height: 21px !important;
+    height: auto !important;
+    vertical-align: middle !important;
+}
+
+/* Zebra stripe rows - very subtle darker */
+.handsontable tbody tr:nth-child(even) td {
+    background-color: #15120f !important;
+}
+
+.handsontable tbody tr:hover td {
+    background-color: #1d1914 !important;
 }
 
 .handsontable .colHeader {
@@ -1108,10 +1135,14 @@ input:focus {
 .handsontable .ht_clone_left th,
 .handsontable .ht_clone_top_left_corner th {
     height: 33px !important;
+    max-height: 33px !important;
     padding: 6px 8px !important;
     line-height: 1.4 !important;
     vertical-align: middle !important;
     box-sizing: border-box !important;
+    border: none !important;
+    overflow: hidden !important;
+    font-size: 15px !important;
 }
 
 .handsontable .ht_clone_top th.colHeader,
@@ -1121,6 +1152,29 @@ input:focus {
     line-height: 1.4 !important;
     vertical-align: middle !important;
     box-sizing: border-box !important;
+    border: none !important;
+}
+
+/* Zebra stripes for frozen columns */
+.handsontable .ht_clone_left tbody tr:nth-child(even) td,
+.handsontable .ht_clone_top_left_corner tbody tr:nth-child(even) td {
+    background-color: #15120f !important;
+}
+
+.handsontable .ht_clone_left tbody tr:hover td,
+.handsontable .ht_clone_top_left_corner tbody tr:hover td {
+    background-color: #1d1914 !important;
+}
+
+/* Zebra stripes for frozen columns in team view */
+.team-view-active .handsontable .ht_clone_left tbody tr:nth-child(even) td,
+.team-view-active .handsontable .ht_clone_top_left_corner tbody tr:nth-child(even) td {
+    background-color: color-mix(in srgb, var(--team-primary) 3%, #15120f) !important;
+}
+
+.team-view-active .handsontable .ht_clone_left tbody tr:hover td,
+.team-view-active .handsontable .ht_clone_top_left_corner tbody tr:hover td {
+    background-color: color-mix(in srgb, var(--team-primary) 5%, #1d1914) !important;
 }
 
 /* Make sure table uses border-box sizing */
@@ -1137,7 +1191,7 @@ input:focus {
 }
 
 .handsontable .area {
-    background-color: rgba(233, 136, 25, 0.3) !important;
+    background-color: rgba(233, 136, 25, 0.15) !important;
 }
 
 .handsontable .current {
@@ -1234,16 +1288,28 @@ input:focus {
     color: var(--white) !important;
 }
 
-/* Dropdown cell styling - classic dropdown appearance */
+/* Dropdown cell styling - rounded pill style */
 .handsontable td.dropdown-cell {
     background: #1a1612 !important;
-    border: 1px solid var(--border-color) !important;
+    border: 1.5px solid rgba(255, 140, 0, 0.3) !important;
+    border-radius: 20px !important;
     cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    overflow: hidden !important;
 }
 
 .handsontable td.dropdown-cell:hover {
-    background: #2a2420 !important;
-    border-color: var(--primary-orange) !important;
+    background: #1d1914 !important;
+    border-color: rgba(255, 140, 0, 0.6) !important;
+}
+
+/* Dropdown cells in even rows match zebra stripe */
+.handsontable tbody tr:nth-child(even) td.dropdown-cell {
+    background: #15120f !important;
+}
+
+.handsontable tbody tr:nth-child(even) td.dropdown-cell:hover {
+    background: #1d1914 !important;
 }
 
 /* Dropdown editor styling */
@@ -1263,22 +1329,26 @@ input:focus {
     background-color: var(--gray-dark) !important;
 }
 
-/* Autocomplete dropdown list */
+/* Autocomplete dropdown list - rounded pill style */
 .htAutocompleteArrow {
-    background-color: var(--gray-medium) !important;
+    background: linear-gradient(135deg, rgba(42, 36, 32, 0.95) 0%, rgba(26, 22, 18, 0.95) 100%) !important;
     color: var(--gray-text) !important;
-    border: 1px solid var(--border-color) !important;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+    border: 1.5px solid rgba(255, 140, 0, 0.4) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 140, 0, 0.2) !important;
+    overflow: hidden !important;
 }
 
 .htAutocompleteArrow td {
-    background-color: var(--gray-medium) !important;
+    background-color: transparent !important;
     color: var(--gray-text) !important;
+    padding: 8px 12px !important;
+    transition: all 0.2s ease !important;
 }
 
 .htAutocompleteArrow td.current,
 .htAutocompleteArrow td:hover {
-    background-color: var(--primary-orange) !important;
+    background: linear-gradient(135deg, rgba(255, 140, 0, 0.25) 0%, rgba(255, 100, 0, 0.2) 100%) !important;
     color: var(--white) !important;
 }
 
@@ -1296,11 +1366,29 @@ input:focus {
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5) !important;
 }
 
-/* Table Header with Team Colors - Clean Design */
+/* Table Header with Team Colors - Halo Effect Only */
 .team-view-active .handsontable .colHeader {
-    background: color-mix(in srgb, var(--team-primary) 12%, transparent) !important;
+    background: transparent !important;
     color: var(--team-primary) !important;
-    border-bottom: 2px solid color-mix(in srgb, var(--team-primary) 30%, transparent) !important;
+    border: none !important;
+    /* Team color halo effect - no boxes */
+    text-shadow:
+        0 0 3px rgba(255, 255, 255, 1),
+        0 0 8px rgba(255, 255, 255, 0.9),
+        0 0 15px var(--team-primary),
+        0 0 25px var(--team-primary),
+        0 0 35px var(--team-secondary),
+        0 0 50px var(--team-secondary),
+        0 2px 4px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Zebra stripes with team colors - very subtle */
+.team-view-active .handsontable tbody tr:nth-child(even) td {
+    background-color: color-mix(in srgb, var(--team-primary) 3%, #15120f) !important;
+}
+
+.team-view-active .handsontable tbody tr:hover td {
+    background-color: color-mix(in srgb, var(--team-primary) 5%, #1d1914) !important;
 }
 
 /* Row Selection - Clean Team Colors with Lighter Text */
@@ -1361,10 +1449,34 @@ input:focus {
     border-color: transparent transparent var(--team-secondary) var(--team-secondary) !important;
 }
 
+/* Dropdown cells in team view */
+.team-view-active .handsontable td.dropdown-cell {
+    background: #1a1612 !important;
+    border-color: var(--team-primary) !important;
+}
+
+.team-view-active .handsontable td.dropdown-cell:hover {
+    background: color-mix(in srgb, var(--team-primary) 5%, #1d1914) !important;
+    border-color: var(--team-secondary) !important;
+}
+
+.team-view-active .handsontable tbody tr:nth-child(even) td.dropdown-cell {
+    background: color-mix(in srgb, var(--team-primary) 3%, #15120f) !important;
+}
+
+.team-view-active .handsontable tbody tr:nth-child(even) td.dropdown-cell:hover {
+    background: color-mix(in srgb, var(--team-primary) 5%, #1d1914) !important;
+}
+
 /* Autocomplete dropdown in team view */
+.team-view-active .htAutocompleteArrow {
+    border-color: var(--team-primary) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px var(--team-primary) !important;
+}
+
 .team-view-active .htAutocompleteArrow td.current,
 .team-view-active .htAutocompleteArrow td:hover {
-    background-color: color-mix(in srgb, var(--team-primary) 30%, transparent) !important;
+    background: linear-gradient(135deg, var(--team-primary) 0%, var(--team-secondary) 100%) !important;
     color: var(--white) !important;
 }
 
