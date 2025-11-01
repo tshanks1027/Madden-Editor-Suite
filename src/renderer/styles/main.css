@@ -153,10 +153,11 @@ body {
 .tool-tabs {
     display: flex;
     gap: 0.25rem;
-    background: #000000;
-    padding: 0.375rem 1rem;
+    background: transparent;
+    padding: 0;
     overflow-x: auto;
-    border-top: 1px solid var(--border-color);
+    flex: 1;
+    justify-content: center;
 }
 
 .tool-tab {
