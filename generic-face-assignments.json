@@ -1,0 +1,2260 @@
+{
+  "totalAssignments": 350,
+  "newAssignments": 287,
+  "cowboys": [
+    {
+      "pid": 23054,
+      "type": "generic",
+      "portrait": "generic_whi_m_114",
+      "note": "Cowboys: Kei'Trel Clark"
+    },
+    {
+      "pid": 4710,
+      "type": "generic",
+      "portrait": "generic_whi_m_115",
+      "note": "Cowboys: Josh Fryar"
+    },
+    {
+      "pid": 22331,
+      "type": "generic",
+      "portrait": "generic_whi_m_116",
+      "note": "Cowboys: Bam Knight"
+    },
+    {
+      "pid": 15000,
+      "type": "generic",
+      "portrait": "generic_whi_m_119",
+      "note": "Cowboys: Dadrion Taylor-Demerson"
+    },
+    {
+      "pid": 20582,
+      "type": "generic",
+      "portrait": "generic_whi_t_096",
+      "note": "Cowboys: Mack Wilson Sr"
+    }
+  ],
+  "others": [
+    {
+      "pid": 1069,
+      "type": "generic",
+      "portrait": "generic_1_001_morphed",
+      "note": "John Parker Romo"
+    },
+    {
+      "pid": 1116,
+      "type": "generic",
+      "portrait": "generic_1_002_morphed",
+      "note": "Micah Abraham"
+    },
+    {
+      "pid": 1134,
+      "type": "generic",
+      "portrait": "generic_1_003_morphed",
+      "note": "Javontae Jean-Baptiste"
+    },
+    {
+      "pid": 1153,
+      "type": "generic",
+      "portrait": "generic_1_004_morphed",
+      "note": "Levi Drake Rodriguez"
+    },
+    {
+      "pid": 1172,
+      "type": "generic",
+      "portrait": "generic_1_005_morphed",
+      "note": "Nick Gargiulo"
+    },
+    {
+      "pid": 1210,
+      "type": "generic",
+      "portrait": "generic_1_006_morphed",
+      "note": "Joe Evans"
+    },
+    {
+      "pid": 1228,
+      "type": "generic",
+      "portrait": "generic_1_007_morphed",
+      "note": "Lideatrick Griffin"
+    },
+    {
+      "pid": 1240,
+      "type": "generic",
+      "portrait": "generic_1_008_morphed",
+      "note": "Jake Johanning"
+    },
+    {
+      "pid": 1242,
+      "type": "generic",
+      "portrait": "generic_1_009_morphed",
+      "note": "Ja'Quan Sheppard"
+    },
+    {
+      "pid": 1243,
+      "type": "generic",
+      "portrait": "generic_1_010_morphed",
+      "note": "Ron Stone Jr"
+    },
+    {
+      "pid": 1251,
+      "type": "generic",
+      "portrait": "generic_1_011_morphed",
+      "note": "Chris Roland-Wallace"
+    },
+    {
+      "pid": 1253,
+      "type": "generic",
+      "portrait": "generic_1_012_morphed",
+      "note": "Luke Benson"
+    },
+    {
+      "pid": 1260,
+      "type": "generic",
+      "portrait": "generic_1_013_morphed",
+      "note": "Zach Heins"
+    },
+    {
+      "pid": 1266,
+      "type": "generic",
+      "portrait": "generic_1_014_morphed",
+      "note": "Zamari Walton"
+    },
+    {
+      "pid": 1267,
+      "type": "generic",
+      "portrait": "generic_1_015_morphed",
+      "note": "Micheal Mason"
+    },
+    {
+      "pid": 1268,
+      "type": "generic",
+      "portrait": "generic_1_016_morphed",
+      "note": "Willis Patrick"
+    },
+    {
+      "pid": 1281,
+      "type": "generic",
+      "portrait": "generic_1_017_morphed",
+      "note": "Chris McDonald"
+    },
+    {
+      "pid": 1282,
+      "type": "generic",
+      "portrait": "generic_1_018_morphed",
+      "note": "Judge Culpepper"
+    },
+    {
+      "pid": 1283,
+      "type": "generic",
+      "portrait": "generic_1_019_morphed",
+      "note": "Xavier Delgado"
+    },
+    {
+      "pid": 1332,
+      "type": "generic",
+      "portrait": "generic_1_020_morphed",
+      "note": "John Stephens"
+    }
+  ],
+  "allAssignments": [
+    {
+      "pid": 23054,
+      "type": "generic",
+      "portrait": "generic_whi_m_114",
+      "note": "Cowboys: Kei'Trel Clark"
+    },
+    {
+      "pid": 4710,
+      "type": "generic",
+      "portrait": "generic_whi_m_115",
+      "note": "Cowboys: Josh Fryar"
+    },
+    {
+      "pid": 22331,
+      "type": "generic",
+      "portrait": "generic_whi_m_116",
+      "note": "Cowboys: Bam Knight"
+    },
+    {
+      "pid": 15000,
+      "type": "generic",
+      "portrait": "generic_whi_m_119",
+      "note": "Cowboys: Dadrion Taylor-Demerson"
+    },
+    {
+      "pid": 20582,
+      "type": "generic",
+      "portrait": "generic_whi_t_096",
+      "note": "Cowboys: Mack Wilson Sr"
+    },
+    {
+      "pid": 1069,
+      "type": "generic",
+      "portrait": "generic_1_001_morphed",
+      "note": "John Parker Romo"
+    },
+    {
+      "pid": 1116,
+      "type": "generic",
+      "portrait": "generic_1_002_morphed",
+      "note": "Micah Abraham"
+    },
+    {
+      "pid": 1134,
+      "type": "generic",
+      "portrait": "generic_1_003_morphed",
+      "note": "Javontae Jean-Baptiste"
+    },
+    {
+      "pid": 1153,
+      "type": "generic",
+      "portrait": "generic_1_004_morphed",
+      "note": "Levi Drake Rodriguez"
+    },
+    {
+      "pid": 1172,
+      "type": "generic",
+      "portrait": "generic_1_005_morphed",
+      "note": "Nick Gargiulo"
+    },
+    {
+      "pid": 1210,
+      "type": "generic",
+      "portrait": "generic_1_006_morphed",
+      "note": "Joe Evans"
+    },
+    {
+      "pid": 1228,
+      "type": "generic",
+      "portrait": "generic_1_007_morphed",
+      "note": "Lideatrick Griffin"
+    },
+    {
+      "pid": 1240,
+      "type": "generic",
+      "portrait": "generic_1_008_morphed",
+      "note": "Jake Johanning"
+    },
+    {
+      "pid": 1242,
+      "type": "generic",
+      "portrait": "generic_1_009_morphed",
+      "note": "Ja'Quan Sheppard"
+    },
+    {
+      "pid": 1243,
+      "type": "generic",
+      "portrait": "generic_1_010_morphed",
+      "note": "Ron Stone Jr"
+    },
+    {
+      "pid": 1251,
+      "type": "generic",
+      "portrait": "generic_1_011_morphed",
+      "note": "Chris Roland-Wallace"
+    },
+    {
+      "pid": 1253,
+      "type": "generic",
+      "portrait": "generic_1_012_morphed",
+      "note": "Luke Benson"
+    },
+    {
+      "pid": 1260,
+      "type": "generic",
+      "portrait": "generic_1_013_morphed",
+      "note": "Zach Heins"
+    },
+    {
+      "pid": 1266,
+      "type": "generic",
+      "portrait": "generic_1_014_morphed",
+      "note": "Zamari Walton"
+    },
+    {
+      "pid": 1267,
+      "type": "generic",
+      "portrait": "generic_1_015_morphed",
+      "note": "Micheal Mason"
+    },
+    {
+      "pid": 1268,
+      "type": "generic",
+      "portrait": "generic_1_016_morphed",
+      "note": "Willis Patrick"
+    },
+    {
+      "pid": 1281,
+      "type": "generic",
+      "portrait": "generic_1_017_morphed",
+      "note": "Chris McDonald"
+    },
+    {
+      "pid": 1282,
+      "type": "generic",
+      "portrait": "generic_1_018_morphed",
+      "note": "Judge Culpepper"
+    },
+    {
+      "pid": 1283,
+      "type": "generic",
+      "portrait": "generic_1_019_morphed",
+      "note": "Xavier Delgado"
+    },
+    {
+      "pid": 1332,
+      "type": "generic",
+      "portrait": "generic_1_020_morphed",
+      "note": "John Stephens"
+    },
+    {
+      "pid": 1337,
+      "type": "generic",
+      "portrait": "generic_1_021_morphed",
+      "note": "Brayden Narveson"
+    },
+    {
+      "pid": 1339,
+      "type": "generic",
+      "portrait": "generic_1_022_morphed",
+      "note": "Ramel Keyton"
+    },
+    {
+      "pid": 1399,
+      "type": "generic",
+      "portrait": "generic_1_023_morphed",
+      "note": "John Shenker"
+    },
+    {
+      "pid": 1400,
+      "type": "generic",
+      "portrait": "generic_1_024_morphed",
+      "note": "Aaron Shampklin"
+    },
+    {
+      "pid": 1427,
+      "type": "generic",
+      "portrait": "generic_1_025_morphed",
+      "note": "Art Green"
+    },
+    {
+      "pid": 1489,
+      "type": "generic",
+      "portrait": "generic_1_026_morphed",
+      "note": "Jack Browning"
+    },
+    {
+      "pid": 1499,
+      "type": "generic",
+      "portrait": "generic_1_027_morphed",
+      "note": "Divaad Wilson"
+    },
+    {
+      "pid": 1539,
+      "type": "generic",
+      "portrait": "generic_1_028_morphed",
+      "note": "Jude McAtamney"
+    },
+    {
+      "pid": 2688,
+      "type": "generic",
+      "portrait": "generic_1_029_morphed",
+      "note": "Rakeem Nunez-Roches Sr"
+    },
+    {
+      "pid": 4617,
+      "type": "generic",
+      "portrait": "generic_1_030_morphed",
+      "note": "Cam'Ron Silmon-Craig"
+    },
+    {
+      "pid": 4620,
+      "type": "generic",
+      "portrait": "generic_1_031_morphed",
+      "note": "Dorian Mausi Jr."
+    },
+    {
+      "pid": 4626,
+      "type": "generic",
+      "portrait": "generic_1_034_morphed",
+      "note": "Shaun Dolac"
+    },
+    {
+      "pid": 4627,
+      "type": "generic",
+      "portrait": "generic_1_035_morphed",
+      "note": "Jamon Dumas-Johnson"
+    },
+    {
+      "pid": 4629,
+      "type": "generic",
+      "portrait": "generic_1_036_morphed",
+      "note": "Branson Combs"
+    },
+    {
+      "pid": 4631,
+      "type": "generic",
+      "portrait": "generic_1_037_morphed",
+      "note": "Ozzie Hutchinson"
+    },
+    {
+      "pid": 4633,
+      "type": "generic",
+      "portrait": "generic_1_038_morphed",
+      "note": "Reid Holskey"
+    },
+    {
+      "pid": 4634,
+      "type": "generic",
+      "portrait": "generic_1_039_morphed",
+      "note": "Tyler Cooper"
+    },
+    {
+      "pid": 4636,
+      "type": "generic",
+      "portrait": "generic_1_040_morphed",
+      "note": "Dalton Cooper"
+    },
+    {
+      "pid": 4637,
+      "type": "generic",
+      "portrait": "generic_1_041_morphed",
+      "note": "Nash Jones"
+    },
+    {
+      "pid": 4639,
+      "type": "generic",
+      "portrait": "generic_1_BM_MB_005",
+      "note": "Willie Lampkin IV"
+    },
+    {
+      "pid": 4640,
+      "type": "generic",
+      "portrait": "generic_1_B_B_005",
+      "note": "Ben Dooley"
+    },
+    {
+      "pid": 4641,
+      "type": "generic",
+      "portrait": "generic_1_B_G_01",
+      "note": "Jarrod Hufford"
+    },
+    {
+      "pid": 4645,
+      "type": "generic",
+      "portrait": "generic_1_B_N_0012",
+      "note": "Jack Conley"
+    },
+    {
+      "pid": 4646,
+      "type": "generic",
+      "portrait": "generic_1_B_N_007",
+      "note": "Gus Hartwig"
+    },
+    {
+      "pid": 4652,
+      "type": "generic",
+      "portrait": "generic_1_B_N_01",
+      "note": "Jahmal Banks"
+    },
+    {
+      "pid": 4655,
+      "type": "generic",
+      "portrait": "generic_1_B_N_010",
+      "note": "Cam Camper"
+    },
+    {
+      "pid": 4662,
+      "type": "generic",
+      "portrait": "generic_1_B_N_011",
+      "note": "Chandler Brayboy"
+    },
+    {
+      "pid": 4663,
+      "type": "generic",
+      "portrait": "generic_1_B_N_02",
+      "note": "Efton Chism III"
+    },
+    {
+      "pid": 4664,
+      "type": "generic",
+      "portrait": "generic_1_B_N_03",
+      "note": "Stevo Klotz"
+    },
+    {
+      "pid": 4665,
+      "type": "generic",
+      "portrait": "generic_1_B_S_001",
+      "note": "Benjamin Yurosek"
+    },
+    {
+      "pid": 4667,
+      "type": "generic",
+      "portrait": "generic_1_B_S_002",
+      "note": "Nash Hutmacher"
+    },
+    {
+      "pid": 4668,
+      "type": "generic",
+      "portrait": "generic_1_H_BD_01",
+      "note": "Jayson Jones"
+    },
+    {
+      "pid": 4670,
+      "type": "generic",
+      "portrait": "generic_1_H_BD_02",
+      "note": "TeRah Edwards"
+    },
+    {
+      "pid": 4671,
+      "type": "generic",
+      "portrait": "generic_1_H_N_010",
+      "note": "Treven Ma'ae"
+    },
+    {
+      "pid": 4675,
+      "type": "generic",
+      "portrait": "generic_1_H_N_015",
+      "note": "Keondre Jackson"
+    },
+    {
+      "pid": 4678,
+      "type": "generic",
+      "portrait": "generic_1_H_S_003",
+      "note": "Johnathan Edwards"
+    },
+    {
+      "pid": 4682,
+      "type": "generic",
+      "portrait": "generic_1_H_S_008",
+      "note": "John Humphrey"
+    },
+    {
+      "pid": 4691,
+      "type": "generic",
+      "portrait": "generic_1_M_N_02",
+      "note": "Desmond Igbinosun"
+    },
+    {
+      "pid": 4702,
+      "type": "generic",
+      "portrait": "generic_2_001_morphed",
+      "note": "Joey Lombard"
+    },
+    {
+      "pid": 4704,
+      "type": "generic",
+      "portrait": "generic_2_002_morphed",
+      "note": "William Wagner"
+    },
+    {
+      "pid": 4705,
+      "type": "generic",
+      "portrait": "generic_2_003_morphed",
+      "note": "Andre Szmyt"
+    },
+    {
+      "pid": 4706,
+      "type": "generic",
+      "portrait": "generic_2_004_morphed",
+      "note": "Kai Kroeger"
+    },
+    {
+      "pid": 4707,
+      "type": "generic",
+      "portrait": "generic_2_005_morphed",
+      "note": "Will Putnam"
+    },
+    {
+      "pid": 4708,
+      "type": "generic",
+      "portrait": "generic_2_006_morphed",
+      "note": "Corey Bullock"
+    },
+    {
+      "pid": 4709,
+      "type": "generic",
+      "portrait": "generic_2_007_morphed",
+      "note": "Drew Moss"
+    },
+    {
+      "pid": 4711,
+      "type": "generic",
+      "portrait": "generic_2_008_morphed",
+      "note": "Theo Benedet"
+    },
+    {
+      "pid": 4712,
+      "type": "generic",
+      "portrait": "generic_2_009_morphed",
+      "note": "Austen Pleasants"
+    },
+    {
+      "pid": 4713,
+      "type": "generic",
+      "portrait": "generic_2_010_morphed",
+      "note": "Benjamin Chukwuma"
+    },
+    {
+      "pid": 4715,
+      "type": "generic",
+      "portrait": "generic_2_011_morphed",
+      "note": "Keyon Martin"
+    },
+    {
+      "pid": 4716,
+      "type": "generic",
+      "portrait": "generic_2_012_morphed",
+      "note": "Reddy Steward"
+    },
+    {
+      "pid": 4718,
+      "type": "generic",
+      "portrait": "generic_2_013_morphed",
+      "note": "Reuben Lowery III"
+    },
+    {
+      "pid": 4719,
+      "type": "generic",
+      "portrait": "generic_2_014_morphed",
+      "note": "PJ Jules"
+    },
+    {
+      "pid": 4720,
+      "type": "generic",
+      "portrait": "generic_2_015_morphed",
+      "note": "Elijah Williams"
+    },
+    {
+      "pid": 4721,
+      "type": "generic",
+      "portrait": "generic_2_016_morphed",
+      "note": "C.J. Ravenell"
+    },
+    {
+      "pid": 4722,
+      "type": "generic",
+      "portrait": "generic_2_017_morphed",
+      "note": "Nate Carter"
+    },
+    {
+      "pid": 4723,
+      "type": "generic",
+      "portrait": "generic_2_018_morphed",
+      "note": "Zavier Scott"
+    },
+    {
+      "pid": 4724,
+      "type": "generic",
+      "portrait": "generic_2_019_morphed",
+      "note": "Brycen Tremayne"
+    },
+    {
+      "pid": 4725,
+      "type": "generic",
+      "portrait": "generic_2_020_morphed",
+      "note": "Dalevon Campbell"
+    },
+    {
+      "pid": 4726,
+      "type": "generic",
+      "portrait": "generic_2_021_morphed",
+      "note": "Jahdae Walker"
+    },
+    {
+      "pid": 4727,
+      "type": "generic",
+      "portrait": "generic_2_022_morphed",
+      "note": "Darius Cooper"
+    },
+    {
+      "pid": 4729,
+      "type": "generic",
+      "portrait": "generic_2_023_morphed",
+      "note": "Nick Kallerup"
+    },
+    {
+      "pid": 4731,
+      "type": "generic",
+      "portrait": "generic_2_024_morphed",
+      "note": "Cooper McDonald"
+    },
+    {
+      "pid": 4732,
+      "type": "generic",
+      "portrait": "generic_2_025_morphed",
+      "note": "Marlowe Wax"
+    },
+    {
+      "pid": 4733,
+      "type": "generic",
+      "portrait": "generic_2_026_morphed",
+      "note": "Isaiah Stalbird"
+    },
+    {
+      "pid": 4734,
+      "type": "generic",
+      "portrait": "generic_2_027_morphed",
+      "note": "John Bullock"
+    },
+    {
+      "pid": 4735,
+      "type": "generic",
+      "portrait": "generic_2_028_morphed",
+      "note": "Ale Kaho"
+    },
+    {
+      "pid": 4736,
+      "type": "generic",
+      "portrait": "generic_2_029_morphed",
+      "note": "Easton Mascarenas-Arnold"
+    },
+    {
+      "pid": 4737,
+      "type": "generic",
+      "portrait": "generic_2_030_morphed",
+      "note": "BJ Green II"
+    },
+    {
+      "pid": 4738,
+      "type": "generic",
+      "portrait": "generic_2_031_morphed",
+      "note": "Connor O'Toole"
+    },
+    {
+      "pid": 4740,
+      "type": "generic",
+      "portrait": "generic_2_032_morphed",
+      "note": "Zaire Mitchell-Paden"
+    },
+    {
+      "pid": 4741,
+      "type": "generic",
+      "portrait": "generic_2_033_morphed",
+      "note": "Jacob Saylors"
+    },
+    {
+      "pid": 4742,
+      "type": "generic",
+      "portrait": "generic_2_034_morphed",
+      "note": "Austin Ajiake"
+    },
+    {
+      "pid": 4743,
+      "type": "generic",
+      "portrait": "generic_2_035_morphed",
+      "note": "Swayze Bozeman"
+    },
+    {
+      "pid": 4744,
+      "type": "generic",
+      "portrait": "generic_2_036_morphed",
+      "note": "Brant Banks"
+    },
+    {
+      "pid": 4745,
+      "type": "generic",
+      "portrait": "generic_2_037_morphed",
+      "note": "Zion Childress"
+    },
+    {
+      "pid": 4746,
+      "type": "generic",
+      "portrait": "generic_2_038_morphed",
+      "note": "Carl Jones"
+    },
+    {
+      "pid": 4747,
+      "type": "generic",
+      "portrait": "generic_2_039_morphed",
+      "note": "Trevian Thomas"
+    },
+    {
+      "pid": 4748,
+      "type": "generic",
+      "portrait": "generic_2_040_morphed",
+      "note": "Jordan Colbert"
+    },
+    {
+      "pid": 4749,
+      "type": "generic",
+      "portrait": "generic_2_041_morphed",
+      "note": "Dom Jones"
+    },
+    {
+      "pid": 4750,
+      "type": "generic",
+      "portrait": "generic_2_042_morphed",
+      "note": "Jimmy Ciarlo"
+    },
+    {
+      "pid": 4751,
+      "type": "generic",
+      "portrait": "generic_2_043_morphed",
+      "note": "Vershon Lee"
+    },
+    {
+      "pid": 12557,
+      "type": "generic",
+      "portrait": "generic_2_044_morphed",
+      "note": "Cam Robinson"
+    },
+    {
+      "pid": 12569,
+      "type": "generic",
+      "portrait": "generic_2_045_morphed",
+      "note": "D'Onta Foreman"
+    },
+    {
+      "pid": 12571,
+      "type": "generic",
+      "portrait": "generic_2_046_morphed",
+      "note": "JuJu Smith-Schuster"
+    },
+    {
+      "pid": 12582,
+      "type": "generic",
+      "portrait": "generic_2_047_morphed",
+      "note": "Pat Elflein"
+    },
+    {
+      "pid": 12586,
+      "type": "generic",
+      "portrait": "generic_2_048_morphed",
+      "note": "Chris Wormley"
+    },
+    {
+      "pid": 12598,
+      "type": "generic",
+      "portrait": "generic_2_049_morphed",
+      "note": "Anthony Walker Jr"
+    },
+    {
+      "pid": 12607,
+      "type": "generic",
+      "portrait": "generic_2_050_morphed",
+      "note": "Deatrich Wise Jr"
+    },
+    {
+      "pid": 12614,
+      "type": "generic",
+      "portrait": "generic_2_051_morphed",
+      "note": "Chris Godwin Jr"
+    },
+    {
+      "pid": 12641,
+      "type": "generic",
+      "portrait": "generic_2_052_morphed",
+      "note": "Dan Feeney"
+    },
+    {
+      "pid": 12652,
+      "type": "generic",
+      "portrait": "generic_2_053_morphed",
+      "note": "C.J. Beathard"
+    },
+    {
+      "pid": 12662,
+      "type": "generic",
+      "portrait": "generic_2_054_morphed",
+      "note": "Josh Reynolds"
+    },
+    {
+      "pid": 12663,
+      "type": "generic",
+      "portrait": "generic_2_055_morphed",
+      "note": "Jamaal Williams"
+    },
+    {
+      "pid": 12692,
+      "type": "generic",
+      "portrait": "generic_2_056_morphed",
+      "note": "Trey Hendrickson"
+    },
+    {
+      "pid": 12693,
+      "type": "generic",
+      "portrait": "generic_2_057_morphed",
+      "note": "Rudy Ford"
+    },
+    {
+      "pid": 12708,
+      "type": "generic",
+      "portrait": "generic_2_058_morphed",
+      "note": "Joshua Dobbs"
+    },
+    {
+      "pid": 12719,
+      "type": "generic",
+      "portrait": "generic_2_059_morphed",
+      "note": "Davon Godchaux"
+    },
+    {
+      "pid": 12721,
+      "type": "generic",
+      "portrait": "generic_2_060_morphed",
+      "note": "Al-Quadin Muhammad"
+    },
+    {
+      "pid": 12781,
+      "type": "generic",
+      "portrait": "generic_2_061_morphed",
+      "note": "Matt Milano"
+    },
+    {
+      "pid": 12785,
+      "type": "generic",
+      "portrait": "generic_2_062_morphed",
+      "note": "Chuck Clark"
+    },
+    {
+      "pid": 12799,
+      "type": "generic",
+      "portrait": "generic_2_063_morphed",
+      "note": "Dare Ogunbowale"
+    },
+    {
+      "pid": 12824,
+      "type": "generic",
+      "portrait": "generic_2_BMH_003",
+      "note": "D.J. Jones"
+    },
+    {
+      "pid": 12832,
+      "type": "generic",
+      "portrait": "generic_2_BMH_G_009",
+      "note": "Jalen Reeves-Maybin"
+    },
+    {
+      "pid": 12965,
+      "type": "generic",
+      "portrait": "generic_2_BMH_S_002",
+      "note": "Kenny Moore II"
+    },
+    {
+      "pid": 13025,
+      "type": "generic",
+      "portrait": "generic_2_BMH_S_003",
+      "note": "Breon Borders"
+    },
+    {
+      "pid": 13086,
+      "type": "generic",
+      "portrait": "generic_2_BMH_S_004",
+      "note": "Maurice Hurst"
+    },
+    {
+      "pid": 13202,
+      "type": "generic",
+      "portrait": "generic_2_BMH_S_010",
+      "note": "Jessie Bates III"
+    },
+    {
+      "pid": 13244,
+      "type": "generic",
+      "portrait": "generic_2_B_BD_03",
+      "note": "Dorance Armstrong"
+    },
+    {
+      "pid": 13262,
+      "type": "generic",
+      "portrait": "generic_2_B_B_004",
+      "note": "Tracy Walker III"
+    },
+    {
+      "pid": 13272,
+      "type": "generic",
+      "portrait": "generic_2_B_B_005",
+      "note": "Daurice Fountain"
+    },
+    {
+      "pid": 13275,
+      "type": "generic",
+      "portrait": "generic_2_B_B_006",
+      "note": "Boston Scott"
+    },
+    {
+      "pid": 13294,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0010",
+      "note": "Folorunso Fatukasi"
+    },
+    {
+      "pid": 13356,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0011",
+      "note": "John Franklin-Myers"
+    },
+    {
+      "pid": 13362,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0012",
+      "note": "Ray-Ray McCloud III"
+    },
+    {
+      "pid": 13363,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0013",
+      "note": "Jeff Wilson Jr"
+    },
+    {
+      "pid": 13366,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0014",
+      "note": "Marquez Valdes-Scantling"
+    },
+    {
+      "pid": 13375,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0015",
+      "note": "Michael Badgley"
+    },
+    {
+      "pid": 13410,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0016",
+      "note": "Jaryd Jones-Smith"
+    },
+    {
+      "pid": 13446,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0017",
+      "note": "Jordan Thomas"
+    },
+    {
+      "pid": 13465,
+      "type": "generic",
+      "portrait": "generic_2_B_N_0018",
+      "note": "Russell Gage Jr"
+    },
+    {
+      "pid": 13466,
+      "type": "generic",
+      "portrait": "generic_2_B_N_006",
+      "note": "Sebastian Joseph-Day"
+    },
+    {
+      "pid": 13710,
+      "type": "generic",
+      "portrait": "generic_2_B_N_009",
+      "note": "Jonathan Owens"
+    },
+    {
+      "pid": 13723,
+      "type": "generic",
+      "portrait": "generic_2_B_N_01",
+      "note": "Trent Scott"
+    },
+    {
+      "pid": 13872,
+      "type": "generic",
+      "portrait": "generic_2_B_N_02",
+      "note": "Mo Alie-Cox"
+    },
+    {
+      "pid": 14655,
+      "type": "generic",
+      "portrait": "generic_2_B_N_03",
+      "note": "Ja'Lynn Polk"
+    },
+    {
+      "pid": 14657,
+      "type": "generic",
+      "portrait": "generic_2_B_S_001",
+      "note": "Ricky Pearsall"
+    },
+    {
+      "pid": 14671,
+      "type": "generic",
+      "portrait": "generic_2_B_S_005",
+      "note": "Jha'Quan Jackson"
+    },
+    {
+      "pid": 14679,
+      "type": "generic",
+      "portrait": "generic_2_B_S_006",
+      "note": "Ja'Tavion Sanders"
+    },
+    {
+      "pid": 14688,
+      "type": "generic",
+      "portrait": "generic_2_B_S_007",
+      "note": "Austin Stogner"
+    },
+    {
+      "pid": 14691,
+      "type": "generic",
+      "portrait": "generic_2_B_S_009",
+      "note": "Brevyn Spann-Ford"
+    },
+    {
+      "pid": 14704,
+      "type": "generic",
+      "portrait": "generic_2_H_BD_03",
+      "note": "Jackson Powers-Johnson"
+    },
+    {
+      "pid": 14731,
+      "type": "generic",
+      "portrait": "generic_2_H_B_004",
+      "note": "DJ Glaze"
+    },
+    {
+      "pid": 14733,
+      "type": "generic",
+      "portrait": "generic_2_H_B_005",
+      "note": "Roger Rosengarten"
+    },
+    {
+      "pid": 14734,
+      "type": "generic",
+      "portrait": "generic_2_H_B_010",
+      "note": "Nathan Thomas"
+    },
+    {
+      "pid": 14744,
+      "type": "generic",
+      "portrait": "generic_2_H_GM_004",
+      "note": "Trevor Keegan"
+    },
+    {
+      "pid": 14758,
+      "type": "generic",
+      "portrait": "generic_2_H_G_01",
+      "note": "Byron Murphy II"
+    },
+    {
+      "pid": 14760,
+      "type": "generic",
+      "portrait": "generic_2_H_G_02",
+      "note": "T'Vondre Sweat"
+    },
+    {
+      "pid": 14774,
+      "type": "generic",
+      "portrait": "generic_2_H_MB_012",
+      "note": "Will Sheppard"
+    },
+    {
+      "pid": 14910,
+      "type": "generic",
+      "portrait": "generic_2_H_N_006",
+      "note": "Ty'Ron Hopper"
+    },
+    {
+      "pid": 14925,
+      "type": "generic",
+      "portrait": "generic_2_H_N_007",
+      "note": "Kool-Aid McKinstry"
+    },
+    {
+      "pid": 14954,
+      "type": "generic",
+      "portrait": "generic_2_H_N_009",
+      "note": "Kris Abrams-Draine"
+    },
+    {
+      "pid": 14966,
+      "type": "generic",
+      "portrait": "generic_2_M_B_01",
+      "note": "Chau Smith-Wade"
+    },
+    {
+      "pid": 14971,
+      "type": "generic",
+      "portrait": "generic_2_M_B_02",
+      "note": "Kenny Logan Jr"
+    },
+    {
+      "pid": 14999,
+      "type": "generic",
+      "portrait": "generic_2_M_N_007",
+      "note": "Sione Vaki"
+    },
+    {
+      "pid": 15016,
+      "type": "generic",
+      "portrait": "generic_2_M_N_04",
+      "note": "Josh Williams"
+    },
+    {
+      "pid": 15043,
+      "type": "generic",
+      "portrait": "generic_2_M_N_05",
+      "note": "Ja'Quinden Jackson"
+    },
+    {
+      "pid": 15050,
+      "type": "generic",
+      "portrait": "generic_2_M_N_22",
+      "note": "Trevor Etienne"
+    },
+    {
+      "pid": 15065,
+      "type": "generic",
+      "portrait": "generic_2_M_S_011",
+      "note": "Dont'e Thornton Jr."
+    },
+    {
+      "pid": 15067,
+      "type": "generic",
+      "portrait": "generic_2_T_N_01",
+      "note": "Isaac TeSlaa"
+    },
+    {
+      "pid": 15073,
+      "type": "generic",
+      "portrait": "generic_2_T_N_02",
+      "note": "KeAndre Lambert-Smith"
+    },
+    {
+      "pid": 15111,
+      "type": "generic",
+      "portrait": "generic_2_T_S_007",
+      "note": "CJ Dippre"
+    },
+    {
+      "pid": 15120,
+      "type": "generic",
+      "portrait": "generic_3_001_morphed",
+      "note": "Harold Fannin Jr."
+    },
+    {
+      "pid": 15149,
+      "type": "generic",
+      "portrait": "generic_3_002_morphed",
+      "note": "Ajani Cornelius"
+    },
+    {
+      "pid": 15157,
+      "type": "generic",
+      "portrait": "generic_3_003_morphed",
+      "note": "Brandon Crenshaw-Dickson"
+    },
+    {
+      "pid": 15177,
+      "type": "generic",
+      "portrait": "generic_3_004_morphed",
+      "note": "Princely Umanmielen"
+    },
+    {
+      "pid": 15181,
+      "type": "generic",
+      "portrait": "generic_3_005_morphed",
+      "note": "Sai'vion Jones"
+    },
+    {
+      "pid": 15186,
+      "type": "generic",
+      "portrait": "generic_3_006_morphed",
+      "note": "Antwaun Powell-Ryland"
+    },
+    {
+      "pid": 15198,
+      "type": "generic",
+      "portrait": "generic_3_007_morphed",
+      "note": "Abdul Carter"
+    },
+    {
+      "pid": 15224,
+      "type": "generic",
+      "portrait": "generic_3_008_morphed",
+      "note": "Omarr Norman-Lott"
+    },
+    {
+      "pid": 15228,
+      "type": "generic",
+      "portrait": "generic_3_009_morphed",
+      "note": "Jay Toia"
+    },
+    {
+      "pid": 15243,
+      "type": "generic",
+      "portrait": "generic_3_010_morphed",
+      "note": "Tyrion Ingram-Dawkins"
+    },
+    {
+      "pid": 15247,
+      "type": "generic",
+      "portrait": "generic_3_011_morphed",
+      "note": "Smael Mondon Jr."
+    },
+    {
+      "pid": 15260,
+      "type": "generic",
+      "portrait": "generic_3_012_morphed",
+      "note": "Bam Martin-Scott"
+    },
+    {
+      "pid": 15329,
+      "type": "generic",
+      "portrait": "generic_3_013_morphed",
+      "note": "Azareye'h Thomas"
+    },
+    {
+      "pid": 15355,
+      "type": "generic",
+      "portrait": "generic_3_014_morphed",
+      "note": "Alijah Clark"
+    },
+    {
+      "pid": 16157,
+      "type": "generic",
+      "portrait": "generic_3_015_morphed",
+      "note": "Major Burns"
+    },
+    {
+      "pid": 16159,
+      "type": "generic",
+      "portrait": "generic_3_016_morphed",
+      "note": "Jason Ivey"
+    },
+    {
+      "pid": 17676,
+      "type": "generic",
+      "portrait": "generic_3_017_morphed",
+      "note": "Chris Jones"
+    },
+    {
+      "pid": 17742,
+      "type": "generic",
+      "portrait": "generic_3_018_morphed",
+      "note": "Austin Johnson"
+    },
+    {
+      "pid": 17852,
+      "type": "generic",
+      "portrait": "generic_3_019_morphed",
+      "note": "Kamu Grugier-Hill"
+    },
+    {
+      "pid": 17897,
+      "type": "generic",
+      "portrait": "generic_3_020_morphed",
+      "note": "Roy Robertson-Harris"
+    },
+    {
+      "pid": 17960,
+      "type": "generic",
+      "portrait": "generic_3_021_morphed",
+      "note": "Robbie Chosen"
+    },
+    {
+      "pid": 20347,
+      "type": "generic",
+      "portrait": "generic_3_022_morphed",
+      "note": "Gardner Minshew"
+    },
+    {
+      "pid": 20350,
+      "type": "generic",
+      "portrait": "generic_3_023_morphed",
+      "note": "David Sills V"
+    },
+    {
+      "pid": 20351,
+      "type": "generic",
+      "portrait": "generic_3_024_morphed",
+      "note": "Stanley Morgan Jr"
+    },
+    {
+      "pid": 20369,
+      "type": "generic",
+      "portrait": "generic_3_025_morphed",
+      "note": "Chris Lindstrom"
+    },
+    {
+      "pid": 20380,
+      "type": "generic",
+      "portrait": "generic_3_026_morphed",
+      "note": "Lester Cotton"
+    },
+    {
+      "pid": 20388,
+      "type": "generic",
+      "portrait": "generic_3_027_morphed",
+      "note": "Andy Isabella"
+    },
+    {
+      "pid": 20400,
+      "type": "generic",
+      "portrait": "generic_3_028_morphed",
+      "note": "Ben Powers"
+    },
+    {
+      "pid": 20441,
+      "type": "generic",
+      "portrait": "generic_3_029_morphed",
+      "note": "David Long Jr"
+    },
+    {
+      "pid": 20451,
+      "type": "generic",
+      "portrait": "generic_3_030_morphed",
+      "note": "Rock Ya-Sin"
+    },
+    {
+      "pid": 20452,
+      "type": "generic",
+      "portrait": "generic_3_031_morphed",
+      "note": "Lonnie Johnson Jr"
+    },
+    {
+      "pid": 20458,
+      "type": "generic",
+      "portrait": "generic_3_032_morphed",
+      "note": "Darnell Savage"
+    },
+    {
+      "pid": 20459,
+      "type": "generic",
+      "portrait": "generic_3_033_morphed",
+      "note": "Johnathan Abram"
+    },
+    {
+      "pid": 20481,
+      "type": "generic",
+      "portrait": "generic_3_034_morphed",
+      "note": "Mitch Wishnowsky"
+    },
+    {
+      "pid": 20519,
+      "type": "generic",
+      "portrait": "generic_3_035_morphed",
+      "note": "Irv Smith Jr"
+    },
+    {
+      "pid": 20541,
+      "type": "generic",
+      "portrait": "generic_3_036_morphed",
+      "note": "Michael Jordan"
+    },
+    {
+      "pid": 20549,
+      "type": "generic",
+      "portrait": "generic_3_037_morphed",
+      "note": "Jeffery Simmons"
+    },
+    {
+      "pid": 20584,
+      "type": "generic",
+      "portrait": "generic_3_038_morphed",
+      "note": "Joe Giles-Harris"
+    },
+    {
+      "pid": 20605,
+      "type": "generic",
+      "portrait": "generic_3_BMT_S_003",
+      "note": "David Long Jr"
+    },
+    {
+      "pid": 20621,
+      "type": "generic",
+      "portrait": "generic_3_B_BD_02",
+      "note": "C.J. Gardner-Johnson"
+    },
+    {
+      "pid": 20666,
+      "type": "generic",
+      "portrait": "generic_3_B_B_009",
+      "note": "Sua Opeta"
+    },
+    {
+      "pid": 20678,
+      "type": "generic",
+      "portrait": "generic_3_B_B_01",
+      "note": "Trey Pipkins III"
+    },
+    {
+      "pid": 20683,
+      "type": "generic",
+      "portrait": "generic_3_B_N_004",
+      "note": "Albert Huggins Jr"
+    },
+    {
+      "pid": 20688,
+      "type": "generic",
+      "portrait": "generic_3_B_N_007",
+      "note": "Azeez Al-Shaair"
+    },
+    {
+      "pid": 20730,
+      "type": "generic",
+      "portrait": "generic_3_B_N_01",
+      "note": "E.J. Speed"
+    },
+    {
+      "pid": 20733,
+      "type": "generic",
+      "portrait": "generic_3_B_N_02",
+      "note": "Ka'Dar Hollman"
+    },
+    {
+      "pid": 20749,
+      "type": "generic",
+      "portrait": "generic_3_B_S_010",
+      "note": "Kaden Elliss"
+    },
+    {
+      "pid": 20765,
+      "type": "generic",
+      "portrait": "generic_3_B_S_011",
+      "note": "Jalen Dalton"
+    },
+    {
+      "pid": 20794,
+      "type": "generic",
+      "portrait": "generic_3_H_BD_01",
+      "note": "Jamie Gillan"
+    },
+    {
+      "pid": 20816,
+      "type": "generic",
+      "portrait": "generic_3_H_B_008",
+      "note": "Roderic Teamer"
+    },
+    {
+      "pid": 20842,
+      "type": "generic",
+      "portrait": "generic_3_H_B_01",
+      "note": "Matt Orzech"
+    },
+    {
+      "pid": 21001,
+      "type": "generic",
+      "portrait": "generic_3_H_MS_01",
+      "note": "Willie Gay Jr"
+    },
+    {
+      "pid": 21044,
+      "type": "generic",
+      "portrait": "generic_3_H_N_01",
+      "note": "Patrick Taylor Jr"
+    },
+    {
+      "pid": 21067,
+      "type": "generic",
+      "portrait": "generic_3_H_S_001",
+      "note": "Nick Westbrook-Ikhine"
+    },
+    {
+      "pid": 21108,
+      "type": "generic",
+      "portrait": "generic_3_M_N_01",
+      "note": "Hakeem Adeniji"
+    },
+    {
+      "pid": 21276,
+      "type": "generic",
+      "portrait": "generic_3_T_N_004",
+      "note": "Joe Bachie"
+    },
+    {
+      "pid": 21388,
+      "type": "generic",
+      "portrait": "generic_3_T_N_01",
+      "note": "T.J. Smith Jr"
+    },
+    {
+      "pid": 21401,
+      "type": "generic",
+      "portrait": "generic_4_BHM_S_01",
+      "note": "Sam Franklin Jr"
+    },
+    {
+      "pid": 21403,
+      "type": "generic",
+      "portrait": "generic_4_BM_B_001",
+      "note": "Demetrius Flannigan-Fowles"
+    },
+    {
+      "pid": 21500,
+      "type": "generic",
+      "portrait": "generic_4_B_BM_01",
+      "note": "Jeremiah Owusu-Koramoah"
+    },
+    {
+      "pid": 21503,
+      "type": "generic",
+      "portrait": "generic_4_B_B_004",
+      "note": "Boogie Basham Jr"
+    },
+    {
+      "pid": 21519,
+      "type": "generic",
+      "portrait": "generic_4_B_G_003",
+      "note": "Joe Tryon-Shoyinka"
+    },
+    {
+      "pid": 21533,
+      "type": "generic",
+      "portrait": "generic_4_B_G_004",
+      "note": "Sam Cosmi"
+    },
+    {
+      "pid": 21552,
+      "type": "generic",
+      "portrait": "generic_4_B_MS_01",
+      "note": "Alijah Vera-Tucker"
+    },
+    {
+      "pid": 21605,
+      "type": "generic",
+      "portrait": "generic_4_B_MS_02",
+      "note": "Ihmir Smith-Marsette"
+    },
+    {
+      "pid": 21606,
+      "type": "generic",
+      "portrait": "generic_4_B_MS_03",
+      "note": "Amon-Ra St. Brown"
+    },
+    {
+      "pid": 21613,
+      "type": "generic",
+      "portrait": "generic_4_B_M_01",
+      "note": "Dez Fitzpatrick"
+    },
+    {
+      "pid": 21687,
+      "type": "generic",
+      "portrait": "generic_4_B_N_002",
+      "note": "Cam Sample"
+    },
+    {
+      "pid": 21689,
+      "type": "generic",
+      "portrait": "generic_4_B_N_003",
+      "note": "William Bradley-King"
+    },
+    {
+      "pid": 21699,
+      "type": "generic",
+      "portrait": "generic_4_B_N_004",
+      "note": "Shemar Jean-Charles"
+    },
+    {
+      "pid": 21704,
+      "type": "generic",
+      "portrait": "generic_4_B_N_005",
+      "note": "Benjamin St-Juste"
+    },
+    {
+      "pid": 21706,
+      "type": "generic",
+      "portrait": "generic_4_B_N_01",
+      "note": "Keith Taylor"
+    },
+    {
+      "pid": 21721,
+      "type": "generic",
+      "portrait": "generic_4_B_N_02",
+      "note": "Travis Etienne Jr"
+    },
+    {
+      "pid": 21764,
+      "type": "generic",
+      "portrait": "generic_4_H_BD_01",
+      "note": "Patrick Surtain II"
+    },
+    {
+      "pid": 21791,
+      "type": "generic",
+      "portrait": "generic_4_H_N_003",
+      "note": "Marcelino McCrary-Ball"
+    },
+    {
+      "pid": 21844,
+      "type": "generic",
+      "portrait": "generic_4_H_N_004",
+      "note": "Thayer Munford Jr"
+    },
+    {
+      "pid": 21885,
+      "type": "generic",
+      "portrait": "generic_4_H_N_005",
+      "note": "Roderick Perry II"
+    },
+    {
+      "pid": 21889,
+      "type": "generic",
+      "portrait": "generic_4_M_BD_02",
+      "note": "T.J. Slaton"
+    },
+    {
+      "pid": 21893,
+      "type": "generic",
+      "portrait": "generic_4_M_M_005",
+      "note": "David Anenih"
+    },
+    {
+      "pid": 21928,
+      "type": "generic",
+      "portrait": "generic_4_M_N_01",
+      "note": "Quinton Bohanna"
+    },
+    {
+      "pid": 21930,
+      "type": "generic",
+      "portrait": "generic_4_T_G_01",
+      "note": "Will Sherman"
+    },
+    {
+      "pid": 22016,
+      "type": "generic",
+      "portrait": "generic_4_T_N_006",
+      "note": "Easop Winston Jr"
+    },
+    {
+      "pid": 22055,
+      "type": "generic",
+      "portrait": "generic_4_T_N_007",
+      "note": "Brian Robinson Jr"
+    },
+    {
+      "pid": 22061,
+      "type": "generic",
+      "portrait": "generic_5_001_morphed",
+      "note": "Pierre Strong Jr"
+    },
+    {
+      "pid": 22089,
+      "type": "generic",
+      "portrait": "generic_5_002_morphed",
+      "note": "Velus Jones Jr"
+    },
+    {
+      "pid": 22151,
+      "type": "generic",
+      "portrait": "generic_5_003_morphed",
+      "note": "Josh Paschal"
+    },
+    {
+      "pid": 22168,
+      "type": "generic",
+      "portrait": "generic_5_004_morphed",
+      "note": "Zach Carter"
+    },
+    {
+      "pid": 22190,
+      "type": "generic",
+      "portrait": "generic_5_008_morphed",
+      "note": "Brian Asamoah II"
+    },
+    {
+      "pid": 22203,
+      "type": "generic",
+      "portrait": "generic_5_009_morphed",
+      "note": "D'Marco Jackson"
+    },
+    {
+      "pid": 22212,
+      "type": "generic",
+      "portrait": "generic_5_010_morphed",
+      "note": "Josh Jobe"
+    },
+    {
+      "pid": 22220,
+      "type": "generic",
+      "portrait": "generic_5_011_morphed",
+      "note": "Cam Taylor-Britt"
+    },
+    {
+      "pid": 22244,
+      "type": "generic",
+      "portrait": "generic_5_012_morphed",
+      "note": "Christopher Smith II"
+    },
+    {
+      "pid": 22245,
+      "type": "generic",
+      "portrait": "generic_5_013_morphed",
+      "note": "Tariq Castro-Fields"
+    },
+    {
+      "pid": 22254,
+      "type": "generic",
+      "portrait": "generic_5_014_morphed",
+      "note": "Jalyn Armour-Davis"
+    },
+    {
+      "pid": 22255,
+      "type": "generic",
+      "portrait": "generic_5_015_morphed",
+      "note": "Andrew Booth"
+    },
+    {
+      "pid": 22258,
+      "type": "generic",
+      "portrait": "generic_5_016_morphed",
+      "note": "Martin Emerson Jr"
+    },
+    {
+      "pid": 22260,
+      "type": "generic",
+      "portrait": "generic_5_017_morphed",
+      "note": "Sauce Gardner"
+    },
+    {
+      "pid": 22263,
+      "type": "generic",
+      "portrait": "generic_5_018_morphed",
+      "note": "Dax Hill"
+    },
+    {
+      "pid": 22283,
+      "type": "generic",
+      "portrait": "generic_5_019_morphed",
+      "note": "Ja'Sir Taylor"
+    },
+    {
+      "pid": 22297,
+      "type": "generic",
+      "portrait": "generic_5_020_morphed",
+      "note": "Neil Farrell"
+    },
+    {
+      "pid": 22299,
+      "type": "generic",
+      "portrait": "generic_5_021_morphed",
+      "note": "Christopher Hinton"
+    },
+    {
+      "pid": 22320,
+      "type": "generic",
+      "portrait": "generic_5_023_morphed",
+      "note": "Tyrion Davis-Price"
+    },
+    {
+      "pid": 22334,
+      "type": "generic",
+      "portrait": "generic_5_028_morphed",
+      "note": "Isiah Pacheco"
+    },
+    {
+      "pid": 22338,
+      "type": "generic",
+      "portrait": "generic_5_029_morphed",
+      "note": "Kenneth Walker III"
+    },
+    {
+      "pid": 22361,
+      "type": "generic",
+      "portrait": "generic_5_030_morphed",
+      "note": "John Metchie III"
+    },
+    {
+      "pid": 22400,
+      "type": "generic",
+      "portrait": "generic_5_031_morphed",
+      "note": "Juanyeh Thomas"
+    },
+    {
+      "pid": 22429,
+      "type": "generic",
+      "portrait": "generic_5_032_morphed",
+      "note": "Xavier Newman"
+    },
+    {
+      "pid": 22433,
+      "type": "generic",
+      "portrait": "generic_5_033_morphed",
+      "note": "Zach Thomas"
+    },
+    {
+      "pid": 22439,
+      "type": "generic",
+      "portrait": "generic_5_034_morphed",
+      "note": "Ikem Ekwonu"
+    },
+    {
+      "pid": 22442,
+      "type": "generic",
+      "portrait": "generic_5_036_morphed",
+      "note": "Nicholas Petit-Frere"
+    },
+    {
+      "pid": 22452,
+      "type": "generic",
+      "portrait": "generic_5_038_morphed",
+      "note": "Delarrin Turner-Yell"
+    },
+    {
+      "pid": 22479,
+      "type": "generic",
+      "portrait": "generic_5_039_morphed",
+      "note": "Michael Woods II"
+    },
+    {
+      "pid": 22486,
+      "type": "generic",
+      "portrait": "generic_5_040_morphed",
+      "note": "Samuel Womack III"
+    },
+    {
+      "pid": 22492,
+      "type": "generic",
+      "portrait": "generic_5_041_morphed",
+      "note": "Rodney Thomas II"
+    },
+    {
+      "pid": 22497,
+      "type": "generic",
+      "portrait": "generic_5_042_morphed",
+      "note": "Eric Johnson II"
+    },
+    {
+      "pid": 22539,
+      "type": "generic",
+      "portrait": "generic_5_043_morphed",
+      "note": "Leroy Watson"
+    },
+    {
+      "pid": 22550,
+      "type": "generic",
+      "portrait": "generic_5_044_morphed",
+      "note": "Qwuantrezz Knight"
+    },
+    {
+      "pid": 22620,
+      "type": "generic",
+      "portrait": "generic_5_045_morphed",
+      "note": "Matt Sokol"
+    },
+    {
+      "pid": 22627,
+      "type": "generic",
+      "portrait": "generic_5_046_morphed",
+      "note": "Coy Cronk"
+    },
+    {
+      "pid": 22641,
+      "type": "generic",
+      "portrait": "generic_5_047_morphed",
+      "note": "Devery Hamilton"
+    },
+    {
+      "pid": 22668,
+      "type": "generic",
+      "portrait": "generic_5_048_morphed",
+      "note": "Raleigh Webb"
+    },
+    {
+      "pid": 22680,
+      "type": "generic",
+      "portrait": "generic_5_049_morphed",
+      "note": "Tucker Addington"
+    },
+    {
+      "pid": 22694,
+      "type": "generic",
+      "portrait": "generic_5_050_morphed",
+      "note": "Jaxon Smith-Njigba"
+    },
+    {
+      "pid": 22710,
+      "type": "generic",
+      "portrait": "generic_5_051_morphed",
+      "note": "Ronnie Hickman"
+    },
+    {
+      "pid": 22714,
+      "type": "generic",
+      "portrait": "generic_5_053_morphed",
+      "note": "Stetson Bennett IV"
+    },
+    {
+      "pid": 22720,
+      "type": "generic",
+      "portrait": "generic_5_054_morphed",
+      "note": "Adrian Martinez"
+    },
+    {
+      "pid": 22727,
+      "type": "generic",
+      "portrait": "generic_5_055_morphed",
+      "note": "Dorian Thompson-Robinson"
+    },
+    {
+      "pid": 22757,
+      "type": "generic",
+      "portrait": "generic_5_056_morphed",
+      "note": "Khalan Laborn"
+    },
+    {
+      "pid": 22760,
+      "type": "generic",
+      "portrait": "generic_5_057_morphed",
+      "note": "Camerun Peoples"
+    },
+    {
+      "pid": 22782,
+      "type": "generic",
+      "portrait": "generic_5_058_morphed",
+      "note": "Tyler Harrell"
+    },
+    {
+      "pid": 22785,
+      "type": "generic",
+      "portrait": "generic_5_059_morphed",
+      "note": "Jared Wayne"
+    },
+    {
+      "pid": 22852,
+      "type": "generic",
+      "portrait": "generic_5_060_morphed",
+      "note": "O'Cyrus Torrence"
+    },
+    {
+      "pid": 22885,
+      "type": "generic",
+      "portrait": "generic_5_061_morphed",
+      "note": "Malaesala Aumavae-Laulu"
+    },
+    {
+      "pid": 22886,
+      "type": "generic",
+      "portrait": "generic_5_062_morphed",
+      "note": "Olusegun Oluwatimi"
+    },
+    {
+      "pid": 22908,
+      "type": "generic",
+      "portrait": "generic_5_063_morphed",
+      "note": "Warren McClendon Jr"
+    },
+    {
+      "pid": 22916,
+      "type": "generic",
+      "portrait": "generic_5_064_morphed",
+      "note": "Felix Anudike-Uzomah"
+    },
+    {
+      "pid": 22921,
+      "type": "generic",
+      "portrait": "generic_5_065_morphed",
+      "note": "Gervon Dexter Sr"
+    },
+    {
+      "pid": 22927,
+      "type": "generic",
+      "portrait": "generic_5_066_morphed",
+      "note": "Byron Young"
+    },
+    {
+      "pid": 22938,
+      "type": "generic",
+      "portrait": "generic_5_067_morphed",
+      "note": "Byron Young"
+    },
+    {
+      "pid": 22941,
+      "type": "generic",
+      "portrait": "generic_5_068_morphed",
+      "note": "Derek Parish"
+    },
+    {
+      "pid": 22957,
+      "type": "generic",
+      "portrait": "generic_5_069_morphed",
+      "note": "Robert Cooper"
+    },
+    {
+      "pid": 22959,
+      "type": "generic",
+      "portrait": "generic_5_070_morphed",
+      "note": "Viliami Fehoko"
+    },
+    {
+      "pid": 22966,
+      "type": "generic",
+      "portrait": "generic_5_071_morphed",
+      "note": "Mitchell Agude"
+    },
+    {
+      "pid": 22987,
+      "type": "generic",
+      "portrait": "generic_5_072_morphed",
+      "note": "Andre Jones Jr"
+    },
+    {
+      "pid": 22998,
+      "type": "generic",
+      "portrait": "generic_5_073_morphed",
+      "note": "Henry To'oTo'o"
+    },
+    {
+      "pid": 23000,
+      "type": "generic",
+      "portrait": "generic_5_074_morphed",
+      "note": "Daiyan Henley"
+    },
+    {
+      "pid": 23005,
+      "type": "generic",
+      "portrait": "generic_5_075_morphed",
+      "note": "Bumper Pool"
+    },
+    {
+      "pid": 23006,
+      "type": "generic",
+      "portrait": "generic_5_076_morphed",
+      "note": "Cam Bright"
+    },
+    {
+      "pid": 23008,
+      "type": "generic",
+      "portrait": "generic_5_077_morphed",
+      "note": "Aubrey Miller"
+    },
+    {
+      "pid": 23013,
+      "type": "generic",
+      "portrait": "generic_5_078_morphed",
+      "note": "Abraham Beauplan"
+    },
+    {
+      "pid": 23017,
+      "type": "generic",
+      "portrait": "generic_5_079_morphed",
+      "note": "Dallas Gant"
+    },
+    {
+      "pid": 23030,
+      "type": "generic",
+      "portrait": "generic_5_080_morphed",
+      "note": "Tre Tomlinson"
+    },
+    {
+      "pid": 23051,
+      "type": "generic",
+      "portrait": "generic_5_081_morphed",
+      "note": "Cam Brown"
+    },
+    {
+      "pid": 23058,
+      "type": "generic",
+      "portrait": "generic_5_082_morphed",
+      "note": "Ji'Ayir Brown"
+    },
+    {
+      "pid": 23076,
+      "type": "generic",
+      "portrait": "generic_5_083_morphed",
+      "note": "Eric Scott Jr"
+    },
+    {
+      "pid": 23089,
+      "type": "generic",
+      "portrait": "generic_5_084_morphed",
+      "note": "Otis Reese IV"
+    },
+    {
+      "pid": 23102,
+      "type": "generic",
+      "portrait": "generic_5_085_morphed",
+      "note": "Josh DeBerry"
+    },
+    {
+      "pid": 23143,
+      "type": "generic",
+      "portrait": "generic_5_086_morphed",
+      "note": "Nesta Jade Silvera"
+    },
+    {
+      "pid": 23148,
+      "type": "generic",
+      "portrait": "generic_5_087_morphed",
+      "note": "SaRodorick Thompson Jr"
+    },
+    {
+      "pid": 23149,
+      "type": "generic",
+      "portrait": "generic_5_088_morphed",
+      "note": "Cory Trice Jr"
+    },
+    {
+      "pid": 23278,
+      "type": "generic",
+      "portrait": "generic_5_089_morphed",
+      "note": "Lew Nichols"
+    },
+    {
+      "pid": 23312,
+      "type": "generic",
+      "portrait": "generic_5_090_morphed",
+      "note": "Kaieem Caesar"
+    },
+    {
+      "pid": 23315,
+      "type": "generic",
+      "portrait": "generic_5_091_morphed",
+      "note": "Mo Osling III"
+    },
+    {
+      "pid": 23318,
+      "type": "generic",
+      "portrait": "generic_5_092_morphed",
+      "note": "Steven Jones Jr"
+    },
+    {
+      "pid": 23320,
+      "type": "generic",
+      "portrait": "generic_5_093_morphed",
+      "note": "Kendall Randolph"
+    },
+    {
+      "pid": 23328,
+      "type": "generic",
+      "portrait": "generic_5_094_morphed",
+      "note": "Don Gardner"
+    },
+    {
+      "pid": 23332,
+      "type": "generic",
+      "portrait": "generic_5_BHM_M_002",
+      "note": "Jacob Sykes"
+    },
+    {
+      "pid": 23333,
+      "type": "generic",
+      "portrait": "generic_5_BHTM_GS_001",
+      "note": "Levi Bell"
+    },
+    {
+      "pid": 23341,
+      "type": "generic",
+      "portrait": "generic_5_BTM_N_004",
+      "note": "Ilm Manning"
+    },
+    {
+      "pid": 23355,
+      "type": "generic",
+      "portrait": "generic_5_B_BD_02",
+      "note": "Derrek Pitts Jr"
+    },
+    {
+      "pid": 23362,
+      "type": "generic",
+      "portrait": "generic_5_B_BD_03",
+      "note": "Rodney Williams"
+    },
+    {
+      "pid": 23367,
+      "type": "generic",
+      "portrait": "generic_5_B_G_01",
+      "note": "Lucas Havrisik"
+    },
+    {
+      "pid": 23378,
+      "type": "generic",
+      "portrait": "generic_5_B_G_02",
+      "note": "Joshua Pryor"
+    },
+    {
+      "pid": 28441,
+      "type": "generic",
+      "portrait": "generic_5_B_MS_02",
+      "note": "Jermaine Jackson"
+    }
+  ]
+}

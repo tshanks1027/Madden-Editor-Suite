@@ -328,6 +328,17 @@ body {
     font-size: 0.75rem;
 }
 
+.btn-secondary {
+    background: var(--gray-light);
+    border: 1px solid var(--border-color);
+    color: var(--gray-text);
+}
+
+.btn-secondary:hover {
+    background: var(--gray-lighter);
+    border-color: var(--gray-text-secondary);
+}
+
 /* Current File Indicator */
 .current-file {
     display: flex;
@@ -394,7 +405,7 @@ body {
 .controls-right {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
 }
 
 .control-group {
@@ -470,7 +481,9 @@ body {
     align-items: center;
     gap: 1rem;
     font-size: 0.875rem;
-    color: var(--gray-text-secondary);
+    color: var(--gray-text);
+    margin-left: 1rem;
+    font-weight: 500;
 }
 
 .stat-item {
