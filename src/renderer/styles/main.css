@@ -194,7 +194,7 @@ body {
 .header-right {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
 }
 
 /* Buttons */
@@ -207,7 +207,7 @@ body {
     border-radius: 4px;
     background: var(--gray-medium);
     color: var(--gray-text);
-    font-size: 0.75rem;
+    font-size: 12px;
     font-weight: 400;
     cursor: pointer;
     transition: all 0.2s ease;
