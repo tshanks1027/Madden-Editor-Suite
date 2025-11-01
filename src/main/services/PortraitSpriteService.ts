@@ -224,10 +224,10 @@ export class PortraitSpriteService {
         if (!line) continue;
 
         const parts = line.split(',');
-        if (parts.length < 3) continue;
+        if (parts.length < 4) continue;
 
         const pid = parseInt(parts[0].trim());
-        const portrait = parts[2].trim();
+        const portrait = parts[3].trim();
 
         if (isNaN(pid) && pid !== 0) {
           skippedCount++;
