@@ -103,7 +103,7 @@ body {
 
 /* Header */
 .app-header {
-    background: linear-gradient(180deg, var(--gray-medium) 0%, var(--gray-light) 100%);
+    background: #1a1a1a;
     border-bottom: 2px solid var(--border-color);
     flex-shrink: 0;
     display: flex;
@@ -135,7 +135,7 @@ body {
 .app-title {
     font-size: 1.25rem;
     font-weight: 500;
-    color: var(--white);
+    color: #ff9920;
     margin: 0;
     white-space: nowrap;
 }
@@ -153,7 +153,7 @@ body {
 .tool-tabs {
     display: flex;
     gap: 0.25rem;
-    background: var(--gray-dark);
+    background: #000000;
     padding: 0.5rem 1rem;
     overflow-x: auto;
     border-top: 1px solid var(--border-color);
@@ -165,8 +165,8 @@ body {
     gap: 0.5rem;
     padding: 0.5rem 1rem;
     border: none;
-    background: transparent;
-    color: var(--gray-text-secondary);
+    background: rgba(0, 0, 0, 0.3);
+    color: #888888;
     font-size: 0.875rem;
     font-weight: 400;
     border-radius: 4px;
@@ -181,9 +181,10 @@ body {
 }
 
 .tool-tab.active {
-    background: var(--primary-orange);
+    background: linear-gradient(135deg, #ff9920 0%, #ff7700 100%);
     color: var(--white);
-    font-weight: 500;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(255, 120, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .tab-icon {
