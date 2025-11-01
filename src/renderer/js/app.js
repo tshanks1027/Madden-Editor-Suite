@@ -1324,7 +1324,7 @@ class MaddenEditorApp {
         }
 
         // Apply custom styling to match MyFranchise theme
-        td.style.backgroundColor = 'var(--gray-medium)';
+        td.style.backgroundColor = '#1a1612';
         td.style.color = 'var(--gray-text)';
         td.style.border = '1px solid var(--border-color)';
         td.style.fontSize = '0.875rem';
@@ -1529,7 +1529,7 @@ class MaddenEditorApp {
         if (!position) {
             // No position available, show the stored value
             Handsontable.renderers.NumericRenderer.apply(this, arguments);
-            td.style.backgroundColor = 'var(--gray-medium)';
+            td.style.backgroundColor = '#1a1612';
             td.style.color = 'var(--gray-text)';
             return td;
         }
@@ -1542,7 +1542,7 @@ class MaddenEditorApp {
             .then(calculatedOVR => {
                 // Update the cell with calculated OVR
                 td.textContent = calculatedOVR;
-                td.style.backgroundColor = 'var(--gray-dark)';  // Darker to show it's calculated
+                td.style.backgroundColor = '#1a1612';  // Darker to show it's calculated
                 td.style.color = 'var(--primary-orange)';  // Orange to highlight it's special
                 td.style.fontWeight = 'bold';
                 td.style.border = '1px solid var(--border-color)';
@@ -1556,7 +1556,7 @@ class MaddenEditorApp {
                 console.error('[ovrRenderer] Error calculating OVR:', error);
                 // Fallback to stored value
                 td.textContent = value || '-';
-                td.style.backgroundColor = 'var(--gray-medium)';
+                td.style.backgroundColor = '#1a1612';
                 td.style.color = 'var(--gray-text)';
             });
 
@@ -1653,7 +1653,7 @@ class MaddenEditorApp {
         if (!rowData || !rowData.position) {
             // No position available, show the stored value
             Handsontable.renderers.NumericRenderer.apply(this, arguments);
-            td.style.backgroundColor = 'var(--gray-medium)';
+            td.style.backgroundColor = '#1a1612';
             td.style.color = 'var(--gray-text)';
             return td;
         }
@@ -1721,7 +1721,7 @@ class MaddenEditorApp {
             .then(calculatedOVR => {
                 // Update the cell with calculated OVR
                 td.textContent = calculatedOVR;
-                td.style.backgroundColor = 'var(--gray-dark)';  // Darker to show it's calculated
+                td.style.backgroundColor = '#1a1612';  // Darker to show it's calculated
                 td.style.color = 'var(--primary-orange)';  // Orange to highlight it's special
                 td.style.fontWeight = 'bold';
                 td.style.border = '1px solid var(--border-color)';
@@ -1735,7 +1735,7 @@ class MaddenEditorApp {
                 console.error('[draftOvrRenderer] Error calculating OVR:', error);
                 // Fallback to stored value
                 td.textContent = value || '-';
-                td.style.backgroundColor = 'var(--gray-medium)';
+                td.style.backgroundColor = '#1a1612';
                 td.style.color = 'var(--gray-text)';
             });
 
