@@ -3199,7 +3199,7 @@ class MaddenEditorApp {
             const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4uLi48L3RleHQ+PC9zdmc+';
 
             // Load faces in batches to prevent UI freeze
-            const BATCH_SIZE = 50;
+            const BATCH_SIZE = 10;  // Smaller batches for smoother UI
             let currentIndex = 0;
 
             const loadBatch = () => {
@@ -3283,15 +3283,38 @@ class MaddenEditorApp {
         const player = this.currentFacePickerPlayer;
         const rowIndex = this.currentFacePickerRowIndex;
 
-        // Update player PID - handle both roster (PSXP) and draft class (PID) fields
+        console.log(`[GenericFacePicker] Selecting PID ${pid} for row ${rowIndex}`);
+
+        // Update player PID and the grid data - handle both roster (PSXP) and draft class (PID) fields
         if ('PSXP' in player) {
             // Roster player
             player.PSXP = pid;
-            console.log(`Updating roster player PID to ${pid}`);
+            console.log(`[Roster] Updated player.PSXP to ${pid}`);
+
+            // Update the grid data through Handsontable API
+            if (this.currentRosterGrid && !this.currentRosterGrid.isDestroyed) {
+                const psxpColIndex = this.currentFieldMapping.indexOf('PSXP');
+                if (psxpColIndex !== -1) {
+                    // Set the data in the grid (this will trigger re-render of that cell)
+                    this.currentRosterGrid.setDataAtCell(rowIndex, psxpColIndex, pid, 'generic-face-picker');
+                    console.log(`[Roster] Updated grid cell at row ${rowIndex}, col ${psxpColIndex} to PID ${pid}`);
+                }
+            }
         } else if ('PID' in player) {
             // Draft class prospect
             player.PID = pid;
-            console.log(`Updating draft prospect PID to ${pid}`);
+            console.log(`[Draft] Updated player.PID to ${pid}`);
+
+            // Update the grid data through Handsontable API
+            if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                // Find the PID column in the draft grid
+                const columns = this.draftGrid.getSettings().columns;
+                const pidColIndex = columns.findIndex(col => col.data === 'PID');
+                if (pidColIndex !== -1) {
+                    this.draftGrid.setDataAtCell(rowIndex, pidColIndex, pid, 'generic-face-picker');
+                    console.log(`[Draft] Updated grid cell at row ${rowIndex}, col ${pidColIndex} to PID ${pid}`);
+                }
+            }
         }
 
         // Reload portrait in cache
@@ -3302,29 +3325,29 @@ class MaddenEditorApp {
             const imageData = await window.electronAPI.portrait.getByPID(pid);
             if (imageData && imageData.length > 0) {
                 this.portraitCache.set(cacheKey, imageData);
-                console.log(`Loaded portrait for PID ${pid} into cache`);
+                console.log(`[Portrait] Loaded portrait for PID ${pid} into cache`);
             } else {
                 this.portraitCache.set(cacheKey, null);
-                console.warn(`No portrait data for PID ${pid}`);
+                console.warn(`[Portrait] No portrait data for PID ${pid}`);
             }
         } catch (error) {
-            console.error(`Error loading portrait for PID ${pid}:`, error);
+            console.error(`[Portrait] Error loading portrait for PID ${pid}:`, error);
             this.portraitCache.set(cacheKey, null);
         }
 
         // Close the picker first
         this.closeGenericFacePicker();
 
-        // Re-render the appropriate grid to show updated portrait
+        // Force re-render of portrait column
         if (this.currentRosterGrid && !this.currentRosterGrid.isDestroyed) {
-            console.log('Re-rendering roster grid');
-            this.renderRoster();
+            console.log('[Roster] Force rendering portrait column');
+            this.currentRosterGrid.render();
         } else if (this.draftGrid && !this.draftGrid.isDestroyed) {
-            console.log('Re-rendering draft grid');
+            console.log('[Draft] Force rendering portrait column');
             this.draftGrid.render();
         }
 
-        console.log(`Successfully updated player to use generic face PID ${pid}`);
+        console.log(`[GenericFacePicker] Successfully updated player to use generic face PID ${pid}`);
     }
 
     closeGenericFacePicker() {
