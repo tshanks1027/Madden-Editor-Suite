@@ -221,6 +221,14 @@ class MaddenEditorApp {
             this.saveRoster();
         });
 
+        document.getElementById('exportCsvBtn').addEventListener('click', () => {
+            this.exportRosterCSV();
+        });
+
+        document.getElementById('importCsvBtn').addEventListener('click', () => {
+            this.importRosterCSV();
+        });
+
         // Draft class controls
         document.getElementById('open-draft-btn').addEventListener('click', async () => {
             await this.openDraftClassDialog();
@@ -2715,6 +2723,326 @@ class MaddenEditorApp {
             this.showError(`Failed to save roster: ${error.message}`);
             this.showLoading(false);
         }
+    }
+
+    async exportRosterCSV() {
+        if (!this.players || this.players.length === 0) {
+            this.showError('No roster data to export');
+            return;
+        }
+
+        try {
+            // Get visible field codes from current field mapping (excluding portrait column)
+            const fieldCodes = this.currentFieldMapping.filter(f => f !== '');
+
+            if (fieldCodes.length === 0) {
+                this.showError('No fields to export');
+                return;
+            }
+
+            // Get friendly display names for headers
+            const friendlyHeaders = fieldCodes.map(fieldCode => {
+                const fieldDef = getFieldDefinition(fieldCode);
+                return fieldDef.display || fieldCode;
+            });
+
+            // Build CSV content
+            const rows = [];
+
+            // Row 1: Metadata comment with field codes
+            rows.push(`# FIELD_CODES: ${fieldCodes.join(',')}`);
+
+            // Row 2: Friendly headers
+            rows.push(friendlyHeaders.join(','));
+
+            // Rows 3+: Player data
+            for (const player of this.filteredPlayers) {
+                const rowData = fieldCodes.map(fieldCode => {
+                    const value = this.getPlayerFieldValue(player, fieldCode);
+                    // Escape values containing commas or quotes
+                    if (value === null || value === undefined) return '';
+                    const strValue = String(value);
+                    if (strValue.includes(',') || strValue.includes('"') || strValue.includes('\n')) {
+                        return `"${strValue.replace(/"/g, '""')}"`;
+                    }
+                    return strValue;
+                });
+                rows.push(rowData.join(','));
+            }
+
+            const csvContent = rows.join('\n');
+
+            // Trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+
+            const fileName = this.currentFile ?
+                this.currentFile.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '') + '.csv' :
+                'roster.csv';
+
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            this.setStatus(`Exported ${this.filteredPlayers.length} players to CSV`);
+            console.log(`Exported ${this.filteredPlayers.length} players with ${fieldCodes.length} fields`);
+
+        } catch (error) {
+            console.error('Error exporting CSV:', error);
+            this.showError(`Failed to export CSV: ${error.message}`);
+        }
+    }
+
+    async importRosterCSV() {
+        if (!this.players || this.players.length === 0) {
+            this.showError('Please load a roster file before importing CSV');
+            return;
+        }
+
+        try {
+            // Create file input for CSV
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const csvContent = event.target.result;
+                        const lines = csvContent.split('\n').map(line => line.trim()).filter(line => line);
+
+                        if (lines.length < 3) {
+                            this.showError('Invalid CSV format: needs metadata and header rows');
+                            return;
+                        }
+
+                        // Parse metadata row (field codes)
+                        const metadataLine = lines[0];
+                        if (!metadataLine.startsWith('# FIELD_CODES:')) {
+                            this.showError('Invalid CSV format: missing field codes metadata row');
+                            return;
+                        }
+
+                        const fieldCodes = metadataLine.replace('# FIELD_CODES:', '').trim().split(',');
+                        console.log(`Importing CSV with ${fieldCodes.length} fields:`, fieldCodes);
+
+                        // Skip friendly headers row (line 1)
+                        // Parse data rows starting from line 2
+                        let importedCount = 0;
+                        let errors = [];
+
+                        for (let i = 2; i < lines.length; i++) {
+                            const dataLine = lines[i];
+                            if (!dataLine) continue;
+
+                            // Simple CSV parsing (handles quoted values)
+                            const values = this.parseCSVLine(dataLine);
+
+                            if (values.length !== fieldCodes.length) {
+                                errors.push(`Row ${i-1}: column count mismatch (expected ${fieldCodes.length}, got ${values.length})`);
+                                continue;
+                            }
+
+                            // Row index for updating (i-2 because we skip 2 header rows)
+                            const rowIndex = i - 2;
+
+                            if (rowIndex >= this.filteredPlayers.length) {
+                                console.warn(`Row ${rowIndex}: exceeds filtered player count, skipping`);
+                                break;
+                            }
+
+                            const player = this.filteredPlayers[rowIndex];
+
+                            // Track if PID changed (for portrait reload)
+                            let pidChanged = false;
+                            let newPID = null;
+
+                            // Update player fields
+                            fieldCodes.forEach((fieldCode, colIndex) => {
+                                const value = values[colIndex];
+                                if (value !== '' && value !== null) {
+                                    // Convert value to appropriate type
+                                    const fieldDef = getFieldDefinition(fieldCode);
+                                    let convertedValue = value;
+
+                                    if (fieldDef.type === 'number' || fieldDef.type === 'numeric') {
+                                        convertedValue = parseFloat(value);
+                                        if (isNaN(convertedValue)) convertedValue = 0;
+
+                                        // Check for weight transform (display = stored + 160)
+                                        if (fieldCode === 'PWGT' && fieldDef.transform && fieldDef.transform.save) {
+                                            convertedValue = fieldDef.transform.save(convertedValue);
+                                        }
+                                        // Check for salary transforms (divide by 100 when saving)
+                                        else if (fieldCode.startsWith('PSA') || fieldCode === 'PSBO') {
+                                            if (fieldDef.transform && fieldDef.transform.save) {
+                                                convertedValue = fieldDef.transform.save(convertedValue);
+                                            }
+                                        }
+                                    } else if (fieldDef.type === 'lookup') {
+                                        // Convert display name back to ID
+                                        convertedValue = this.reverseLookup(fieldDef.lookup, value);
+                                        if (convertedValue === null) {
+                                            errors.push(`Row ${rowIndex + 1}, ${fieldDef.display}: Unknown value "${value}"`);
+                                            return; // Skip this field
+                                        }
+                                    } else if (fieldDef.type === 'autocomplete' && fieldCode === 'PLAYERPIC') {
+                                        // PLAYERPIC is a display field - convert name to PID and update PSXP
+                                        const pid = getPIDFromName(value);
+                                        if (pid !== null) {
+                                            player['PSXP'] = pid;
+                                            pidChanged = true;
+                                            newPID = pid;
+                                        }
+                                        convertedValue = value; // Keep the name for display
+                                    }
+
+                                    player[fieldCode] = convertedValue;
+
+                                    // Track PID changes for portrait reload
+                                    if (fieldCode === 'PSXP') {
+                                        pidChanged = true;
+                                        newPID = convertedValue;
+                                    }
+                                }
+                            });
+
+                            // Reload portrait if PID changed
+                            if (pidChanged && newPID !== null) {
+                                const cacheKey = `pid_${newPID}`;
+                                this.portraitCache.set(cacheKey, 'loading');
+
+                                window.electronAPI.portrait.getByPID(newPID).then(imageData => {
+                                    if (imageData && imageData.length > 0) {
+                                        this.portraitCache.set(cacheKey, imageData);
+                                    } else {
+                                        this.portraitCache.set(cacheKey, null);
+                                    }
+                                }).catch((error) => {
+                                    console.error(`Error loading portrait for PID ${newPID}:`, error);
+                                    this.portraitCache.set(cacheKey, null);
+                                });
+                            }
+
+                            importedCount++;
+                        }
+
+                        // Re-render the grid to show updated data and portraits
+                        this.renderRoster();
+
+                        if (errors.length > 0) {
+                            console.warn('Import completed with errors:', errors);
+                            this.setStatus(`Imported ${importedCount} players with ${errors.length} errors (check console)`);
+                        } else {
+                            this.setStatus(`Successfully imported ${importedCount} players from CSV`);
+                        }
+
+                        console.log(`CSV import complete: ${importedCount} players updated`);
+
+                    } catch (error) {
+                        console.error('Error parsing CSV:', error);
+                        this.showError(`Failed to import CSV: ${error.message}`);
+                    }
+                };
+
+                reader.readAsText(file);
+            };
+
+            input.click();
+
+        } catch (error) {
+            console.error('Error importing CSV:', error);
+            this.showError(`Failed to import CSV: ${error.message}`);
+        }
+    }
+
+    parseCSVLine(line) {
+        const values = [];
+        let currentValue = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            const nextChar = line[i + 1];
+
+            if (char === '"') {
+                if (inQuotes && nextChar === '"') {
+                    // Escaped quote
+                    currentValue += '"';
+                    i++; // Skip next quote
+                } else {
+                    // Toggle quote state
+                    inQuotes = !inQuotes;
+                }
+            } else if (char === ',' && !inQuotes) {
+                // End of value
+                values.push(currentValue);
+                currentValue = '';
+            } else {
+                currentValue += char;
+            }
+        }
+
+        // Add last value
+        values.push(currentValue);
+
+        return values;
+    }
+
+    /**
+     * Reverse lookup - convert display value back to ID
+     * @param {string} lookupType - Type of lookup (positions, teams, colleges, states)
+     * @param {string} displayValue - The display value to find
+     * @returns {number|null} The ID or null if not found
+     */
+    reverseLookup(lookupType, displayValue) {
+        if (!displayValue || displayValue === '') return null;
+
+        // Get the appropriate lookup map
+        let lookupMap;
+        switch (lookupType) {
+            case 'positions':
+                lookupMap = LOOKUP_DATA.positions;
+                break;
+            case 'teams':
+                lookupMap = LOOKUP_DATA.teams;
+                break;
+            case 'colleges':
+                lookupMap = LOOKUP_DATA.colleges;
+                break;
+            case 'states':
+                lookupMap = LOOKUP_DATA.states;
+                break;
+            case 'pids':
+                lookupMap = LOOKUP_DATA.pids;
+                break;
+            default:
+                console.warn(`Unknown lookup type: ${lookupType}`);
+                return null;
+        }
+
+        if (!lookupMap) {
+            console.warn(`Lookup map not found for type: ${lookupType}`);
+            return null;
+        }
+
+        // Search through the map to find matching value
+        for (const [id, name] of lookupMap.entries()) {
+            if (name === displayValue) {
+                return id;
+            }
+        }
+
+        // Not found
+        return null;
     }
 
     showLoading(show, text = 'Loading...', progress = 0) {
