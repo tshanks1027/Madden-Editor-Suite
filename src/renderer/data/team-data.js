@@ -360,5 +360,15 @@ export function getTeamByName(teamName) {
 
 // Get all teams as array
 export function getAllTeams() {
-  return Object.values(NFL_TEAMS).sort((a, b) => a.name.localeCompare(b.name));
+  return Object.values(NFL_TEAMS).sort((a, b) => {
+    // Always put Free Agent at the end
+    if (a.name === 'Free Agent') return 1;
+    if (b.name === 'Free Agent') return -1;
+
+    // Sort 49ers as "Forty-Niners" (in F section)
+    const aName = a.name === '49ers' ? 'Forty-Niners' : a.name;
+    const bName = b.name === '49ers' ? 'Forty-Niners' : b.name;
+
+    return aName.localeCompare(bName);
+  });
 }
