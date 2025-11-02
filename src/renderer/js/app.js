@@ -887,11 +887,9 @@ class MaddenEditorApp {
             td.style.verticalAlign = 'middle';
             td.style.backgroundColor = '#1a1a1a';
 
-            // Get PID from the row data
-            const rowData = instance.getDataAtRow(row);
-            const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
-            // currentFieldMapping already accounts for portrait column offset
-            const pid = psxpIndex !== -1 ? rowData[psxpIndex] : null;
+            // Get PID from the actual player object (not grid data which is a copy)
+            const player = this.filteredPlayers[row];
+            const pid = player ? player.PSXP : null;
 
             // Check for null/undefined, but allow PID 0 (blank silhouette)
             if (pid === null || pid === undefined) {
@@ -3285,36 +3283,17 @@ class MaddenEditorApp {
 
         console.log(`[GenericFacePicker] Selecting PID ${pid} for row ${rowIndex}`);
 
-        // Update player PID and the grid data - handle both roster (PSXP) and draft class (PID) fields
+        // Update player PID - handle both roster (PSXP) and draft class (PID) fields
         if ('PSXP' in player) {
             // Roster player
+            const oldPID = player.PSXP;
             player.PSXP = pid;
-            console.log(`[Roster] Updated player.PSXP to ${pid}`);
-
-            // Update the grid data through Handsontable API
-            if (this.currentRosterGrid && !this.currentRosterGrid.isDestroyed) {
-                const psxpColIndex = this.currentFieldMapping.indexOf('PSXP');
-                if (psxpColIndex !== -1) {
-                    // Set the data in the grid (this will trigger re-render of that cell)
-                    this.currentRosterGrid.setDataAtCell(rowIndex, psxpColIndex, pid, 'generic-face-picker');
-                    console.log(`[Roster] Updated grid cell at row ${rowIndex}, col ${psxpColIndex} to PID ${pid}`);
-                }
-            }
+            console.log(`[Roster] Updated player.PSXP from ${oldPID} to ${pid}`);
         } else if ('PID' in player) {
             // Draft class prospect
+            const oldPID = player.PID;
             player.PID = pid;
-            console.log(`[Draft] Updated player.PID to ${pid}`);
-
-            // Update the grid data through Handsontable API
-            if (this.draftGrid && !this.draftGrid.isDestroyed) {
-                // Find the PID column in the draft grid
-                const columns = this.draftGrid.getSettings().columns;
-                const pidColIndex = columns.findIndex(col => col.data === 'PID');
-                if (pidColIndex !== -1) {
-                    this.draftGrid.setDataAtCell(rowIndex, pidColIndex, pid, 'generic-face-picker');
-                    console.log(`[Draft] Updated grid cell at row ${rowIndex}, col ${pidColIndex} to PID ${pid}`);
-                }
-            }
+            console.log(`[Draft] Updated player.PID from ${oldPID} to ${pid}`);
         }
 
         // Reload portrait in cache
@@ -3335,19 +3314,20 @@ class MaddenEditorApp {
             this.portraitCache.set(cacheKey, null);
         }
 
-        // Close the picker first
+        // Close the picker
         this.closeGenericFacePicker();
 
-        // Force re-render of portrait column
+        // Force re-render to show updated portrait
+        // The portrait renderer reads from the player object which we just updated
         if (this.currentRosterGrid && !this.currentRosterGrid.isDestroyed) {
-            console.log('[Roster] Force rendering portrait column');
+            console.log('[Roster] Rendering grid to show new portrait');
             this.currentRosterGrid.render();
         } else if (this.draftGrid && !this.draftGrid.isDestroyed) {
-            console.log('[Draft] Force rendering portrait column');
+            console.log('[Draft] Rendering grid to show new portrait');
             this.draftGrid.render();
         }
 
-        console.log(`[GenericFacePicker] Successfully updated player to use generic face PID ${pid}`);
+        console.log(`[GenericFacePicker] Done! Portrait should now display PID ${pid}`);
     }
 
     closeGenericFacePicker() {
