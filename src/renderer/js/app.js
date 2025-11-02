@@ -3198,40 +3198,58 @@ class MaddenEditorApp {
             // Create placeholder image for loading state
             const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4uLi48L3RleHQ+PC9zdmc+';
 
-            // Create all grid items first with placeholders (non-blocking)
-            for (const face of genericFaces) {
-                const faceItem = document.createElement('div');
-                faceItem.className = 'generic-face-item';
-                faceItem.dataset.pid = face.pid;
+            // Load faces in batches to prevent UI freeze
+            const BATCH_SIZE = 50;
+            let currentIndex = 0;
 
-                // Create image with placeholder
-                const img = document.createElement('img');
-                img.alt = `Generic Face ${face.pid}`;
-                img.src = placeholderSvg;
+            const loadBatch = () => {
+                const endIndex = Math.min(currentIndex + BATCH_SIZE, genericFaces.length);
 
-                const pidLabel = document.createElement('div');
-                pidLabel.className = 'generic-face-pid';
-                pidLabel.textContent = `PID ${face.pid}`;
+                for (let i = currentIndex; i < endIndex; i++) {
+                    const face = genericFaces[i];
+                    const faceItem = document.createElement('div');
+                    faceItem.className = 'generic-face-item';
+                    faceItem.dataset.pid = face.pid;
 
-                faceItem.appendChild(img);
-                faceItem.appendChild(pidLabel);
+                    // Create image with placeholder
+                    const img = document.createElement('img');
+                    img.alt = `Generic Face ${face.pid}`;
+                    img.src = placeholderSvg;
 
-                // Click handler to select this face
-                faceItem.addEventListener('click', () => {
-                    this.selectGenericFace(face.pid);
-                });
+                    const pidLabel = document.createElement('div');
+                    pidLabel.className = 'generic-face-pid';
+                    pidLabel.textContent = `PID ${face.pid}`;
 
-                grid.appendChild(faceItem);
+                    faceItem.appendChild(img);
+                    faceItem.appendChild(pidLabel);
 
-                // Load portrait asynchronously without blocking UI
-                window.electronAPI.portrait.getByPID(face.pid).then(imageData => {
-                    if (imageData && imageData.length > 0) {
-                        img.src = imageData;
-                    }
-                }).catch(error => {
-                    console.error(`Failed to load portrait for PID ${face.pid}:`, error);
-                });
-            }
+                    // Click handler to select this face
+                    faceItem.addEventListener('click', () => {
+                        this.selectGenericFace(face.pid);
+                    });
+
+                    grid.appendChild(faceItem);
+
+                    // Load portrait asynchronously without blocking UI
+                    window.electronAPI.portrait.getByPID(face.pid).then(imageData => {
+                        if (imageData && imageData.length > 0) {
+                            img.src = imageData;
+                        }
+                    }).catch(error => {
+                        console.error(`Failed to load portrait for PID ${face.pid}:`, error);
+                    });
+                }
+
+                currentIndex = endIndex;
+
+                // Schedule next batch if there are more faces
+                if (currentIndex < genericFaces.length) {
+                    requestAnimationFrame(loadBatch);
+                }
+            };
+
+            // Start loading batches
+            loadBatch();
 
         } catch (error) {
             console.error('Error loading generic faces:', error);
@@ -3267,9 +3285,13 @@ class MaddenEditorApp {
 
         // Update player PID - handle both roster (PSXP) and draft class (PID) fields
         if ('PSXP' in player) {
-            player.PSXP = pid;  // Roster player
+            // Roster player
+            player.PSXP = pid;
+            console.log(`Updating roster player PID to ${pid}`);
         } else if ('PID' in player) {
-            player.PID = pid;   // Draft class prospect
+            // Draft class prospect
+            player.PID = pid;
+            console.log(`Updating draft prospect PID to ${pid}`);
         }
 
         // Reload portrait in cache
@@ -3280,25 +3302,29 @@ class MaddenEditorApp {
             const imageData = await window.electronAPI.portrait.getByPID(pid);
             if (imageData && imageData.length > 0) {
                 this.portraitCache.set(cacheKey, imageData);
+                console.log(`Loaded portrait for PID ${pid} into cache`);
             } else {
                 this.portraitCache.set(cacheKey, null);
+                console.warn(`No portrait data for PID ${pid}`);
             }
         } catch (error) {
             console.error(`Error loading portrait for PID ${pid}:`, error);
             this.portraitCache.set(cacheKey, null);
         }
 
+        // Close the picker first
+        this.closeGenericFacePicker();
+
         // Re-render the appropriate grid to show updated portrait
         if (this.currentRosterGrid && !this.currentRosterGrid.isDestroyed) {
+            console.log('Re-rendering roster grid');
             this.renderRoster();
         } else if (this.draftGrid && !this.draftGrid.isDestroyed) {
+            console.log('Re-rendering draft grid');
             this.draftGrid.render();
         }
 
-        // Close the picker
-        this.closeGenericFacePicker();
-
-        console.log(`Updated player to use generic face PID ${pid}`);
+        console.log(`Successfully updated player to use generic face PID ${pid}`);
     }
 
     closeGenericFacePicker() {
@@ -3633,7 +3659,8 @@ class MaddenEditorApp {
                     // Add right-click context menu for generic face picker
                     img.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
-                        const prospect = rowData;
+                        // Get the actual prospect from the data array, not rowData which might be a copy
+                        const prospect = this.draftProspects && this.draftProspects[physicalRow];
                         if (prospect) {
                             this.openGenericFacePicker(prospect, physicalRow);
                         }
