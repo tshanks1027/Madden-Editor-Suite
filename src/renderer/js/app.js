@@ -3195,23 +3195,19 @@ class MaddenEditorApp {
             // Clear grid and populate with faces
             grid.innerHTML = '';
 
+            // Create placeholder image for loading state
+            const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4uLi48L3RleHQ+PC9zdmc+';
+
+            // Create all grid items first with placeholders (non-blocking)
             for (const face of genericFaces) {
                 const faceItem = document.createElement('div');
                 faceItem.className = 'generic-face-item';
                 faceItem.dataset.pid = face.pid;
 
-                // Load portrait image
+                // Create image with placeholder
                 const img = document.createElement('img');
                 img.alt = `Generic Face ${face.pid}`;
-
-                // Load portrait from sprite service
-                const imageData = await window.electronAPI.portrait.getByPID(face.pid);
-                if (imageData && imageData.length > 0) {
-                    img.src = imageData;
-                } else {
-                    // Fallback placeholder
-                    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
-                }
+                img.src = placeholderSvg;
 
                 const pidLabel = document.createElement('div');
                 pidLabel.className = 'generic-face-pid';
@@ -3226,6 +3222,15 @@ class MaddenEditorApp {
                 });
 
                 grid.appendChild(faceItem);
+
+                // Load portrait asynchronously without blocking UI
+                window.electronAPI.portrait.getByPID(face.pid).then(imageData => {
+                    if (imageData && imageData.length > 0) {
+                        img.src = imageData;
+                    }
+                }).catch(error => {
+                    console.error(`Failed to load portrait for PID ${face.pid}:`, error);
+                });
             }
 
         } catch (error) {
@@ -3260,8 +3265,12 @@ class MaddenEditorApp {
         const player = this.currentFacePickerPlayer;
         const rowIndex = this.currentFacePickerRowIndex;
 
-        // Update player PID
-        player.PSXP = pid;
+        // Update player PID - handle both roster (PSXP) and draft class (PID) fields
+        if ('PSXP' in player) {
+            player.PSXP = pid;  // Roster player
+        } else if ('PID' in player) {
+            player.PID = pid;   // Draft class prospect
+        }
 
         // Reload portrait in cache
         const cacheKey = `pid_${pid}`;
@@ -3279,8 +3288,12 @@ class MaddenEditorApp {
             this.portraitCache.set(cacheKey, null);
         }
 
-        // Re-render the grid to show updated portrait
-        this.renderRoster();
+        // Re-render the appropriate grid to show updated portrait
+        if (this.currentRosterGrid && !this.currentRosterGrid.isDestroyed) {
+            this.renderRoster();
+        } else if (this.draftGrid && !this.draftGrid.isDestroyed) {
+            this.draftGrid.render();
+        }
 
         // Close the picker
         this.closeGenericFacePicker();
@@ -3615,6 +3628,17 @@ class MaddenEditorApp {
                     img.style.width = '64px';
                     img.style.height = '64px';
                     img.style.objectFit = 'cover';
+                    img.style.cursor = 'context-menu';
+
+                    // Add right-click context menu for generic face picker
+                    img.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        const prospect = rowData;
+                        if (prospect) {
+                            this.openGenericFacePicker(prospect, physicalRow);
+                        }
+                    });
+
                     td.appendChild(img);
                 } else if (imageData === 'loading') {
                     // Still loading
