@@ -265,6 +265,17 @@ class MaddenEditorApp {
             }
         });
 
+        // Generic face picker modal
+        document.getElementById('closeGenericFacePicker').addEventListener('click', () => {
+            this.closeGenericFacePicker();
+        });
+
+        document.getElementById('genericFacePickerModal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeGenericFacePicker();
+            }
+        });
+
         // Pagination controls
         document.getElementById('firstPageBtn').addEventListener('click', () => {
             this.firstPage();
@@ -899,6 +910,17 @@ class MaddenEditorApp {
                     img.style.width = '64px';
                     img.style.height = '64px';
                     img.style.objectFit = 'cover';
+                    img.style.cursor = 'context-menu';
+
+                    // Add right-click context menu for generic face picker
+                    img.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        const player = this.filteredPlayers[row];
+                        if (player) {
+                            this.openGenericFacePicker(player, row);
+                        }
+                    });
+
                     td.appendChild(img);
                 } else if (imageData === 'loading') {
                     // Still loading
@@ -3141,6 +3163,135 @@ class MaddenEditorApp {
 
     closeErrorModal() {
         document.getElementById('errorModal').style.display = 'none';
+    }
+
+    // ========================================
+    // Generic Face Picker Methods
+    // ========================================
+
+    async openGenericFacePicker(player, rowIndex) {
+        const modal = document.getElementById('genericFacePickerModal');
+        const grid = document.getElementById('genericFaceGrid');
+
+        // Store current player context
+        this.currentFacePickerPlayer = player;
+        this.currentFacePickerRowIndex = rowIndex;
+
+        // Show modal
+        modal.style.display = 'flex';
+
+        // Show loading state
+        grid.innerHTML = '<div class="loading-spinner">Loading generic faces...</div>';
+
+        try {
+            // Lazy-load generic faces
+            const genericFaces = await this.loadGenericFaces();
+
+            if (genericFaces.length === 0) {
+                grid.innerHTML = '<div class="loading-spinner">No generic faces found</div>';
+                return;
+            }
+
+            // Clear grid and populate with faces
+            grid.innerHTML = '';
+
+            for (const face of genericFaces) {
+                const faceItem = document.createElement('div');
+                faceItem.className = 'generic-face-item';
+                faceItem.dataset.pid = face.pid;
+
+                // Load portrait image
+                const img = document.createElement('img');
+                img.alt = `Generic Face ${face.pid}`;
+
+                // Load portrait from sprite service
+                const imageData = await window.electronAPI.portrait.getByPID(face.pid);
+                if (imageData && imageData.length > 0) {
+                    img.src = imageData;
+                } else {
+                    // Fallback placeholder
+                    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                }
+
+                const pidLabel = document.createElement('div');
+                pidLabel.className = 'generic-face-pid';
+                pidLabel.textContent = `PID ${face.pid}`;
+
+                faceItem.appendChild(img);
+                faceItem.appendChild(pidLabel);
+
+                // Click handler to select this face
+                faceItem.addEventListener('click', () => {
+                    this.selectGenericFace(face.pid);
+                });
+
+                grid.appendChild(faceItem);
+            }
+
+        } catch (error) {
+            console.error('Error loading generic faces:', error);
+            grid.innerHTML = '<div class="loading-spinner">Error loading generic faces</div>';
+        }
+    }
+
+    async loadGenericFaces() {
+        try {
+            // Get PID_Portrait_Mapping.csv data
+            const mapping = await window.electronAPI.lookup.getPIDPortraitMapping();
+
+            // Filter to only Type='generic' entries
+            const genericFaces = mapping.filter(entry => entry.type === 'generic');
+
+            console.log(`Loaded ${genericFaces.length} generic faces`);
+
+            return genericFaces;
+        } catch (error) {
+            console.error('Error loading generic faces from CSV:', error);
+            return [];
+        }
+    }
+
+    async selectGenericFace(pid) {
+        if (!this.currentFacePickerPlayer) {
+            console.error('No player context for face selection');
+            return;
+        }
+
+        const player = this.currentFacePickerPlayer;
+        const rowIndex = this.currentFacePickerRowIndex;
+
+        // Update player PID
+        player.PSXP = pid;
+
+        // Reload portrait in cache
+        const cacheKey = `pid_${pid}`;
+        this.portraitCache.set(cacheKey, 'loading');
+
+        try {
+            const imageData = await window.electronAPI.portrait.getByPID(pid);
+            if (imageData && imageData.length > 0) {
+                this.portraitCache.set(cacheKey, imageData);
+            } else {
+                this.portraitCache.set(cacheKey, null);
+            }
+        } catch (error) {
+            console.error(`Error loading portrait for PID ${pid}:`, error);
+            this.portraitCache.set(cacheKey, null);
+        }
+
+        // Re-render the grid to show updated portrait
+        this.renderRoster();
+
+        // Close the picker
+        this.closeGenericFacePicker();
+
+        console.log(`Updated player to use generic face PID ${pid}`);
+    }
+
+    closeGenericFacePicker() {
+        document.getElementById('genericFacePickerModal').style.display = 'none';
+        this.currentFacePickerPlayer = null;
+        this.currentFacePickerRowIndex = null;
     }
 
     // ========================================
@@ -5826,6 +5977,19 @@ document.addEventListener('DOMContentLoaded', () => {
         pidSelect.addEventListener('change', (e) => {
             if (window.app) {
                 window.app.updatePlayerCardPortrait(e.target.value);
+            }
+        });
+    }
+
+    // Right-click context menu on player card portrait for generic face picker
+    const playerCardPortrait = document.getElementById('playerCardPortrait');
+    if (playerCardPortrait) {
+        playerCardPortrait.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (window.app && window.app.currentPlayerCardData) {
+                const player = window.app.currentPlayerCardData;
+                const rowIndex = window.app.currentPlayerCardRow;
+                window.app.openGenericFacePicker(player, rowIndex);
             }
         });
     }

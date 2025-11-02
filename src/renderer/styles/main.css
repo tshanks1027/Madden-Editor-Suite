@@ -1806,3 +1806,64 @@ input.rating-value:focus {
     border-color: #F44336;
     color: var(--white);
 }
+
+/* Generic Face Picker Modal */
+.generic-face-picker-content {
+    max-width: 800px;
+    width: 90vw;
+    max-height: 80vh;
+}
+
+.generic-face-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--gray-dark);
+    border-radius: 4px;
+}
+
+.generic-face-item {
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+    background: var(--gray-medium);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+}
+
+.generic-face-item:hover {
+    border-color: var(--primary-orange);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.generic-face-item img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--gray-light);
+}
+
+.generic-face-pid {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-size: 1rem;
+}
