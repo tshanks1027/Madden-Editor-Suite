@@ -360,5 +360,5 @@ export function getTeamByName(teamName) {
 
 // Get all teams as array
 export function getAllTeams() {
-  return Object.values(NFL_TEAMS).sort((a, b) => a.fullName.localeCompare(b.fullName));
+  return Object.values(NFL_TEAMS).sort((a, b) => a.name.localeCompare(b.name));
 }
