@@ -58,16 +58,6 @@
                 </nav>
 
                 <div class="header-right">
-                    <button id="openFileBtn" class="btn btn-primary">
-                        <span class="btn-icon">📁</span>
-                        OPEN FILE
-                    </button>
-                    <input type="file" id="fileInput" accept="*" style="display: none;">
-
-                    <div id="currentFile" class="current-file" style="display: none;">
-                        <span class="file-icon">📄</span>
-                        <span id="fileName" class="file-name"></span>
-                    </div>
                 </div>
             </div>
         </header>
@@ -146,6 +136,17 @@
                     </div>
 
                     <div class="controls-right">
+                        <button id="openFileBtn" class="btn btn-primary">
+                            <span class="btn-icon">📁</span>
+                            OPEN ROSTER
+                        </button>
+                        <input type="file" id="fileInput" accept="*" style="display: none;">
+
+                        <div id="currentFile" class="current-file" style="display: none;">
+                            <span class="file-icon">📄</span>
+                            <span id="fileName" class="file-name"></span>
+                        </div>
+
                         <button id="exportCsvBtn" class="btn btn-secondary" style="display: none;">
                             <span class="btn-icon">📤</span>
                             EXPORT CSV
