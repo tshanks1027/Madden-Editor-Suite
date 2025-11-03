@@ -5471,6 +5471,11 @@ class MaddenEditorApp {
                 // Get template prospect's visuals (for M26Writer to update)
                 const templateVisuals = templateData.prospects[index]?.visuals || null;
 
+                // CRITICAL: Update template visuals' bodyType to match our generated bodyType
+                if (templateVisuals && player.bodyType) {
+                    templateVisuals.bodyType = player.bodyType;
+                }
+
                 return {
                 // Basic Info
                 firstName: player.firstName,
