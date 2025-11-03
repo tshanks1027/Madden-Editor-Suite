@@ -14,7 +14,7 @@ export function registerCreatorHandlers(): void {
   console.log('[CreatorHandlers] Registering creator IPC handlers');
 
   /**
-   * Generate draft class from web scraping
+   * Generate draft class from CSV lookups (uses ALL_PLAYER_LOOKUP for <=2025, FutureDraft_Lookup for >=2026)
    */
   ipcMain.handle('creator:generate-draft-class', async (event, year: number, testingMode: boolean = false, ratingMode: string = 'semi-historical') => {
     try {
@@ -22,7 +22,7 @@ export function registerCreatorHandlers(): void {
 
       // Lazy load to avoid loading Puppeteer until first use
       const { creatorService } = await import('../services/CreatorService');
-      const players = await creatorService.generateDraftClass(year, testingMode, undefined, ratingMode);
+      const players = await creatorService.generateDraftClassFromLookup(year, testingMode, undefined, ratingMode);
 
       // DEBUG: Log first player data BEFORE sending to renderer
       if (players.length > 0) {

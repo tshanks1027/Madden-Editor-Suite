@@ -456,6 +456,59 @@ export class CreatorService {
   }
 
   /**
+   * Load Future Draft Lookup CSV into memory for draft class generation (2026+)
+   * Cache for fast repeat access
+   * Format: Last Name,First Name,College,Rank,Draft Class,Position,Jersey,Height,Weight,2025 College Year,Awards,Star Rating,Hometown,Homestate,Race,Photo
+   */
+  private futureDraftLookupCache?: Map<string, any>;
+
+  private loadFutureDraftLookup(): Map<string, any> {
+    if (this.futureDraftLookupCache) {
+      return this.futureDraftLookupCache;
+    }
+
+    this.futureDraftLookupCache = new Map<string, any>();
+
+    try {
+      const futureDraftLookupPath = path.join(__dirname, '../../data/lookups/FutureDraft_Lookup.csv');
+      const csvContent = fs.readFileSync(futureDraftLookupPath, 'utf-8');
+      const lines = csvContent.split('\n');
+
+      // Parse header
+      const header = lines[0].split(',').map(h => h.trim());
+
+      // Parse rows
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Handle CSV with potential commas in quoted fields
+        const values = this.parseCSVLine(line);
+        if (values.length < header.length) continue;
+
+        const entry: any = {};
+        for (let j = 0; j < header.length; j++) {
+          entry[header[j]] = values[j]?.trim() || '';
+        }
+
+        // Create composite key: "firstname lastname draftclass"
+        const firstName = entry['First Name'] || '';
+        const lastName = entry['Last Name'] || '';
+        const draftClass = entry['Draft Class'] || '';
+        const key = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${draftClass}`;
+
+        this.futureDraftLookupCache.set(key, entry);
+      }
+
+      console.log(`[CreatorService] Loaded ${this.futureDraftLookupCache.size} players from FutureDraft_Lookup.csv`);
+    } catch (error) {
+      console.error('[CreatorService] Failed to load FutureDraft_Lookup.csv:', error);
+    }
+
+    return this.futureDraftLookupCache;
+  }
+
+  /**
    * Parse CSV line handling quoted fields with commas
    */
   private parseCSVLine(line: string): string[] {
@@ -1499,19 +1552,22 @@ export class CreatorService {
   }
 
   /**
-   * Generate draft class from MASTER_LOOKUP (OPTIMIZED - 95%+ faster!)
-   * Loads players directly from ALL_PLAYER_LOOKUP.csv instead of web scraping
+   * Generate draft class from CSV lookup files (OPTIMIZED - 95%+ faster!)
+   * Uses ALL_PLAYER_LOOKUP.csv for year <= 2025 (historical)
+   * Uses FutureDraft_Lookup.csv for year >= 2026 (projected)
    * Falls back to scraping ONLY for missing height/weight data
    *
    * @param year - Draft year
    * @param testingMode - If true, limit to ~40 players for faster testing
    * @param league - League filter: 'nfl', 'afl', or 'combined' (default: auto-detect)
+   * @param ratingMode - Rating generation mode: 'semi-historical', 'random', or 'realistic'
    * @returns Array of generated prospects
    */
   async generateDraftClassFromLookup(
     year: number,
     testingMode: boolean = false,
-    league?: string
+    league?: string,
+    ratingMode: string = 'semi-historical'
   ): Promise<GeneratedPlayer[]> {
     const startTime = Date.now();
 
@@ -1525,17 +1581,20 @@ export class CreatorService {
       }
     }
 
-    console.log(`[CreatorService] ⚡ FAST MODE: Generating ${year} draft from MASTER_LOOKUP (League: ${leagueFilter})`);
+    // Choose which CSV file to use based on year
+    const useFutureDraft = year >= 2026;
+    const lookupSource = useFutureDraft ? 'FutureDraft_Lookup.csv' : 'ALL_PLAYER_LOOKUP.csv';
+    console.log(`[CreatorService] ⚡ FAST MODE: Generating ${year} draft from ${lookupSource} (League: ${leagueFilter}, Rating Mode: ${ratingMode})`);
 
     try {
-      // STEP 1: Load ALL players from MASTER_LOOKUP for this year (INSTANT!)
-      const masterLookup = this.loadMasterLookup();
+      // STEP 1: Load ALL players from appropriate lookup for this year (INSTANT!)
+      const lookup = useFutureDraft ? this.loadFutureDraftLookup() : this.loadMasterLookup();
       const draftProspects: DraftProspect[] = [];
 
-      masterLookup.forEach((entry, key) => {
+      lookup.forEach((entry, key) => {
         if (entry['Draft Class'] === String(year)) {
-          // Apply league filter if needed (1960-1969)
-          if (leagueFilter && leagueFilter !== 'combined' && year >= 1960 && year <= 1969) {
+          // Apply league filter if needed (1960-1969) - only for historical data
+          if (!useFutureDraft && leagueFilter && leagueFilter !== 'combined' && year >= 1960 && year <= 1969) {
             if (entry['League']?.toUpperCase() !== leagueFilter.toUpperCase()) {
               return; // Skip this player
             }
@@ -1543,23 +1602,42 @@ export class CreatorService {
 
           const firstName = entry['First Name'];
           const lastName = entry['Last Name'];
-          const round = entry['Round'] ? parseFloat(entry['Round']) : undefined;
-          const pick = entry['Pick'] ? parseFloat(entry['Pick']) : undefined;
-          const wAV = entry['wAV'] ? parseFloat(entry['wAV']) : undefined;
+
+          // Handle different CSV structures
+          let round: number | undefined;
+          let pick: number | undefined;
+          let wAV: number | undefined;
+
+          if (useFutureDraft) {
+            // FutureDraft_Lookup has "Rank" instead of "Round" and "Pick"
+            const rank = entry['Rank'] ? parseFloat(entry['Rank']) : undefined;
+            if (rank) {
+              // Convert rank to approximate round/pick (32 picks per round)
+              round = Math.ceil(rank / 32);
+              pick = rank;
+            }
+            // Future prospects don't have wAV (not played yet)
+            wAV = undefined;
+          } else {
+            // ALL_PLAYER_LOOKUP has "Round", "Pick", and "wAV"
+            round = entry['Round'] ? parseFloat(entry['Round']) : undefined;
+            pick = entry['Pick'] ? parseFloat(entry['Pick']) : undefined;
+            wAV = entry['wAV'] ? parseFloat(entry['wAV']) : undefined;
+          }
 
           draftProspects.push({
             name: `${firstName} ${lastName}`,
             position: entry['Position'],
             round: round,
             pick: pick,
-            college: entry['College/Univ'],
-            height: undefined, // Will get from MASTER_LOOKUP height field or scrape
-            weight: undefined, // Will get from MASTER_LOOKUP weight field or scrape
-            careerGames: entry['St'] ? parseInt(entry['St']) : undefined,
-            careerStarts: entry['St'] ? parseInt(entry['St']) : undefined,
+            college: useFutureDraft ? entry['College'] : entry['College/Univ'],
+            height: undefined, // Will get from lookup height field or scrape
+            weight: undefined, // Will get from lookup weight field or scrape
+            careerGames: useFutureDraft ? undefined : (entry['St'] ? parseInt(entry['St']) : undefined),
+            careerStarts: useFutureDraft ? undefined : (entry['St'] ? parseInt(entry['St']) : undefined),
             careerAV: wAV,
-            // HOF heuristic: AP1 > 0 or wAV > 150
-            isHallOfFamer: (entry['AP1'] && parseInt(entry['AP1']) > 0) || (wAV && wAV > 150) || false
+            // HOF heuristic: AP1 > 0 or wAV > 150 (only for historical players)
+            isHallOfFamer: useFutureDraft ? false : ((entry['AP1'] && parseInt(entry['AP1']) > 0) || (wAV && wAV > 150) || false)
           });
         }
       });
@@ -1612,11 +1690,11 @@ export class CreatorService {
         const firstName = nameParts[0] || 'John';
         const lastName = nameParts.slice(1).join(' ') || 'Doe';
 
-        // Get full MASTER_LOOKUP entry for this player
+        // Get full lookup entry for this player
         const lookupKey = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${year}`;
-        const lookupEntry = masterLookup.get(lookupKey);
+        const lookupEntry = lookup.get(lookupKey);
 
-        // Get weight and height from MASTER_LOOKUP
+        // Get weight and height from lookup
         let weight = prospect.weight || 0;
         let heightInches = 0;
 
@@ -1638,7 +1716,7 @@ export class CreatorService {
         // Map position with historical support (uses weight/height for disambiguation)
         const mappedPosition = this.mapHistoricalPosition(prospect.position, year, weight, heightInches);
 
-        // Extract wAV from MASTER_LOOKUP
+        // Extract wAV from lookup (only available for historical players)
         let wAV: number | undefined;
         if (lookupEntry && lookupEntry['wAV']) {
           wAV = parseFloat(lookupEntry['wAV']);
@@ -1658,14 +1736,41 @@ export class CreatorService {
           gamesPlayed: prospect.careerGames
         } : undefined;
 
-        // Generate ratings using wAV-based tier system
+        // Generate ratings based on selected mode
         let ratings: MaddenRatings;
-        if (wAV !== undefined && wAV > 0) {
-          // Use wAV-based rating tier system
-          ratings = this.generateRatingsFromWAV(wAV, mappedPosition.name, prospect.isHallOfFamer);
+
+        if (ratingMode === 'random' || ratingMode === 'realistic') {
+          // Use rating mode factory for random or realistic modes
+          try {
+            const generator = RatingModeFactory.create(ratingMode as RatingMode);
+            const generatedRatings = await generator.generateRatings({
+              position: mappedPosition.name,
+              draftPosition: prospect.pick,
+              draftRound: prospect.round,
+              fortyTime: prospect.fortyTime,
+              age: this.calculateAge(year, prospect.round),
+              name: `${firstName} ${lastName}`
+            });
+
+            // Convert from factory format to MaddenRatings format
+            ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings);
+
+          } catch (error) {
+            console.error(`[CreatorService] Error using rating mode ${ratingMode}, falling back to default:`, error);
+            ratings = this.generateDefaultRatings(prospect);
+          }
         } else {
-          // Fall back to draft position
-          ratings = this.generateDefaultRatings(prospect);
+          // Semi-historical mode: use existing logic (wAV -> stats -> default)
+          if (wAV !== undefined && wAV > 0) {
+            // Use wAV-based rating tier system
+            ratings = this.generateRatingsFromWAV(wAV, mappedPosition.name, prospect.isHallOfFamer);
+          } else if (stats && (stats.passAttempts || stats.rushAttempts || stats.receptions || stats.tackles)) {
+            // Use career stats if available
+            ratings = ratingCalculator.calculateRatings(stats);
+          } else {
+            // Fall back to draft position
+            ratings = this.generateDefaultRatings(prospect);
+          }
         }
 
         // Ensure NO ratings are blank
