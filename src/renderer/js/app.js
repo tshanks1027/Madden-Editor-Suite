@@ -3383,40 +3383,37 @@ class MaddenEditorApp {
             console.log(`[GenericFacePicker] Updated player.PID from ${oldPID} to ${pid}`);
         }
 
-        // Load portrait into cache
-        const cacheKey = `pid_${pid}`;
-        console.log(`[GenericFacePicker] Loading portrait with key: ${cacheKey}`);
-        this.portraitCache.set(cacheKey, 'loading');
+        console.log(`[GenericFacePicker] Data updates complete. Updating grid immediately...`);
 
-        try {
-            const imageData = await window.electronAPI.portrait.getByPID(pid);
-            if (imageData && imageData.length > 0) {
-                this.portraitCache.set(cacheKey, imageData);
-                console.log(`[GenericFacePicker] Portrait loaded, length: ${imageData.length}`);
-            } else {
+        // PERFORMANCE FIX: Don't await portrait loading - update grid immediately
+        // Load portrait in background, cell will show "loading..." then auto-update when ready
+        const cacheKey = `pid_${pid}`;
+        if (!this.portraitCache.has(cacheKey)) {
+            console.log(`[GenericFacePicker] Starting portrait load in background: ${cacheKey}`);
+            this.portraitCache.set(cacheKey, 'loading');
+
+            // Load in background (no await)
+            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                if (imageData && imageData.length > 0) {
+                    this.portraitCache.set(cacheKey, imageData);
+                    console.log(`[GenericFacePicker] Portrait loaded in background, length: ${imageData.length}`);
+                    // Re-render just this cell to show the loaded portrait
+                    if (grid && !grid.isDestroyed) {
+                        grid.render();
+                    }
+                } else {
+                    this.portraitCache.set(cacheKey, null);
+                    console.warn(`[GenericFacePicker] No portrait data for PID ${pid}`);
+                }
+            }).catch(error => {
+                console.error(`[GenericFacePicker] Error loading portrait:`, error);
                 this.portraitCache.set(cacheKey, null);
-                console.warn(`[GenericFacePicker] No portrait data for PID ${pid}`);
-            }
-        } catch (error) {
-            console.error(`[GenericFacePicker] Error loading portrait:`, error);
-            this.portraitCache.set(cacheKey, null);
+            });
+        } else {
+            console.log(`[GenericFacePicker] Portrait already in cache: ${cacheKey}`);
         }
 
-        console.log(`[GenericFacePicker] Data updates complete. Player object and portrait cache updated.`);
-
-        // COMPREHENSIVE FIX - ROOT CAUSES IDENTIFIED:
-        // Problem 1: querySelector fails with virtual rendering (rows not in DOM)
-        // Problem 2: getCell() triggers render cascades (freeze)
-        // Problem 3: render() triggers afterRender hook which calls setupHeaderClickHandlers()
-        //           creating duplicate event listeners (freeze)
-        //
-        // COMPLETE SOLUTION:
-        // 1. Use setDataAtCell() to update cells WITHOUT triggering afterRender hook
-        // 2. setDataAtCell handles virtual rendering correctly
-        // 3. No freeze because afterRender hook doesn't run
-        // 4. Close modal after updates complete
-
-        console.log(`[GenericFacePicker] Updating cells using setDataAtCell...`);
+        console.log(`[GenericFacePicker] Updating cells using setDataAtCell (instant, no waiting)...`);
 
         // Batch all cell updates together using setDataAtCell
         // Format: [[row, col, value], [row, col, value], ...]

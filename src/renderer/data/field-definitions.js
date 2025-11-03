@@ -641,16 +641,8 @@ export function getPlayerNameFromPID(pid) {
     if (plpo && typeof plpo === 'string') {
         // Check if it's a generic face (handles both "gen_X_X_XXX" and "plpo_generic_X_XXX" formats)
         if (plpo.startsWith('gen_') || plpo.includes('generic')) {
-            // Extract generic face identifier
-            // "gen_5_M_M_005" → "gen_5_M_M_005"
-            // "plpo_generic_1_001" → "1_001"
-            let genericId = plpo;
-            if (plpo.includes('plpo_generic_')) {
-                genericId = plpo.replace('plpo_generic_', '');
-            } else if (plpo.startsWith('plpo_gen_')) {
-                genericId = plpo.replace('plpo_', '');
-            }
-            return genericId;
+            // Generic faces should show "Generic Face" in Player Pic column
+            return 'Generic Face';
         }
 
         // Real player with portrait but not in lookup - extract name from PLPO
