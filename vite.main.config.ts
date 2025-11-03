@@ -149,7 +149,7 @@ export default defineConfig({
             mkdirSync(destServicesDir, { recursive: true });
           }
 
-          // Copy all JS/TS files from services
+          // Copy all JS/TS/JSON files from services
           function copyServicesDirectory(src, dest) {
             const entries = fs.readdirSync(src, { withFileTypes: true });
             entries.forEach(entry => {
@@ -161,7 +161,7 @@ export default defineConfig({
                   mkdirSync(destPath, { recursive: true });
                 }
                 copyServicesDirectory(srcPath, destPath);
-              } else if (entry.name.endsWith('.js') || entry.name.endsWith('.ts')) {
+              } else if (entry.name.endsWith('.js') || entry.name.endsWith('.ts') || entry.name.endsWith('.json')) {
                 copyFileSync(srcPath, destPath);
                 console.log(`Copied service: ${entry.name}`);
               }

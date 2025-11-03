@@ -75,18 +75,32 @@ export class RealisticRatingGenerator implements IRatingGenerator {
 
   private loadData(): void {
     try {
-      const appPath = app.isPackaged ? app.getAppPath() : process.cwd();
+      let tierPath: string;
+      let weightPath: string;
+
+      if (app.isPackaged) {
+        // In packaged mode, files are in .vite/build/services/rating-modes/data/
+        const appPath = app.getAppPath();
+        tierPath = path.join(appPath, 'services', 'rating-modes', 'data', 'rowdy-randy-tiers.json');
+        weightPath = path.join(appPath, 'services', 'rating-modes', 'data', 'position-attribute-weights.json');
+      } else {
+        // In dev mode, use __dirname which points to the source directory
+        tierPath = path.join(__dirname, 'data', 'rowdy-randy-tiers.json');
+        weightPath = path.join(__dirname, 'data', 'position-attribute-weights.json');
+      }
+
+      console.log('[RealisticRatingGenerator] Loading tier data from:', tierPath);
 
       // Load tier data
-      const tierPath = path.join(appPath, 'src', 'main', 'services', 'rating-modes', 'data', 'rowdy-randy-tiers.json');
       const tierJson = JSON.parse(fs.readFileSync(tierPath, 'utf-8'));
 
       for (const [pos, tiers] of Object.entries(tierJson)) {
         this.tierData.set(pos, tiers as PositionTiers);
       }
 
+      console.log('[RealisticRatingGenerator] Loading weight data from:', weightPath);
+
       // Load weight data
-      const weightPath = path.join(appPath, 'src', 'main', 'services', 'rating-modes', 'data', 'position-attribute-weights.json');
       const weightJson = JSON.parse(fs.readFileSync(weightPath, 'utf-8'));
 
       for (const [pos, weights] of Object.entries(weightJson)) {
