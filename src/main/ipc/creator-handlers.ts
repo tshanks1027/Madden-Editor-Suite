@@ -55,13 +55,13 @@ export function registerCreatorHandlers(): void {
   /**
    * Generate roster from web scraping
    */
-  ipcMain.handle('creator:generate-roster', async (event, year: number, teams: string[]) => {
+  ipcMain.handle('creator:generate-roster', async (event, year: number, teams: string[], ratingMode: string = 'semi-historical') => {
     try {
-      console.log(`[CreatorHandlers] Generating roster for ${year} (${teams.length} teams)`);
+      console.log(`[CreatorHandlers] Generating roster for ${year} (${teams.length} teams, Rating Mode: ${ratingMode})`);
 
       // Lazy load to avoid loading Puppeteer until first use
       const { creatorService } = await import('../services/CreatorService');
-      const players = await creatorService.generateRoster(year, teams);
+      const players = await creatorService.generateRoster(year, teams, 3000, undefined, undefined, ratingMode);
 
       return {
         success: true,

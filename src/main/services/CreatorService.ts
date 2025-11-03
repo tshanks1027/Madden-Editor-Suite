@@ -1864,6 +1864,9 @@ export class CreatorService {
    * @param year - Season year
    * @param teams - Array of team abbreviations (e.g., ['dal', 'sea', 'ne'])
    * @param maxPlayers - Maximum number of players (from template roster, default 3000)
+   * @param league - League filter (AFL/NFL for 1960-1969)
+   * @param progressCallback - Progress callback function
+   * @param ratingMode - Rating generation mode: 'random', 'semi-historical', or 'realistic'
    * @returns Array of generated players
    */
   async generateRoster(
@@ -1871,7 +1874,8 @@ export class CreatorService {
     teams: string[],
     maxPlayers: number = 3000,
     league?: string,
-    progressCallback?: (progress: number, message: string, currentTeam?: string) => void
+    progressCallback?: (progress: number, message: string, currentTeam?: string) => void,
+    ratingMode: string = 'semi-historical'
   ): Promise<GeneratedPlayer[]> {
     console.log(`[CreatorService] Generating roster for ${year} (${teams.length} teams, max ${maxPlayers} players, league: ${league || 'all'})`);
 
@@ -2111,43 +2115,75 @@ export class CreatorService {
             console.log(`[CreatorService] Position mapped: "${playerStats.position}" -> "${mappedPosition.name}" (code ${mappedPosition.code})`);
           }
 
-          // **GENERATE RATINGS FROM wAV (PRIMARY) OR STATS (FALLBACK)**
+          // **GENERATE RATINGS BASED ON SELECTED MODE**
           const isNonExistentTeam = (playerStats as any)._isNonExistentTeam || false;
           let ratings: MaddenRatings;
 
-          if (proRatedWAV > 0) {
-            // Use wAV-based ratings (already accounts for position scaling)
-            // isRookie=false for roster players (allows up to 99 OVR)
-            ratings = this.generateRatingsFromWAV(proRatedWAV, mappedPosition.name, false, false);
+          if (ratingMode === 'random' || ratingMode === 'realistic') {
+            // Use rating mode factory for random or realistic modes
+            try {
+              const generator = RatingModeFactory.create(ratingMode as RatingMode);
+              const playerAge = playerStats.age || this.calculateAge(year, yearsPro);
+              const generatedRatings = await generator.generateRatings({
+                position: mappedPosition.name,
+                age: playerAge,
+                name: playerStats.name,
+                yearsExperience: yearsPro,
+                // Roster players don't have draft position/round
+                draftPosition: undefined,
+                draftRound: undefined
+              });
 
-            if (debugDetail) {
-              console.log(`[CreatorService] ✅ Using wAV-based ratings: OVR ${ratings.overall}`);
+              // Convert from factory format to MaddenRatings format
+              ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings);
+
+              if (debugDetail) {
+                console.log(`[CreatorService] ✅ Using ${ratingMode} mode ratings: OVR ${ratings.overall}`);
+              }
+
+            } catch (error) {
+              console.error(`[CreatorService] Error using rating mode ${ratingMode}, falling back to wAV:`, error);
+              // Fall back to wAV-based generation
+              ratings = proRatedWAV > 0
+                ? this.generateRatingsFromWAV(proRatedWAV, mappedPosition.name, false, false)
+                : this.generateFillerRatings(mappedPosition.name, isNonExistentTeam);
             }
           } else {
-            // Fallback: No wAV data found - use generic ratings
-            // For non-existent teams use low ratings, otherwise use average starter ratings
-            if (isNonExistentTeam) {
-              ratings = this.generateFillerRatings(mappedPosition.name, true); // 30-40 OVR for retro franchise
-            } else {
-              // Generate average starter ratings (65-70 OVR)
-              // isRookie=false for roster players
-              ratings = this.generateRatingsFromWAV(10, mappedPosition.name, false, false); // 10 wAV = average backup
+            // Semi-historical mode: use existing logic (wAV -> stats -> default)
+            if (proRatedWAV > 0) {
+              // Use wAV-based ratings (already accounts for position scaling)
+              // isRookie=false for roster players (allows up to 99 OVR)
+              ratings = this.generateRatingsFromWAV(proRatedWAV, mappedPosition.name, false, false);
 
-              // Boost for HOF/Pro Bowl players if no wAV data available
-              const isProBowler = proBowlers.has(playerStats.name);
-              if (isHOF) {
-                // HOF without wAV data = assume high career value
-                ratings = this.generateRatingsFromWAV(120, mappedPosition.name, false, false); // Elite tier
-                if (debugDetail) console.log(`[CreatorService] 🏆 HOF player without wAV - using Elite tier (120 wAV)`);
-              } else if (isProBowler) {
-                // Pro Bowler without wAV data = assume quality starter
-                ratings = this.generateRatingsFromWAV(40, mappedPosition.name, false, false); // Quality starter tier
-                if (debugDetail) console.log(`[CreatorService] ⭐ Pro Bowl player without wAV - using Quality Starter tier (40 wAV)`);
+              if (debugDetail) {
+                console.log(`[CreatorService] ✅ Using wAV-based ratings: OVR ${ratings.overall}`);
               }
-            }
+            } else {
+              // Fallback: No wAV data found - use generic ratings
+              // For non-existent teams use low ratings, otherwise use average starter ratings
+              if (isNonExistentTeam) {
+                ratings = this.generateFillerRatings(mappedPosition.name, true); // 30-40 OVR for retro franchise
+              } else {
+                // Generate average starter ratings (65-70 OVR)
+                // isRookie=false for roster players
+                ratings = this.generateRatingsFromWAV(10, mappedPosition.name, false, false); // 10 wAV = average backup
 
-            if (debugDetail) {
-              console.log(`[CreatorService] ℹ️ Using fallback ratings (no wAV data): OVR ${ratings.overall}`);
+                // Boost for HOF/Pro Bowl players if no wAV data available
+                const isProBowler = proBowlers.has(playerStats.name);
+                if (isHOF) {
+                  // HOF without wAV data = assume high career value
+                  ratings = this.generateRatingsFromWAV(120, mappedPosition.name, false, false); // Elite tier
+                  if (debugDetail) console.log(`[CreatorService] 🏆 HOF player without wAV - using Elite tier (120 wAV)`);
+                } else if (isProBowler) {
+                  // Pro Bowler without wAV data = assume quality starter
+                  ratings = this.generateRatingsFromWAV(40, mappedPosition.name, false, false); // Quality starter tier
+                  if (debugDetail) console.log(`[CreatorService] ⭐ Pro Bowl player without wAV - using Quality Starter tier (40 wAV)`);
+                }
+              }
+
+              if (debugDetail) {
+                console.log(`[CreatorService] ℹ️ Using fallback ratings (no wAV data): OVR ${ratings.overall}`);
+              }
             }
           }
 

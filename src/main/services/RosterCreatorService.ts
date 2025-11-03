@@ -102,12 +102,14 @@ export class RosterCreatorService {
    * Uses CreatorService for proper college lookup, position mapping, dev traits, and stat minimums
    * @param year - Season year (1920-2025)
    * @param templatePath - Path to template roster file
+   * @param ratingMode - Rating generation mode: 'random', 'semi-historical', or 'realistic'
    * @param progressCallback - Callback for progress updates
    * @returns Array of roster players
    */
   async generateHistoricalRoster(
     year: number,
     templatePath: string,
+    ratingMode: string = 'semi-historical',
     progressCallback?: ProgressCallback
   ): Promise<RosterPlayer[]> {
     try {
@@ -142,7 +144,7 @@ export class RosterCreatorService {
       // This gives us: college lookup, position mapping, dev traits, stat minimums, etc.
       // Exclude 'fa' from team scraping - FA pool will be generated separately
       const teamAbbrs = NFL_TEAMS.filter(t => t.abbr !== 'fa').map(t => t.abbr);
-      const generatedPlayers = await creatorService.generateRoster(year, teamAbbrs, maxPlayers);
+      const generatedPlayers = await creatorService.generateRoster(year, teamAbbrs, maxPlayers, undefined, undefined, ratingMode);
 
       console.log(`[RosterCreatorService] CreatorService generated ${generatedPlayers.length} players`);
 

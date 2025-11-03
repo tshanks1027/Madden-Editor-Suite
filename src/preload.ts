@@ -70,16 +70,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('creator:generate-draft-class', year, testingMode, ratingMode),
     generateDecadeDraftClass: (startYear: number, endYear: number) =>
       ipcRenderer.invoke('creator:generate-decade-draft-class', startYear, endYear),
-    generateRoster: (year: number, teams: string[]) =>
-      ipcRenderer.invoke('creator:generate-roster', year, teams),
+    generateRoster: (year: number, teams: string[], ratingMode: string = 'semi-historical') =>
+      ipcRenderer.invoke('creator:generate-roster', year, teams, ratingMode),
     testScraper: (year: number) =>
       ipcRenderer.invoke('creator:test-scraper', year)
   },
 
   // Roster Creator APIs
   rosterCreator: {
-    generate: (year: number, templatePath: string) =>
-      ipcRenderer.invoke('roster-creator:generate', year, templatePath),
+    generate: (year: number, templatePath: string, ratingMode: string = 'semi-historical') =>
+      ipcRenderer.invoke('roster-creator:generate', year, templatePath, ratingMode),
     save: (players: any[], templatePath: string, outputPath: string) =>
       ipcRenderer.invoke('roster-creator:save', players, templatePath, outputPath),
     validateYear: (year: number) =>

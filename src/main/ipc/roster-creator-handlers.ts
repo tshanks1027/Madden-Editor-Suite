@@ -14,10 +14,11 @@ import { rosterCreatorService } from '../services/RosterCreatorService';
  * Handle: roster-creator:generate
  * Generate a historical roster for a given year
  */
-ipcMain.handle('roster-creator:generate', async (event, year: number, templatePath: string) => {
+ipcMain.handle('roster-creator:generate', async (event, year: number, templatePath: string, ratingMode: string = 'semi-historical') => {
   console.log('[roster-creator-handlers] ===== IPC GENERATE REQUEST =====');
   console.log('[roster-creator-handlers] Year:', year);
   console.log('[roster-creator-handlers] Template:', templatePath);
+  console.log('[roster-creator-handlers] Rating Mode:', ratingMode);
 
   try {
     // Get the browser window to send progress updates
@@ -32,6 +33,7 @@ ipcMain.handle('roster-creator:generate', async (event, year: number, templatePa
     const players = await rosterCreatorService.generateHistoricalRoster(
       year,
       templatePath,
+      ratingMode,
       (progress, message) => {
         // Send progress update to renderer
         if (browserWindow) {

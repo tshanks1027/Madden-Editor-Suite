@@ -4778,8 +4778,12 @@ class MaddenEditorApp {
                 console.log(`[Creator] Progress: ${data.progress}% - ${data.message}${data.currentTeam ? ` (${data.currentTeam})` : ''}`);
             });
 
+            // Get selected rating mode
+            const ratingMode = document.querySelector('input[name="rosterRatingMode"]:checked')?.value || 'semi-historical';
+            console.log(`[Creator] Using rating mode: ${ratingMode}`);
+
             // Call IPC to generate roster (this will take 10-15 minutes)
-            const result = await window.electronAPI.rosterCreator.generate(year, templatePath);
+            const result = await window.electronAPI.rosterCreator.generate(year, templatePath, ratingMode);
 
             // Remove progress listener
             window.electronAPI.rosterCreator.removeProgressListener();
