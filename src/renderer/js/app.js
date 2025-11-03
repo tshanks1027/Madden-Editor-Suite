@@ -3414,11 +3414,16 @@ class MaddenEditorApp {
             }
         }
 
-        // Manually update BOTH cells in DOM without any grid operations
-        console.log(`[GenericFacePicker] Manually updating cell DOMs...`);
+        // CRITICAL FIX: Use querySelector instead of getCell() to avoid triggering renders
+        // getCell() internally calls render() which creates a render cascade that freezes the browser
+        console.log(`[GenericFacePicker] Updating cell DOMs via querySelector (avoiding getCell render triggers)...`);
 
-        // Update portrait cell
-        const portraitCell = grid.getCell(gridRowIndex, 0);
+        // Update portrait cell using direct DOM access
+        // Row index is 1-based in DOM (header is row 0), column is 1-based
+        const portraitCell = grid.rootElement.querySelector(
+            `.ht_master tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(1)`
+        );
+
         if (portraitCell) {
             // Clear and rebuild the cell content with new portrait
             portraitCell.innerHTML = '';
@@ -3456,21 +3461,25 @@ class MaddenEditorApp {
                 console.warn(`[GenericFacePicker] Portrait not in cache or still loading`);
             }
         } else {
-            console.error(`[GenericFacePicker] Could not get portrait cell at row ${gridRowIndex}`);
+            console.error(`[GenericFacePicker] Could not find portrait cell via querySelector at row ${gridRowIndex}`);
         }
 
-        // Update PID cell
+        // Update PID cell using direct DOM access
         if (pidColumnIndex >= 0) {
-            const pidCell = grid.getCell(gridRowIndex, pidColumnIndex);
+            // Column index is 1-based in DOM
+            const pidCell = grid.rootElement.querySelector(
+                `.ht_master tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(${pidColumnIndex + 1})`
+            );
+
             if (pidCell) {
                 pidCell.textContent = pid;
                 console.log(`[GenericFacePicker] PID cell updated in DOM to ${pid}`);
             } else {
-                console.error(`[GenericFacePicker] Could not get PID cell at row ${gridRowIndex}, col ${pidColumnIndex}`);
+                console.error(`[GenericFacePicker] Could not find PID cell via querySelector at row ${gridRowIndex}, col ${pidColumnIndex}`);
             }
         }
 
-        console.log(`[GenericFacePicker] All updates complete - NO grid operations called`);
+        console.log(`[GenericFacePicker] All updates complete - NO getCell() calls, NO renders triggered`);
 
         // Close the picker AFTER all DOM updates are complete
         // This prevents modal close from triggering grid re-renders that wipe out our changes
