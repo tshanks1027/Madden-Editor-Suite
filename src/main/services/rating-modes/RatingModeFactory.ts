@@ -1,6 +1,7 @@
 import { IRatingGenerator } from './IRatingGenerator';
 import { RandomRatingGenerator } from './RandomRatingGenerator';
 import { HistoricalRatingGenerator } from './HistoricalRatingGenerator';
+import { RealisticRatingGenerator } from './RealisticRatingGenerator';
 
 export enum RatingMode {
   RANDOM = 'random',
@@ -18,8 +19,7 @@ export class RatingModeFactory {
         return new HistoricalRatingGenerator();
 
       case RatingMode.REALISTIC:
-        // Will implement in Task 5
-        throw new Error('Realistic mode not yet implemented');
+        return new RealisticRatingGenerator();
 
       default:
         throw new Error(`Unknown rating mode: ${mode}`);
