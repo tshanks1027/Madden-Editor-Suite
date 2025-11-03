@@ -1119,6 +1119,20 @@ export class CreatorService {
    * @returns Array of generated prospects
    */
   async generateDraftClass(year: number, testingMode: boolean = false, league?: string, ratingMode: string = 'semi-historical'): Promise<GeneratedPlayer[]> {
+    // ROUTE TO PROPER LOOKUP FILE BASED ON YEAR
+    // Year >= 2026: Use FutureDraft_Lookup.csv (pre-scraped future prospects)
+    // Year <= 2025: Use ALL_PLAYER_LOOKUP.csv (historical players)
+    if (year >= 2026) {
+      console.log(`[CreatorService] Year ${year} >= 2026: Using FutureDraft_Lookup.csv`);
+      return this.generateDraftClassFromFutureLookup(year, ratingMode);
+    } else if (year <= 2025) {
+      console.log(`[CreatorService] Year ${year} <= 2025: Using ALL_PLAYER_LOOKUP.csv`);
+      return this.generateDraftClassFromHistoricalLookup(year, ratingMode);
+    }
+
+    // Fallback to web scraping if year is out of range (shouldn't happen)
+    console.warn(`[CreatorService] Year ${year} out of range, falling back to web scraping`);
+
     // Auto-detect league filter based on year
     let leagueFilter: string | undefined = league;
     if (!leagueFilter) {
@@ -3847,6 +3861,261 @@ export class CreatorService {
     }
 
     return fillerPlayers;
+  }
+
+  /**
+   * Generate draft class from FutureDraft_Lookup.csv (2026+)
+   * Uses pre-scraped college players with height/weight/jersey from CollegeFootballData.org API
+   */
+  private async generateDraftClassFromFutureLookup(year: number, ratingMode: string): Promise<GeneratedPlayer[]> {
+    console.log(`[CreatorService] Generating ${year} draft class from FutureDraft_Lookup.csv`);
+
+    const lookupPath = path.join(__dirname, '../../data/lookups/FutureDraft_Lookup.csv');
+
+    if (!fs.existsSync(lookupPath)) {
+      throw new Error(`FutureDraft_Lookup.csv not found at ${lookupPath}`);
+    }
+
+    const csvContent = fs.readFileSync(lookupPath, 'utf-8');
+    const lines = csvContent.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+
+    const players: GeneratedPlayer[] = [];
+    const ratingGenerator = RatingModeFactory.createGenerator(ratingMode);
+
+    // Expected year for this draft (e.g., 2026 draft = 2025 college season)
+    const expectedYear = year - 1;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(',');
+      const row: any = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx]?.trim() || '';
+      });
+
+      // Check if player is from the correct year
+      const collegeYear = parseInt(row['2025 College Year'] || '0');
+      if (collegeYear === 0) continue; // Skip players without year data
+
+      const firstName = row['First Name'] || 'John';
+      const lastName = row['Last Name'] || 'Doe';
+      const position = row['Position'] || 'WR';
+      const college = row['College'] || '';
+
+      // Physical attributes from API
+      const heightInches = parseInt(row['Height ']) || 72;
+      const weight = parseInt(row['Weight']) || 200;
+      const jerseyNum = parseInt(row['Jersey']) || 1;
+      const age = 21 + collegeYear; // Estimate age
+
+      // Map position to Madden position
+      const positionCode = this.mapPositionToCode(position);
+      const collegeId = await this.mapCollegeNameToID(college);
+      const homeState = 0; // Default
+
+      // Generate ratings using selected mode
+      const ratings = await ratingGenerator.generateRatings({
+        position,
+        draftPosition: i, // Use row number as draft position estimate
+        draftRound: Math.ceil(i / 32),
+        age
+      });
+
+      // Match PID
+      const pid = this.matchPID(firstName, lastName, year, position, college);
+      const genericFace = this.assignGenericFace(firstName, lastName, position);
+
+      players.push({
+        firstName,
+        lastName,
+        position,
+        positionCode,
+        college: collegeId,
+        jerseyNum,
+        age,
+        heightInches,
+        weight,
+        homeState,
+        devTrait: this.calculateDevTrait(ratings.overall),
+        ratings: this.convertPlayerRatingsToMaddenRatings(ratings),
+        PID: pid || genericFace,
+        PEPS: null,
+        bodyType: 0,
+        yearsPro: 0
+      });
+    }
+
+    console.log(`[CreatorService] Generated ${players.length} players from FutureDraft_Lookup.csv`);
+    return players;
+  }
+
+  /**
+   * Generate draft class from ALL_PLAYER_LOOKUP.csv (2025 and earlier)
+   * Uses historical player data with actual draft information
+   */
+  private async generateDraftClassFromHistoricalLookup(year: number, ratingMode: string): Promise<GeneratedPlayer[]> {
+    console.log(`[CreatorService] Generating ${year} draft class from ALL_PLAYER_LOOKUP.csv`);
+
+    const lookupPath = path.join(__dirname, '../../data/lookups/ALL_PLAYER_LOOKUP.csv');
+
+    if (!fs.existsSync(lookupPath)) {
+      throw new Error(`ALL_PLAYER_LOOKUP.csv not found at ${lookupPath}`);
+    }
+
+    const csvContent = fs.readFileSync(lookupPath, 'utf-8');
+    const lines = csvContent.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+
+    const players: GeneratedPlayer[] = [];
+    const ratingGenerator = RatingModeFactory.createGenerator(ratingMode);
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = line.split(',');
+      const row: any = {};
+      headers.forEach((header, idx) => {
+        row[header] = values[idx]?.trim() || '';
+      });
+
+      // Filter by draft class year
+      const draftClass = parseInt(row['Draft Class'] || '0');
+      if (draftClass !== year) continue;
+
+      const firstName = row['First Name'] || 'John';
+      const lastName = row['Last Name'] || 'Doe';
+      const position = row['Position'] || 'WR';
+      const college = row['College'] || '';
+
+      // Physical attributes from lookup
+      const heightInches = this.parseHeight(row['Height'] || '72');
+      const weight = parseInt(row['Weight']) || 200;
+      const jerseyNum = parseInt(row['Jersey Number']) || 1;
+      const age = parseInt(row['Age']) || 22;
+
+      // Get draft info
+      const draftRound = parseInt(row['Round']) || 7;
+      const draftPick = parseInt(row['Pick']) || 250;
+
+      // Map position to Madden position
+      const positionCode = this.mapPositionToCode(position);
+      const collegeId = await this.mapCollegeNameToID(college);
+      const homeState = 0; // Default
+
+      // Generate ratings using selected mode
+      const ratings = await ratingGenerator.generateRatings({
+        position,
+        draftPosition: draftPick,
+        draftRound,
+        age
+      });
+
+      // Get PID from lookup
+      const pid = parseInt(row['PhotoID']) || 0;
+      const genericFace = this.assignGenericFace(firstName, lastName, position);
+
+      players.push({
+        firstName,
+        lastName,
+        position,
+        positionCode,
+        college: collegeId,
+        jerseyNum,
+        age,
+        heightInches,
+        weight,
+        homeState,
+        devTrait: this.calculateDevTrait(ratings.overall),
+        ratings: this.convertPlayerRatingsToMaddenRatings(ratings),
+        PID: pid || genericFace,
+        PEPS: row['PAM'] || null,
+        bodyType: 0,
+        yearsPro: 0
+      });
+    }
+
+    console.log(`[CreatorService] Generated ${players.length} players from ALL_PLAYER_LOOKUP.csv`);
+    return players;
+  }
+
+  /**
+   * Convert PlayerRatings from rating-modes to MaddenRatings format
+   */
+  private convertPlayerRatingsToMaddenRatings(ratings: any): MaddenRatings {
+    return {
+      overall: ratings.POVR || 70,
+      speed: ratings.PSPD || 70,
+      acceleration: ratings.PACC || 70,
+      agility: ratings.PAGI || 70,
+      changeOfDirection: ratings.PELU || 70,
+      strength: ratings.PSTR || 70,
+      awareness: ratings.PAWR || 60,
+      jumping: ratings.PJMP || 70,
+      stamina: ratings.PSTA || 85,
+      injury: ratings.PINJ || 90,
+      toughness: ratings.PTGH || 75,
+      throwPower: ratings.PTHP,
+      throwAccuracyShort: ratings.PTAS,
+      throwAccuracyMid: ratings.PTAM,
+      throwAccuracyDeep: ratings.PTAD,
+      throwOnTheRun: ratings.PTOR,
+      throwUnderPressure: ratings.PTUP,
+      playAction: ratings.PPLA,
+      breakSack: ratings.PBSK,
+      carrying: ratings.PCAR,
+      ballCarrierVision: ratings.PBCV,
+      breakTackle: ratings.PBKT,
+      trucking: ratings.PLTR,
+      stiffArm: ratings.PLSA,
+      spinMove: ratings.PLSM,
+      jukeMove: ratings.PLJM,
+      catching: ratings.PCTH,
+      catchInTraffic: ratings.PLCI,
+      spectacularCatch: ratings.PLSC,
+      release: ratings.PLRL,
+      shortRouteRunning: ratings.SRRN,
+      mediumRouteRunning: ratings.PMRR,
+      deepRouteRunning: ratings.PDRR,
+      passBlock: ratings.PPBK,
+      passBlockPower: ratings.PPBS,
+      passBlockFinesse: ratings.PPBF,
+      runBlock: ratings.PRBK,
+      runBlockPower: ratings.PRBS,
+      runBlockFinesse: ratings.PRBF,
+      leadBlock: ratings.PLBK,
+      impactBlocking: ratings.PLIB,
+      tackle: ratings.PTAK,
+      hitPower: ratings.PLHT,
+      powerMoves: ratings.PLPM,
+      finesseMoves: ratings.PFMS,
+      blockShedding: ratings.PBSG,
+      pursuit: ratings.PLPU,
+      playRecognition: ratings.PLPR,
+      manCoverage: ratings.PLMC,
+      zoneCoverage: ratings.PLZC,
+      pressCoverage: ratings.PLPE,
+      kickPower: ratings.PKPR,
+      kickAccuracy: ratings.PKAC,
+      kickReturn: ratings.PKRT,
+      longSnap: ratings.PLSN
+    };
+  }
+
+  /**
+   * Parse height string like "6-2" to inches
+   */
+  private parseHeight(height: string): number {
+    const parts = height.split('-');
+    if (parts.length === 2) {
+      const feet = parseInt(parts[0]) || 6;
+      const inches = parseInt(parts[1]) || 0;
+      return feet * 12 + inches;
+    }
+    return parseInt(height) || 72;
   }
 }
 
