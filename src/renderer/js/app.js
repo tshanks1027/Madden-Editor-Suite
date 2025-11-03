@@ -3395,9 +3395,6 @@ class MaddenEditorApp {
             this.portraitCache.set(cacheKey, null);
         }
 
-        // Close the picker
-        this.closeGenericFacePicker();
-
         console.log(`[GenericFacePicker] Updating grid cells for row ${gridRowIndex}...`);
 
         // Update source data directly WITHOUT triggering setDataAtCell hooks
@@ -3474,6 +3471,10 @@ class MaddenEditorApp {
         }
 
         console.log(`[GenericFacePicker] All updates complete - NO grid operations called`);
+
+        // Close the picker AFTER all DOM updates are complete
+        // This prevents modal close from triggering grid re-renders that wipe out our changes
+        this.closeGenericFacePicker();
 
         console.log(`[GenericFacePicker] ===== DONE =====`);
 
