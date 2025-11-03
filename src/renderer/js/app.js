@@ -3349,33 +3349,39 @@ class MaddenEditorApp {
 
         console.log(`[GenericFacePicker] Found player in dataArray[${actualDataIndex}]:`, player.PFNA, player.PLNA);
 
-        // Find the PID column index using field mapping
+        // Find the PID and Player Pic column indices using field mapping
         let pidColumnIndex = -1;
+        let playerPicColumnIndex = -1;
 
-        console.log(`[GenericFacePicker] Looking for PID column...`);
+        console.log(`[GenericFacePicker] Looking for PID and Player Pic columns...`);
 
         if (isRoster) {
-            // For roster, look for PSXP field in currentFieldMapping
+            // For roster, look for PSXP and PLAYERPIC fields in currentFieldMapping
             // currentFieldMapping is ['', 'field1', 'field2', ...] where '' is portrait column at index 0
             pidColumnIndex = this.currentFieldMapping.indexOf('PSXP');
+            playerPicColumnIndex = this.currentFieldMapping.indexOf('PLAYERPIC');
             console.log(`[GenericFacePicker] currentFieldMapping:`, this.currentFieldMapping);
             console.log(`[GenericFacePicker] PSXP column index: ${pidColumnIndex}`);
+            console.log(`[GenericFacePicker] PLAYERPIC column index: ${playerPicColumnIndex}`);
         } else if (isDraft) {
             // For draft class, PID field should be in the columns
-            // Need to check draft class field mapping structure
             const colHeaders = grid.getColHeader();
             pidColumnIndex = colHeaders.indexOf('PID');
+            playerPicColumnIndex = colHeaders.indexOf('Player Pic');
             console.log(`[GenericFacePicker] Draft PID column index: ${pidColumnIndex}`);
+            console.log(`[GenericFacePicker] Draft Player Pic column index: ${playerPicColumnIndex}`);
         }
 
-        console.log(`[GenericFacePicker] FINAL PID column index: ${pidColumnIndex}`);
+        console.log(`[GenericFacePicker] FINAL PID column index: ${pidColumnIndex}, Player Pic: ${playerPicColumnIndex}`);
 
         // Update player PID - handle both roster (PSXP) and draft class (PID) fields
         if (isRoster) {
             // Roster player - update the actual player object in filteredPlayers
             const oldPID = player.PSXP;
             player.PSXP = pid;
+            player.PLAYERPIC = 'Generic Face'; // Update Player Pic field
             console.log(`[GenericFacePicker] Updated player.PSXP from ${oldPID} to ${pid}`);
+            console.log(`[GenericFacePicker] Updated player.PLAYERPIC to "Generic Face"`);
         } else if (isDraft) {
             // Draft class prospect - update the actual prospect object in draftProspects
             const oldPID = player.PID;
@@ -3426,6 +3432,12 @@ class MaddenEditorApp {
         if (pidColumnIndex >= 0) {
             changes.push([gridRowIndex, pidColumnIndex, pid]);
             console.log(`[GenericFacePicker] Queuing PID update: row ${gridRowIndex}, col ${pidColumnIndex}, value ${pid}`);
+        }
+
+        // Update Player Pic column if found
+        if (playerPicColumnIndex >= 0) {
+            changes.push([gridRowIndex, playerPicColumnIndex, 'Generic Face']);
+            console.log(`[GenericFacePicker] Queuing Player Pic update: row ${gridRowIndex}, col ${playerPicColumnIndex}, value "Generic Face"`);
         }
 
         // Apply all changes in one batch
