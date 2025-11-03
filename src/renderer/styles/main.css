@@ -198,6 +198,38 @@ body {
     gap: 0.5rem;
 }
 
+/* Report Bug Button */
+.btn-report {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+}
+
+.btn-report:hover {
+    background: linear-gradient(135deg, #7c94f5 0%, #8a5cb8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6);
+}
+
+.btn-report:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+}
+
+.report-icon {
+    font-size: 16px;
+}
+
 /* Buttons - 3D Beveled Glass Design */
 .btn {
     display: inline-flex;

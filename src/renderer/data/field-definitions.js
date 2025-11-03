@@ -108,23 +108,23 @@ export const MADDEN_FIELDS = {
 // Field order for user-friendly editing (Madden game order)
 export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"],
-    ["PPOS", "Position"], ["PYRP", "Years Pro"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
+    ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["PHTN", "Hometown"], ["PHSN", "State"],
+    ["PHGT", "Height"], ["PWGT", "Weight"], ["PYRP", "Years Pro"],
     ["POVR", "Overall"],
-    ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBKT", "Break Tackle"], ["PBCV", "Vision"],
+    ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBCV", "Vision"],
     ["PBSG", "Block Shed"], ["PBSK", "Break Sack"], ["PCAR", "Carrying"], ["PLCI", "Catch in Traffic"],
     ["PCTH", "Catching"], ["PDRR", "Deep RR"], ["PELU", "Change of Dir"], ["PFMS", "Finesse Moves"],
     ["PLHT", "Hit Power"], ["PLIB", "Impact Block"], ["PINJ", "Injury"], ["PLJM", "Juke"],
     ["PJMP", "Jump"], ["PKAC", "Kick Acc"], ["PKPR", "Kick Power"], ["PKRT", "Kick Return"],
     ["PLBK", "Lead Block"], ["PLMC", "Man Cov"], ["PMRR", "Medium RR"], ["PPBK", "Pass Block"],
     ["PPBF", "Pass Block FIN"], ["PPBS", "Pass Block PWR"], ["PPLA", "Play Action"], ["PLPM", "Power Move"],
-    ["PLPE", "Press"], ["PLPU", "Pursuit"], ["PLPR", "Play Recognition"], ["PLRL", "Release"], ["PRBK", "Run Block"],
+    ["PLPE", "Press"], ["PLPU", "Pursuit"], ["PLRL", "Release"], ["PRBK", "Run Block"],
     ["PRBF", "Run Block FIN"], ["PRBS", "Run Block PWR"], ["SRRN", "Short RR"], ["PLSC", "Spec Catch"],
     ["PSPD", "Speed"], ["PLSM", "Spin Move"], ["PSTA", "Stamina"], ["PLSA", "Stiff Arm"],
     ["PSTR", "Strength"], ["PTAK", "Tackling"], ["PTAD", "Deep Throw"], ["PTAM", "Med Throw"],
     ["PTAS", "Short Throw"], ["PTOR", "Throw on Run"], ["PTHP", "Throw Power"],
     ["PTUP", "Throw Under Pressure"], ["PTGH", "Toughness"], ["PLTR", "Truck"], ["PLZC", "Zone Coverage"],
-    ["PHGT", "Height"], ["PWGT", "Weight"],
     ["PCON", "Contract Years"], ["PCYL", "Years Left"], ["TOTAL_SALARY", "Total Salary"], ["PSBO", "Signing Bonus"]
 ];
 

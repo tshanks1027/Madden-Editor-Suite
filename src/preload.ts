@@ -133,5 +133,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-by-pid', pid),
     getImageDataByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-image-data-by-pid', pid),
     hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid)
+  },
+
+  // Shell APIs
+  shell: {
+    openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url)
   }
 });

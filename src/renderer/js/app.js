@@ -6191,6 +6191,17 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Testing searchPIDNames("Anderson", 5):', searchPIDNames("Anderson", 5));
         console.log('=== Test Complete ===');
     };
+
+    // ========================================
+    // Bug Report Button
+    // ========================================
+    const reportBugBtn = document.getElementById('reportBugBtn');
+    if (reportBugBtn) {
+        reportBugBtn.addEventListener('click', () => {
+            console.log('[Bug Report] Opening GitHub Issues page');
+            window.electronAPI.shell.openExternal('https://github.com/tshanks1027/Madden-Editor-Suite/issues/new/choose');
+        });
+    }
 });
 
 // Export for ES6 module use
