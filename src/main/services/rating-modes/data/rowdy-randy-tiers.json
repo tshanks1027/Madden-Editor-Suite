@@ -1,0 +1,122 @@
+{
+  "QB": {
+    "Generational": { "min": 78, "max": 80 },
+    "Top 5": { "min": 72, "max": 74 },
+    "Round 1": { "min": 70, "max": 72 },
+    "Round 1-2": { "min": 67, "max": 71 },
+    "Round 2-3": { "min": 64, "max": 67 },
+    "Round 3-4": { "min": 61, "max": 65 },
+    "Day 3": { "min": 58, "max": 62 },
+    "UDFA": { "min": 54, "max": 59 }
+  },
+  "HB": {
+    "Generational": { "min": 82, "max": 84 },
+    "Top 5": { "min": 76, "max": 78 },
+    "Round 1": { "min": 74, "max": 76 },
+    "Round 1-2": { "min": 70, "max": 74 },
+    "Round 2-3": { "min": 67, "max": 71 },
+    "Round 3-4": { "min": 64, "max": 68 },
+    "Day 3": { "min": 61, "max": 65 },
+    "UDFA": { "min": 57, "max": 62 }
+  },
+  "FB": {
+    "Generational": { "min": 78, "max": 80 },
+    "Top 5": { "min": 72, "max": 74 },
+    "Round 1": { "min": 70, "max": 72 },
+    "Round 1-2": { "min": 67, "max": 71 },
+    "Round 2-3": { "min": 64, "max": 67 },
+    "Round 3-4": { "min": 61, "max": 65 },
+    "Day 3": { "min": 58, "max": 62 },
+    "UDFA": { "min": 54, "max": 59 }
+  },
+  "WR": {
+    "Generational": { "min": 79, "max": 81 },
+    "Top 5": { "min": 73, "max": 75 },
+    "Round 1": { "min": 70, "max": 73 },
+    "Round 1-2": { "min": 68, "max": 71 },
+    "Round 2-3": { "min": 66, "max": 69 },
+    "Round 3-4": { "min": 64, "max": 67 },
+    "Day 3": { "min": 62, "max": 65 },
+    "UDFA": { "min": 60, "max": 63 }
+  },
+  "TE": {
+    "Generational": { "min": 78, "max": 80 },
+    "Top 5": { "min": 72, "max": 74 },
+    "Round 1": { "min": 70, "max": 72 },
+    "Round 1-2": { "min": 67, "max": 71 },
+    "Round 2-3": { "min": 64, "max": 67 },
+    "Round 3-4": { "min": 61, "max": 65 },
+    "Day 3": { "min": 58, "max": 62 },
+    "UDFA": { "min": 54, "max": 59 }
+  },
+  "OL": {
+    "Generational": { "min": 79, "max": 81 },
+    "Top 5": { "min": 73, "max": 75 },
+    "Round 1": { "min": 70, "max": 73 },
+    "Round 1-2": { "min": 68, "max": 71 },
+    "Round 2-3": { "min": 66, "max": 69 },
+    "Round 3-4": { "min": 64, "max": 67 },
+    "Day 3": { "min": 62, "max": 65 },
+    "UDFA": { "min": 60, "max": 63 }
+  },
+  "EDGE": {
+    "Generational": { "min": 78, "max": 80 },
+    "Top 5": { "min": 72, "max": 74 },
+    "Round 1": { "min": 70, "max": 72 },
+    "Round 1-2": { "min": 67, "max": 71 },
+    "Round 2-3": { "min": 64, "max": 67 },
+    "Round 3-4": { "min": 61, "max": 65 },
+    "Day 3": { "min": 58, "max": 62 },
+    "UDFA": { "min": 54, "max": 59 }
+  },
+  "IDL": {
+    "Generational": { "min": 78, "max": 80 },
+    "Top 5": { "min": 72, "max": 74 },
+    "Round 1": { "min": 70, "max": 72 },
+    "Round 1-2": { "min": 67, "max": 71 },
+    "Round 2-3": { "min": 64, "max": 67 },
+    "Round 3-4": { "min": 61, "max": 65 },
+    "Day 3": { "min": 58, "max": 62 },
+    "UDFA": { "min": 54, "max": 59 }
+  },
+  "LB": {
+    "Generational": { "min": 78, "max": 80 },
+    "Top 5": { "min": 72, "max": 74 },
+    "Round 1": { "min": 70, "max": 72 },
+    "Round 1-2": { "min": 67, "max": 71 },
+    "Round 2-3": { "min": 64, "max": 67 },
+    "Round 3-4": { "min": 61, "max": 65 },
+    "Day 3": { "min": 58, "max": 62 },
+    "UDFA": { "min": 54, "max": 59 }
+  },
+  "CB": {
+    "Generational": { "min": 79, "max": 81 },
+    "Top 5": { "min": 73, "max": 75 },
+    "Round 1": { "min": 70, "max": 73 },
+    "Round 1-2": { "min": 68, "max": 71 },
+    "Round 2-3": { "min": 66, "max": 69 },
+    "Round 3-4": { "min": 64, "max": 67 },
+    "Day 3": { "min": 62, "max": 65 },
+    "UDFA": { "min": 60, "max": 63 }
+  },
+  "S": {
+    "Generational": { "min": 78, "max": 80 },
+    "Top 5": { "min": 72, "max": 74 },
+    "Round 1": { "min": 70, "max": 72 },
+    "Round 1-2": { "min": 67, "max": 71 },
+    "Round 2-3": { "min": 64, "max": 67 },
+    "Round 3-4": { "min": 61, "max": 65 },
+    "Day 3": { "min": 58, "max": 62 },
+    "UDFA": { "min": 54, "max": 59 }
+  },
+  "ST": {
+    "Generational": { "min": 82, "max": 84 },
+    "Top 5": { "min": 76, "max": 78 },
+    "Round 1": { "min": 74, "max": 76 },
+    "Round 1-2": { "min": 70, "max": 74 },
+    "Round 2-3": { "min": 67, "max": 71 },
+    "Round 3-4": { "min": 64, "max": 68 },
+    "Day 3": { "min": 61, "max": 65 },
+    "UDFA": { "min": 57, "max": 62 }
+  }
+}

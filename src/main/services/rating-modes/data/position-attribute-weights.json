@@ -1,0 +1,119 @@
+{
+  "QB": {
+    "key_attributes": ["PTAD", "PTAM", "PTAS", "PTHP", "PAWR", "PTUP"],
+    "weights": {
+      "PTAD": 0.2,
+      "PTAM": 0.2,
+      "PTAS": 0.15,
+      "PTHP": 0.15,
+      "PAWR": 0.15,
+      "PTUP": 0.15
+    }
+  },
+  "HB": {
+    "key_attributes": ["PSPD", "PACC", "PAGI", "PCAR", "PBCV", "PBKT"],
+    "weights": {
+      "PSPD": 0.2,
+      "PACC": 0.2,
+      "PAGI": 0.15,
+      "PCAR": 0.15,
+      "PBCV": 0.15,
+      "PBKT": 0.15
+    }
+  },
+  "WR": {
+    "key_attributes": ["PSPD", "PACC", "PCTH", "PLCI", "PDRR", "PLSC"],
+    "weights": {
+      "PSPD": 0.2,
+      "PACC": 0.15,
+      "PCTH": 0.2,
+      "PLCI": 0.15,
+      "PDRR": 0.15,
+      "PLSC": 0.15
+    }
+  },
+  "TE": {
+    "key_attributes": ["PCTH", "PLCI", "PRBK", "PSTR", "PAWR"],
+    "weights": {
+      "PCTH": 0.25,
+      "PLCI": 0.2,
+      "PRBK": 0.2,
+      "PSTR": 0.15,
+      "PAWR": 0.2
+    }
+  },
+  "OL": {
+    "key_attributes": ["PRBK", "PPBK", "PSTR", "PAWR"],
+    "weights": {
+      "PRBK": 0.3,
+      "PPBK": 0.3,
+      "PSTR": 0.2,
+      "PAWR": 0.2
+    }
+  },
+  "EDGE": {
+    "key_attributes": ["PFMS", "PLPM", "PBSG", "PTAK", "PAWR"],
+    "weights": {
+      "PFMS": 0.25,
+      "PLPM": 0.25,
+      "PBSG": 0.2,
+      "PTAK": 0.15,
+      "PAWR": 0.15
+    }
+  },
+  "IDL": {
+    "key_attributes": ["PBSG", "PLPM", "PSTR", "PTAK", "PAWR"],
+    "weights": {
+      "PBSG": 0.3,
+      "PLPM": 0.25,
+      "PSTR": 0.2,
+      "PTAK": 0.15,
+      "PAWR": 0.1
+    }
+  },
+  "LB": {
+    "key_attributes": ["PTAK", "PLPU", "PLPR", "PLMC", "PLZC"],
+    "weights": {
+      "PTAK": 0.25,
+      "PLPU": 0.2,
+      "PLPR": 0.2,
+      "PLMC": 0.175,
+      "PLZC": 0.175
+    }
+  },
+  "CB": {
+    "key_attributes": ["PSPD", "PACC", "PAGI", "PLMC", "PLZC", "PLPE"],
+    "weights": {
+      "PSPD": 0.2,
+      "PACC": 0.15,
+      "PAGI": 0.15,
+      "PLMC": 0.2,
+      "PLZC": 0.15,
+      "PLPE": 0.15
+    }
+  },
+  "S": {
+    "key_attributes": ["PSPD", "PACC", "PLZC", "PLPR", "PTAK"],
+    "weights": {
+      "PSPD": 0.2,
+      "PACC": 0.15,
+      "PLZC": 0.25,
+      "PLPR": 0.2,
+      "PTAK": 0.2
+    }
+  },
+  "K": {
+    "key_attributes": ["PKAC", "PKPR"],
+    "weights": {
+      "PKAC": 0.6,
+      "PKPR": 0.4
+    }
+  },
+  "P": {
+    "key_attributes": ["PKAC", "PKPR"],
+    "weights": {
+      "PKAC": 0.6,
+      "PKPR": 0.4
+    }
+  }
+}
