@@ -888,7 +888,9 @@ class MaddenEditorApp {
             td.style.backgroundColor = '#1a1a1a';
 
             // Get PID from the actual player object (not grid data which is a copy)
-            const player = this.filteredPlayers[row];
+            // Use pagination mapping: grid row -> actual filteredPlayers index
+            const playerIndex = this.paginatedPlayerIndices ? this.paginatedPlayerIndices[row] : row;
+            const player = this.filteredPlayers[playerIndex];
             const pid = player ? player.PSXP : null;
 
             // Check for null/undefined, but allow PID 0 (blank silhouette)
@@ -913,7 +915,9 @@ class MaddenEditorApp {
                     // Add right-click context menu for generic face picker
                     img.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
-                        const player = this.filteredPlayers[row];
+                        // Use mapped player index for context menu
+                        const playerIndex = this.paginatedPlayerIndices ? this.paginatedPlayerIndices[row] : row;
+                        const player = this.filteredPlayers[playerIndex];
                         if (player) {
                             this.openGenericFacePicker(player, row);
                         }
@@ -3289,8 +3293,8 @@ class MaddenEditorApp {
                 return;
             }
 
-        const rowIndex = this.currentFacePickerRowIndex;
-        console.log(`[GenericFacePicker] Row index: ${rowIndex}`);
+        const gridRowIndex = this.currentFacePickerRowIndex;
+        console.log(`[GenericFacePicker] Grid row index: ${gridRowIndex}`);
         console.log(`[GenericFacePicker] Player object keys:`, Object.keys(this.currentFacePickerPlayer));
 
         // Determine which grid and data array we're working with
@@ -3318,15 +3322,25 @@ class MaddenEditorApp {
             return;
         }
 
-        // Get the actual player object from the data array (not the passed reference)
-        const player = dataArray[rowIndex];
+        // CRITICAL: Map grid row to actual data index (for pagination)
+        // Grid shows 100 rows per page, so gridRow 0 on page 2 is actually filteredPlayers[100]
+        let actualDataIndex = gridRowIndex;
+        if (isRoster && this.paginatedPlayerIndices) {
+            actualDataIndex = this.paginatedPlayerIndices[gridRowIndex];
+            console.log(`[GenericFacePicker] Mapped grid row ${gridRowIndex} to data index ${actualDataIndex} via paginatedPlayerIndices`);
+        }
+
+        // Get the actual player object from the data array
+        const player = dataArray[actualDataIndex];
         if (!player) {
-            console.error(`[GenericFacePicker] No player found at row index ${rowIndex}`);
+            console.error(`[GenericFacePicker] No player found at data index ${actualDataIndex}`);
+            console.error(`  - gridRowIndex: ${gridRowIndex}`);
             console.error(`  - dataArray.length: ${dataArray.length}`);
+            console.error(`  - paginatedPlayerIndices: ${this.paginatedPlayerIndices}`);
             return;
         }
 
-        console.log(`[GenericFacePicker] Found player in dataArray:`, player.PFNA, player.PLNA);
+        console.log(`[GenericFacePicker] Found player in dataArray[${actualDataIndex}]:`, player.PFNA, player.PLNA);
 
         // Find the PID column index using field mapping
         let pidColumnIndex = -1;
@@ -3387,17 +3401,18 @@ class MaddenEditorApp {
         console.log(`[GenericFacePicker] Updating grid display...`);
 
         // Update the grid data directly (portrait and PID cells)
+        // Use gridRowIndex for grid operations (0-99 per page)
         const sourceData = grid.getSourceData();
-        if (sourceData && sourceData[rowIndex]) {
-            console.log(`[GenericFacePicker] Updating source data at row ${rowIndex}`);
+        if (sourceData && sourceData[gridRowIndex]) {
+            console.log(`[GenericFacePicker] Updating source data at grid row ${gridRowIndex}`);
 
-            // Update portrait column (index 0)
-            sourceData[rowIndex][0] = rowIndex;
+            // Update portrait column (index 0) - set to grid row for the renderer
+            sourceData[gridRowIndex][0] = gridRowIndex;
 
             // Update PID column if found
             if (pidColumnIndex >= 0) {
-                sourceData[rowIndex][pidColumnIndex] = pid;
-                console.log(`[GenericFacePicker] Updated PID in source data at column ${pidColumnIndex}`);
+                sourceData[gridRowIndex][pidColumnIndex] = pid;
+                console.log(`[GenericFacePicker] Updated PID in source data at column ${pidColumnIndex} to ${pid}`);
             } else {
                 console.warn(`[GenericFacePicker] PID column not found (pidColumnIndex = ${pidColumnIndex})`);
             }
@@ -3405,8 +3420,8 @@ class MaddenEditorApp {
 
         // Gently trigger a re-render by scrolling the row into view
         // This uses virtual rendering and won't freeze like render()
-        console.log(`[GenericFacePicker] Scrolling row into view to trigger re-render...`);
-        grid.scrollViewportTo(rowIndex, 0);
+        console.log(`[GenericFacePicker] Scrolling row ${gridRowIndex} into view to trigger re-render...`);
+        grid.scrollViewportTo(gridRowIndex, 0);
 
         // Also clear selection and reselect to force cell refresh
         setTimeout(() => {
