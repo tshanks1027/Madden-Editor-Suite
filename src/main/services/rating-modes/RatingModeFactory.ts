@@ -1,5 +1,6 @@
 import { IRatingGenerator } from './IRatingGenerator';
 import { RandomRatingGenerator } from './RandomRatingGenerator';
+import { HistoricalRatingGenerator } from './HistoricalRatingGenerator';
 
 export enum RatingMode {
   RANDOM = 'random',
@@ -14,8 +15,7 @@ export class RatingModeFactory {
         return new RandomRatingGenerator();
 
       case RatingMode.SEMI_HISTORICAL:
-        // Will implement in Task 3
-        throw new Error('Semi-historical mode not yet implemented');
+        return new HistoricalRatingGenerator();
 
       case RatingMode.REALISTIC:
         // Will implement in Task 5
