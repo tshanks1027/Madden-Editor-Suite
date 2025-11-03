@@ -3273,94 +3273,174 @@ class MaddenEditorApp {
     }
 
     async selectGenericFace(pid) {
-        if (!this.currentFacePickerPlayer) {
-            console.error('No player context for face selection');
+        console.log(`[GenericFacePicker] ===== START selectGenericFace(${pid}) =====`);
+
+        // Prevent double-execution if already processing
+        if (this.isSelectingGenericFace) {
+            console.warn('[GenericFacePicker] Already processing a face selection, ignoring duplicate call');
             return;
         }
 
-        const rowIndex = this.currentFacePickerRowIndex;
+        this.isSelectingGenericFace = true;
 
-        console.log(`[GenericFacePicker] Selecting PID ${pid} for row ${rowIndex}`);
+        try {
+            if (!this.currentFacePickerPlayer) {
+                console.error('[GenericFacePicker] No player context for face selection');
+                return;
+            }
+
+        const rowIndex = this.currentFacePickerRowIndex;
+        console.log(`[GenericFacePicker] Row index: ${rowIndex}`);
+        console.log(`[GenericFacePicker] Player object keys:`, Object.keys(this.currentFacePickerPlayer));
 
         // Determine which grid and data array we're working with
         const isRoster = 'PSXP' in this.currentFacePickerPlayer;
         const isDraft = 'PID' in this.currentFacePickerPlayer;
-        const grid = isRoster ? this.currentRosterGrid : (isDraft ? this.draftGrid : null);
+        console.log(`[GenericFacePicker] isRoster: ${isRoster}, isDraft: ${isDraft}`);
+
+        const grid = isRoster ? this.hotTable : (isDraft ? this.draftGrid : null);
         const dataArray = isRoster ? this.filteredPlayers : (isDraft ? this.draftProspects : null);
 
-        if (!grid || grid.isDestroyed || !dataArray) {
-            console.error('No valid grid or data array found');
+        console.log(`[GenericFacePicker] Grid exists: ${!!grid}, destroyed: ${grid ? grid.isDestroyed : 'N/A'}`);
+        console.log(`[GenericFacePicker] DataArray exists: ${!!dataArray}, length: ${dataArray ? dataArray.length : 'N/A'}`);
+
+        if (!grid || grid.isDestroyed) {
+            console.error('[GenericFacePicker] Grid is missing or destroyed');
+            console.error(`  - this.hotTable: ${!!this.hotTable}`);
+            console.error(`  - this.draftGrid: ${!!this.draftGrid}`);
+            return;
+        }
+
+        if (!dataArray) {
+            console.error('[GenericFacePicker] Data array is missing');
+            console.error(`  - this.filteredPlayers: ${!!this.filteredPlayers}`);
+            console.error(`  - this.draftProspects: ${!!this.draftProspects}`);
             return;
         }
 
         // Get the actual player object from the data array (not the passed reference)
         const player = dataArray[rowIndex];
         if (!player) {
-            console.error(`No player found at row index ${rowIndex}`);
+            console.error(`[GenericFacePicker] No player found at row index ${rowIndex}`);
+            console.error(`  - dataArray.length: ${dataArray.length}`);
             return;
         }
 
-        // Find the PID column index
+        console.log(`[GenericFacePicker] Found player in dataArray:`, player.PFNA, player.PLNA);
+
+        // Find the PID column index using field mapping
         let pidColumnIndex = -1;
-        const colHeaders = grid.getColHeader();
+
+        console.log(`[GenericFacePicker] Looking for PID column...`);
 
         if (isRoster) {
-            pidColumnIndex = colHeaders.indexOf('PID');
+            // For roster, look for PSXP field in currentFieldMapping
+            // currentFieldMapping is ['', 'field1', 'field2', ...] where '' is portrait column at index 0
+            pidColumnIndex = this.currentFieldMapping.indexOf('PSXP');
+            console.log(`[GenericFacePicker] currentFieldMapping:`, this.currentFieldMapping);
+            console.log(`[GenericFacePicker] PSXP column index: ${pidColumnIndex}`);
         } else if (isDraft) {
+            // For draft class, PID field should be in the columns
+            // Need to check draft class field mapping structure
+            const colHeaders = grid.getColHeader();
             pidColumnIndex = colHeaders.indexOf('PID');
+            console.log(`[GenericFacePicker] Draft PID column index: ${pidColumnIndex}`);
         }
 
-        console.log(`[GenericFacePicker] PID column index: ${pidColumnIndex}`);
+        console.log(`[GenericFacePicker] FINAL PID column index: ${pidColumnIndex}`);
 
         // Update player PID - handle both roster (PSXP) and draft class (PID) fields
         if (isRoster) {
             // Roster player - update the actual player object in filteredPlayers
             const oldPID = player.PSXP;
             player.PSXP = pid;
-            console.log(`[Roster] Updated filteredPlayers[${rowIndex}].PSXP from ${oldPID} to ${pid}`);
-
-            // Also update the grid data
-            if (pidColumnIndex >= 0) {
-                grid.setDataAtCell(rowIndex, pidColumnIndex, pid, 'genericFacePicker');
-            }
+            console.log(`[GenericFacePicker] Updated player.PSXP from ${oldPID} to ${pid}`);
         } else if (isDraft) {
             // Draft class prospect - update the actual prospect object in draftProspects
             const oldPID = player.PID;
             player.PID = pid;
-            console.log(`[Draft] Updated draftProspects[${rowIndex}].PID from ${oldPID} to ${pid}`);
-
-            // Also update the grid data
-            if (pidColumnIndex >= 0) {
-                grid.setDataAtCell(rowIndex, pidColumnIndex, pid, 'genericFacePicker');
-            }
+            console.log(`[GenericFacePicker] Updated player.PID from ${oldPID} to ${pid}`);
         }
 
-        // Reload portrait in cache
+        // Load portrait into cache
         const cacheKey = `pid_${pid}`;
+        console.log(`[GenericFacePicker] Loading portrait with key: ${cacheKey}`);
         this.portraitCache.set(cacheKey, 'loading');
 
         try {
             const imageData = await window.electronAPI.portrait.getByPID(pid);
             if (imageData && imageData.length > 0) {
                 this.portraitCache.set(cacheKey, imageData);
-                console.log(`[Portrait] Loaded portrait for PID ${pid} into cache`);
+                console.log(`[GenericFacePicker] Portrait loaded, length: ${imageData.length}`);
             } else {
                 this.portraitCache.set(cacheKey, null);
-                console.warn(`[Portrait] No portrait data for PID ${pid}`);
+                console.warn(`[GenericFacePicker] No portrait data for PID ${pid}`);
             }
         } catch (error) {
-            console.error(`[Portrait] Error loading portrait for PID ${pid}:`, error);
+            console.error(`[GenericFacePicker] Error loading portrait:`, error);
             this.portraitCache.set(cacheKey, null);
         }
 
         // Close the picker
         this.closeGenericFacePicker();
 
-        // Force re-render of the grid to show updated portrait
-        console.log(`[GenericFacePicker] Re-rendering grid to show new portrait`);
-        grid.render();
+        // DEBUG: Check what getCell returns
+        console.log(`[GenericFacePicker] === DEBUG CELL ACCESS ===`);
+        console.log(`[GenericFacePicker] Trying to get cell at row ${rowIndex}, col 0 (portrait)`);
 
-        console.log(`[GenericFacePicker] Done! Portrait should now display PID ${pid}`);
+        const portraitColumnIndex = 0;
+        const portraitCell = grid.getCell(rowIndex, portraitColumnIndex);
+        console.log(`[GenericFacePicker] portraitCell result:`, portraitCell);
+        console.log(`[GenericFacePicker] portraitCell is null?`, portraitCell === null);
+        console.log(`[GenericFacePicker] portraitCell tagName:`, portraitCell ? portraitCell.tagName : 'N/A');
+
+        if (portraitCell) {
+            const img = portraitCell.querySelector('img');
+            console.log(`[GenericFacePicker] img element found?`, !!img);
+            console.log(`[GenericFacePicker] img current src:`, img ? img.src.substring(0, 50) : 'N/A');
+
+            const imageData = this.portraitCache.get(cacheKey);
+            console.log(`[GenericFacePicker] imageData in cache?`, !!imageData);
+            console.log(`[GenericFacePicker] imageData is loading?`, imageData === 'loading');
+            console.log(`[GenericFacePicker] imageData length:`, imageData ? imageData.length : 'N/A');
+
+            if (img && imageData && imageData !== 'loading') {
+                console.log(`[GenericFacePicker] SETTING img.src to new portrait (${imageData.length} chars)`);
+                img.src = imageData;
+                console.log(`[GenericFacePicker] img.src NOW:`, img.src.substring(0, 50));
+            } else {
+                console.error(`[GenericFacePicker] CANNOT UPDATE PORTRAIT - img: ${!!img}, imageData: ${!!imageData}, loading: ${imageData === 'loading'}`);
+            }
+        } else {
+            console.error(`[GenericFacePicker] PORTRAIT CELL IS NULL - cannot update portrait`);
+        }
+
+        // Update PID cell
+        if (pidColumnIndex >= 0) {
+            console.log(`[GenericFacePicker] Trying to get cell at row ${rowIndex}, col ${pidColumnIndex} (PID)`);
+            const pidCell = grid.getCell(rowIndex, pidColumnIndex);
+            console.log(`[GenericFacePicker] pidCell result:`, pidCell);
+            console.log(`[GenericFacePicker] pidCell is null?`, pidCell === null);
+            console.log(`[GenericFacePicker] pidCell tagName:`, pidCell ? pidCell.tagName : 'N/A');
+            console.log(`[GenericFacePicker] pidCell current text:`, pidCell ? pidCell.textContent : 'N/A');
+
+            if (pidCell) {
+                console.log(`[GenericFacePicker] SETTING pidCell.textContent to ${pid}`);
+                pidCell.textContent = pid;
+                console.log(`[GenericFacePicker] pidCell.textContent NOW:`, pidCell.textContent);
+            } else {
+                console.error(`[GenericFacePicker] PID CELL IS NULL - cannot update PID`);
+            }
+        } else {
+            console.warn(`[GenericFacePicker] PID column not found (pidColumnIndex = ${pidColumnIndex})`);
+        }
+
+        console.log(`[GenericFacePicker] ===== DONE =====`);
+
+        } finally {
+            // Clear the processing flag
+            this.isSelectingGenericFace = false;
+        }
     }
 
     closeGenericFacePicker() {
