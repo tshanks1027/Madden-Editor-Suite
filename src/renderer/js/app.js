@@ -3419,9 +3419,10 @@ class MaddenEditorApp {
         console.log(`[GenericFacePicker] Updating cell DOMs via querySelector (avoiding getCell render triggers)...`);
 
         // Update portrait cell using direct DOM access
+        // Portrait is in column 0, which is in the frozen column area (.ht_clone_left)
         // Row index is 1-based in DOM (header is row 0), column is 1-based
         const portraitCell = grid.rootElement.querySelector(
-            `.ht_master tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(1)`
+            `.ht_clone_left tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(1)`
         );
 
         if (portraitCell) {
@@ -3466,14 +3467,26 @@ class MaddenEditorApp {
 
         // Update PID cell using direct DOM access
         if (pidColumnIndex >= 0) {
-            // Column index is 1-based in DOM
-            const pidCell = grid.rootElement.querySelector(
-                `.ht_master tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(${pidColumnIndex + 1})`
-            );
+            // Determine which container based on frozen columns
+            // fixedColumnsStart: 3 means columns 0-2 are in .ht_clone_left, 3+ are in .ht_master
+            let pidCell;
+            if (pidColumnIndex < 3) {
+                // PID is in frozen column area
+                pidCell = grid.rootElement.querySelector(
+                    `.ht_clone_left tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(${pidColumnIndex + 1})`
+                );
+            } else {
+                // PID is in scrollable area
+                // Column index in .ht_master is offset by the number of frozen columns
+                const masterColIndex = pidColumnIndex - 3 + 1; // -3 for frozen cols, +1 for 1-based
+                pidCell = grid.rootElement.querySelector(
+                    `.ht_master tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(${masterColIndex})`
+                );
+            }
 
             if (pidCell) {
                 pidCell.textContent = pid;
-                console.log(`[GenericFacePicker] PID cell updated in DOM to ${pid}`);
+                console.log(`[GenericFacePicker] PID cell updated in DOM to ${pid} (column ${pidColumnIndex})`);
             } else {
                 console.error(`[GenericFacePicker] Could not find PID cell via querySelector at row ${gridRowIndex}, col ${pidColumnIndex}`);
             }
