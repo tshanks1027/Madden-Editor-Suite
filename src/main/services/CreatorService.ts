@@ -16,6 +16,7 @@
 import { scraperService, PlayerStats, DraftProspect } from './ScraperService';
 import { ratingCalculator, MaddenRatings } from './RatingCalculator';
 import { scraperDebugLogger } from '../utils/DebugLogger';
+import { RatingMode, RatingModeFactory } from './rating-modes';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -1117,7 +1118,7 @@ export class CreatorService {
    * @param league - League filter: 'nfl', 'afl', or 'combined' (default: auto-detect)
    * @returns Array of generated prospects
    */
-  async generateDraftClass(year: number, testingMode: boolean = false, league?: string): Promise<GeneratedPlayer[]> {
+  async generateDraftClass(year: number, testingMode: boolean = false, league?: string, ratingMode: string = 'semi-historical'): Promise<GeneratedPlayer[]> {
     // Auto-detect league filter based on year
     let leagueFilter: string | undefined = league;
     if (!leagueFilter) {
@@ -1337,18 +1338,41 @@ export class CreatorService {
         // Convert career stats from draft table to PlayerStats format
         const stats = this.convertProspectToPlayerStats(prospect);
 
-        // Generate ratings using wAV if available (career performance is king!)
-        // Otherwise fall back to career stats or draft position
+        // Generate ratings based on selected mode
         let ratings: MaddenRatings;
-        if (wAV !== undefined && wAV > 0) {
-          // Use wAV-based rating tier system
-          ratings = this.generateRatingsFromWAV(wAV, mappedPosition.name, prospect.isHallOfFamer);
-        } else if (stats && (stats.passAttempts || stats.rushAttempts || stats.receptions || stats.tackles)) {
-          // Use career stats if available
-          ratings = ratingCalculator.calculateRatings(stats);
+
+        if (ratingMode === 'random' || ratingMode === 'realistic') {
+          // Use rating mode factory for random or realistic modes
+          try {
+            const generator = RatingModeFactory.create(ratingMode as RatingMode);
+            const generatedRatings = await generator.generateRatings({
+              position: mappedPosition.name,
+              draftPosition: prospect.pick,
+              draftRound: prospect.round,
+              fortyTime: prospect.fortyTime,
+              age: this.calculateAge(year, prospect.round),
+              name: `${firstName} ${lastName}`
+            });
+
+            // Convert from factory format to MaddenRatings format
+            ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings);
+
+          } catch (error) {
+            console.error(`[CreatorService] Error using rating mode ${ratingMode}, falling back to default:`, error);
+            ratings = this.generateDefaultRatings(prospect);
+          }
         } else {
-          // Fall back to draft position
-          ratings = this.generateDefaultRatings(prospect);
+          // Semi-historical mode: use existing logic (wAV -> stats -> default)
+          if (wAV !== undefined && wAV > 0) {
+            // Use wAV-based rating tier system
+            ratings = this.generateRatingsFromWAV(wAV, mappedPosition.name, prospect.isHallOfFamer);
+          } else if (stats && (stats.passAttempts || stats.rushAttempts || stats.receptions || stats.tackles)) {
+            // Use career stats if available
+            ratings = ratingCalculator.calculateRatings(stats);
+          } else {
+            // Fall back to draft position
+            ratings = this.generateDefaultRatings(prospect);
+          }
         }
 
         // Ensure NO ratings are blank - default to 30 (or 1 for kickReturn)
@@ -2542,6 +2566,69 @@ export class CreatorService {
       await scraperService.closeBrowser();
       throw new Error(`Failed to generate roster: ${error.message}`);
     }
+  }
+
+  /**
+   * Convert factory PlayerRatings format to MaddenRatings format
+   */
+  private convertFactoryRatingsToMaddenRatings(factoryRatings: any): MaddenRatings {
+    return {
+      overall: factoryRatings.POVR || 65,
+      speed: factoryRatings.PSPD || 75,
+      acceleration: factoryRatings.PACC || 75,
+      agility: factoryRatings.PAGI || 75,
+      strength: factoryRatings.PSTR || 75,
+      jumping: factoryRatings.PJMP || 70,
+      stamina: factoryRatings.PSTA || 85,
+      injury: factoryRatings.PINJ || 85,
+      toughness: factoryRatings.PTGH || 75,
+      awareness: factoryRatings.PAWR || 65,
+      throwAccuracyDeep: factoryRatings.PTAD || 65,
+      throwAccuracyMid: factoryRatings.PTAM || 65,
+      throwAccuracyShort: factoryRatings.PTAS || 65,
+      throwPower: factoryRatings.PTHP || 75,
+      throwUnderPressure: factoryRatings.PTUP || 65,
+      throwOnRun: factoryRatings.PTOR || 65,
+      playAction: factoryRatings.PPLA || 65,
+      breakSack: factoryRatings.PBSK || 60,
+      carrying: factoryRatings.PCAR || 65,
+      ballCarrierVision: factoryRatings.PBCV || 65,
+      breakTackle: factoryRatings.PBKT || 65,
+      trucking: factoryRatings.PLTR || 60,
+      jukeMove: factoryRatings.PLJM || 65,
+      spinMove: factoryRatings.PLSM || 65,
+      stiffArm: factoryRatings.PLSA || 60,
+      changeOfDirection: factoryRatings.PELU || 75,
+      catching: factoryRatings.PCTH || 65,
+      catchInTraffic: factoryRatings.PLCI || 65,
+      spectacularCatch: factoryRatings.PLSC || 60,
+      release: factoryRatings.PLRL || 70,
+      deepRouteRunning: factoryRatings.PDRR || 65,
+      mediumRouteRunning: factoryRatings.PMRR || 65,
+      shortRouteRunning: factoryRatings.SRRN || 65,
+      runBlock: factoryRatings.PRBK || 50,
+      passBlock: factoryRatings.PPBK || 50,
+      impactBlocking: factoryRatings.PLIB || 50,
+      leadBlock: factoryRatings.PLBK || 50,
+      runBlockFinesse: factoryRatings.PRBF || 50,
+      runBlockPower: factoryRatings.PRBS || 50,
+      passBlockFinesse: factoryRatings.PPBF || 50,
+      passBlockPower: factoryRatings.PPBS || 50,
+      tackling: factoryRatings.PTAK || 60,
+      pursuit: factoryRatings.PLPU || 65,
+      playRecognition: factoryRatings.PLPR || 60,
+      hitPower: factoryRatings.PLHT || 60,
+      blockShedding: factoryRatings.PBSG || 60,
+      finesseMoves: factoryRatings.PFMS || 60,
+      powerMoves: factoryRatings.PLPM || 60,
+      manCoverage: factoryRatings.PLMC || 60,
+      zoneCoverage: factoryRatings.PLZC || 60,
+      press: factoryRatings.PLPE || 60,
+      kickAccuracy: factoryRatings.PKAC || 65,
+      kickPower: factoryRatings.PKPR || 65,
+      kickReturn: factoryRatings.PKRT || 1,
+      longSnap: 30 // Not in factory format
+    };
   }
 
   /**

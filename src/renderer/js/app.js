@@ -4657,6 +4657,11 @@ class MaddenEditorApp {
         const year = parseInt(yearInput.value);
         const draftClassType = draftClassTypeSelect ? draftClassTypeSelect.value : 'single';
 
+        // Get selected rating mode
+        const ratingModeRadio = document.querySelector('input[name="draftClassRatingMode"]:checked');
+        const ratingMode = ratingModeRadio ? ratingModeRadio.value : 'semi-historical';
+        console.log(`[Creator] Using rating mode: ${ratingMode}`);
+
         // Determine if this is a decade class
         const isDecadeClass = draftClassType !== 'single';
         let decadeStart, decadeEnd;
@@ -4692,7 +4697,7 @@ class MaddenEditorApp {
             progressBar.style.width = '30%';
             const result = isDecadeClass ?
                 await window.electronAPI.creator.generateDecadeDraftClass(decadeStart, decadeEnd) :
-                await window.electronAPI.creator.generateDraftClass(year, false);
+                await window.electronAPI.creator.generateDraftClass(year, false, ratingMode);
 
             if (!result.success) {
                 throw new Error(result.error || 'Failed to generate draft class');

@@ -66,8 +66,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Creator APIs (web scraping and rating generation)
   creator: {
-    generateDraftClass: (year: number, testingMode: boolean = false) =>
-      ipcRenderer.invoke('creator:generate-draft-class', year, testingMode),
+    generateDraftClass: (year: number, testingMode: boolean = false, ratingMode: string = 'semi-historical') =>
+      ipcRenderer.invoke('creator:generate-draft-class', year, testingMode, ratingMode),
     generateDecadeDraftClass: (startYear: number, endYear: number) =>
       ipcRenderer.invoke('creator:generate-decade-draft-class', startYear, endYear),
     generateRoster: (year: number, teams: string[]) =>
