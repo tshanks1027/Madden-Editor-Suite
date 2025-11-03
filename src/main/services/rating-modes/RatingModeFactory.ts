@@ -1,4 +1,5 @@
 import { IRatingGenerator } from './IRatingGenerator';
+import { RandomRatingGenerator } from './RandomRatingGenerator';
 
 export enum RatingMode {
   RANDOM = 'random',
@@ -10,8 +11,7 @@ export class RatingModeFactory {
   static create(mode: RatingMode): IRatingGenerator {
     switch (mode) {
       case RatingMode.RANDOM:
-        // Will implement in Task 2
-        throw new Error('Random mode not yet implemented');
+        return new RandomRatingGenerator();
 
       case RatingMode.SEMI_HISTORICAL:
         // Will implement in Task 3
