@@ -3494,9 +3494,27 @@ class MaddenEditorApp {
 
         console.log(`[GenericFacePicker] All updates complete - NO getCell() calls, NO renders triggered`);
 
-        // Close the picker AFTER all DOM updates are complete
-        // This prevents modal close from triggering grid re-renders that wipe out our changes
+        // CRITICAL FIX: Suspend Handsontable rendering before closing modal
+        // When modal closes, Handsontable detects visibility change and auto-triggers render()
+        // This render fires afterRender hook which causes the freeze
+        // Solution: Suspend rendering, close modal, then resume
+        console.log(`[GenericFacePicker] Suspending grid rendering before closing modal...`);
+        if (grid && !grid.isDestroyed) {
+            grid.suspendRender();
+        }
+
+        // Close the picker
         this.closeGenericFacePicker();
+        console.log(`[GenericFacePicker] Modal closed`);
+
+        // Resume rendering after a microtask to ensure modal is fully hidden
+        setTimeout(() => {
+            console.log(`[GenericFacePicker] Resuming grid rendering...`);
+            if (grid && !grid.isDestroyed) {
+                grid.resumeRender();
+                console.log(`[GenericFacePicker] Grid rendering resumed - freeze should be prevented`);
+            }
+        }, 0);
 
         console.log(`[GenericFacePicker] ===== DONE =====`);
 
