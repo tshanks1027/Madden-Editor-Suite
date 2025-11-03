@@ -521,6 +521,12 @@ body {
     transition: all 0.2s ease;
 }
 
+.control-select option {
+    background: #1a1a1a;
+    color: var(--gray-text);
+    padding: 10px;
+}
+
 .control-select:hover {
     background: rgba(255, 140, 0, 0.08);
     border-color: rgba(255, 140, 0, 0.6);

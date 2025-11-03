@@ -764,40 +764,55 @@ export class CreatorService {
 
     const collegeLookup = this.loadCollegeLookup();
 
-    // Expand common abbreviations before normalization
-    const expandedName = this.expandCollegeAbbreviations(scrapedCollegeName);
-    const normalized = expandedName.toLowerCase().replace(/[^a-z\s]/g, '');
+    // Normalize the original name (before expansion)
+    const normalizedOriginal = scrapedCollegeName.toLowerCase().replace(/[^a-z\s]/g, '').trim();
 
-    // Try exact match first
+    // Try exact match with original name first (e.g., "lsu" matches "lsu")
     for (const [collegeName, collegeId] of collegeLookup.entries()) {
-      if (collegeName === normalized) {
-        console.log(`[CreatorService] Exact college match: "${scrapedCollegeName}" -> ID ${collegeId}`);
+      if (collegeName === normalizedOriginal) {
+        console.log(`[CreatorService] Exact college match (original): "${scrapedCollegeName}" -> ID ${collegeId}`);
         return collegeId; // Return the ID as number
       }
     }
 
-    // Try partial matches (e.g. "USC" matches "Southern California")
+    // Expand common abbreviations for additional matching attempts
+    const expandedName = this.expandCollegeAbbreviations(scrapedCollegeName);
+    const normalizedExpanded = expandedName.toLowerCase().replace(/[^a-z\s]/g, '').trim();
+
+    // Try exact match with expanded name (e.g., "louisiana state" matches "louisiana state")
     for (const [collegeName, collegeId] of collegeLookup.entries()) {
-      // Check if scraped name is contained in lookup name or vice versa
-      if (collegeName.includes(normalized) || normalized.includes(collegeName)) {
-        console.log(`[CreatorService] Partial college match: "${scrapedCollegeName}" -> "${collegeName}" -> ID ${collegeId}`);
+      if (collegeName === normalizedExpanded) {
+        console.log(`[CreatorService] Exact college match (expanded): "${scrapedCollegeName}" -> "${expandedName}" -> ID ${collegeId}`);
         return collegeId;
       }
     }
 
-    // Try matching key words (e.g. "University of Alabama" -> "Alabama")
-    const words = normalized.split(/\s+/).filter(w => w.length > 3); // Filter out short words like "of", "the"
+    // Try partial matches with both original and expanded names
+    for (const [collegeName, collegeId] of collegeLookup.entries()) {
+      // Check if scraped name is contained in lookup name or vice versa
+      if (collegeName.includes(normalizedOriginal) || normalizedOriginal.includes(collegeName)) {
+        console.log(`[CreatorService] Partial college match (original): "${scrapedCollegeName}" -> "${collegeName}" -> ID ${collegeId}`);
+        return collegeId;
+      }
+      if (collegeName.includes(normalizedExpanded) || normalizedExpanded.includes(collegeName)) {
+        console.log(`[CreatorService] Partial college match (expanded): "${scrapedCollegeName}" -> "${expandedName}" -> "${collegeName}" -> ID ${collegeId}`);
+        return collegeId;
+      }
+    }
+
+    // Try matching key words from expanded name (e.g. "University of Alabama" -> "Alabama")
+    const words = normalizedExpanded.split(/\s+/).filter(w => w.length > 3); // Filter out short words like "of", "the"
     for (const word of words) {
       for (const [collegeName, collegeId] of collegeLookup.entries()) {
         if (collegeName.includes(word)) {
-          console.log(`[CreatorService] Keyword college match: "${scrapedCollegeName}" (word: "${word}") -> "${collegeName}" -> ID ${collegeId}`);
+          console.log(`[CreatorService] Keyword college match: "${scrapedCollegeName}" -> "${expandedName}" (word: "${word}") -> "${collegeName}" -> ID ${collegeId}`);
           return collegeId;
         }
       }
     }
 
     // No match found - return "No College" (ID 265)
-    console.warn(`[CreatorService] No college match found for "${scrapedCollegeName}" - defaulting to No College (265)`);
+    console.warn(`[CreatorService] No college match found for "${scrapedCollegeName}" (expanded: "${expandedName}") - defaulting to No College (265)`);
     return 265; // No College
   }
 
@@ -1410,8 +1425,15 @@ export class CreatorService {
             // Convert from factory format to MaddenRatings format
             ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings);
 
+            // Log first 3 players in realistic mode for debugging
+            if (ratingMode === 'realistic' && i < 3) {
+              console.log(`[CreatorService] ${firstName} ${lastName} (Pick ${prospect.pick}): OVR=${ratings.overall} (realistic mode)`);
+            }
+
           } catch (error) {
-            console.error(`[CreatorService] Error using rating mode ${ratingMode}, falling back to default:`, error);
+            console.error(`[CreatorService] Error using rating mode ${ratingMode} for ${firstName} ${lastName}, falling back to default:`, error);
+            console.error(`[CreatorService] Error details:`, error instanceof Error ? error.message : String(error));
+            console.error(`[CreatorService] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
             ratings = this.generateDefaultRatings(prospect);
           }
         } else {
@@ -1720,10 +1742,30 @@ export class CreatorService {
         let wAV: number | undefined;
         if (lookupEntry && lookupEntry['wAV']) {
           wAV = parseFloat(lookupEntry['wAV']);
-          if (!isNaN(wAV)) {
-            // Log wAV for first 5 players
-            if (i < 5) {
-              console.log(`[CreatorService] ${firstName} ${lastName}: wAV=${wAV}`);
+          if (!isNaN(wAV) && wAV > 0) {
+            // Adjust wAV based on years in league (normalize to per-year basis)
+            // Someone with wAV=58 over 5 years should be rated differently than wAV=58 over 15 years
+            const fromYear = lookupEntry['From'] ? parseInt(lookupEntry['From']) : undefined;
+            const toYear = lookupEntry['To'] ? parseInt(lookupEntry['To']) : undefined;
+
+            if (fromYear && toYear) {
+              const yearsPlayed = toYear - fromYear + 1; // +1 because both years are inclusive
+              if (yearsPlayed > 0) {
+                // Calculate per-year wAV and scale to 10-year career equivalent
+                // This normalizes career length while preserving the per-year impact
+                const perYearWAV = wAV / yearsPlayed;
+                const adjustedWAV = perYearWAV * 10; // Scale to 10-year standard
+
+                // Log adjustment for first 5 players
+                if (i < 5) {
+                  console.log(`[CreatorService] ${firstName} ${lastName}: wAV=${wAV} (${yearsPlayed} years) -> adjusted=${adjustedWAV.toFixed(1)} (${perYearWAV.toFixed(2)}/year)`);
+                }
+
+                wAV = adjustedWAV;
+              }
+            } else if (i < 5) {
+              // Log unadjusted wAV if From/To not available
+              console.log(`[CreatorService] ${firstName} ${lastName}: wAV=${wAV} (years unknown, no adjustment)`);
             }
           }
         }
@@ -1755,8 +1797,15 @@ export class CreatorService {
             // Convert from factory format to MaddenRatings format
             ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings);
 
+            // Log first 3 players in realistic mode for debugging
+            if (ratingMode === 'realistic' && i < 3) {
+              console.log(`[CreatorService] ${firstName} ${lastName} (Pick ${prospect.pick}): OVR=${ratings.overall} (realistic mode)`);
+            }
+
           } catch (error) {
-            console.error(`[CreatorService] Error using rating mode ${ratingMode}, falling back to default:`, error);
+            console.error(`[CreatorService] Error using rating mode ${ratingMode} for ${firstName} ${lastName}, falling back to default:`, error);
+            console.error(`[CreatorService] Error details:`, error instanceof Error ? error.message : String(error));
+            console.error(`[CreatorService] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
             ratings = this.generateDefaultRatings(prospect);
           }
         } else {

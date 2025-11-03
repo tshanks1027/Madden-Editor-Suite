@@ -328,11 +328,23 @@ class MaddenEditorApp {
         }
 
         const selectDraftTemplateBtn = document.getElementById('selectDraftTemplate');
-        if (selectDraftTemplateBtn) {
+        const draftTemplateInput = document.getElementById('draftTemplate');
+
+        if (selectDraftTemplateBtn && draftTemplateInput) {
+            // Restore last selected template from localStorage
+            const savedTemplatePath = localStorage.getItem('lastDraftTemplate');
+            if (savedTemplatePath) {
+                draftTemplateInput.value = savedTemplatePath;
+                console.log('[App] Restored draft template path:', savedTemplatePath);
+            }
+
             selectDraftTemplateBtn.addEventListener('click', async () => {
                 const result = await window.electronAPI.file.openDialog(null);
                 if (result.success && result.filePath && !result.canceled) {
-                    document.getElementById('draftTemplate').value = result.filePath;
+                    draftTemplateInput.value = result.filePath;
+                    // Save to localStorage for next time
+                    localStorage.setItem('lastDraftTemplate', result.filePath);
+                    console.log('[App] Saved draft template path to localStorage:', result.filePath);
                 }
             });
         }
