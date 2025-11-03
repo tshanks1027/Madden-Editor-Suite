@@ -3278,22 +3278,61 @@ class MaddenEditorApp {
             return;
         }
 
-        const player = this.currentFacePickerPlayer;
         const rowIndex = this.currentFacePickerRowIndex;
 
         console.log(`[GenericFacePicker] Selecting PID ${pid} for row ${rowIndex}`);
 
+        // Determine which grid and data array we're working with
+        const isRoster = 'PSXP' in this.currentFacePickerPlayer;
+        const isDraft = 'PID' in this.currentFacePickerPlayer;
+        const grid = isRoster ? this.currentRosterGrid : (isDraft ? this.draftGrid : null);
+        const dataArray = isRoster ? this.filteredPlayers : (isDraft ? this.draftProspects : null);
+
+        if (!grid || grid.isDestroyed || !dataArray) {
+            console.error('No valid grid or data array found');
+            return;
+        }
+
+        // Get the actual player object from the data array (not the passed reference)
+        const player = dataArray[rowIndex];
+        if (!player) {
+            console.error(`No player found at row index ${rowIndex}`);
+            return;
+        }
+
+        // Find the PID column index
+        let pidColumnIndex = -1;
+        const colHeaders = grid.getColHeader();
+
+        if (isRoster) {
+            pidColumnIndex = colHeaders.indexOf('PID');
+        } else if (isDraft) {
+            pidColumnIndex = colHeaders.indexOf('PID');
+        }
+
+        console.log(`[GenericFacePicker] PID column index: ${pidColumnIndex}`);
+
         // Update player PID - handle both roster (PSXP) and draft class (PID) fields
-        if ('PSXP' in player) {
-            // Roster player
+        if (isRoster) {
+            // Roster player - update the actual player object in filteredPlayers
             const oldPID = player.PSXP;
             player.PSXP = pid;
-            console.log(`[Roster] Updated player.PSXP from ${oldPID} to ${pid}`);
-        } else if ('PID' in player) {
-            // Draft class prospect
+            console.log(`[Roster] Updated filteredPlayers[${rowIndex}].PSXP from ${oldPID} to ${pid}`);
+
+            // Also update the grid data
+            if (pidColumnIndex >= 0) {
+                grid.setDataAtCell(rowIndex, pidColumnIndex, pid, 'genericFacePicker');
+            }
+        } else if (isDraft) {
+            // Draft class prospect - update the actual prospect object in draftProspects
             const oldPID = player.PID;
             player.PID = pid;
-            console.log(`[Draft] Updated player.PID from ${oldPID} to ${pid}`);
+            console.log(`[Draft] Updated draftProspects[${rowIndex}].PID from ${oldPID} to ${pid}`);
+
+            // Also update the grid data
+            if (pidColumnIndex >= 0) {
+                grid.setDataAtCell(rowIndex, pidColumnIndex, pid, 'genericFacePicker');
+            }
         }
 
         // Reload portrait in cache
@@ -3317,15 +3356,9 @@ class MaddenEditorApp {
         // Close the picker
         this.closeGenericFacePicker();
 
-        // Force re-render to show updated portrait
-        // The portrait renderer reads from the player object which we just updated
-        if (this.currentRosterGrid && !this.currentRosterGrid.isDestroyed) {
-            console.log('[Roster] Rendering grid to show new portrait');
-            this.currentRosterGrid.render();
-        } else if (this.draftGrid && !this.draftGrid.isDestroyed) {
-            console.log('[Draft] Rendering grid to show new portrait');
-            this.draftGrid.render();
-        }
+        // Force re-render of the grid to show updated portrait
+        console.log(`[GenericFacePicker] Re-rendering grid to show new portrait`);
+        grid.render();
 
         console.log(`[GenericFacePicker] Done! Portrait should now display PID ${pid}`);
     }
