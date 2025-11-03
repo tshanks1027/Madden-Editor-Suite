@@ -801,14 +801,24 @@ export class CreatorService {
     }
 
     // Try matching key words from expanded name (e.g. "University of Alabama" -> "Alabama")
+    // But prefer shorter/exact matches to avoid false positives (e.g., "LSU" shouldn't match "SE Louisiana")
     const words = normalizedExpanded.split(/\s+/).filter(w => w.length > 3); // Filter out short words like "of", "the"
+    const keywordMatches: Array<{name: string, id: number, length: number}> = [];
+
     for (const word of words) {
       for (const [collegeName, collegeId] of collegeLookup.entries()) {
         if (collegeName.includes(word)) {
-          console.log(`[CreatorService] Keyword college match: "${scrapedCollegeName}" -> "${expandedName}" (word: "${word}") -> "${collegeName}" -> ID ${collegeId}`);
-          return collegeId;
+          keywordMatches.push({ name: collegeName, id: collegeId, length: collegeName.length });
         }
       }
+    }
+
+    // If we found keyword matches, prefer the shortest one (most specific)
+    if (keywordMatches.length > 0) {
+      keywordMatches.sort((a, b) => a.length - b.length);
+      const bestMatch = keywordMatches[0];
+      console.log(`[CreatorService] Keyword college match: "${scrapedCollegeName}" -> "${expandedName}" -> "${bestMatch.name}" -> ID ${bestMatch.id} (chose shortest of ${keywordMatches.length} matches)`);
+      return bestMatch.id;
     }
 
     // No match found - return "No College" (ID 265)
@@ -828,7 +838,7 @@ export class CreatorService {
       '^osu$': 'ohio state',
       '^bucks$': 'ohio state',
       '^usc$': 'southern california',
-      '^lsu$': 'louisiana state',
+      // '^lsu$': 'louisiana state',  // Removed - LSU is already in college_lookup.csv, expansion causes false match to SE Louisiana
       '^tcu$': 'texas christian',
       '^smu$': 'southern methodist',
       '^byu$': 'brigham young',
