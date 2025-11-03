@@ -3400,70 +3400,80 @@ class MaddenEditorApp {
 
         console.log(`[GenericFacePicker] Updating grid cells for row ${gridRowIndex}...`);
 
-        // Update cells using setDataAtCell (which triggers hooks but we filter them with 'GenericFacePicker' source)
-        const updates = [];
+        // Update source data directly WITHOUT triggering setDataAtCell hooks
+        const sourceData = grid.getSourceData();
+        if (sourceData && sourceData[gridRowIndex]) {
+            console.log(`[GenericFacePicker] Updating source data directly at row ${gridRowIndex}`);
 
-        // Update portrait column (column 0)
-        updates.push([gridRowIndex, 0, gridRowIndex]);
-        console.log(`[GenericFacePicker] Queuing portrait update at [${gridRowIndex}, 0]`);
+            // Update portrait column (index 0)
+            sourceData[gridRowIndex][0] = gridRowIndex;
 
-        // Update PID column if found
-        if (pidColumnIndex >= 0) {
-            updates.push([gridRowIndex, pidColumnIndex, pid]);
-            console.log(`[GenericFacePicker] Queuing PID update at [${gridRowIndex}, ${pidColumnIndex}] = ${pid}`);
-        } else {
-            console.warn(`[GenericFacePicker] PID column not found (pidColumnIndex = ${pidColumnIndex})`);
+            // Update PID column if found
+            if (pidColumnIndex >= 0) {
+                sourceData[gridRowIndex][pidColumnIndex] = pid;
+                console.log(`[GenericFacePicker] Updated PID in source data at column ${pidColumnIndex} to ${pid}`);
+            } else {
+                console.warn(`[GenericFacePicker] PID column not found (pidColumnIndex = ${pidColumnIndex})`);
+            }
         }
 
-        // Apply updates - this will trigger afterChange but we skip expensive operations with source='GenericFacePicker'
-        console.log(`[GenericFacePicker] Applying ${updates.length} cell updates via setDataAtCell...`);
-        grid.setDataAtCell(updates, 'GenericFacePicker');
-        console.log(`[GenericFacePicker] Cell updates applied`);
+        // Manually update BOTH cells in DOM without any grid operations
+        console.log(`[GenericFacePicker] Manually updating cell DOMs...`);
 
-        // CRITICAL: Manually update the portrait cell DOM without calling render()
-        setTimeout(() => {
-            console.log(`[GenericFacePicker] Manually updating portrait cell DOM...`);
-            const portraitCell = grid.getCell(gridRowIndex, 0);
-            if (portraitCell) {
-                // Clear and rebuild the cell content with new portrait
-                portraitCell.innerHTML = '';
-                portraitCell.style.padding = '2px';
-                portraitCell.style.textAlign = 'center';
-                portraitCell.style.verticalAlign = 'middle';
-                portraitCell.style.backgroundColor = '#1a1a1a';
+        // Update portrait cell
+        const portraitCell = grid.getCell(gridRowIndex, 0);
+        if (portraitCell) {
+            // Clear and rebuild the cell content with new portrait
+            portraitCell.innerHTML = '';
+            portraitCell.style.padding = '2px';
+            portraitCell.style.textAlign = 'center';
+            portraitCell.style.verticalAlign = 'middle';
+            portraitCell.style.backgroundColor = '#1a1a1a';
 
-                // Get portrait from cache
-                const cacheKey = `pid_${pid}`;
-                const imageData = this.portraitCache.get(cacheKey);
-                console.log(`[GenericFacePicker] Portrait cache key: ${cacheKey}, found: ${!!imageData}`);
+            // Get portrait from cache
+            const cacheKey = `pid_${pid}`;
+            const imageData = this.portraitCache.get(cacheKey);
+            console.log(`[GenericFacePicker] Portrait cache key: ${cacheKey}, found: ${!!imageData}`);
 
-                if (imageData && imageData !== 'loading') {
-                    const img = document.createElement('img');
-                    img.src = imageData;
-                    img.style.width = '64px';
-                    img.style.height = '64px';
-                    img.style.objectFit = 'cover';
-                    img.style.cursor = 'context-menu';
+            if (imageData && imageData !== 'loading') {
+                const img = document.createElement('img');
+                img.src = imageData;
+                img.style.width = '64px';
+                img.style.height = '64px';
+                img.style.objectFit = 'cover';
+                img.style.cursor = 'context-menu';
 
-                    // Re-add context menu handler
-                    img.addEventListener('contextmenu', (e) => {
-                        e.preventDefault();
-                        const playerIndex = this.paginatedPlayerIndices ? this.paginatedPlayerIndices[gridRowIndex] : gridRowIndex;
-                        const player = this.filteredPlayers[playerIndex];
-                        if (player) {
-                            this.openGenericFacePicker(player, gridRowIndex);
-                        }
-                    });
+                // Re-add context menu handler
+                img.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const playerIndex = this.paginatedPlayerIndices ? this.paginatedPlayerIndices[gridRowIndex] : gridRowIndex;
+                    const player = this.filteredPlayers[playerIndex];
+                    if (player) {
+                        this.openGenericFacePicker(player, gridRowIndex);
+                    }
+                });
 
-                    portraitCell.appendChild(img);
-                    console.log(`[GenericFacePicker] Portrait image updated in DOM`);
-                } else {
-                    console.warn(`[GenericFacePicker] Portrait not in cache or still loading`);
-                }
+                portraitCell.appendChild(img);
+                console.log(`[GenericFacePicker] Portrait image updated in DOM`);
             } else {
-                console.error(`[GenericFacePicker] Could not get portrait cell at row ${gridRowIndex}`);
+                console.warn(`[GenericFacePicker] Portrait not in cache or still loading`);
             }
-        }, 100);
+        } else {
+            console.error(`[GenericFacePicker] Could not get portrait cell at row ${gridRowIndex}`);
+        }
+
+        // Update PID cell
+        if (pidColumnIndex >= 0) {
+            const pidCell = grid.getCell(gridRowIndex, pidColumnIndex);
+            if (pidCell) {
+                pidCell.textContent = pid;
+                console.log(`[GenericFacePicker] PID cell updated in DOM to ${pid}`);
+            } else {
+                console.error(`[GenericFacePicker] Could not get PID cell at row ${gridRowIndex}, col ${pidColumnIndex}`);
+            }
+        }
+
+        console.log(`[GenericFacePicker] All updates complete - NO grid operations called`);
 
         console.log(`[GenericFacePicker] ===== DONE =====`);
 
