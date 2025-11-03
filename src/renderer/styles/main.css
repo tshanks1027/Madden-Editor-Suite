@@ -1899,3 +1899,58 @@ input.rating-value:focus {
     color: var(--text-secondary);
     font-size: 1rem;
 }
+
+/* Rating Mode Selector */
+.rating-mode-selector {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: #2a2a2a;
+    border-radius: 6px;
+    border: 1px solid #3a3a3a;
+}
+
+.rating-mode-label {
+    font-weight: 500;
+    font-size: 14px;
+    color: #e0e0e0;
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+.radio-group {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.radio-option:hover {
+    background: #3a3a3a;
+}
+
+.radio-option input[type="radio"] {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+    accent-color: #667eea;
+}
+
+.radio-option span {
+    font-size: 13px;
+    color: #d0d0d0;
+    user-select: none;
+}
+
+.radio-option input[type="radio"]:checked + span {
+    color: #ffffff;
+    font-weight: 500;
+}

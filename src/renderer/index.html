@@ -411,6 +411,25 @@
                                 <h3 class="step-title">Generate Roster</h3>
                             </div>
                             <div class="step-content">
+                                <!-- Rating Mode Selector -->
+                                <div class="rating-mode-selector">
+                                    <label class="rating-mode-label">Rating Generation Mode:</label>
+                                    <div class="radio-group">
+                                        <label class="radio-option">
+                                            <input type="radio" name="rosterRatingMode" value="random">
+                                            <span>Random</span>
+                                        </label>
+                                        <label class="radio-option">
+                                            <input type="radio" name="rosterRatingMode" value="semi-historical" checked>
+                                            <span>Semi-Historical (Web Scraping)</span>
+                                        </label>
+                                        <label class="radio-option">
+                                            <input type="radio" name="rosterRatingMode" value="realistic">
+                                            <span>Realistic (RowdyRandy)</span>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <button id="generateRosterBtn" class="btn btn-primary btn-large" disabled>
                                     <span class="btn-icon">🚀</span>
                                     Generate Roster
@@ -520,6 +539,25 @@
                                 <h3 class="step-title">Generate Draft Class</h3>
                             </div>
                             <div class="step-content">
+                                <!-- Rating Mode Selector -->
+                                <div class="rating-mode-selector">
+                                    <label class="rating-mode-label">Rating Generation Mode:</label>
+                                    <div class="radio-group">
+                                        <label class="radio-option">
+                                            <input type="radio" name="draftClassRatingMode" value="random">
+                                            <span>Random</span>
+                                        </label>
+                                        <label class="radio-option">
+                                            <input type="radio" name="draftClassRatingMode" value="semi-historical" checked>
+                                            <span>Semi-Historical (Web Scraping)</span>
+                                        </label>
+                                        <label class="radio-option">
+                                            <input type="radio" name="draftClassRatingMode" value="realistic">
+                                            <span>Realistic (RowdyRandy)</span>
+                                        </label>
+                                    </div>
+                                </div>
+
                                 <button id="generateDraftBtn" class="btn btn-primary btn-large">
                                     <span class="btn-icon">🚀</span>
                                     Generate Draft Class
