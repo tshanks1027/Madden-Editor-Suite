@@ -47,7 +47,8 @@
       "Read(//c/Users/tshan/OneDrive/Pictures/Screenshots/**)",
       "Bash(sed:*)",
       "Bash(git branch:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

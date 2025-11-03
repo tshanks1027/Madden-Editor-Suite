@@ -1,0 +1,17 @@
+C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\@electron\asar\lib\filesystem.js:187
+            throw new Error(`"${p}" was not found in this archive`);
+            ^
+
+Error: "dist/electron/static/genHeadPortrait.json" was not found in this archive
+    at Filesystem.getFile (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\@electron\asar\lib\filesystem.js:187:19)
+    at Object.extractFile (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\@electron\asar\lib\asar.js:256:33)
+    at Command.<anonymous> (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\@electron\asar\bin\asar.js:63:12)
+    at Command.listener [as _actionHandler] (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\commander\index.js:413:31)
+    at Command._parseCommand (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\commander\index.js:914:14)
+    at Command._dispatchSubcommand (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\commander\index.js:865:18)
+    at Command._parseCommand (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\commander\index.js:882:12)
+    at Command.parse (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\commander\index.js:717:10)
+    at Object.<anonymous> (C:\Users\tshan\Documents\Dev\madden-editor-suite\node_modules\@electron\asar\bin\asar.js:78:9)
+    at Module._compile (node:internal/modules/cjs/loader:1706:14)
+
+Node.js v22.19.0

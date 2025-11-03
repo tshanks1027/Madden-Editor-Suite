@@ -3650,7 +3650,8 @@ class MaddenEditorApp {
                 // IDs and Assets
                 PID: prospect.PID,
                 PEPS: peps,
-                bodyType: ['Lean', 'Athletic', 'Muscular', 'Stocky'][bodyType] || bodyType,
+                // Body type is now a string from backend ("Lean", "Athletic", "Heavy", "Stocky")
+                bodyType: typeof bodyType === 'number' ? ['Lean', 'Athletic', 'Heavy', 'Stocky'][bodyType] : bodyType,
                 playerPic: playerPic,
 
                 // All stat fields (explicit list to avoid corruption)
@@ -3723,7 +3724,7 @@ class MaddenEditorApp {
         const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
         const stateOptions = getLookupOptions('states').map(opt => opt.label);
         const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
-        const bodyTypeOptions = ['Lean', 'Athletic', 'Muscular', 'Stocky'];  // Match backend: 0=Lean, 1=Athletic, 2=Muscular, 3=Stocky
+        const bodyTypeOptions = ['Lean', 'Athletic', 'Heavy', 'Stocky'];  // Match Madden M26 format
         // Use capitalized names for player pic autocomplete
         const playerPicOptions = Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face']);
 
@@ -4343,9 +4344,9 @@ class MaddenEditorApp {
                     devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait) !== -1
                         ? ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait)
                         : originalProspect.devTrait,
-                    // Convert body type name to ID (Lean=0, Athletic=1, Muscular=2, Stocky=3)
-                    bodyType: ['Lean', 'Athletic', 'Muscular', 'Stocky'].indexOf(prospect.bodyType) !== -1
-                        ? ['Lean', 'Athletic', 'Muscular', 'Stocky'].indexOf(prospect.bodyType)
+                    // Keep body type as string (M26Writer expects strings: "Lean", "Athletic", "Heavy", "Stocky")
+                    bodyType: ['Lean', 'Athletic', 'Heavy', 'Stocky'].includes(prospect.bodyType)
+                        ? prospect.bodyType
                         : originalProspect.bodyType,
                     // Explicitly preserve PEPS from grid
                     PEPS: prospect.PEPS

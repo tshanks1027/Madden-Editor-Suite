@@ -50,7 +50,7 @@ export interface GeneratedPlayer {
   // Visuals
   PID: number; // Portrait ID (0 for generic)
   PEPS: string | null; // Player Equipment Preset (null for generic)
-  bodyType: number;
+  bodyType: string; // Madden body type string: "Lean", "Athletic", "Heavy", "Stocky"
   yearsPro: number; // Years in the league (0 for rookies)
 
   // Source data (for reference)
@@ -3286,31 +3286,32 @@ export class CreatorService {
 
   /**
    * Determine body type based on position, weight, and height
+   * Returns Madden body type STRING (not integer): "Lean", "Athletic", "Heavy", "Stocky"
    */
-  private determineBodyType(position: string, weight?: number, height?: number): number {
+  private determineBodyType(position: string, weight?: number, height?: number): string {
     const pos = position.toUpperCase();
     const w = weight || this.getDefaultWeight(position);
     const h = height || 73; // Default 6'1"
 
     // Ensure we have valid numbers
     if (!w || !h || w <= 0 || h <= 0) {
-      console.warn(`[CreatorService] Invalid weight/height for body type: w=${w}, h=${h}, using default Athletic (1)`);
-      return 1; // Default Athletic
+      console.warn(`[CreatorService] Invalid weight/height for body type: w=${w}, h=${h}, using default Athletic`);
+      return 'Athletic'; // Default Athletic
     }
 
-    // Body types: 0=Lean, 1=Athletic, 2=Muscular, 3=Stocky
+    // Body types (Madden strings): "Lean", "Athletic", "Heavy", "Stocky"
     const bmi = (w / (h * h)) * 703; // Calculate BMI
 
     if (['WR', 'CB', 'FS'].includes(pos)) {
-      return bmi < 24 ? 0 : 1; // Lean or Athletic
+      return bmi < 24 ? 'Lean' : 'Athletic'; // Lean or Athletic
     } else if (['HB', 'FB', 'SAM', 'Mike', 'WILL', 'SS', 'TE'].includes(pos)) {
-      return bmi < 26 ? 1 : 2; // Athletic or Muscular
+      return bmi < 26 ? 'Athletic' : 'Heavy'; // Athletic or Heavy
     } else if (['QB'].includes(pos)) {
-      return 1; // Athletic
+      return 'Athletic'; // Athletic
     } else if (['LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT'].includes(pos)) {
-      return bmi < 32 ? 2 : 3; // Muscular or Stocky (linemen)
+      return bmi < 32 ? 'Heavy' : 'Stocky'; // Heavy or Stocky (linemen)
     } else {
-      return 1; // Default Athletic
+      return 'Athletic'; // Default Athletic
     }
   }
 
