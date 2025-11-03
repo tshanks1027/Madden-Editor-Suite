@@ -2,6 +2,7 @@ import { IRatingGenerator, RatingContext, PlayerRatings } from './IRatingGenerat
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+import { ratingCalculator, MaddenRatings } from '../RatingCalculator';
 
 interface TierRange {
   min: number;
@@ -252,40 +253,129 @@ export class RealisticRatingGenerator implements IRatingGenerator {
     targetOVR: number,
     position: string
   ): PlayerRatings {
-    // This is a simplified version
-    // In reality, we'd use the RatingCalculator to compute actual OVR
-    // and iteratively adjust key attributes
-
-    // For now, just ensure key attributes average to target
+    // Use actual RatingCalculator to compute real OVR and adjust iteratively
     const weights = this.weightData.get(position);
     if (!weights) return ratings;
 
-    let currentAvg = 0;
-    let count = 0;
+    const maxIterations = 20;
+    const tolerance = 1; // Accept OVR within ±1 of target
 
-    for (const attr of weights.key_attributes) {
-      const value = ratings[attr as keyof PlayerRatings];
-      if (typeof value === 'number') {
-        currentAvg += value;
-        count++;
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+      // Convert PlayerRatings to MaddenRatings format for RatingCalculator
+      const maddenRatings = this.convertToMaddenRatings(ratings);
+
+      // Calculate actual OVR using RatingCalculator's position-specific formula
+      const actualOVR = ratingCalculator.recalculateOverall(maddenRatings, position);
+
+      // Check if we're close enough
+      const diff = targetOVR - actualOVR;
+      if (Math.abs(diff) <= tolerance) {
+        console.log(`[RealisticRatingGenerator] Converged in ${iteration} iterations (target=${targetOVR}, actual=${actualOVR})`);
+        break;
       }
-    }
 
-    if (count === 0) return ratings;
+      // Adjust key attributes proportionally
+      // Scale adjustment based on how far we are from target
+      const adjustmentFactor = diff * 0.5; // Use 50% of diff to avoid overshooting
 
-    currentAvg = currentAvg / count;
-    const diff = targetOVR - currentAvg;
+      for (const attr of weights.key_attributes) {
+        const current = ratings[attr as keyof PlayerRatings];
+        if (typeof current === 'number') {
+          // Weight the adjustment by this attribute's importance
+          const weight = weights.weights[attr] || 0.1;
+          const adjustment = adjustmentFactor * weight * 10; // Scale by weight and amplify
 
-    // Adjust key attributes by the difference
-    for (const attr of weights.key_attributes) {
-      const current = ratings[attr as keyof PlayerRatings];
-      if (typeof current === 'number') {
-        const adjusted = Math.max(40, Math.min(99, current + diff));
-        ratings[attr as keyof PlayerRatings] = Math.round(adjusted);
+          const newValue = Math.max(40, Math.min(99, current + adjustment));
+          ratings[attr as keyof PlayerRatings] = Math.round(newValue);
+        }
+      }
+
+      // Log progress every 5 iterations
+      if (iteration % 5 === 0 && iteration > 0) {
+        console.log(`[RealisticRatingGenerator] Iteration ${iteration}: target=${targetOVR}, actual=${actualOVR}, diff=${diff}`);
       }
     }
 
     return ratings;
+  }
+
+  /**
+   * Convert PlayerRatings to MaddenRatings format for RatingCalculator
+   */
+  private convertToMaddenRatings(ratings: PlayerRatings): Partial<MaddenRatings> {
+    return {
+      // Overall
+      overall: ratings.POVR,
+
+      // Physical
+      speed: ratings.PSPD,
+      acceleration: ratings.PACC,
+      agility: ratings.PAGI,
+      strength: ratings.PSTR,
+      jumping: ratings.PJMP,
+      stamina: ratings.PSTA,
+      injury: ratings.PINJ,
+      toughness: ratings.PTGH,
+      changeOfDirection: ratings.PELU,
+
+      // Mental
+      awareness: ratings.PAWR,
+
+      // QB
+      throwAccuracyDeep: ratings.PTAD,
+      throwAccuracyMid: ratings.PTAM,
+      throwAccuracyShort: ratings.PTAS,
+      throwPower: ratings.PTHP,
+      throwUnderPressure: ratings.PTUP,
+      throwOnTheRun: ratings.PTOR,
+      playAction: ratings.PPLA,
+      breakSack: ratings.PBSK,
+
+      // Ball Carrier
+      carrying: ratings.PCAR,
+      ballCarrierVision: ratings.PBCV,
+      breakTackle: ratings.PBKT,
+      trucking: ratings.PLTR,
+      jukeMove: ratings.PLJM,
+      spinMove: ratings.PLSM,
+      stiffArm: ratings.PLSA,
+
+      // Receiver
+      catching: ratings.PCTH,
+      catchInTraffic: ratings.PLCI,
+      spectacularCatch: ratings.PLSC,
+      release: ratings.PLRL,
+      deepRouteRunning: ratings.PDRR,
+      mediumRouteRunning: ratings.PMRR,
+      shortRouteRunning: ratings.SRRN,
+
+      // Blocker
+      runBlock: ratings.PRBK,
+      passBlock: ratings.PPBK,
+      impactBlocking: ratings.PLIB,
+      leadBlock: ratings.PLBK,
+      runBlockFinesse: ratings.PRBF,
+      runBlockPower: ratings.PRBS,
+      passBlockFinesse: ratings.PPBF,
+      passBlockPower: ratings.PPBS,
+
+      // Defender
+      tackle: ratings.PTAK,
+      pursuit: ratings.PLPU,
+      playRecognition: ratings.PLPR,
+      hitPower: ratings.PLHT,
+      blockShedding: ratings.PBSG,
+      finesseMoves: ratings.PFMS,
+      powerMoves: ratings.PLPM,
+      manCoverage: ratings.PLMC,
+      zoneCoverage: ratings.PLZC,
+      pressCoverage: ratings.PLPE,
+
+      // Kicker
+      kickAccuracy: ratings.PKAC,
+      kickPower: ratings.PKPR,
+      kickReturn: ratings.PKRT
+    };
   }
 
   private generateDefaultAttribute(
