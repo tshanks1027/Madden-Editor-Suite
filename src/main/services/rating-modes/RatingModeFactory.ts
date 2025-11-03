@@ -11,18 +11,36 @@ export enum RatingMode {
 
 export class RatingModeFactory {
   static create(mode: RatingMode): IRatingGenerator {
-    switch (mode) {
-      case RatingMode.RANDOM:
-        return new RandomRatingGenerator();
+    console.log(`[RatingModeFactory] Creating generator for mode: ${mode}`);
 
-      case RatingMode.SEMI_HISTORICAL:
-        return new HistoricalRatingGenerator();
+    try {
+      let generator: IRatingGenerator;
 
-      case RatingMode.REALISTIC:
-        return new RealisticRatingGenerator();
+      switch (mode) {
+        case RatingMode.RANDOM:
+          console.log(`[RatingModeFactory] Creating RandomRatingGenerator`);
+          generator = new RandomRatingGenerator();
+          break;
 
-      default:
-        throw new Error(`Unknown rating mode: ${mode}`);
+        case RatingMode.SEMI_HISTORICAL:
+          console.log(`[RatingModeFactory] Creating HistoricalRatingGenerator`);
+          generator = new HistoricalRatingGenerator();
+          break;
+
+        case RatingMode.REALISTIC:
+          console.log(`[RatingModeFactory] Creating RealisticRatingGenerator`);
+          generator = new RealisticRatingGenerator();
+          console.log(`[RatingModeFactory] RealisticRatingGenerator created successfully`);
+          break;
+
+        default:
+          throw new Error(`Unknown rating mode: ${mode}`);
+      }
+
+      return generator;
+    } catch (error) {
+      console.error(`[RatingModeFactory] Error creating generator for mode ${mode}:`, error);
+      throw error;
     }
   }
 }

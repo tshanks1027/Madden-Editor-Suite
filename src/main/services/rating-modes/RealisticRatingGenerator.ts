@@ -34,13 +34,16 @@ export class RealisticRatingGenerator implements IRatingGenerator {
   async generateRatings(context: RatingContext): Promise<PlayerRatings> {
     // Step 1: Determine draft tier
     const tier = this.getDraftTier(context.draftPosition, context.draftRound);
+    console.log(`[RealisticRatingGenerator] ${context.name}: Draft tier = ${tier} (pos ${context.draftPosition}, round ${context.draftRound})`);
 
     // Step 2: Map position to tier category
     const tierCategory = this.mapPositionToTierCategory(context.position);
+    console.log(`[RealisticRatingGenerator] ${context.name}: Position ${context.position} -> Tier category ${tierCategory}`);
 
     // Step 3: Get target OVR range
     const ovrRange = this.getTierOVR(tierCategory, tier);
     const targetOVR = this.randomInRange(ovrRange.min, ovrRange.max);
+    console.log(`[RealisticRatingGenerator] ${context.name}: Target OVR = ${targetOVR} (range ${ovrRange.min}-${ovrRange.max})`);
 
     // Step 4: Generate Speed from 40 time (if available)
     const speed = context.fortyTime
@@ -90,6 +93,8 @@ export class RealisticRatingGenerator implements IRatingGenerator {
       }
 
       console.log('[RealisticRatingGenerator] Loading tier data from:', tierPath);
+      console.log('[RealisticRatingGenerator] __dirname:', __dirname);
+      console.log('[RealisticRatingGenerator] app.isPackaged:', app.isPackaged);
 
       // Load tier data
       const tierJson = JSON.parse(fs.readFileSync(tierPath, 'utf-8'));
@@ -97,6 +102,9 @@ export class RealisticRatingGenerator implements IRatingGenerator {
       for (const [pos, tiers] of Object.entries(tierJson)) {
         this.tierData.set(pos, tiers as PositionTiers);
       }
+
+      console.log('[RealisticRatingGenerator] Loaded tiers for positions:', Array.from(this.tierData.keys()));
+      console.log('[RealisticRatingGenerator] QB Generational range:', this.tierData.get('QB')?. ['Generational']);
 
       console.log('[RealisticRatingGenerator] Loading weight data from:', weightPath);
 
@@ -107,7 +115,7 @@ export class RealisticRatingGenerator implements IRatingGenerator {
         this.weightData.set(pos, weights as AttributeWeights);
       }
 
-      console.log('[RealisticRatingGenerator] Data loaded successfully');
+      console.log('[RealisticRatingGenerator] Data loaded successfully - tierData size:', this.tierData.size, 'weightData size:', this.weightData.size);
     } catch (error) {
       console.error('[RealisticRatingGenerator] Error loading data:', error);
       throw error;
@@ -166,11 +174,22 @@ export class RealisticRatingGenerator implements IRatingGenerator {
 
   private getTierOVR(position: string, tier: string): TierRange {
     const posTiers = this.tierData.get(position);
+    console.log(`[RealisticRatingGenerator] getTierOVR - position: ${position}, tier: ${tier}`);
+    console.log(`[RealisticRatingGenerator] getTierOVR - posTiers found:`, posTiers ? 'YES' : 'NO');
+    if (posTiers) {
+      console.log(`[RealisticRatingGenerator] getTierOVR - available tiers:`, Object.keys(posTiers));
+      console.log(`[RealisticRatingGenerator] getTierOVR - tier '${tier}' exists:`, posTiers[tier] ? 'YES' : 'NO');
+    }
+
     if (!posTiers || !posTiers[tier]) {
       // Fallback to generic range
+      console.log(`[RealisticRatingGenerator] getTierOVR - FALLING BACK to default range { min: 65, max: 70 }`);
       return { min: 65, max: 70 };
     }
-    return posTiers[tier];
+
+    const range = posTiers[tier];
+    console.log(`[RealisticRatingGenerator] getTierOVR - returning range:`, range);
+    return range;
   }
 
   private fortyTimeToSpeed(fortyTime: number): number {
