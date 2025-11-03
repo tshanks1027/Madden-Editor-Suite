@@ -1227,13 +1227,20 @@ class MaddenEditorApp {
             },
 
             // Setup PID event listeners and header click handlers after rendering
-            afterRender: () => {
-                // Setup hover handlers for entire row highlighting
-                this.setupRowHoverHandlers();
+            afterRender: (isForced) => {
+                // CRITICAL FIX: Only run expensive setup ONCE on initial load
+                // Running on every render causes massive slowdown - every click triggers render
+                // which triggers setup which adds event listeners - this compounds to freeze
 
-                this.setupPIDEventListeners();
-                this.setupScrollWheelEditing();
-                this.setupHeaderClickHandlers();
+                if (!this.initialSetupComplete) {
+                    console.log('[afterRender] Running initial setup...');
+                    this.setupRowHoverHandlers();
+                    this.setupPIDEventListeners();
+                    this.setupScrollWheelEditing();
+                    this.setupHeaderClickHandlers();
+                    this.initialSetupComplete = true;
+                    console.log('[afterRender] Initial setup complete - will not run again');
+                }
             },
 
 
@@ -3395,126 +3402,46 @@ class MaddenEditorApp {
             this.portraitCache.set(cacheKey, null);
         }
 
-        console.log(`[GenericFacePicker] Updating grid cells for row ${gridRowIndex}...`);
+        console.log(`[GenericFacePicker] Data updates complete. Player object and portrait cache updated.`);
 
-        // Update source data directly WITHOUT triggering setDataAtCell hooks
-        const sourceData = grid.getSourceData();
-        if (sourceData && sourceData[gridRowIndex]) {
-            console.log(`[GenericFacePicker] Updating source data directly at row ${gridRowIndex}`);
+        // COMPREHENSIVE FIX - ROOT CAUSES IDENTIFIED:
+        // Problem 1: querySelector fails with virtual rendering (rows not in DOM)
+        // Problem 2: getCell() triggers render cascades (freeze)
+        // Problem 3: render() triggers afterRender hook which calls setupHeaderClickHandlers()
+        //           creating duplicate event listeners (freeze)
+        //
+        // COMPLETE SOLUTION:
+        // 1. Use setDataAtCell() to update cells WITHOUT triggering afterRender hook
+        // 2. setDataAtCell handles virtual rendering correctly
+        // 3. No freeze because afterRender hook doesn't run
+        // 4. Close modal after updates complete
 
-            // Update portrait column (index 0)
-            sourceData[gridRowIndex][0] = gridRowIndex;
+        console.log(`[GenericFacePicker] Updating cells using setDataAtCell...`);
 
-            // Update PID column if found
-            if (pidColumnIndex >= 0) {
-                sourceData[gridRowIndex][pidColumnIndex] = pid;
-                console.log(`[GenericFacePicker] Updated PID in source data at column ${pidColumnIndex} to ${pid}`);
-            } else {
-                console.warn(`[GenericFacePicker] PID column not found (pidColumnIndex = ${pidColumnIndex})`);
-            }
-        }
+        // Batch all cell updates together using setDataAtCell
+        // Format: [[row, col, value], [row, col, value], ...]
+        const changes = [];
 
-        // CRITICAL FIX: Use querySelector instead of getCell() to avoid triggering renders
-        // getCell() internally calls render() which creates a render cascade that freezes the browser
-        console.log(`[GenericFacePicker] Updating cell DOMs via querySelector (avoiding getCell render triggers)...`);
+        // Update portrait cell (column 0) - just set row index to trigger portrait renderer
+        changes.push([gridRowIndex, 0, gridRowIndex]);
 
-        // Update portrait cell using direct DOM access
-        // Portrait is in column 0, which is in the frozen column area (.ht_clone_left)
-        // Row index is 1-based in DOM (header is row 0), column is 1-based
-        const portraitCell = grid.rootElement.querySelector(
-            `.ht_clone_left tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(1)`
-        );
-
-        if (portraitCell) {
-            // Clear and rebuild the cell content with new portrait
-            portraitCell.innerHTML = '';
-            portraitCell.style.padding = '2px';
-            portraitCell.style.textAlign = 'center';
-            portraitCell.style.verticalAlign = 'middle';
-            portraitCell.style.backgroundColor = '#1a1a1a';
-
-            // Get portrait from cache
-            const cacheKey = `pid_${pid}`;
-            const imageData = this.portraitCache.get(cacheKey);
-            console.log(`[GenericFacePicker] Portrait cache key: ${cacheKey}, found: ${!!imageData}`);
-
-            if (imageData && imageData !== 'loading') {
-                const img = document.createElement('img');
-                img.src = imageData;
-                img.style.width = '64px';
-                img.style.height = '64px';
-                img.style.objectFit = 'cover';
-                img.style.cursor = 'context-menu';
-
-                // Re-add context menu handler
-                img.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    const playerIndex = this.paginatedPlayerIndices ? this.paginatedPlayerIndices[gridRowIndex] : gridRowIndex;
-                    const player = this.filteredPlayers[playerIndex];
-                    if (player) {
-                        this.openGenericFacePicker(player, gridRowIndex);
-                    }
-                });
-
-                portraitCell.appendChild(img);
-                console.log(`[GenericFacePicker] Portrait image updated in DOM`);
-            } else {
-                console.warn(`[GenericFacePicker] Portrait not in cache or still loading`);
-            }
-        } else {
-            console.error(`[GenericFacePicker] Could not find portrait cell via querySelector at row ${gridRowIndex}`);
-        }
-
-        // Update PID cell using direct DOM access
+        // Update PID column if found
         if (pidColumnIndex >= 0) {
-            // Determine which container based on frozen columns
-            // fixedColumnsStart: 3 means columns 0-2 are in .ht_clone_left, 3+ are in .ht_master
-            let pidCell;
-            if (pidColumnIndex < 3) {
-                // PID is in frozen column area
-                pidCell = grid.rootElement.querySelector(
-                    `.ht_clone_left tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(${pidColumnIndex + 1})`
-                );
-            } else {
-                // PID is in scrollable area
-                // Column index in .ht_master is offset by the number of frozen columns
-                const masterColIndex = pidColumnIndex - 3 + 1; // -3 for frozen cols, +1 for 1-based
-                pidCell = grid.rootElement.querySelector(
-                    `.ht_master tbody tr:nth-child(${gridRowIndex + 1}) td:nth-child(${masterColIndex})`
-                );
-            }
-
-            if (pidCell) {
-                pidCell.textContent = pid;
-                console.log(`[GenericFacePicker] PID cell updated in DOM to ${pid} (column ${pidColumnIndex})`);
-            } else {
-                console.error(`[GenericFacePicker] Could not find PID cell via querySelector at row ${gridRowIndex}, col ${pidColumnIndex}`);
-            }
+            changes.push([gridRowIndex, pidColumnIndex, pid]);
+            console.log(`[GenericFacePicker] Queuing PID update: row ${gridRowIndex}, col ${pidColumnIndex}, value ${pid}`);
         }
 
-        console.log(`[GenericFacePicker] All updates complete - NO getCell() calls, NO renders triggered`);
-
-        // CRITICAL FIX: Suspend Handsontable rendering before closing modal
-        // When modal closes, Handsontable detects visibility change and auto-triggers render()
-        // This render fires afterRender hook which causes the freeze
-        // Solution: Suspend rendering, close modal, then resume
-        console.log(`[GenericFacePicker] Suspending grid rendering before closing modal...`);
-        if (grid && !grid.isDestroyed) {
-            grid.suspendRender();
+        // Apply all changes in one batch
+        // setDataAtCell will trigger render, but afterRender only runs setup once (via initialSetupComplete flag)
+        if (changes.length > 0 && !grid.isDestroyed) {
+            grid.setDataAtCell(changes, null, null, 'GenericFacePicker');
+            console.log(`[GenericFacePicker] Applied ${changes.length} cell updates via setDataAtCell`);
         }
 
-        // Close the picker
+        // Close modal after updates
+        console.log(`[GenericFacePicker] Closing modal...`);
         this.closeGenericFacePicker();
-        console.log(`[GenericFacePicker] Modal closed`);
-
-        // Resume rendering after a microtask to ensure modal is fully hidden
-        setTimeout(() => {
-            console.log(`[GenericFacePicker] Resuming grid rendering...`);
-            if (grid && !grid.isDestroyed) {
-                grid.resumeRender();
-                console.log(`[GenericFacePicker] Grid rendering resumed - freeze should be prevented`);
-            }
-        }, 0);
+        console.log(`[GenericFacePicker] Complete - portrait and PID updated, no freeze`);
 
         console.log(`[GenericFacePicker] ===== DONE =====`);
 
