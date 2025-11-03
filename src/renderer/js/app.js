@@ -1961,10 +1961,10 @@ class MaddenEditorApp {
 
     getPositionName(posId) {
         const positions = {
-            0: 'QB', 1: 'HB', 2: 'WR', 3: 'TE', 4: 'LT', 5: 'LG',
-            6: 'C', 7: 'RG', 8: 'RT', 9: 'DT', 10: 'LEDG', 11: 'REDG',
-            12: 'SAM', 13: 'Mike', 14: 'WILL', 15: 'CB', 16: 'FS', 17: 'SS',
-            18: 'K', 19: 'P'
+            0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG',
+            7: 'C', 8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT',
+            13: 'SAM', 14: 'Mike', 15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS',
+            19: 'K', 20: 'P', 21: 'LS'
         };
         return positions[posId] || 'Unknown';
     }
@@ -6037,17 +6037,18 @@ class MaddenEditorApp {
             'C': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
             'RG': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
             'RT': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
-            'LE': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
-            'RE': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
+            'LEDG': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
+            'REDG': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
             'DT': ['PSPD', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
-            'LOLB': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
-            'MLB': ['PSPD', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
-            'ROLB': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'SAM': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'Mike': ['PSPD', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            'WILL': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
             'CB': ['PSPD', 'PACC', 'PAGI', 'PAWR', 'PLMC', 'PLZC', 'PLPE', 'PLPR', 'PCTH', 'PTAK'],
             'FS': ['PSPD', 'PACC', 'PAGI', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PCTH', 'PTAK', 'PLHT'],
             'SS': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
             'K': ['PKAC', 'PKPR', 'PAWR'],
-            'P': ['PKAC', 'PKPR', 'PAWR']
+            'P': ['PKAC', 'PKPR', 'PAWR'],
+            'LS': ['PSTR', 'PAWR']
         };
 
         // Get ratings for this position, default to common ratings
