@@ -1152,7 +1152,7 @@ class MaddenEditorApp {
                 // Hook for validation if needed
             },
             afterChange: (changes, source) => {
-                if (source !== 'loadData' && changes) {
+                if (source !== 'loadData' && source !== 'GenericFacePicker' && changes) {
                     this.handlePlayerDataChange(changes);
 
                     // Re-render portrait when PID (PSXP) changes
@@ -3384,56 +3384,39 @@ class MaddenEditorApp {
         // Close the picker
         this.closeGenericFacePicker();
 
-        // DEBUG: Check what getCell returns
-        console.log(`[GenericFacePicker] === DEBUG CELL ACCESS ===`);
-        console.log(`[GenericFacePicker] Trying to get cell at row ${rowIndex}, col 0 (portrait)`);
+        console.log(`[GenericFacePicker] Updating grid display...`);
 
-        const portraitColumnIndex = 0;
-        const portraitCell = grid.getCell(rowIndex, portraitColumnIndex);
-        console.log(`[GenericFacePicker] portraitCell result:`, portraitCell);
-        console.log(`[GenericFacePicker] portraitCell is null?`, portraitCell === null);
-        console.log(`[GenericFacePicker] portraitCell tagName:`, portraitCell ? portraitCell.tagName : 'N/A');
+        // Update the grid data directly (portrait and PID cells)
+        const sourceData = grid.getSourceData();
+        if (sourceData && sourceData[rowIndex]) {
+            console.log(`[GenericFacePicker] Updating source data at row ${rowIndex}`);
 
-        if (portraitCell) {
-            const img = portraitCell.querySelector('img');
-            console.log(`[GenericFacePicker] img element found?`, !!img);
-            console.log(`[GenericFacePicker] img current src:`, img ? img.src.substring(0, 50) : 'N/A');
+            // Update portrait column (index 0)
+            sourceData[rowIndex][0] = rowIndex;
 
-            const imageData = this.portraitCache.get(cacheKey);
-            console.log(`[GenericFacePicker] imageData in cache?`, !!imageData);
-            console.log(`[GenericFacePicker] imageData is loading?`, imageData === 'loading');
-            console.log(`[GenericFacePicker] imageData length:`, imageData ? imageData.length : 'N/A');
-
-            if (img && imageData && imageData !== 'loading') {
-                console.log(`[GenericFacePicker] SETTING img.src to new portrait (${imageData.length} chars)`);
-                img.src = imageData;
-                console.log(`[GenericFacePicker] img.src NOW:`, img.src.substring(0, 50));
+            // Update PID column if found
+            if (pidColumnIndex >= 0) {
+                sourceData[rowIndex][pidColumnIndex] = pid;
+                console.log(`[GenericFacePicker] Updated PID in source data at column ${pidColumnIndex}`);
             } else {
-                console.error(`[GenericFacePicker] CANNOT UPDATE PORTRAIT - img: ${!!img}, imageData: ${!!imageData}, loading: ${imageData === 'loading'}`);
+                console.warn(`[GenericFacePicker] PID column not found (pidColumnIndex = ${pidColumnIndex})`);
             }
-        } else {
-            console.error(`[GenericFacePicker] PORTRAIT CELL IS NULL - cannot update portrait`);
         }
 
-        // Update PID cell
-        if (pidColumnIndex >= 0) {
-            console.log(`[GenericFacePicker] Trying to get cell at row ${rowIndex}, col ${pidColumnIndex} (PID)`);
-            const pidCell = grid.getCell(rowIndex, pidColumnIndex);
-            console.log(`[GenericFacePicker] pidCell result:`, pidCell);
-            console.log(`[GenericFacePicker] pidCell is null?`, pidCell === null);
-            console.log(`[GenericFacePicker] pidCell tagName:`, pidCell ? pidCell.tagName : 'N/A');
-            console.log(`[GenericFacePicker] pidCell current text:`, pidCell ? pidCell.textContent : 'N/A');
+        // Gently trigger a re-render by scrolling the row into view
+        // This uses virtual rendering and won't freeze like render()
+        console.log(`[GenericFacePicker] Scrolling row into view to trigger re-render...`);
+        grid.scrollViewportTo(rowIndex, 0);
 
-            if (pidCell) {
-                console.log(`[GenericFacePicker] SETTING pidCell.textContent to ${pid}`);
-                pidCell.textContent = pid;
-                console.log(`[GenericFacePicker] pidCell.textContent NOW:`, pidCell.textContent);
-            } else {
-                console.error(`[GenericFacePicker] PID CELL IS NULL - cannot update PID`);
+        // Also clear selection and reselect to force cell refresh
+        setTimeout(() => {
+            const currentSelection = grid.getSelected();
+            grid.deselectCell();
+            if (currentSelection && currentSelection.length > 0) {
+                grid.selectCell(currentSelection[0][0], currentSelection[0][1]);
             }
-        } else {
-            console.warn(`[GenericFacePicker] PID column not found (pidColumnIndex = ${pidColumnIndex})`);
-        }
+            console.log(`[GenericFacePicker] Grid refreshed`);
+        }, 50);
 
         console.log(`[GenericFacePicker] ===== DONE =====`);
 
