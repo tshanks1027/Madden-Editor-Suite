@@ -24,7 +24,22 @@ export class RealisticRatingGenerator implements IRatingGenerator {
   constructor() {
     this.tierData = new Map();
     this.weightData = new Map();
-    this.loadData();
+
+    try {
+      this.loadData();
+      // Write success to file for verification
+      const fs = require('fs');
+      const path = require('path');
+      const logPath = path.join(require('electron').app.getPath('temp'), 'realistic-mode-debug.txt');
+      fs.writeFileSync(logPath, `RealisticRatingGenerator initialized successfully\nTier data size: ${this.tierData.size}\nWeight data size: ${this.weightData.size}\nQB Generational: ${JSON.stringify(this.tierData.get('QB')?.['Generational'])}\nLog path: ${logPath}\n`);
+    } catch (error) {
+      // Write error to file for debugging
+      const fs = require('fs');
+      const path = require('path');
+      const logPath = path.join(require('electron').app.getPath('temp'), 'realistic-mode-debug.txt');
+      fs.writeFileSync(logPath, `RealisticRatingGenerator FAILED to initialize\nError: ${error instanceof Error ? error.message : String(error)}\nStack: ${error instanceof Error ? error.stack : 'No stack'}\n`);
+      throw error;
+    }
   }
 
   getName(): string {
@@ -32,18 +47,25 @@ export class RealisticRatingGenerator implements IRatingGenerator {
   }
 
   async generateRatings(context: RatingContext): Promise<PlayerRatings> {
+    const fs = require('fs');
+    const path = require('path');
+    const logPath = path.join(require('electron').app.getPath('temp'), 'realistic-mode-debug.txt');
+
     // Step 1: Determine draft tier
     const tier = this.getDraftTier(context.draftPosition, context.draftRound);
     console.log(`[RealisticRatingGenerator] ${context.name}: Draft tier = ${tier} (pos ${context.draftPosition}, round ${context.draftRound})`);
+    fs.appendFileSync(logPath, `\n${context.name}: tier=${tier}, pos=${context.draftPosition}, round=${context.draftRound}\n`);
 
     // Step 2: Map position to tier category
     const tierCategory = this.mapPositionToTierCategory(context.position);
     console.log(`[RealisticRatingGenerator] ${context.name}: Position ${context.position} -> Tier category ${tierCategory}`);
+    fs.appendFileSync(logPath, `  Position: ${context.position} -> Category: ${tierCategory}\n`);
 
     // Step 3: Get target OVR range
     const ovrRange = this.getTierOVR(tierCategory, tier);
     const targetOVR = this.randomInRange(ovrRange.min, ovrRange.max);
     console.log(`[RealisticRatingGenerator] ${context.name}: Target OVR = ${targetOVR} (range ${ovrRange.min}-${ovrRange.max})`);
+    fs.appendFileSync(logPath, `  OVR Range: ${ovrRange.min}-${ovrRange.max}, Target: ${targetOVR}\n`);
 
     // Step 4: Generate Speed from 40 time (if available)
     const speed = context.fortyTime
