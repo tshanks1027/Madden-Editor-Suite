@@ -32,6 +32,7 @@ import { registerCreatorHandlers } from './main/ipc/creator-handlers';
 import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';
 import { registerUpdateHandlers } from './main/ipc/update-handlers';
+import { registerCombineHandlers } from './main/ipc/combine-handlers';
 import { updateChecker } from './main/services/UpdateChecker';
 import { portraitSpriteService } from './main/services/PortraitSpriteService';
 import { coachPortraitService } from './main/services/CoachPortraitService';
@@ -42,6 +43,7 @@ registerCreatorHandlers();
 registerDebugHandlers();
 registerRatingHandlers();
 registerUpdateHandlers();
+registerCombineHandlers();
 
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;

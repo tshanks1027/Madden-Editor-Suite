@@ -133,5 +133,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-by-pid', pid),
     getImageDataByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-image-data-by-pid', pid),
     hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid)
+  },
+
+  // Combine APIs
+  combine: {
+    fetchYear: (year: number) =>
+      ipcRenderer.invoke('combine:fetch-year', year),
+    fetchRange: (startYear: number, endYear: number) =>
+      ipcRenderer.invoke('combine:fetch-range', startYear, endYear),
+    populate40Times: () =>
+      ipcRenderer.invoke('combine:populate-40-times'),
+    updateLookup: (combineData: any) =>
+      ipcRenderer.invoke('combine:update-lookup', combineData)
   }
 });
