@@ -1423,6 +1423,15 @@ export class CreatorService {
         if (ratingMode === 'random' || ratingMode === 'realistic') {
           // Use rating mode factory for random or realistic modes
           try {
+            // Debug logging for first 3 players in realistic mode
+            if (ratingMode === 'realistic' && i < 3) {
+              const fs = require('fs');
+              const path = require('path');
+              const { app } = require('electron');
+              const logPath = path.join(app.getPath('temp'), 'realistic-mode-debug.txt');
+              fs.appendFileSync(logPath, `\n[CreatorService] ${firstName} ${lastName}: prospect.pick=${prospect.pick}, prospect.round=${prospect.round}, typeof pick=${typeof prospect.pick}, typeof round=${typeof prospect.round}\n`);
+            }
+
             const generator = RatingModeFactory.create(ratingMode as RatingMode);
             const generatedRatings = await generator.generateRatings({
               position: mappedPosition.name,
@@ -1817,6 +1826,15 @@ export class CreatorService {
         if (ratingMode === 'random' || ratingMode === 'realistic') {
           // Use rating mode factory for random or realistic modes
           try {
+            // Debug logging for first 3 players in realistic mode
+            if (ratingMode === 'realistic' && i < 3) {
+              const fs = require('fs');
+              const path = require('path');
+              const { app } = require('electron');
+              const logPath = path.join(app.getPath('temp'), 'realistic-mode-debug.txt');
+              fs.appendFileSync(logPath, `\n[CreatorService-Roster] ${firstName} ${lastName}: prospect.pick=${prospect.pick}, prospect.round=${prospect.round}, typeof pick=${typeof prospect.pick}, typeof round=${typeof prospect.round}\n`);
+            }
+
             const generator = RatingModeFactory.create(ratingMode as RatingMode);
             const generatedRatings = await generator.generateRatings({
               position: mappedPosition.name,
