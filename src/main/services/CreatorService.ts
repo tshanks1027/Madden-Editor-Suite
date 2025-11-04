@@ -1366,6 +1366,7 @@ export class CreatorService {
 
       // Step 4: For each prospect, generate player data
       const generatedPlayers: GeneratedPlayer[] = [];
+      const ratingModeErrors: Array<{player: string, error: string}> = []; // Track errors for debugging
 
       for (let i = 0; i < allProspects.length; i++) {
         const prospect = allProspects[i];
@@ -1441,9 +1442,21 @@ export class CreatorService {
             }
 
           } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : 'No stack trace';
+
             console.error(`[CreatorService] Error using rating mode ${ratingMode} for ${firstName} ${lastName}, falling back to default:`, error);
-            console.error(`[CreatorService] Error details:`, error instanceof Error ? error.message : String(error));
-            console.error(`[CreatorService] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
+            console.error(`[CreatorService] Error details:`, errorMsg);
+            console.error(`[CreatorService] Error stack:`, errorStack);
+
+            // Track error for frontend display (only first 3 to avoid spam)
+            if (ratingModeErrors.length < 3) {
+              ratingModeErrors.push({
+                player: `${firstName} ${lastName} (Pick ${prospect.pick})`,
+                error: errorMsg + (errorStack ? `\n${errorStack.split('\n')[0]}` : '')
+              });
+            }
+
             ratings = this.generateDefaultRatings(prospect);
           }
         } else {
@@ -1573,6 +1586,15 @@ export class CreatorService {
 
       // Close browser when done
       await scraperService.closeBrowser();
+
+      // Log rating mode errors if any occurred
+      if (ratingModeErrors.length > 0) {
+        console.error(`\n[CreatorService] ⚠️  RATING MODE ERRORS (${ratingModeErrors.length} total):`);
+        ratingModeErrors.forEach((err, idx) => {
+          console.error(`  ${idx + 1}. ${err.player}`);
+          console.error(`     ${err.error}\n`);
+        });
+      }
 
       return generatedPlayers;
 
@@ -1713,6 +1735,7 @@ export class CreatorService {
 
       // STEP 4: Process all players (same logic as original generateDraftClass)
       const generatedPlayers: GeneratedPlayer[] = [];
+      const ratingModeErrors: Array<{player: string, error: string}> = []; // Track errors for debugging
 
       for (let i = 0; i < draftProspects.length; i++) {
         const prospect = draftProspects[i];
@@ -1813,9 +1836,21 @@ export class CreatorService {
             }
 
           } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : 'No stack trace';
+
             console.error(`[CreatorService] Error using rating mode ${ratingMode} for ${firstName} ${lastName}, falling back to default:`, error);
-            console.error(`[CreatorService] Error details:`, error instanceof Error ? error.message : String(error));
-            console.error(`[CreatorService] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
+            console.error(`[CreatorService] Error details:`, errorMsg);
+            console.error(`[CreatorService] Error stack:`, errorStack);
+
+            // Track error for frontend display (only first 3 to avoid spam)
+            if (ratingModeErrors.length < 3) {
+              ratingModeErrors.push({
+                player: `${firstName} ${lastName} (Pick ${prospect.pick})`,
+                error: errorMsg + (errorStack ? `\n${errorStack.split('\n')[0]}` : '')
+              });
+            }
+
             ratings = this.generateDefaultRatings(prospect);
           }
         } else {
@@ -2013,6 +2048,15 @@ export class CreatorService {
       // Close browser if we opened it
       await scraperService.closeBrowser();
 
+      // Log rating mode errors if any occurred
+      if (ratingModeErrors.length > 0) {
+        console.error(`\n[CreatorService] ⚠️  RATING MODE ERRORS (${ratingModeErrors.length} total):`);
+        ratingModeErrors.forEach((err, idx) => {
+          console.error(`  ${idx + 1}. ${err.player}`);
+          console.error(`     ${err.error}\n`);
+        });
+      }
+
       return generatedPlayers;
 
     } catch (error: any) {
@@ -2045,6 +2089,7 @@ export class CreatorService {
 
     try {
       const generatedPlayers: GeneratedPlayer[] = [];
+      const ratingModeErrors: Array<{player: string, error: string}> = []; // Track errors for debugging
 
       // Step 0: Load MASTER_LOOKUP and team history
       console.log(`[CreatorService] Loading MASTER_LOOKUP...`);
@@ -2758,6 +2803,15 @@ export class CreatorService {
 
       // Close browser when done
       await scraperService.closeBrowser();
+
+      // Log rating mode errors if any occurred
+      if (ratingModeErrors.length > 0) {
+        console.error(`\n[CreatorService] ⚠️  RATING MODE ERRORS (${ratingModeErrors.length} total):`);
+        ratingModeErrors.forEach((err, idx) => {
+          console.error(`  ${idx + 1}. ${err.player}`);
+          console.error(`     ${err.error}\n`);
+        });
+      }
 
       return generatedPlayers;
 
