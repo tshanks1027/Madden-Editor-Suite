@@ -3999,9 +3999,10 @@ class MaddenEditorApp {
                             position: r.position
                         })), null, 2));
 
-                        // Force re-render to update portraits after sort
-                        console.log('[Draft] afterColumnSort: Forcing render to update portraits');
-                        this.draftGrid.render();
+                        // Don't force re-render - Handsontable already re-renders after sort
+                        // Forcing render with 471+ players causes freezing due to portrait re-rendering
+                        console.log('[Draft] afterColumnSort: Sort complete (skipping manual render)');
+                        // this.draftGrid.render(); // DISABLED - causes freeze with large draft classes
                     } catch (e) {
                         console.log('[Draft] afterColumnSort: Could not access data (table may be destroyed)');
                     }
