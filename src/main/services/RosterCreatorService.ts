@@ -22,6 +22,8 @@ import { generateRandomRoster, RandomPlayer } from '../lib/roster/RandomPlayerGe
 import { scraperDebugLogger } from '../utils/DebugLogger';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as XLSX from 'xlsx';
+import { app } from 'electron';
 
 export interface RosterPlayer {
   // Basic Info
@@ -49,6 +51,22 @@ export interface RosterPlayer {
 
 export interface ProgressCallback {
   (progress: number, message: string): void;
+}
+
+export interface MaddenHistoricalPlayer {
+  firstName: string;
+  lastName: string;
+  fullName?: string;
+  position: string;
+  team: string;
+  jerseyNumber: number;
+  overall: number;
+  attributes: { [key: string]: number };
+  height?: number;
+  weight?: number;
+  age?: number;
+  yearsPro?: number;
+  college?: string;
 }
 
 /**
@@ -140,6 +158,20 @@ export class RosterCreatorService {
 
       progressCallback?.(10, `Generating roster for ${year}...`);
 
+      // Try to load actual Madden ratings for this year (1999-2024)
+      let maddenRatings: Map<string, MaddenHistoricalPlayer> | null = null;
+      if (year >= 1999 && year <= 2024) {
+        progressCallback?.(15, `Checking for Madden ${year} ratings...`);
+        console.log(`[RosterCreatorService] Attempting to load Madden ${year} historical ratings...`);
+        maddenRatings = await this.loadMaddenOldRatings(year);
+        if (maddenRatings && maddenRatings.size > 0) {
+          console.log(`[RosterCreatorService] ✓ Loaded ${maddenRatings.size} players from Madden ${year} ratings`);
+          scraperDebugLogger.log(`✓ Loaded ${maddenRatings.size} players from actual Madden ${year} ratings\n`);
+        } else {
+          console.log(`[RosterCreatorService] No Madden ${year} ratings found, will use stat-based generation`);
+        }
+      }
+
       // Use CreatorService to generate roster with proper data handling
       // This gives us: college lookup, position mapping, dev traits, stat minimums, etc.
       // Exclude 'fa' from team scraping - FA pool will be generated separately
@@ -170,6 +202,9 @@ export class RosterCreatorService {
         }
       }
 
+      // Track how many players used Madden ratings
+      let maddenRatingMatches = 0;
+
       // Convert GeneratedPlayer format to RosterPlayer format
       const rosterPlayers: RosterPlayer[] = generatedPlayers.map((player: GeneratedPlayer, idx: number) => {
         // Find team ID from team abbreviation (Pro Football Reference abbr -> Madden team ID)
@@ -186,16 +221,42 @@ export class RosterCreatorService {
           console.warn(`[RosterCreatorService] ⚠️ Unmapped team abbreviation: "${player.team}" for player ${player.firstName} ${player.lastName}`);
         }
 
+        // Check if we have actual Madden ratings for this player
+        let maddenPlayer: MaddenHistoricalPlayer | null = null;
+        if (maddenRatings && maddenRatings.size > 0) {
+          maddenPlayer = this.findMaddenPlayerMatch(
+            player.firstName,
+            player.lastName,
+            player.position,
+            maddenRatings
+          );
+
+          if (maddenPlayer) {
+            maddenRatingMatches++;
+            if (idx < 10) {
+              console.log(`[RosterCreatorService] ✓ Found Madden ratings for ${player.firstName} ${player.lastName} (${player.position}) - OVR ${maddenPlayer.overall}`);
+            }
+          }
+        }
+
+        // Use Madden ratings if available, otherwise use generated ratings
+        const finalRatings = maddenPlayer ? maddenPlayer.attributes : player.ratings;
+        const finalOverall = maddenPlayer ? maddenPlayer.overall : player.ratings.overall;
+        const finalHeight = maddenPlayer?.height || player.heightInches;
+        const finalWeight = maddenPlayer?.weight || player.weight;
+        const finalAge = maddenPlayer?.age || player.age;
+        const finalYearsPro = maddenPlayer?.yearsPro || player.yearsPro;
+
         // Convert GeneratedPlayer to RosterPlayer format
         const rosterPlayer: RosterPlayer = {
           PFNA: player.firstName,
           PLNA: player.lastName,
           PPOS: player.positionCode, // Use numeric position code for lookups
           TGID: teamId,
-          PAGE: player.age,
+          PAGE: finalAge,
           PJEN: player.jerseyNum,
-          PHGT: player.heightInches,
-          PWGT: player.weight,
+          PHGT: finalHeight,
+          PWGT: finalWeight,
           PCOL: player.college, // College ID (already numeric from CreatorService)
           PHSN: player.homeState, // Home state ID (already numeric from CreatorService)
 
@@ -205,80 +266,80 @@ export class RosterCreatorService {
           // PID (Player Picture ID), PAM, and Years Pro
           PSXP: player.PID, // Player Picture ID for face/headshot
           PEPS: player.PEPS || '', // Player Asset Model (PAM) - blank string for historical players
-          PYRP: player.yearsPro, // Years in league
+          PYRP: finalYearsPro, // Years in league
           PBOD: player.bodyType,
 
-          // All ratings from GeneratedPlayer.ratings
+          // All ratings - use Madden ratings if available, otherwise use generated
           // NOTE: Field names MUST match Madden 26 field definitions exactly!
-          PSPD: player.ratings.speed,
-          PACC: player.ratings.acceleration,
-          PAGI: player.ratings.agility,
-          PELU: player.ratings.changeOfDirection, // COD = PELU in M26
-          PSTR: player.ratings.strength,
-          PAWR: player.ratings.awareness,
-          PJMP: player.ratings.jumping,
-          PSTA: player.ratings.stamina,
-          PINJ: player.ratings.injury,
-          PTGH: player.ratings.toughness,
+          PSPD: finalRatings.speed || player.ratings.speed,
+          PACC: finalRatings.acceleration || player.ratings.acceleration,
+          PAGI: finalRatings.agility || player.ratings.agility,
+          PELU: finalRatings.changeOfDirection || player.ratings.changeOfDirection, // COD = PELU in M26
+          PSTR: finalRatings.strength || player.ratings.strength,
+          PAWR: finalRatings.awareness || player.ratings.awareness,
+          PJMP: finalRatings.jumping || player.ratings.jumping,
+          PSTA: finalRatings.stamina || player.ratings.stamina,
+          PINJ: finalRatings.injury || player.ratings.injury,
+          PTGH: finalRatings.toughness || player.ratings.toughness,
 
           // Passing
-          PTHP: player.ratings.throwPower,
-          PTAS: player.ratings.throwAccuracyShort, // TAS not PTHA
-          PTAM: player.ratings.throwAccuracyMid, // TAM not PTHM
-          PTAD: player.ratings.throwAccuracyDeep, // TAD not PTHD
-          PTOR: player.ratings.throwOnTheRun, // TOR not PTHO
-          PTUP: player.ratings.throwUnderPressure, // TUP not PTHU
-          PPLA: player.ratings.playAction,
-          PBSK: player.ratings.breakSack,
+          PTHP: finalRatings.throwPower || player.ratings.throwPower,
+          PTAS: finalRatings.throwAccuracyShort || player.ratings.throwAccuracyShort, // TAS not PTHA
+          PTAM: finalRatings.throwAccuracyMid || player.ratings.throwAccuracyMid, // TAM not PTHM
+          PTAD: finalRatings.throwAccuracyDeep || player.ratings.throwAccuracyDeep, // TAD not PTHD
+          PTOR: finalRatings.throwOnTheRun || player.ratings.throwOnTheRun, // TOR not PTHO
+          PTUP: finalRatings.throwUnderPressure || player.ratings.throwUnderPressure, // TUP not PTHU
+          PPLA: finalRatings.playAction || player.ratings.playAction,
+          PBSK: finalRatings.breakSack || player.ratings.breakSack,
 
           // Rushing/Carrying
-          PCAR: player.ratings.carrying,
-          PBCV: player.ratings.ballCarrierVision,
-          PBKT: player.ratings.breakTackle, // PBKT not PBTK
-          PLTR: player.ratings.trucking, // PLTR not PTRK
-          PLSA: player.ratings.stiffArm, // PLSA not PSFA
-          PLSM: player.ratings.spinMove, // PLSM not PSPM
-          PLJM: player.ratings.jukeMove, // PLJM not PJKM
+          PCAR: finalRatings.carrying || player.ratings.carrying,
+          PBCV: finalRatings.ballCarrierVision || player.ratings.ballCarrierVision,
+          PBKT: finalRatings.breakTackle || player.ratings.breakTackle, // PBKT not PBTK
+          PLTR: finalRatings.trucking || player.ratings.trucking, // PLTR not PTRK
+          PLSA: finalRatings.stiffArm || player.ratings.stiffArm, // PLSA not PSFA
+          PLSM: finalRatings.spinMove || player.ratings.spinMove, // PLSM not PSPM
+          PLJM: finalRatings.jukeMove || player.ratings.jukeMove, // PLJM not PJKM
 
           // Receiving
-          PCTH: player.ratings.catching,
-          PLCI: player.ratings.catchInTraffic, // PLCI not PCIT
-          PLSC: player.ratings.spectacularCatch, // PLSC not PSPC
-          PSRR: player.ratings.shortRouteRunning,
-          PMRR: player.ratings.mediumRouteRunning,
-          PDRR: player.ratings.deepRouteRunning,
-          PLRL: player.ratings.release, // PLRL not PREL
+          PCTH: finalRatings.catching || player.ratings.catching,
+          PLCI: finalRatings.catchInTraffic || player.ratings.catchInTraffic, // PLCI not PCIT
+          PLSC: finalRatings.spectacularCatch || player.ratings.spectacularCatch, // PLSC not PSPC
+          PSRR: finalRatings.shortRouteRunning || player.ratings.shortRouteRunning,
+          PMRR: finalRatings.mediumRouteRunning || player.ratings.mediumRouteRunning,
+          PDRR: finalRatings.deepRouteRunning || player.ratings.deepRouteRunning,
+          PLRL: finalRatings.release || player.ratings.release, // PLRL not PREL
 
           // Blocking
-          PPBK: player.ratings.passBlock,
-          PPBS: player.ratings.passBlockPower, // PPBS not PPBP (Pass Block Strength)
-          PPBF: player.ratings.passBlockFinesse,
-          PRBK: player.ratings.runBlock,
-          PRBS: player.ratings.runBlockPower, // PRBS not PRBP (Run Block Strength)
-          PRBF: player.ratings.runBlockFinesse,
-          PLBK: player.ratings.leadBlock,
-          PLIB: player.ratings.impactBlocking, // PLIB not PIBL
+          PPBK: finalRatings.passBlock || player.ratings.passBlock,
+          PPBS: finalRatings.passBlockPower || player.ratings.passBlockPower, // PPBS not PPBP (Pass Block Strength)
+          PPBF: finalRatings.passBlockFinesse || player.ratings.passBlockFinesse,
+          PRBK: finalRatings.runBlock || player.ratings.runBlock,
+          PRBS: finalRatings.runBlockPower || player.ratings.runBlockPower, // PRBS not PRBP (Run Block Strength)
+          PRBF: finalRatings.runBlockFinesse || player.ratings.runBlockFinesse,
+          PLBK: finalRatings.leadBlock || player.ratings.leadBlock,
+          PLIB: finalRatings.impactBlocking || player.ratings.impactBlocking, // PLIB not PIBL
 
           // Defense
-          PTAK: player.ratings.tackle,
-          PLHT: player.ratings.hitPower, // PLHT not PHTP
-          PLPM: player.ratings.powerMoves, // PLPM not PPOW
-          PFMS: player.ratings.finesseMoves,
-          PBSG: player.ratings.blockShedding, // PBSG not PBSH
-          PLPU: player.ratings.pursuit, // PLPU not PPUR
-          PLPR: player.ratings.playRecognition, // PLPR not PPRC
-          PLMC: player.ratings.manCoverage, // PLMC not PMCV
-          PLZC: player.ratings.zoneCoverage, // PLZC not PZCV
-          PLPE: player.ratings.pressCoverage, // PLPE not PPRS
+          PTAK: finalRatings.tackle || player.ratings.tackle,
+          PLHT: finalRatings.hitPower || player.ratings.hitPower, // PLHT not PHTP
+          PLPM: finalRatings.powerMoves || player.ratings.powerMoves, // PLPM not PPOW
+          PFMS: finalRatings.finesseMoves || player.ratings.finesseMoves,
+          PBSG: finalRatings.blockShedding || player.ratings.blockShedding, // PBSG not PBSH
+          PLPU: finalRatings.pursuit || player.ratings.pursuit, // PLPU not PPUR
+          PLPR: finalRatings.playRecognition || player.ratings.playRecognition, // PLPR not PPRC
+          PLMC: finalRatings.manCoverage || player.ratings.manCoverage, // PLMC not PMCV
+          PLZC: finalRatings.zoneCoverage || player.ratings.zoneCoverage, // PLZC not PZCV
+          PLPE: finalRatings.pressCoverage || player.ratings.pressCoverage, // PLPE not PPRS
 
           // Special Teams
-          PKPR: player.ratings.kickPower, // PKPR not PKPW
-          PKAC: player.ratings.kickAccuracy,
-          PKRT: player.ratings.kickReturn,
-          PLSN: player.ratings.longSnap,
+          PKPR: finalRatings.kickPower || player.ratings.kickPower, // PKPR not PKPW
+          PKAC: finalRatings.kickAccuracy || player.ratings.kickAccuracy,
+          PKRT: finalRatings.kickReturn || player.ratings.kickReturn,
+          PLSN: finalRatings.longSnap || player.ratings.longSnap,
 
           // Overall
-          POVR: player.ratings.overall,
+          POVR: finalOverall,
 
           // Metadata
           isHallOfFamer: player.devTrait === 3 // X-Factor dev trait indicates HOFer
@@ -308,6 +369,22 @@ export class RosterCreatorService {
         unknownSample.forEach(p => {
           console.warn(`  - ${p.PFNA} ${p.PLNA} (${p.PPOS}) - original team was probably not set`);
         });
+      }
+
+      // Log Madden ratings usage summary
+      if (maddenRatings && maddenRatings.size > 0) {
+        const matchPercentage = ((maddenRatingMatches / rosterPlayers.length) * 100).toFixed(1);
+        console.log(`\n[RosterCreatorService] ========== MADDEN RATINGS SUMMARY ==========`);
+        console.log(`[RosterCreatorService] Total players: ${rosterPlayers.length}`);
+        console.log(`[RosterCreatorService] Players with Madden ${year} ratings: ${maddenRatingMatches} (${matchPercentage}%)`);
+        console.log(`[RosterCreatorService] Players with generated ratings: ${rosterPlayers.length - maddenRatingMatches}`);
+        console.log(`[RosterCreatorService] ===============================================\n`);
+
+        scraperDebugLogger.log(`\n=== MADDEN RATINGS SUMMARY ===`);
+        scraperDebugLogger.log(`Total players: ${rosterPlayers.length}`);
+        scraperDebugLogger.log(`Players using actual Madden ${year} ratings: ${maddenRatingMatches} (${matchPercentage}%)`);
+        scraperDebugLogger.log(`Players using stat-based generation: ${rosterPlayers.length - maddenRatingMatches}`);
+        scraperDebugLogger.log(`==============================\n`);
       }
 
       progressCallback?.(100, `Roster generation complete! ${rosterPlayers.length} players created.`);
@@ -468,6 +545,297 @@ export class RosterCreatorService {
     const feet = Math.floor(inches / 12);
     const remainingInches = inches % 12;
     return `${feet}-${remainingInches}`;
+  }
+
+  /**
+   * Get column mapping for a specific year
+   * @param year - The year to get mapping for
+   * @returns Column mapping object
+   */
+  private getColumnMappingForYear(year: number): any {
+    const mappingPath = app.isPackaged
+      ? path.join(app.getAppPath(), 'data', 'madden-ratings-column-mapping.json')
+      : path.join(__dirname, '../../data/madden-ratings-column-mapping.json');
+
+    const mappingData = JSON.parse(fs.readFileSync(mappingPath, 'utf-8'));
+
+    // Determine which year range to use
+    if (year >= 2024) {
+      return mappingData.yearRanges['2024'];
+    } else if (year >= 2018) {
+      return mappingData.yearRanges['2018-2023'];
+    } else if (year >= 2013) {
+      return mappingData.yearRanges['2013-2017'];
+    } else if (year >= 2005) {
+      return mappingData.yearRanges['2005-2012'];
+    } else {
+      return mappingData.yearRanges['2002-2004'];
+    }
+  }
+
+  /**
+   * Get file structure type for a year
+   * @param year - The year to check
+   * @returns 'consolidated' or 'team-based'
+   */
+  private getFileStructure(year: number): 'consolidated' | 'team-based' {
+    const mappingPath = app.isPackaged
+      ? path.join(app.getAppPath(), 'data', 'madden-ratings-column-mapping.json')
+      : path.join(__dirname, '../../data/madden-ratings-column-mapping.json');
+
+    const mappingData = JSON.parse(fs.readFileSync(mappingPath, 'utf-8'));
+    return mappingData.fileStructure[year.toString()] || 'consolidated';
+  }
+
+  /**
+   * Load Madden Old Ratings for a specific year
+   * @param year - The year to load ratings for (1999-2024)
+   * @returns Map of players keyed by name+position
+   */
+  async loadMaddenOldRatings(year: number): Promise<Map<string, MaddenHistoricalPlayer>> {
+    const playersMap = new Map<string, MaddenHistoricalPlayer>();
+
+    try {
+      const ratingsDir = app.isPackaged
+        ? path.join(app.getAppPath(), 'data', 'Madden Old Ratings')
+        : path.join(__dirname, '../../data/Madden Old Ratings');
+
+      const fileStructure = this.getFileStructure(year);
+      const columnMapping = this.getColumnMappingForYear(year);
+
+      console.log(`[RosterCreatorService] Loading Madden ${year} ratings (${fileStructure} structure)`);
+
+      if (fileStructure === 'consolidated') {
+        // Load single consolidated file
+        const fileName = this.getMaddenRatingsFileName(year);
+        const filePath = path.join(ratingsDir, fileName);
+
+        if (!fs.existsSync(filePath)) {
+          console.warn(`[RosterCreatorService] Madden ratings file not found: ${filePath}`);
+          return playersMap;
+        }
+
+        const workbook = XLSX.readFile(filePath);
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        for (const row of rows) {
+          const player = this.parseMaddenPlayer(row as any, columnMapping, year);
+          if (player) {
+            const key = this.getPlayerKey(player.firstName, player.lastName, player.position);
+            playersMap.set(key, player);
+          }
+        }
+
+        console.log(`[RosterCreatorService] Loaded ${playersMap.size} players from ${fileName}`);
+
+      } else {
+        // Load team-based files
+        const yearDir = path.join(ratingsDir, year.toString());
+        if (!fs.existsSync(yearDir)) {
+          console.warn(`[RosterCreatorService] Madden ratings directory not found: ${yearDir}`);
+          return playersMap;
+        }
+
+        const teamFiles = fs.readdirSync(yearDir).filter(f => f.endsWith('.xlsx'));
+        console.log(`[RosterCreatorService] Found ${teamFiles.length} team files for ${year}`);
+
+        for (const teamFile of teamFiles) {
+          const filePath = path.join(yearDir, teamFile);
+          const workbook = XLSX.readFile(filePath);
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet);
+
+          for (const row of rows) {
+            const player = this.parseMaddenPlayer(row as any, columnMapping, year);
+            if (player) {
+              const key = this.getPlayerKey(player.firstName, player.lastName, player.position);
+              playersMap.set(key, player);
+            }
+          }
+        }
+
+        console.log(`[RosterCreatorService] Loaded ${playersMap.size} players from ${teamFiles.length} team files`);
+      }
+
+      return playersMap;
+
+    } catch (error: any) {
+      console.error(`[RosterCreatorService] Error loading Madden ${year} ratings:`, error);
+      return playersMap;
+    }
+  }
+
+  /**
+   * Get Madden ratings filename for a year
+   * @param year - The year
+   * @returns Filename
+   */
+  private getMaddenRatingsFileName(year: number): string {
+    // Handle naming variations
+    if (year === 2013 || year === 2015) {
+      return `${year} Roster.xlsx`;
+    } else if (year === 2023) {
+      return `${year} Rosterss.xlsx`; // Note: double 's' in filename
+    } else if (year === 2002 || year === 2004) {
+      return `${year} Rosters.xlsx`;
+    } else {
+      return `${year} Rosters.xlsx`;
+    }
+  }
+
+  /**
+   * Parse a Madden player from Excel row
+   * @param row - Excel row data
+   * @param columnMapping - Column mapping for the year
+   * @param year - The year
+   * @returns Parsed player or null
+   */
+  private parseMaddenPlayer(
+    row: any,
+    columnMapping: any,
+    year: number
+  ): MaddenHistoricalPlayer | null {
+    try {
+      // Handle fullName vs firstName/lastName
+      let firstName = '';
+      let lastName = '';
+      let fullName = '';
+
+      if (columnMapping.fullName && row[columnMapping.fullName]) {
+        fullName = row[columnMapping.fullName];
+        // Split full name (assuming "First Last" format)
+        const parts = fullName.trim().split(' ');
+        if (parts.length >= 2) {
+          firstName = parts[0];
+          lastName = parts.slice(1).join(' ');
+        } else {
+          firstName = fullName;
+          lastName = '';
+        }
+      } else {
+        firstName = row[columnMapping.firstName] || '';
+        lastName = row[columnMapping.lastName] || '';
+      }
+
+      const position = row[columnMapping.position] || '';
+      const team = row[columnMapping.team] || '';
+      const overall = parseInt(row[columnMapping.overall]) || 70;
+
+      if (!firstName || !position) {
+        return null; // Skip invalid rows
+      }
+
+      // Parse all attributes
+      const attributes: { [key: string]: number } = {};
+      for (const [attrKey, excelColumn] of Object.entries(columnMapping)) {
+        if (attrKey === 'firstName' || attrKey === 'lastName' || attrKey === 'fullName' ||
+            attrKey === 'position' || attrKey === 'team' || attrKey === 'overall' ||
+            attrKey === 'jerseyNumber' || attrKey === 'height' || attrKey === 'weight' ||
+            attrKey === 'age' || attrKey === 'yearsPro' || attrKey === 'college' ||
+            attrKey === 'teamId' || attrKey === 'primaryKey' || attrKey === 'birthdate' ||
+            attrKey === 'totalSalary' || attrKey === 'signingBonus' || attrKey === 'handedness' ||
+            attrKey === 'portraitId' || attrKey === 'runningStyle' || attrKey === 'archetype') {
+          continue;
+        }
+
+        if (row[excelColumn as string] !== undefined && row[excelColumn as string] !== null) {
+          const value = parseInt(row[excelColumn as string]);
+          if (!isNaN(value)) {
+            attributes[attrKey] = value;
+          }
+        }
+      }
+
+      // Parse optional fields
+      const jerseyNumber = columnMapping.jerseyNumber ? (parseInt(row[columnMapping.jerseyNumber]) || 0) : 0;
+      const age = columnMapping.age ? (parseInt(row[columnMapping.age]) || 25) : 25;
+      const yearsPro = columnMapping.yearsPro ? (parseInt(row[columnMapping.yearsPro]) || 0) : 0;
+      const college = columnMapping.college ? row[columnMapping.college] : undefined;
+
+      // Parse height (can be inches or "6-2" format)
+      let height: number | undefined;
+      if (columnMapping.height && row[columnMapping.height]) {
+        const heightValue = row[columnMapping.height];
+        if (typeof heightValue === 'string' && heightValue.includes('-')) {
+          height = this.heightToInches(heightValue);
+        } else {
+          height = parseInt(heightValue) || undefined;
+        }
+      }
+
+      const weight = columnMapping.weight ? (parseInt(row[columnMapping.weight]) || undefined) : undefined;
+
+      return {
+        firstName,
+        lastName,
+        fullName: fullName || `${firstName} ${lastName}`,
+        position,
+        team,
+        jerseyNumber,
+        overall,
+        attributes,
+        height,
+        weight,
+        age,
+        yearsPro,
+        college
+      };
+
+    } catch (error) {
+      console.error('[RosterCreatorService] Error parsing Madden player:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Generate player key for matching
+   * @param firstName - First name
+   * @param lastName - Last name
+   * @param position - Position
+   * @returns Key string
+   */
+  private getPlayerKey(firstName: string, lastName: string, position: string): string {
+    // Normalize for matching: lowercase, remove punctuation, trim whitespace
+    const normFirst = firstName.toLowerCase().replace(/[^a-z]/g, '').trim();
+    const normLast = lastName.toLowerCase().replace(/[^a-z]/g, '').trim();
+    const normPos = position.toUpperCase().trim();
+    return `${normFirst}_${normLast}_${normPos}`;
+  }
+
+  /**
+   * Try to find a Madden historical player match
+   * @param firstName - First name to match
+   * @param lastName - Last name to match
+   * @param position - Position to match
+   * @param maddenRatings - Map of Madden historical players
+   * @returns Matched player or null
+   */
+  findMaddenPlayerMatch(
+    firstName: string,
+    lastName: string,
+    position: string,
+    maddenRatings: Map<string, MaddenHistoricalPlayer>
+  ): MaddenHistoricalPlayer | null {
+    // Try exact match first
+    const exactKey = this.getPlayerKey(firstName, lastName, position);
+    if (maddenRatings.has(exactKey)) {
+      return maddenRatings.get(exactKey)!;
+    }
+
+    // Try without position (for position changes)
+    const nameOnlyKey = `${firstName.toLowerCase().replace(/[^a-z]/g, '')}_${lastName.toLowerCase().replace(/[^a-z]/g, '')}`;
+    for (const [key, player] of maddenRatings.entries()) {
+      if (key.startsWith(nameOnlyKey)) {
+        console.log(`[RosterCreatorService] Position mismatch match: ${firstName} ${lastName} (${position} -> ${player.position})`);
+        return player;
+      }
+    }
+
+    // No match found
+    return null;
   }
 }
 

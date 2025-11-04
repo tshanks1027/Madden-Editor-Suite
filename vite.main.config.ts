@@ -72,6 +72,44 @@ export default defineConfig({
             console.log('Copied coach-atlas.json to build output');
           }
 
+          // Copy Madden ratings column mapping JSON
+          const maddenMappingFile = path.join(srcDataDir, 'madden-ratings-column-mapping.json');
+          if (existsSync(maddenMappingFile)) {
+            const destMaddenMappingFile = path.join(destDataDir, 'madden-ratings-column-mapping.json');
+            copyFileSync(maddenMappingFile, destMaddenMappingFile);
+            console.log('Copied madden-ratings-column-mapping.json to build output');
+          }
+
+          // Copy Madden Old Ratings directory
+          const srcMaddenRatingsDir = path.join(srcDataDir, 'Madden Old Ratings');
+          const destMaddenRatingsDir = path.join(destDataDir, 'Madden Old Ratings');
+          if (existsSync(srcMaddenRatingsDir)) {
+            if (!existsSync(destMaddenRatingsDir)) {
+              mkdirSync(destMaddenRatingsDir, { recursive: true });
+            }
+
+            // Copy function for Madden ratings (handles subdirectories and xlsx files)
+            function copyMaddenRatingsDirectory(src, dest) {
+              const entries = fs.readdirSync(src, { withFileTypes: true });
+              entries.forEach(entry => {
+                const srcPath = path.join(src, entry.name);
+                const destPath = path.join(dest, entry.name);
+
+                if (entry.isDirectory()) {
+                  if (!existsSync(destPath)) {
+                    mkdirSync(destPath, { recursive: true });
+                  }
+                  copyMaddenRatingsDirectory(srcPath, destPath);
+                } else if (entry.name.endsWith('.xlsx')) {
+                  copyFileSync(srcPath, destPath);
+                }
+              });
+            }
+
+            copyMaddenRatingsDirectory(srcMaddenRatingsDir, destMaddenRatingsDir);
+            console.log('Copied Madden Old Ratings directory to build output');
+          }
+
           // Copy portrait sprites directory
           const srcPortraitSpritesDir = path.join(srcDataDir, 'portrait-sprites');
           const destPortraitSpritesDir = path.join(destDataDir, 'portrait-sprites');
