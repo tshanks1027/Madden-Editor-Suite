@@ -1683,8 +1683,11 @@ export class CreatorService {
             wAV = undefined;
           } else {
             // ALL_PLAYER_LOOKUP has "Round", "Pick", and "wAV"
-            round = entry['Round'] ? parseFloat(entry['Round']) : undefined;
-            pick = entry['Pick'] ? parseFloat(entry['Pick']) : undefined;
+            // Handle "UD" (undrafted) by checking if parseFloat returns NaN
+            const parsedRound = entry['Round'] ? parseFloat(entry['Round']) : NaN;
+            const parsedPick = entry['Pick'] ? parseFloat(entry['Pick']) : NaN;
+            round = !isNaN(parsedRound) ? parsedRound : undefined;
+            pick = !isNaN(parsedPick) ? parsedPick : undefined;
             wAV = entry['wAV'] ? parseFloat(entry['wAV']) : undefined;
           }
 

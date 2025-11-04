@@ -145,7 +145,8 @@ export class RealisticRatingGenerator implements IRatingGenerator {
   }
 
   private getDraftTier(position?: number, round?: number): string {
-    if (!position && !round) return 'Day 3';
+    // If no draft info at all, player is undrafted
+    if (!position && !round) return 'UDFA';
 
     if (position && position <= 5) return 'Generational';
     if (position && position <= 15) return 'Top 5';
