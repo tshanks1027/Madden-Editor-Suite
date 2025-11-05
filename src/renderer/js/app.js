@@ -581,6 +581,24 @@ class MaddenEditorApp {
                     this.players = result.data.players || [];
                     this.originalData = result.data; // Store for saving
 
+                    // Pre-process calculated fields (Archetype) to avoid [object Promise] in grid
+                    this.updateLoadingProgress('Converting archetypes...', 80);
+                    this.players = await Promise.all(this.players.map(async player => {
+                        // Convert Archetype (async IPC call)
+                        if (player.PLTY !== undefined && player.PLTY !== null && player.PPOS !== undefined) {
+                            try {
+                                const position = POSITION_MAPPINGS[player.PPOS] || player.PPOS;
+                                player.ARCHETYPE = await window.electronAPI.rating.getArchetypeName(player.PLTY, position);
+                            } catch (e) {
+                                player.ARCHETYPE = `Archetype #${player.PLTY}`;
+                            }
+                        } else {
+                            player.ARCHETYPE = '';
+                        }
+
+                        return player;
+                    }));
+
                     // Reset pagination
                     this.currentPage = 1;
 
@@ -1327,7 +1345,12 @@ class MaddenEditorApp {
             return player[fieldName] + 159;
         }
 
-        // Handle calculated fields (e.g., TOTAL_SALARY)
+        // Handle direct field mappings FIRST (for pre-calculated fields like BIRTHDAY, ARCHETYPE)
+        if (player[fieldName] !== undefined) {
+            return player[fieldName];
+        }
+
+        // Handle calculated fields (e.g., TOTAL_SALARY) - only if not already pre-calculated
         if (fieldDef.type === 'calculated' && fieldDef.calculate) {
             return fieldDef.calculate(player);
         }
@@ -1335,11 +1358,6 @@ class MaddenEditorApp {
         // Handle fields with transform for display (salary/bonus in millions)
         if (fieldDef.transform && fieldDef.transform.display && player[fieldName] !== undefined) {
             return fieldDef.transform.display(player[fieldName]);
-        }
-
-        // Handle direct field mappings
-        if (player[fieldName] !== undefined) {
-            return player[fieldName];
         }
 
         // Handle special computed fields and fallbacks
@@ -3531,7 +3549,7 @@ class MaddenEditorApp {
         }
     }
 
-    createDraftGrid(prospects) {
+    async createDraftGrid(prospects) {
 
         const container = document.getElementById('draft-grid-container');
 
@@ -3582,7 +3600,8 @@ class MaddenEditorApp {
         });
 
         // Transform prospect data: convert numeric IDs to friendly names for dropdown fields
-        const transformedProspects = prospects.map(prospect => {
+        // Pre-convert birthday and archetype async to avoid rendering issues
+        const transformedProspects = await Promise.all(prospects.map(async prospect => {
             // Use PEPS from backend (already mapped from assetName or genericHeadName)
             // Backend correctly prioritizes assetName (player-specific) over genericHeadName
             let peps = prospect.PEPS || null;
@@ -3613,18 +3632,42 @@ class MaddenEditorApp {
                 playerPic = prospect.PEPS;
             }
 
-            // Debug: Log first prospect to check visuals
-            if (prospects.indexOf(prospect) === 0) {
-                console.log('[Draft Class] First prospect visuals:', prospect.visuals);
-                console.log('[Draft Class] Body Type:', bodyType);
-                console.log('[Draft Class] PID:', prospect.PID);
-                console.log('[Draft Class] PEPS:', peps);
-                console.log('[Draft Class] Player Pic:', playerPic);
+            // Pre-convert birthday to display format
+            let birthdayDisplay = '';
+            if (prospect.birthDate && prospect.birthDate > 0) {
+                try {
+                    birthdayDisplay = await window.electronAPI.rating.birthdayToDisplay(prospect.birthDate);
+                } catch (error) {
+                    console.error('[Draft Class] Error converting birthday:', error);
+                    birthdayDisplay = '';
+                }
+            }
+
+            // Pre-convert archetype ID to name based on position
+            let archetypeDisplay = '';
+            const position = getLookupValue('positions', prospect.position) || prospect.position;
+            if (typeof prospect.archetype === 'number' && prospect.archetype >= 0) {
+                try {
+                    archetypeDisplay = await window.electronAPI.rating.getArchetypeName(prospect.archetype, position);
+                } catch (error) {
+                    console.error('[Draft Class] Error converting archetype:', error);
+                    archetypeDisplay = `Archetype #${prospect.archetype}`;
+                }
+            }
+
+            // Debug: Log first 5 prospects to check data
+            if (prospects.indexOf(prospect) < 5) {
+                const prospectNum = prospects.indexOf(prospect) + 1;
+                console.log(`[Draft Class] Prospect #${prospectNum}: ${prospect.firstName} ${prospect.lastName}`);
+                console.log(`  Position: ${position} (raw: ${prospect.position})`);
+                console.log(`  Archetype: ${prospect.archetype} -> "${archetypeDisplay}" (type: ${typeof archetypeDisplay}, empty: ${archetypeDisplay === ''})`);
+                console.log(`  BirthDate: ${prospect.birthDate} -> "${birthdayDisplay}"`);
+                console.log(`  Age: ${prospect.age}`);
             }
 
             // Create clean object with ONLY the properties needed for Handsontable
             // Do NOT use spread operator - it can copy extra/corrupted properties from M25→M26 conversion
-            return {
+            const rowData = {
                 // Portrait (for display only)
                 portrait: '',  // Placeholder, rendered from PID
 
@@ -3634,11 +3677,14 @@ class MaddenEditorApp {
                 homeTown: prospect.homeTown || '',
                 homeState: getLookupValue('states', prospect.homeState) || prospect.homeState,
                 college: getLookupValue('colleges', prospect.college) || prospect.college,
+                birthDate: birthdayDisplay,  // Pre-converted display format
+                birthDateRaw: prospect.birthDate,  // Store raw value for saving
                 age: prospect.age,
                 heightInches: prospect.heightInches,
                 weight: prospect.weight,
-                position: getLookupValue('positions', prospect.position) || prospect.position,
-                archetype: prospect.archetype,
+                position: position,  // Use the already-looked-up position
+                archetype: archetypeDisplay || 'EMPTY',  // Store display name for rendering
+                archetypeRaw: prospect.archetype,  // Store numeric ID for saving
                 jerseyNum: prospect.jerseyNum,
 
                 // Draft Info
@@ -3716,7 +3762,9 @@ class MaddenEditorApp {
                 draftPosition: prospect.draftPosition !== undefined ? prospect.draftPosition : prospects.indexOf(prospect),
                 index: prospects.indexOf(prospect)
             };
-        });
+
+            return rowData;
+        }));
 
 
         // Get lookup options for dropdowns
@@ -3727,6 +3775,9 @@ class MaddenEditorApp {
         const bodyTypeOptions = ['Lean', 'Athletic', 'Heavy', 'Stocky'];  // Match Madden M26 format
         // Use capitalized names for player pic autocomplete
         const playerPicOptions = Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face']);
+
+        // Archetype cache - position-specific archetypes loaded on demand
+        const archetypeCache = new Map();
 
         // Custom renderer for lookup columns - ensures friendly names are always displayed
         const dropdownRenderer = function(instance, td, row, col, prop, value, cellProperties) {
@@ -3824,6 +3875,45 @@ class MaddenEditorApp {
             return td;
         };
 
+        // Birthday renderer - displays pre-converted birthday (already in MM/DD/YYYY format)
+        const birthdayRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+            td.innerHTML = '';
+            td.style.textAlign = 'center';
+            td.textContent = value || '';  // Value is already in display format
+            return td;
+        };
+
+        // Age renderer - displays age from data (read-only)
+        const ageRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+            td.innerHTML = '';
+            td.style.textAlign = 'center';
+            td.style.backgroundColor = '#2a2a2a'; // Darker to indicate read-only
+            td.textContent = value || '';  // Value is already calculated
+            return td;
+        };
+
+        // Archetype renderer - displays archetype name (value is already converted)
+        const archetypeRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+            td.innerHTML = '';
+            td.style.textAlign = 'left';
+
+            // Debug: Log value type and content for first 5 rows
+            if (row < 5) {
+                console.log(`[Archetype Renderer] Row ${row}: value = ${JSON.stringify(value)}, type = ${typeof value}`);
+            }
+
+            // If value is a number, something went wrong - log it
+            if (typeof value === 'number') {
+                console.warn(`[Archetype Renderer] Row ${row}: Received number ${value} instead of string!`);
+                td.textContent = `Archetype #${value}`;
+                td.style.color = '#ff6666';  // Red to indicate problem
+            } else {
+                td.textContent = value || '';  // Value should be display format
+            }
+
+            return td;
+        };
+
         // Map draft class field names to roster editor field names and create columns
         // Following FIELD_ORDER from field-definitions.js, excluding contract fields
         const draftColumns = [
@@ -3860,9 +3950,17 @@ class MaddenEditorApp {
             { data: 'lastName', title: 'Last Name', width: 100, type: 'text', editor: 'text' },
             { data: 'firstName', title: 'First Name', width: 100, type: 'text', editor: 'text' },
             { data: 'position', title: 'Pos', width: 90, type: 'dropdown', source: positionOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
+            {
+                data: 'archetype',
+                title: 'Archetype',
+                width: 120,
+                type: 'text',  // Changed from 'dropdown' to 'text' to prevent Handsontable from messing with values during sort
+                readOnly: true,  // Make read-only for now (dropdown editing causes the sort bug)
+                renderer: archetypeRenderer
+            },
             { data: 'jerseyNum', title: 'Jersey #', width: 80, type: 'numeric' },
             { data: 'college', title: 'College', width: 150, type: 'dropdown', source: collegeOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
-            { data: 'age', title: 'Age', width: 50, type: 'numeric' },
+            { data: 'age', title: 'Age', width: 50, type: 'numeric', readOnly: true, renderer: ageRenderer },
             { data: 'homeState', title: 'State', width: 100, type: 'dropdown', source: stateOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
             { data: 'PID', title: 'PID', width: 70, type: 'numeric' },
             { data: 'playerPic', title: 'Player Pic', width: 150, type: 'autocomplete', source: playerPicOptions, strict: false, allowInvalid: true },
@@ -3976,27 +4074,33 @@ class MaddenEditorApp {
                 }
             },
             beforeColumnSort: (currentSortConfig, destinationSortConfigs) => {
+                console.log('===== BEFORE SORT =====');
+                console.log('Sort config:', JSON.stringify(destinationSortConfigs));
                 if (this.draftGrid && !this.draftGrid.isDestroyed) {
-                    try {
-                        window.electronAPI.debug.sessionLog('[SORT] BEFORE sort - First 5 rows: ' + JSON.stringify(this.draftGrid.getSourceData().slice(0, 5).map(r => ({
-                            firstName: r.firstName,
-                            lastName: r.lastName,
-                            devTrait: r.devTrait,
-                            position: r.position
-                        })), null, 2));
-                    } catch (e) {
-                        console.log('[Draft] beforeColumnSort: Could not access data (table may be destroyed)');
+                    const data = this.draftGrid.getSourceData();
+                    console.log('First 5 rows BEFORE sort:');
+                    for (let i = 0; i < Math.min(5, data.length); i++) {
+                        console.log(`Row ${i}: archetype = "${data[i].archetype}" (type: ${typeof data[i].archetype}), archetypeRaw = ${data[i].archetypeRaw}`);
                     }
                 }
             },
             afterColumnSort: (currentSortConfig, destinationSortConfigs) => {
+                console.log('===== AFTER SORT =====');
                 if (this.draftGrid && !this.draftGrid.isDestroyed) {
                     try {
-                        window.electronAPI.debug.sessionLog('[SORT] AFTER sort - First 5 rows: ' + JSON.stringify(this.draftGrid.getSourceData().slice(0, 5).map(r => ({
+                        const data = this.draftGrid.getSourceData();
+                        console.log('First 5 rows AFTER sort:');
+                        for (let i = 0; i < Math.min(5, data.length); i++) {
+                            console.log(`Row ${i}: archetype = "${data[i].archetype}" (type: ${typeof data[i].archetype}), archetypeRaw = ${data[i].archetypeRaw}`);
+                        }
+
+                        window.electronAPI.debug.sessionLog('[SORT] AFTER sort - First 5 rows: ' + JSON.stringify(data.slice(0, 5).map(r => ({
                             firstName: r.firstName,
                             lastName: r.lastName,
                             devTrait: r.devTrait,
-                            position: r.position
+                            position: r.position,
+                            archetype: r.archetype,
+                            archetypeType: typeof r.archetype
                         })), null, 2));
 
                         // Don't force re-render - Handsontable already re-renders after sort
@@ -4050,6 +4154,11 @@ class MaddenEditorApp {
                 if (!changes) return;
 
                 changes.forEach(([row, prop, oldValue, newValue]) => {
+                    // Debug: Log archetype changes
+                    if (prop === 'archetype') {
+                        console.log(`[beforeChange] Row ${row}, archetype: "${oldValue}" (${typeof oldValue}) -> "${newValue}" (${typeof newValue}), source: ${source}`);
+                    }
+
                     // Position, college, homeState, devTrait should stay as friendly names
                     // They will be converted back to IDs during save
 
@@ -4345,6 +4454,8 @@ class MaddenEditorApp {
                     devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait) !== -1
                         ? ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait)
                         : originalProspect.devTrait,
+                    // Convert archetype name back to numeric ID (use archetypeRaw which stores the original ID)
+                    archetype: prospect.archetypeRaw !== undefined ? prospect.archetypeRaw : originalProspect.archetype,
                     // Keep body type as string (M26Writer expects strings: "Lean", "Athletic", "Heavy", "Stocky")
                     bodyType: ['Lean', 'Athletic', 'Heavy', 'Stocky'].includes(prospect.bodyType)
                         ? prospect.bodyType

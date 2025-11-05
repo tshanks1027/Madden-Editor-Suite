@@ -1,18 +1,22 @@
 /**
  * Rating Calculation IPC Handlers
  *
- * Handles requests for dynamic overall rating calculations
+ * Handles requests for dynamic overall rating calculations, formula-based calculations,
+ * archetype management, and birthday conversions
  */
 
 import { ipcMain } from 'electron';
 import { ratingCalculator, MaddenRatings } from '../services/RatingCalculator';
+import { maddenFormulaCalculator } from '../services/rating-modes/MaddenFormulaCalculator';
+import { ArchetypeService, ArchetypeOption } from '../services/utils/archetypeService';
+import { DateConverter } from '../services/utils/dateConverter';
 
 /**
  * Register all rating calculation IPC handlers
  */
 export function registerRatingHandlers(): void {
   /**
-   * Calculate overall rating from current player ratings
+   * Calculate overall rating from current player ratings (legacy stats-based)
    * @param ratings - Partial ratings object from grid
    * @param position - Player position
    * @returns Calculated overall rating
@@ -27,6 +31,151 @@ export function registerRatingHandlers(): void {
         console.error('[RatingHandlers] Error calculating overall:', error);
         // Return a fallback overall
         return 50;
+      }
+    }
+  );
+
+  /**
+   * Calculate secondary ratings using Madden formulas
+   * @param position - Player position
+   * @param attributes - Base attributes
+   * @param archetype - Optional archetype name
+   * @returns Object with calculated secondary ratings
+   */
+  ipcMain.handle(
+    'rating:calculate-secondary',
+    async (_event, position: string, attributes: any, archetype?: string): Promise<{ [rating: string]: number }> => {
+      try {
+        console.log(`[RatingHandlers] Calculating secondary ratings for ${position}${archetype ? ` (${archetype})` : ''}`);
+        return maddenFormulaCalculator.calculateSecondaryRatings(position, attributes, archetype);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error calculating secondary ratings:', error);
+        return {};
+      }
+    }
+  );
+
+  /**
+   * Calculate OVR using Madden formulas
+   * @param position - Player position
+   * @param attributes - All player attributes
+   * @param archetype - Optional archetype name
+   * @returns Calculated OVR
+   */
+  ipcMain.handle(
+    'rating:calculate-ovr-madden',
+    async (_event, position: string, attributes: any, archetype?: string): Promise<number> => {
+      try {
+        console.log(`[RatingHandlers] Calculating Madden OVR for ${position}${archetype ? ` (${archetype})` : ''}`);
+        return maddenFormulaCalculator.calculateOVR(position, attributes, archetype);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error calculating Madden OVR:', error);
+        return 65;
+      }
+    }
+  );
+
+  /**
+   * Get archetypes for a position
+   * @param position - Player position
+   * @returns Array of archetype options
+   */
+  ipcMain.handle(
+    'rating:get-archetypes',
+    async (_event, position: string): Promise<ArchetypeOption[]> => {
+      try {
+        return ArchetypeService.getArchetypesForPosition(position);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error getting archetypes:', error);
+        return [];
+      }
+    }
+  );
+
+  /**
+   * Get archetype name by ID and position
+   * @param id - Archetype ID
+   * @param position - Player position
+   * @returns Archetype name
+   */
+  ipcMain.handle(
+    'rating:get-archetype-name',
+    async (_event, id: number, position: string): Promise<string> => {
+      try {
+        return ArchetypeService.getArchetypeName(id, position);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error getting archetype name:', error);
+        return 'Unknown';
+      }
+    }
+  );
+
+  /**
+   * Get archetype ID by name and position
+   * @param name - Archetype name
+   * @param position - Player position
+   * @returns Archetype ID
+   */
+  ipcMain.handle(
+    'rating:get-archetype-id',
+    async (_event, name: string, position: string): Promise<number> => {
+      try {
+        return ArchetypeService.getArchetypeId(name, position);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error getting archetype ID:', error);
+        return 0;
+      }
+    }
+  );
+
+  /**
+   * Convert encoded birthday to display format
+   * @param encoded - Encoded birthday (YYYYMMDD integer)
+   * @returns Display format (MM/DD/YYYY) or null
+   */
+  ipcMain.handle(
+    'rating:birthday-to-display',
+    async (_event, encoded: number): Promise<string | null> => {
+      try {
+        return DateConverter.encodedToDisplay(encoded);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error converting birthday to display:', error);
+        return null;
+      }
+    }
+  );
+
+  /**
+   * Convert display birthday to encoded format
+   * @param display - Display format (MM/DD/YYYY)
+   * @returns Encoded birthday (YYYYMMDD integer)
+   */
+  ipcMain.handle(
+    'rating:birthday-to-encoded',
+    async (_event, display: string): Promise<number> => {
+      try {
+        return DateConverter.displayToEncoded(display);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error converting birthday to encoded:', error);
+        throw error;
+      }
+    }
+  );
+
+  /**
+   * Calculate age from birthday
+   * @param encoded - Encoded birthday (YYYYMMDD integer)
+   * @param asOfYear - Optional year to calculate age as of
+   * @returns Age in years
+   */
+  ipcMain.handle(
+    'rating:calculate-age',
+    async (_event, encoded: number, asOfYear?: number): Promise<number> => {
+      try {
+        return DateConverter.calculateAge(encoded, asOfYear);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error calculating age:', error);
+        return 0;
       }
     }
   );

@@ -107,6 +107,24 @@ export default defineConfig({
             });
             console.log(`Copied ${coachFiles.filter(f => f.endsWith('.png')).length} coach sprite sheets`);
           }
+
+          // Copy formulas directory
+          const srcFormulasDir = path.join(srcDataDir, 'formulas');
+          const destFormulasDir = path.join(destDataDir, 'formulas');
+          if (existsSync(srcFormulasDir)) {
+            if (!existsSync(destFormulasDir)) {
+              mkdirSync(destFormulasDir, { recursive: true });
+            }
+            const formulaFiles = fs.readdirSync(srcFormulasDir);
+            formulaFiles.forEach(file => {
+              if (file.endsWith('.txt')) {
+                const srcFile = path.join(srcFormulasDir, file);
+                const destFile = path.join(destFormulasDir, file);
+                copyFileSync(srcFile, destFile);
+                console.log(`Copied formula file: ${file}`);
+              }
+            });
+          }
         }
 
         // Copy parsers directory to build output

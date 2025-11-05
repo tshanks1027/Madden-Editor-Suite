@@ -97,8 +97,8 @@ function parseM26Prospects(buffer, header) {
     const attributeData = buffer.subarray(attributeOffset, attributeOffset + ATTRIBUTE_DATA_SIZE);
     const attributes = parseM26AttributeData(attributeData);
 
-    // DEBUG: For first 3 prospects, dump the entire block to find assetName location
-    if (false && prospectNum < 3) {
+    // DEBUG: For first 3 prospects, dump the entire block to find birthDate location
+    if (prospectNum < 3) {
       const fs = require('fs');
       const path = require('path');
       const logFile = path.join(process.cwd(), `M26_prospect_${prospectNum + 1}_dump.txt`);
@@ -182,13 +182,16 @@ function parseM26AttributeData(attributeData) {
     // M26-specific field locations (reverse-engineered through systematic analysis)
     attributes.homeState = attributeData[0x26] || 0;  // Confirmed ✓ (byte before PLACEHOLDER)
     attributes.college = attributeData[0x42] || 0;  // Confirmed ✓ (single byte, not uint16!)
+
+    // Birthday stored as YYYYMMDD integer (uint32LE) - not yet mapped correctly
+    // TODO: Find correct offset by analyzing hex dumps
+    attributes.birthDate = 0;  // Placeholder until correct offset is found
+
     attributes.age = attributeData[0x46];  // Confirmed ✓
     attributes.heightInches = attributeData[0x47];  // Confirmed ✓
     attributes.weight = attributeData[0x48] + 160;  // Confirmed ✓ (stored as weight-160)
     attributes.position = attributeData[0x4a];  // Confirmed ✓
-
-    // Fields still being mapped:
-    attributes.archetype = attributeData[0x4b] || 0;  // Likely archetype
+    attributes.archetype = attributeData[0x4b] || 0;  // Confirmed ✓ (Global archetype ID 0-67)
     attributes.jerseyNum = attributeData[0x4c] || 0;  // Likely jersey or year
     attributes.draftable = 1;  // Assumed draftable
     attributes.draftPick = attributeData[0x4e] || 0;  // Likely pick number

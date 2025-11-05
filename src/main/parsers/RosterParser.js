@@ -63,17 +63,35 @@ async function parseRosterFile(filePath) {
 
     console.log('[RosterParser] Successfully extracted', players.length, 'players');
 
-    // Log sample player
+    // Log sample player with ALL field names
     if (players.length > 0) {
       const sample = players[0];
+      const allFields = Object.keys(sample).sort();
+
       console.log('[RosterParser] Sample player:', {
         firstName: sample.PFNA,
         lastName: sample.PLNA,
         overall: sample.POVR,
         position: sample.PPOS,
+        age: sample.PAGE,
+        birthday: sample.PLBD,
+        archetype: sample.PLTY,
         PEPS: sample.PEPS
       });
-      console.log('[RosterParser] PEPS field exists:', 'PEPS' in sample);
+
+      console.log('[RosterParser] Total fields:', allFields.length);
+
+      // Check for birthday/age/archetype fields specifically
+      const birthdayFields = allFields.filter(f => f.toLowerCase().includes('birth') || f === 'PLBD' || f === 'PAGE' || f === 'PLTY');
+      console.log('[RosterParser] Birthday/Age/Archetype fields found:', birthdayFields.join(', '));
+
+      // Log values for these fields to verify they have data
+      if (birthdayFields.length > 0) {
+        console.log('[RosterParser] Field values:');
+        birthdayFields.forEach(field => {
+          console.log(`  ${field} = ${sample[field]} (type: ${typeof sample[field]})`);
+        });
+      }
     }
 
     // Store file and helper in a map keyed by file path

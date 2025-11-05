@@ -107,7 +107,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Rating APIs
   rating: {
     calculateOverall: (ratings: any, position: string) =>
-      ipcRenderer.invoke('rating:calculate-overall', ratings, position)
+      ipcRenderer.invoke('rating:calculate-overall', ratings, position),
+    calculateSecondary: (position: string, attributes: any, archetype?: string) =>
+      ipcRenderer.invoke('rating:calculate-secondary', position, attributes, archetype),
+    calculateOVRMadden: (position: string, attributes: any, archetype?: string) =>
+      ipcRenderer.invoke('rating:calculate-ovr-madden', position, attributes, archetype),
+    getArchetypes: (position: string) =>
+      ipcRenderer.invoke('rating:get-archetypes', position),
+    getArchetypeName: (id: number, position: string) =>
+      ipcRenderer.invoke('rating:get-archetype-name', id, position),
+    getArchetypeId: (name: string, position: string) =>
+      ipcRenderer.invoke('rating:get-archetype-id', name, position),
+    birthdayToDisplay: (encoded: number) =>
+      ipcRenderer.invoke('rating:birthday-to-display', encoded),
+    birthdayToEncoded: (display: string) =>
+      ipcRenderer.invoke('rating:birthday-to-encoded', display),
+    calculateAge: (encoded: number, asOfYear?: number) =>
+      ipcRenderer.invoke('rating:calculate-age', encoded, asOfYear)
   },
 
   // Update APIs
