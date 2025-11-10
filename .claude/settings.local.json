@@ -48,7 +48,13 @@
       "Bash(sed:*)",
       "Bash(git branch:*)",
       "Bash(git push:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(python:*)",
+      "Bash(nul)",
+      "Bash(pip install:*)",
+      "Bash(timeout /t 5)",
+      "Bash(awk:*)",
+      "Bash(/tmp/restart-signal.txt)"
     ],
     "deny": [],
     "ask": []

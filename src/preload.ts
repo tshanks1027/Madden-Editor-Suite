@@ -68,6 +68,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   creator: {
     generateDraftClass: (year: number, testingMode: boolean = false, ratingMode: string = 'semi-historical') =>
       ipcRenderer.invoke('creator:generate-draft-class', year, testingMode, ratingMode),
+    generateDraftClassV2: (options: {
+      year?: number;
+      decade?: number;
+      ratingMode: 'random' | 'variance' | 'madden';
+      includeUFAs?: boolean;
+      testingMode?: boolean;
+      league?: string;
+    }) =>
+      ipcRenderer.invoke('creator:generate-draft-class-v2', options),
     generateDecadeDraftClass: (startYear: number, endYear: number) =>
       ipcRenderer.invoke('creator:generate-decade-draft-class', startYear, endYear),
     generateRoster: (year: number, teams: string[], ratingMode: string = 'semi-historical') =>

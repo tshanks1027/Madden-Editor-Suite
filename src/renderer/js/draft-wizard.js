@@ -181,7 +181,27 @@ function updateReviewSummary() {
  * Generate draft class using V2 API
  */
 async function generateDraftClass() {
-  console.log('[DraftWizard] Generating draft class...', wizardState);
+  // Re-capture all state from form to ensure we have latest selections
+  const sourceType = document.querySelector('input[name="source-type"]:checked')?.value || 'year';
+  const selectedMode = document.querySelector('input[name="rating-mode"]:checked');
+  const ratingMode = selectedMode ? selectedMode.value : 'variance';
+
+  // Debug: log all rating mode radios
+  console.log('[DraftWizard] All rating mode radios:');
+  document.querySelectorAll('input[name="rating-mode"]').forEach(radio => {
+    console.log(`  ${radio.value}: checked=${radio.checked}`);
+  });
+
+  let year = null;
+  let decade = null;
+
+  if (sourceType === 'year') {
+    year = parseInt(document.getElementById('draft-year').value);
+  } else {
+    decade = parseInt(document.getElementById('draft-decade').value);
+  }
+
+  console.log('[DraftWizard] Generating draft class with:', { sourceType, year, decade, ratingMode });
 
   // Show progress
   const progressEl = document.getElementById('wizard-progress');
@@ -195,29 +215,52 @@ async function generateDraftClass() {
   if (progressBar) progressBar.style.width = '10%';
 
   try {
-    // Build options for V2 API
+    // Build options for V2 API using freshly captured values
     const options = {
-      ratingMode: wizardState.ratingMode,
+      ratingMode: ratingMode,
       testingMode: false
     };
 
-    if (wizardState.decade) {
-      options.decade = wizardState.decade;
+    if (decade) {
+      options.decade = decade;
     } else {
-      options.year = wizardState.year;
+      options.year = year;
     }
 
     // Call V2 IPC handler
     if (progressText) progressText.textContent = 'Generating ratings...';
     if (progressBar) progressBar.style.width = '50%';
 
+    console.log('[DraftWizard] ========== CALLING BACKEND IPC ==========');
+    console.log('[DraftWizard] Sending options to backend:', JSON.stringify(options, null, 2));
     const result = await window.electronAPI.creator.generateDraftClassV2(options);
+    console.log('[DraftWizard] ========== BACKEND RESPONDED ==========');
+    console.log('[DraftWizard] Result success:', result.success);
+    console.log('[DraftWizard] Result count:', result.count);
+    console.log('[DraftWizard] Result mode:', result.mode);
+    console.log('[DraftWizard] Result source:', result.source);
 
     if (progressBar) progressBar.style.width = '90%';
     if (progressText) progressText.textContent = 'Preparing preview...';
 
     if (result.success) {
       console.log(`[DraftWizard] Generated ${result.count} players`);
+
+      // DEBUG: Log first 3 players to see what archetypes look like
+      console.log('[DraftWizard] ========== FIRST 3 PLAYERS FROM BACKEND ==========');
+      for (let i = 0; i < Math.min(3, result.players.length); i++) {
+        const p = result.players[i];
+        console.log(`[DraftWizard] Player ${i+1}: ${p.firstName} ${p.lastName}`);
+        console.log(`  position: ${p.position} (code: ${p.positionCode})`);
+        console.log(`  archetype: ${p.archetype} (type: ${typeof p.archetype})`);
+        console.log(`  ratings.POVR: ${p.ratings?.POVR}`);
+      }
+      console.log('[DraftWizard] =======================================================');
+
+      // Update wizardState with the actual values used
+      wizardState.year = year;
+      wizardState.decade = decade;
+      wizardState.ratingMode = ratingMode;
       wizardState.generatedPlayers = result.players;
 
       // Update result stats
@@ -451,15 +494,55 @@ function restartWizard() {
 
   // Reset form inputs
   document.getElementById('draft-year').value = 2024;
+  if (document.getElementById('draft-decade')) {
+    document.getElementById('draft-decade').value = 2020;
+  }
+
+  // Reset source type radio buttons
   document.querySelector('input[name="source-type"][value="year"]').checked = true;
-  document.querySelector('input[name="rating-mode"][value="variance"]').checked = true;
+
+  // Reset rating mode radio buttons and card selection
+  document.querySelectorAll('.mode-card').forEach(card => card.classList.remove('selected'));
+  const varianceRadio = document.querySelector('input[name="rating-mode"][value="variance"]');
+  if (varianceRadio) {
+    varianceRadio.checked = true;
+    varianceRadio.closest('.mode-card')?.classList.add('selected');
+  }
+
+  // Toggle source panels to show year
+  toggleSourcePanels('year');
 
   // Clear result grid
   const container = document.getElementById('wizard-result-grid');
   if (container) container.innerHTML = '';
 
+  // Hide progress bar
+  const progressEl = document.getElementById('wizard-progress');
+  if (progressEl) progressEl.style.display = 'none';
+
   // Show step 1
   showStep(1);
+
+  // Debug: Log all form values and radio states after reset
+  console.log('==================== WIZARD RESTARTED ====================');
+  console.log('[DraftWizard] wizardState:', JSON.stringify(wizardState, null, 2));
+  console.log('[DraftWizard] Form values:');
+  console.log('  draft-year:', document.getElementById('draft-year')?.value);
+  console.log('  draft-decade:', document.getElementById('draft-decade')?.value);
+  console.log('[DraftWizard] Source type radios:');
+  document.querySelectorAll('input[name="source-type"]').forEach(radio => {
+    console.log(`  ${radio.value}: checked=${radio.checked}`);
+  });
+  console.log('[DraftWizard] Rating mode radios:');
+  document.querySelectorAll('input[name="rating-mode"]').forEach(radio => {
+    console.log(`  ${radio.value}: checked=${radio.checked}`);
+  });
+  console.log('[DraftWizard] Rating mode card selection:');
+  document.querySelectorAll('.mode-card').forEach((card, idx) => {
+    const radio = card.querySelector('input[type="radio"]');
+    console.log(`  Card ${idx}: ${radio?.value} - has 'selected' class: ${card.classList.contains('selected')}`);
+  });
+  console.log('=========================================================');
 }
 
 // Export for use in main app.js

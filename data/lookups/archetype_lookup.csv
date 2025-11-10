@@ -1,69 +1,28 @@
 id,name
-0,QB Field General
-1,QB Strong Arm
-2,QB Improviser
-3,QB Scrambler
-4,QB Pure Scrambler
-5,HB Power Back
-6,HB Elusive Back
-7,HB Receiving Back
-8,HB Power Blocking
-9,HB Power Receiving
-10,HB Elusive Power
-11,HB Elusive Receiving
-12,FB Blocking
-13,FB Utility
-14,WR Deep Threat
-15,WR Playmaker
-16,WR Physical Route Runner
-17,WR Shifty Route Runner
-18,WR Physical Blocker
-19,WR Gadget Receiver
-20,WR Physical
-21,WR Slot
-22,TE Blocking
-23,TE Vertical Threat
-24,TE Physical Route Runner
-25,TE Possession Blocking
-26,TE Possession
-27,C Pass Protector
-28,C Power
-29,C Well-Rounded
-30,C Agile
-31,OT Pass Protector
-32,OT Power
-33,OT Well-Rounded
-34,OT Agile
-35,G Pass Protector
-36,G Well-Rounded
-37,G Power
-38,G Agile
-39,DE Smaller Speed Rusher
-40,DE Power Rusher
-41,DE Pure Power
-42,DE Run Stopper
-43,DT Nose Tackle
-44,DT Pure Power
-45,DT Speed Rusher
-46,DT Power Rusher
-47,OLB Speed Rusher
-48,OLB Power Rusher
-49,OLB Pass Coverage
-50,OLB Run Stopper
-51,MLB Field General
-52,MLB Pass Coverage
-53,MLB Run Stopper
-54,CB Man-to-Man
-55,CB Slot
-56,CB Zone
-57,CB Hybrid Corner
-58,S Zone
-59,S Hybrid
-60,S Run Support
-61,KP Accurate
-62,KP Power
-63,KR Balanced
-64,PR Balanced
-65,LS Power
-66,LS Accurate
-67,GAD Gadget
+0,Field General
+1,Strong Arm
+2,Improviser
+3,Scrambler
+4,Power Back
+5,Elusive Back
+6,Receiving
+7,Blocking
+8,Deep Threat
+9,Playmaker
+10,Physical
+11,Slot
+12,Vertical Threat
+13,Possession
+14,Pass Protector
+15,Power
+16,Agile
+17,Speed Rusher
+18,Power Rusher
+19,Run Stopper
+20,Nose
+21,Pass Coverage
+22,Man To Man
+23,Zone
+24,Hybrid
+25,Run Support
+26,Accurate

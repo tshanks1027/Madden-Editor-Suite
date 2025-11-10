@@ -1,0 +1,16 @@
+MADDEN RATINGS IMPORT - VALIDATION REPORT
+================================================================================
+Timestamp: 2025-11-08 14:34:42.439400
+
+2002: [OK] VALID
+2007: [OK] VALID
+2008: [OK] VALID
+2013: [OK] VALID
+2014: [OK] VALID
+2015: [OK] VALID
+2016: [OK] VALID
+2017: [OK] VALID
+2018: [OK] VALID
+2019: [OK] VALID
+2020: [OK] VALID
+2022: [OK] VALID

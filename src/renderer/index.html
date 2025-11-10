@@ -469,127 +469,225 @@
                 </div>
             </div>
 
-            <!-- Create Draft Class Tool -->
+            <!-- Create Draft Class Tool (V2.0 Wizard) -->
             <div id="create-draft-tool" class="tool-panel">
                 <div class="creator-container">
                     <div class="creator-header">
-                        <h2 class="creator-title">✨ Create Draft Class</h2>
-                        <p class="creator-subtitle">Generate a draft class from real NFL Draft data</p>
+                        <h2 class="creator-title">✨ Draft Class Generator V2.0</h2>
+                        <p class="creator-subtitle">Generate draft classes with 3 rating modes and historical data</p>
                     </div>
 
-                    <div class="creator-workflow">
-                        <!-- Step 1: Year & Template Selection -->
-                        <div class="creator-step">
+                    <div id="draft-wizard" class="wizard-container">
+                        <!-- Step 1: Source Selection -->
+                        <div class="wizard-step active" id="wizard-step-1">
                             <div class="step-header">
                                 <span class="step-number">1</span>
-                                <h3 class="step-title">Select Draft Year & Template</h3>
+                                <h3 class="step-title">Select Draft Source</h3>
                             </div>
+
+                            <!-- USER INSTRUCTION PLACEHOLDER - STEP 1 -->
+                            <div class="user-instructions" contenteditable="true" data-placeholder="Click here to add your instructions for Step 1...">
+                                Single year will give you the players of that years class. Decade class will give you the best players drafted in that decade. Future classes 2026 on are projected and may not reflect true classes.
+                            </div>
+
                             <div class="step-content">
-                                <div style="display: flex; gap: 15px; align-items: flex-start;">
-                                    <div class="form-group" style="flex: 1;">
-                                        <label for="draftYear" class="form-label">Draft Year:</label>
-                                        <input type="number" id="draftYear" class="form-input" placeholder="e.g., 2023" min="1936" max="2030">
-                                        <span class="form-hint">Enter a year between 1936-2030 (first NFL draft was 1936)</span>
-                                    </div>
-                                    <div class="form-group" style="flex: 1;">
-                                        <label for="draftClassType" class="form-label">Draft Class Type:</label>
-                                        <select id="draftClassType" class="control-select form-input">
-                                            <option value="single">Single Year Draft</option>
-                                            <option value="1940s">1940s Decade Class</option>
-                                            <option value="1950s">1950s Decade Class</option>
-                                            <option value="1960s">1960s Decade Class</option>
-                                            <option value="1970s">1970s Decade Class</option>
-                                            <option value="1980s">1980s Decade Class</option>
-                                            <option value="1990s">1990s Decade Class</option>
-                                            <option value="2000s">2000s Decade Class</option>
-                                            <option value="2010s">2010s Decade Class</option>
-                                            <option value="2020s">2020s Decade Class</option>
-                                        </select>
-                                        <span class="form-hint">Choose single year or best players from a decade</span>
-                                    </div>
+                                <div class="source-type-selector">
+                                    <label class="source-type-card">
+                                        <input type="radio" name="source-type" value="year" checked>
+                                        <div class="card-content">
+                                            <h4>📅 Single Year</h4>
+                                            <p>Generate draft from a specific year (1936-2025 historical, 2026+ future)</p>
+                                        </div>
+                                    </label>
+                                    <label class="source-type-card">
+                                        <input type="radio" name="source-type" value="decade">
+                                        <div class="card-content">
+                                            <h4>🏆 Decade Class</h4>
+                                            <p>Best 402 players from an entire decade (1930s-2020s)</p>
+                                        </div>
+                                    </label>
                                 </div>
-                                <div class="form-group">
-                                    <label for="draftTemplate" class="form-label">Template Draft Class (for file structure):</label>
-                                    <div style="display: flex; gap: 10px; align-items: center;">
-                                        <input type="text" id="draftTemplate" class="form-input" placeholder="Select a draft class file to use as template..." readonly>
-                                        <button id="selectDraftTemplate" class="btn btn-secondary">
-                                            <span class="btn-icon">📂</span>
-                                            Browse
-                                        </button>
-                                    </div>
-                                    <span class="form-hint">This provides the correct file structure for the output</span>
+
+                                <!-- Year Selection (shown by default) -->
+                                <div id="year-selection" class="selection-panel">
+                                    <label for="draft-year">Draft Year:</label>
+                                    <input type="number" id="draft-year" min="1936" max="2028" value="2024" class="form-input">
+                                    <span class="form-hint">402 players for 2011+, varies for historical eras</span>
                                 </div>
-                                <div class="info-box">
-                                    <span class="info-icon">ℹ️</span>
-                                    <div class="info-text">
-                                        <strong>What this does:</strong>
-                                        <p>Scrapes draft prospect data from pro-football-reference.com including drafted players (~260-300), undrafted free agents (UDFAs), and top college players to create a full class of 380-400 prospects. Converts their college stats into Madden ratings. PID values will be matched from ALLDATA_Lookup.csv when names match, body type calculated from height/weight, and colleges matched to college_lookup.</p>
-                                        <p><strong>⏱️ Estimated Time:</strong> 5-10 minutes for ~400 prospects (varies by internet speed)</p>
-                                        <p><strong>📊 Class Composition:</strong> Drafted prospects + UDFAs + College stars (like Jeff Samardzija, Charlie Ward)</p>
-                                        <p><strong>🏆 Hall of Fame Detection:</strong> Future Hall of Famers automatically get X-Factor dev trait!</p>
-                                    </div>
+
+                                <!-- Decade Selection (hidden by default) -->
+                                <div id="decade-selection" class="selection-panel" style="display: none;">
+                                    <label for="draft-decade">Decade:</label>
+                                    <select id="draft-decade" class="form-input">
+                                        <option value="1930">1930s</option>
+                                        <option value="1940">1940s</option>
+                                        <option value="1950">1950s</option>
+                                        <option value="1960">1960s</option>
+                                        <option value="1970">1970s</option>
+                                        <option value="1980">1980s</option>
+                                        <option value="1990">1990s</option>
+                                        <option value="2000">2000s</option>
+                                        <option value="2010">2010s</option>
+                                        <option value="2020">2020s</option>
+                                    </select>
+                                    <span class="form-hint">402 total players (320 drafted + 82 UFAs)</span>
                                 </div>
+
+                                <button class="btn btn-primary wizard-next">Next: Choose Rating Mode →</button>
                             </div>
                         </div>
 
-                        <!-- Step 2: Generate -->
-                        <div class="creator-step">
+                        <!-- Step 2: Rating Mode Selection -->
+                        <div class="wizard-step" id="wizard-step-2" style="display: none;">
                             <div class="step-header">
                                 <span class="step-number">2</span>
-                                <h3 class="step-title">Generate Draft Class</h3>
+                                <h3 class="step-title">Select Rating Mode</h3>
                             </div>
+
+                            <!-- USER INSTRUCTION PLACEHOLDER - STEP 2 -->
+                            <div class="user-instructions" contenteditable="true" data-placeholder="Click here to add your instructions for Step 2...">
+                                This is where you can choose how you want to play.
+
+Random Mode- You will get real players but not so real ratings or draft orders. This is the wild west anything can happen.
+
+Variance Mode- Inspired by Rowdy Randy's rankings this will give you variable ratings for your favorite players and it is up to you to develop them.
+
+Madden Mode- This takes real Madden ratings for real archetypes for a real historical experience.
+                            </div>
+
                             <div class="step-content">
-                                <!-- Rating Mode Selector -->
-                                <div class="rating-mode-selector">
-                                    <label class="rating-mode-label">Rating Generation Mode:</label>
-                                    <div class="radio-group">
-                                        <label class="radio-option">
-                                            <input type="radio" name="draftClassRatingMode" value="random">
-                                            <span>Random</span>
-                                        </label>
-                                        <label class="radio-option">
-                                            <input type="radio" name="draftClassRatingMode" value="semi-historical" checked>
-                                            <span>Semi-Historical (Web Scraping)</span>
-                                        </label>
-                                        <label class="radio-option">
-                                            <input type="radio" name="draftClassRatingMode" value="realistic">
-                                            <span>Realistic (RowdyRandy)</span>
-                                        </label>
-                                    </div>
+                                <div class="rating-mode-cards">
+                                    <label class="mode-card" data-mode="random">
+                                        <input type="radio" name="rating-mode" value="random">
+                                        <div class="card-content">
+                                            <h4>🎲 Random Mode</h4>
+                                            <p>Randomized stats and shuffled draft order</p>
+                                            <ul>
+                                                <li>Real names from database</li>
+                                                <li>Archetype-based attributes</li>
+                                                <li>Completely shuffled order</li>
+                                                <li>Fun for unpredictable franchises</li>
+                                            </ul>
+                                        </div>
+                                    </label>
+
+                                    <label class="mode-card" data-mode="variance">
+                                        <input type="radio" name="rating-mode" value="variance" checked>
+                                        <div class="card-content">
+                                            <h4>📊 Variance Mode</h4>
+                                            <p>Formula-based with draft rating caps</p>
+                                            <ul>
+                                                <li>Rowdy Randy's OVR formulas</li>
+                                                <li>Speed calculator (if 40-time available)</li>
+                                                <li>Draft rating guidelines by round</li>
+                                                <li>Preserves realistic draft order</li>
+                                            </ul>
+                                        </div>
+                                    </label>
+
+                                    <label class="mode-card" data-mode="madden">
+                                        <input type="radio" name="rating-mode" value="madden">
+                                        <div class="card-content">
+                                            <h4>🎮 Madden Rating Mode</h4>
+                                            <p>Real rookie stats or comparable players</p>
+                                            <ul>
+                                                <li>Historical: Actual rookie Madden ratings</li>
+                                                <li>Future: Stats from similar NFL players</li>
+                                                <li>Most realistic progression</li>
+                                                <li>Preserves realistic draft order</li>
+                                            </ul>
+                                        </div>
+                                    </label>
                                 </div>
 
-                                <button id="generateDraftBtn" class="btn btn-primary btn-large">
-                                    <span class="btn-icon">🚀</span>
-                                    Generate Draft Class
-                                </button>
-                                <div id="draftGenerateProgress" class="generate-progress" style="display: none;">
-                                    <div class="progress-bar">
-                                        <div id="draftProgressBar" class="progress-fill"></div>
-                                    </div>
-                                    <p id="draftProgressText" class="progress-text">Scraping draft data...</p>
+                                <div class="wizard-nav">
+                                    <button class="btn btn-secondary wizard-back">← Back</button>
+                                    <button class="btn btn-primary wizard-next">Next: Review Options →</button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Step 3: Preview & Edit -->
-                        <div class="creator-step" id="draftPreviewStep" style="display: none;">
+                        <!-- Step 3: Options & Review -->
+                        <div class="wizard-step" id="wizard-step-3" style="display: none;">
                             <div class="step-header">
                                 <span class="step-number">3</span>
-                                <h3 class="step-title">Preview & Edit</h3>
+                                <h3 class="step-title">Review & Generate</h3>
                             </div>
+
+                            <!-- USER INSTRUCTION PLACEHOLDER - STEP 3 -->
+                            <div class="user-instructions" contenteditable="true" data-placeholder="Click here to add your instructions for Step 3...">
+                                Generate and put into the editor!
+                            </div>
+
                             <div class="step-content">
-                                <div class="preview-controls">
-                                    <span id="draftPreviewCount" class="preview-count"></span>
-                                    <button id="loadIntoDraftEditor" class="btn btn-primary">
+                                <div class="review-summary">
+                                    <h4>Your Selections:</h4>
+                                    <div class="summary-row">
+                                        <strong>Source:</strong>
+                                        <span id="summary-source">2024</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <strong>Rating Mode:</strong>
+                                        <span id="summary-mode">Variance</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <strong>Expected Players:</strong>
+                                        <span id="summary-count">402</span>
+                                    </div>
+                                </div>
+
+                                <div class="wizard-nav">
+                                    <button class="btn btn-secondary wizard-back">← Back</button>
+                                    <button class="btn btn-success wizard-generate">
+                                        <span class="btn-icon">🚀</span>
+                                        Generate Draft Class
+                                    </button>
+                                </div>
+
+                                <div id="wizard-progress" class="generate-progress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div id="wizard-progress-bar" class="progress-fill"></div>
+                                    </div>
+                                    <p id="wizard-progress-text" class="progress-text">Loading player data...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Results -->
+                        <div class="wizard-step" id="wizard-step-4" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">4</span>
+                                <h3 class="step-title">Generated Draft Class</h3>
+                            </div>
+
+                            <!-- USER INSTRUCTION PLACEHOLDER - STEP 4 -->
+                            <div class="user-instructions" contenteditable="true" data-placeholder="Click here to add your instructions for Step 4...">
+                                <!-- User can write custom instructions here -->
+                            </div>
+
+                            <div class="step-content">
+                                <div class="result-stats">
+                                    <span id="result-count" class="stat-badge">0 players generated</span>
+                                    <span id="result-source" class="stat-badge">Source: N/A</span>
+                                    <span id="result-mode" class="stat-badge">Mode: N/A</span>
+                                </div>
+
+                                <div id="wizard-result-grid" class="preview-grid-container"></div>
+
+                                <div class="result-actions">
+                                    <button id="wizard-save-draft" class="btn btn-success">
+                                        <span class="btn-icon">💾</span>
+                                        Save Draft Class File
+                                    </button>
+                                    <button id="wizard-load-editor" class="btn btn-primary">
                                         <span class="btn-icon">📝</span>
                                         Load into Draft Class Editor
                                     </button>
-                                    <button id="saveGeneratedDraft" class="btn btn-success">
-                                        <span class="btn-icon">💾</span>
-                                        Save Draft Class
+                                    <button class="btn btn-secondary wizard-restart">
+                                        <span class="btn-icon">🔄</span>
+                                        Create Another Draft Class
                                     </button>
                                 </div>
-                                <div id="draftPreviewGrid" class="preview-grid-container"></div>
                             </div>
                         </div>
                     </div>
@@ -762,6 +860,7 @@
         </div>
     </div>
 
+    <script src="js/draft-wizard.js"></script>
     <script type="module" src="js/app.js"></script>
     <script src="update-notification.js"></script>
 </body>

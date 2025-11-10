@@ -5,6 +5,9 @@
 
 import Handsontable from 'handsontable';
 import 'handsontable/dist/handsontable.full.min.css';
+// Expose Handsontable globally for use in non-module scripts (e.g., draft-wizard.js)
+window.Handsontable = Handsontable;
+
 import {
     getFieldDefinition,
     getVisibleFields,
@@ -1724,6 +1727,23 @@ class MaddenEditorApp {
             Handsontable.renderers.NumericRenderer.apply(this, arguments);
             td.style.backgroundColor = '#1a1612';
             td.style.color = 'var(--gray-text)';
+            return td;
+        }
+
+        // MADDEN MODE FIX: If there's a stored overall value (from Madden CSV data),
+        // display it directly instead of calculating it
+        if (rowData.overall !== undefined && rowData.overall !== null) {
+            // Debug logging for first 5 players
+            if (row < 5) {
+                console.log(`[draftOvrRenderer] Row ${row}: ${rowData.firstName} ${rowData.lastName} - Using stored OVR: ${rowData.overall}`);
+            }
+
+            // Use the stored value directly (from CSV rookie ratings)
+            Handsontable.renderers.NumericRenderer.apply(this, arguments);
+            td.textContent = rowData.overall;
+            td.style.backgroundColor = '#1a1612';
+            td.style.color = '#fff';
+            td.title = 'Overall Rating from Madden CSV data (actual rookie rating)';
             return td;
         }
 
@@ -3684,7 +3704,6 @@ class MaddenEditorApp {
                 weight: prospect.weight,
                 position: position,  // Use the already-looked-up position
                 archetype: archetypeDisplay || 'EMPTY',  // Store display name for rendering
-                archetypeRaw: prospect.archetype,  // Store numeric ID for saving
                 jerseyNum: prospect.jerseyNum,
 
                 // Draft Info
@@ -3902,11 +3921,43 @@ class MaddenEditorApp {
                 console.log(`[Archetype Renderer] Row ${row}: value = ${JSON.stringify(value)}, type = ${typeof value}`);
             }
 
-            // If value is a number, something went wrong - log it
+            // If value is a number, convert it to archetype name using position
             if (typeof value === 'number') {
-                console.warn(`[Archetype Renderer] Row ${row}: Received number ${value} instead of string!`);
-                td.textContent = `Archetype #${value}`;
-                td.style.color = '#ff6666';  // Red to indicate problem
+                console.warn(`[Archetype Renderer] Row ${row}: Received number ${value} instead of string! Attempting conversion...`);
+
+                // Get the physical row to access source data
+                const physicalRow = instance.toPhysicalRow(row);
+                const sourceData = instance.getSourceDataAtRow(physicalRow);
+
+                if (sourceData && sourceData.position) {
+                    const position = sourceData.position;
+                    console.log(`[Archetype Renderer] Row ${row}: position=${position}, archetypeId=${value}`);
+
+                    // Show "Loading..." while converting
+                    td.textContent = 'Loading...';
+                    td.style.color = '#999';
+
+                    // Try to convert archetype ID to name
+                    window.electronAPI.rating.getArchetypeName(value, position).then(name => {
+                        if (name) {
+                            console.log(`[Archetype Renderer] Row ${row}: Converted archetype ${value} -> "${name}"`);
+                            // Update the source data so future renders use the string
+                            sourceData.archetype = name;
+                            td.textContent = name;
+                            td.style.color = '';
+                        } else {
+                            td.textContent = `Archetype #${value}`;
+                            td.style.color = '#ff6666';
+                        }
+                    }).catch(err => {
+                        console.error(`[Archetype Renderer] Row ${row}: Failed to convert archetype:`, err);
+                        td.textContent = `Archetype #${value}`;
+                        td.style.color = '#ff6666';
+                    });
+                } else {
+                    td.textContent = `Archetype #${value}`;
+                    td.style.color = '#ff6666';  // Red to indicate problem
+                }
             } else {
                 td.textContent = value || '';  // Value should be display format
             }
@@ -4454,8 +4505,8 @@ class MaddenEditorApp {
                     devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait) !== -1
                         ? ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait)
                         : originalProspect.devTrait,
-                    // Convert archetype name back to numeric ID (use archetypeRaw which stores the original ID)
-                    archetype: prospect.archetypeRaw !== undefined ? prospect.archetypeRaw : originalProspect.archetype,
+                    // Archetype: keep as numeric ID from original data (archetype field is display string only)
+                    archetype: originalProspect.archetype,
                     // Keep body type as string (M26Writer expects strings: "Lean", "Athletic", "Heavy", "Stocky")
                     bodyType: ['Lean', 'Athletic', 'Heavy', 'Stocky'].includes(prospect.bodyType)
                         ? prospect.bodyType
@@ -6250,6 +6301,12 @@ window.closeErrorModal = function() {
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new MaddenEditorApp();
+
+    // Initialize Draft Wizard V2
+    if (window.draftWizard && typeof window.draftWizard.init === 'function') {
+        console.log('[App] Initializing Draft Wizard V2...');
+        window.draftWizard.init();
+    }
 
     // ========================================
     // Player Card Modal Event Listeners

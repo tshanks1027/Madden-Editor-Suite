@@ -2602,6 +2602,9 @@ export class CreatorService {
         } else {
           // No archetype, use default for position
           archetypeId = archetypeService.getDefaultArchetypeForPosition(mappedPosition.name);
+          if (i < 5) {
+            console.log(`[CreatorService V2] ${fullName} (${mappedPosition.name}): No archetype data, using default archetype ID ${archetypeId}`);
+          }
         }
 
         // Create generated player

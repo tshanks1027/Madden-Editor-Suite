@@ -1,0 +1,263 @@
+Parsing file: C:\Users\tshan\OneDrive\Documents\Madden NFL 26\Saves\CAREERDRAFT-2020DRAFT
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 208 (line 1 column 209)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 140 (line 1 column 141)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 140 (line 1 column 141)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 140 (line 1 column 141)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 140 (line 1 column 141)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 46 (line 1 column 47)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 68 (line 1 column 69)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 1929 (line 1 column 1930)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 1987 (line 1 column 1988)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 1350 (line 1 column 1351)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 92 (line 1 column 93)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 53 (line 1 column 54)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 85 (line 1 column 86)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 77 (line 1 column 78)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 47 (line 1 column 48)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 71 (line 1 column 72)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 66 (line 1 column 67)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 57 (line 1 column 58)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 109 (line 1 column 110)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 53 (line 1 column 54)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 108 (line 1 column 109)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 71 (line 1 column 72)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 67 (line 1 column 68)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 66 (line 1 column 67)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 79 (line 1 column 80)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 56 (line 1 column 57)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 79 (line 1 column 80)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 84 (line 1 column 85)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 77 (line 1 column 78)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 80 (line 1 column 81)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 62 (line 1 column 63)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 88 (line 1 column 89)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 113 (line 1 column 114)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 77 (line 1 column 78)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 80 (line 1 column 81)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 90 (line 1 column 91)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 71 (line 1 column 72)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 59 (line 1 column 60)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 939 (line 1 column 940)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 86 (line 1 column 87)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 92 (line 1 column 93)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1059 (line 1 column 1060)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1098 (line 1 column 1099)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 88 (line 1 column 89)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1113 (line 1 column 1114)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1148 (line 1 column 1149)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1170 (line 1 column 1171)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1226 (line 1 column 1227)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 58 (line 1 column 59)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1266 (line 1 column 1267)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1306 (line 1 column 1307)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1299 (line 1 column 1300)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1347 (line 1 column 1348)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1507 (line 1 column 1508)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1593 (line 1 column 1594)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 91 (line 1 column 92)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1587 (line 1 column 1588)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1714 (line 1 column 1715)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1822 (line 1 column 1823)
+Failed to parse visual data: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 1362 (line 1 column 1363)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 982 (line 1 column 983)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 140 (line 1 column 141)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 66 (line 1 column 67)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 72 (line 1 column 73)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 65 (line 1 column 66)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 84 (line 1 column 85)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 1067 (line 1 column 1068)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 1116 (line 1 column 1117)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 89 (line 1 column 90)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 88 (line 1 column 89)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 81 (line 1 column 82)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 49 (line 1 column 50)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 80 (line 1 column 81)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 80 (line 1 column 81)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 84 (line 1 column 85)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 66 (line 1 column 67)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 86 (line 1 column 87)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 71 (line 1 column 72)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 50 (line 1 column 51)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 86 (line 1 column 87)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 66 (line 1 column 67)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 80 (line 1 column 81)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 86 (line 1 column 87)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 78 (line 1 column 79)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 79 (line 1 column 80)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 85 (line 1 column 86)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 75 (line 1 column 76)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 113 (line 1 column 114)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 112 (line 1 column 113)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 81 (line 1 column 82)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 76 (line 1 column 77)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 83 (line 1 column 84)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 72 (line 1 column 73)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 78 (line 1 column 79)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 846 (line 1 column 847)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 58 (line 1 column 59)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 58 (line 1 column 59)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 72 (line 1 column 73)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 79 (line 1 column 80)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1006 (line 1 column 1007)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1067 (line 1 column 1068)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1103 (line 1 column 1104)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 87 (line 1 column 88)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 58 (line 1 column 59)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 82 (line 1 column 83)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1208 (line 1 column 1209)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 84 (line 1 column 85)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1456 (line 1 column 1457)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 208 (line 1 column 209)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 1363 (line 1 column 1364)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 47 (line 1 column 48)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 140 (line 1 column 141)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 72 (line 1 column 73)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 72 (line 1 column 73)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 59 (line 1 column 60)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 2 (line 1 column 3)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 85 (line 1 column 86)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 66 (line 1 column 67)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 65 (line 1 column 66)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 85 (line 1 column 86)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 1319 (line 1 column 1320)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 86 (line 1 column 87)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 71 (line 1 column 72)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 77 (line 1 column 78)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 77 (line 1 column 78)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 49 (line 1 column 50)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 79 (line 1 column 80)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 81 (line 1 column 82)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 77 (line 1 column 78)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 77 (line 1 column 78)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 77 (line 1 column 78)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 72 (line 1 column 73)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 72 (line 1 column 73)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 70 (line 1 column 71)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 58 (line 1 column 59)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 70 (line 1 column 71)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 70 (line 1 column 71)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 87 (line 1 column 88)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 86 (line 1 column 87)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 72 (line 1 column 73)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 56 (line 1 column 57)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 49 (line 1 column 50)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 50 (line 1 column 51)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 87 (line 1 column 88)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 115 (line 1 column 116)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 61 (line 1 column 62)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 852 (line 1 column 853)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 58 (line 1 column 59)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 857 (line 1 column 858)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 63 (line 1 column 64)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 925 (line 1 column 926)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 921 (line 1 column 922)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 76 (line 1 column 77)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1027 (line 1 column 1028)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 68 (line 1 column 69)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1037 (line 1 column 1038)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1113 (line 1 column 1114)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 58 (line 1 column 59)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1148 (line 1 column 1149)
+Failed to parse visual data: Unexpected non-whitespace character after JSON at position 104 (line 1 column 105)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1107 (line 1 column 1108)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1149 (line 1 column 1150)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1203 (line 1 column 1204)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1264 (line 1 column 1265)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1297 (line 1 column 1298)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1503 (line 1 column 1504)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1440 (line 1 column 1441)
+Failed to parse visual data: Expected ',' or ']' after array element in JSON at position 1482 (line 1 column 1483)
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+Failed to parse visual data: Unknown compression type: unknown
+
+Parsed 452 prospects
+File type: undefined
+Year: undefined
+
+=== First 5 Prospects Archetypes ===
+
+#1: Joe Burrow (0)
+  archetype value: 32
+
+#2:  EHOLDER (26)
+  archetype value: 33
+
+#3:  �I* (33)
+  archetype value: 64
+
+#4:  U^N((T+PQRV$<,N,# (0)
+  archetype value: 0
+
+#5: %.&\Q;!S.!% , S>U4;.YX#ZTWM])2 (0)
+  archetype value: 0

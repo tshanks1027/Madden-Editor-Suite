@@ -1,0 +1,3198 @@
+2025-11-05 14:36:18 - Starting Chrome browser...
+2025-11-05 14:36:20 - 
+Processing 1970...
+2025-11-05 14:36:20 -   Scraping: crd 1970...
+2025-11-05 14:37:48 -     Found 48 players
+2025-11-05 14:37:48 -   Scraping: atl 1970...
+2025-11-05 14:38:22 -     Found 49 players
+2025-11-05 14:38:22 -   Scraping: rav 1970...
+2025-11-05 14:38:36 -     No roster table found for rav 1970
+2025-11-05 14:38:36 -   Scraping: bal 1970...
+2025-11-05 14:38:49 -     No roster table found for bal 1970
+2025-11-05 14:38:49 -   Scraping: buf 1970...
+2025-11-05 14:39:30 -     Found 5 players
+2025-11-05 14:39:30 -   Scraping: car 1970...
+2025-11-05 14:39:44 -     No roster table found for car 1970
+2025-11-05 14:39:44 -   Scraping: chi 1970...
+2025-11-05 14:39:54 -     Found 51 players
+2025-11-05 14:39:54 -   Scraping: cin 1970...
+2025-11-05 14:40:06 -     Found 49 players
+2025-11-05 14:40:06 -   Scraping: cle 1970...
+2025-11-05 14:40:16 -     Found 50 players
+2025-11-05 14:40:16 -   Scraping: dal 1970...
+2025-11-05 14:40:23 -     Found 46 players
+2025-11-05 14:40:23 -   Scraping: den 1970...
+2025-11-05 14:40:31 -     Found 53 players
+2025-11-05 14:40:31 -   Scraping: det 1970...
+2025-11-05 14:40:41 -     Found 48 players
+2025-11-05 14:40:41 -   Scraping: gnb 1970...
+2025-11-05 14:40:49 -     Found 50 players
+2025-11-05 14:40:49 -   Scraping: oti 1970...
+2025-11-05 14:40:58 -     Found 50 players
+2025-11-05 14:40:58 -   Scraping: clt 1970...
+2025-11-05 14:41:06 -     Found 48 players
+2025-11-05 14:41:06 -   Scraping: jax 1970...
+2025-11-05 14:41:19 -     No roster table found for jax 1970
+2025-11-05 14:41:19 -   Scraping: kan 1970...
+2025-11-05 14:41:47 -     Found 49 players
+2025-11-05 14:41:47 -   Scraping: sdg 1970...
+2025-11-05 14:41:55 -     Found 51 players
+2025-11-05 14:41:55 -   Scraping: ram 1970...
+2025-11-05 14:42:03 -     Found 49 players
+2025-11-05 14:42:03 -   Scraping: rai 1970...
+2025-11-05 14:42:58 -     Found 47 players
+2025-11-05 14:42:58 -   Scraping: mia 1970...
+2025-11-05 14:43:08 -     Found 50 players
+2025-11-05 14:43:08 -   Scraping: min 1970...
+2025-11-05 14:43:35 -     Found 48 players
+2025-11-05 14:43:35 -   Scraping: nwe 1970...
+2025-11-05 14:43:46 -     Found 52 players
+2025-11-05 14:43:46 -   Scraping: nor 1970...
+2025-11-05 14:43:58 -     Found 61 players
+2025-11-05 14:43:58 -   Scraping: nyg 1970...
+2025-11-05 14:44:10 -     Found 48 players
+2025-11-05 14:44:10 -   Scraping: nyj 1970...
+2025-11-05 14:44:20 -     Found 51 players
+2025-11-05 14:44:20 -   Scraping: phi 1970...
+2025-11-05 14:44:32 -     Found 52 players
+2025-11-05 14:44:32 -   Scraping: pit 1970...
+2025-11-05 14:44:50 -     Found 52 players
+2025-11-05 14:44:50 -   Scraping: sfo 1970...
+2025-11-05 14:45:02 -     Found 46 players
+2025-11-05 14:45:02 -   Scraping: sea 1970...
+2025-11-05 14:45:17 -     No roster table found for sea 1970
+2025-11-05 14:45:17 -   Scraping: tam 1970...
+2025-11-05 14:45:30 -     No roster table found for tam 1970
+2025-11-05 14:45:30 -   Scraping: oti 1970...
+2025-11-05 14:45:40 -     Found 50 players
+2025-11-05 14:45:40 -   Scraping: was 1970...
+2025-11-05 14:45:52 -     Found 50 players
+2025-11-05 14:45:52 - 
+Processing 1971...
+2025-11-05 14:45:52 -   Scraping: crd 1971...
+2025-11-05 14:46:03 -     Found 55 players
+2025-11-05 14:46:03 -   Scraping: atl 1971...
+2025-11-05 14:46:33 -     Found 52 players
+2025-11-05 14:46:33 -   Scraping: rav 1971...
+2025-11-05 14:46:46 -     No roster table found for rav 1971
+2025-11-05 14:46:46 -   Scraping: bal 1971...
+2025-11-05 14:47:00 -     No roster table found for bal 1971
+2025-11-05 14:47:00 -   Scraping: buf 1971...
+2025-11-05 14:47:27 -     Found 53 players
+2025-11-05 14:47:27 -   Scraping: car 1971...
+2025-11-05 14:47:41 -     No roster table found for car 1971
+2025-11-05 14:47:41 -   Scraping: chi 1971...
+2025-11-05 14:48:25 -     Found 49 players
+2025-11-05 14:48:25 -   Scraping: cin 1971...
+2025-11-05 14:48:34 -     Found 50 players
+2025-11-05 14:48:34 -   Scraping: cle 1971...
+2025-11-05 14:48:44 -     Found 46 players
+2025-11-05 14:48:44 -   Scraping: dal 1971...
+2025-11-05 14:48:53 -     Found 52 players
+2025-11-05 14:48:53 -   Scraping: den 1971...
+2025-11-05 14:49:01 -     Found 51 players
+2025-11-05 14:49:01 -   Scraping: det 1971...
+2025-11-05 14:49:09 -     Found 47 players
+2025-11-05 14:49:09 -   Scraping: gnb 1971...
+2025-11-05 14:49:16 -     Found 50 players
+2025-11-05 14:49:16 -   Scraping: oti 1971...
+2025-11-05 14:49:26 -     Found 53 players
+2025-11-05 14:49:26 -   Scraping: clt 1971...
+2025-11-05 14:49:42 -     Found 50 players
+2025-11-05 14:49:42 -   Scraping: jax 1971...
+2025-11-05 14:49:56 -     No roster table found for jax 1971
+2025-11-05 14:49:56 -   Scraping: kan 1971...
+2025-11-05 14:50:09 -     Found 48 players
+2025-11-05 14:50:09 -   Scraping: sdg 1971...
+2025-11-05 14:50:23 -     Found 50 players
+2025-11-05 14:50:23 -   Scraping: ram 1971...
+2025-11-05 14:50:30 -     Found 49 players
+2025-11-05 14:50:30 -   Scraping: rai 1971...
+2025-11-05 14:50:39 -     Found 52 players
+2025-11-05 14:50:39 -   Scraping: mia 1971...
+2025-11-05 14:50:47 -     Found 47 players
+2025-11-05 14:50:47 -   Scraping: min 1971...
+2025-11-05 14:50:55 -     Found 50 players
+2025-11-05 14:50:55 -   Scraping: nwe 1971...
+2025-11-05 14:51:03 -     Found 51 players
+2025-11-05 14:51:03 -   Scraping: nor 1971...
+2025-11-05 14:51:12 -     Found 52 players
+2025-11-05 14:51:12 -   Scraping: nyg 1971...
+2025-11-05 14:51:22 -     Found 52 players
+2025-11-05 14:51:22 -   Scraping: nyj 1971...
+2025-11-05 14:51:31 -     Found 51 players
+2025-11-05 14:51:31 -   Scraping: phi 1971...
+2025-11-05 14:51:39 -     Found 56 players
+2025-11-05 14:51:39 -   Scraping: pit 1971...
+2025-11-05 14:51:50 -     Found 50 players
+2025-11-05 14:51:50 -   Scraping: sfo 1971...
+2025-11-05 14:51:58 -     Found 44 players
+2025-11-05 14:51:58 -   Scraping: sea 1971...
+2025-11-05 14:52:11 -     No roster table found for sea 1971
+2025-11-05 14:52:11 -   Scraping: tam 1971...
+2025-11-05 14:52:25 -     No roster table found for tam 1971
+2025-11-05 14:52:25 -   Scraping: oti 1971...
+2025-11-05 14:52:35 -     Found 53 players
+2025-11-05 14:52:35 -   Scraping: was 1971...
+2025-11-05 14:52:46 -     Found 49 players
+2025-11-05 14:52:46 - 
+Processing 1972...
+2025-11-05 14:52:46 -   Scraping: crd 1972...
+2025-11-05 14:52:57 -     Found 62 players
+2025-11-05 14:52:57 -   Scraping: atl 1972...
+2025-11-05 14:53:08 -     Found 48 players
+2025-11-05 14:53:08 -   Scraping: rav 1972...
+2025-11-05 14:53:22 -     No roster table found for rav 1972
+2025-11-05 14:53:22 -   Scraping: bal 1972...
+2025-11-05 14:53:35 -     No roster table found for bal 1972
+2025-11-05 14:53:35 -   Scraping: buf 1972...
+2025-11-05 14:53:46 -     Found 60 players
+2025-11-05 14:53:46 -   Scraping: car 1972...
+2025-11-05 14:54:00 -     No roster table found for car 1972
+2025-11-05 14:54:00 -   Scraping: chi 1972...
+2025-11-05 14:54:11 -     Found 50 players
+2025-11-05 14:54:11 -   Scraping: cin 1972...
+2025-11-05 14:54:23 -     Found 52 players
+2025-11-05 14:54:23 -   Scraping: cle 1972...
+2025-11-05 14:54:51 -     Found 53 players
+2025-11-05 14:54:51 -   Scraping: dal 1972...
+2025-11-05 14:55:00 -     Found 48 players
+2025-11-05 14:55:00 -   Scraping: den 1972...
+2025-11-05 14:55:27 -     Found 55 players
+2025-11-05 14:55:27 -   Scraping: det 1972...
+2025-11-05 14:55:41 -     Found 53 players
+2025-11-05 14:55:41 -   Scraping: gnb 1972...
+2025-11-05 14:56:12 -     Found 51 players
+2025-11-05 14:56:12 -   Scraping: oti 1972...
+2025-11-05 14:57:05 -     Found 56 players
+2025-11-05 14:57:05 -   Scraping: clt 1972...
+2025-11-05 14:57:17 -     Found 50 players
+2025-11-05 14:57:17 -   Scraping: jax 1972...
+2025-11-05 14:57:31 -     No roster table found for jax 1972
+2025-11-05 14:57:31 -   Scraping: kan 1972...
+2025-11-05 14:57:42 -     Found 48 players
+2025-11-05 14:57:42 -   Scraping: sdg 1972...
+2025-11-05 14:57:52 -     Found 53 players
+2025-11-05 14:57:52 -   Scraping: ram 1972...
+2025-11-05 14:58:01 -     Found 48 players
+2025-11-05 14:58:01 -   Scraping: rai 1972...
+2025-11-05 14:58:18 -     Found 46 players
+2025-11-05 14:58:18 -   Scraping: mia 1972...
+2025-11-05 14:58:36 -     Found 49 players
+2025-11-05 14:58:36 -   Scraping: min 1972...
+2025-11-05 14:58:52 -     Found 47 players
+2025-11-05 14:58:52 -   Scraping: nwe 1972...
+2025-11-05 14:59:08 -     Found 49 players
+2025-11-05 14:59:08 -   Scraping: nor 1972...
+2025-11-05 14:59:17 -     Found 57 players
+2025-11-05 14:59:17 -   Scraping: nyg 1972...
+2025-11-05 14:59:37 -     Found 47 players
+2025-11-05 14:59:37 -   Scraping: nyj 1972...
+2025-11-05 14:59:47 -     Found 48 players
+2025-11-05 14:59:47 -   Scraping: phi 1972...
+2025-11-05 14:59:57 -     Found 60 players
+2025-11-05 14:59:57 -   Scraping: pit 1972...
+2025-11-05 15:00:09 -     Found 51 players
+2025-11-05 15:00:09 -   Scraping: sfo 1972...
+2025-11-05 15:00:25 -     Found 47 players
+2025-11-05 15:00:25 -   Scraping: sea 1972...
+2025-11-05 15:00:39 -     No roster table found for sea 1972
+2025-11-05 15:00:39 -   Scraping: tam 1972...
+2025-11-05 15:00:52 -     No roster table found for tam 1972
+2025-11-05 15:00:52 -   Scraping: oti 1972...
+2025-11-05 15:01:02 -     Found 56 players
+2025-11-05 15:01:02 -   Scraping: was 1972...
+2025-11-05 15:01:12 -     Found 50 players
+2025-11-05 15:01:12 - 
+Processing 1973...
+2025-11-05 15:01:12 -   Scraping: crd 1973...
+2025-11-05 15:01:25 -     Found 57 players
+2025-11-05 15:01:25 -   Scraping: atl 1973...
+2025-11-05 15:01:35 -     Found 51 players
+2025-11-05 15:01:35 -   Scraping: rav 1973...
+2025-11-05 15:01:49 -     No roster table found for rav 1973
+2025-11-05 15:01:49 -   Scraping: bal 1973...
+2025-11-05 15:02:02 -     No roster table found for bal 1973
+2025-11-05 15:02:02 -   Scraping: buf 1973...
+2025-11-05 15:02:11 -     Found 55 players
+2025-11-05 15:02:11 -   Scraping: car 1973...
+2025-11-05 15:02:24 -     No roster table found for car 1973
+2025-11-05 15:02:24 -   Scraping: chi 1973...
+2025-11-05 15:02:43 -     Found 53 players
+2025-11-05 15:02:43 -   Scraping: cin 1973...
+2025-11-05 15:02:54 -     Found 49 players
+2025-11-05 15:02:54 -   Scraping: cle 1973...
+2025-11-05 15:03:03 -     Found 48 players
+2025-11-05 15:03:03 -   Scraping: dal 1973...
+2025-11-05 15:03:13 -     Found 49 players
+2025-11-05 15:03:13 -   Scraping: den 1973...
+2025-11-05 15:03:32 -     Found 50 players
+2025-11-05 15:03:32 -   Scraping: det 1973...
+2025-11-05 15:03:43 -     Found 52 players
+2025-11-05 15:03:43 -   Scraping: gnb 1973...
+2025-11-05 15:03:54 -     Found 55 players
+2025-11-05 15:03:54 -   Scraping: oti 1973...
+2025-11-05 15:04:14 -     Found 65 players
+2025-11-05 15:04:14 -   Scraping: clt 1973...
+2025-11-05 15:04:33 -     Found 49 players
+2025-11-05 15:04:33 -   Scraping: jax 1973...
+2025-11-05 15:04:46 -     No roster table found for jax 1973
+2025-11-05 15:04:46 -   Scraping: kan 1973...
+2025-11-05 15:04:56 -     Found 51 players
+2025-11-05 15:04:56 -   Scraping: sdg 1973...
+2025-11-05 15:05:06 -     Found 51 players
+2025-11-05 15:05:06 -   Scraping: ram 1973...
+2025-11-05 15:05:21 -     Found 47 players
+2025-11-05 15:05:21 -   Scraping: rai 1973...
+2025-11-05 15:05:32 -     Found 46 players
+2025-11-05 15:05:32 -   Scraping: mia 1973...
+2025-11-05 15:05:43 -     Found 50 players
+2025-11-05 15:05:43 -   Scraping: min 1973...
+2025-11-05 15:05:55 -     Found 49 players
+2025-11-05 15:05:55 -   Scraping: nwe 1973...
+2025-11-05 15:06:07 -     Found 57 players
+2025-11-05 15:06:07 -   Scraping: nor 1973...
+2025-11-05 15:06:35 -     Found 62 players
+2025-11-05 15:06:35 -   Scraping: nyg 1973...
+2025-11-05 15:06:47 -     Found 55 players
+2025-11-05 15:06:47 -   Scraping: nyj 1973...
+2025-11-05 15:06:57 -     Found 51 players
+2025-11-05 15:06:57 -   Scraping: phi 1973...
+2025-11-05 15:07:06 -     Found 55 players
+2025-11-05 15:07:06 -   Scraping: pit 1973...
+2025-11-05 15:07:21 -     Found 50 players
+2025-11-05 15:07:21 -   Scraping: sfo 1973...
+2025-11-05 15:07:32 -     Found 48 players
+2025-11-05 15:07:32 -   Scraping: sea 1973...
+2025-11-05 15:07:46 -     No roster table found for sea 1973
+2025-11-05 15:07:46 -   Scraping: tam 1973...
+2025-11-05 15:07:59 -     No roster table found for tam 1973
+2025-11-05 15:07:59 -   Scraping: oti 1973...
+2025-11-05 15:08:20 -     Found 65 players
+2025-11-05 15:08:20 -   Scraping: was 1973...
+2025-11-05 15:08:31 -     Found 50 players
+2025-11-05 15:08:31 - 
+Processing 1974...
+2025-11-05 15:08:31 -   Scraping: crd 1974...
+2025-11-05 15:08:42 -     Found 56 players
+2025-11-05 15:08:42 -   Scraping: atl 1974...
+2025-11-05 15:08:52 -     Found 51 players
+2025-11-05 15:08:52 -   Scraping: rav 1974...
+2025-11-05 15:09:07 -     No roster table found for rav 1974
+2025-11-05 15:09:07 -   Scraping: bal 1974...
+2025-11-05 15:09:21 -     No roster table found for bal 1974
+2025-11-05 15:09:21 -   Scraping: buf 1974...
+2025-11-05 15:09:48 -     Found 59 players
+2025-11-05 15:09:48 -   Scraping: car 1974...
+2025-11-05 15:10:02 -     No roster table found for car 1974
+2025-11-05 15:10:02 -   Scraping: chi 1974...
+2025-11-05 15:10:14 -     Found 53 players
+2025-11-05 15:10:14 -   Scraping: cin 1974...
+2025-11-05 15:10:26 -     Found 50 players
+2025-11-05 15:10:26 -   Scraping: cle 1974...
+2025-11-05 15:10:56 -     Found 55 players
+2025-11-05 15:10:56 -   Scraping: dal 1974...
+2025-11-05 15:11:07 -     Found 53 players
+2025-11-05 15:11:07 -   Scraping: den 1974...
+2025-11-05 15:11:36 -     Found 56 players
+2025-11-05 15:11:36 -   Scraping: det 1974...
+2025-11-05 15:11:47 -     Found 51 players
+2025-11-05 15:11:47 -   Scraping: gnb 1974...
+2025-11-05 15:11:57 -     Found 57 players
+2025-11-05 15:11:57 -   Scraping: oti 1974...
+2025-11-05 15:12:08 -     Found 55 players
+2025-11-05 15:12:08 -   Scraping: clt 1974...
+2025-11-05 15:12:30 -     Found 50 players
+2025-11-05 15:12:30 -   Scraping: jax 1974...
+2025-11-05 15:12:44 -     No roster table found for jax 1974
+2025-11-05 15:12:44 -   Scraping: kan 1974...
+2025-11-05 15:12:54 -     Found 59 players
+2025-11-05 15:12:54 -   Scraping: sdg 1974...
+2025-11-05 15:13:05 -     Found 59 players
+2025-11-05 15:13:05 -   Scraping: ram 1974...
+2025-11-05 15:13:18 -     Found 52 players
+2025-11-05 15:13:18 -   Scraping: rai 1974...
+2025-11-05 15:13:30 -     Found 52 players
+2025-11-05 15:13:30 -   Scraping: mia 1974...
+2025-11-05 15:13:40 -     Found 53 players
+2025-11-05 15:13:40 -   Scraping: min 1974...
+2025-11-05 15:13:50 -     Found 52 players
+2025-11-05 15:13:50 -   Scraping: nwe 1974...
+2025-11-05 15:14:02 -     Found 63 players
+2025-11-05 15:14:02 -   Scraping: nor 1974...
+2025-11-05 15:14:30 -     Found 62 players
+2025-11-05 15:14:30 -   Scraping: nyg 1974...
+2025-11-05 15:14:41 -     Found 57 players
+2025-11-05 15:14:41 -   Scraping: nyj 1974...
+2025-11-05 15:14:52 -     Found 53 players
+2025-11-05 15:14:52 -   Scraping: phi 1974...
+2025-11-05 15:15:02 -     Found 52 players
+2025-11-05 15:15:02 -   Scraping: pit 1974...
+2025-11-05 15:15:17 -     Found 51 players
+2025-11-05 15:15:17 -   Scraping: sfo 1974...
+2025-11-05 15:15:26 -     Found 58 players
+2025-11-05 15:15:26 -   Scraping: sea 1974...
+2025-11-05 15:15:41 -     No roster table found for sea 1974
+2025-11-05 15:15:41 -   Scraping: tam 1974...
+2025-11-05 15:15:53 -     No roster table found for tam 1974
+2025-11-05 15:15:53 -   Scraping: oti 1974...
+2025-11-05 15:16:04 -     Found 55 players
+2025-11-05 15:16:04 -   Scraping: was 1974...
+2025-11-05 15:16:13 -     Found 58 players
+2025-11-05 15:16:13 - 
+Processing 1975...
+2025-11-05 15:16:13 -   Scraping: crd 1975...
+2025-11-05 15:16:23 -     Found 46 players
+2025-11-05 15:16:23 -   Scraping: atl 1975...
+2025-11-05 15:16:36 -     Found 50 players
+2025-11-05 15:16:36 -   Scraping: rav 1975...
+2025-11-05 15:16:50 -     No roster table found for rav 1975
+2025-11-05 15:16:50 -   Scraping: bal 1975...
+2025-11-05 15:17:03 -     No roster table found for bal 1975
+2025-11-05 15:17:03 -   Scraping: buf 1975...
+2025-11-05 15:17:13 -     Found 49 players
+2025-11-05 15:17:13 -   Scraping: car 1975...
+2025-11-05 15:17:27 -     No roster table found for car 1975
+2025-11-05 15:17:27 -   Scraping: chi 1975...
+2025-11-05 15:18:31 -     Found 53 players
+2025-11-05 15:18:31 -   Scraping: cin 1975...
+2025-11-05 15:18:52 -     Found 46 players
+2025-11-05 15:18:52 -   Scraping: cle 1975...
+2025-11-05 15:19:08 -     Found 50 players
+2025-11-05 15:19:08 -   Scraping: dal 1975...
+2025-11-05 15:19:19 -     Found 47 players
+2025-11-05 15:19:19 -   Scraping: den 1975...
+2025-11-05 15:19:29 -     Found 52 players
+2025-11-05 15:19:29 -   Scraping: det 1975...
+2025-11-05 15:19:44 -     Found 52 players
+2025-11-05 15:19:44 -   Scraping: gnb 1975...
+2025-11-05 15:19:55 -     Found 55 players
+2025-11-05 15:19:55 -   Scraping: oti 1975...
+2025-11-05 15:20:11 -     Found 51 players
+2025-11-05 15:20:11 -   Scraping: clt 1975...
+2025-11-05 15:20:26 -     Found 47 players
+2025-11-05 15:20:26 -   Scraping: jax 1975...
+2025-11-05 15:20:40 -     No roster table found for jax 1975
+2025-11-05 15:20:40 -   Scraping: kan 1975...
+2025-11-05 15:20:50 -     Found 59 players
+2025-11-05 15:20:50 -   Scraping: sdg 1975...
+2025-11-05 15:21:02 -     Found 59 players
+2025-11-05 15:21:02 -   Scraping: ram 1975...
+2025-11-05 15:21:13 -     Found 48 players
+2025-11-05 15:21:13 -   Scraping: rai 1975...
+2025-11-05 15:21:27 -     Found 49 players
+2025-11-05 15:21:27 -   Scraping: mia 1975...
+2025-11-05 15:21:37 -     Found 49 players
+2025-11-05 15:21:37 -   Scraping: min 1975...
+2025-11-05 15:21:49 -     Found 49 players
+2025-11-05 15:21:49 -   Scraping: nwe 1975...
+2025-11-05 15:22:15 -     Found 58 players
+2025-11-05 15:22:15 -   Scraping: nor 1975...
+2025-11-05 15:22:32 -     Found 58 players
+2025-11-05 15:22:32 -   Scraping: nyg 1975...
+2025-11-05 15:22:40 -     Found 49 players
+2025-11-05 15:22:40 -   Scraping: nyj 1975...
+2025-11-05 15:22:49 -     Found 51 players
+2025-11-05 15:22:49 -   Scraping: phi 1975...
+2025-11-05 15:23:00 -     Found 53 players
+2025-11-05 15:23:00 -   Scraping: pit 1975...
+2025-11-05 15:23:08 -     Found 46 players
+2025-11-05 15:23:08 -   Scraping: sfo 1975...
+2025-11-05 15:23:27 -     Found 49 players
+2025-11-05 15:23:27 -   Scraping: sea 1975...
+2025-11-05 15:23:39 -     No roster table found for sea 1975
+2025-11-05 15:23:39 -   Scraping: tam 1975...
+2025-11-05 15:23:52 -     No roster table found for tam 1975
+2025-11-05 15:23:52 -   Scraping: oti 1975...
+2025-11-05 15:24:00 -     Found 51 players
+2025-11-05 15:24:00 -   Scraping: was 1975...
+2025-11-05 15:24:08 -     Found 50 players
+2025-11-05 15:24:08 - 
+Processing 1976...
+2025-11-05 15:24:08 -   Scraping: crd 1976...
+2025-11-05 15:24:15 -     Found 56 players
+2025-11-05 15:24:15 -   Scraping: atl 1976...
+2025-11-05 15:24:23 -     Found 59 players
+2025-11-05 15:24:23 -   Scraping: rav 1976...
+2025-11-05 15:24:36 -     No roster table found for rav 1976
+2025-11-05 15:24:36 -   Scraping: bal 1976...
+2025-11-05 15:24:49 -     No roster table found for bal 1976
+2025-11-05 15:24:49 -   Scraping: buf 1976...
+2025-11-05 15:25:16 -     Found 61 players
+2025-11-05 15:25:16 -   Scraping: car 1976...
+2025-11-05 15:25:30 -     No roster table found for car 1976
+2025-11-05 15:25:30 -   Scraping: chi 1976...
+2025-11-05 15:25:40 -     Found 50 players
+2025-11-05 15:25:40 -   Scraping: cin 1976...
+2025-11-05 15:25:49 -     Found 46 players
+2025-11-05 15:25:49 -   Scraping: cle 1976...
+2025-11-05 15:25:57 -     Found 48 players
+2025-11-05 15:25:57 -   Scraping: dal 1976...
+2025-11-05 15:26:05 -     Found 46 players
+2025-11-05 15:26:05 -   Scraping: den 1976...
+2025-11-05 15:26:13 -     Found 52 players
+2025-11-05 15:26:13 -   Scraping: det 1976...
+2025-11-05 15:26:21 -     Found 56 players
+2025-11-05 15:26:21 -   Scraping: gnb 1976...
+2025-11-05 15:26:29 -     Found 53 players
+2025-11-05 15:26:29 -   Scraping: oti 1976...
+2025-11-05 15:26:38 -     Found 57 players
+2025-11-05 15:26:38 -   Scraping: clt 1976...
+2025-11-05 15:26:48 -     Found 47 players
+2025-11-05 15:26:48 -   Scraping: jax 1976...
+2025-11-05 15:27:02 -     No roster table found for jax 1976
+2025-11-05 15:27:02 -   Scraping: kan 1976...
+2025-11-05 15:27:13 -     Found 51 players
+2025-11-05 15:27:13 -   Scraping: sdg 1976...
+2025-11-05 15:27:27 -     Found 51 players
+2025-11-05 15:27:27 -   Scraping: ram 1976...
+2025-11-05 15:27:38 -     Found 48 players
+2025-11-05 15:27:38 -   Scraping: rai 1976...
+2025-11-05 15:27:49 -     Found 52 players
+2025-11-05 15:27:49 -   Scraping: mia 1976...
+2025-11-05 15:28:00 -     Found 55 players
+2025-11-05 15:28:00 -   Scraping: min 1976...
+2025-11-05 15:28:11 -     Found 50 players
+2025-11-05 15:28:11 -   Scraping: nwe 1976...
+2025-11-05 15:28:22 -     Found 52 players
+2025-11-05 15:28:22 -   Scraping: nor 1976...
+2025-11-05 15:28:31 -     Found 52 players
+2025-11-05 15:28:31 -   Scraping: nyg 1976...
+2025-11-05 15:28:43 -     Found 55 players
+2025-11-05 15:28:43 -   Scraping: nyj 1976...
+2025-11-05 15:29:11 -     Found 56 players
+2025-11-05 15:29:11 -   Scraping: phi 1976...
+2025-11-05 15:29:20 -     Found 52 players
+2025-11-05 15:29:20 -   Scraping: pit 1976...
+2025-11-05 15:29:31 -     Found 47 players
+2025-11-05 15:29:31 -   Scraping: sfo 1976...
+2025-11-05 15:29:42 -     Found 50 players
+2025-11-05 15:29:42 -   Scraping: sea 1976...
+2025-11-05 15:29:52 -     Found 56 players
+2025-11-05 15:29:52 -   Scraping: tam 1976...
+2025-11-05 15:30:08 -     Found 68 players
+2025-11-05 15:30:08 -   Scraping: oti 1976...
+2025-11-05 15:30:18 -     Found 57 players
+2025-11-05 15:30:18 -   Scraping: was 1976...
+2025-11-05 15:30:28 -     Found 49 players
+2025-11-05 15:30:28 - 
+Processing 1977...
+2025-11-05 15:30:28 -   Scraping: crd 1977...
+2025-11-05 15:30:37 -     Found 53 players
+2025-11-05 15:30:37 -   Scraping: atl 1977...
+2025-11-05 15:30:51 -     Found 51 players
+2025-11-05 15:30:51 -   Scraping: rav 1977...
+2025-11-05 15:31:05 -     No roster table found for rav 1977
+2025-11-05 15:31:05 -   Scraping: bal 1977...
+2025-11-05 15:31:18 -     No roster table found for bal 1977
+2025-11-05 15:31:18 -   Scraping: buf 1977...
+2025-11-05 15:31:30 -     Found 51 players
+2025-11-05 15:31:30 -   Scraping: car 1977...
+2025-11-05 15:31:43 -     No roster table found for car 1977
+2025-11-05 15:31:43 -   Scraping: chi 1977...
+2025-11-05 15:32:12 -     Found 52 players
+2025-11-05 15:32:12 -   Scraping: cin 1977...
+2025-11-05 15:32:22 -     Found 49 players
+2025-11-05 15:32:22 -   Scraping: cle 1977...
+2025-11-05 15:32:33 -     Found 51 players
+2025-11-05 15:32:33 -   Scraping: dal 1977...
+2025-11-05 15:32:43 -     Found 47 players
+2025-11-05 15:32:43 -   Scraping: den 1977...
+2025-11-05 15:32:55 -     Found 52 players
+2025-11-05 15:32:55 -   Scraping: det 1977...
+2025-11-05 15:33:05 -     Found 56 players
+2025-11-05 15:33:05 -   Scraping: gnb 1977...
+2025-11-05 15:33:33 -     Found 53 players
+2025-11-05 15:33:33 -   Scraping: oti 1977...
+2025-11-05 15:34:03 -     Found 55 players
+2025-11-05 15:34:03 -   Scraping: clt 1977...
+2025-11-05 15:34:13 -     Found 52 players
+2025-11-05 15:34:13 -   Scraping: jax 1977...
+2025-11-05 15:34:28 -     No roster table found for jax 1977
+2025-11-05 15:34:28 -   Scraping: kan 1977...
+2025-11-05 15:34:43 -     Found 52 players
+2025-11-05 15:34:43 -   Scraping: sdg 1977...
+2025-11-05 15:34:56 -     Found 50 players
+2025-11-05 15:34:56 -   Scraping: ram 1977...
+2025-11-05 15:35:07 -     Found 52 players
+2025-11-05 15:35:07 -   Scraping: rai 1977...
+2025-11-05 15:35:21 -     Found 53 players
+2025-11-05 15:35:21 -   Scraping: mia 1977...
+2025-11-05 15:35:34 -     Found 56 players
+2025-11-05 15:35:34 -   Scraping: min 1977...
+2025-11-05 15:35:49 -     Found 50 players
+2025-11-05 15:35:49 -   Scraping: nwe 1977...
+2025-11-05 15:36:03 -     Found 49 players
+2025-11-05 15:36:03 -   Scraping: nor 1977...
+2025-11-05 15:36:16 -     Found 55 players
+2025-11-05 15:36:16 -   Scraping: nyg 1977...
+2025-11-05 15:36:30 -     Found 53 players
+2025-11-05 15:36:30 -   Scraping: nyj 1977...
+2025-11-05 15:36:47 -     Found 53 players
+2025-11-05 15:36:47 -   Scraping: phi 1977...
+2025-11-05 15:36:59 -     Found 51 players
+2025-11-05 15:36:59 -   Scraping: pit 1977...
+2025-11-05 15:37:09 -     Found 52 players
+2025-11-05 15:37:09 -   Scraping: sfo 1977...
+2025-11-05 15:37:31 -     Found 53 players
+2025-11-05 15:37:31 -   Scraping: sea 1977...
+2025-11-05 15:37:49 -     Found 57 players
+2025-11-05 15:37:49 -   Scraping: tam 1977...
+2025-11-05 15:37:58 -     Found 55 players
+2025-11-05 15:37:58 -   Scraping: oti 1977...
+2025-11-05 15:38:17 -     Found 55 players
+2025-11-05 15:38:17 -   Scraping: was 1977...
+2025-11-05 15:38:25 -     Found 55 players
+2025-11-05 15:38:25 - 
+Processing 1978...
+2025-11-05 15:38:25 -   Scraping: crd 1978...
+2025-11-05 15:38:34 -     Found 62 players
+2025-11-05 15:38:34 -   Scraping: atl 1978...
+2025-11-05 15:38:42 -     Found 56 players
+2025-11-05 15:38:42 -   Scraping: rav 1978...
+2025-11-05 15:38:55 -     No roster table found for rav 1978
+2025-11-05 15:38:55 -   Scraping: bal 1978...
+2025-11-05 15:39:08 -     No roster table found for bal 1978
+2025-11-05 15:39:08 -   Scraping: buf 1978...
+2025-11-05 15:39:17 -     Found 56 players
+2025-11-05 15:39:17 -   Scraping: car 1978...
+2025-11-05 15:39:30 -     No roster table found for car 1978
+2025-11-05 15:39:30 -   Scraping: chi 1978...
+2025-11-05 15:39:57 -     Found 52 players
+2025-11-05 15:39:57 -   Scraping: cin 1978...
+2025-11-05 15:40:23 -     Found 52 players
+2025-11-05 15:40:23 -   Scraping: cle 1978...
+2025-11-05 15:40:36 -     Found 52 players
+2025-11-05 15:40:36 -   Scraping: dal 1978...
+2025-11-05 15:40:58 -     Found 51 players
+2025-11-05 15:40:58 -   Scraping: den 1978...
+2025-11-05 15:41:05 -     Found 52 players
+2025-11-05 15:41:05 -   Scraping: det 1978...
+2025-11-05 15:41:20 -     Found 62 players
+2025-11-05 15:41:20 -   Scraping: gnb 1978...
+2025-11-05 15:41:27 -     Found 52 players
+2025-11-05 15:41:27 -   Scraping: oti 1978...
+2025-11-05 15:41:40 -     Found 55 players
+2025-11-05 15:41:40 -   Scraping: clt 1978...
+2025-11-05 15:42:01 -     Found 52 players
+2025-11-05 15:42:01 -   Scraping: jax 1978...
+2025-11-05 15:42:14 -     No roster table found for jax 1978
+2025-11-05 15:42:14 -   Scraping: kan 1978...
+2025-11-05 15:42:31 -     Found 55 players
+2025-11-05 15:42:31 -   Scraping: sdg 1978...
+2025-11-05 15:42:38 -     Found 55 players
+2025-11-05 15:42:38 -   Scraping: ram 1978...
+2025-11-05 15:43:40 -     Found 55 players
+2025-11-05 15:43:40 -   Scraping: rai 1978...
+2025-11-05 15:43:48 -     Found 57 players
+2025-11-05 15:43:48 -   Scraping: mia 1978...
+2025-11-05 15:44:12 -     Found 53 players
+2025-11-05 15:44:12 -   Scraping: min 1978...
+2025-11-05 15:44:19 -     Found 52 players
+2025-11-05 15:44:19 -   Scraping: nwe 1978...
+2025-11-05 15:44:27 -     Found 58 players
+2025-11-05 15:44:27 -   Scraping: nor 1978...
+2025-11-05 15:44:35 -     Found 59 players
+2025-11-05 15:44:35 -   Scraping: nyg 1978...
+2025-11-05 15:44:45 -     Found 52 players
+2025-11-05 15:44:45 -   Scraping: nyj 1978...
+2025-11-05 15:44:55 -     Found 56 players
+2025-11-05 15:44:55 -   Scraping: phi 1978...
+2025-11-05 15:45:27 -     Found 57 players
+2025-11-05 15:45:27 -   Scraping: pit 1978...
+2025-11-05 15:45:36 -     Found 51 players
+2025-11-05 15:45:36 -   Scraping: sfo 1978...
+2025-11-05 15:45:46 -     Found 55 players
+2025-11-05 15:45:46 -   Scraping: sea 1978...
+2025-11-05 15:45:55 -     Found 51 players
+2025-11-05 15:45:55 -   Scraping: tam 1978...
+2025-11-05 15:46:05 -     Found 64 players
+2025-11-05 15:46:05 -   Scraping: oti 1978...
+2025-11-05 15:46:19 -     Found 55 players
+2025-11-05 15:46:19 -   Scraping: was 1978...
+2025-11-05 15:46:48 -     Found 55 players
+2025-11-05 15:46:48 - 
+Processing 1979...
+2025-11-05 15:46:48 -   Scraping: crd 1979...
+2025-11-05 15:46:58 -     Found 58 players
+2025-11-05 15:46:58 -   Scraping: atl 1979...
+2025-11-05 15:47:12 -     Found 53 players
+2025-11-05 15:47:12 -   Scraping: rav 1979...
+2025-11-05 15:47:25 -     No roster table found for rav 1979
+2025-11-05 15:47:25 -   Scraping: bal 1979...
+2025-11-05 15:47:39 -     No roster table found for bal 1979
+2025-11-05 15:47:39 -   Scraping: buf 1979...
+2025-11-05 15:48:08 -     Found 55 players
+2025-11-05 15:48:08 -   Scraping: car 1979...
+2025-11-05 15:48:22 -     No roster table found for car 1979
+2025-11-05 15:48:22 -   Scraping: chi 1979...
+2025-11-05 15:48:56 -     Found 56 players
+2025-11-05 15:48:57 -   Scraping: cin 1979...
+2025-11-05 15:49:04 -     Found 51 players
+2025-11-05 15:49:04 -   Scraping: cle 1979...
+2025-11-05 15:49:12 -     Found 50 players
+2025-11-05 15:49:12 -   Scraping: dal 1979...
+2025-11-05 15:49:26 -     Found 50 players
+2025-11-05 15:49:26 -   Scraping: den 1979...
+2025-11-05 15:49:34 -     Found 52 players
+2025-11-05 15:49:34 -   Scraping: det 1979...
+2025-11-05 15:49:54 -     Found 63 players
+2025-11-05 15:49:54 -   Scraping: gnb 1979...
+2025-11-05 15:50:02 -     Found 62 players
+2025-11-05 15:50:02 -   Scraping: oti 1979...
+2025-11-05 15:50:10 -     Found 57 players
+2025-11-05 15:50:10 -   Scraping: clt 1979...
+2025-11-05 15:50:28 -     Found 52 players
+2025-11-05 15:50:28 -   Scraping: jax 1979...
+2025-11-05 15:50:41 -     No roster table found for jax 1979
+2025-11-05 15:50:41 -   Scraping: kan 1979...
+2025-11-05 15:51:00 -     Found 56 players
+2025-11-05 15:51:00 -   Scraping: sdg 1979...
+2025-11-05 15:51:07 -     Found 53 players
+2025-11-05 15:51:07 -   Scraping: ram 1979...
+2025-11-05 15:51:15 -     Found 60 players
+2025-11-05 15:51:15 -   Scraping: rai 1979...
+2025-11-05 15:51:23 -     Found 56 players
+2025-11-05 15:51:23 -   Scraping: mia 1979...
+2025-11-05 15:51:29 -     Found 53 players
+2025-11-05 15:51:29 -   Scraping: min 1979...
+2025-11-05 15:51:37 -     Found 53 players
+2025-11-05 15:51:37 -   Scraping: nwe 1979...
+2025-11-05 15:51:46 -     Found 55 players
+2025-11-05 15:51:46 -   Scraping: nor 1979...
+2025-11-05 15:52:04 -     Found 53 players
+2025-11-05 15:52:04 -   Scraping: nyg 1979...
+2025-11-05 15:52:11 -     Found 64 players
+2025-11-05 15:52:11 -   Scraping: nyj 1979...
+2025-11-05 15:52:28 -     Found 58 players
+2025-11-05 15:52:28 -   Scraping: phi 1979...
+2025-11-05 15:52:35 -     Found 53 players
+2025-11-05 15:52:35 -   Scraping: pit 1979...
+2025-11-05 15:52:43 -     Found 49 players
+2025-11-05 15:52:43 -   Scraping: sfo 1979...
+2025-11-05 15:52:50 -     Found 58 players
+2025-11-05 15:52:50 -   Scraping: sea 1979...
+2025-11-05 15:53:05 -     Found 55 players
+2025-11-05 15:53:05 -   Scraping: tam 1979...
+2025-11-05 15:53:16 -     Found 49 players
+2025-11-05 15:53:16 -   Scraping: oti 1979...
+2025-11-05 15:53:45 -     Found 57 players
+2025-11-05 15:53:45 -   Scraping: was 1979...
+2025-11-05 15:54:11 -     Found 52 players
+2025-11-05 15:54:11 - 
+Processing 1980...
+2025-11-05 15:54:11 -   Scraping: crd 1980...
+2025-11-05 15:55:11 -     Found 62 players
+2025-11-05 15:55:11 -   Scraping: atl 1980...
+2025-11-05 15:55:22 -     Found 53 players
+2025-11-05 15:55:22 -   Scraping: rav 1980...
+2025-11-05 15:55:35 -     No roster table found for rav 1980
+2025-11-05 15:55:35 -   Scraping: bal 1980...
+2025-11-05 15:55:49 -     No roster table found for bal 1980
+2025-11-05 15:55:49 -   Scraping: buf 1980...
+2025-11-05 15:56:04 -     Found 53 players
+2025-11-05 15:56:04 -   Scraping: car 1980...
+2025-11-05 15:56:17 -     No roster table found for car 1980
+2025-11-05 15:56:17 -   Scraping: chi 1980...
+2025-11-05 15:56:24 -     Found 51 players
+2025-11-05 15:56:24 -   Scraping: cin 1980...
+2025-11-05 15:56:32 -     Found 56 players
+2025-11-05 15:56:32 -   Scraping: cle 1980...
+2025-11-05 15:56:48 -     Found 52 players
+2025-11-05 15:56:48 -   Scraping: dal 1980...
+2025-11-05 15:56:56 -     Found 51 players
+2025-11-05 15:56:56 -   Scraping: den 1980...
+2025-11-05 15:57:03 -     Found 57 players
+2025-11-05 15:57:03 -   Scraping: det 1980...
+2025-11-05 15:57:11 -     Found 64 players
+2025-11-05 15:57:11 -   Scraping: gnb 1980...
+2025-11-05 15:57:18 -     Found 65 players
+2025-11-05 15:57:18 -   Scraping: oti 1980...
+2025-11-05 15:57:25 -     Found 57 players
+2025-11-05 15:57:25 -   Scraping: clt 1980...
+2025-11-05 15:57:45 -     Found 53 players
+2025-11-05 15:57:45 -   Scraping: jax 1980...
+2025-11-05 15:57:58 -     No roster table found for jax 1980
+2025-11-05 15:57:58 -   Scraping: kan 1980...
+2025-11-05 15:58:06 -     Found 60 players
+2025-11-05 15:58:06 -   Scraping: sdg 1980...
+2025-11-05 15:58:15 -     Found 56 players
+2025-11-05 15:58:15 -   Scraping: ram 1980...
+2025-11-05 15:58:22 -     Found 57 players
+2025-11-05 15:58:22 -   Scraping: rai 1980...
+2025-11-05 15:58:41 -     Found 56 players
+2025-11-05 15:58:41 -   Scraping: mia 1980...
+2025-11-05 15:58:54 -     Found 57 players
+2025-11-05 15:58:54 -   Scraping: min 1980...
+2025-11-05 15:59:02 -     Found 55 players
+2025-11-05 15:59:02 -   Scraping: nwe 1980...
+2025-11-05 15:59:09 -     Found 51 players
+2025-11-05 15:59:09 -   Scraping: nor 1980...
+2025-11-05 15:59:16 -     Found 61 players
+2025-11-05 15:59:16 -   Scraping: nyg 1980...
+2025-11-05 15:59:24 -     Found 73 players
+2025-11-05 15:59:24 -   Scraping: nyj 1980...
+2025-11-05 15:59:31 -     Found 57 players
+2025-11-05 15:59:31 -   Scraping: phi 1980...
+2025-11-05 15:59:47 -     Found 56 players
+2025-11-05 15:59:47 -   Scraping: pit 1980...
+2025-11-05 16:00:21 -     Found 52 players
+2025-11-05 16:00:21 -   Scraping: sfo 1980...
+2025-11-05 16:00:31 -     Found 64 players
+2025-11-05 16:00:31 -   Scraping: sea 1980...
+2025-11-05 16:00:43 -     Found 52 players
+2025-11-05 16:00:43 -   Scraping: tam 1980...
+2025-11-05 16:01:14 -     Found 53 players
+2025-11-05 16:01:14 -   Scraping: oti 1980...
+2025-11-05 16:01:24 -     Found 57 players
+2025-11-05 16:01:24 -   Scraping: was 1980...
+2025-11-05 16:01:35 -     Found 55 players
+2025-11-05 16:01:35 - 
+Processing 1981...
+2025-11-05 16:01:35 -   Scraping: crd 1981...
+2025-11-05 16:02:21 -     Found 63 players
+2025-11-05 16:02:21 -   Scraping: atl 1981...
+2025-11-05 16:02:32 -     Found 51 players
+2025-11-05 16:02:32 -   Scraping: rav 1981...
+2025-11-05 16:02:45 -     No roster table found for rav 1981
+2025-11-05 16:02:45 -   Scraping: bal 1981...
+2025-11-05 16:02:59 -     No roster table found for bal 1981
+2025-11-05 16:02:59 -   Scraping: buf 1981...
+2025-11-05 16:03:26 -     Found 52 players
+2025-11-05 16:03:26 -   Scraping: car 1981...
+2025-11-05 16:03:39 -     No roster table found for car 1981
+2025-11-05 16:03:39 -   Scraping: chi 1981...
+2025-11-05 16:03:49 -     Found 57 players
+2025-11-05 16:03:49 -   Scraping: cin 1981...
+2025-11-05 16:03:59 -     Found 55 players
+2025-11-05 16:03:59 -   Scraping: cle 1981...
+2025-11-05 16:04:10 -     Found 53 players
+2025-11-05 16:04:10 -   Scraping: dal 1981...
+2025-11-05 16:04:20 -     Found 50 players
+2025-11-05 16:04:20 -   Scraping: den 1981...
+2025-11-05 16:04:30 -     Found 49 players
+2025-11-05 16:04:30 -   Scraping: det 1981...
+2025-11-05 16:04:41 -     Found 55 players
+2025-11-05 16:04:41 -   Scraping: gnb 1981...
+2025-11-05 16:05:08 -     Found 59 players
+2025-11-05 16:05:08 -   Scraping: oti 1981...
+2025-11-05 16:05:18 -     Found 53 players
+2025-11-05 16:05:18 -   Scraping: clt 1981...
+2025-11-05 16:05:29 -     Found 55 players
+2025-11-05 16:05:29 -   Scraping: jax 1981...
+2025-11-05 16:05:42 -     No roster table found for jax 1981
+2025-11-05 16:05:42 -   Scraping: kan 1981...
+2025-11-05 16:06:10 -     Found 62 players
+2025-11-05 16:06:10 -   Scraping: sdg 1981...
+2025-11-05 16:06:37 -     Found 58 players
+2025-11-05 16:06:37 -   Scraping: ram 1981...
+2025-11-05 16:06:47 -     Found 57 players
+2025-11-05 16:06:47 -   Scraping: rai 1981...
+2025-11-05 16:06:57 -     Found 56 players
+2025-11-05 16:06:57 -   Scraping: mia 1981...
+2025-11-05 16:07:15 -     Found 56 players
+2025-11-05 16:07:15 -   Scraping: min 1981...
+2025-11-05 16:07:26 -     Found 51 players
+2025-11-05 16:07:26 -   Scraping: nwe 1981...
+2025-11-05 16:07:37 -     Found 57 players
+2025-11-05 16:07:37 -   Scraping: nor 1981...
+2025-11-05 16:07:47 -     Found 57 players
+2025-11-05 16:07:48 -   Scraping: nyg 1981...
+2025-11-05 16:07:57 -     Found 57 players
+2025-11-05 16:07:57 -   Scraping: nyj 1981...
+2025-11-05 16:08:07 -     Found 53 players
+2025-11-05 16:08:07 -   Scraping: phi 1981...
+2025-11-05 16:08:21 -     Found 56 players
+2025-11-05 16:08:21 -   Scraping: pit 1981...
+2025-11-05 16:08:31 -     Found 51 players
+2025-11-05 16:08:31 -   Scraping: sfo 1981...
+2025-11-05 16:08:41 -   Scraping: sea 1981...
+2025-11-05 16:09:04 -   Scraping: tam 1981...
+2025-11-05 16:09:06 -   Scraping: oti 1981...
+2025-11-05 16:23:40 -   Scraping: ten 1981...
+2025-11-05 16:23:42 -   Scraping: was 1981...
+2025-11-05 16:23:44 - 
+Processing 1982...
+2025-11-05 16:23:44 -   Scraping: crd 1982...
+2025-11-05 16:23:46 -   Scraping: ari 1982...
+2025-11-05 16:23:48 -   Scraping: atl 1982...
+2025-11-05 16:23:50 -   Scraping: rav 1982...
+2025-11-05 16:23:52 -   Scraping: bal 1982...
+2025-11-05 16:23:54 -   Scraping: buf 1982...
+2025-11-05 16:23:56 -   Scraping: car 1982...
+2025-11-05 16:23:58 -   Scraping: chi 1982...
+2025-11-05 16:24:00 -   Scraping: cin 1982...
+2025-11-05 17:06:30 -   Scraping: cle 1982...
+2025-11-05 17:06:32 -   Scraping: dal 1982...
+2025-11-05 17:06:34 -   Scraping: den 1982...
+2025-11-05 17:06:36 -   Scraping: det 1982...
+2025-11-05 17:06:38 -   Scraping: gnb 1982...
+2025-11-05 17:06:40 -   Scraping: oti 1982...
+2025-11-05 17:06:42 -   Scraping: htx 1982...
+2025-11-05 17:06:44 -   Scraping: clt 1982...
+2025-11-05 17:06:46 -   Scraping: ind 1982...
+2025-11-05 17:06:48 -   Scraping: jax 1982...
+2025-11-05 17:06:50 -   Scraping: kan 1982...
+2025-11-05 17:06:52 -   Scraping: sdg 1982...
+2025-11-05 17:06:54 -   Scraping: ram 1982...
+2025-11-05 17:06:56 -   Scraping: rai 1982...
+2025-11-05 17:06:58 -   Scraping: oak 1982...
+2025-11-05 17:07:00 -   Scraping: mia 1982...
+2025-11-05 17:07:02 -   Scraping: min 1982...
+2025-11-05 17:07:04 -   Scraping: nwe 1982...
+2025-11-05 17:07:06 -   Scraping: nor 1982...
+2025-11-05 17:07:08 -   Scraping: nyg 1982...
+2025-11-05 17:07:10 -   Scraping: nyj 1982...
+2025-11-05 17:07:12 -   Scraping: phi 1982...
+2025-11-05 17:07:14 -   Scraping: pit 1982...
+2025-11-05 17:07:16 -   Scraping: sfo 1982...
+2025-11-05 17:07:18 -   Scraping: sea 1982...
+2025-11-05 17:07:20 -   Scraping: tam 1982...
+2025-11-05 17:07:22 -   Scraping: oti 1982...
+2025-11-05 17:07:24 -   Scraping: ten 1982...
+2025-11-05 17:07:27 -   Scraping: was 1982...
+2025-11-05 17:07:29 - 
+Processing 1983...
+2025-11-05 17:07:29 -   Scraping: crd 1983...
+2025-11-05 17:07:31 -   Scraping: ari 1983...
+2025-11-05 17:07:33 -   Scraping: atl 1983...
+2025-11-05 17:07:35 -   Scraping: rav 1983...
+2025-11-05 17:07:37 -   Scraping: bal 1983...
+2025-11-05 17:07:39 -   Scraping: buf 1983...
+2025-11-05 17:07:41 -   Scraping: car 1983...
+2025-11-05 17:07:43 -   Scraping: chi 1983...
+2025-11-05 17:07:45 -   Scraping: cin 1983...
+2025-11-05 17:07:47 -   Scraping: cle 1983...
+2025-11-05 17:07:49 -   Scraping: dal 1983...
+2025-11-05 17:07:51 -   Scraping: den 1983...
+2025-11-05 17:07:53 -   Scraping: det 1983...
+2025-11-05 17:07:55 -   Scraping: gnb 1983...
+2025-11-05 17:07:57 -   Scraping: oti 1983...
+2025-11-05 17:07:59 -   Scraping: htx 1983...
+2025-11-05 17:08:01 -   Scraping: clt 1983...
+2025-11-05 17:08:03 -   Scraping: ind 1983...
+2025-11-05 17:08:05 -   Scraping: jax 1983...
+2025-11-05 17:08:07 -   Scraping: kan 1983...
+2025-11-05 17:08:09 -   Scraping: sdg 1983...
+2025-11-05 17:08:11 -   Scraping: ram 1983...
+2025-11-05 17:08:13 -   Scraping: rai 1983...
+2025-11-05 17:08:15 -   Scraping: oak 1983...
+2025-11-05 17:08:17 -   Scraping: mia 1983...
+2025-11-05 17:08:19 -   Scraping: min 1983...
+2025-11-05 17:08:21 -   Scraping: nwe 1983...
+2025-11-05 17:08:23 -   Scraping: nor 1983...
+2025-11-05 17:08:25 -   Scraping: nyg 1983...
+2025-11-05 17:08:27 -   Scraping: nyj 1983...
+2025-11-05 17:08:29 -   Scraping: phi 1983...
+2025-11-05 17:08:31 -   Scraping: pit 1983...
+2025-11-05 17:08:33 -   Scraping: sfo 1983...
+2025-11-05 17:08:35 -   Scraping: sea 1983...
+2025-11-05 17:08:37 -   Scraping: tam 1983...
+2025-11-05 17:08:39 -   Scraping: oti 1983...
+2025-11-05 17:08:41 -   Scraping: ten 1983...
+2025-11-05 17:08:43 -   Scraping: was 1983...
+2025-11-05 17:08:45 - 
+Processing 1984...
+2025-11-05 17:08:45 -   Scraping: crd 1984...
+2025-11-05 17:08:47 -   Scraping: ari 1984...
+2025-11-05 17:08:49 -   Scraping: atl 1984...
+2025-11-05 17:08:51 -   Scraping: rav 1984...
+2025-11-05 17:08:53 -   Scraping: bal 1984...
+2025-11-05 17:08:55 -   Scraping: buf 1984...
+2025-11-05 17:08:57 -   Scraping: car 1984...
+2025-11-05 17:08:59 -   Scraping: chi 1984...
+2025-11-05 17:09:01 -   Scraping: cin 1984...
+2025-11-05 17:09:03 -   Scraping: cle 1984...
+2025-11-05 17:09:05 -   Scraping: dal 1984...
+2025-11-05 17:09:07 -   Scraping: den 1984...
+2025-11-05 17:09:09 -   Scraping: det 1984...
+2025-11-05 17:09:11 -   Scraping: gnb 1984...
+2025-11-05 17:09:13 -   Scraping: oti 1984...
+2025-11-05 17:09:15 -   Scraping: htx 1984...
+2025-11-05 17:09:17 -   Scraping: clt 1984...
+2025-11-05 17:09:19 -   Scraping: ind 1984...
+2025-11-05 17:09:21 -   Scraping: jax 1984...
+2025-11-05 17:09:23 -   Scraping: kan 1984...
+2025-11-05 17:09:25 -   Scraping: sdg 1984...
+2025-11-05 17:09:27 -   Scraping: ram 1984...
+2025-11-05 17:09:29 -   Scraping: rai 1984...
+2025-11-05 17:09:31 -   Scraping: oak 1984...
+2025-11-05 17:09:33 -   Scraping: mia 1984...
+2025-11-05 17:09:35 -   Scraping: min 1984...
+2025-11-05 17:09:37 -   Scraping: nwe 1984...
+2025-11-05 17:09:39 -   Scraping: nor 1984...
+2025-11-05 17:09:41 -   Scraping: nyg 1984...
+2025-11-05 17:09:43 -   Scraping: nyj 1984...
+2025-11-05 17:09:45 -   Scraping: phi 1984...
+2025-11-05 17:09:47 -   Scraping: pit 1984...
+2025-11-05 17:09:49 -   Scraping: sfo 1984...
+2025-11-05 17:09:51 -   Scraping: sea 1984...
+2025-11-05 17:09:53 -   Scraping: tam 1984...
+2025-11-05 17:09:55 -   Scraping: oti 1984...
+2025-11-05 17:09:57 -   Scraping: ten 1984...
+2025-11-05 17:09:59 -   Scraping: was 1984...
+2025-11-05 17:10:01 - 
+Processing 1985...
+2025-11-05 17:10:01 -   Scraping: crd 1985...
+2025-11-05 17:10:03 -   Scraping: ari 1985...
+2025-11-05 17:10:05 -   Scraping: atl 1985...
+2025-11-05 17:10:07 -   Scraping: rav 1985...
+2025-11-05 17:10:09 -   Scraping: bal 1985...
+2025-11-05 17:10:11 -   Scraping: buf 1985...
+2025-11-05 17:10:13 -   Scraping: car 1985...
+2025-11-05 17:10:15 -   Scraping: chi 1985...
+2025-11-05 17:10:17 -   Scraping: cin 1985...
+2025-11-05 17:10:19 -   Scraping: cle 1985...
+2025-11-05 17:10:21 -   Scraping: dal 1985...
+2025-11-05 17:10:23 -   Scraping: den 1985...
+2025-11-05 17:10:25 -   Scraping: det 1985...
+2025-11-05 17:10:27 -   Scraping: gnb 1985...
+2025-11-05 17:10:29 -   Scraping: oti 1985...
+2025-11-05 17:10:31 -   Scraping: htx 1985...
+2025-11-05 17:10:33 -   Scraping: clt 1985...
+2025-11-05 17:10:35 -   Scraping: ind 1985...
+2025-11-05 17:10:37 -   Scraping: jax 1985...
+2025-11-05 17:10:39 -   Scraping: kan 1985...
+2025-11-05 17:10:41 -   Scraping: sdg 1985...
+2025-11-05 17:10:43 -   Scraping: ram 1985...
+2025-11-05 17:10:45 -   Scraping: rai 1985...
+2025-11-05 17:10:47 -   Scraping: oak 1985...
+2025-11-05 17:10:49 -   Scraping: mia 1985...
+2025-11-05 17:10:51 -   Scraping: min 1985...
+2025-11-05 17:10:53 -   Scraping: nwe 1985...
+2025-11-05 17:10:55 -   Scraping: nor 1985...
+2025-11-05 17:10:57 -   Scraping: nyg 1985...
+2025-11-05 17:10:59 -   Scraping: nyj 1985...
+2025-11-05 17:11:01 -   Scraping: phi 1985...
+2025-11-05 17:11:03 -   Scraping: pit 1985...
+2025-11-05 17:11:05 -   Scraping: sfo 1985...
+2025-11-05 17:11:07 -   Scraping: sea 1985...
+2025-11-05 17:11:09 -   Scraping: tam 1985...
+2025-11-05 17:11:11 -   Scraping: oti 1985...
+2025-11-05 17:13:14 - ================================================================================
+2025-11-05 17:13:14 - PRO FOOTBALL REFERENCE ROSTER SCRAPER (1970-2001) - SELENIUM VERSION
+2025-11-05 17:13:14 - ================================================================================
+2025-11-05 17:13:14 - 
+2025-11-05 17:13:14 - No existing data found - starting from 1970
+2025-11-05 17:13:14 - Starting Chrome browser...
+2025-11-05 17:13:17 - 
+Processing 1970...
+2025-11-05 17:13:17 -   Scraping: crd 1970...
+2025-11-05 17:13:50 -   Scraping: ari 1970...
+2025-11-05 17:14:08 -   Scraping: atl 1970...
+2025-11-05 17:14:26 -   Scraping: rav 1970...
+2025-11-05 17:14:45 -   Scraping: bal 1970...
+2025-11-05 17:15:03 -   Scraping: buf 1970...
+2025-11-05 17:15:22 -   Scraping: car 1970...
+2025-11-05 17:16:16 - ================================================================================
+2025-11-05 17:16:16 - PRO FOOTBALL REFERENCE ROSTER SCRAPER (1970-2001) - SELENIUM VERSION
+2025-11-05 17:16:16 - ================================================================================
+2025-11-05 17:16:16 - 
+2025-11-05 17:16:16 - No existing data found - starting from 1970
+2025-11-05 17:16:16 - Starting Chrome browser...
+2025-11-05 17:16:19 - 
+Processing 1970...
+2025-11-05 17:16:19 -   Scraping: crd 1970...
+2025-11-05 17:17:24 -     Found 48 players
+2025-11-05 17:17:24 -   Scraping: atl 1970...
+2025-11-05 17:17:40 -     Found 49 players
+2025-11-05 17:17:40 -   Scraping: rav 1970...
+2025-11-05 17:17:54 -     No roster table found for rav 1970
+2025-11-05 17:17:54 -   Scraping: bal 1970...
+2025-11-05 17:18:08 -     No roster table found for bal 1970
+2025-11-05 17:18:08 -   Scraping: buf 1970...
+2025-11-05 17:18:37 -     Found 5 players
+2025-11-05 17:18:37 -   Scraping: car 1970...
+2025-11-05 17:18:50 -     No roster table found for car 1970
+2025-11-05 17:18:50 -   Scraping: chi 1970...
+2025-11-05 17:19:02 -     Found 51 players
+2025-11-05 17:19:02 -   Scraping: cin 1970...
+2025-11-05 17:19:11 -     Found 49 players
+2025-11-05 17:19:12 -   Scraping: cle 1970...
+2025-11-05 17:19:24 -     Found 50 players
+2025-11-05 17:19:24 -   Scraping: dal 1970...
+2025-11-05 17:19:33 -     Found 46 players
+2025-11-05 17:19:33 -   Scraping: den 1970...
+2025-11-05 17:19:41 -     Found 53 players
+2025-11-05 17:19:41 -   Scraping: det 1970...
+2025-11-05 17:19:51 -     Found 48 players
+2025-11-05 17:19:51 -   Scraping: gnb 1970...
+2025-11-05 17:20:00 -     Found 50 players
+2025-11-05 17:20:00 -   Scraping: oti 1970...
+2025-11-05 17:21:13 -     Found 50 players
+2025-11-05 17:21:13 -   Scraping: clt 1970...
+2025-11-05 17:21:24 -     Found 48 players
+2025-11-05 17:21:24 -   Scraping: jax 1970...
+2025-11-05 17:21:38 -     No roster table found for jax 1970
+2025-11-05 17:21:38 -   Scraping: kan 1970...
+2025-11-05 17:21:50 -     Found 49 players
+2025-11-05 17:21:50 -   Scraping: sdg 1970...
+2025-11-05 17:22:01 -     Found 51 players
+2025-11-05 17:22:01 -   Scraping: ram 1970...
+2025-11-05 17:22:11 -     Found 49 players
+2025-11-05 17:22:11 -   Scraping: rai 1970...
+2025-11-05 17:22:21 -     Found 47 players
+2025-11-05 17:22:21 -   Scraping: mia 1970...
+2025-11-05 17:22:30 -     Found 50 players
+2025-11-05 17:22:30 -   Scraping: min 1970...
+2025-11-05 17:22:40 -     Found 48 players
+2025-11-05 17:22:40 -   Scraping: nwe 1970...
+2025-11-05 17:22:49 -     Found 52 players
+2025-11-05 17:22:49 -   Scraping: nor 1970...
+2025-11-05 17:22:57 -     Found 61 players
+2025-11-05 17:22:57 -   Scraping: nyg 1970...
+2025-11-05 17:23:06 -     Found 48 players
+2025-11-05 17:23:06 -   Scraping: nyj 1970...
+2025-11-05 17:23:16 -     Found 51 players
+2025-11-05 17:23:16 -   Scraping: phi 1970...
+2025-11-05 17:23:23 -     Found 52 players
+2025-11-05 17:23:23 -   Scraping: pit 1970...
+2025-11-05 17:23:31 -     Found 52 players
+2025-11-05 17:23:31 -   Scraping: sfo 1970...
+2025-11-05 17:23:39 -     Found 46 players
+2025-11-05 17:23:39 -   Scraping: sea 1970...
+2025-11-05 17:23:54 -     No roster table found for sea 1970
+2025-11-05 17:23:54 -   Scraping: tam 1970...
+2025-11-05 17:24:07 -     No roster table found for tam 1970
+2025-11-05 17:24:07 -   Scraping: oti 1970...
+2025-11-05 17:24:15 -     Found 50 players
+2025-11-05 17:24:15 -   Scraping: was 1970...
+2025-11-05 17:24:23 -     Found 50 players
+2025-11-05 17:24:26 - 
+Browser closed
+2025-11-05 17:42:58 - ================================================================================
+2025-11-05 17:42:58 - PRO FOOTBALL REFERENCE ROSTER SCRAPER (1970-2001) - SELENIUM VERSION
+2025-11-05 17:42:58 - ================================================================================
+2025-11-05 17:42:58 - 
+2025-11-05 17:42:58 - Loading existing data...
+2025-11-05 17:42:58 - Found existing data through 1970
+2025-11-05 17:42:58 - Resuming from 1971...
+2025-11-05 17:42:58 - Starting Chrome browser...
+2025-11-05 17:43:02 - 
+Processing 1971...
+2025-11-05 17:43:02 -   Scraping: crd 1971...
+2025-11-05 17:43:17 -     Found 55 players
+2025-11-05 17:43:17 -   Scraping: atl 1971...
+2025-11-05 17:43:45 -     Found 52 players
+2025-11-05 17:43:45 -   Scraping: rav 1971...
+2025-11-05 17:43:58 -     No roster table found for rav 1971
+2025-11-05 17:43:58 -   Scraping: bal 1971...
+2025-11-05 17:44:11 -     No roster table found for bal 1971
+2025-11-05 17:44:11 -   Scraping: buf 1971...
+2025-11-05 17:44:21 -     Found 5 players
+2025-11-05 17:44:21 -   Scraping: car 1971...
+2025-11-05 17:44:34 -     No roster table found for car 1971
+2025-11-05 17:44:34 -   Scraping: chi 1971...
+2025-11-05 17:46:36 -   Scraping: cin 1971...
+2025-11-05 17:48:38 -   Scraping: cle 1971...
+2025-11-05 17:50:40 -   Scraping: dal 1971...
+2025-11-05 17:52:42 -   Scraping: den 1971...
+2025-11-05 17:54:44 -   Scraping: det 1971...
+2025-11-05 17:56:46 -   Scraping: gnb 1971...
+2025-11-05 17:58:48 -   Scraping: oti 1971...
+2025-11-05 18:00:50 -   Scraping: htx 1971...
+2025-11-05 18:02:52 -   Scraping: clt 1971...
+2025-11-05 18:04:54 -   Scraping: ind 1971...
+2025-11-05 18:06:57 -   Scraping: jax 1971...
+2025-11-05 18:08:59 -   Scraping: kan 1971...
+2025-11-05 18:11:01 -   Scraping: sdg 1971...
+2025-11-05 18:13:03 -   Scraping: ram 1971...
+2025-11-05 18:15:05 -   Scraping: rai 1971...
+2025-11-05 18:17:07 -   Scraping: oak 1971...
+2025-11-05 18:19:09 -   Scraping: mia 1971...
+2025-11-05 18:21:11 -   Scraping: min 1971...
+2025-11-05 18:23:13 -   Scraping: nwe 1971...
+2025-11-05 18:25:15 -   Scraping: nor 1971...
+2025-11-05 18:27:17 -   Scraping: nyg 1971...
+2025-11-05 18:29:19 -   Scraping: nyj 1971...
+2025-11-05 18:31:21 -   Scraping: phi 1971...
+2025-11-05 18:33:23 -   Scraping: pit 1971...
+2025-11-05 18:35:25 -   Scraping: sfo 1971...
+2025-11-05 18:37:27 -   Scraping: sea 1971...
+2025-11-05 18:39:29 -   Scraping: tam 1971...
+2025-11-05 18:41:31 -   Scraping: oti 1971...
+2025-11-05 18:43:33 -   Scraping: ten 1971...
+2025-11-05 18:45:35 -   Scraping: was 1971...
+2025-11-05 18:47:37 -   >> Checkpoint saved: 1319 players
+2025-11-05 18:47:37 - 
+Processing 1972...
+2025-11-05 18:47:37 -   Scraping: crd 1972...
+2025-11-05 18:49:39 -   Scraping: ari 1972...
+2025-11-05 18:51:41 -   Scraping: atl 1972...
+2025-11-05 18:53:43 -   Scraping: rav 1972...
+2025-11-05 18:55:45 -   Scraping: bal 1972...
+2025-11-05 18:57:47 -   Scraping: buf 1972...
+2025-11-05 18:59:49 -   Scraping: car 1972...
+2025-11-05 19:01:51 -   Scraping: chi 1972...
+2025-11-05 19:03:53 -   Scraping: cin 1972...
+2025-11-05 19:05:55 -   Scraping: cle 1972...
+2025-11-05 19:07:57 -   Scraping: dal 1972...
+2025-11-05 19:09:59 -   Scraping: den 1972...
+2025-11-05 19:12:01 -   Scraping: det 1972...
+2025-11-05 19:14:03 -   Scraping: gnb 1972...
+2025-11-05 19:16:05 -   Scraping: oti 1972...
+2025-11-05 19:18:07 -   Scraping: htx 1972...
+2025-11-05 19:20:09 -   Scraping: clt 1972...
+2025-11-05 19:22:11 -   Scraping: ind 1972...
+2025-11-05 19:24:13 -   Scraping: jax 1972...
+2025-11-05 19:26:15 -   Scraping: kan 1972...
+2025-11-05 19:28:17 -   Scraping: sdg 1972...
+2025-11-05 19:30:20 -   Scraping: ram 1972...
+2025-11-05 19:32:22 -   Scraping: rai 1972...
+2025-11-05 19:34:24 -   Scraping: oak 1972...
+2025-11-05 19:36:26 -   Scraping: mia 1972...
+2025-11-05 19:38:28 -   Scraping: min 1972...
+2025-11-05 19:39:48 - ================================================================================
+2025-11-05 19:39:48 - PRO FOOTBALL REFERENCE ROSTER SCRAPER (1970-2001) - SELENIUM VERSION
+2025-11-05 19:39:48 - ================================================================================
+2025-11-05 19:39:48 - 
+2025-11-05 19:39:48 - Loading existing data...
+2025-11-05 19:39:48 - Found existing data through 1971
+2025-11-05 19:39:48 - Resuming from 1972...
+2025-11-05 19:39:48 - Starting Chrome browser...
+2025-11-05 19:39:52 - 
+Processing 1972...
+2025-11-05 20:32:09 - ================================================================================
+2025-11-05 20:32:09 - PRO FOOTBALL REFERENCE ROSTER SCRAPER (1970-2001) - SELENIUM VERSION
+2025-11-05 20:32:09 - ================================================================================
+2025-11-05 20:32:09 - 
+2025-11-05 20:32:09 - Loading existing data...
+2025-11-05 20:32:09 - Found existing data through 1971
+2025-11-05 20:32:09 - Resuming from 1972...
+2025-11-05 20:32:09 - Starting Chrome browser...
+2025-11-05 20:32:12 - 
+Processing 1972...
+2025-11-05 20:49:18 - ================================================================================
+2025-11-05 20:49:18 - PRO FOOTBALL REFERENCE ROSTER SCRAPER - SIMPLE VERSION
+2025-11-05 20:49:18 - ================================================================================
+2025-11-05 20:49:18 - 
+2025-11-05 20:49:18 - Loading existing data...
+2025-11-05 20:49:18 - Found existing data through 1971
+2025-11-05 20:49:18 - Resuming from 1972...
+2025-11-05 20:49:23 - 
+Processing 1972...
+2025-11-05 20:49:27 -     Found 24 players
+2025-11-05 20:49:31 -     Found 24 players
+2025-11-05 20:49:47 -     Found 25 players
+2025-11-05 20:51:55 - ================================================================================
+2025-11-05 20:51:55 - PRO FOOTBALL REFERENCE ROSTER SCRAPER - SIMPLE VERSION
+2025-11-05 20:51:55 - ================================================================================
+2025-11-05 20:51:55 - 
+2025-11-05 20:51:55 - Loading existing data...
+2025-11-05 20:51:55 - Found existing data through 1971
+2025-11-05 20:51:55 - Resuming from 1972...
+2025-11-05 20:51:56 - 
+Processing 1972...
+2025-11-05 20:52:04 -     Found 24 players
+2025-11-05 20:52:10 -     Found 24 players
+2025-11-05 20:52:29 -     Found 25 players
+2025-11-05 20:52:41 -     Found 24 players
+2025-11-05 20:52:47 -     Found 24 players
+2025-11-05 20:52:51 -     Found 24 players
+2025-11-05 20:52:54 -     Found 24 players
+2025-11-05 20:55:39 - ================================================================================
+2025-11-05 20:55:39 - PRO FOOTBALL REFERENCE ROSTER SCRAPER - SIMPLE VERSION
+2025-11-05 20:55:39 - ================================================================================
+2025-11-05 20:55:39 - 
+2025-11-05 20:55:39 - Loading existing data...
+2025-11-05 20:55:39 - Found existing data through 1971
+2025-11-05 20:55:39 - Resuming from 1972...
+2025-11-05 20:55:39 - 
+Processing 1972...
+2025-11-05 20:55:44 -     Found 59 players
+2025-11-05 20:55:50 -     Found 46 players
+2025-11-05 20:56:08 -     Found 57 players
+2025-11-05 20:56:17 -     Found 48 players
+2025-11-05 20:56:24 -     Found 50 players
+2025-11-05 20:56:31 -     Found 51 players
+2025-11-05 20:56:37 -     Found 46 players
+2025-11-05 20:56:44 -     Found 52 players
+2025-11-05 20:56:50 -     Found 51 players
+2025-11-05 20:56:57 -     Found 49 players
+2025-11-05 20:57:02 -     Found 53 players
+2025-11-05 20:57:10 -     Found 48 players
+2025-11-05 20:57:22 -     Found 46 players
+2025-11-05 20:57:27 -     Found 51 players
+2025-11-05 20:57:31 -     Found 46 players
+2025-11-05 20:57:35 -     Found 44 players
+2025-11-05 20:57:40 -     Found 47 players
+2025-11-05 20:57:44 -     Found 45 players
+2025-11-05 20:57:52 -     Found 47 players
+2025-11-05 20:57:58 -     Found 54 players
+2025-11-05 20:58:03 -     Found 45 players
+2025-11-05 20:58:08 -     Found 46 players
+2025-11-05 20:58:14 -     Found 57 players
+2025-11-05 20:58:21 -     Found 49 players
+2025-11-05 20:58:26 -     Found 45 players
+2025-11-05 20:58:44 -     Found 53 players
+2025-11-05 20:58:52 -     Found 48 players
+2025-11-05 20:58:52 -   >> Checkpoint saved: 2652 players
+2025-11-05 20:58:52 - 
+Processing 1973...
+2025-11-05 20:58:56 -     Found 54 players
+2025-11-05 20:59:03 -     Found 49 players
+2025-11-05 20:59:20 -     Found 52 players
+2025-11-05 20:59:35 -     Found 51 players
+2025-11-05 20:59:42 -     Found 47 players
+2025-11-05 20:59:50 -     Found 46 players
+2025-11-05 20:59:56 -     Found 47 players
+2025-11-05 21:00:02 -     Found 48 players
+2025-11-05 21:00:08 -     Found 50 players
+2025-11-05 21:00:14 -     Found 52 players
+2025-11-05 21:00:20 -     Found 62 players
+2025-11-05 21:00:25 -     Found 47 players
+2025-11-05 21:00:41 -     Found 49 players
+2025-11-05 21:00:47 -     Found 49 players
+2025-11-05 21:00:55 -     Found 45 players
+2025-11-05 21:01:02 -     Found 44 players
+2025-11-05 21:01:06 -     Found 48 players
+2025-11-05 21:01:10 -     Found 47 players
+2025-11-05 21:01:17 -     Found 54 players
+2025-11-05 21:01:22 -     Found 59 players
+2025-11-05 21:01:28 -     Found 52 players
+2025-11-05 21:01:32 -     Found 49 players
+2025-11-05 21:01:37 -     Found 52 players
+2025-11-05 21:01:43 -     Found 48 players
+2025-11-05 21:01:50 -     Found 46 players
+2025-11-05 21:02:09 -     Found 62 players
+2025-11-05 21:02:14 -     Found 48 players
+2025-11-05 21:02:14 -   >> Checkpoint saved: 4009 players
+2025-11-05 21:02:14 - 
+Processing 1974...
+2025-11-05 21:02:21 -     Found 53 players
+2025-11-05 21:02:25 -     Found 49 players
+2025-11-05 21:02:42 -     Found 56 players
+2025-11-05 21:02:52 -     Found 51 players
+2025-11-05 21:02:58 -     Found 48 players
+2025-11-05 21:03:04 -     Found 52 players
+2025-11-05 21:03:11 -     Found 51 players
+2025-11-05 21:03:14 -     Found 53 players
+2025-11-05 21:03:22 -     Found 49 players
+2025-11-05 21:03:30 -     Found 54 players
+2025-11-05 21:03:36 -     Found 52 players
+2025-11-05 21:03:43 -     Found 48 players
+2025-11-05 21:03:55 -     Found 56 players
+2025-11-05 21:03:59 -     Found 56 players
+2025-11-05 21:04:04 -     Found 50 players
+2025-11-05 21:04:11 -     Found 50 players
+2025-11-05 21:04:19 -     Found 51 players
+2025-11-05 21:04:23 -     Found 50 players
+2025-11-05 21:04:31 -     Found 60 players
+2025-11-05 21:04:38 -     Found 59 players
+2025-11-05 21:04:42 -     Found 54 players
+2025-11-05 21:04:49 -     Found 51 players
+2025-11-05 21:04:52 -     Found 50 players
+2025-11-05 21:04:56 -     Found 49 players
+2025-11-05 21:05:01 -     Found 55 players
+2025-11-05 21:05:16 -     Found 52 players
+2025-11-05 21:05:20 -     Found 55 players
+2025-11-05 21:05:20 -   >> Checkpoint saved: 5423 players
+2025-11-05 21:05:20 - 
+Processing 1975...
+2025-11-05 21:05:24 -     Found 44 players
+2025-11-05 21:05:32 -     Found 48 players
+2025-11-05 21:05:48 -     Found 47 players
+2025-11-05 21:05:59 -     Found 51 players
+2025-11-05 21:06:05 -     Found 44 players
+2025-11-05 21:06:10 -     Found 48 players
+2025-11-05 21:06:14 -     Found 45 players
+2025-11-05 21:06:20 -     Found 50 players
+2025-11-05 21:06:28 -     Found 50 players
+2025-11-05 21:06:34 -     Found 52 players
+2025-11-05 21:06:40 -     Found 49 players
+2025-11-05 21:06:44 -     Found 45 players
+2025-11-05 21:06:52 -     Found 56 players
+2025-11-05 21:06:57 -     Found 56 players
+2025-11-05 21:07:04 -     Found 46 players
+2025-11-05 21:07:11 -     Found 47 players
+2025-11-05 21:07:18 -     Found 47 players
+2025-11-05 21:07:25 -     Found 47 players
+2025-11-05 21:07:33 -     Found 55 players
+2025-11-05 21:07:36 -     Found 55 players
+2025-11-05 21:07:44 -     Found 47 players
+2025-11-05 21:07:50 -     Found 49 players
+2025-11-05 21:07:55 -     Found 51 players
+2025-11-05 21:08:02 -     Found 44 players
+2025-11-05 21:08:06 -     Found 47 players
+2025-11-05 21:08:26 -     Found 49 players
+2025-11-05 21:08:31 -     Found 48 players
+2025-11-05 21:08:31 -   >> Checkpoint saved: 6740 players
+2025-11-05 21:08:31 - 
+Processing 1976...
+2025-11-05 21:08:36 -     Found 53 players
+2025-11-05 21:08:40 -     Found 56 players
+2025-11-05 21:09:00 -     Found 58 players
+2025-11-05 21:09:07 -     Found 48 players
+2025-11-05 21:09:12 -     Found 44 players
+2025-11-05 21:09:18 -     Found 46 players
+2025-11-05 21:09:22 -     Found 44 players
+2025-11-05 21:09:26 -     Found 50 players
+2025-11-05 21:09:33 -     Found 53 players
+2025-11-05 21:09:40 -     Found 51 players
+2025-11-05 21:09:44 -     Found 54 players
+2025-11-05 21:09:52 -     Found 45 players
+2025-11-05 21:10:04 -     Found 49 players
+2025-11-05 21:10:09 -     Found 49 players
+2025-11-05 21:10:16 -     Found 46 players
+2025-11-05 21:10:20 -     Found 50 players
+2025-11-05 21:10:27 -     Found 52 players
+2025-11-05 21:10:35 -     Found 48 players
+2025-11-05 21:10:41 -     Found 50 players
+2025-11-05 21:10:49 -     Found 50 players
+2025-11-05 21:10:53 -     Found 52 players
+2025-11-05 21:10:59 -     Found 53 players
+2025-11-05 21:11:07 -     Found 50 players
+2025-11-05 21:11:13 -     Found 45 players
+2025-11-05 21:11:18 -     Found 48 players
+2025-11-05 21:11:25 -     Found 53 players
+2025-11-05 21:11:30 -     Found 65 players
+2025-11-05 21:11:38 -     Found 54 players
+2025-11-05 21:11:41 -     Found 47 players
+2025-11-05 21:11:42 -   >> Checkpoint saved: 8203 players
+2025-11-05 21:11:42 - 
+Processing 1977...
+2025-11-05 21:11:48 -     Found 51 players
+2025-11-05 21:11:52 -     Found 49 players
+2025-11-05 21:12:07 -     Found 49 players
+2025-11-05 21:12:17 -     Found 50 players
+2025-11-05 21:12:25 -     Found 47 players
+2025-11-05 21:12:32 -     Found 49 players
+2025-11-05 21:12:38 -     Found 45 players
+2025-11-05 21:12:46 -     Found 50 players
+2025-11-05 21:12:54 -     Found 53 players
+2025-11-05 21:12:58 -     Found 51 players
+2025-11-05 21:13:06 -     Found 52 players
+2025-11-05 21:13:12 -     Found 50 players
+2025-11-05 21:13:26 -     Found 50 players
+2025-11-05 21:13:30 -     Found 48 players
+2025-11-05 21:13:37 -     Found 50 players
+2025-11-05 21:13:42 -     Found 51 players
+2025-11-05 21:13:48 -     Found 53 players
+2025-11-05 21:13:52 -     Found 48 players
+2025-11-05 21:13:57 -     Found 47 players
+2025-11-05 21:14:01 -     Found 52 players
+2025-11-05 21:14:07 -     Found 51 players
+2025-11-05 21:14:12 -     Found 51 players
+2025-11-05 21:14:18 -     Found 49 players
+2025-11-05 21:14:22 -     Found 50 players
+2025-11-05 21:14:29 -     Found 51 players
+2025-11-05 21:14:32 -     Found 54 players
+2025-11-05 21:14:37 -     Found 52 players
+2025-11-05 21:14:42 -     Found 52 players
+2025-11-05 21:14:47 -     Found 52 players
+2025-11-05 21:14:48 -   >> Checkpoint saved: 9660 players
+2025-11-05 21:14:48 - 
+Processing 1978...
+2025-11-05 21:14:54 -     Found 59 players
+2025-11-05 21:14:57 -     Found 53 players
+2025-11-05 21:15:14 -     Found 53 players
+2025-11-05 21:15:22 -     Found 50 players
+2025-11-05 21:15:29 -     Found 50 players
+2025-11-05 21:15:35 -     Found 50 players
+2025-11-05 21:15:40 -     Found 49 players
+2025-11-05 21:15:45 -     Found 50 players
+2025-11-05 21:15:53 -     Found 59 players
+2025-11-05 21:15:58 -     Found 50 players
+2025-11-05 21:16:06 -     Found 52 players
+2025-11-05 21:16:15 -     Found 50 players
+2025-11-05 21:16:28 -     Found 52 players
+2025-11-05 21:16:34 -     Found 52 players
+2025-11-05 21:16:42 -     Found 52 players
+2025-11-05 21:16:46 -     Found 54 players
+2025-11-05 21:16:52 -     Found 51 players
+2025-11-05 21:17:00 -     Found 50 players
+2025-11-05 21:17:07 -     Found 55 players
+2025-11-05 21:17:13 -     Found 56 players
+2025-11-05 21:17:21 -     Found 50 players
+2025-11-05 21:17:27 -     Found 53 players
+2025-11-05 21:17:31 -     Found 54 players
+2025-11-05 21:17:36 -     Found 49 players
+2025-11-05 21:17:40 -     Found 52 players
+2025-11-05 21:17:47 -     Found 49 players
+2025-11-05 21:17:54 -     Found 61 players
+2025-11-05 21:18:02 -     Found 52 players
+2025-11-05 21:18:06 -     Found 52 players
+2025-11-05 21:18:07 -   >> Checkpoint saved: 11179 players
+2025-11-05 21:18:07 - 
+Processing 1979...
+2025-11-05 21:18:11 -     Found 55 players
+2025-11-05 21:18:19 -     Found 51 players
+2025-11-05 21:18:36 -     Found 52 players
+2025-11-05 21:18:43 -     Found 53 players
+2025-11-05 21:18:48 -     Found 49 players
+2025-11-05 21:18:54 -     Found 48 players
+2025-11-05 21:19:01 -     Found 48 players
+2025-11-05 21:19:09 -     Found 50 players
+2025-11-05 21:19:17 -     Found 60 players
+2025-11-05 21:19:23 -     Found 59 players
+2025-11-05 21:19:31 -     Found 54 players
+2025-11-05 21:19:36 -     Found 50 players
+2025-11-05 21:19:46 -     Found 53 players
+2025-11-05 21:19:53 -     Found 51 players
+2025-11-05 21:20:00 -     Found 57 players
+2025-11-05 21:20:04 -     Found 53 players
+2025-11-05 21:20:07 -     Found 51 players
+2025-11-05 21:20:12 -     Found 51 players
+2025-11-05 21:20:18 -     Found 52 players
+2025-11-05 21:20:23 -     Found 51 players
+2025-11-05 21:20:31 -     Found 61 players
+2025-11-05 21:20:36 -     Found 55 players
+2025-11-05 21:20:44 -     Found 51 players
+2025-11-05 21:20:49 -     Found 47 players
+2025-11-05 21:20:57 -     Found 55 players
+2025-11-05 21:21:02 -     Found 52 players
+2025-11-05 21:21:09 -     Found 47 players
+2025-11-05 21:21:15 -     Found 54 players
+2025-11-05 21:21:18 -     Found 50 players
+2025-11-05 21:21:19 -   >> Checkpoint saved: 12699 players
+2025-11-05 21:21:19 - 
+Processing 1980...
+2025-11-05 21:21:26 -     Found 59 players
+2025-11-05 21:21:33 -     Found 51 players
+2025-11-05 21:21:52 -     Found 51 players
+2025-11-05 21:22:04 -     Found 49 players
+2025-11-05 21:22:09 -     Found 53 players
+2025-11-05 21:22:13 -     Found 50 players
+2025-11-05 21:22:19 -     Found 49 players
+2025-11-05 21:22:25 -     Found 54 players
+2025-11-05 21:22:30 -     Found 61 players
+2025-11-05 21:22:36 -     Found 62 players
+2025-11-05 21:22:40 -     Found 54 players
+2025-11-05 21:22:48 -     Found 51 players
+2025-11-05 21:23:01 -     Found 57 players
+2025-11-05 21:23:07 -     Found 53 players
+2025-11-05 21:23:12 -     Found 54 players
+2025-11-05 21:23:20 -     Found 53 players
+2025-11-05 21:23:26 -     Found 54 players
+2025-11-05 21:23:29 -     Found 52 players
+2025-11-05 21:23:35 -     Found 49 players
+2025-11-05 21:23:42 -     Found 58 players
+2025-11-05 21:23:49 -     Found 69 players
+2025-11-05 21:23:54 -     Found 54 players
+2025-11-05 21:23:59 -     Found 53 players
+2025-11-05 21:24:03 -     Found 50 players
+2025-11-05 21:24:10 -     Found 61 players
+2025-11-05 21:24:14 -     Found 50 players
+2025-11-05 21:24:19 -     Found 51 players
+2025-11-05 21:24:27 -     Found 54 players
+2025-11-05 21:24:31 -     Found 52 players
+2025-11-05 21:24:32 -   >> Checkpoint saved: 14267 players
+2025-11-05 21:24:32 - 
+Processing 1981...
+2025-11-05 21:24:36 -     Found 60 players
+2025-11-05 21:24:41 -     Found 49 players
+2025-11-05 21:24:56 -     Found 50 players
+2025-11-05 21:25:06 -     Found 54 players
+2025-11-05 21:25:11 -     Found 52 players
+2025-11-05 21:25:17 -     Found 51 players
+2025-11-05 21:25:23 -     Found 48 players
+2025-11-05 21:25:29 -     Found 47 players
+2025-11-05 21:25:35 -     Found 52 players
+2025-11-05 21:25:42 -     Found 56 players
+2025-11-05 21:25:45 -     Found 51 players
+2025-11-05 21:25:49 -     Found 52 players
+2025-11-05 21:26:00 -     Found 59 players
+2025-11-05 21:26:05 -     Found 55 players
+2025-11-05 21:26:13 -     Found 54 players
+2025-11-05 21:26:17 -     Found 53 players
+2025-11-05 21:26:23 -     Found 53 players
+2025-11-05 21:26:28 -     Found 49 players
+2025-11-05 21:26:33 -     Found 54 players
+2025-11-05 21:26:39 -     Found 54 players
+2025-11-05 21:26:44 -     Found 54 players
+2025-11-05 21:26:51 -     Found 51 players
+2025-11-05 21:26:58 -     Found 53 players
+2025-11-05 21:27:04 -     Found 49 players
+2025-11-05 21:27:10 -     Found 55 players
+2025-11-05 21:27:15 -     Found 56 players
+2025-11-05 21:27:23 -     Found 50 players
+2025-11-05 21:27:28 -     Found 51 players
+2025-11-05 21:27:34 -     Found 61 players
+2025-11-05 21:27:35 -   >> Checkpoint saved: 15800 players
+2025-11-05 21:27:35 - 
+Processing 1982...
+2025-11-05 21:27:42 -     Found 56 players
+2025-11-05 21:27:45 -     Found 52 players
+2025-11-05 21:28:03 -     Found 55 players
+2025-11-05 21:28:17 -     Found 54 players
+2025-11-05 21:28:23 -     Found 52 players
+2025-11-05 21:28:26 -     Found 53 players
+2025-11-05 21:28:31 -     Found 49 players
+2025-11-05 21:28:39 -     Found 52 players
+2025-11-05 21:28:45 -     Found 57 players
+2025-11-05 21:28:49 -     Found 53 players
+2025-11-05 21:28:53 -     Found 52 players
+2025-11-05 21:29:00 -     Found 56 players
+2025-11-05 21:29:12 -     Found 56 players
+2025-11-05 21:29:15 -     Found 52 players
+2025-11-05 21:29:22 -     Found 54 players
+2025-11-05 21:29:29 -     Found 54 players
+2025-11-05 21:29:35 -     Found 53 players
+2025-11-05 21:29:40 -     Found 54 players
+2025-11-05 21:29:47 -     Found 56 players
+2025-11-05 21:29:50 -     Found 53 players
+2025-11-05 21:29:58 -     Found 54 players
+2025-11-05 21:30:06 -     Found 52 players
+2025-11-05 21:30:11 -     Found 53 players
+2025-11-05 21:30:15 -     Found 54 players
+2025-11-05 21:30:22 -     Found 56 players
+2025-11-05 21:30:26 -     Found 52 players
+2025-11-05 21:30:33 -     Found 52 players
+2025-11-05 21:30:40 -     Found 52 players
+2025-11-05 21:30:45 -     Found 52 players
+2025-11-05 21:30:46 -   >> Checkpoint saved: 17350 players
+2025-11-05 21:30:46 - 
+Processing 1983...
+2025-11-05 21:30:51 -     Found 58 players
+2025-11-05 21:30:58 -     Found 56 players
+2025-11-05 21:31:18 -     Found 58 players
+2025-11-05 21:31:32 -     Found 58 players
+2025-11-05 21:31:39 -     Found 53 players
+2025-11-05 21:31:46 -     Found 51 players
+2025-11-05 21:31:51 -     Found 53 players
+2025-11-05 21:31:56 -     Found 58 players
+2025-11-05 21:32:02 -     Found 53 players
+2025-11-05 21:32:05 -     Found 59 players
+2025-11-05 21:32:11 -     Found 60 players
+2025-11-05 21:32:14 -     Found 58 players
+2025-11-05 21:32:26 -     Found 56 players
+2025-11-05 21:32:32 -     Found 57 players
+2025-11-05 21:32:38 -     Found 57 players
+2025-11-05 21:32:45 -     Found 57 players
+2025-11-05 21:32:52 -     Found 54 players
+2025-11-05 21:32:56 -     Found 56 players
+2025-11-05 21:33:01 -     Found 59 players
+2025-11-05 21:33:06 -     Found 55 players
+2025-11-05 21:33:11 -     Found 63 players
+2025-11-05 21:33:19 -     Found 55 players
+2025-11-05 21:33:25 -     Found 55 players
+2025-11-05 21:33:31 -     Found 55 players
+2025-11-05 21:33:39 -     Found 59 players
+2025-11-05 21:33:46 -     Found 55 players
+2025-11-05 21:33:53 -     Found 62 players
+2025-11-05 21:33:57 -     Found 60 players
+2025-11-05 21:34:03 -     Found 53 players
+2025-11-05 21:34:03 -   >> Checkpoint saved: 18993 players
+2025-11-05 21:34:03 - 
+Processing 1984...
+2025-11-05 21:34:07 -     Found 58 players
+2025-11-05 21:34:13 -     Found 60 players
+2025-11-05 21:34:28 -     Found 62 players
+2025-11-05 21:34:39 -     Found 55 players
+2025-11-05 21:34:43 -     Found 55 players
+2025-11-05 21:34:50 -     Found 58 players
+2025-11-05 21:34:55 -     Found 58 players
+2025-11-05 21:35:00 -     Found 55 players
+2025-11-05 21:35:03 -     Found 57 players
+2025-11-05 21:35:09 -     Found 59 players
+2025-11-05 21:35:13 -     Found 58 players
+2025-11-05 21:35:20 -     Found 61 players
+2025-11-05 21:35:32 -     Found 56 players
+2025-11-05 21:35:37 -     Found 66 players
+2025-11-05 21:35:42 -     Found 57 players
+2025-11-05 21:35:45 -     Found 61 players
+2025-11-05 21:35:53 -     Found 56 players
+2025-11-05 21:35:58 -     Found 63 players
+2025-11-05 21:36:02 -     Found 57 players
+2025-11-05 21:36:09 -     Found 58 players
+2025-11-05 21:36:16 -     Found 51 players
+2025-11-05 21:36:22 -     Found 58 players
+2025-11-05 21:36:28 -     Found 54 players
+2025-11-05 21:36:36 -     Found 58 players
+2025-11-05 21:36:40 -     Found 57 players
+2025-11-05 21:36:48 -     Found 58 players
+2025-11-05 21:36:55 -     Found 62 players
+2025-11-05 21:37:02 -     Found 58 players
+2025-11-05 21:37:10 -     Found 63 players
+2025-11-05 21:37:11 -   >> Checkpoint saved: 20682 players
+2025-11-05 21:37:11 - 
+Processing 1985...
+2025-11-05 21:37:14 -     Found 55 players
+2025-11-05 21:37:20 -     Found 58 players
+2025-11-05 21:37:36 -     Found 57 players
+2025-11-05 21:37:45 -     Found 49 players
+2025-11-05 21:37:50 -     Found 51 players
+2025-11-05 21:37:54 -     Found 51 players
+2025-11-05 21:38:00 -     Found 52 players
+2025-11-05 21:38:07 -     Found 51 players
+2025-11-05 21:38:12 -     Found 62 players
+2025-11-05 21:38:17 -     Found 56 players
+2025-11-05 21:38:20 -     Found 51 players
+2025-11-05 21:38:28 -     Found 55 players
+2025-11-05 21:38:38 -     Found 56 players
+2025-11-05 21:38:44 -     Found 62 players
+2025-11-05 21:38:52 -     Found 54 players
+2025-11-05 21:38:56 -     Found 56 players
+2025-11-05 21:39:02 -     Found 56 players
+2025-11-05 21:39:10 -     Found 51 players
+2025-11-05 21:39:16 -     Found 50 players
+2025-11-05 21:39:20 -     Found 60 players
+2025-11-05 21:39:28 -     Found 54 players
+2025-11-05 21:39:32 -     Found 58 players
+2025-11-05 21:39:37 -     Found 55 players
+2025-11-05 21:39:42 -     Found 56 players
+2025-11-05 21:39:49 -     Found 52 players
+2025-11-05 21:39:55 -     Found 55 players
+2025-11-05 21:40:01 -     Found 58 players
+2025-11-05 21:40:05 -     Found 51 players
+2025-11-05 21:40:11 -     Found 56 players
+2025-11-05 21:40:12 -   >> Checkpoint saved: 22270 players
+2025-11-05 21:40:12 - 
+Processing 1986...
+2025-11-05 21:40:17 -     Found 59 players
+2025-11-05 21:40:20 -     Found 61 players
+2025-11-05 21:40:36 -     Found 58 players
+2025-11-05 21:40:51 -     Found 51 players
+2025-11-05 21:40:56 -     Found 49 players
+2025-11-05 21:41:02 -     Found 52 players
+2025-11-05 21:41:07 -     Found 53 players
+2025-11-05 21:41:15 -     Found 53 players
+2025-11-05 21:41:20 -     Found 56 players
+2025-11-05 21:41:26 -     Found 64 players
+2025-11-05 21:41:31 -     Found 59 players
+2025-11-05 21:41:35 -     Found 59 players
+2025-11-05 21:41:48 -     Found 55 players
+2025-11-05 21:41:53 -     Found 60 players
+2025-11-05 21:41:57 -     Found 56 players
+2025-11-05 21:42:02 -     Found 53 players
+2025-11-05 21:42:08 -     Found 59 players
+2025-11-05 21:42:16 -     Found 54 players
+2025-11-05 21:42:22 -     Found 55 players
+2025-11-05 21:42:25 -     Found 57 players
+2025-11-05 21:42:30 -     Found 52 players
+2025-11-05 21:42:35 -     Found 58 players
+2025-11-05 21:42:41 -     Found 57 players
+2025-11-05 21:42:48 -     Found 53 players
+2025-11-05 21:42:52 -     Found 58 players
+2025-11-05 21:42:57 -     Found 52 players
+2025-11-05 21:43:04 -     Found 57 players
+2025-11-05 21:43:08 -     Found 59 players
+2025-11-05 21:43:14 -     Found 59 players
+2025-11-05 21:43:15 -   >> Checkpoint saved: 23898 players
+2025-11-05 21:43:15 - 
+Processing 1987...
+2025-11-05 21:43:21 -     Found 87 players
+2025-11-05 21:43:28 -     Found 110 players
+2025-11-05 21:43:45 -     Found 108 players
+2025-11-05 21:43:58 -     Found 100 players
+2025-11-05 21:44:04 -     Found 94 players
+2025-11-05 21:44:10 -     Found 104 players
+2025-11-05 21:44:17 -     Found 92 players
+2025-11-05 21:44:24 -     Found 95 players
+2025-11-05 21:44:32 -     Found 108 players
+2025-11-05 21:44:39 -     Found 109 players
+2025-11-05 21:44:46 -     Found 100 players
+2025-11-05 21:44:51 -     Found 100 players
+2025-11-05 21:45:02 -     Found 108 players
+2025-11-05 21:45:10 -     Found 102 players
+2025-11-05 21:45:15 -     Found 98 players
+2025-11-05 21:45:19 -     Found 105 players
+2025-11-05 21:45:23 -     Found 105 players
+2025-11-05 21:45:27 -     Found 113 players
+2025-11-05 21:45:34 -     Found 100 players
+2025-11-05 21:45:39 -     Found 96 players
+2025-11-05 21:45:45 -     Found 104 players
+2025-11-05 21:45:51 -     Found 98 players
+2025-11-05 21:45:55 -     Found 111 players
+2025-11-05 21:46:03 -     Found 93 players
+2025-11-05 21:46:11 -     Found 100 players
+2025-11-05 21:46:14 -     Found 112 players
+2025-11-05 21:46:20 -     Found 109 players
+2025-11-05 21:46:25 -     Found 100 players
+2025-11-05 21:46:30 -     Found 109 players
+2025-11-05 21:46:30 -   >> Checkpoint saved: 26868 players
+2025-11-05 21:46:30 - 
+Processing 1988...
+2025-11-05 21:46:36 -     Found 59 players
+2025-11-05 21:46:39 -     Found 60 players
+2025-11-05 21:46:56 -     Found 55 players
+2025-11-05 21:47:03 -     Found 54 players
+2025-11-05 21:47:10 -     Found 56 players
+2025-11-05 21:47:18 -     Found 53 players
+2025-11-05 21:47:22 -     Found 56 players
+2025-11-05 21:47:28 -     Found 57 players
+2025-11-05 21:47:34 -     Found 60 players
+2025-11-05 21:47:39 -     Found 63 players
+2025-11-05 21:47:47 -     Found 53 players
+2025-11-05 21:47:50 -     Found 60 players
+2025-11-05 21:48:00 -     Found 63 players
+2025-11-05 21:48:05 -     Found 61 players
+2025-11-05 21:48:10 -     Found 56 players
+2025-11-05 21:48:17 -     Found 58 players
+2025-11-05 21:48:21 -     Found 57 players
+2025-11-05 21:48:27 -     Found 56 players
+2025-11-05 21:48:35 -     Found 56 players
+2025-11-05 21:48:41 -     Found 57 players
+2025-11-05 21:48:48 -     Found 58 players
+2025-11-05 21:48:55 -     Found 55 players
+2025-11-05 21:49:01 -     Found 56 players
+2025-11-05 21:49:08 -     Found 54 players
+2025-11-05 21:49:16 -     Found 58 players
+2025-11-05 21:49:23 -     Found 55 players
+2025-11-05 21:49:27 -     Found 61 players
+2025-11-05 21:49:34 -     Found 53 players
+2025-11-05 21:49:37 -     Found 61 players
+2025-11-05 21:49:38 -   >> Checkpoint saved: 28529 players
+2025-11-05 21:49:38 - 
+Processing 1989...
+2025-11-05 21:49:44 -     Found 61 players
+2025-11-05 21:49:51 -     Found 57 players
+2025-11-05 21:50:05 -     Found 55 players
+2025-11-05 21:50:15 -     Found 55 players
+2025-11-05 21:50:21 -     Found 57 players
+2025-11-05 21:50:28 -     Found 55 players
+2025-11-05 21:50:31 -     Found 65 players
+2025-11-05 21:50:36 -     Found 52 players
+2025-11-05 21:50:42 -     Found 61 players
+2025-11-05 21:50:45 -     Found 52 players
+2025-11-05 21:50:53 -     Found 51 players
+2025-11-05 21:50:57 -     Found 55 players
+2025-11-05 21:51:08 -     Found 60 players
+2025-11-05 21:51:15 -     Found 60 players
+2025-11-05 21:51:23 -     Found 56 players
+2025-11-05 21:51:28 -     Found 57 players
+2025-11-05 21:51:35 -     Found 59 players
+2025-11-05 21:51:43 -     Found 60 players
+2025-11-05 21:51:47 -     Found 63 players
+2025-11-05 21:51:51 -     Found 57 players
+2025-11-05 21:51:59 -     Found 54 players
+2025-11-05 21:52:02 -     Found 65 players
+2025-11-05 21:52:10 -     Found 59 players
+2025-11-05 21:52:14 -     Found 53 players
+2025-11-05 21:52:21 -     Found 59 players
+2025-11-05 21:52:29 -     Found 59 players
+2025-11-05 21:52:33 -     Found 55 players
+2025-11-05 21:52:37 -     Found 51 players
+2025-11-05 21:52:41 -     Found 59 players
+2025-11-05 21:52:42 -   >> Checkpoint saved: 30191 players
+2025-11-05 21:52:42 - 
+Processing 1990...
+2025-11-05 21:52:50 -     Found 55 players
+2025-11-05 21:52:54 -     Found 56 players
+2025-11-05 21:53:09 -     Found 57 players
+2025-11-05 21:53:20 -     Found 54 players
+2025-11-05 21:53:28 -     Found 52 players
+2025-11-05 21:53:32 -     Found 58 players
+2025-11-05 21:53:36 -     Found 60 players
+2025-11-05 21:53:41 -     Found 60 players
+2025-11-05 21:53:46 -     Found 56 players
+2025-11-05 21:53:51 -     Found 54 players
+2025-11-05 21:53:57 -     Found 52 players
+2025-11-05 21:54:04 -     Found 57 players
+2025-11-05 21:54:15 -     Found 54 players
+2025-11-05 21:54:20 -     Found 62 players
+2025-11-05 21:54:27 -     Found 57 players
+2025-11-05 21:54:31 -     Found 56 players
+2025-11-05 21:54:35 -     Found 59 players
+2025-11-05 21:54:41 -     Found 60 players
+2025-11-05 21:54:47 -     Found 63 players
+2025-11-05 21:54:52 -     Found 49 players
+2025-11-05 21:54:56 -     Found 53 players
+2025-11-05 21:55:01 -     Found 56 players
+2025-11-05 21:55:08 -     Found 58 players
+2025-11-05 21:55:15 -     Found 52 players
+2025-11-05 21:55:21 -     Found 55 players
+2025-11-05 21:55:28 -     Found 55 players
+2025-11-05 21:55:32 -     Found 56 players
+2025-11-05 21:55:40 -     Found 52 players
+2025-11-05 21:55:47 -     Found 61 players
+2025-11-05 21:55:48 -   >> Checkpoint saved: 31820 players
+2025-11-05 21:55:48 - 
+Processing 1991...
+2025-11-05 21:55:55 -     Found 58 players
+2025-11-05 21:55:59 -     Found 59 players
+2025-11-05 21:56:20 -     Found 56 players
+2025-11-05 21:56:33 -     Found 53 players
+2025-11-05 21:56:40 -     Found 63 players
+2025-11-05 21:56:43 -     Found 65 players
+2025-11-05 21:56:49 -     Found 56 players
+2025-11-05 21:56:53 -     Found 55 players
+2025-11-05 21:56:58 -     Found 59 players
+2025-11-05 21:57:02 -     Found 57 players
+2025-11-05 21:57:06 -     Found 53 players
+2025-11-05 21:57:14 -     Found 66 players
+2025-11-05 21:57:24 -     Found 56 players
+2025-11-05 21:57:31 -     Found 59 players
+2025-11-05 21:57:36 -     Found 61 players
+2025-11-05 21:57:43 -     Found 53 players
+2025-11-05 21:57:50 -     Found 61 players
+2025-11-05 21:57:56 -     Found 53 players
+2025-11-05 21:58:03 -     Found 57 players
+2025-11-05 21:58:10 -     Found 58 players
+2025-11-05 21:58:17 -     Found 53 players
+2025-11-05 21:58:24 -     Found 53 players
+2025-11-05 21:58:27 -     Found 54 players
+2025-11-05 21:58:32 -     Found 57 players
+2025-11-05 21:58:39 -     Found 55 players
+2025-11-05 21:58:42 -     Found 57 players
+2025-11-05 21:58:47 -     Found 56 players
+2025-11-05 21:58:53 -     Found 53 players
+2025-11-05 21:59:00 -     Found 54 players
+2025-11-05 21:59:01 -   >> Checkpoint saved: 33470 players
+2025-11-05 21:59:01 - 
+Processing 1992...
+2025-11-05 21:59:10 -     Found 58 players
+2025-11-05 21:59:14 -     Found 53 players
+2025-11-05 21:59:32 -     Found 53 players
+2025-11-05 21:59:45 -     Found 55 players
+2025-11-05 21:59:53 -     Found 58 players
+2025-11-05 21:59:58 -     Found 62 players
+2025-11-05 22:00:05 -     Found 55 players
+2025-11-05 22:00:09 -     Found 58 players
+2025-11-05 22:00:15 -     Found 62 players
+2025-11-05 22:00:19 -     Found 63 players
+2025-11-05 22:00:23 -     Found 54 players
+2025-11-05 22:00:29 -     Found 55 players
+2025-11-05 22:00:37 -     Found 60 players
+2025-11-05 22:00:44 -     Found 56 players
+2025-11-05 22:00:47 -     Found 57 players
+2025-11-05 22:00:55 -     Found 54 players
+2025-11-05 22:01:01 -     Found 59 players
+2025-11-05 22:01:08 -     Found 56 players
+2025-11-05 22:01:13 -     Found 54 players
+2025-11-05 22:01:20 -     Found 55 players
+2025-11-05 22:01:27 -     Found 58 players
+2025-11-05 22:01:34 -     Found 63 players
+2025-11-05 22:01:41 -     Found 53 players
+2025-11-05 22:01:45 -     Found 55 players
+2025-11-05 22:01:53 -     Found 58 players
+2025-11-05 22:01:56 -     Found 60 players
+2025-11-05 22:02:02 -     Found 73 players
+2025-11-05 22:02:09 -     Found 54 players
+2025-11-05 22:02:16 -     Found 64 players
+2025-11-05 22:02:17 -   >> Checkpoint saved: 35145 players
+2025-11-05 22:02:17 - 
+Processing 1993...
+2025-11-05 22:02:21 -     Found 56 players
+2025-11-05 22:02:24 -     Found 58 players
+2025-11-05 22:02:39 -     Found 56 players
+2025-11-05 22:02:52 -     Found 61 players
+2025-11-05 22:03:00 -     Found 63 players
+2025-11-05 22:03:08 -     Found 58 players
+2025-11-05 22:03:13 -     Found 59 players
+2025-11-05 22:03:20 -     Found 54 players
+2025-11-05 22:03:27 -     Found 59 players
+2025-11-05 22:03:32 -     Found 65 players
+2025-11-05 22:03:37 -     Found 60 players
+2025-11-05 22:03:45 -     Found 54 players
+2025-11-05 22:03:58 -     Found 64 players
+2025-11-05 22:04:02 -     Found 57 players
+2025-11-05 22:04:07 -     Found 63 players
+2025-11-05 22:04:12 -     Found 53 players
+2025-11-05 22:04:17 -     Found 60 players
+2025-11-05 22:04:24 -     Found 58 players
+2025-11-05 22:04:31 -     Found 60 players
+2025-11-05 22:04:38 -     Found 58 players
+2025-11-05 22:04:45 -     Found 58 players
+2025-11-05 22:04:49 -     Found 57 players
+2025-11-05 22:04:53 -     Found 62 players
+2025-11-05 22:04:58 -     Found 58 players
+2025-11-05 22:05:04 -     Found 62 players
+2025-11-05 22:05:07 -     Found 55 players
+2025-11-05 22:05:14 -     Found 62 players
+2025-11-05 22:05:19 -     Found 60 players
+2025-11-05 22:05:24 -     Found 64 players
+2025-11-05 22:05:25 -   >> Checkpoint saved: 36859 players
+2025-11-05 22:05:25 - 
+Processing 1994...
+2025-11-05 22:05:29 -     Found 60 players
+2025-11-05 22:05:34 -     Found 58 players
+2025-11-05 22:05:52 -     Found 54 players
+2025-11-05 22:06:02 -     Found 57 players
+2025-11-05 22:06:09 -     Found 63 players
+2025-11-05 22:06:16 -     Found 54 players
+2025-11-05 22:06:20 -     Found 54 players
+2025-11-05 22:06:29 -     Found 57 players
+2025-11-05 22:06:36 -     Found 50 players
+2025-11-05 22:06:40 -     Found 58 players
+2025-11-05 22:06:44 -     Found 53 players
+2025-11-05 22:06:50 -     Found 58 players
+2025-11-05 22:06:59 -     Found 64 players
+2025-11-05 22:07:04 -     Found 55 players
+2025-11-05 22:07:09 -     Found 57 players
+2025-11-05 22:07:14 -     Found 55 players
+2025-11-05 22:07:18 -     Found 62 players
+2025-11-05 22:07:23 -     Found 56 players
+2025-11-05 22:07:26 -     Found 56 players
+2025-11-05 22:07:31 -     Found 57 players
+2025-11-05 22:07:36 -     Found 54 players
+2025-11-05 22:07:40 -     Found 55 players
+2025-11-05 22:07:44 -     Found 53 players
+2025-11-05 22:07:51 -     Found 57 players
+2025-11-05 22:07:54 -     Found 58 players
+2025-11-05 22:07:58 -     Found 62 players
+2025-11-05 22:08:01 -     Found 57 players
+2025-11-05 22:08:06 -     Found 53 players
+2025-11-05 22:08:12 -     Found 60 players
+2025-11-05 22:08:13 -   >> Checkpoint saved: 38506 players
+2025-11-05 22:08:13 - 
+Processing 1995...
+2025-11-05 22:08:18 -     Found 67 players
+2025-11-05 22:08:25 -     Found 54 players
+2025-11-05 22:08:40 -     Found 56 players
+2025-11-05 22:08:48 -     Found 62 players
+2025-11-05 22:08:52 -     Found 60 players
+2025-11-05 22:08:59 -     Found 58 players
+2025-11-05 22:09:03 -     Found 58 players
+2025-11-05 22:09:10 -     Found 59 players
+2025-11-05 22:09:15 -     Found 61 players
+2025-11-05 22:09:18 -     Found 53 players
+2025-11-05 22:09:22 -     Found 58 players
+2025-11-05 22:09:29 -     Found 58 players
+2025-11-05 22:09:33 -     Found 60 players
+2025-11-05 22:09:41 -     Found 66 players
+2025-11-05 22:09:46 -     Found 53 players
+2025-11-05 22:09:53 -     Found 54 players
+2025-11-05 22:09:58 -     Found 60 players
+2025-11-05 22:10:06 -     Found 55 players
+2025-11-05 22:10:13 -     Found 57 players
+2025-11-05 22:10:20 -     Found 54 players
+2025-11-05 22:10:27 -     Found 58 players
+2025-11-05 22:10:31 -     Found 56 players
+2025-11-05 22:10:37 -     Found 53 players
+2025-11-05 22:10:43 -     Found 62 players
+2025-11-05 22:10:50 -     Found 64 players
+2025-11-05 22:10:57 -     Found 57 players
+2025-11-05 22:11:02 -     Found 62 players
+2025-11-05 22:11:10 -     Found 53 players
+2025-11-05 22:11:16 -     Found 57 players
+2025-11-05 22:11:21 -     Found 58 players
+2025-11-05 22:11:28 -     Found 59 players
+2025-11-05 22:11:29 -   >> Checkpoint saved: 40308 players
+2025-11-05 22:11:29 - 
+Processing 1996...
+2025-11-05 22:11:32 -     Found 61 players
+2025-11-05 22:11:36 -     Found 58 players
+2025-11-05 22:11:42 -     Found 58 players
+2025-11-05 22:11:48 -     Found 54 players
+2025-11-05 22:11:55 -     Found 56 players
+2025-11-05 22:12:01 -     Found 60 players
+2025-11-05 22:12:08 -     Found 57 players
+2025-11-05 22:12:21 -     Found 57 players
+2025-11-05 22:12:28 -     Found 53 players
+2025-11-05 22:12:32 -     Found 56 players
+2025-11-05 22:12:38 -     Found 62 players
+2025-11-05 22:12:42 -     Found 55 players
+2025-11-05 22:12:46 -     Found 63 players
+2025-11-05 22:12:53 -     Found 61 players
+2025-11-05 22:12:59 -     Found 55 players
+2025-11-05 22:13:03 -     Found 57 players
+2025-11-05 22:13:08 -     Found 64 players
+2025-11-05 22:13:13 -     Found 59 players
+2025-11-05 22:13:19 -     Found 58 players
+2025-11-05 22:13:23 -     Found 58 players
+2025-11-05 22:13:29 -     Found 60 players
+2025-11-05 22:13:37 -     Found 59 players
+2025-11-05 22:13:45 -     Found 56 players
+2025-11-05 22:13:53 -     Found 63 players
+2025-11-05 22:13:58 -     Found 58 players
+2025-11-05 22:14:02 -     Found 57 players
+2025-11-05 22:14:06 -     Found 59 players
+2025-11-05 22:14:13 -     Found 57 players
+2025-11-05 22:14:20 -     Found 64 players
+2025-11-05 22:14:27 -     Found 55 players
+2025-11-05 22:14:32 -     Found 58 players
+2025-11-05 22:14:34 -   >> Checkpoint saved: 42116 players
+2025-11-05 22:14:34 - 
+Processing 1997...
+2025-11-05 22:14:37 -     Found 58 players
+2025-11-05 22:14:42 -     Found 61 players
+2025-11-05 22:14:47 -     Found 57 players
+2025-11-05 22:14:51 -     Found 57 players
+2025-11-05 22:14:58 -     Found 55 players
+2025-11-05 22:15:05 -     Found 65 players
+2025-11-05 22:15:10 -     Found 59 players
+2025-11-05 22:15:24 -     Found 55 players
+2025-11-05 22:15:30 -     Found 56 players
+2025-11-05 22:15:35 -     Found 57 players
+2025-11-05 22:15:39 -     Found 61 players
+2025-11-05 22:15:47 -     Found 59 players
+2025-11-05 22:15:51 -     Found 60 players
+2025-11-05 22:15:58 -     Found 59 players
+2025-11-05 22:16:03 -     Found 62 players
+2025-11-05 22:16:07 -     Found 64 players
+2025-11-05 22:16:14 -     Found 61 players
+2025-11-05 22:16:22 -     Found 54 players
+2025-11-05 22:16:30 -     Found 59 players
+2025-11-05 22:16:37 -     Found 58 players
+2025-11-05 22:16:44 -     Found 58 players
+2025-11-05 22:16:50 -     Found 62 players
+2025-11-05 22:16:54 -     Found 57 players
+2025-11-05 22:17:01 -     Found 58 players
+2025-11-05 22:17:06 -     Found 64 players
+2025-11-05 22:17:11 -     Found 56 players
+2025-11-05 22:17:16 -     Found 56 players
+2025-11-05 22:17:23 -     Found 62 players
+2025-11-05 22:17:30 -     Found 56 players
+2025-11-05 22:17:35 -     Found 59 players
+2025-11-05 22:17:40 -     Found 61 players
+2025-11-05 22:17:41 -   >> Checkpoint saved: 43942 players
+2025-11-05 22:17:41 - 
+Processing 1998...
+2025-11-05 22:17:47 -     Found 57 players
+2025-11-05 22:17:54 -     Found 56 players
+2025-11-05 22:18:00 -     Found 57 players
+2025-11-05 22:18:06 -     Found 58 players
+2025-11-05 22:18:13 -     Found 63 players
+2025-11-05 22:18:18 -     Found 57 players
+2025-11-05 22:18:22 -     Found 65 players
+2025-11-05 22:18:31 -     Found 56 players
+2025-11-05 22:18:35 -     Found 53 players
+2025-11-05 22:18:41 -     Found 61 players
+2025-11-05 22:18:48 -     Found 62 players
+2025-11-05 22:18:52 -     Found 57 players
+2025-11-05 22:18:58 -     Found 62 players
+2025-11-05 22:19:05 -     Found 64 players
+2025-11-05 22:19:13 -     Found 61 players
+2025-11-05 22:19:17 -     Found 59 players
+2025-11-05 22:19:22 -     Found 60 players
+2025-11-05 22:19:29 -     Found 59 players
+2025-11-05 22:19:33 -     Found 59 players
+2025-11-05 22:19:40 -     Found 59 players
+2025-11-05 22:19:44 -     Found 58 players
+2025-11-05 22:19:51 -     Found 60 players
+2025-11-05 22:19:54 -     Found 56 players
+2025-11-05 22:20:02 -     Found 55 players
+2025-11-05 22:20:10 -     Found 63 players
+2025-11-05 22:20:16 -     Found 58 players
+2025-11-05 22:20:23 -     Found 59 players
+2025-11-05 22:20:28 -     Found 57 players
+2025-11-05 22:20:36 -     Found 56 players
+2025-11-05 22:20:43 -     Found 57 players
+2025-11-05 22:20:47 -     Found 67 players
+2025-11-05 22:20:48 -   >> Checkpoint saved: 45773 players
+2025-11-05 22:20:48 - 
+Processing 1999...
+2025-11-05 22:20:55 -     Found 59 players
+2025-11-05 22:21:00 -     Found 60 players
+2025-11-05 22:21:08 -     Found 57 players
+2025-11-05 22:21:13 -     Found 54 players
+2025-11-05 22:21:20 -     Found 56 players
+2025-11-05 22:21:28 -     Found 56 players
+2025-11-05 22:21:33 -     Found 61 players
+2025-11-05 22:21:41 -     Found 65 players
+2025-11-05 22:21:44 -     Found 65 players
+2025-11-05 22:21:51 -     Found 60 players
+2025-11-05 22:21:58 -     Found 63 players
+2025-11-05 22:22:04 -     Found 61 players
+2025-11-05 22:22:11 -     Found 55 players
+2025-11-05 22:22:14 -     Found 58 players
+2025-11-05 22:22:19 -     Found 57 players
+2025-11-05 22:22:26 -     Found 57 players
+2025-11-05 22:22:32 -     Found 59 players
+2025-11-05 22:22:39 -     Found 58 players
+2025-11-05 22:22:45 -     Found 54 players
+2025-11-05 22:22:49 -     Found 59 players
+2025-11-05 22:22:53 -     Found 61 players
+2025-11-05 22:22:57 -     Found 56 players
+2025-11-05 22:23:03 -     Found 60 players
+2025-11-05 22:23:06 -     Found 61 players
+2025-11-05 22:23:14 -     Found 63 players
+2025-11-05 22:23:18 -     Found 64 players
+2025-11-05 22:23:24 -     Found 56 players
+2025-11-05 22:23:31 -     Found 64 players
+2025-11-05 22:23:36 -     Found 61 players
+2025-11-05 22:23:43 -     Found 58 players
+2025-11-05 22:23:47 -     Found 55 players
+2025-11-05 22:23:51 -     Found 61 players
+2025-11-05 22:23:52 -   >> Checkpoint saved: 47667 players
+2025-11-05 22:23:52 - 
+Processing 2000...
+2025-11-05 22:23:58 -     Found 59 players
+2025-11-05 22:24:02 -     Found 61 players
+2025-11-05 22:24:08 -     Found 57 players
+2025-11-05 22:24:11 -     Found 54 players
+2025-11-05 22:24:17 -     Found 59 players
+2025-11-05 22:24:21 -     Found 60 players
+2025-11-05 22:24:29 -     Found 56 players
+2025-11-05 22:24:33 -     Found 64 players
+2025-11-05 22:24:37 -     Found 63 players
+2025-11-05 22:24:44 -     Found 60 players
+2025-11-05 22:24:50 -     Found 57 players
+2025-11-05 22:24:55 -     Found 61 players
+2025-11-05 22:25:02 -     Found 55 players
+2025-11-05 22:25:09 -     Found 54 players
+2025-11-05 22:25:15 -     Found 67 players
+2025-11-05 22:25:21 -     Found 57 players
+2025-11-05 22:25:28 -     Found 61 players
+2025-11-05 22:25:34 -     Found 58 players
+2025-11-05 22:25:41 -     Found 52 players
+2025-11-05 22:25:46 -     Found 58 players
+2025-11-05 22:25:49 -     Found 57 players
+2025-11-05 22:25:56 -     Found 66 players
+2025-11-05 22:26:04 -     Found 59 players
+2025-11-05 22:26:08 -     Found 56 players
+2025-11-05 22:26:12 -     Found 58 players
+2025-11-05 22:26:19 -     Found 53 players
+2025-11-05 22:26:25 -     Found 58 players
+2025-11-05 22:26:30 -     Found 59 players
+2025-11-05 22:26:38 -     Found 54 players
+2025-11-05 22:26:44 -     Found 54 players
+2025-11-05 22:26:49 -     Found 55 players
+2025-11-05 22:26:56 -     Found 64 players
+2025-11-05 22:26:57 -   >> Checkpoint saved: 49533 players
+2025-11-05 22:26:57 - 
+Processing 2001...
+2025-11-05 22:27:03 -     Found 58 players
+2025-11-05 22:27:10 -     Found 58 players
+2025-11-05 22:27:17 -     Found 56 players
+2025-11-05 22:27:22 -     Found 58 players
+2025-11-05 22:27:25 -     Found 62 players
+2025-11-05 22:27:29 -     Found 58 players
+2025-11-05 22:27:33 -     Found 58 players
+2025-11-05 22:27:39 -     Found 65 players
+2025-11-05 22:27:44 -     Found 63 players
+2025-11-05 22:27:52 -     Found 58 players
+2025-11-05 22:27:57 -     Found 64 players
+2025-11-05 22:28:04 -     Found 59 players
+2025-11-05 22:28:07 -     Found 60 players
+2025-11-05 22:28:12 -     Found 58 players
+2025-11-05 22:28:20 -     Found 62 players
+2025-11-05 22:28:23 -     Found 57 players
+2025-11-05 22:28:28 -     Found 58 players
+2025-11-05 22:28:35 -     Found 56 players
+2025-11-05 22:28:40 -     Found 61 players
+2025-11-05 22:28:46 -     Found 58 players
+2025-11-05 22:28:49 -     Found 60 players
+2025-11-05 22:28:54 -     Found 62 players
+2025-11-05 22:29:02 -     Found 60 players
+2025-11-05 22:29:10 -     Found 52 players
+2025-11-05 22:29:16 -     Found 55 players
+2025-11-05 22:29:21 -     Found 56 players
+2025-11-05 22:29:26 -     Found 57 players
+2025-11-05 22:29:30 -     Found 56 players
+2025-11-05 22:29:35 -     Found 56 players
+2025-11-05 22:29:40 -     Found 55 players
+2025-11-05 22:29:44 -     Found 60 players
+2025-11-05 22:29:50 -     Found 56 players
+2025-11-05 22:29:51 -   >> Checkpoint saved: 51405 players
+2025-11-05 22:29:51 - 
+2025-11-05 22:29:51 - ================================================================================
+2025-11-05 22:29:51 - SCRAPING COMPLETE
+2025-11-05 22:29:51 - ================================================================================
+2025-11-05 22:29:51 - Teams scraped: 879
+2025-11-05 22:29:51 - Players extracted: 50086
+2025-11-05 22:29:51 - Output file: data\lookups\ROSTER_lookup_historical.csv
+2025-11-06 07:39:08 - ================================================================================
+2025-11-06 07:39:08 - PRO FOOTBALL REFERENCE ROSTER SCRAPER - SIMPLE VERSION
+2025-11-06 07:39:08 - ================================================================================
+2025-11-06 07:39:08 - 
+2025-11-06 07:39:08 - Loading existing data...
+2025-11-06 07:39:08 - Found existing data through 2001
+2025-11-06 07:39:08 - Resuming from 2002...
+2025-11-06 07:39:10 - All years already scraped!
+2025-11-06 07:40:57 - ================================================================================
+2025-11-06 07:40:57 - PRO FOOTBALL REFERENCE ROSTER SCRAPER - SIMPLE VERSION
+2025-11-06 07:40:57 - ================================================================================
+2025-11-06 07:40:57 - 
+2025-11-06 07:40:57 - Loading existing data...
+2025-11-06 07:40:57 - Found existing data through 2001
+2025-11-06 07:40:57 - Resuming from 2002...
+2025-11-06 07:40:59 - Found gaps in data: [1971]
+2025-11-06 07:40:59 - Starting from first gap: 1971
+2025-11-06 07:41:01 - 
+Processing 1971...
+2025-11-06 07:41:06 -     Found 52 players
+2025-11-06 07:41:12 -     Found 50 players
+2025-11-06 07:41:28 -     Found 51 players
+2025-11-06 07:41:44 -     Found 47 players
+2025-11-06 07:41:50 -     Found 48 players
+2025-11-06 07:41:55 -     Found 44 players
+2025-11-06 07:42:01 -     Found 50 players
+2025-11-06 07:42:07 -     Found 49 players
+2025-11-06 07:42:13 -     Found 45 players
+2025-11-06 07:42:19 -     Found 48 players
+2025-11-06 07:42:24 -     Found 51 players
+2025-11-06 07:42:29 -     Found 48 players
+2025-11-06 07:42:44 -     Found 46 players
+2025-11-06 07:42:48 -     Found 48 players
+2025-11-06 07:42:51 -     Found 47 players
+2025-11-06 07:42:57 -     Found 50 players
+2025-11-06 07:43:02 -     Found 45 players
+2025-11-06 07:43:07 -     Found 48 players
+2025-11-06 07:43:12 -     Found 49 players
+2025-11-06 07:43:18 -     Found 50 players
+2025-11-06 07:43:26 -     Found 50 players
+2025-11-06 07:43:29 -     Found 49 players
+2025-11-06 07:43:36 -     Found 53 players
+2025-11-06 07:43:44 -     Found 48 players
+2025-11-06 07:43:51 -     Found 42 players
+2025-11-06 07:44:07 -     Found 51 players
+2025-11-06 07:44:13 -     Found 47 players
+2025-11-06 07:44:14 -   >> Checkpoint saved: 52611 players
+2025-11-06 07:44:14 - 
+Processing 1972...
+2025-11-06 07:44:19 -     Found 59 players
+2025-11-06 07:44:27 -     Found 46 players
+2025-11-06 07:44:42 -     Found 57 players
+2025-11-06 07:44:52 -     Found 48 players
+2025-11-06 07:44:58 -     Found 50 players
+2025-11-06 07:45:03 -     Found 51 players
+2025-11-06 07:45:08 -     Found 46 players
+2025-11-06 07:45:16 -     Found 52 players
+2025-11-06 07:45:22 -     Found 51 players
+2025-11-06 07:45:29 -     Found 49 players
+2025-11-06 07:45:35 -     Found 53 players
+2025-11-06 07:45:42 -     Found 48 players
+2025-11-06 07:45:54 -     Found 46 players
+2025-11-06 07:46:02 -     Found 51 players
+2025-11-06 07:46:08 -     Found 46 players
+2025-11-06 07:46:16 -     Found 44 players
+2025-11-06 07:46:20 -     Found 47 players
+2025-11-06 07:46:25 -     Found 45 players
+2025-11-06 07:46:32 -     Found 47 players
+2025-11-06 07:46:38 -     Found 54 players
+2025-11-06 07:46:43 -     Found 45 players
+2025-11-06 07:46:51 -     Found 46 players
+2025-11-06 07:46:58 -     Found 57 players
+2025-11-06 07:47:05 -     Found 49 players
+2025-11-06 07:47:12 -     Found 45 players
+2025-11-06 07:47:27 -     Found 53 players
+2025-11-06 07:47:31 -     Found 48 players
+2025-11-06 07:47:31 -   >> Checkpoint saved: 53944 players
+2025-11-06 07:47:31 - 
+Processing 1973...
+2025-11-06 07:47:35 -     Found 54 players
+2025-11-06 07:47:39 -     Found 49 players
+2025-11-06 07:47:54 -     Found 52 players
+2025-11-06 07:48:04 -     Found 51 players
+2025-11-06 07:48:09 -     Found 47 players
+2025-11-06 07:48:15 -     Found 46 players
+2025-11-06 07:48:21 -     Found 47 players
+2025-11-06 07:48:29 -     Found 48 players
+2025-11-06 07:48:36 -     Found 50 players
+2025-11-06 07:48:42 -     Found 52 players
+2025-11-06 07:48:46 -     Found 62 players
+2025-11-06 07:48:53 -     Found 47 players
+2025-11-06 07:49:01 -     Found 49 players
+2025-11-06 07:49:06 -     Found 49 players
+2025-11-06 07:49:09 -     Found 45 players
+2025-11-06 07:49:17 -     Found 44 players
+2025-11-06 07:49:21 -     Found 48 players
+2025-11-06 07:49:27 -     Found 47 players
+2025-11-06 07:49:32 -     Found 54 players
+2025-11-06 07:49:39 -     Found 59 players
+2025-11-06 07:49:45 -     Found 52 players
+2025-11-06 07:49:49 -     Found 49 players
+2025-11-06 07:49:53 -     Found 52 players
+2025-11-06 07:49:57 -     Found 48 players
+2025-11-06 07:50:01 -     Found 46 players
+2025-11-06 07:50:22 -     Found 62 players
+2025-11-06 07:50:30 -     Found 48 players
+2025-11-06 07:50:32 -   >> Checkpoint saved: 55301 players
+2025-11-06 07:50:32 - 
+Processing 1974...
+2025-11-06 07:50:35 -     Found 53 players
+2025-11-06 07:50:42 -     Found 49 players
+2025-11-06 07:50:58 -     Found 56 players
+2025-11-06 07:51:09 -     Found 51 players
+2025-11-06 07:51:13 -     Found 48 players
+2025-11-06 07:51:21 -     Found 52 players
+2025-11-06 07:51:25 -     Found 51 players
+2025-11-06 07:51:33 -     Found 53 players
+2025-11-06 07:51:38 -     Found 49 players
+2025-11-06 07:51:45 -     Found 54 players
+2025-11-06 07:51:49 -     Found 52 players
+2025-11-06 07:51:56 -     Found 48 players
+2025-11-06 07:52:04 -     Found 56 players
+2025-11-06 07:52:07 -     Found 56 players
+2025-11-06 07:52:15 -     Found 50 players
+2025-11-06 07:52:22 -     Found 50 players
+2025-11-06 07:52:29 -     Found 51 players
+2025-11-06 07:52:37 -     Found 50 players
+2025-11-06 07:52:42 -     Found 60 players
+2025-11-06 07:52:49 -     Found 59 players
+2025-11-06 07:52:52 -     Found 54 players
+2025-11-06 07:53:00 -     Found 51 players
+2025-11-06 07:53:03 -     Found 50 players
+2025-11-06 07:53:09 -     Found 49 players
+2025-11-06 07:53:14 -     Found 55 players
+2025-11-06 07:53:32 -     Found 52 players
+2025-11-06 07:53:37 -     Found 55 players
+2025-11-06 07:53:38 -   >> Checkpoint saved: 56715 players
+2025-11-06 07:53:38 - 
+Processing 1975...
+2025-11-06 07:53:43 -     Found 44 players
+2025-11-06 07:53:48 -     Found 48 players
+2025-11-06 07:54:04 -     Found 47 players
+2025-11-06 07:54:14 -     Found 51 players
+2025-11-06 07:54:21 -     Found 44 players
+2025-11-06 07:54:25 -     Found 48 players
+2025-11-06 07:54:29 -     Found 45 players
+2025-11-06 07:54:33 -     Found 50 players
+2025-11-06 07:54:39 -     Found 50 players
+2025-11-06 07:54:45 -     Found 52 players
+2025-11-06 07:54:53 -     Found 49 players
+2025-11-06 07:55:01 -     Found 45 players
+2025-11-06 07:55:12 -     Found 56 players
+2025-11-06 07:55:16 -     Found 56 players
+2025-11-06 07:55:23 -     Found 46 players
+2025-11-06 07:55:28 -     Found 47 players
+2025-11-06 07:55:33 -     Found 47 players
+2025-11-06 07:55:40 -     Found 47 players
+2025-11-06 07:55:44 -     Found 55 players
+2025-11-06 07:55:48 -     Found 55 players
+2025-11-06 07:55:53 -     Found 47 players
+2025-11-06 07:56:01 -     Found 49 players
+2025-11-06 07:56:04 -     Found 51 players
+2025-11-06 07:56:10 -     Found 44 players
+2025-11-06 07:56:13 -     Found 47 players
+2025-11-06 07:56:27 -     Found 49 players
+2025-11-06 07:56:34 -     Found 48 players
+2025-11-06 07:56:35 -   >> Checkpoint saved: 58032 players
+2025-11-06 07:56:35 - 
+Processing 1976...
+2025-11-06 07:56:43 -     Found 53 players
+2025-11-06 07:56:51 -     Found 56 players
+2025-11-06 07:57:05 -     Found 58 players
+2025-11-06 07:57:15 -     Found 48 players
+2025-11-06 07:57:19 -     Found 44 players
+2025-11-06 07:57:26 -     Found 46 players
+2025-11-06 07:57:31 -     Found 44 players
+2025-11-06 07:57:39 -     Found 50 players
+2025-11-06 07:57:46 -     Found 53 players
+2025-11-06 07:57:54 -     Found 51 players
+2025-11-06 07:57:59 -     Found 54 players
+2025-11-06 07:58:06 -     Found 45 players
+2025-11-06 07:58:18 -     Found 49 players
+2025-11-06 07:58:22 -     Found 49 players
+2025-11-06 07:58:25 -     Found 46 players
+2025-11-06 07:58:31 -     Found 50 players
+2025-11-06 07:58:36 -     Found 52 players
+2025-11-06 07:58:40 -     Found 48 players
+2025-11-06 07:58:47 -     Found 50 players
+2025-11-06 07:58:50 -     Found 50 players
+2025-11-06 07:58:54 -     Found 52 players
+2025-11-06 07:58:57 -     Found 53 players
+2025-11-06 07:59:00 -     Found 50 players
+2025-11-06 07:59:05 -     Found 45 players
+2025-11-06 07:59:09 -     Found 48 players
+2025-11-06 07:59:17 -     Found 53 players
+2025-11-06 07:59:23 -     Found 65 players
+2025-11-06 07:59:28 -     Found 54 players
+2025-11-06 07:59:34 -     Found 47 players
+2025-11-06 07:59:35 -   >> Checkpoint saved: 59495 players
+2025-11-06 07:59:35 - 
+Processing 1977...
+2025-11-06 07:59:39 -     Found 51 players
+2025-11-06 07:59:44 -     Found 49 players
+2025-11-06 08:00:05 -     Found 49 players
+2025-11-06 08:00:14 -     Found 50 players
+2025-11-06 08:00:20 -     Found 47 players
+2025-11-06 08:00:25 -     Found 49 players
+2025-11-06 08:00:30 -     Found 45 players
+2025-11-06 08:00:35 -     Found 50 players
+2025-11-06 08:00:39 -     Found 53 players
+2025-11-06 08:00:43 -     Found 51 players
+2025-11-06 08:00:50 -     Found 52 players
+2025-11-06 08:00:55 -     Found 50 players
+2025-11-06 08:01:05 -     Found 50 players
+2025-11-06 08:01:10 -     Found 48 players
+2025-11-06 08:01:17 -     Found 50 players
+2025-11-06 08:01:25 -     Found 51 players
+2025-11-06 08:01:31 -     Found 53 players
+2025-11-06 08:01:37 -     Found 48 players
+2025-11-06 08:01:43 -     Found 47 players
+2025-11-06 08:01:48 -     Found 52 players
+2025-11-06 08:01:54 -     Found 51 players
+2025-11-06 08:01:59 -     Found 51 players
+2025-11-06 08:02:07 -     Found 49 players
+2025-11-06 08:02:13 -     Found 50 players
+2025-11-06 08:02:19 -     Found 51 players
+2025-11-06 08:02:26 -     Found 54 players
+2025-11-06 08:02:30 -     Found 52 players
+2025-11-06 08:02:34 -     Found 52 players
+2025-11-06 08:02:37 -     Found 52 players
+2025-11-06 08:02:41 -   >> Checkpoint saved: 60952 players
+2025-11-06 08:02:41 - 
+Processing 1978...
+2025-11-06 08:02:50 -     Found 59 players
+2025-11-06 08:02:57 -     Found 53 players
+2025-11-06 08:03:11 -     Found 53 players
+2025-11-06 08:03:23 -     Found 50 players
+2025-11-06 08:03:30 -     Found 50 players
+2025-11-06 08:03:34 -     Found 50 players
+2025-11-06 08:03:39 -     Found 49 players
+2025-11-06 08:03:42 -     Found 50 players
+2025-11-06 08:03:50 -     Found 59 players
+2025-11-06 08:03:54 -     Found 50 players
+2025-11-06 08:04:00 -     Found 52 players
+2025-11-06 08:04:03 -     Found 50 players
+2025-11-06 08:04:11 -     Found 52 players
+2025-11-06 08:04:17 -     Found 52 players
+2025-11-06 08:04:24 -     Found 52 players
+2025-11-06 08:04:31 -     Found 54 players
+2025-11-06 08:04:37 -     Found 51 players
+2025-11-06 08:04:43 -     Found 50 players
+2025-11-06 08:04:49 -     Found 55 players
+2025-11-06 08:04:54 -     Found 56 players
+2025-11-06 08:05:01 -     Found 50 players
+2025-11-06 08:05:08 -     Found 53 players
+2025-11-06 08:05:13 -     Found 54 players
+2025-11-06 08:05:19 -     Found 49 players
+2025-11-06 08:05:23 -     Found 52 players
+2025-11-06 08:05:31 -     Found 49 players
+2025-11-06 08:05:36 -     Found 61 players
+2025-11-06 08:05:44 -     Found 52 players
+2025-11-06 08:05:48 -     Found 52 players
+2025-11-06 08:05:51 -   >> Checkpoint saved: 62471 players
+2025-11-06 08:05:51 - 
+Processing 1979...
+2025-11-06 08:05:55 -     Found 55 players
+2025-11-06 08:06:01 -     Found 51 players
+2025-11-06 08:06:16 -     Found 52 players
+2025-11-06 08:06:28 -     Found 53 players
+2025-11-06 08:06:33 -     Found 49 players
+2025-11-06 08:06:38 -     Found 48 players
+2025-11-06 08:06:42 -     Found 48 players
+2025-11-06 08:06:48 -     Found 50 players
+2025-11-06 08:06:53 -     Found 60 players
+2025-11-06 08:06:58 -     Found 59 players
+2025-11-06 08:07:05 -     Found 54 players
+2025-11-06 08:07:12 -     Found 50 players
+2025-11-06 08:07:21 -     Found 53 players
+2025-11-06 08:07:27 -     Found 51 players
+2025-11-06 08:07:32 -     Found 57 players
+2025-11-06 08:07:40 -     Found 53 players
+2025-11-06 08:07:43 -     Found 51 players
+2025-11-06 08:07:47 -     Found 51 players
+2025-11-06 08:07:53 -     Found 52 players
+2025-11-06 08:07:59 -     Found 51 players
+2025-11-06 08:08:06 -     Found 61 players
+2025-11-06 08:08:09 -     Found 55 players
+2025-11-06 08:08:17 -     Found 51 players
+2025-11-06 08:08:24 -     Found 47 players
+2025-11-06 08:08:30 -     Found 55 players
+2025-11-06 08:08:38 -     Found 52 players
+2025-11-06 08:08:42 -     Found 47 players
+2025-11-06 08:08:50 -     Found 54 players
+2025-11-06 08:08:58 -     Found 50 players
+2025-11-06 08:08:59 -   >> Checkpoint saved: 63991 players
+2025-11-06 08:08:59 - 
+Processing 1980...
+2025-11-06 08:09:07 -     Found 59 players
+2025-11-06 08:09:14 -     Found 51 players
+2025-11-06 08:09:31 -     Found 51 players
+2025-11-06 08:09:44 -     Found 49 players
+2025-11-06 08:09:50 -     Found 53 players
+2025-11-06 08:09:56 -     Found 50 players
+2025-11-06 08:10:03 -     Found 49 players
+2025-11-06 08:10:09 -     Found 54 players
+2025-11-06 08:10:14 -     Found 61 players
+2025-11-06 08:10:18 -     Found 62 players
+2025-11-06 08:10:22 -     Found 54 players
+2025-11-06 08:10:29 -     Found 51 players
+2025-11-06 08:10:43 -     Found 57 players
+2025-11-06 08:10:47 -     Found 53 players
+2025-11-06 08:10:54 -     Found 54 players
+2025-11-06 08:11:02 -     Found 53 players
+2025-11-06 08:11:10 -     Found 54 players
+2025-11-06 08:11:14 -     Found 52 players
+2025-11-06 08:11:21 -     Found 49 players
+2025-11-06 08:11:28 -     Found 58 players
+2025-11-06 08:11:32 -     Found 69 players
+2025-11-06 08:11:36 -     Found 54 players
+2025-11-06 08:11:43 -     Found 53 players
+2025-11-06 08:11:50 -     Found 50 players
+2025-11-06 08:11:56 -     Found 61 players
+2025-11-06 08:12:01 -     Found 50 players
+2025-11-06 08:12:05 -     Found 51 players
+2025-11-06 08:12:11 -     Found 54 players
+2025-11-06 08:12:15 -     Found 52 players
+2025-11-06 08:12:16 -   >> Checkpoint saved: 65559 players
+2025-11-06 08:12:16 - 
+Processing 1981...
+2025-11-06 08:12:19 -     Found 60 players
+2025-11-06 08:12:24 -     Found 49 players
+2025-11-06 08:12:40 -     Found 50 players
+2025-11-06 08:12:46 -     Found 54 players
+2025-11-06 08:12:52 -     Found 52 players
+2025-11-06 08:12:55 -     Found 51 players
+2025-11-06 08:13:02 -     Found 48 players
+2025-11-06 08:13:10 -     Found 47 players
+2025-11-06 08:13:14 -     Found 52 players
+2025-11-06 08:13:21 -     Found 56 players
+2025-11-06 08:13:27 -     Found 51 players
+2025-11-06 08:13:33 -     Found 52 players
+2025-11-06 08:13:45 -     Found 59 players
+2025-11-06 08:13:52 -     Found 55 players
+2025-11-06 08:13:57 -     Found 54 players
+2025-11-06 08:14:03 -     Found 53 players
+2025-11-06 08:14:10 -     Found 53 players
+2025-11-06 08:14:17 -     Found 49 players
+2025-11-06 08:14:25 -     Found 54 players
+2025-11-06 08:14:30 -     Found 54 players
+2025-11-06 08:14:36 -     Found 54 players
+2025-11-06 08:14:40 -     Found 51 players
+2025-11-06 08:14:47 -     Found 53 players
+2025-11-06 08:14:54 -     Found 49 players
+2025-11-06 08:14:59 -     Found 55 players
+2025-11-06 08:15:03 -     Found 56 players
+2025-11-06 08:15:09 -     Found 50 players
+2025-11-06 08:15:13 -     Found 51 players
+2025-11-06 08:15:21 -     Found 61 players
+2025-11-06 08:15:23 -   >> Checkpoint saved: 67092 players
+2025-11-06 08:15:23 - 
+Processing 1982...
+2025-11-06 08:15:27 -     Found 56 players
+2025-11-06 08:15:34 -     Found 52 players
+2025-11-06 08:15:54 -     Found 55 players
+2025-11-06 08:16:05 -     Found 54 players
+2025-11-06 08:16:13 -     Found 52 players
+2025-11-06 08:16:18 -     Found 53 players
+2025-11-06 08:16:26 -     Found 49 players
+2025-11-06 08:16:34 -     Found 52 players
+2025-11-06 08:16:40 -     Found 57 players
+2025-11-06 08:16:47 -     Found 53 players
+2025-11-06 08:16:54 -     Found 52 players
+2025-11-06 08:17:00 -     Found 56 players
+2025-11-06 08:17:12 -     Found 56 players
+2025-11-06 08:17:17 -     Found 52 players
+2025-11-06 08:17:23 -     Found 54 players
+2025-11-06 08:17:30 -     Found 54 players
+2025-11-06 08:17:37 -     Found 53 players
+2025-11-06 08:17:44 -     Found 54 players
+2025-11-06 08:17:51 -     Found 56 players
+2025-11-06 08:17:57 -     Found 53 players
+2025-11-06 08:18:05 -     Found 54 players
+2025-11-06 08:18:12 -     Found 52 players
+2025-11-06 08:18:16 -     Found 53 players
+2025-11-06 08:18:21 -     Found 54 players
+2025-11-06 08:18:28 -     Found 56 players
+2025-11-06 08:18:35 -     Found 52 players
+2025-11-06 08:18:43 -     Found 52 players
+2025-11-06 08:18:50 -     Found 52 players
+2025-11-06 08:18:54 -     Found 52 players
+2025-11-06 08:18:55 -   >> Checkpoint saved: 68642 players
+2025-11-06 08:18:55 - 
+Processing 1983...
+2025-11-06 08:19:00 -     Found 58 players
+2025-11-06 08:19:04 -     Found 56 players
+2025-11-06 08:19:22 -     Found 58 players
+2025-11-06 08:19:31 -     Found 58 players
+2025-11-06 08:19:34 -     Found 53 players
+2025-11-06 08:19:40 -     Found 51 players
+2025-11-06 08:19:44 -     Found 53 players
+2025-11-06 08:19:51 -     Found 58 players
+2025-11-06 08:19:55 -     Found 53 players
+2025-11-06 08:20:01 -     Found 59 players
+2025-11-06 08:20:08 -     Found 60 players
+2025-11-06 08:20:13 -     Found 58 players
+2025-11-06 08:20:21 -     Found 56 players
+2025-11-06 08:20:25 -     Found 57 players
+2025-11-06 08:20:28 -     Found 57 players
+2025-11-06 08:20:32 -     Found 57 players
+2025-11-06 08:20:37 -     Found 54 players
+2025-11-06 08:20:44 -     Found 56 players
+2025-11-06 08:20:48 -     Found 59 players
+2025-11-06 08:20:56 -     Found 55 players
+2025-11-06 08:21:01 -     Found 63 players
+2025-11-06 08:21:04 -     Found 55 players
+2025-11-06 08:21:11 -     Found 55 players
+2025-11-06 08:21:18 -     Found 55 players
+2025-11-06 08:21:23 -     Found 59 players
+2025-11-06 08:21:27 -     Found 55 players
+2025-11-06 08:21:33 -     Found 62 players
+2025-11-06 08:21:39 -     Found 60 players
+2025-11-06 08:21:44 -     Found 53 players
+2025-11-06 08:21:52 -   >> Checkpoint saved: 70285 players
+2025-11-06 08:21:52 - 
+Processing 1984...
+2025-11-06 08:21:58 -     Found 58 players
+2025-11-06 08:22:04 -     Found 60 players
+2025-11-06 08:22:25 -     Found 62 players
+2025-11-06 08:22:35 -     Found 55 players
+2025-11-06 08:22:43 -     Found 55 players
+2025-11-06 08:22:49 -     Found 58 players
+2025-11-06 08:22:56 -     Found 58 players
+2025-11-06 08:23:02 -     Found 55 players
+2025-11-06 08:23:08 -     Found 57 players
+2025-11-06 08:23:15 -     Found 59 players
+2025-11-06 08:23:22 -     Found 58 players
+2025-11-06 08:23:28 -     Found 61 players
+2025-11-06 08:23:39 -     Found 56 players
+2025-11-06 08:23:44 -     Found 66 players
+2025-11-06 08:23:50 -     Found 57 players
+2025-11-06 08:23:54 -     Found 61 players
+2025-11-06 08:24:01 -     Found 56 players
+2025-11-06 08:24:09 -     Found 63 players
+2025-11-06 08:24:12 -     Found 57 players
+2025-11-06 08:24:17 -     Found 58 players
+2025-11-06 08:24:21 -     Found 51 players
+2025-11-06 08:24:26 -     Found 58 players
+2025-11-06 08:24:30 -     Found 54 players
+2025-11-06 08:24:35 -     Found 58 players
+2025-11-06 08:24:42 -     Found 57 players
+2025-11-06 08:24:45 -     Found 58 players
+2025-11-06 08:24:52 -     Found 62 players
+2025-11-06 08:25:00 -     Found 58 players
+2025-11-06 08:25:05 -     Found 63 players
+2025-11-06 08:25:08 -   >> Checkpoint saved: 71974 players
+2025-11-06 08:25:08 - 
+Processing 1985...
+2025-11-06 08:25:16 -     Found 55 players
+2025-11-06 08:25:22 -     Found 58 players
+2025-11-06 08:25:38 -     Found 57 players
+2025-11-06 08:25:49 -     Found 49 players
+2025-11-06 08:25:58 -     Found 51 players
+2025-11-06 08:26:01 -     Found 51 players
+2025-11-06 08:26:07 -     Found 52 players
+2025-11-06 08:26:12 -     Found 51 players
+2025-11-06 08:26:19 -     Found 62 players
+2025-11-06 08:26:29 -     Found 56 players
+2025-11-06 08:26:33 -     Found 51 players
+2025-11-06 08:26:39 -     Found 55 players
+2025-11-06 08:26:48 -     Found 56 players
+2025-11-06 08:26:55 -     Found 62 players
+2025-11-06 08:27:00 -     Found 54 players
+2025-11-06 08:27:04 -     Found 56 players
+2025-11-06 08:27:11 -     Found 56 players
+2025-11-06 08:27:15 -     Found 51 players
+2025-11-06 08:27:19 -     Found 50 players
+2025-11-06 08:27:27 -     Found 60 players
+2025-11-06 08:27:31 -     Found 54 players
+2025-11-06 08:27:39 -     Found 58 players
+2025-11-06 08:27:42 -     Found 55 players
+2025-11-06 08:27:49 -     Found 56 players
+2025-11-06 08:27:56 -     Found 52 players
+2025-11-06 08:28:02 -     Found 55 players
+2025-11-06 08:28:07 -     Found 58 players
+2025-11-06 08:28:12 -     Found 51 players
+2025-11-06 08:28:17 -     Found 56 players
+2025-11-06 08:28:21 -   >> Checkpoint saved: 73562 players
+2025-11-06 08:28:21 - 
+Processing 1986...
+2025-11-06 08:28:27 -     Found 59 players
+2025-11-06 08:28:31 -     Found 61 players
+2025-11-06 08:28:50 -     Found 58 players
+2025-11-06 08:29:02 -     Found 51 players
+2025-11-06 08:29:08 -     Found 49 players
+2025-11-06 08:29:15 -     Found 52 players
+2025-11-06 08:29:23 -     Found 53 players
+2025-11-06 08:29:31 -     Found 53 players
+2025-11-06 08:29:38 -     Found 56 players
+2025-11-06 08:29:43 -     Found 64 players
+2025-11-06 08:29:49 -     Found 59 players
+2025-11-06 08:29:55 -     Found 59 players
+2025-11-06 08:30:02 -     Found 55 players
+2025-11-06 08:30:08 -     Found 60 players
+2025-11-06 08:30:13 -     Found 56 players
+2025-11-06 08:30:21 -     Found 53 players
+2025-11-06 08:30:24 -     Found 59 players
+2025-11-06 08:30:29 -     Found 54 players
+2025-11-06 08:30:32 -     Found 55 players
+2025-11-06 08:30:40 -     Found 57 players
+2025-11-06 08:30:43 -     Found 52 players
+2025-11-06 08:30:51 -     Found 58 players
+2025-11-06 08:30:55 -     Found 57 players
+2025-11-06 08:31:03 -     Found 53 players
+2025-11-06 08:31:07 -     Found 58 players
+2025-11-06 08:31:13 -     Found 52 players
+2025-11-06 08:31:21 -     Found 57 players
+2025-11-06 08:31:25 -     Found 59 players
+2025-11-06 08:31:29 -     Found 59 players
+2025-11-06 08:31:30 -   >> Checkpoint saved: 75190 players
+2025-11-06 08:31:30 - 
+Processing 1987...
+2025-11-06 08:31:36 -     Found 87 players
+2025-11-06 08:31:42 -     Found 110 players
+2025-11-06 08:32:00 -     Found 108 players
+2025-11-06 08:32:16 -     Found 100 players
+2025-11-06 08:32:19 -     Found 94 players
+2025-11-06 08:32:23 -     Found 104 players
+2025-11-06 08:32:31 -     Found 92 players
+2025-11-06 08:32:35 -     Found 95 players
+2025-11-06 08:32:38 -     Found 108 players
+2025-11-06 08:32:45 -     Found 109 players
+2025-11-06 08:32:53 -     Found 100 players
+2025-11-06 08:32:57 -     Found 100 players
+2025-11-06 08:33:11 -     Found 108 players
+2025-11-06 08:33:18 -     Found 102 players
+2025-11-06 08:33:22 -     Found 98 players
+2025-11-06 08:33:28 -     Found 105 players
+2025-11-06 08:33:33 -     Found 105 players
+2025-11-06 08:33:37 -     Found 113 players
+2025-11-06 08:33:43 -     Found 100 players
+2025-11-06 08:33:51 -     Found 96 players
+2025-11-06 08:33:55 -     Found 104 players
+2025-11-06 08:34:00 -     Found 98 players
+2025-11-06 08:34:04 -     Found 111 players
+2025-11-06 08:34:10 -     Found 93 players
+2025-11-06 08:34:18 -     Found 100 players
+2025-11-06 08:34:23 -     Found 112 players
+2025-11-06 08:34:30 -     Found 109 players
+2025-11-06 08:34:38 -     Found 100 players
+2025-11-06 08:34:45 -     Found 109 players
+2025-11-06 08:34:46 -   >> Checkpoint saved: 78160 players
+2025-11-06 08:34:46 - 
+Processing 1988...
+2025-11-06 08:34:52 -     Found 59 players
+2025-11-06 08:34:57 -     Found 60 players
+2025-11-06 08:35:08 -     Found 55 players
+2025-11-06 08:35:16 -     Found 54 players
+2025-11-06 08:35:24 -     Found 56 players
+2025-11-06 08:35:28 -     Found 53 players
+2025-11-06 08:35:32 -     Found 56 players
+2025-11-06 08:35:38 -     Found 57 players
+2025-11-06 08:35:41 -     Found 60 players
+2025-11-06 08:35:48 -     Found 63 players
+2025-11-06 08:35:53 -     Found 53 players
+2025-11-06 08:36:00 -     Found 60 players
+2025-11-06 08:36:12 -     Found 63 players
+2025-11-06 08:36:17 -     Found 61 players
+2025-11-06 08:36:21 -     Found 56 players
+2025-11-06 08:36:27 -     Found 58 players
+2025-11-06 08:36:35 -     Found 57 players
+2025-11-06 08:36:40 -     Found 56 players
+2025-11-06 08:36:45 -     Found 56 players
+2025-11-06 08:36:53 -     Found 57 players
+2025-11-06 08:36:58 -     Found 58 players
+2025-11-06 08:37:05 -     Found 55 players
+2025-11-06 08:37:11 -     Found 56 players
+2025-11-06 08:37:17 -     Found 54 players
+2025-11-06 08:37:21 -     Found 58 players
+2025-11-06 08:37:25 -     Found 55 players
+2025-11-06 08:37:30 -     Found 61 players
+2025-11-06 08:37:37 -     Found 53 players
+2025-11-06 08:37:41 -     Found 61 players
+2025-11-06 08:37:43 -   >> Checkpoint saved: 79821 players
+2025-11-06 08:37:43 - 
+Processing 1989...
+2025-11-06 08:37:50 -     Found 61 players
+2025-11-06 08:37:55 -     Found 57 players
+2025-11-06 08:38:11 -     Found 55 players
+2025-11-06 08:38:23 -     Found 55 players
+2025-11-06 08:38:27 -     Found 57 players
+2025-11-06 08:38:33 -     Found 55 players
+2025-11-06 08:38:36 -     Found 65 players
+2025-11-06 08:38:43 -     Found 52 players
+2025-11-06 08:38:50 -     Found 61 players
+2025-11-06 08:38:58 -     Found 52 players
+2025-11-06 08:39:01 -     Found 51 players
+2025-11-06 08:39:05 -     Found 55 players
+2025-11-06 08:39:16 -     Found 60 players
+2025-11-06 08:39:24 -     Found 60 players
+2025-11-06 08:39:31 -     Found 56 players
+2025-11-06 08:39:38 -     Found 57 players
+2025-11-06 08:39:43 -     Found 59 players
+2025-11-06 08:39:46 -     Found 60 players
+2025-11-06 08:39:50 -     Found 63 players
+2025-11-06 08:39:54 -     Found 57 players
+2025-11-06 08:40:02 -     Found 54 players
+2025-11-06 08:40:09 -     Found 65 players
+2025-11-06 08:40:15 -     Found 59 players
+2025-11-06 08:40:20 -     Found 53 players
+2025-11-06 08:40:24 -     Found 59 players
+2025-11-06 08:40:29 -     Found 59 players
+2025-11-06 08:40:36 -     Found 55 players
+2025-11-06 08:40:40 -     Found 51 players
+2025-11-06 08:40:47 -     Found 59 players
+2025-11-06 08:40:51 -   >> Checkpoint saved: 81483 players
+2025-11-06 08:40:51 - 
+Processing 1990...
+2025-11-06 08:40:58 -     Found 55 players
+2025-11-06 08:41:03 -     Found 56 players
+2025-11-06 08:41:20 -     Found 57 players
+2025-11-06 08:41:29 -     Found 54 players
+2025-11-06 08:41:37 -     Found 52 players
+2025-11-06 08:41:40 -     Found 58 players
+2025-11-06 08:41:44 -     Found 60 players
+2025-11-06 08:41:49 -     Found 60 players
+2025-11-06 08:41:55 -     Found 56 players
+2025-11-06 08:41:59 -     Found 54 players
+2025-11-06 08:42:06 -     Found 52 players
+2025-11-06 08:42:11 -     Found 57 players
+2025-11-06 08:42:22 -     Found 54 players
+2025-11-06 08:42:28 -     Found 62 players
+2025-11-06 08:42:32 -     Found 57 players
+2025-11-06 08:42:39 -     Found 56 players
+2025-11-06 08:42:46 -     Found 59 players
+2025-11-06 08:42:51 -     Found 60 players
+2025-11-06 08:42:56 -     Found 63 players
+2025-11-06 08:43:02 -     Found 49 players
+2025-11-06 08:43:10 -     Found 53 players
+2025-11-06 08:43:18 -     Found 56 players
+2025-11-06 08:43:25 -     Found 58 players
+2025-11-06 08:43:32 -     Found 52 players
+2025-11-06 08:43:36 -     Found 55 players
+2025-11-06 08:43:43 -     Found 55 players
+2025-11-06 08:43:51 -     Found 56 players
+2025-11-06 08:43:55 -     Found 52 players
+2025-11-06 08:43:58 -     Found 61 players
+2025-11-06 08:44:00 -   >> Checkpoint saved: 83112 players
+2025-11-06 08:44:00 - 
+Processing 1991...
+2025-11-06 08:44:06 -     Found 58 players
+2025-11-06 08:44:11 -     Found 59 players
+2025-11-06 08:44:29 -     Found 56 players
+2025-11-06 08:44:41 -     Found 53 players
+2025-11-06 08:44:45 -     Found 63 players
+2025-11-06 08:44:53 -     Found 65 players
+2025-11-06 08:44:56 -     Found 56 players
+2025-11-06 08:45:04 -     Found 55 players
+2025-11-06 08:45:12 -     Found 59 players
+2025-11-06 08:45:16 -     Found 57 players
+2025-11-06 08:45:23 -     Found 53 players
+2025-11-06 08:45:31 -     Found 66 players
+2025-11-06 08:45:40 -     Found 56 players
+2025-11-06 08:45:47 -     Found 59 players
+2025-11-06 08:45:51 -     Found 61 players
+2025-11-06 08:46:01 -     Found 53 players
+2025-11-06 08:46:08 -     Found 61 players
+2025-11-06 08:46:18 -     Found 53 players
+2025-11-06 08:46:22 -     Found 57 players
+2025-11-06 08:46:26 -     Found 58 players
+2025-11-06 08:46:33 -     Found 53 players
+2025-11-06 08:46:38 -     Found 53 players
+2025-11-06 08:46:42 -     Found 54 players
+2025-11-06 08:46:47 -     Found 57 players
+2025-11-06 08:46:52 -     Found 55 players
+2025-11-06 08:46:56 -     Found 57 players
+2025-11-06 08:47:04 -     Found 56 players
+2025-11-06 08:47:11 -     Found 53 players
+2025-11-06 08:47:16 -     Found 54 players
+2025-11-06 08:47:18 -   >> Checkpoint saved: 84762 players
+2025-11-06 08:47:18 - 
+Processing 1992...
+2025-11-06 08:47:22 -     Found 58 players
+2025-11-06 08:47:27 -     Found 53 players
+2025-11-06 08:47:45 -     Found 53 players
+2025-11-06 08:47:59 -     Found 55 players
+2025-11-06 08:48:06 -     Found 58 players
+2025-11-06 08:48:10 -     Found 62 players
+2025-11-06 08:48:17 -     Found 55 players
+2025-11-06 08:48:21 -     Found 58 players
+2025-11-06 08:48:27 -     Found 62 players
+2025-11-06 08:48:34 -     Found 63 players
+2025-11-06 08:48:39 -     Found 54 players
+2025-11-06 08:48:44 -     Found 55 players
+2025-11-06 08:48:54 -     Found 60 players
+2025-11-06 08:49:01 -     Found 56 players
+2025-11-06 08:49:08 -     Found 57 players
+2025-11-06 08:49:13 -     Found 54 players
+2025-11-06 08:49:17 -     Found 59 players
+2025-11-06 08:49:23 -     Found 56 players
+2025-11-06 08:49:28 -     Found 54 players
+2025-11-06 08:49:35 -     Found 55 players
+2025-11-06 08:49:38 -     Found 58 players
+2025-11-06 08:49:46 -     Found 63 players
+2025-11-06 08:49:50 -     Found 53 players
+2025-11-06 08:49:58 -     Found 55 players
+2025-11-06 08:50:06 -     Found 58 players
+2025-11-06 08:50:10 -     Found 60 players
+2025-11-06 08:50:15 -     Found 73 players
+2025-11-06 08:50:18 -     Found 54 players
+2025-11-06 08:50:26 -     Found 64 players
+2025-11-06 08:50:30 -   >> Checkpoint saved: 86437 players
+2025-11-06 08:50:30 - 
+Processing 1993...
+2025-11-06 08:50:38 -     Found 56 players
+2025-11-06 08:50:42 -     Found 58 players
+2025-11-06 08:51:01 -     Found 56 players
+2025-11-06 08:51:11 -     Found 61 players
+2025-11-06 08:51:16 -     Found 63 players
+2025-11-06 08:51:21 -     Found 58 players
+2025-11-06 08:51:29 -     Found 59 players
+2025-11-06 08:51:34 -     Found 54 players
+2025-11-06 08:51:41 -     Found 59 players
+2025-11-06 08:51:50 -     Found 65 players
+2025-11-06 08:51:55 -     Found 60 players
+2025-11-06 08:52:01 -     Found 54 players
+2025-11-06 08:52:10 -     Found 64 players
+2025-11-06 08:52:18 -     Found 57 players
+2025-11-06 08:52:23 -     Found 63 players
+2025-11-06 08:52:28 -     Found 53 players
+2025-11-06 08:52:32 -     Found 60 players
+2025-11-06 08:52:39 -     Found 58 players
+2025-11-06 08:52:45 -     Found 60 players
+2025-11-06 08:52:50 -     Found 58 players
+2025-11-06 08:52:57 -     Found 58 players
+2025-11-06 08:53:03 -     Found 57 players
+2025-11-06 08:53:10 -     Found 62 players
+2025-11-06 08:53:14 -     Found 58 players
+2025-11-06 08:53:20 -     Found 62 players
+2025-11-06 08:53:24 -     Found 55 players
+2025-11-06 08:53:30 -     Found 62 players
+2025-11-06 08:53:35 -     Found 60 players
+2025-11-06 08:53:41 -     Found 64 players
+2025-11-06 08:53:43 -   >> Checkpoint saved: 88151 players
+2025-11-06 08:53:43 - 
+Processing 1994...
+2025-11-06 08:53:48 -     Found 60 players
+2025-11-06 08:53:54 -     Found 58 players
+2025-11-06 08:54:12 -     Found 54 players
+2025-11-06 08:54:23 -     Found 57 players
+2025-11-06 08:54:28 -     Found 63 players
+2025-11-06 08:54:33 -     Found 54 players
+2025-11-06 08:54:37 -     Found 54 players
+2025-11-06 08:54:42 -     Found 57 players
+2025-11-06 08:54:47 -     Found 50 players
+2025-11-06 08:54:53 -     Found 58 players
+2025-11-06 08:54:58 -     Found 53 players
+2025-11-06 08:55:03 -     Found 58 players
+2025-11-06 08:55:10 -     Found 64 players
+2025-11-06 08:55:17 -     Found 55 players
+2025-11-06 08:55:23 -     Found 57 players
+2025-11-06 08:55:27 -     Found 55 players
+2025-11-06 08:55:35 -     Found 62 players
+2025-11-06 08:55:42 -     Found 56 players
+2025-11-06 08:55:50 -     Found 56 players
+2025-11-06 08:55:53 -     Found 57 players
+2025-11-06 08:55:58 -     Found 54 players
+2025-11-06 08:56:03 -     Found 55 players
+2025-11-06 08:56:07 -     Found 53 players
+2025-11-06 08:56:12 -     Found 57 players
+2025-11-06 08:56:19 -     Found 58 players
+2025-11-06 08:56:26 -     Found 62 players
+2025-11-06 08:56:30 -     Found 57 players
+2025-11-06 08:56:35 -     Found 53 players
+2025-11-06 08:56:39 -     Found 60 players
+2025-11-06 08:56:42 -   >> Checkpoint saved: 89798 players
+2025-11-06 08:56:42 - 
+Processing 1995...
+2025-11-06 08:56:46 -     Found 67 players
+2025-11-06 08:56:53 -     Found 54 players
+2025-11-06 08:57:14 -     Found 56 players
+2025-11-06 08:57:20 -     Found 62 players
+2025-11-06 08:57:24 -     Found 60 players
+2025-11-06 08:57:32 -     Found 58 players
+2025-11-06 08:57:38 -     Found 58 players
+2025-11-06 08:57:43 -     Found 59 players
+2025-11-06 08:57:50 -     Found 61 players
+2025-11-06 08:57:54 -     Found 53 players
+2025-11-06 08:57:57 -     Found 58 players
+2025-11-06 08:58:01 -     Found 58 players
+2025-11-06 08:58:06 -     Found 60 players
+2025-11-06 08:58:10 -     Found 66 players
+2025-11-06 08:58:16 -     Found 53 players
+2025-11-06 08:58:21 -     Found 54 players
+2025-11-06 08:58:30 -     Found 60 players
+2025-11-06 08:58:36 -     Found 55 players
+2025-11-06 08:58:40 -     Found 57 players
+2025-11-06 08:58:48 -     Found 54 players
+2025-11-06 08:58:57 -     Found 58 players
+2025-11-06 08:59:01 -     Found 56 players
+2025-11-06 08:59:08 -     Found 53 players
+2025-11-06 08:59:15 -     Found 62 players
+2025-11-06 08:59:20 -     Found 64 players
+2025-11-06 08:59:26 -     Found 57 players
+2025-11-06 08:59:33 -     Found 62 players
+2025-11-06 08:59:41 -     Found 53 players
+2025-11-06 08:59:47 -     Found 57 players
+2025-11-06 08:59:53 -     Found 58 players
+2025-11-06 09:00:01 -     Found 59 players
+2025-11-06 09:00:04 -   >> Checkpoint saved: 91600 players
+2025-11-06 09:00:04 - 
+Processing 1996...
+2025-11-06 09:00:09 -     Found 61 players
+2025-11-06 09:00:12 -     Found 58 players
+2025-11-06 09:00:20 -     Found 58 players
+2025-11-06 09:00:23 -     Found 54 players
+2025-11-06 09:00:28 -     Found 56 players
+2025-11-06 09:00:31 -     Found 60 players
+2025-11-06 09:00:39 -     Found 57 players
+2025-11-06 09:00:49 -     Found 57 players
+2025-11-06 09:00:57 -     Found 53 players
+2025-11-06 09:01:05 -     Found 56 players
+2025-11-06 09:01:13 -     Found 62 players
+2025-11-06 09:01:19 -     Found 55 players
+2025-11-06 09:01:25 -     Found 63 players
+2025-11-06 09:01:34 -     Found 61 players
+2025-11-06 09:01:38 -     Found 55 players
+2025-11-06 09:01:42 -     Found 57 players
+2025-11-06 09:01:50 -     Found 64 players
+2025-11-06 09:01:54 -     Found 59 players
+2025-11-06 09:02:02 -     Found 58 players
+2025-11-06 09:02:07 -     Found 58 players
+2025-11-06 09:02:12 -     Found 60 players
+2025-11-06 09:02:16 -     Found 59 players
+2025-11-06 09:02:22 -     Found 56 players
+2025-11-06 09:02:30 -     Found 63 players
+2025-11-06 09:02:35 -     Found 58 players
+2025-11-06 09:02:41 -     Found 57 players
+2025-11-06 09:02:48 -     Found 59 players
+2025-11-06 09:02:53 -     Found 57 players
+2025-11-06 09:02:59 -     Found 64 players
+2025-11-06 09:03:03 -     Found 55 players
+2025-11-06 09:03:08 -     Found 58 players
+2025-11-06 09:03:13 -   >> Checkpoint saved: 93408 players
+2025-11-06 09:03:13 - 
+Processing 1997...
+2025-11-06 09:03:19 -     Found 58 players
+2025-11-06 09:03:24 -     Found 61 players
+2025-11-06 09:03:32 -     Found 57 players
+2025-11-06 09:03:36 -     Found 57 players
+2025-11-06 09:03:43 -     Found 55 players
+2025-11-06 09:03:48 -     Found 65 players
+2025-11-06 09:03:54 -     Found 59 players
+2025-11-06 09:04:06 -     Found 55 players
+2025-11-06 09:04:11 -     Found 56 players
+2025-11-06 09:04:18 -     Found 57 players
+2025-11-06 09:04:24 -     Found 61 players
+2025-11-06 09:04:28 -     Found 59 players
+2025-11-06 09:04:35 -     Found 60 players
+2025-11-06 09:04:39 -     Found 59 players
+2025-11-06 09:04:43 -     Found 62 players
+2025-11-06 09:04:48 -     Found 64 players
+2025-11-06 09:04:55 -     Found 61 players
+2025-11-06 09:05:02 -     Found 54 players
+2025-11-06 09:05:06 -     Found 59 players
+2025-11-06 09:05:14 -     Found 58 players
+2025-11-06 09:05:19 -     Found 58 players
+2025-11-06 09:05:28 -     Found 62 players
+2025-11-06 09:05:32 -     Found 57 players
+2025-11-06 09:05:36 -     Found 58 players
+2025-11-06 09:05:40 -     Found 64 players
+2025-11-06 09:05:48 -     Found 56 players
+2025-11-06 09:05:54 -     Found 56 players
+2025-11-06 09:05:59 -     Found 62 players
+2025-11-06 09:06:06 -     Found 56 players
+2025-11-06 09:06:10 -     Found 59 players
+2025-11-06 09:06:16 -     Found 61 players
+2025-11-06 09:06:20 -   >> Checkpoint saved: 95234 players
+2025-11-06 09:06:20 - 
+Processing 1998...
+2025-11-06 09:06:24 -     Found 57 players
+2025-11-06 09:06:30 -     Found 56 players
+2025-11-06 09:06:36 -     Found 57 players
+2025-11-06 09:06:41 -     Found 58 players
+2025-11-06 09:06:46 -     Found 63 players
+2025-11-06 09:06:49 -     Found 57 players
+2025-11-06 09:06:58 -     Found 65 players
+2025-11-06 09:07:10 -     Found 56 players
+2025-11-06 09:07:16 -     Found 53 players
+2025-11-06 09:07:22 -     Found 61 players
+2025-11-06 09:07:29 -     Found 62 players
+2025-11-06 09:07:35 -     Found 57 players
+2025-11-06 09:07:39 -     Found 62 players
+2025-11-06 09:07:45 -     Found 64 players
+2025-11-06 09:07:51 -     Found 61 players
+2025-11-06 09:07:57 -     Found 59 players
+2025-11-06 09:08:04 -     Found 60 players
+2025-11-06 09:08:08 -     Found 59 players
+2025-11-06 09:08:15 -     Found 59 players
+2025-11-06 09:08:21 -     Found 59 players
+2025-11-06 09:08:28 -     Found 58 players
+2025-11-06 09:08:34 -     Found 60 players
+2025-11-06 09:08:41 -     Found 56 players
+2025-11-06 09:08:47 -     Found 55 players
+2025-11-06 09:08:54 -     Found 63 players
+2025-11-06 09:09:00 -     Found 58 players
+2025-11-06 09:09:05 -     Found 59 players
+2025-11-06 09:09:09 -     Found 57 players
+2025-11-06 09:09:14 -     Found 56 players
+2025-11-06 09:09:19 -     Found 57 players
+2025-11-06 09:09:23 -     Found 67 players
+2025-11-06 09:09:25 -   >> Checkpoint saved: 97065 players
+2025-11-06 09:09:25 - 
+Processing 1999...
+2025-11-06 09:09:31 -     Found 59 players
+2025-11-06 09:09:39 -     Found 60 players
+2025-11-06 09:09:44 -     Found 57 players
+2025-11-06 09:09:48 -     Found 54 players
+2025-11-06 09:09:51 -     Found 56 players
+2025-11-06 09:09:56 -     Found 56 players
+2025-11-06 09:10:04 -     Found 61 players
+2025-11-06 09:10:08 -     Found 65 players
+2025-11-06 09:10:13 -     Found 65 players
+2025-11-06 09:10:20 -     Found 60 players
+2025-11-06 09:10:25 -     Found 63 players
+2025-11-06 09:10:32 -     Found 61 players
+2025-11-06 09:10:35 -     Found 55 players
+2025-11-06 09:10:42 -     Found 58 players
+2025-11-06 09:10:50 -     Found 57 players
+2025-11-06 09:10:54 -     Found 57 players
+2025-11-06 09:10:58 -     Found 59 players
+2025-11-06 09:11:04 -     Found 58 players
+2025-11-06 09:11:11 -     Found 54 players
+2025-11-06 09:11:18 -     Found 59 players
+2025-11-06 09:11:22 -     Found 61 players
+2025-11-06 09:11:29 -     Found 56 players
+2025-11-06 09:11:34 -     Found 60 players
+2025-11-06 09:11:38 -     Found 61 players
+2025-11-06 09:11:46 -     Found 63 players
+2025-11-06 09:11:51 -     Found 64 players
+2025-11-06 09:11:55 -     Found 56 players
+2025-11-06 09:12:11 -     Found 64 players
+2025-11-06 09:12:17 -     Found 61 players
+2025-11-06 09:12:25 -     Found 58 players
+2025-11-06 09:12:30 -     Found 55 players
+2025-11-06 09:12:37 -     Found 61 players
+2025-11-06 09:12:40 -   >> Checkpoint saved: 98959 players
+2025-11-06 09:12:40 - 
+Processing 2000...
+2025-11-06 09:12:46 -     Found 59 players
+2025-11-06 09:12:53 -     Found 61 players
+2025-11-06 09:13:00 -     Found 57 players
+2025-11-06 09:13:07 -     Found 54 players
+2025-11-06 09:13:11 -     Found 59 players
+2025-11-06 09:13:18 -     Found 60 players
+2025-11-06 09:13:22 -     Found 56 players
+2025-11-06 09:13:26 -     Found 64 players
+2025-11-06 09:13:30 -     Found 63 players
+2025-11-06 09:13:34 -     Found 60 players
+2025-11-06 09:13:38 -     Found 57 players
+2025-11-06 09:13:42 -     Found 61 players
+2025-11-06 09:13:50 -     Found 55 players
+2025-11-06 09:13:55 -     Found 54 players
+2025-11-06 09:14:02 -     Found 67 players
+2025-11-06 09:14:09 -     Found 57 players
+2025-11-06 09:14:13 -     Found 61 players
+2025-11-06 09:14:20 -     Found 58 players
+2025-11-06 09:14:24 -     Found 52 players
+2025-11-06 09:14:31 -     Found 58 players
+2025-11-06 09:14:35 -     Found 57 players
+2025-11-06 09:14:40 -     Found 66 players
+2025-11-06 09:14:46 -     Found 59 players
+2025-11-06 09:14:54 -     Found 56 players
+2025-11-06 09:14:58 -     Found 58 players
+2025-11-06 09:15:05 -     Found 53 players
+2025-11-06 09:15:08 -     Found 58 players
+2025-11-06 09:15:13 -     Found 59 players
+2025-11-06 09:15:21 -     Found 54 players
+2025-11-06 09:15:29 -     Found 54 players
+2025-11-06 09:15:34 -     Found 55 players
+2025-11-06 09:15:38 -     Found 64 players
+2025-11-06 09:15:41 -   >> Checkpoint saved: 100825 players
+2025-11-06 09:15:41 - 
+Processing 2001...
+2025-11-06 09:15:47 -     Found 58 players
+2025-11-06 09:15:52 -     Found 58 players
+2025-11-06 09:15:59 -     Found 56 players
+2025-11-06 09:16:06 -     Found 58 players
+2025-11-06 09:16:09 -     Found 62 players
+2025-11-06 09:16:14 -     Found 58 players
+2025-11-06 09:16:21 -     Found 58 players
+2025-11-06 09:16:27 -     Found 65 players
+2025-11-06 09:16:32 -     Found 63 players
+2025-11-06 09:16:35 -     Found 58 players
+2025-11-06 09:16:42 -     Found 64 players
+2025-11-06 09:16:49 -     Found 59 players
+2025-11-06 09:16:53 -     Found 60 players
+2025-11-06 09:16:57 -     Found 58 players
+2025-11-06 09:17:00 -     Found 62 players
+2025-11-06 09:17:06 -     Found 57 players
+2025-11-06 09:17:14 -     Found 58 players
+2025-11-06 09:17:18 -     Found 56 players
+2025-11-06 09:17:23 -     Found 61 players
+2025-11-06 09:17:30 -     Found 58 players
+2025-11-06 09:17:37 -     Found 60 players
+2025-11-06 09:17:40 -     Found 62 players
+2025-11-06 09:17:45 -     Found 60 players
+2025-11-06 09:17:49 -     Found 52 players
+2025-11-06 09:17:55 -     Found 55 players
+2025-11-06 09:18:02 -     Found 56 players
+2025-11-06 09:18:09 -     Found 57 players
+2025-11-06 09:18:15 -     Found 56 players
+2025-11-06 09:18:20 -     Found 56 players
+2025-11-06 09:18:26 -     Found 55 players
+2025-11-06 09:18:32 -     Found 60 players
+2025-11-06 09:18:36 -     Found 56 players
+2025-11-06 09:18:38 -   >> Checkpoint saved: 102697 players
+2025-11-06 09:18:38 - 
+2025-11-06 09:18:38 - ================================================================================
+2025-11-06 09:18:38 - SCRAPING COMPLETE
+2025-11-06 09:18:38 - ================================================================================
+2025-11-06 09:18:38 - Teams scraped: 906
+2025-11-06 09:18:38 - Players extracted: 51392
+2025-11-06 09:18:38 - Output file: data\lookups\ROSTER_lookup_historical.csv

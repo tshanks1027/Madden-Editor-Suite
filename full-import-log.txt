@@ -1,0 +1,559 @@
+================================================================================
+MADDEN RATINGS IMPORT TOOL
+================================================================================
+
+Years to import: 2002, 2007, 2008, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2022
+Target file: C:\Users\tshan\Documents\Dev\madden-editor-suite\data\lookups\ROSTER_lookup.csv
+[OK] Backup created: ROSTER_lookup_BACKUP_20251108_124408.csv
+
+================================================================================
+VALIDATION PHASE
+================================================================================
+
+[CHECK] Validating 2002...
+  [OK] File found: 2002 Rosters.xlsx
+       Columns: 32, Sample rows: 5
+
+[CHECK] Validating 2007...
+  [OK] Directory found: 2007
+       Team files: 32
+
+[CHECK] Validating 2008...
+  [OK] Directory found: 2008
+       Team files: 32
+
+[CHECK] Validating 2013...
+  [OK] File found: 2013 Roster.xlsx
+       Columns: 49, Sample rows: 5
+
+[CHECK] Validating 2014...
+  [OK] File found: 2014 Rosters.xlsx
+       Columns: 58, Sample rows: 5
+
+[CHECK] Validating 2015...
+  [OK] File found: 2015 Roster.xlsx
+       Columns: 49, Sample rows: 5
+
+[CHECK] Validating 2016...
+  [OK] File found: 2016 Rosters.xlsx
+       Columns: 51, Sample rows: 5
+
+[CHECK] Validating 2017...
+  [OK] File found: 2017 Rosters.xlsx
+       Columns: 49, Sample rows: 5
+
+[CHECK] Validating 2018...
+  [OK] File found: 2018 Rosters.xlsx
+       Columns: 66, Sample rows: 5
+
+[CHECK] Validating 2019...
+  [OK] File found: 2019 Rosters.xlsx
+       Columns: 67, Sample rows: 5
+
+[CHECK] Validating 2020...
+  [OK] File found: 2020 Rosters.xlsx
+       Columns: 69, Sample rows: 5
+
+[CHECK] Validating 2022...
+  [OK] File found: 2022 Rosters.xlsx
+       Columns: 70, Sample rows: 5
+
+[STATS] Validation Summary: 12/12 years valid
+[INFO] Report saved to: C:\Users\tshan\Documents\Dev\madden-editor-suite\import_validation_report.txt
+
+================================================================================
+DRY-RUN PHASE
+================================================================================
+
+[IMPORT] Processing 2002...
+  [OK] Imported 1848 players from 32 teams
+
+[IMPORT] Processing 2007...
+  [WARNING] Year 2007, Team Arizona Cardinals: Skipped 54 rows
+  [WARNING] Year 2007, Team Atlanta Falcons: Skipped 54 rows
+  [WARNING] Year 2007, Team Baltimore Ravens: Skipped 54 rows
+  [WARNING] Year 2007, Team Buffalo Bills: Skipped 54 rows
+  [WARNING] Year 2007, Team Carolina Panthers: Skipped 54 rows
+  [WARNING] Year 2007, Team Chicago Bears: Skipped 54 rows
+  [WARNING] Year 2007, Team Cincinnati Bengals: Skipped 54 rows
+  [WARNING] Year 2007, Team Cleveland Browns: Skipped 54 rows
+  [WARNING] Year 2007, Team Dallas Cowboys: Skipped 54 rows
+  [WARNING] Year 2007, Team Denver Broncos: Skipped 54 rows
+  [WARNING] Year 2007, Team Detroit Lions: Skipped 54 rows
+  [WARNING] Year 2007, Team Green Bay Packers: Skipped 54 rows
+  [WARNING] Year 2007, Team Houston Texans: Skipped 54 rows
+  [WARNING] Year 2007, Team Indianapolis Colts: Skipped 54 rows
+  [WARNING] Year 2007, Team Jacksonville Jaguars: Skipped 54 rows
+  [WARNING] Year 2007, Team Kansas City Chiefs: Skipped 54 rows
+  [WARNING] Year 2007, Team Miami Dolphins: Skipped 54 rows
+  [WARNING] Year 2007, Team Minnesota Vikings: Skipped 54 rows
+  [WARNING] Year 2007, Team New England Patriots: Skipped 54 rows
+  [WARNING] Year 2007, Team New Orleans Saints: Skipped 54 rows
+  [WARNING] Year 2007, Team New York Giants: Skipped 54 rows
+  [WARNING] Year 2007, Team New York Jets: Skipped 54 rows
+  [WARNING] Year 2007, Team Oakland Raiders: Skipped 54 rows
+  [WARNING] Year 2007, Team Philadelphia Eagles: Skipped 54 rows
+  [WARNING] Year 2007, Team Pittsburgh Steelers: Skipped 54 rows
+  [WARNING] Year 2007, Team San Diego Chargers: Skipped 54 rows
+  [WARNING] Year 2007, Team San Francisco 49Ers: Skipped 54 rows
+  [WARNING] Year 2007, Team Seattle Seahawks: Skipped 54 rows
+  [WARNING] Year 2007, Team St. Louis Rams: Skipped 54 rows
+  [WARNING] Year 2007, Team Tampa Bay Buccaneers: Skipped 54 rows
+  [WARNING] Year 2007, Team Tennessee Titans: Skipped 53 rows
+  [WARNING] Year 2007, Team Washington Redskins: Skipped 54 rows
+  [ERROR] No data imported for 2007
+
+[IMPORT] Processing 2008...
+  [WARNING] Year 2008, Team Arizona Cardinals: Skipped 53 rows
+  [WARNING] Year 2008, Team Atlanta Falcons: Skipped 54 rows
+  [WARNING] Year 2008, Team Baltimore Ravens: Skipped 54 rows
+  [WARNING] Year 2008, Team Buffalo Bills: Skipped 54 rows
+  [WARNING] Year 2008, Team Carolina Panthers: Skipped 54 rows
+  [WARNING] Year 2008, Team Chicago Bears: Skipped 54 rows
+  [WARNING] Year 2008, Team Cincinnati Bengals: Skipped 54 rows
+  [WARNING] Year 2008, Team Cleveland Browns: Skipped 53 rows
+  [WARNING] Year 2008, Team Dallas Cowboys: Skipped 54 rows
+  [WARNING] Year 2008, Team Denver Broncos: Skipped 54 rows
+  [WARNING] Year 2008, Team Detroit Lions: Skipped 54 rows
+  [WARNING] Year 2008, Team Green Bay Packers: Skipped 54 rows
+  [WARNING] Year 2008, Team Houston Texans: Skipped 54 rows
+  [WARNING] Year 2008, Team Indianapolis Colts: Skipped 53 rows
+  [WARNING] Year 2008, Team Jacksonville Jaguars: Skipped 54 rows
+  [WARNING] Year 2008, Team Kansas City Chiefs: Skipped 54 rows
+  [WARNING] Year 2008, Team Miami Dolphins: Skipped 52 rows
+  [WARNING] Year 2008, Team Minnesota Vikings: Skipped 54 rows
+  [WARNING] Year 2008, Team New England Patriots: Skipped 54 rows
+  [WARNING] Year 2008, Team New Orleans Saints: Skipped 54 rows
+  [WARNING] Year 2008, Team New York Giants: Skipped 54 rows
+  [WARNING] Year 2008, Team New York Jets: Skipped 54 rows
+  [WARNING] Year 2008, Team Oakland Raiders: Skipped 54 rows
+  [WARNING] Year 2008, Team Philadelphia Eagles: Skipped 53 rows
+  [WARNING] Year 2008, Team Pittsburgh Steelers: Skipped 54 rows
+  [WARNING] Year 2008, Team San Diego Chargers: Skipped 54 rows
+  [WARNING] Year 2008, Team San Francisco 49Ers: Skipped 54 rows
+  [WARNING] Year 2008, Team Seattle Seahawks: Skipped 53 rows
+  [WARNING] Year 2008, Team St. Louis Rams: Skipped 54 rows
+  [WARNING] Year 2008, Team Tampa Bay Buccaneers: Skipped 54 rows
+  [WARNING] Year 2008, Team Tennessee Titans: Skipped 54 rows
+  [WARNING] Year 2008, Team Washington Redskins: Skipped 54 rows
+  [ERROR] No data imported for 2008
+
+[IMPORT] Processing 2013...
+  [OK] Imported 2367 players from 32 teams
+
+[IMPORT] Processing 2014...
+  [OK] Imported 2243 players from 32 teams
+
+[IMPORT] Processing 2015...
+  [OK] Imported 2219 players from 32 teams
+
+[IMPORT] Processing 2016...
+  [OK] Imported 2326 players from 32 teams
+
+[IMPORT] Processing 2017...
+  [OK] Imported 2363 players from 32 teams
+
+[IMPORT] Processing 2018...
+  [OK] Imported 2342 players from 32 teams
+
+[IMPORT] Processing 2019...
+  [OK] Imported 2368 players from 32 teams
+
+[IMPORT] Processing 2020...
+  [OK] Imported 2344 players from 32 teams
+
+[IMPORT] Processing 2022...
+  [OK] Imported 2006 players from 32 teams
+
+[CHECK] Checking for duplicates...
+  [OK] No duplicates found
+
+[STATS] Dry-Run Summary:
+  Existing rows: 75881
+  New rows: 22426
+  Total rows: 98307
+
+[INFO] Preview saved to: C:\Users\tshan\Documents\Dev\madden-editor-suite\data\lookups\ROSTER_lookup_PREVIEW.csv
+
+================================================================================
+DETAILED STATISTICS
+================================================================================
+
+[YEAR] 2002:
+  Total players: 1848
+  Teams: 32
+  Team breakdown:
+    2002 Free Agents: 226 players
+    49ers: 51 players
+    Bears: 53 players
+    Bengals: 53 players
+    Bills: 53 players
+    Broncos: 53 players
+    Browns: 53 players
+    Buccaneers: 53 players
+    Cardinals: 53 players
+    Chargers: 51 players
+    Chiefs: 53 players
+    Colts: 50 players
+    Cowboys: 52 players
+    Dolphins: 52 players
+    Eagles: 53 players
+    Falcons: 53 players
+    Giants: 51 players
+    Jaguars: 53 players
+    Jets: 53 players
+    Lions: 53 players
+    Packers: 53 players
+    Panthers: 52 players
+    Patriots: 53 players
+    Raiders: 53 players
+    Rams: 53 players
+    Ravens: 47 players
+    Redskins: 50 players
+    Saints: 53 players
+    Seahawks: 53 players
+    Steelers: 53 players
+    Titans: 53 players
+    Vikings: 53 players
+
+[YEAR] 2013:
+  Total players: 2367
+  Teams: 32
+  Team breakdown:
+    49ers: 73 players
+    Bears: 74 players
+    Bengals: 74 players
+    Bills: 74 players
+    Broncos: 74 players
+    Browns: 74 players
+    Buccaneers: 74 players
+    Cardinals: 74 players
+    Chargers: 74 players
+    Chiefs: 74 players
+    Colts: 74 players
+    Cowboys: 74 players
+    Dolphins: 74 players
+    Eagles: 74 players
+    Falcons: 74 players
+    Giants: 74 players
+    Jaguars: 74 players
+    Jets: 74 players
+    Lions: 74 players
+    Packers: 74 players
+    Panthers: 74 players
+    Patriots: 74 players
+    Raiders: 74 players
+    Rams: 74 players
+    Ravens: 74 players
+    Redskins: 74 players
+    Saints: 74 players
+    Seahawks: 74 players
+    Steelers: 74 players
+    Texans: 74 players
+    Titans: 74 players
+    Vikings: 74 players
+
+[YEAR] 2014:
+  Total players: 2243
+  Teams: 32
+  Team breakdown:
+    49ers: 72 players
+    Bears: 73 players
+    Bengals: 72 players
+    Bills: 74 players
+    Broncos: 68 players
+    Browns: 70 players
+    Buccaneers: 72 players
+    Cardinals: 67 players
+    Chargers: 68 players
+    Chiefs: 64 players
+    Colts: 74 players
+    Cowboys: 69 players
+    Dolphins: 72 players
+    Eagles: 73 players
+    Falcons: 66 players
+    Giants: 74 players
+    Jaguars: 68 players
+    Jets: 68 players
+    Lions: 73 players
+    Packers: 67 players
+    Panthers: 68 players
+    Patriots: 66 players
+    Raiders: 69 players
+    Rams: 63 players
+    Ravens: 71 players
+    Redskins: 74 players
+    Saints: 74 players
+    Seahawks: 73 players
+    Steelers: 73 players
+    Texans: 67 players
+    Titans: 74 players
+    Vikings: 67 players
+
+[YEAR] 2015:
+  Total players: 2219
+  Teams: 32
+  Team breakdown:
+    49ers: 73 players
+    Bears: 72 players
+    Bengals: 73 players
+    Bills: 69 players
+    Broncos: 70 players
+    Browns: 68 players
+    Buccaneers: 69 players
+    Cardinals: 66 players
+    Chargers: 67 players
+    Chiefs: 68 players
+    Colts: 72 players
+    Cowboys: 69 players
+    Dolphins: 68 players
+    Eagles: 70 players
+    Falcons: 65 players
+    Giants: 70 players
+    Jaguars: 70 players
+    Jets: 73 players
+    Lions: 67 players
+    Packers: 67 players
+    Panthers: 69 players
+    Patriots: 69 players
+    Raiders: 72 players
+    Rams: 66 players
+    Ravens: 68 players
+    Redskins: 74 players
+    Saints: 70 players
+    Seahawks: 69 players
+    Steelers: 71 players
+    Texans: 65 players
+    Titans: 67 players
+    Vikings: 73 players
+
+[YEAR] 2016:
+  Total players: 2326
+  Teams: 32
+  Team breakdown:
+    49ers: 72 players
+    Bears: 72 players
+    Bengals: 74 players
+    Bills: 73 players
+    Broncos: 75 players
+    Browns: 74 players
+    Buccaneers: 73 players
+    Cardinals: 74 players
+    Chargers: 70 players
+    Chiefs: 72 players
+    Colts: 72 players
+    Cowboys: 74 players
+    Dolphins: 73 players
+    Eagles: 72 players
+    Falcons: 72 players
+    Giants: 73 players
+    Jaguars: 73 players
+    Jets: 73 players
+    Lions: 75 players
+    Packers: 70 players
+    Panthers: 73 players
+    Patriots: 75 players
+    Raiders: 71 players
+    Rams: 70 players
+    Ravens: 73 players
+    Redskins: 73 players
+    Saints: 74 players
+    Seahawks: 72 players
+    Steelers: 72 players
+    Texans: 71 players
+    Titans: 73 players
+    Vikings: 73 players
+
+[YEAR] 2017:
+  Total players: 2363
+  Teams: 32
+  Team breakdown:
+    49ers: 74 players
+    Bears: 74 players
+    Bengals: 74 players
+    Bills: 74 players
+    Broncos: 74 players
+    Browns: 74 players
+    Buccaneers: 74 players
+    Cardinals: 74 players
+    Chargers: 74 players
+    Chiefs: 74 players
+    Colts: 74 players
+    Cowboys: 74 players
+    Dolphins: 74 players
+    Eagles: 74 players
+    Falcons: 74 players
+    Giants: 74 players
+    Jaguars: 74 players
+    Jets: 74 players
+    Lions: 74 players
+    Packers: 74 players
+    Panthers: 74 players
+    Patriots: 74 players
+    Raiders: 73 players
+    Rams: 73 players
+    Ravens: 74 players
+    Redskins: 74 players
+    Saints: 74 players
+    Seahawks: 73 players
+    Steelers: 72 players
+    Texans: 74 players
+    Titans: 74 players
+    Vikings: 74 players
+
+[YEAR] 2018:
+  Total players: 2342
+  Teams: 32
+  Team breakdown:
+    49ers: 73 players
+    Bears: 74 players
+    Bengals: 74 players
+    Bills: 72 players
+    Broncos: 70 players
+    Browns: 74 players
+    Buccaneers: 74 players
+    Cardinals: 69 players
+    Chargers: 73 players
+    Chiefs: 74 players
+    Colts: 74 players
+    Cowboys: 74 players
+    Dolphins: 73 players
+    Eagles: 74 players
+    Falcons: 71 players
+    Giants: 73 players
+    Jaguars: 74 players
+    Jets: 74 players
+    Lions: 73 players
+    Packers: 73 players
+    Panthers: 74 players
+    Patriots: 74 players
+    Raiders: 74 players
+    Rams: 71 players
+    Ravens: 74 players
+    Redskins: 74 players
+    Saints: 72 players
+    Seahawks: 74 players
+    Steelers: 73 players
+    Texans: 74 players
+    Titans: 74 players
+    Vikings: 74 players
+
+[YEAR] 2019:
+  Total players: 2368
+  Teams: 32
+  Team breakdown:
+    49ers: 74 players
+    Bears: 74 players
+    Bengals: 74 players
+    Bills: 74 players
+    Broncos: 74 players
+    Browns: 74 players
+    Buccaneers: 74 players
+    Cardinals: 74 players
+    Chargers: 74 players
+    Chiefs: 74 players
+    Colts: 74 players
+    Cowboys: 74 players
+    Dolphins: 74 players
+    Eagles: 74 players
+    Falcons: 74 players
+    Giants: 74 players
+    Jaguars: 74 players
+    Jets: 74 players
+    Lions: 74 players
+    Packers: 74 players
+    Panthers: 74 players
+    Patriots: 74 players
+    Raiders: 74 players
+    Rams: 74 players
+    Ravens: 74 players
+    Redskins: 74 players
+    Saints: 74 players
+    Seahawks: 74 players
+    Steelers: 74 players
+    Texans: 74 players
+    Titans: 74 players
+    Vikings: 74 players
+
+[YEAR] 2020:
+  Total players: 2344
+  Teams: 32
+  Team breakdown:
+    Bears: 71 players
+    Bengals: 74 players
+    Bills: 74 players
+    Broncos: 72 players
+    Browns: 72 players
+    Buccaneers: 74 players
+    Cardinals: 74 players
+    Chiefs: 72 players
+    Colts: 74 players
+    Cowboys: 74 players
+    Dolphins: 73 players
+    Eagles: 74 players
+    Falcons: 72 players
+    Giants: 74 players
+    Jaguars: 72 players
+    Jets: 74 players
+    Lions: 74 players
+    Los Angeles Chargers: 71 players
+    Los Angeles Rams: 71 players
+    Packers: 74 players
+    Panthers: 74 players
+    Patriots: 74 players
+    Raiders: 74 players
+    Ravens: 73 players
+    Redskins: 73 players
+    Saints: 74 players
+    San Francisco 49ers: 74 players
+    Seahawks: 74 players
+    Steelers: 72 players
+    Texans: 74 players
+    Titans: 74 players
+    Vikings: 74 players
+
+[YEAR] 2022:
+  Total players: 2006
+  Teams: 32
+  Team breakdown:
+    49ers: 61 players
+    Bears: 61 players
+    Bengals: 63 players
+    Bills: 58 players
+    Broncos: 65 players
+    Browns: 60 players
+    Buccaneers: 56 players
+    Cardinals: 60 players
+    Chargers: 58 players
+    Chiefs: 57 players
+    Colts: 59 players
+    Cowboys: 63 players
+    Dolphins: 65 players
+    Eagles: 62 players
+    Falcons: 61 players
+    Football Team: 68 players
+    Giants: 70 players
+    Jaguars: 62 players
+    Jets: 66 players
+    Lions: 70 players
+    Packers: 60 players
+    Panthers: 63 players
+    Patriots: 65 players
+    Raiders: 64 players
+    Rams: 63 players
+    Ravens: 69 players
+    Saints: 63 players
+    Seahawks: 61 players
+    Steelers: 62 players
+    Texans: 61 players
+    Titans: 68 players
+    Vikings: 62 players
+
+================================================================================
+IMPORT PHASE
+================================================================================
+[OK] Import complete! ROSTER_lookup.csv updated.
+
+[SUCCESS] Data imported successfully.
+   Backup location: C:\Users\tshan\Documents\Dev\madden-editor-suite\data\lookups
+   [WARNING] Some rows were skipped. Check: C:\Users\tshan\Documents\Dev\madden-editor-suite\import_errors.log

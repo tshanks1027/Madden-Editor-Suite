@@ -102,7 +102,9 @@ export function registerRatingHandlers(): void {
     'rating:get-archetype-name',
     async (_event, id: number, position: string): Promise<string> => {
       try {
-        return ArchetypeService.getArchetypeName(id, position);
+        const name = ArchetypeService.getArchetypeName(id, position);
+        console.log(`[RatingHandlers] getArchetypeName(${id}, ${position}) = "${name}"`);
+        return name;
       } catch (error: any) {
         console.error('[RatingHandlers] Error getting archetype name:', error);
         return 'Unknown';

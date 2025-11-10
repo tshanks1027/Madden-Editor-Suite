@@ -1,0 +1,57 @@
+{
+  "position_group": "K",
+  "n_archetypes": 3,
+  "archetypes": [
+    {
+      "cluster_id": 0,
+      "n_players": 245,
+      "mean_ovr": 75.30204081632652,
+      "mean_stats": {
+        "PKPW": 0.0,
+        "PKAC": 0.0,
+        "POVR": 75.30204081632652
+      },
+      "representative": {
+        "name": " ",
+        "year": 0,
+        "ovr": 91
+      }
+    },
+    {
+      "cluster_id": 1,
+      "n_players": 388,
+      "mean_ovr": 69.16237113402062,
+      "mean_stats": {
+        "PKPW": 91.12628865979381,
+        "PKAC": 76.69587628865979,
+        "POVR": 69.16237113402062
+      },
+      "representative": {
+        "name": " ",
+        "year": 0,
+        "ovr": 57
+      }
+    },
+    {
+      "cluster_id": 2,
+      "n_players": 973,
+      "mean_ovr": 81.01438848920863,
+      "mean_stats": {
+        "PKPW": 91.224049331963,
+        "PKAC": 88.77183967112025,
+        "POVR": 81.01438848920863
+      },
+      "representative": {
+        "name": " ",
+        "year": 0,
+        "ovr": 89
+      }
+    }
+  ],
+  "performance": {
+    "mae_train": 6.310048352390039,
+    "mae_test": 6.7196034033109795,
+    "r2_train": 0.3289848783626689,
+    "r2_test": 0.17557044674679168
+  }
+}

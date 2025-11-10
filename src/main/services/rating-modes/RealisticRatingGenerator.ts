@@ -109,9 +109,10 @@ export class RealisticRatingGenerator implements IRatingGenerator {
         tierPath = path.join(appPath, 'services', 'rating-modes', 'data', 'rowdy-randy-tiers.json');
         weightPath = path.join(appPath, 'services', 'rating-modes', 'data', 'position-attribute-weights.json');
       } else {
-        // In dev mode, __dirname is .vite/build/, so we need the full relative path
-        tierPath = path.join(__dirname, 'services', 'rating-modes', 'data', 'rowdy-randy-tiers.json');
-        weightPath = path.join(__dirname, 'services', 'rating-modes', 'data', 'position-attribute-weights.json');
+        // In dev mode, compiled files are in .vite/build/services/rating-modes/
+        // __dirname is already at .vite/build/services/rating-modes/, so just use data/ subdirectory
+        tierPath = path.join(__dirname, 'data', 'rowdy-randy-tiers.json');
+        weightPath = path.join(__dirname, 'data', 'position-attribute-weights.json');
       }
 
       console.log('[RealisticRatingGenerator] Loading tier data from:', tierPath);

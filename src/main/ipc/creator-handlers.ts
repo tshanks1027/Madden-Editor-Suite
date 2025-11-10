@@ -53,6 +53,64 @@ export function registerCreatorHandlers(): void {
   });
 
   /**
+   * Generate draft class V2.0 (new generator with improved services)
+   * Supports year, decade, and 3 rating modes
+   */
+  ipcMain.handle('creator:generate-draft-class-v2', async (event, options: {
+    year?: number;
+    decade?: number;
+    ratingMode: 'random' | 'variance' | 'madden';
+    includeUFAs?: boolean;
+    testingMode?: boolean;
+    league?: string;
+  }) => {
+    console.log(`[CreatorHandlers V2] ========== START ==========`);
+    console.log(`[CreatorHandlers V2] Options received:`, JSON.stringify(options, null, 2));
+
+    try {
+      console.log(`[CreatorHandlers V2] Importing CreatorService...`);
+
+      // Lazy load to avoid loading services until first use
+      const { creatorService } = await import('../services/CreatorService');
+
+      console.log(`[CreatorHandlers V2] CreatorService imported successfully`);
+      console.log(`[CreatorHandlers V2] Calling generateDraftClassV2...`);
+
+      const players = await creatorService.generateDraftClassV2(options);
+
+      console.log(`[CreatorHandlers V2] generateDraftClassV2 completed, returned ${players.length} players`);
+
+      // DEBUG: Log first player
+      if (players.length > 0) {
+        const firstPlayer = players[0];
+        console.log(`[CreatorHandlers V2] First player: ${firstPlayer.firstName} ${firstPlayer.lastName} (${firstPlayer.position}) OVR: ${firstPlayer.ratings.POVR}`);
+      }
+
+      return {
+        success: true,
+        players,
+        count: players.length,
+        mode: options.ratingMode,
+        source: options.decade ? `${options.decade}s decade` : `year ${options.year}`
+      };
+
+    } catch (error: any) {
+      console.error('[CreatorHandlers V2] ========== ERROR ==========');
+      console.error('[CreatorHandlers V2] Error message:', error.message);
+      console.error('[CreatorHandlers V2] Error name:', error.name);
+      console.error('[CreatorHandlers V2] Full error object:', error);
+      console.error('[CreatorHandlers V2] Error stack:');
+      console.error(error.stack);
+      console.error('[CreatorHandlers V2] ========== ERROR END ==========');
+
+      return {
+        success: false,
+        error: `${error.message}\n\nStack trace:\n${error.stack}`
+      };
+    }
+  });
+
+  /**
    * Generate roster from web scraping
    */
   ipcMain.handle('creator:generate-roster', async (event, year: number, teams: string[], ratingMode: string = 'semi-historical') => {
