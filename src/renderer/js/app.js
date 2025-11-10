@@ -3923,17 +3923,24 @@ class MaddenEditorApp {
 
             // If value is a number, convert it to archetype name using position
             if (typeof value === 'number') {
-                console.warn(`[Archetype Renderer] Row ${row}: Received number ${value} instead of string! Attempting conversion...`);
+                if (row < 5) {
+                    console.warn(`[Archetype Renderer] Row ${row}: Received number ${value} instead of string! Attempting conversion...`);
+                }
 
                 // Get the physical row to access source data
                 const physicalRow = instance.toPhysicalRow(row);
                 const sourceData = instance.getSourceDataAtRow(physicalRow);
 
-                console.log(`[Archetype Renderer] Row ${row}: physicalRow=${physicalRow}, sourceData=`, sourceData);
+                // Get position from the CURRENT row data (after sort), not from sourceData
+                // Use instance.getDataAtRowProp to get the position value from the sorted view
+                const positionValue = instance.getDataAtRowProp(row, 'position');
 
-                if (sourceData && sourceData.position) {
-                    const position = sourceData.position;
-                    console.log(`[Archetype Renderer] Row ${row}: position="${position}" (type: ${typeof position}), archetypeId=${value}`);
+                if (row < 5) {
+                    console.log(`[Archetype Renderer] Row ${row}: physicalRow=${physicalRow}, position="${positionValue}" (type: ${typeof positionValue})`);
+                }
+
+                if (positionValue) {
+                    const position = String(positionValue);
 
                     // Show "Loading..." while converting
                     td.textContent = 'Loading...';
@@ -3941,15 +3948,20 @@ class MaddenEditorApp {
 
                     // Try to convert archetype ID to name
                     window.electronAPI.rating.getArchetypeName(value, position).then(name => {
-                        console.log(`[Archetype Renderer] Row ${row}: IPC returned "${name}" (type: ${typeof name}, empty: ${!name})`);
+                        if (row < 5) {
+                            console.log(`[Archetype Renderer] Row ${row}: IPC returned "${name}" for position "${position}"`);
+                        }
                         if (name && name !== 'Unknown' && name !== '') {
-                            console.log(`[Archetype Renderer] Row ${row}: Converted archetype ${value} -> "${name}"`);
                             // Update the source data so future renders use the string
-                            sourceData.archetype = name;
+                            if (sourceData) {
+                                sourceData.archetype = name;
+                            }
                             td.textContent = name;
                             td.style.color = '';
                         } else {
-                            console.warn(`[Archetype Renderer] Row ${row}: IPC returned invalid name, showing fallback`);
+                            if (row < 5) {
+                                console.warn(`[Archetype Renderer] Row ${row}: IPC returned invalid name, showing fallback`);
+                            }
                             td.textContent = `Archetype #${value}`;
                             td.style.color = '#ff6666';
                         }
@@ -3959,7 +3971,7 @@ class MaddenEditorApp {
                         td.style.color = '#ff6666';
                     });
                 } else {
-                    console.error(`[Archetype Renderer] Row ${row}: Missing sourceData or position!`, { sourceData, hasPosition: !!sourceData?.position });
+                    console.error(`[Archetype Renderer] Row ${row}: Missing position value!`, { positionValue, sourceData });
                     td.textContent = `Archetype #${value}`;
                     td.style.color = '#ff6666';  // Red to indicate problem
                 }
