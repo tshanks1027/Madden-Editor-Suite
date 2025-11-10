@@ -3934,13 +3934,19 @@ class MaddenEditorApp {
                 // Get position from the CURRENT row data using getDataAtCell (works after sorting)
                 // Find the position column index first
                 const positionColIndex = instance.propToCol('position');
-                const positionValue = instance.getDataAtCell(row, positionColIndex);
+                let positionValue = instance.getDataAtCell(row, positionColIndex);
+
+                // After sorting, position might be a numeric code instead of a name
+                // Use POSITION_MAPPINGS to convert code to name if needed
+                if (typeof positionValue === 'number' || !isNaN(Number(positionValue))) {
+                    positionValue = POSITION_MAPPINGS[positionValue] || positionValue;
+                }
 
                 if (row < 5) {
                     console.log(`[Archetype Renderer] Row ${row}: physicalRow=${physicalRow}, positionCol=${positionColIndex}, position="${positionValue}" (type: ${typeof positionValue})`);
                 }
 
-                if (positionValue) {
+                if (positionValue && positionValue !== '0') {
                     const position = String(positionValue);
 
                     // Show "Loading..." while converting
