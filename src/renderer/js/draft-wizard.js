@@ -83,6 +83,65 @@ function toggleSourcePanels(sourceType) {
 }
 
 /**
+ * Update rating mode availability based on draft class type
+ * For future drafts (2026+), only Variance mode is available
+ */
+function updateRatingModeAvailability(isFuture) {
+  // Find all mode cards
+  const randomCard = document.querySelector('.mode-card[data-mode="random"]');
+  const varianceCard = document.querySelector('.mode-card[data-mode="variance"]');
+  const maddenCard = document.querySelector('.mode-card[data-mode="madden"]');
+
+  // Find radio buttons
+  const randomRadio = document.querySelector('input[name="rating-mode"][value="random"]');
+  const varianceRadio = document.querySelector('input[name="rating-mode"][value="variance"]');
+  const maddenRadio = document.querySelector('input[name="rating-mode"][value="madden"]');
+
+  if (isFuture) {
+    // Disable Random and Madden modes for future drafts
+    if (randomCard) {
+      randomCard.classList.add('disabled');
+      randomCard.style.opacity = '0.5';
+      randomCard.style.cursor = 'not-allowed';
+    }
+    if (maddenCard) {
+      maddenCard.classList.add('disabled');
+      maddenCard.style.opacity = '0.5';
+      maddenCard.style.cursor = 'not-allowed';
+    }
+    if (randomRadio) randomRadio.disabled = true;
+    if (maddenRadio) maddenRadio.disabled = true;
+
+    // Force select Variance mode
+    if (varianceRadio) {
+      varianceRadio.checked = true;
+      wizardState.ratingMode = 'variance';
+    }
+    if (varianceCard) {
+      varianceCard.classList.add('selected');
+    }
+
+    console.log('[DraftWizard] Disabled Random/Madden modes for future draft class');
+  } else {
+    // Enable all modes for historical/decade drafts
+    if (randomCard) {
+      randomCard.classList.remove('disabled');
+      randomCard.style.opacity = '1';
+      randomCard.style.cursor = 'pointer';
+    }
+    if (maddenCard) {
+      maddenCard.classList.remove('disabled');
+      maddenCard.style.opacity = '1';
+      maddenCard.style.cursor = 'pointer';
+    }
+    if (randomRadio) randomRadio.disabled = false;
+    if (maddenRadio) maddenRadio.disabled = false;
+
+    console.log('[DraftWizard] Enabled all rating modes for historical/decade draft class');
+  }
+}
+
+/**
  * Navigate to next step
  */
 function nextStep() {
@@ -91,9 +150,19 @@ function nextStep() {
     if (wizardState.sourceType === 'year') {
       wizardState.year = parseInt(document.getElementById('draft-year').value);
       wizardState.decade = null;
+
+      // For future draft classes (2026+), restrict to variance mode only
+      if (wizardState.year >= 2026) {
+        console.log('[DraftWizard] Future draft class detected - restricting to variance mode only');
+        updateRatingModeAvailability(true); // true = isFuture
+      } else {
+        updateRatingModeAvailability(false); // false = isHistorical
+      }
     } else {
       wizardState.decade = parseInt(document.getElementById('draft-decade').value);
       wizardState.year = null;
+      // Decade classes support all modes
+      updateRatingModeAvailability(false);
     }
   } else if (wizardState.currentStep === 2) {
     // Capture rating mode

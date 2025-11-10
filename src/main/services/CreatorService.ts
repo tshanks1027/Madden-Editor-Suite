@@ -22,6 +22,7 @@ import { playerDataService, HistoricalPlayer, FutureProspect } from './generator
 import { decadeClassService } from './generator/DecadeClassService';
 import { draftSizeService } from './generator/DraftSizeService';
 import { archetypeAssigner } from './generator/ArchetypeAssigner';
+import { futureDraftService, EnrichedProspect } from './generator/FutureDraftService';
 import { IRatingGenerator, RatingContext } from './rating-modes';
 import { archetypeService } from './utils/archetypeService';
 import * as fs from 'fs';
@@ -2271,7 +2272,31 @@ export class CreatorService {
     console.log(`[CreatorService V2] Generating draft class with options:`, options);
 
     try {
-      // Step 1: Load player data
+      // Route to FutureDraftService for 2026+ (only supports variance mode)
+      if (options.year && options.year >= 2026) {
+        console.log(`[CreatorService V2] Routing to FutureDraftService for year ${options.year}`);
+
+        // Only variance mode is supported for future drafts
+        if (options.ratingMode !== 'variance') {
+          console.warn(`[CreatorService V2] Future drafts only support variance mode, switching from ${options.ratingMode}`);
+        }
+
+        // Generate future draft class
+        const enrichedProspects = await futureDraftService.generateFutureDraftClass({
+          year: options.year,
+          ratingMode: 'variance'
+        });
+
+        // Convert enriched prospects to GeneratedPlayer format
+        const generatedPlayers = await this.convertEnrichedProspectsToPlayers(enrichedProspects);
+
+        const elapsed = Date.now() - startTime;
+        console.log(`[CreatorService V2] Future draft class generated in ${elapsed}ms`);
+
+        return generatedPlayers;
+      }
+
+      // Step 1: Load player data (Historical path - 1936-2025)
       let players: (HistoricalPlayer | FutureProspect)[];
 
       if (options.decade) {
@@ -2690,6 +2715,164 @@ export class CreatorService {
       console.error('[CreatorService V2] Error generating draft class:', error);
       throw new Error(`Failed to generate draft class V2: ${error.message}`);
     }
+  }
+
+  /**
+   * Convert EnrichedProspect[] (from FutureDraftService) to GeneratedPlayer[]
+   * EnrichedProspects already have ratings, archetypes, and all necessary data
+   */
+  private async convertEnrichedProspectsToPlayers(prospects: EnrichedProspect[]): Promise<GeneratedPlayer[]> {
+    console.log(`[CreatorService V2] Converting ${prospects.length} enriched prospects to GeneratedPlayer format`);
+
+    const generatedPlayers: GeneratedPlayer[] = [];
+
+    for (let i = 0; i < prospects.length; i++) {
+      const prospect = prospects[i];
+      const firstName = prospect.firstName || 'John';
+      const lastName = prospect.lastName || 'Doe';
+
+      // Map position
+      const mappedPosition = this.mapPosition(prospect.position);
+
+      // PID matching (future prospects likely don't have PIDs, use generic)
+      const raceData = prospect.race;
+      const pid = this.assignGenericFace(firstName, lastName, prospect.position, raceData);
+      const pam = this.assignGenericAsset(pid);
+
+      // Match college
+      const collegeId = prospect.college ? this.matchCollege(prospect.college) : 265;
+
+      // Match home state
+      const homeState = prospect.homestate ? this.matchHomeState(prospect.homestate) : 0;
+
+      // Jersey number
+      const jerseyNum = prospect.jersey || this.generateJerseyNumber(prospect.position);
+
+      // Convert EnrichedProspect ratings to MaddenRatings format
+      const maddenRatings = this.convertRookieStatsToMaddenRatings(prospect.ratings || {});
+
+      // Determine dev trait based on wAV and overall
+      const draftRound = prospect.round && prospect.round !== 'UD' ? parseInt(prospect.round) : undefined;
+      const draftPick = prospect.pick && prospect.pick !== 'UD' ? parseInt(prospect.pick) : undefined;
+      const devTrait = this.determineDevTrait(
+        draftRound,
+        draftPick,
+        maddenRatings.POVR,
+        false, // Future prospects can't be HOF yet
+        prospect.wAV
+      );
+
+      // Body type
+      const bodyType = this.determineBodyType(prospect.position, prospect.weight || 200, prospect.height || 72);
+
+      // Archetype ID (already assigned by FutureDraftService)
+      const archetypeId = prospect.archetypeId || 0;
+
+      // Age (calculate from draft class year)
+      const age = 21; // Default age for rookies
+
+      generatedPlayers.push({
+        firstName,
+        lastName,
+        position: mappedPosition.name,
+        positionCode: mappedPosition.code,
+        college: collegeId,
+        jerseyNum,
+        age,
+        heightInches: prospect.height || 72,
+        weight: prospect.weight || 200,
+        homeState,
+        devTrait,
+        ratings: maddenRatings,
+        PID: pid,
+        PAM: pam,
+        PEPS: pam,
+        bodyType,
+        yearsPro: 0,
+        archetype: prospect.archetype || 'Balanced'
+      });
+    }
+
+    return generatedPlayers;
+  }
+
+  /**
+   * Convert RookieStats (partial) to MaddenRatings format
+   */
+  private convertRookieStatsToMaddenRatings(stats: Partial<any>): MaddenRatings {
+    return {
+      overall: stats.povr || 65,
+      POVR: stats.povr || 65,
+      speed: stats.pspd || 70,
+      acceleration: stats.pacc || 70,
+      strength: stats.pstr || 65,
+      agility: stats.pagi || 70,
+      jumping: stats.pjmp || 65,
+      stamina: stats.psta || 85,
+      injury: stats.pinj || 85,
+      toughness: stats.ptgh || 70,
+
+      // QB ratings
+      throwPower: stats.pthp || 65,
+      throwAccuracyShort: stats.ptas || 65,
+      throwAccuracyMid: stats.ptam || 65,
+      throwAccuracyDeep: stats.ptad || 65,
+      throwOnTheRun: stats.ptor || 65,
+      throwUnderPressure: stats.ptup || 65,
+      playAction: stats.ppla || 65,
+
+      // RB/WR ratings
+      carrying: stats.pcar || 65,
+      ballCarrierVision: stats.pbcv || 65,
+      breakTackle: stats.pbtk || 65,
+      elusiveness: stats.pelu || 65,
+      spinMove: stats.pspm || 65,
+      jukeMove: stats.pjkm || 65,
+      stiffArm: stats.psfa || 65,
+      trucking: stats.ptrk || 65,
+      catching: stats.pcth || 65,
+      shortRouteRunning: stats.psrr || 65,
+      mediumRouteRunning: stats.pmrr || 65,
+      deepRouteRunning: stats.pdrr || 65,
+      spectacularCatch: stats.pspc || 65,
+      catchInTraffic: stats.pcit || 65,
+      release: stats.prel || 65,
+
+      // OL ratings
+      passBlockPower: stats.ppbp || 65,
+      passBlockFinesse: stats.ppbf || 65,
+      runBlockPower: stats.prbp || 65,
+      runBlockFinesse: stats.prbf || 65,
+      runBlock: stats.prbk || 65,
+      passBlock: stats.ppbk || 65,
+      leadBlock: stats.plbk || 65,
+      impactBlocking: stats.pibk || 65,
+
+      // DL ratings
+      powerMoves: stats.ppmv || 65,
+      finesseMoves: stats.pfmv || 65,
+      blockShedding: stats.pbsh || 65,
+      pursuitChaseTackle: stats.pprc || 65,
+      tackle: stats.ptak || 65,
+      hitPower: stats.phtp || 65,
+
+      // LB ratings
+      playRecognition: stats.pprc || 65,
+
+      // DB ratings
+      manCoverage: stats.pman || 65,
+      zoneCoverage: stats.pzon || 65,
+      press: stats.pprs || 65,
+      changeOfDirection: stats.pcod || 65,
+
+      // Special teams
+      kickPower: stats.pkpw || 65,
+      kickAccuracy: stats.pkacc || 65,
+      kickReturn: stats.pkrt || 65,
+
+      // Additional attributes
+      awareness: stats.pawr || 65
+    };
   }
 
   /**

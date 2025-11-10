@@ -108,22 +108,10 @@ export class ComparableMatcherService {
    * Get all rookie stats from ROSTER_lookup (cached in PlayerDataService)
    */
   private async getAllRookieStats(): Promise<RookieStats[]> {
-    // Access the private rosterLookupCache via a public method
-    // For now, we'll need to add a public method to PlayerDataService
-    // Workaround: Load directly from CSV since PlayerDataService doesn't expose it yet
-
-    const allStats: RookieStats[] = [];
-
-    // Get all available years from 1970-2024 (ROSTER_lookup range)
-    for (let year = 1970; year <= 2024; year++) {
-      // We need PlayerDataService to expose this, but for now we'll work with
-      // what we have. This is a limitation we'll address in integration phase.
-    }
-
-    // TODO: Add getAllRosterLookupData() method to PlayerDataService
-    // For now, return empty array - will be fixed in Phase 4 integration
-    console.warn('[ComparableMatcherService] getAllRookieStats not yet implemented - needs PlayerDataService update');
-    return [];
+    // Use the new getAllRosterLookupData() method from PlayerDataService
+    const allStats = await playerDataService.getAllRosterLookupData();
+    console.log(`[ComparableMatcherService] Loaded ${allStats.length} player-year entries for comparable matching`);
+    return allStats;
   }
 
   /**

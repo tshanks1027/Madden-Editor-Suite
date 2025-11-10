@@ -629,6 +629,24 @@ export class PlayerDataService {
   }
 
   /**
+   * Get all roster lookup data (for comparable player matching)
+   * Returns all player-year entries from ROSTER_lookup.csv
+   */
+  public async getAllRosterLookupData(): Promise<RookieStats[]> {
+    await this.initialize();
+
+    const allStats: RookieStats[] = [];
+
+    // Flatten all entries from the cache
+    for (const statsArray of this.rosterLookupCache.values()) {
+      allStats.push(...statsArray);
+    }
+
+    console.log(`[PlayerDataService] getAllRosterLookupData: Returning ${allStats.length} player-year entries`);
+    return allStats;
+  }
+
+  /**
    * Get all available years in historical data
    */
   public async getAllYears(): Promise<number[]> {
