@@ -2329,6 +2329,10 @@ export class CreatorService {
         console.log(`[CreatorService V2]   Players BEFORE shuffle: ${players.slice(0, 5).map(p => p.firstName + ' ' + p.lastName).join(', ')}...`);
         this.shuffleArray(players);
         console.log(`[CreatorService V2]   Players AFTER shuffle: ${players.slice(0, 5).map(p => p.firstName + ' ' + p.lastName).join(', ')}...`);
+      } else {
+        // Log order for non-random modes to verify it's correct
+        console.log(`[CreatorService V2] ${options.ratingMode.toUpperCase()} mode: preserving CSV order`);
+        console.log(`[CreatorService V2]   First 10 players: ${players.slice(0, 10).map(p => `${p.firstName} ${p.lastName} (${p.pick || '?'})`).join(', ')}...`);
       }
 
       // Step 5: Assign archetypes if missing
@@ -2554,19 +2558,36 @@ export class CreatorService {
           }
         } else if (player.archetype && player.archetype.trim() !== '') {
           // Convert archetype NAME from ROSTER_lookup to ID
-          // CSV has multiple formats:
-          // - Underscored with spaces: "QB_Field General"
-          // - Underscored camelCase: "QB_FieldGeneral", "WR_DeepThreat"
-          // archetypeService expects: "QB Field General", "WR Deep Threat"
+          // ROSTER_lookup format: "QB_Improviser", "CB_MantoMan", "WR_DeepThreat"
+          // archetypeService.getArchetypeId() expects: archetype name WITHOUT position prefix
+          // archetype_lookup.csv format: "Improviser", "Man To Man", "Deep Threat"
 
           let archetypeName = player.archetype.trim();
 
-          // Step 1: Replace underscores with spaces
-          archetypeName = archetypeName.replace(/_/g, ' ');
+          // ROSTER_lookup format: "QB_Improviser", "CB_MantoMan", "WR_DeepThreat"
+          // Need to convert to: "QB Improviser", "CB Man To Man", "WR Deep Threat"
 
-          // Step 2: Add spaces before capital letters (for camelCase conversion)
-          // "DeepThreat" -> "Deep Threat", "FieldGeneral" -> "Field General"
-          archetypeName = archetypeName.replace(/([a-z])([A-Z])/g, '$1 $2');
+          // Step 1: Replace underscore with space
+          archetypeName = archetypeName.replace('_', ' ');
+
+          // Step 2: Add spaces before capital letters in the archetype part (after position)
+          // Split into position and archetype parts
+          const parts = archetypeName.split(' ');
+          if (parts.length >= 2) {
+            // parts[0] is position (e.g., "QB", "CB"), parts[1+] is archetype (e.g., "DeepThreat")
+            const positionPrefix = parts[0];
+            let archetypePart = parts.slice(1).join(' ');
+
+            // Handle special cases
+            if (archetypePart === 'MantoMan') {
+              archetypePart = 'Man To Man';
+            } else {
+              // Add spaces before capital letters: "DeepThreat" -> "Deep Threat"
+              archetypePart = archetypePart.replace(/([a-z])([A-Z])/g, '$1 $2');
+            }
+
+            archetypeName = `${positionPrefix} ${archetypePart}`;
+          }
 
           archetypeId = archetypeService.getArchetypeId(archetypeName, mappedPosition.name);
 
@@ -2574,7 +2595,7 @@ export class CreatorService {
           if (i < 5 || archetypeId === 0) {
             console.log(`[CreatorService V2] ${fullName} (${mappedPosition.name}): "${player.archetype}" -> "${archetypeName}" -> ID ${archetypeId}`);
             if (archetypeId === 0) {
-              console.error(`[CreatorService V2] ⚠️ FAILED ARCHETYPE LOOKUP`);
+              console.error(`[CreatorService V2] ⚠️ FAILED ARCHETYPE LOOKUP for "${player.archetype}" -> "${archetypeName}"`);
             }
           }
         } else {
@@ -2629,6 +2650,11 @@ export class CreatorService {
 
       const elapsed = Date.now() - startTime;
       console.log(`[CreatorService V2] ✓ Generated ${generatedPlayers.length} players in ${elapsed}ms (${(elapsed / generatedPlayers.length).toFixed(1)}ms/player)`);
+
+      // Log final order to verify it matches input order
+      console.log(`[CreatorService V2] ========== FINAL PLAYER ORDER ==========`);
+      console.log(`[CreatorService V2] First 10 players in FINAL OUTPUT: ${generatedPlayers.slice(0, 10).map(p => `${p.firstName} ${p.lastName}`).join(', ')}...`);
+      console.log(`[CreatorService V2] ==========================================`);
 
       // Debug: Check if specific high-profile players are included (for 2020 draft)
       if (options.year === 2020) {

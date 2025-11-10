@@ -565,9 +565,13 @@ export class PlayerDataService {
     await this.initialize();
 
     if (year >= 2026) {
-      return this.futureProspectsCache.get(year) || [];
+      // Return a COPY of the array to prevent mutations affecting the cache
+      const players = this.futureProspectsCache.get(year) || [];
+      return [...players];
     } else {
-      return this.historicalPlayersCache.get(year) || [];
+      // Return a COPY of the array to prevent mutations affecting the cache
+      const players = this.historicalPlayersCache.get(year) || [];
+      return [...players];
     }
   }
 
