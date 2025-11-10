@@ -2771,14 +2771,6 @@ export class CreatorService {
       // Age (calculate from draft class year)
       const age = 21; // Default age for rookies
 
-      // Debug first 3 players
-      if (i < 3) {
-        console.log(`[CreatorService] Converting prospect #${i + 1}: ${firstName} ${lastName}`);
-        console.log(`  prospect.archetype = "${prospect.archetype}"`);
-        console.log(`  prospect.archetypeId = ${prospect.archetypeId}`);
-        console.log(`  prospect.archetypeDetailed = "${prospect.archetypeDetailed}"`);
-      }
-
       generatedPlayers.push({
         firstName,
         lastName,

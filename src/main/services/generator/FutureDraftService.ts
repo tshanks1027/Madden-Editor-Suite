@@ -295,11 +295,6 @@ export class FutureDraftService {
       // Step 2: Hybrid archetype assignment
       const archetype = this.assignHybridArchetype(prospect, compResult.comparables);
 
-      if (i < 3) {
-        console.log(`  - Archetype for ${prospect.firstName} ${prospect.lastName}: "${archetype.name}" (ID: ${archetype.id})`);
-        console.log(`    CSV archetype: "${prospect.archetype}", CSV detailed: "${prospect.archetypeDetailed}"`);
-      }
-
       // Step 3: Hybrid rating generation
       const ratings = await this.generateHybridRatings(
         prospect,
