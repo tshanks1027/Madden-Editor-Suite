@@ -326,8 +326,10 @@ export class FutureDraftService {
     comparables: Array<{ player: RookieStats, matchScore: number }>
   ): { name: string, id: number, confidence: number } {
 
-    // Start with CSV archetype
-    let archetypeName = prospect.archetype || this.getDefaultArchetype(prospect.position);
+    // Start with CSV archetype (use detailed version which has position prefix)
+    // CSV has: archetype = "Run Stopper", archetypeDetailed = "MLB Run Stopper"
+    // We want the detailed version for proper archetype ID lookup
+    let archetypeName = prospect.archetypeDetailed || prospect.archetype || this.getDefaultArchetype(prospect.position);
     let confidence = 0.7; // Medium confidence in CSV data
 
     // If we have good comparables, validate archetype
