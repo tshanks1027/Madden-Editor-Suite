@@ -17,6 +17,13 @@ import { scraperService, PlayerStats, DraftProspect } from './ScraperService';
 import { ratingCalculator, MaddenRatings } from './RatingCalculator';
 import { scraperDebugLogger } from '../utils/DebugLogger';
 import { RatingMode, RatingModeFactory } from './rating-modes';
+// V2.0 Generator Services
+import { playerDataService, HistoricalPlayer, FutureProspect } from './generator/PlayerDataService';
+import { decadeClassService } from './generator/DecadeClassService';
+import { draftSizeService } from './generator/DraftSizeService';
+import { archetypeAssigner } from './generator/ArchetypeAssigner';
+import { IRatingGenerator, RatingContext } from './rating-modes';
+import { archetypeService } from './utils/archetypeService';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -49,12 +56,33 @@ export interface GeneratedPlayer {
 
   // Visuals
   PID: number; // Portrait ID (0 for generic)
+  PAM: string | null; // Player Asset Manager ID (same as PEPS)
   PEPS: string | null; // Player Equipment Preset (null for generic)
   bodyType: string; // Madden body type string: "Lean", "Athletic", "Heavy", "Stocky"
   yearsPro: number; // Years in the league (0 for rookies)
+  archetype: string; // Player archetype (e.g., "Field General", "Scrambler")
 
   // Source data (for reference)
   _sourceStats?: PlayerStats;
+}
+
+/**
+ * V2.0 Generator Options
+ */
+export interface DraftGeneratorOptionsV2 {
+  // Source selection
+  year?: number;           // Single year (1936-2025 historical, 2026+ future)
+  decade?: number;         // Decade start year (1930, 1940, ..., 2020)
+
+  // Rating mode
+  ratingMode: 'random' | 'variance' | 'madden';
+
+  // Options
+  includeUFAs?: boolean;   // Include undrafted free agents
+  testingMode?: boolean;   // Limit to 40 players for testing
+
+  // Legacy support
+  league?: string;         // 'nfl' | 'afl' | 'combined' (for 1960-1969)
 }
 
 /**
@@ -81,17 +109,48 @@ export class CreatorService {
    */
   private matchPID(firstName: string, lastName: string, draftYear?: number, position?: string, college?: string): number {
     const masterLookup = this.loadMasterLookup();
-    const normalizedFirstName = firstName.trim().toLowerCase().replace(/[^a-z\s]/g, '');
-    const normalizedLastName = lastName.trim().toLowerCase().replace(/[^a-z\s]/g, '');
+
+    // Helper function to normalize names for flexible matching
+    // Preserves hyphens, removes punctuation, handles suffixes
+    const normalizeName = (name: string): string => {
+      let normalized = name.trim().toLowerCase();
+      // Remove periods but keep hyphens and apostrophes
+      normalized = normalized.replace(/\./g, '');
+      // Remove commas (for "Feamster Jr., Tom" format)
+      normalized = normalized.replace(/,/g, '');
+      // Normalize whitespace
+      normalized = normalized.replace(/\s+/g, ' ').trim();
+      return normalized;
+    };
+
+    // Create multiple normalized versions for flexible matching
+    const normalizedFirstName = normalizeName(firstName);
+    const normalizedLastName = normalizeName(lastName);
+
+    // Also create suffix-stripped versions for fallback matching
+    const stripSuffixes = (name: string): string => {
+      return name.replace(/\b(jr|sr|ii|iii|iv|v)\b/gi, '').trim();
+    };
+
+    const normalizedFirstNameNoSuffix = stripSuffixes(normalizedFirstName);
+    const normalizedLastNameNoSuffix = stripSuffixes(normalizedLastName);
 
     // Find all candidates with matching name
     const candidates: Array<{pid: number, entry: any}> = [];
 
     masterLookup.forEach((entry, key) => {
-      const entryFirstName = (entry['First Name'] || '').trim().toLowerCase().replace(/[^a-z\s]/g, '');
-      const entryLastName = (entry['Last Name'] || '').trim().toLowerCase().replace(/[^a-z\s]/g, '');
+      const entryFirstName = normalizeName(entry['First Name'] || '');
+      const entryLastName = normalizeName(entry['Last Name'] || '');
 
-      if (entryFirstName === normalizedFirstName && entryLastName === normalizedLastName) {
+      // Try exact match first (with suffixes)
+      const exactMatch = (entryFirstName === normalizedFirstName && entryLastName === normalizedLastName);
+
+      // Try suffix-stripped match as fallback
+      const entryFirstNoSuffix = stripSuffixes(entryFirstName);
+      const entryLastNoSuffix = stripSuffixes(entryLastName);
+      const flexibleMatch = (entryFirstNoSuffix === normalizedFirstNameNoSuffix && entryLastNoSuffix === normalizedLastNameNoSuffix);
+
+      if (exactMatch || flexibleMatch) {
         const pid = parseInt(entry['PhotoID']);
         if (!isNaN(pid) && pid > 0) {
           candidates.push({ pid, entry });
@@ -100,7 +159,13 @@ export class CreatorService {
     });
 
     if (candidates.length === 0) {
-      // No match found
+      // No match found in ALL_PLAYER_LOOKUP
+      // Try secondary lookup in PID_Portrait_Mapping.csv (has different players, especially legends)
+      const pidFromPortraitMapping = this.matchPIDFromPortraitMapping(firstName, lastName, draftYear);
+      if (pidFromPortraitMapping > 0) {
+        console.log(`[CreatorService] PID match from PID_Portrait_Mapping: "${firstName} ${lastName}" -> PID ${pidFromPortraitMapping}`);
+        return pidFromPortraitMapping;
+      }
       return 0;
     }
 
@@ -175,6 +240,77 @@ export class CreatorService {
   }
 
   /**
+   * Secondary PID lookup using PID_Portrait_Mapping.csv
+   * Used when ALL_PLAYER_LOOKUP fails to find a match
+   * Handles legends, special characters, and alternate name formats
+   *
+   * @param firstName Player first name
+   * @param lastName Player last name
+   * @param draftYear Draft year for disambiguation (optional)
+   * @returns PID if found, 0 otherwise
+   */
+  private matchPIDFromPortraitMapping(firstName: string, lastName: string, draftYear?: number): number {
+    try {
+      const pidPortraitPath = path.join(__dirname, '../../data/lookups/PID_Portrait_Mapping.csv');
+      const csvContent = fs.readFileSync(pidPortraitPath, 'utf-8');
+      const lines = csvContent.split('\n');
+
+      // Normalize input names
+      const normalizeName = (name: string): string => {
+        return name.trim().toLowerCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ');
+      };
+
+      const stripSuffixes = (name: string): string => {
+        return name.replace(/\b(jr|sr|ii|iii|iv|v)\b/gi, '').trim();
+      };
+
+      const searchName = normalizeName(`${firstName} ${lastName}`);
+      const searchNameNoSuffix = stripSuffixes(searchName);
+
+      // Parse CSV and find matches
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // CSV format: PID,Player Name,Type,Portrait
+        const parts = line.split(',');
+        if (parts.length < 2) continue;
+
+        const pid = parseInt(parts[0]);
+        const playerName = parts[1];
+
+        if (isNaN(pid) || pid <= 0 || !playerName) continue;
+
+        const entryName = normalizeName(playerName);
+        const entryNameNoSuffix = stripSuffixes(entryName);
+
+        // Try exact match first
+        if (entryName === searchName) {
+          return pid;
+        }
+
+        // Try suffix-stripped match
+        if (entryNameNoSuffix === searchNameNoSuffix) {
+          return pid;
+        }
+
+        // Try reversed name format (Last First vs First Last)
+        const reversedSearch = normalizeName(`${lastName} ${firstName}`);
+        const reversedSearchNoSuffix = stripSuffixes(reversedSearch);
+
+        if (entryName === reversedSearch || entryNameNoSuffix === reversedSearchNoSuffix) {
+          return pid;
+        }
+      }
+
+      return 0;
+    } catch (error) {
+      console.error(`[CreatorService] Error reading PID_Portrait_Mapping.csv:`, error);
+      return 0;
+    }
+  }
+
+  /**
    * NO LONGER NEEDED - ALL_PLAYER_LOOKUP.csv already has preferred PIDs (no (R) tags)
    * Kept as no-op for backward compatibility
    * @param pid Portrait ID
@@ -207,7 +343,11 @@ export class CreatorService {
    */
   private assignGenericFace(firstName: string, lastName: string, position?: string, raceData?: string): number {
     // Load PID portrait mapping
-    const pidPortraitPath = path.join(__dirname, '../../data/lookups/PID_Portrait_Mapping.csv');
+    const { app } = require('electron');
+    const basePath = app.isPackaged
+      ? path.join(app.getAppPath(), 'data/lookups')
+      : path.join(__dirname, '../../data/lookups');
+    const pidPortraitPath = path.join(basePath, 'PID_Portrait_Mapping.csv');
 
     let targetCategory = 7; // Default to Black-Medium (largest pool)
 
@@ -296,11 +436,22 @@ export class CreatorService {
       }
     } catch (error) {
       console.error(`[CreatorService] Error loading generic face mapping:`, error);
+      console.error(`[CreatorService]   Path attempted: ${pidPortraitPath}`);
     }
 
-    // Fallback: return 0 (no portrait)
-    console.warn(`[CreatorService] No generic face found for "${firstName} ${lastName}", using blank portrait`);
-    return 0;
+    // FALLBACK: Use hardcoded generic PIDs to ensure NEVER returns 0
+    // These are known valid generic face PIDs from PID_Portrait_Mapping.csv
+    const fallbackPIDs = {
+      1: [2547, 2583, 2761, 2798, 2821], // White (Category 1) - actual generic faces
+      7: [719, 721, 725, 2758, 2769, 2789]  // Black-Medium (Category 7) - actual generic faces
+    };
+
+    const fallbackCategory = targetCategory === 1 ? 1 : 7;
+    const fallbackArray = fallbackPIDs[fallbackCategory];
+    const fallbackPID = fallbackArray[Math.floor(Math.random() * fallbackArray.length)];
+
+    console.warn(`[CreatorService] ⚠️ Failed to load PID mapping, using hardcoded fallback for "${firstName} ${lastName}" -> PID ${fallbackPID}`);
+    return fallbackPID;
   }
 
   /**
@@ -830,7 +981,11 @@ export class CreatorService {
    * Expand common college abbreviations to full names
    * E.g., "Florida St." -> "Florida State", "Ohio St." -> "Ohio State"
    */
-  private expandCollegeAbbreviations(collegeName: string): string {
+  private expandCollegeAbbreviations(collegeName: string | undefined | null): string {
+    if (!collegeName) {
+      return ''; // Return empty string if undefined/null
+    }
+
     // Common abbreviation mappings
     const abbreviations: { [key: string]: string } = {
       // Common school abbreviations
@@ -967,6 +1122,7 @@ export class CreatorService {
   /**
    * Match state abbreviation or name to state ID from lookup table
    * Returns state ID as NUMBER (e.g., 0 for Alabama, 4 for California)
+   * Handles formats: "Iowa", "IA", "Ames, Iowa"
    */
   private matchHomeState(stateAbbr: string): number {
     if (!stateAbbr) {
@@ -974,20 +1130,29 @@ export class CreatorService {
     }
 
     const stateLookup = this.loadStateLookup();
-    const normalized = stateAbbr.toUpperCase().trim();
+    let stateToMatch = stateAbbr.trim();
 
-    // Try to match state abbreviation (e.g., "CA" -> 4)
-    if (stateLookup.has(normalized)) {
-      const stateId = stateLookup.get(normalized)!;
-      console.log(`[CreatorService] State match: "${stateAbbr}" -> ID ${stateId}`);
+    // Handle "City, State" format (e.g., "Ames, Iowa")
+    if (stateToMatch.includes(',')) {
+      const parts = stateToMatch.split(',');
+      stateToMatch = parts[parts.length - 1].trim(); // Take the last part (state)
+    }
+
+    // Try to match state abbreviation (e.g., "CA" -> 4, "IA" -> 14)
+    // Abbreviations are stored in UPPERCASE in the map
+    const upperName = stateToMatch.toUpperCase().trim();
+    if (stateLookup.has(upperName)) {
+      const stateId = stateLookup.get(upperName)!;
+      console.log(`[CreatorService] State match (abbr): "${stateAbbr}" -> "${stateToMatch}" -> ID ${stateId}`);
       return stateId;
     }
 
-    // Try to match full state name (e.g., "california" -> 4)
-    const lowerName = stateAbbr.toLowerCase();
+    // Try to match full state name (e.g., "iowa" -> 14, "california" -> 4)
+    // Full names are stored in lowercase in the map
+    const lowerName = stateToMatch.toLowerCase();
     if (stateLookup.has(lowerName)) {
       const stateId = stateLookup.get(lowerName)!;
-      console.log(`[CreatorService] State match (full name): "${stateAbbr}" -> ID ${stateId}`);
+      console.log(`[CreatorService] State match (full name): "${stateAbbr}" -> "${stateToMatch}" -> ID ${stateId}`);
       return stateId;
     }
 
@@ -2088,6 +2253,426 @@ export class CreatorService {
   }
 
   /**
+   * Generate Draft Class V2.0
+   *
+   * New generator using improved data services and rating modes.
+   * Supports:
+   * - Single year (1936-2025 historical, 2026+ future)
+   * - Decade classes (1930s-2020s)
+   * - 3 rating modes: random, variance, madden
+   * - Proper draft order (randomized for random mode, preserved for others)
+   * - 402-pick drafts for modern era
+   *
+   * @param options - Generation options
+   * @returns Array of generated players
+   */
+  async generateDraftClassV2(options: DraftGeneratorOptionsV2): Promise<GeneratedPlayer[]> {
+    const startTime = Date.now();
+    console.log(`[CreatorService V2] Generating draft class with options:`, options);
+
+    try {
+      // Step 1: Load player data
+      let players: (HistoricalPlayer | FutureProspect)[];
+
+      if (options.decade) {
+        // Decade class
+        console.log(`[CreatorService V2] Loading decade class for ${options.decade}s...`);
+        players = await decadeClassService.createDecadeClass(options.decade);
+        console.log(`[CreatorService V2] Loaded ${players.length} players from decade ${options.decade}s`);
+      } else if (options.year) {
+        // Single year
+        console.log(`[CreatorService V2] Loading year ${options.year}...`);
+
+        if (options.year >= 2026) {
+          // Future prospects
+          players = await playerDataService.getFutureProspectsByYear(options.year);
+        } else {
+          // Historical draft
+          players = await playerDataService.getPlayersByYear(options.year);
+
+          // Apply league filter for 1960-1969
+          if (options.league && options.year >= 1960 && options.year <= 1969) {
+            if (options.league !== 'combined') {
+              players = players.filter(p => {
+                const league = (p as any).league?.toUpperCase();
+                return league === options.league?.toUpperCase();
+              });
+            }
+          }
+        }
+
+        console.log(`[CreatorService V2] Loaded ${players.length} players for year ${options.year}`);
+      } else {
+        throw new Error('Must provide either year or decade');
+      }
+
+      if (players.length === 0) {
+        throw new Error(`No players found for ${options.decade ? `decade ${options.decade}s` : `year ${options.year}`}`);
+      }
+
+      // Step 2: Determine draft size
+      const draftSize = options.year
+        ? draftSizeService.getDraftSize(options.year)
+        : 402; // Decade classes always 402
+
+      console.log(`[CreatorService V2] Draft size: ${draftSize} picks`);
+
+      // Step 3: Apply testing mode limit
+      if (options.testingMode && players.length > 40) {
+        console.log(`[CreatorService V2] Testing mode: limiting to 40 players`);
+        players = players.slice(0, 40);
+      }
+
+      // Step 4: Randomize order for random mode
+      if (options.ratingMode === 'random') {
+        console.log(`[CreatorService V2] Random mode: shuffling draft order`);
+        console.log(`[CreatorService V2]   Players BEFORE shuffle: ${players.slice(0, 5).map(p => p.firstName + ' ' + p.lastName).join(', ')}...`);
+        this.shuffleArray(players);
+        console.log(`[CreatorService V2]   Players AFTER shuffle: ${players.slice(0, 5).map(p => p.firstName + ' ' + p.lastName).join(', ')}...`);
+      }
+
+      // Step 5: Assign archetypes if missing
+      console.log(`[CreatorService V2] Assigning archetypes for ${options.ratingMode} mode...`);
+      let archetypesAssigned = 0;
+      let archetypesFromRoster = 0;
+      let archetypesFailed = 0;
+
+      for (const player of players) {
+        const fullName = `${player.firstName} ${player.lastName}`;
+
+        if (!player.archetype || player.archetype === '') {
+          // First, try to get archetype from ROSTER_lookup (actual Madden data)
+          // getRookieStats handles the draft year -> rookie season conversion internally
+          const rookieStats = await playerDataService.getRookieStats(fullName, player.draftClass);
+
+          // Debug: Show what we got from getRookieStats
+          if (archetypesFromRoster + archetypesAssigned < 5) {
+            console.log(`[CreatorService V2]   DEBUG: ${fullName} - rookieStats found: ${!!rookieStats}`);
+            if (rookieStats) {
+              console.log(`[CreatorService V2]   DEBUG: archetype field = "${rookieStats.archetype}"`);
+              console.log(`[CreatorService V2]   DEBUG: All keys: ${Object.keys(rookieStats).slice(0, 10).join(', ')}`);
+            }
+          }
+
+          if (rookieStats && rookieStats.archetype && rookieStats.archetype.trim() !== '') {
+            // IMPORTANT: Only use archetype if position matches
+            // Players sometimes change positions between draft and rookie season
+            // (e.g., Stephen Sullivan: TE in draft, WR in rookie season)
+            const normalizePos = (pos: string) => {
+              // Normalize similar positions for comparison
+              if (['LEDG', 'REDG', 'LE', 'RE'].includes(pos)) return 'EDGE';
+              if (['SAM', 'Mike', 'WILL', 'MLB', 'LOLB', 'ROLB'].includes(pos)) return 'LB';
+              if (['FS', 'SS'].includes(pos)) return 'S';
+              if (['LT', 'RT', 'LG', 'RG', 'C'].includes(pos)) return 'OL';
+              if (pos === 'RB') return 'HB';
+              return pos;
+            };
+
+            const draftPos = normalizePos(player.position);
+            const rookiePos = normalizePos(rookieStats.position);
+
+            if (draftPos === rookiePos) {
+              player.archetype = rookieStats.archetype.trim();
+              archetypesFromRoster++;
+
+              // Debug first few
+              if (archetypesFromRoster <= 3) {
+                console.log(`[CreatorService V2]   ✓ Loaded "${rookieStats.archetype}" from ROSTER for ${fullName}`);
+              }
+            } else {
+              // Position mismatch - use default for actual draft position
+              console.log(`[CreatorService V2]   ⚠️ Position mismatch for ${fullName}: draft=${player.position}, rookie=${rookieStats.position}. Using default.`);
+              const defaultId = archetypeService.getDefaultArchetypeForPosition(player.position);
+              const defaultName = archetypeService.getArchetypeName(defaultId, player.position);
+              player.archetype = defaultName;
+              (player as any).archetypeId = defaultId;
+              archetypesAssigned++;
+            }
+          } else {
+            // Fallback: Use default archetype for position (just use first valid archetype)
+            console.log(`[CreatorService V2]   ⚠️ No ROSTER archetype for ${fullName}, using default for ${player.position}`);
+            const defaultId = archetypeService.getDefaultArchetypeForPosition(player.position);
+            const defaultName = archetypeService.getArchetypeName(defaultId, player.position);
+            player.archetype = defaultName;
+            (player as any).archetypeId = defaultId;
+            console.log(`[CreatorService V2]   Default archetype: "${defaultName}" (ID ${defaultId})`);
+            if (defaultId === 0) {
+              archetypesFailed++;
+            }
+            archetypesAssigned++;
+          }
+        } else {
+          // Player already has archetype
+          if (archetypesFromRoster + archetypesAssigned < 3) {
+            console.log(`[CreatorService V2]   ✓ ${fullName} already has archetype: "${player.archetype}"`);
+          }
+        }
+      }
+      console.log(`[CreatorService V2] Archetypes: ${archetypesFromRoster} from ROSTER_lookup, ${archetypesAssigned} generated (${archetypesFailed} FAILED with ID=0)`);
+
+      // Step 6: Generate ratings using selected mode
+      console.log(`[CreatorService V2] Generating ratings using ${options.ratingMode} mode...`);
+      const ratingGenerator = RatingModeFactory.create(options.ratingMode as RatingMode);
+
+      // Initialize playerDataService once before the loop (prevents 400+ re-initializations)
+      await playerDataService.initialize();
+
+      const generatedPlayers: GeneratedPlayer[] = [];
+
+      for (let i = 0; i < players.length; i++) {
+        const player = players[i];
+
+        // Get name from player data (HistoricalPlayer and FutureProspect have firstName/lastName)
+        const firstName = player.firstName || 'John';
+        const lastName = player.lastName || 'Doe';
+        const fullName = `${firstName} ${lastName}`;
+
+        // Build rating context
+        const context: RatingContext = {
+          position: player.position,
+          draftPosition: player.pick ? parseInt(String(player.pick)) : i + 1,
+          draftRound: player.round ? parseInt(String(player.round)) : Math.ceil((i + 1) / 32),
+          name: fullName,
+          careerStats: {
+            wAV: player.wAV,
+            draftClass: options.year || options.decade,
+            archetype: player.archetype,
+            height: player.height,
+            weight: player.weight
+          }
+        };
+
+        // Add 40-time if available
+        if ((player as any).fortyTime) {
+          context.fortyTime = parseFloat((player as any).fortyTime);
+        }
+
+        // Generate ratings
+        const ratings = await ratingGenerator.generateRatings(context);
+
+        // DEBUG: Log specific players for troubleshooting
+        if (fullName === 'Joe Burrow' || fullName === 'Chase Young') {
+          console.log(`\n[CreatorService V2] ========== ${fullName} ==========`);
+          console.log(`[CreatorService V2] Position: ${player.position}`);
+          console.log(`[CreatorService V2] Draft: Round ${context.draftRound}, Pick ${context.draftPosition}`);
+          console.log(`[CreatorService V2] Rating Mode: ${options.ratingMode}`);
+          console.log(`[CreatorService V2] Archetype: ${player.archetype}`);
+          console.log(`[CreatorService V2] Draft Class: ${options.year || options.decade}`);
+          console.log(`[CreatorService V2] Generated OVR: ${ratings.POVR}`);
+          console.log(`[CreatorService V2] ==========================================\n`);
+        }
+
+        // Convert to MaddenRatings format
+        const maddenRatings = this.convertFactoryRatingsToMaddenRatings(ratings, options.ratingMode);
+
+        // DEBUG: Log conversion for specific players
+        if (fullName === 'Joe Burrow' || fullName === 'Chase Young' || fullName.includes('Wills')) {
+          console.log(`\n[CreatorService V2] ========== AFTER CONVERSION: ${fullName} ==========`);
+          console.log(`[CreatorService V2]   Rating Mode: ${options.ratingMode}`);
+          console.log(`[CreatorService V2]   Input ratings.POVR: ${ratings.POVR}`);
+          console.log(`[CreatorService V2]   Output maddenRatings.POVR: ${maddenRatings.POVR}`);
+          console.log(`[CreatorService V2]   Output maddenRatings.overall: ${maddenRatings.overall}`);
+          console.log(`[CreatorService V2]   Output maddenRatings.speed: ${maddenRatings.speed}`);
+          console.log(`[CreatorService V2]   Output maddenRatings.acceleration: ${maddenRatings.acceleration}`);
+          console.log(`[CreatorService V2] ==========================================\n`);
+        }
+
+        // Validate that overall is set correctly for Madden mode
+        if (options.ratingMode === 'madden' && (!maddenRatings.overall || maddenRatings.overall === 0)) {
+          console.error(`[CreatorService V2] ⚠️⚠️⚠️ WARNING: Madden mode but overall=${maddenRatings.overall} for ${fullName}`);
+          console.error(`[CreatorService V2]   Input POVR was: ${ratings.POVR}`);
+        }
+
+        // Map position
+        const mappedPosition = this.mapPosition(player.position);
+
+        // Use actual data from CSV when available, fallback to generated/matched values
+        let pid = player.photoID !== undefined && player.photoID > 0
+          ? player.photoID
+          : this.matchPID(firstName, lastName, player.draftClass ? parseInt(String(player.draftClass)) : options.year, player.position, player.college);
+
+        // If no PID found (0), assign a generic face so every player has a portrait
+        if (pid === 0) {
+          const raceData = (player as any).race;
+          pid = this.assignGenericFace(firstName, lastName, player.position, raceData);
+        }
+
+        // Always assign generic asset based on the PID (whether real or generic)
+        const pam = player.playerAssetsID && player.playerAssetsID.trim() !== ''
+          ? player.playerAssetsID.trim()
+          : this.assignGenericAsset(pid);
+
+        // Match college
+        const collegeId = player.college ? this.matchCollege(player.college) : 265;
+
+        // Match home state (convert to ID for Madden)
+        const homeState = player.homeState ? this.matchHomeState(player.homeState) : 0;
+
+        // Use jersey from CSV, fallback to generated
+        const jerseyNum = player.jersey
+          ? (typeof player.jersey === 'string' ? parseInt(player.jersey.split('.')[0]) : parseInt(String(player.jersey)))
+          : this.generateJerseyNumber(player.position);
+
+        // DEBUG: Log Joe Burrow specifically
+        if (fullName === 'Joe Burrow') {
+          console.log(`\n[CreatorService V2] ========== JOE BURROW GENERATION ==========`);
+          console.log(`[CreatorService V2]   FROM HistoricalPlayer object:`);
+          console.log(`[CreatorService V2]     player.position = "${player.position}"`);
+          console.log(`[CreatorService V2]     player.jersey = "${player.jersey}"`);
+          console.log(`[CreatorService V2]     player.homeState = "${player.homeState}"`);
+          console.log(`[CreatorService V2]     player.archetype = "${player.archetype}"`);
+          console.log(`[CreatorService V2]     player.photoID = ${player.photoID}`);
+          console.log(`[CreatorService V2]     player.playerAssetsID = "${player.playerAssetsID}"`);
+          console.log(`[CreatorService V2]   AFTER PROCESSING:`);
+          console.log(`[CreatorService V2]     jerseyNum = ${jerseyNum}`);
+          console.log(`[CreatorService V2]     homeState (ID) = ${homeState}`);
+          console.log(`[CreatorService V2]     pid = ${pid}`);
+          console.log(`[CreatorService V2]     pam = "${pam}"`);
+          console.log(`[CreatorService V2]     mappedPosition = ${mappedPosition.name} (code ${mappedPosition.code})`);
+        }
+
+        // Determine dev trait
+        const devTrait = this.determineDevTrait(
+          player.round ? parseInt(String(player.round)) : undefined,
+          player.pick ? parseInt(String(player.pick)) : undefined,
+          maddenRatings.POVR,
+          (player as any).isHallOfFamer || false,
+          player.wAV
+        );
+
+        // Generate body type
+        const bodyType = this.determineBodyType(player.position, player.weight || 200, player.height || 72);
+
+        // Convert archetype NAME to NUMERIC ID for Madden draft class format
+        let archetypeId = 0;
+
+        // Check if ArchetypeAssigner already calculated the ID (for players not in ROSTER_lookup)
+        if ((player as any).archetypeId !== undefined) {
+          archetypeId = (player as any).archetypeId;
+          if (i < 5) {
+            console.log(`[CreatorService V2] ${fullName}: Using pre-calculated archetype ID ${archetypeId} from ArchetypeAssigner`);
+          }
+        } else if (player.archetype && player.archetype.trim() !== '') {
+          // Convert archetype NAME from ROSTER_lookup to ID
+          // CSV has multiple formats:
+          // - Underscored with spaces: "QB_Field General"
+          // - Underscored camelCase: "QB_FieldGeneral", "WR_DeepThreat"
+          // archetypeService expects: "QB Field General", "WR Deep Threat"
+
+          let archetypeName = player.archetype.trim();
+
+          // Step 1: Replace underscores with spaces
+          archetypeName = archetypeName.replace(/_/g, ' ');
+
+          // Step 2: Add spaces before capital letters (for camelCase conversion)
+          // "DeepThreat" -> "Deep Threat", "FieldGeneral" -> "Field General"
+          archetypeName = archetypeName.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+          archetypeId = archetypeService.getArchetypeId(archetypeName, mappedPosition.name);
+
+          // Debug first 5 conversions and any failures
+          if (i < 5 || archetypeId === 0) {
+            console.log(`[CreatorService V2] ${fullName} (${mappedPosition.name}): "${player.archetype}" -> "${archetypeName}" -> ID ${archetypeId}`);
+            if (archetypeId === 0) {
+              console.error(`[CreatorService V2] ⚠️ FAILED ARCHETYPE LOOKUP`);
+            }
+          }
+        } else {
+          // No archetype, use default for position
+          archetypeId = archetypeService.getDefaultArchetypeForPosition(mappedPosition.name);
+        }
+
+        // Create generated player
+        const generatedPlayer: GeneratedPlayer = {
+          firstName,
+          lastName,
+          position: mappedPosition.name,
+          positionCode: mappedPosition.code,
+          college: collegeId,
+          jerseyNum,
+          age: this.calculateAge(player.draftClass ? parseInt(String(player.draftClass)) : options.year || 2024),
+          heightInches: player.height || this.getDefaultHeight(player.position),
+          weight: player.weight || this.getDefaultWeight(player.position),
+          homeState,
+          devTrait,
+          ratings: maddenRatings,
+          PID: pid,
+          PAM: pam,
+          PEPS: pam,
+          bodyType,
+          yearsPro: 0,
+          archetype: archetypeId  // NUMERIC archetype ID, not string
+        };
+
+        // DEBUG: Log final generated player object for specific players
+        if (fullName === 'Joe Burrow' || fullName.includes('Wills')) {
+          console.log(`[CreatorService V2]   FINAL GeneratedPlayer object for ${fullName}:`);
+          console.log(`[CreatorService V2]     position: "${generatedPlayer.position}"`);
+          console.log(`[CreatorService V2]     positionCode: ${generatedPlayer.positionCode}`);
+          console.log(`[CreatorService V2]     jerseyNum: ${generatedPlayer.jerseyNum}`);
+          console.log(`[CreatorService V2]     archetype: "${generatedPlayer.archetype}"`);
+          console.log(`[CreatorService V2]     PID: ${generatedPlayer.PID}`);
+          console.log(`[CreatorService V2]     PAM: "${generatedPlayer.PAM}"`);
+          console.log(`[CreatorService V2]     homeState: ${generatedPlayer.homeState}`);
+          console.log(`[CreatorService V2]     ratings.overall: ${generatedPlayer.ratings.overall}`);
+          console.log(`[CreatorService V2]     ratings.POVR: ${generatedPlayer.ratings.POVR}`);
+          console.log(`[CreatorService V2]   ========================================\n`);
+        }
+
+        generatedPlayers.push(generatedPlayer);
+
+        // Progress logging
+        if ((i + 1) % 50 === 0) {
+          console.log(`[CreatorService V2] Generated ${i + 1}/${players.length} players...`);
+        }
+      }
+
+      const elapsed = Date.now() - startTime;
+      console.log(`[CreatorService V2] ✓ Generated ${generatedPlayers.length} players in ${elapsed}ms (${(elapsed / generatedPlayers.length).toFixed(1)}ms/player)`);
+
+      // Debug: Check if specific high-profile players are included (for 2020 draft)
+      if (options.year === 2020) {
+        const burrow = generatedPlayers.find(p => p.lastName.toLowerCase() === 'burrow' && p.firstName.toLowerCase() === 'joe');
+        const chase = generatedPlayers.find(p => p.lastName.toLowerCase() === 'young' && p.firstName.toLowerCase() === 'chase');
+        const herbert = generatedPlayers.find(p => p.lastName.toLowerCase() === 'herbert' && p.firstName.toLowerCase() === 'justin');
+
+        if (burrow) {
+          const burrowIndex = generatedPlayers.findIndex(p => p === burrow);
+          console.log(`[CreatorService V2] ✓ Joe Burrow found at position ${burrowIndex + 1}, OVR: ${burrow.ratings.overall || burrow.ratings.POVR}`);
+        } else {
+          console.warn(`[CreatorService V2] ⚠️ Joe Burrow NOT found in generated players!`);
+        }
+
+        if (chase) {
+          const chaseIndex = generatedPlayers.findIndex(p => p === chase);
+          console.log(`[CreatorService V2] ✓ Chase Young found at position ${chaseIndex + 1}, OVR: ${chase.ratings.overall || chase.ratings.POVR}`);
+        }
+
+        if (herbert) {
+          const herbertIndex = generatedPlayers.findIndex(p => p === herbert);
+          console.log(`[CreatorService V2] ✓ Justin Herbert found at position ${herbertIndex + 1}, OVR: ${herbert.ratings.overall || herbert.ratings.POVR}`);
+        }
+      }
+
+      return generatedPlayers;
+
+    } catch (error: any) {
+      console.error('[CreatorService V2] Error generating draft class:', error);
+      throw new Error(`Failed to generate draft class V2: ${error.message}`);
+    }
+  }
+
+  /**
+   * Shuffle array in place (Fisher-Yates algorithm)
+   */
+  private shuffleArray<T>(array: T[]): void {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  /**
    * Generate a roster from web-scraped data
    * NOW WITH: College lookup, dev traits based on HOF+stats, stat minimums, position mapping
    * @param year - Season year
@@ -2845,8 +3430,72 @@ export class CreatorService {
 
   /**
    * Convert factory PlayerRatings format to MaddenRatings format
+   * @param factoryRatings - Ratings from the rating generator
+   * @param ratingMode - Rating mode ('madden' = use exact values, others = use defaults for missing values)
    */
-  private convertFactoryRatingsToMaddenRatings(factoryRatings: any): MaddenRatings {
+  private convertFactoryRatingsToMaddenRatings(factoryRatings: any, ratingMode?: string): MaddenRatings {
+    // For Madden mode, use EXACT values from CSV with NO defaults
+    // This preserves the actual rookie ratings
+    if (ratingMode === 'madden') {
+      return {
+        overall: factoryRatings.POVR,
+        speed: factoryRatings.PSPD,
+        acceleration: factoryRatings.PACC,
+        agility: factoryRatings.PAGI,
+        strength: factoryRatings.PSTR,
+        jumping: factoryRatings.PJMP,
+        stamina: factoryRatings.PSTA,
+        injury: factoryRatings.PINJ,
+        toughness: factoryRatings.PTGH,
+        awareness: factoryRatings.PAWR,
+        throwAccuracyDeep: factoryRatings.PTAD,
+        throwAccuracyMid: factoryRatings.PTAM,
+        throwAccuracyShort: factoryRatings.PTAS,
+        throwPower: factoryRatings.PTHP,
+        throwUnderPressure: factoryRatings.PTUP,
+        throwOnTheRun: factoryRatings.PTOR,
+        playAction: factoryRatings.PPLA,
+        breakSack: factoryRatings.PBSK,
+        carrying: factoryRatings.PCAR,
+        ballCarrierVision: factoryRatings.PBCV,
+        breakTackle: factoryRatings.PBTK,
+        trucking: factoryRatings.PTRK,
+        jukeMove: factoryRatings.PJUM,
+        spinMove: factoryRatings.PSPM,
+        stiffArm: factoryRatings.PSTF,
+        changeOfDirection: factoryRatings.PCOD,
+        catching: factoryRatings.PCTH,
+        catchInTraffic: factoryRatings.PCIT,
+        spectacularCatch: factoryRatings.PSPC,
+        release: factoryRatings.PREL,
+        deepRouteRunning: factoryRatings.PDRR,
+        mediumRouteRunning: factoryRatings.PMRR,
+        shortRouteRunning: factoryRatings.PSRR,
+        runBlock: factoryRatings.PRBK,
+        passBlock: factoryRatings.PPBK,
+        impactBlocking: factoryRatings.PIBL,
+        leadBlock: factoryRatings.PLDB,
+        runBlockFinesse: factoryRatings.PRBF,
+        runBlockPower: factoryRatings.PRBP,
+        passBlockFinesse: factoryRatings.PPBF,
+        passBlockPower: factoryRatings.PPBP,
+        tackle: factoryRatings.PTAK,
+        pursuit: factoryRatings.PPUR,
+        playRecognition: factoryRatings.PPRC,
+        hitPower: factoryRatings.PHTP,
+        blockShedding: factoryRatings.PBSH,
+        finesseMoves: factoryRatings.PFNM,
+        powerMoves: factoryRatings.PPWM,
+        manCoverage: factoryRatings.PMCV,
+        zoneCoverage: factoryRatings.PZCV,
+        press: factoryRatings.PPRS,
+        kickPower: factoryRatings.PKPW,
+        kickAccuracy: factoryRatings.PKAC,
+        kickReturn: factoryRatings.PKRT
+      };
+    }
+
+    // For other modes, use defaults for missing values
     return {
       overall: factoryRatings.POVR || 65,
       speed: factoryRatings.PSPD || 75,
@@ -2863,7 +3512,7 @@ export class CreatorService {
       throwAccuracyShort: factoryRatings.PTAS || 65,
       throwPower: factoryRatings.PTHP || 75,
       throwUnderPressure: factoryRatings.PTUP || 65,
-      throwOnRun: factoryRatings.PTOR || 65,
+      throwOnTheRun: factoryRatings.PTOR || 65,
       playAction: factoryRatings.PPLA || 65,
       breakSack: factoryRatings.PBSK || 60,
       carrying: factoryRatings.PCAR || 65,
@@ -2889,7 +3538,7 @@ export class CreatorService {
       runBlockPower: factoryRatings.PRBS || 50,
       passBlockFinesse: factoryRatings.PPBF || 50,
       passBlockPower: factoryRatings.PPBS || 50,
-      tackling: factoryRatings.PTAK || 60,
+      tackle: factoryRatings.PTAK || 60,
       pursuit: factoryRatings.PLPU || 65,
       playRecognition: factoryRatings.PLPR || 60,
       hitPower: factoryRatings.PLHT || 60,
@@ -2898,7 +3547,7 @@ export class CreatorService {
       powerMoves: factoryRatings.PLPM || 60,
       manCoverage: factoryRatings.PLMC || 60,
       zoneCoverage: factoryRatings.PLZC || 60,
-      press: factoryRatings.PLPE || 60,
+      pressCoverage: factoryRatings.PLPE || 60,
       kickAccuracy: factoryRatings.PKAC || 65,
       kickPower: factoryRatings.PKPR || 65,
       kickReturn: factoryRatings.PKRT || 1,
@@ -3357,6 +4006,22 @@ export class CreatorService {
     };
 
     return weightByPosition[position.toUpperCase()] || 220;
+  }
+
+  /**
+   * Get default height for a position (in inches)
+   */
+  private getDefaultHeight(position: string): number {
+    const heightByPosition: { [key: string]: number } = {
+      'QB': 75, 'HB': 70, 'FB': 72, 'WR': 73, 'TE': 77,
+      'LT': 77, 'LG': 75, 'C': 75, 'RG': 75, 'RT': 77,
+      'LEDG': 75, 'REDG': 75, 'DT': 75, 'NT': 74,
+      'SAM': 74, 'Mike': 73, 'WILL': 73,
+      'CB': 71, 'FS': 72, 'SS': 72,
+      'K': 72, 'P': 74, 'LS': 74
+    };
+
+    return heightByPosition[position.toUpperCase()] || 73; // Default 6'1"
   }
 
   /**
