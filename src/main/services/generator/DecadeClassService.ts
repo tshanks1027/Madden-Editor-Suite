@@ -112,6 +112,7 @@ export class DecadeClassService {
     this.assignDraftPositions(finalClass);
 
     console.log(`  - Final decade class: ${finalClass.length} players`);
+    console.log(`  - Top 10 players by wAV: ${finalClass.slice(0, 10).map(p => `${p.firstName} ${p.lastName} (wAV: ${p.wAV || 0})`).join(', ')}`);
     console.log(`  - Position distribution:`);
     this.logPositionDistribution(finalClass);
 

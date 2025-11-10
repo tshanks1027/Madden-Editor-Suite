@@ -2331,8 +2331,9 @@ export class CreatorService {
         console.log(`[CreatorService V2]   Players AFTER shuffle: ${players.slice(0, 5).map(p => p.firstName + ' ' + p.lastName).join(', ')}...`);
       } else {
         // Log order for non-random modes to verify it's correct
-        console.log(`[CreatorService V2] ${options.ratingMode.toUpperCase()} mode: preserving CSV order`);
-        console.log(`[CreatorService V2]   First 10 players: ${players.slice(0, 10).map(p => `${p.firstName} ${p.lastName} (${p.pick || '?'})`).join(', ')}...`);
+        const orderType = options.decade ? 'wAV/position order' : 'CSV draft order';
+        console.log(`[CreatorService V2] ${options.ratingMode.toUpperCase()} mode: preserving ${orderType}`);
+        console.log(`[CreatorService V2]   First 10 players: ${players.slice(0, 10).map(p => `${p.firstName} ${p.lastName} (${p.pick || 'wAV:' + (p.wAV || 0)})`).join(', ')}...`);
       }
 
       // Step 5: Assign archetypes if missing
