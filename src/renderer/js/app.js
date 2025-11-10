@@ -3929,9 +3929,11 @@ class MaddenEditorApp {
                 const physicalRow = instance.toPhysicalRow(row);
                 const sourceData = instance.getSourceDataAtRow(physicalRow);
 
+                console.log(`[Archetype Renderer] Row ${row}: physicalRow=${physicalRow}, sourceData=`, sourceData);
+
                 if (sourceData && sourceData.position) {
                     const position = sourceData.position;
-                    console.log(`[Archetype Renderer] Row ${row}: position=${position}, archetypeId=${value}`);
+                    console.log(`[Archetype Renderer] Row ${row}: position="${position}" (type: ${typeof position}), archetypeId=${value}`);
 
                     // Show "Loading..." while converting
                     td.textContent = 'Loading...';
@@ -3939,13 +3941,15 @@ class MaddenEditorApp {
 
                     // Try to convert archetype ID to name
                     window.electronAPI.rating.getArchetypeName(value, position).then(name => {
-                        if (name) {
+                        console.log(`[Archetype Renderer] Row ${row}: IPC returned "${name}" (type: ${typeof name}, empty: ${!name})`);
+                        if (name && name !== 'Unknown' && name !== '') {
                             console.log(`[Archetype Renderer] Row ${row}: Converted archetype ${value} -> "${name}"`);
                             // Update the source data so future renders use the string
                             sourceData.archetype = name;
                             td.textContent = name;
                             td.style.color = '';
                         } else {
+                            console.warn(`[Archetype Renderer] Row ${row}: IPC returned invalid name, showing fallback`);
                             td.textContent = `Archetype #${value}`;
                             td.style.color = '#ff6666';
                         }
@@ -3955,6 +3959,7 @@ class MaddenEditorApp {
                         td.style.color = '#ff6666';
                     });
                 } else {
+                    console.error(`[Archetype Renderer] Row ${row}: Missing sourceData or position!`, { sourceData, hasPosition: !!sourceData?.position });
                     td.textContent = `Archetype #${value}`;
                     td.style.color = '#ff6666';  // Red to indicate problem
                 }
