@@ -16,6 +16,7 @@
 import { playerDataService, FutureProspect, RookieStats } from './PlayerDataService';
 import { comparableMatcherService } from './ComparableMatcherService';
 import { VarianceRatingGenerator } from '../rating-modes/VarianceRatingGenerator';
+import { RatingContext } from '../rating-modes/IRatingGenerator';
 import { ArchetypeService } from '../utils/archetypeService';
 
 // ===========================
@@ -376,59 +377,67 @@ export class FutureDraftService {
     archetype: string
   ): Promise<Partial<RookieStats>> {
 
+    // Build proper RatingContext for VarianceRatingGenerator
+    const draftRound = prospect.round && prospect.round !== 'UD' ? parseInt(prospect.round) : undefined;
+    const draftPosition = prospect.pick && prospect.pick !== 'UD' ? parseInt(prospect.pick) : undefined;
+
+    const ratingContext = {
+      position: prospect.position,
+      draftRound,
+      draftPosition,
+      name: `${prospect.firstName} ${prospect.lastName}`,
+      careerStats: {
+        wAV: prospect.wAV,
+        draftClass: prospect.draftClass,
+        archetype,
+        height: prospect.height,
+        weight: prospect.weight
+      }
+    };
+
     // If we have good comp data, use it as baseline
     if (compResult.confidence > 0.5 && Object.keys(compResult.averagedRatings).length > 0) {
       // Use comp ratings as baseline
       const baselineRatings = compResult.averagedRatings;
 
-      // Apply variance based on wAV and archetype
-      // This is where VarianceRatingGenerator comes in
-      const prospectData = {
-        firstName: prospect.firstName,
-        lastName: prospect.lastName,
-        position: prospect.position,
-        height: prospect.height,
-        weight: prospect.weight,
-        wAV: prospect.wAV,
-        archetype,
-        college: prospect.college,
-        draftClass: prospect.draftClass
-      };
-
-      // Generate ratings with variance
-      const variantRatings = await this.varianceGenerator.generateRatings(prospectData);
+      // Generate ratings with variance using proper context
+      const variantRatings = await this.varianceGenerator.generateRatings(ratingContext);
 
       // Blend comp baseline with variance (70% comp, 30% variance for high confidence)
       const blendFactor = compResult.confidence;
       const blendedRatings: Partial<RookieStats> = {};
 
+      // Convert PlayerRatings back to RookieStats format
       for (const key of Object.keys(variantRatings)) {
-        const compValue = baselineRatings[key as keyof RookieStats] as number || 65;
-        const varValue = variantRatings[key as keyof RookieStats] as number || 65;
+        const compValue = baselineRatings[key.toLowerCase() as keyof RookieStats] as number || 65;
+        const varValue = variantRatings[key as keyof typeof variantRatings] as number || 65;
 
         // Blend: higher comp confidence = more weight on comp ratings
-        blendedRatings[key as keyof RookieStats] = Math.round(
+        blendedRatings[key.toLowerCase() as keyof RookieStats] = Math.round(
           compValue * blendFactor + varValue * (1 - blendFactor)
+        );
+      }
+
+      // Ensure POVR is set
+      if (variantRatings.POVR) {
+        blendedRatings.povr = Math.round(
+          (baselineRatings.povr || 65) * blendFactor + variantRatings.POVR * (1 - blendFactor)
         );
       }
 
       return blendedRatings;
 
     } else {
-      // Low comp confidence - rely more on variance generator
-      const prospectData = {
-        firstName: prospect.firstName,
-        lastName: prospect.lastName,
-        position: prospect.position,
-        height: prospect.height,
-        weight: prospect.weight,
-        wAV: prospect.wAV,
-        archetype,
-        college: prospect.college,
-        draftClass: prospect.draftClass
-      };
+      // Low comp confidence - rely fully on variance generator
+      const variantRatings = await this.varianceGenerator.generateRatings(ratingContext);
 
-      return await this.varianceGenerator.generateRatings(prospectData);
+      // Convert PlayerRatings to RookieStats format (lowercase keys)
+      const rookieStats: Partial<RookieStats> = {};
+      for (const [key, value] of Object.entries(variantRatings)) {
+        rookieStats[key.toLowerCase() as keyof RookieStats] = value as number;
+      }
+
+      return rookieStats;
     }
   }
 
