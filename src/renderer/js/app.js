@@ -3666,7 +3666,13 @@ class MaddenEditorApp {
             // Pre-convert archetype ID to name based on position
             let archetypeDisplay = '';
             const position = getLookupValue('positions', prospect.position) || prospect.position;
-            if (typeof prospect.archetype === 'number' && prospect.archetype >= 0) {
+
+            // Check if archetype is already a string (from future draft generator)
+            if (typeof prospect.archetype === 'string' && prospect.archetype !== '') {
+                archetypeDisplay = prospect.archetype;
+            }
+            // Otherwise convert numeric ID to name
+            else if (typeof prospect.archetype === 'number' && prospect.archetype >= 0) {
                 try {
                     archetypeDisplay = await window.electronAPI.rating.getArchetypeName(prospect.archetype, position);
                 } catch (error) {
