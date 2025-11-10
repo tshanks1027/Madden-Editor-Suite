@@ -3931,12 +3931,13 @@ class MaddenEditorApp {
                 const physicalRow = instance.toPhysicalRow(row);
                 const sourceData = instance.getSourceDataAtRow(physicalRow);
 
-                // Get position from the CURRENT row data (after sort), not from sourceData
-                // Use instance.getDataAtRowProp to get the position value from the sorted view
-                const positionValue = instance.getDataAtRowProp(row, 'position');
+                // Get position from the CURRENT row data using getDataAtCell (works after sorting)
+                // Find the position column index first
+                const positionColIndex = instance.propToCol('position');
+                const positionValue = instance.getDataAtCell(row, positionColIndex);
 
                 if (row < 5) {
-                    console.log(`[Archetype Renderer] Row ${row}: physicalRow=${physicalRow}, position="${positionValue}" (type: ${typeof positionValue})`);
+                    console.log(`[Archetype Renderer] Row ${row}: physicalRow=${physicalRow}, positionCol=${positionColIndex}, position="${positionValue}" (type: ${typeof positionValue})`);
                 }
 
                 if (positionValue) {
