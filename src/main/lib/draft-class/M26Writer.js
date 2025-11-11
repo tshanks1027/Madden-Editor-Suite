@@ -209,7 +209,16 @@ function writeM26AttributeData(buffer, offset, prospect) {
   // Generic assets (like "gen_7_B_G_005") go to visuals.genericHeadName only
   let newPEPS = prospect.PEPS || prospect.visuals?.genericHeadName || null;
 
-  if (newPEPS !== undefined && newPEPS !== null) {
+  // CRITICAL FIX: Ensure newPEPS is a string before calling .toUpperCase()
+  if (newPEPS !== null && newPEPS !== undefined && typeof newPEPS !== 'string') {
+    console.error(`[M26Writer] ERROR at prospect ${prospectIndex}: PEPS is not a string!`);
+    console.error(`  Type: ${typeof newPEPS}, Value:`, newPEPS);
+    console.error(`  prospect.PEPS:`, prospect.PEPS, `(type: ${typeof prospect.PEPS})`);
+    console.error(`  prospect.visuals?.genericHeadName:`, prospect.visuals?.genericHeadName);
+    newPEPS = null; // Reset to null to skip this field
+  }
+
+  if (newPEPS !== undefined && newPEPS !== null && typeof newPEPS === 'string') {
     const isGenericAsset = newPEPS.toUpperCase().startsWith('GEN_');
 
     if (!isGenericAsset) {
@@ -306,6 +315,14 @@ existing visuals.genericHeadName: ${visuals.genericHeadName}
   // Prioritize prospect.PEPS (new value) over visuals.genericHeadName (old template value)
   let newPEPS = prospect.PEPS || prospect.visuals?.genericHeadName || null;
 
+  // CRITICAL FIX: Ensure newPEPS is a string (not a number, object, etc.)
+  if (newPEPS !== null && newPEPS !== undefined && typeof newPEPS !== 'string') {
+    console.error(`[M26Writer] ERROR: newPEPS is not a string! Type: ${typeof newPEPS}, Value:`, newPEPS);
+    console.error(`[M26Writer] prospect.PEPS:`, prospect.PEPS, `(type: ${typeof prospect.PEPS})`);
+    console.error(`[M26Writer] prospect.visuals?.genericHeadName:`, prospect.visuals?.genericHeadName, `(type: ${typeof prospect.visuals?.genericHeadName})`);
+    newPEPS = null; // Reset to null to skip this field
+  }
+
   if (prospect.PEPS) {
     console.log(`[M26Writer] Using prospect.PEPS: ${newPEPS}`);
     fs.appendFileSync(logFile, `Using prospect.PEPS: ${newPEPS}\n`);
@@ -314,7 +331,7 @@ existing visuals.genericHeadName: ${visuals.genericHeadName}
     fs.appendFileSync(logFile, `Falling back to visuals.genericHeadName: ${newPEPS}\n`);
   }
 
-  if (newPEPS !== undefined && newPEPS !== null) {
+  if (newPEPS !== undefined && newPEPS !== null && typeof newPEPS === 'string') {
     // CRITICAL: Real assets go to BINARY assetName field (written in writeM26AttributeData)
     // Generic assets go to visuals.genericHeadName JSON field
     // Keep genericHeadName as fallback for real assets too
