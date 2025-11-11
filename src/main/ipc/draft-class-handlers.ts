@@ -214,4 +214,52 @@ ipcMain.handle('draft-class:convert-m25-to-m26', async (event, inputPath: string
   }
 });
 
+/**
+ * Handle: draft-class:load-template
+ * Load the default M26 template file from data/Templates/
+ */
+ipcMain.handle('draft-class:load-template', async () => {
+  console.log('[draft-class-handlers] ===== IPC LOAD TEMPLATE REQUEST =====');
+
+  try {
+    const { app } = require('electron');
+    const path = require('path');
+    const fs = require('fs');
+
+    // Get the template file path
+    // In development: .vite/build/data/Templates/CAREERDRAFT-2026Template
+    // In production: resources/app/.vite/build/data/Templates/CAREERDRAFT-2026Template
+    const appPath = app.getAppPath();
+    const templatePath = app.isPackaged
+      ? path.join(appPath, '..', 'data', 'Templates', 'CAREERDRAFT-2026Template')
+      : path.join(appPath, '.vite', 'build', 'data', 'Templates', 'CAREERDRAFT-2026Template');
+
+    console.log('[draft-class-handlers] Template path:', templatePath);
+    console.log('[draft-class-handlers] Template exists:', fs.existsSync(templatePath));
+
+    if (!fs.existsSync(templatePath)) {
+      throw new Error(`Template file not found at: ${templatePath}`);
+    }
+
+    // Load the template using the draft class service
+    const templateData = await draftClassService.loadDraftClass(templatePath);
+
+    console.log('[draft-class-handlers] Template loaded successfully');
+    console.log('[draft-class-handlers] Template version:', templateData.data._version);
+    console.log('[draft-class-handlers] Template buffer size:', templateData.data._originalBuffer?.length || 0);
+
+    return templateData;
+
+  } catch (error: any) {
+    console.error('[draft-class-handlers] ===== IPC LOAD TEMPLATE ERROR =====');
+    console.error('[draft-class-handlers] Error:', error);
+    console.error('[draft-class-handlers] ===============================');
+
+    return {
+      success: false,
+      error: error.message || 'Unknown error loading template'
+    };
+  }
+});
+
 console.log('[draft-class-handlers] Draft Class IPC handlers registered');

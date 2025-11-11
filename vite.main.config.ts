@@ -125,6 +125,22 @@ export default defineConfig({
               }
             });
           }
+
+          // Copy templates directory (M26 draft class templates)
+          const srcTemplatesDir = path.join(srcDataDir, 'Templates');
+          const destTemplatesDir = path.join(destDataDir, 'Templates');
+          if (existsSync(srcTemplatesDir)) {
+            if (!existsSync(destTemplatesDir)) {
+              mkdirSync(destTemplatesDir, { recursive: true });
+            }
+            const templateFiles = fs.readdirSync(srcTemplatesDir);
+            templateFiles.forEach(file => {
+              const srcFile = path.join(srcTemplatesDir, file);
+              const destFile = path.join(destTemplatesDir, file);
+              copyFileSync(srcFile, destFile);
+              console.log(`Copied template file: ${file}`);
+            });
+          }
         }
 
         // Copy parsers directory to build output

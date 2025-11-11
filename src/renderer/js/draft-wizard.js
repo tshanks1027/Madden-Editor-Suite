@@ -501,27 +501,32 @@ async function loadIntoEditor() {
     yearsPro: player.yearsPro || 0
   }));
 
-  // Create draft class data structure with M25-compatible header
-  // The M25 writer requires a complete header with all fields
+  // Load the M26 template file to get the buffer structure for saving
+  let templateData = null;
+  try {
+    const templateResult = await window.electronAPI.draftClass.loadTemplate();
+    if (templateResult.success) {
+      templateData = templateResult.data;
+      console.log('[DraftWizard] Loaded M26 template for saving:', templateData._version);
+    } else {
+      console.error('[DraftWizard] Failed to load M26 template:', templateResult.error);
+    }
+  } catch (error) {
+    console.error('[DraftWizard] Error loading M26 template:', error);
+  }
+
+  // Create draft class data structure with M26 template buffer
   const year = wizardState.year || new Date().getFullYear();
   const draftClassData = {
-    header: {
+    header: templateData ? templateData.header : {
       signature: 'FBCHUNKS',
       version: 1,
       gameYear: year,
-      fileName: `Madden-25-Draft-${year}`,
-      // Default M25 header values
-      unkShort0: 0,
-      unkShort1: 0,
-      unkShort2: 0,
-      unkShort3: 0,
-      unkShort4: 0,
-      unkInt: 0,
-      dataSize: 0,  // Will be calculated by writer
-      totalSize: 0   // Will be calculated by writer
+      fileName: `Madden-26-Draft-${year}`,
     },
     prospects: prospects,
-    _version: 'M25'  // Mark as M25 for save operation
+    _version: templateData ? templateData._version : 'M26',
+    _originalBuffer: templateData ? templateData._originalBuffer : null
   };
 
   // Switch to draft class editor tab

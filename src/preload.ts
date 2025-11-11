@@ -61,7 +61,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAttributeDefs: () =>
       ipcRenderer.invoke('draft-class:get-attribute-defs'),
     convertM25toM26: (inputPath: string, outputPath: string, templatePath: string) =>
-      ipcRenderer.invoke('draft-class:convert-m25-to-m26', inputPath, outputPath, templatePath)
+      ipcRenderer.invoke('draft-class:convert-m25-to-m26', inputPath, outputPath, templatePath),
+    loadTemplate: () =>
+      ipcRenderer.invoke('draft-class:load-template')
   },
 
   // Creator APIs (web scraping and rating generation)
