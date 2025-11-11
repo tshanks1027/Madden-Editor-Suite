@@ -2789,7 +2789,7 @@ export class CreatorService {
         PEPS: pam,
         bodyType,
         yearsPro: 0,
-        archetype: prospect.archetype || 'Balanced'
+        archetype: archetypeId  // NUMERIC archetype ID, not string
       });
     }
 
