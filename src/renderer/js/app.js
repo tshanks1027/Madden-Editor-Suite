@@ -4507,6 +4507,8 @@ class MaddenEditorApp {
             // Debug: Log first prospect to see what we're getting
             if (gridData.length > 0) {
                 console.log('[Save] First prospect data from grid:');
+                console.log('  firstName:', gridData[0].firstName, `(type: ${typeof gridData[0].firstName})`);
+                console.log('  lastName:', gridData[0].lastName, `(type: ${typeof gridData[0].lastName})`);
                 console.log('  PEPS:', gridData[0].PEPS);
                 console.log('  bodyType:', gridData[0].bodyType);
                 console.log('  throwPower:', gridData[0].throwPower);
@@ -4572,8 +4574,11 @@ class MaddenEditorApp {
             // Debug: Log first prospect being sent to backend
             if (updatedProspects.length > 0) {
                 console.log('[Save] First prospect being sent to backend:');
+                console.log('  firstName:', updatedProspects[0].firstName, `(type: ${typeof updatedProspects[0].firstName})`);
+                console.log('  lastName:', updatedProspects[0].lastName, `(type: ${typeof updatedProspects[0].lastName})`);
                 console.log('  PEPS:', updatedProspects[0].PEPS);
                 console.log('  bodyType:', updatedProspects[0].bodyType);
+                console.log('  archetype:', updatedProspects[0].archetype, `(type: ${typeof updatedProspects[0].archetype})`);
                 console.log('  Has visuals?:', !!updatedProspects[0].visuals);
                 if (updatedProspects[0].visuals) {
                     console.log('  visuals.genericHeadName:', updatedProspects[0].visuals.genericHeadName);
