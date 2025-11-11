@@ -100,11 +100,23 @@ function writeM26AttributeData(buffer, offset, prospect) {
 
   // String fields (first name and last name)
   if (prospect.firstName) {
+    if (typeof prospect.firstName !== 'string') {
+      console.error(`[M26Writer] ERROR at prospect index ${prospectIndex}:`);
+      console.error(`  firstName is type ${typeof prospect.firstName}, value:`, prospect.firstName);
+      console.error(`  Full prospect object:`, prospect);
+      throw new Error(`firstName must be a string, got ${typeof prospect.firstName}`);
+    }
     const firstName = prospect.firstName.slice(0, 0x11).padEnd(0x11, '\0');
     buffer.write(firstName, offset, 0x11, 'ascii');
   }
 
   if (prospect.lastName) {
+    if (typeof prospect.lastName !== 'string') {
+      console.error(`[M26Writer] ERROR at prospect index ${prospectIndex}:`);
+      console.error(`  lastName is type ${typeof prospect.lastName}, value:`, prospect.lastName);
+      console.error(`  Full prospect object:`, prospect);
+      throw new Error(`lastName must be a string, got ${typeof prospect.lastName}`);
+    }
     const lastName = prospect.lastName.slice(0, 0x15).padEnd(0x15, '\0');
     buffer.write(lastName, offset + 0x11, 0x15, 'ascii');
   }
