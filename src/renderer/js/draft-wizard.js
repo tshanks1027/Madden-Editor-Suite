@@ -501,13 +501,27 @@ async function loadIntoEditor() {
     yearsPro: player.yearsPro || 0
   }));
 
-  // Create draft class data structure
+  // Create draft class data structure with M25-compatible header
+  // The M25 writer requires a complete header with all fields
+  const year = wizardState.year || new Date().getFullYear();
   const draftClassData = {
     header: {
-      year: wizardState.year || new Date().getFullYear(),
-      version: 'V2_Generated'
+      signature: 'FBCHUNKS',
+      version: 1,
+      gameYear: year,
+      fileName: `Madden-25-Draft-${year}`,
+      // Default M25 header values
+      unkShort0: 0,
+      unkShort1: 0,
+      unkShort2: 0,
+      unkShort3: 0,
+      unkShort4: 0,
+      unkInt: 0,
+      dataSize: 0,  // Will be calculated by writer
+      totalSize: 0   // Will be calculated by writer
     },
-    prospects: prospects
+    prospects: prospects,
+    _version: 'M25'  // Mark as M25 for save operation
   };
 
   // Switch to draft class editor tab
