@@ -84,9 +84,18 @@ ipcMain.handle('roster-creator:save', async (event, players: any[], templatePath
   console.log('[roster-creator-handlers] Output:', outputPath);
 
   try {
+    // If templatePath is just 'ROSTER-Official', resolve to full path
+    let resolvedTemplatePath = templatePath;
+    if (templatePath === 'ROSTER-Official' || !templatePath) {
+      const { app } = require('electron');
+      const path = require('path');
+      resolvedTemplatePath = path.join(app.getAppPath(), 'data', 'Templates', 'ROSTER-Official');
+      console.log('[roster-creator-handlers] Resolved template path:', resolvedTemplatePath);
+    }
+
     const success = await rosterCreatorService.saveRoster(
       players,
-      templatePath,
+      resolvedTemplatePath,
       outputPath
     );
 

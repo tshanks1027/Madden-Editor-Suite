@@ -362,107 +362,154 @@
             <div id="create-roster-tool" class="tool-panel">
                 <div class="creator-container">
                     <div class="creator-header">
-                        <h2 class="creator-title">⚡ Create Historical Roster</h2>
-                        <p class="creator-subtitle">Generate a roster from real NFL data using web scraping</p>
+                        <h2 class="creator-title">⚡ Roster Generator</h2>
+                        <p class="creator-subtitle">Generate complete rosters from historical player data (1970-2024)</p>
                     </div>
 
-                    <div class="creator-workflow">
-                        <!-- Step 1: Year & Template Selection -->
-                        <div class="creator-step">
+                    <div id="roster-wizard-section" class="wizard-container">
+                        <!-- Message area -->
+                        <div id="roster-wizard-message" class="wizard-message" style="display: none;"></div>
+
+                        <!-- Step Indicators -->
+                        <div class="wizard-steps">
+                            <div class="roster-step-indicator active">1. Mode</div>
+                            <div class="roster-step-indicator">2. Year</div>
+                            <div class="roster-step-indicator">3. Review</div>
+                            <div class="roster-step-indicator">4. Results</div>
+                        </div>
+
+                        <!-- Step 1: Mode Selection -->
+                        <div class="wizard-step active" id="roster-wizard-step-1">
                             <div class="step-header">
                                 <span class="step-number">1</span>
-                                <h3 class="step-title">Select Season Year & Template</h3>
+                                <h3 class="step-title">Select Roster Mode</h3>
                             </div>
                             <div class="step-content">
-                                <div class="form-group">
-                                    <label for="rosterYear" class="form-label">Season Year:</label>
-                                    <input type="number" id="rosterYear" class="form-input" placeholder="e.g., 2019" min="1920" max="2025">
-                                    <span class="form-hint">All teams from this year will be included automatically (NFL founded 1920)</span>
-                                </div>
-                                <div class="form-group">
-                                    <label for="rosterTemplate" class="form-label">Template Roster (for file structure):</label>
-                                    <div style="display: flex; gap: 10px; align-items: center;">
-                                        <input type="text" id="rosterTemplate" class="form-input" placeholder="Select a roster file to use as template..." readonly>
-                                        <button id="selectRosterTemplate" class="btn btn-secondary">
-                                            <span class="btn-icon">📂</span>
-                                            Browse
-                                        </button>
+                                <div class="mode-cards-container">
+                                    <div class="roster-mode-card">
+                                        <input type="radio" id="mode-single-year" name="roster-mode" value="single-year" checked>
+                                        <label for="mode-single-year">
+                                            <div class="mode-icon">📅</div>
+                                            <h4>Single Year</h4>
+                                            <p>Complete roster for one specific year</p>
+                                        </label>
                                     </div>
-                                    <span class="form-hint">This provides the correct file structure for the output</span>
-                                </div>
-                                <div class="info-box">
-                                    <span class="info-icon">ℹ️</span>
-                                    <div class="info-text">
-                                        <strong>What this does:</strong>
-                                        <p>Scrapes complete team rosters from pro-football-reference.com for all 32 NFL teams (or fewer for historical years). Generates ~1,700 rostered players plus ~1,300 free agents to match official roster size (~3,000 total players). Converts season stats into Madden ratings.</p>
-                                        <p><strong>⏱️ Estimated Time:</strong> 10-15 minutes for full roster generation (varies by internet speed and year)</p>
-                                        <p><strong>🎯 Quality Notice:</strong> This process is not perfect but will give you a good starting roster for that year. Player ratings are calculated from stats - you may want to adjust manually.</p>
-                                        <p><strong>🏆 Hall of Fame Detection:</strong> Hall of Famers automatically get X-Factor dev trait and boosted ratings!</p>
-                                        <p><strong>📊 Roster Composition:</strong> ~53 players per team + large FA pool (~3,000 total like official rosters)</p>
+                                    <div class="roster-mode-card">
+                                        <input type="radio" id="mode-all-time" name="roster-mode" value="all-time">
+                                        <label for="mode-all-time">
+                                            <div class="mode-icon">🏆</div>
+                                            <h4>All-Time</h4>
+                                            <p>Best players from a year range combined</p>
+                                        </label>
                                     </div>
+                                </div>
+                                <div class="wizard-nav">
+                                    <button class="btn btn-primary roster-wizard-next">Next: Select Year →</button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Step 2: Generate -->
-                        <div class="creator-step">
+                        <!-- Step 2: Year Selection -->
+                        <div class="wizard-step" id="roster-wizard-step-2" style="display: none;">
                             <div class="step-header">
                                 <span class="step-number">2</span>
-                                <h3 class="step-title">Generate Roster</h3>
+                                <h3 class="step-title">Select Year</h3>
                             </div>
                             <div class="step-content">
-                                <!-- Rating Mode Selector -->
-                                <div class="rating-mode-selector">
-                                    <label class="rating-mode-label">Rating Generation Mode:</label>
-                                    <div class="radio-group">
-                                        <label class="radio-option">
-                                            <input type="radio" name="rosterRatingMode" value="random">
-                                            <span>Random</span>
-                                        </label>
-                                        <label class="radio-option">
-                                            <input type="radio" name="rosterRatingMode" value="semi-historical" checked>
-                                            <span>Semi-Historical (Web Scraping)</span>
-                                        </label>
-                                        <label class="radio-option">
-                                            <input type="radio" name="rosterRatingMode" value="realistic">
-                                            <span>Realistic (RowdyRandy)</span>
-                                        </label>
+                                <!-- Single Year Panel -->
+                                <div id="roster-single-year-panel">
+                                    <div class="form-group">
+                                        <label for="roster-single-year" class="form-label">Season Year:</label>
+                                        <select id="roster-single-year" class="form-input">
+                                            <option value="2024">2024</option>
+                                        </select>
+                                        <span class="form-hint">Select the year for the roster (1970-2024 available)</span>
                                     </div>
                                 </div>
 
-                                <button id="generateRosterBtn" class="btn btn-primary btn-large" disabled>
-                                    <span class="btn-icon">🚀</span>
-                                    Generate Roster
-                                </button>
-                                <div id="rosterGenerateProgress" class="generate-progress" style="display: none;">
-                                    <p id="rosterCurrentTeam" class="current-team-text" style="font-weight: 600; color: #4CAF50; margin-bottom: 8px; font-size: 16px;"></p>
-                                    <div class="progress-bar">
-                                        <div id="rosterProgressBar" class="progress-fill"></div>
+                                <!-- All-Time Panel -->
+                                <div id="roster-alltime-panel" style="display: none;">
+                                    <div class="form-group">
+                                        <label for="roster-start-year" class="form-label">Start Year:</label>
+                                        <select id="roster-start-year" class="form-input">
+                                            <option value="2000">2000</option>
+                                        </select>
                                     </div>
-                                    <p id="rosterProgressText" class="progress-text">Scraping data...</p>
+                                    <div class="form-group">
+                                        <label for="roster-end-year" class="form-label">End Year:</label>
+                                        <select id="roster-end-year" class="form-input">
+                                            <option value="2009">2009</option>
+                                        </select>
+                                        <span class="form-hint">Select the year range for best players</span>
+                                    </div>
+                                </div>
+
+                                <div class="wizard-nav">
+                                    <button class="btn btn-secondary roster-wizard-back">← Back</button>
+                                    <button class="btn btn-primary roster-wizard-next">Next: Review →</button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Step 3: Preview & Edit -->
-                        <div class="creator-step" id="rosterPreviewStep" style="display: none;">
+                        <!-- Step 3: Review & Generate -->
+                        <div class="wizard-step" id="roster-wizard-step-3" style="display: none;">
                             <div class="step-header">
                                 <span class="step-number">3</span>
-                                <h3 class="step-title">Preview & Edit</h3>
+                                <h3 class="step-title">Review & Generate</h3>
                             </div>
                             <div class="step-content">
-                                <div class="preview-controls">
-                                    <span id="rosterPreviewCount" class="preview-count"></span>
-                                    <button id="loadIntoRosterEditor" class="btn btn-primary">
-                                        <span class="btn-icon">📝</span>
-                                        Load into Roster Editor
-                                    </button>
-                                    <button id="saveGeneratedRoster" class="btn btn-success">
-                                        <span class="btn-icon">💾</span>
-                                        Save Roster
+                                <div id="roster-review-content">
+                                    <!-- Review summary will be inserted here -->
+                                </div>
+
+                                <div class="wizard-nav">
+                                    <button class="btn btn-secondary roster-wizard-back">← Back</button>
+                                    <button class="btn btn-success roster-wizard-generate">
+                                        <span class="btn-icon">🚀</span>
+                                        Generate Roster
                                     </button>
                                 </div>
-                                <div id="rosterPreviewGrid" class="preview-grid-container"></div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Results -->
+                        <div class="wizard-step" id="roster-wizard-step-4" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">4</span>
+                                <h3 class="step-title">Generated Roster</h3>
+                            </div>
+                            <div class="step-content">
+                                <div id="roster-result-metadata" class="result-metadata">
+                                    <!-- Metadata will be inserted here -->
+                                </div>
+
+                                <div class="result-stats">
+                                    <div id="roster-position-breakdown" class="stats-section">
+                                        <!-- Position breakdown will be inserted here -->
+                                    </div>
+                                    <div id="roster-rating-stats" class="stats-section">
+                                        <!-- Rating stats will be inserted here -->
+                                    </div>
+                                </div>
+
+                                <div id="roster-preview-table" class="preview-section">
+                                    <!-- Preview table will be inserted here -->
+                                </div>
+
+                                <div class="result-actions">
+                                    <button id="roster-wizard-save" class="btn btn-success">
+                                        <span class="btn-icon">💾</span>
+                                        Save Roster File
+                                    </button>
+                                    <button id="roster-wizard-load-editor" class="btn btn-primary">
+                                        <span class="btn-icon">📝</span>
+                                        Load into Editor
+                                    </button>
+                                    <button class="btn btn-secondary roster-wizard-restart">
+                                        <span class="btn-icon">🔄</span>
+                                        Create Another Roster
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -861,6 +908,7 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
     </div>
 
     <script src="js/draft-wizard.js"></script>
+    <script src="js/roster-wizard.js"></script>
     <script type="module" src="js/app.js"></script>
     <script src="update-notification.js"></script>
 </body>

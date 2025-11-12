@@ -341,55 +341,38 @@ export class RosterCreatorService {
       console.log(`[RosterCreatorService] Template: ${templatePath}`);
       console.log(`[RosterCreatorService] Players: ${players.length}`);
 
-      // Use MaddenRosterHelper to load template and save roster
-      // In build: main.js is at .vite/build/main.js, lib is at .vite/build/lib/
-      const helperPath = path.join(__dirname, 'lib', 'helpers', 'MaddenRosterHelper');
-      console.log(`[RosterCreatorService] Loading MaddenRosterHelper from: ${helperPath}`);
-      const MaddenRosterHelper = require(helperPath);
-      const helper = new MaddenRosterHelper();
+      // Load template using DraftClassService (M26 roster files use same format as draft classes)
+      console.log(`[RosterCreatorService] Loading M26 template...`);
+      const templateData = await draftClassService.loadDraftClass(templatePath);
+      console.log(`[RosterCreatorService] Template loaded, buffer size: ${templateData.data._originalBuffer?.length}`);
 
-      // Load template roster file
-      console.log(`[RosterCreatorService] Loading template roster...`);
-      const file = await helper.load(templatePath);
-      console.log(`[RosterCreatorService] Template loaded with ${file.tables.length} tables`);
-
-      // Get player table
-      const playerTable = file.PLAY;
-      if (!playerTable) {
-        throw new Error('PLAY table not found in template file');
+      if (!templateData.data._originalBuffer) {
+        throw new Error('Template buffer not found - cannot save M26 roster');
       }
 
-      console.log(`[RosterCreatorService] Template has ${playerTable.records.length} player slots`);
-      console.log(`[RosterCreatorService] Updating with ${players.length} generated players`);
-
-      // Update player records in template
-      const playersToWrite = Math.min(players.length, playerTable.records.length);
-      console.log(`[RosterCreatorService] Will write ${playersToWrite} players`);
-
-      for (let i = 0; i < playersToWrite; i++) {
-        const record = playerTable.records[i];
-        const playerData = players[i];
-
-        // Update each field in the record
-        for (const fieldName in playerData) {
-          // Skip metadata fields
-          if (fieldName === 'isHallOfFamer' || fieldName === '_sourceStats') {
-            continue;
-          }
-
-          if (record.fields[fieldName]) {
-            record.fields[fieldName].value = playerData[fieldName];
-          } else {
-            console.warn(`[RosterCreatorService] Field ${fieldName} not found in record ${i}`);
-          }
-        }
+      if (!templateData.data.header) {
+        throw new Error('Template header not found - cannot save M26 roster');
       }
 
-      console.log(`[RosterCreatorService] Updated ${playersToWrite} player records`);
+      // Prepare roster data for M26Writer (same format as draft classes)
+      const rosterData = {
+        prospects: players,  // M26Writer expects 'prospects' field
+        _originalBuffer: templateData.data._originalBuffer,
+        _version: 'M26',
+        header: templateData.data.header
+      };
 
-      // Save the modified roster file
-      console.log(`[RosterCreatorService] Saving to: ${outputPath}`);
-      await helper.save(outputPath);
+      console.log(`[RosterCreatorService] Using M26Writer to save roster...`);
+      console.log(`[RosterCreatorService]   Players: ${players.length}`);
+      console.log(`[RosterCreatorService]   Buffer size: ${rosterData._originalBuffer.length}`);
+      console.log(`[RosterCreatorService]   Data start offset: 0x${rosterData.header.dataStartOffset.toString(16)}`);
+
+      // Use DraftClassService to save (handles M26 format correctly)
+      const success = await draftClassService.saveDraftClass(outputPath, rosterData);
+
+      if (!success) {
+        throw new Error('M26Writer returned false');
+      }
 
       console.log(`[RosterCreatorService] ✓ Roster saved successfully as Madden 26 file`);
       console.log(`[RosterCreatorService] File: ${outputPath}`);

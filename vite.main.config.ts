@@ -11,7 +11,8 @@ export default defineConfig({
         'sqlite3',
         'sharp',
         'puppeteer',
-        // Do NOT externalize bit-buffer, stream-parser, papaparse - they need to be bundled
+        'papaparse',
+        // Do NOT externalize bit-buffer, stream-parser - they need to be bundled
         // so they're available when RosterParser.js requires them at runtime
       ],
     },
@@ -261,7 +262,7 @@ export default defineConfig({
           mkdirSync(destNodeModules, { recursive: true });
         }
 
-        const requiredModules = ['bit-buffer', 'stream-parser', 'crc-32', 'fzstd'];
+        const requiredModules = ['bit-buffer', 'stream-parser', 'crc-32', 'fzstd', 'papaparse'];
         requiredModules.forEach(moduleName => {
           const srcModule = path.join(__dirname, 'node_modules', moduleName);
           const destModule = path.join(destNodeModules, moduleName);

@@ -105,6 +105,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeAllListeners('roster-creator:progress')
   },
 
+  // Roster Generator APIs
+  rosterGenerator: {
+    generate: (options: {
+      mode: 'single-year' | 'all-time' | 'all-decade';
+      year?: number;
+      startYear?: number;
+      endYear?: number;
+    }) =>
+      ipcRenderer.invoke('roster-generator:generate', options),
+    validateYear: (year: number) =>
+      ipcRenderer.invoke('roster-generator:validate-year', year),
+    getAvailableYears: () =>
+      ipcRenderer.invoke('roster-generator:get-available-years'),
+    getStats: (players: any[]) =>
+      ipcRenderer.invoke('roster-generator:get-stats', players)
+  },
+
   // Debug APIs
   debug: {
     getLog: () => ipcRenderer.invoke('debug:get-log'),

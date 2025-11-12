@@ -27,6 +27,7 @@ import './main/ipc/file-handlers';
 import './main/ipc/lookup-handlers';
 import './main/ipc/draft-class-handlers';
 import './main/ipc/roster-creator-handlers';
+import './main/ipc/roster-generator-handlers';
 import './main/ipc/portrait-handlers';
 import './main/ipc/shell-handlers';
 import { registerCreatorHandlers } from './main/ipc/creator-handlers';
