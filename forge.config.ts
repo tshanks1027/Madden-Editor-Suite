@@ -19,7 +19,7 @@ const config: ForgeConfig = {
     icon: path.join(brandingPath, 'madden.ico'),
     name: 'Madden Editor Suite',
     executableName: 'madden-editor-suite',
-    asar: true,  // Enable ASAR compression
+    asar: false,  // MUST match electron-builder.yml asar setting
     prune: true,  // Remove devDependencies - only keep production dependencies
     // Don't ignore .vite directory when packaging
     ignore: (path: string) => {
@@ -118,18 +118,26 @@ const config: ForgeConfig = {
         },
       ],
     }),
-    // Fuses are used to enable/disable various Electron functionality
-    // at package time, before code signing the application
-    new FusesPlugin({
-      version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
-      [FuseV1Options.EnableCookieEncryption]: true,
-      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
-      [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,  // Disabled - no ASAR
-      [FuseV1Options.OnlyLoadAppFromAsar]: false,  // Disabled - no ASAR
-    }),
   ],
+  hooks: {
+    // Apply fuses only during packaging, not during start
+    packageAfterPrune: async (forgeConfig, buildPath) => {
+      const { FusesPlugin } = await import('@electron-forge/plugin-fuses');
+      const { FuseV1Options, FuseVersion } = await import('@electron/fuses');
+
+      // Fuses are used to enable/disable various Electron functionality
+      // at package time, before code signing the application
+      const fusesPlugin = new FusesPlugin({
+        version: FuseVersion.V1,
+        [FuseV1Options.RunAsNode]: false,
+        [FuseV1Options.EnableCookieEncryption]: true,
+        [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
+        [FuseV1Options.EnableNodeCliInspectArguments]: false,
+        [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
+        [FuseV1Options.OnlyLoadAppFromAsar]: false,
+      });
+    },
+  },
 };
 
 export default config;
