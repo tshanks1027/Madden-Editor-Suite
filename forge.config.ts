@@ -1,6 +1,5 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
 import { MakerZIP } from '@electron-forge/maker-zip';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
 import { AutoUnpackNativesPlugin } from '@electron-forge/plugin-auto-unpack-natives';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
@@ -19,7 +18,7 @@ const config: ForgeConfig = {
     icon: path.join(brandingPath, 'madden.ico'),
     name: 'Madden Editor Suite',
     executableName: 'madden-editor-suite',
-    asar: true,  // Enable ASAR compression
+    asar: false,  // Disable ASAR completely - let Node resolve modules normally
     prune: true,  // Remove devDependencies - only keep production dependencies
     // Don't ignore .vite directory when packaging
     ignore: (path: string) => {
@@ -31,9 +30,6 @@ const config: ForgeConfig = {
         /^\/\.git/,
         /^\/dist/,
         /^\/out/,
-        /^\/data\/portraits/,  // Exclude individual portraits folder (1.8GB) - using sprite sheets instead
-        /^\/temp-myfranchise/,  // Exclude MyFranchise extraction (debug only)
-        // NOTE: data/portrait-sprites and data/portrait-atlas.json are included (124MB total)
         /^\/coverage/,
         /^\/.vscode/,
         /^\/tests/,
@@ -82,16 +78,8 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [
-    // Squirrel.Windows - Creates Setup.exe with auto-update support
-    new MakerSquirrel({
-      name: 'madden-editor-suite',
-      authors: 'KRaZyNuttZ',
-      description: 'Professional Madden NFL File Editor',
-      iconUrl: path.join(brandingPath, 'madden.ico'),
-      setupIcon: path.join(brandingPath, 'madden.ico'),
-      loadingGif: path.join(brandingPath, 'splash.png'), // Optional loading animation
-    }),
-    // ZIP backup for manual distribution
+    // Use electron-builder for NSIS installer (via npm run dist)
+    // Forge only creates ZIP for distribution backup
     new MakerZIP({}, ['darwin', 'win32']),
   ],
   plugins: [
