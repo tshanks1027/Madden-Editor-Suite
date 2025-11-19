@@ -40,6 +40,9 @@ nsis:
   packElevateHelper: true
   installerIcon: build-assets/madden.ico
   uninstallerIcon: build-assets/madden.ico
+  installerHeader: build-assets/banner.png
+  installerSidebar: build-assets/splash.png
+  uninstallerSidebar: build-assets/splash.png
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: Madden Editor Suite
