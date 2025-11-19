@@ -1,0 +1,1498 @@
+====================================================================================================
+COLLEGES NEEDING MAPPING DECISIONS
+====================================================================================================
+
+Total colleges in Madden list: 493
+Total unique colleges in source files: 1897
+Colleges that match exactly: 415
+Colleges needing mapping: 1482
+Player instances affected: 31730
+
+====================================================================================================
+COLLEGES NEEDING MAPPING (sorted by frequency)
+====================================================================================================
+
+Source Name                                        Count      Status
+----------------------------------------------------------------------------------------------------
+Southern California                                2293       NEEDS DECISION
+Louisiana State                                    1731       NEEDS DECISION
+University of California Los Angeles               1551       NEEDS DECISION
+Penn St.                                           1470       NEEDS DECISION
+Ohio St.                                           1349       NEEDS DECISION
+Mississippi                                        975        NEEDS DECISION
+Virginia                                           945        NEEDS DECISION
+West Virginia                                      891        NEEDS DECISION
+Texas Christian                                    872        NEEDS DECISION
+Virginia Tech                                      821        NEEDS DECISION
+Brigham Young                                      706        NEEDS DECISION
+Boston Col.                                        667        NEEDS DECISION
+Wake Forest                                        665        NEEDS DECISION
+Southern Methodist                                 661        NEEDS DECISION
+North Carolina State                               437        NEEDS DECISION
+Toledo                                             431        NEEDS DECISION
+Louisiana Tech                                     395        NEEDS DECISION
+Utah St.                                           364        NEEDS DECISION
+Iowa St.                                           350        NEEDS DECISION
+Central Florida                                    334        NEEDS DECISION
+Bowling Green                                      314        NEEDS DECISION
+Miami (OH)                                         310        NEEDS DECISION
+Florida A&M                                        308        NEEDS DECISION
+South Florida                                      286        NEEDS DECISION
+Texas-El Paso                                      207        NEEDS DECISION
+Pacific                                            191        NEEDS DECISION
+Kent St.                                           147        NEEDS DECISION
+S.F. Austin                                        142        NEEDS DECISION
+Boston Univ.                                       139        NEEDS DECISION
+Boise St.                                          139        NEEDS DECISION
+La-Monroe                                          137        NEEDS DECISION
+Western Carolina                                   132        NEEDS DECISION
+Wash. St.                                          127        NEEDS DECISION
+Texas St.                                          123        NEEDS DECISION
+Middle Tenn. St.                                   121        NEEDS DECISION
+Bethune-Cookman                                    120        NEEDS DECISION
+MD-Eastern Shore                                   116        NEEDS DECISION
+Florida International                              116        NEEDS DECISION
+Florida Atlantic                                   116        NEEDS DECISION
+Texas-Arlington                                    112        NEEDS DECISION
+Ball St.                                           109        NEEDS DECISION
+Santa Clara                                        109        NEEDS DECISION
+Chattanooga                                        109        NEEDS DECISION
+Weber St.                                          108        NEEDS DECISION
+Miss. Valley St.                                   107        NEEDS DECISION
+S.D. State                                         106        NEEDS DECISION
+Southern Mississippi                               106        NEEDS DECISION
+Wichita St.                                        105        NEEDS DECISION
+Ark-Pine Bluff                                     104        NEEDS DECISION
+Western Kentucky                                   103        NEEDS DECISION
+Louisiana                                          102        NEEDS DECISION
+Louisiana-Monroe                                   102        NEEDS DECISION
+Western Michigan                                   99         NEEDS DECISION
+Long Beach St.                                     98         NEEDS DECISION
+Appalach. St.                                      97         NEEDS DECISION
+Nevada-Las Vegas                                   94         NEEDS DECISION
+Pitt                                               91         NEEDS DECISION
+Cal Poly-San Luis Obispo                           88         NEEDS DECISION
+Cal State-Fullerton                                82         NEEDS DECISION
+Pennsylvania                                       80         NEEDS DECISION
+Miami (FL)                                         78         NEEDS DECISION
+Idaho St.                                          71         NEEDS DECISION
+Lamar                                              70         NEEDS DECISION
+Virginia Union                                     66         NEEDS DECISION
+Virginia State                                     59         NEEDS DECISION
+Tampa                                              59         NEEDS DECISION
+J. Madison                                         57         NEEDS DECISION
+Marquette                                          56         NEEDS DECISION
+Ga. Southern                                       56         NEEDS DECISION
+Detroit Mercy                                      53         NEEDS DECISION
+San Francisco                                      50         NEEDS DECISION
+Eastern Wash.                                      50         NEEDS DECISION
+Howard Payne                                       49         NEEDS DECISION
+Southeastern Louisiana                             48         NEEDS DECISION
+Langston                                           47         NEEDS DECISION
+Lincoln (MO)                                       46         NEEDS DECISION
+Miami Univ.                                        46         NEEDS DECISION
+Elizabeth City St.                                 45         NEEDS DECISION
+Angelo State (TX)                                  43         NEEDS DECISION
+Mid Tenn St.                                       41         NEEDS DECISION
+Kutztown (PA)                                      40         NEEDS DECISION
+Kentucky St.                                       39         NEEDS DECISION
+Ala-Birmingham                                     39         NEEDS DECISION
+Hardin-Simmons                                     38         NEEDS DECISION
+Elon                                               37         NEEDS DECISION
+Bishop                                             36         NEEDS DECISION
+New Mex. Highlands                                 36         NEEDS DECISION
+California,San Diego St.                           36         NEEDS DECISION
+Johnson C. Smith                                   35         NEEDS DECISION
+Sacramento St.                                     35         NEEDS DECISION
+American Int.                                      35         NEEDS DECISION
+Bradley                                            34         NEEDS DECISION
+WisconsinâLaCrosse                               34         NEEDS DECISION
+New Mex. St.                                       34         NEEDS DECISION
+Tenn-Chat                                          33         NEEDS DECISION
+San Francisco St.                                  32         NEEDS DECISION
+Amherst                                            31         NEEDS DECISION
+Millersville                                       31         NEEDS DECISION
+Denver                                             31         NEEDS DECISION
+Catawba                                            30         NEEDS DECISION
+Fisk                                               30         NEEDS DECISION
+California Lutheran                                29         NEEDS DECISION
+George Washington                                  26         NEEDS DECISION
+Clark (GA)                                         26         NEEDS DECISION
+Xavier (OH)                                        26         NEEDS DECISION
+Abilene Chr.                                       26         NEEDS DECISION
+S. Dakota St.                                      26         NEEDS DECISION
+Eastern New Mexico                                 25         NEEDS DECISION
+Southern Connecticut St.                           25         NEEDS DECISION
+NE State (OK)                                      24         NEEDS DECISION
+WisconsinâWhitewater                             24         NEEDS DECISION
+Concordia-Moorhead (MN)                            23         NEEDS DECISION
+Dodge City (KS),Kansas St.                         23         NEEDS DECISION
+St. Louis                                          23         NEEDS DECISION
+Los Angeles St.                                    22         NEEDS DECISION
+Indiana (PA)                                       22         NEEDS DECISION
+Adams St.                                          21         NEEDS DECISION
+Widener                                            21         NEEDS DECISION
+Wabash                                             21         NEEDS DECISION
+Alcorn St.,Jackson St.                             20         NEEDS DECISION
+Livingstone                                        20         NEEDS DECISION
+Milton                                             20         NEEDS DECISION
+Arizona St.,San Diego St.                          19         NEEDS DECISION
+Benedictine                                        19         NEEDS DECISION
+Waynesburg                                         18         NEEDS DECISION
+Arizona St.,San Jose St.                           18         NEEDS DECISION
+Cameron                                            18         NEEDS DECISION
+Western St. (CO)                                   18         NEEDS DECISION
+St. Thomas                                         18         NEEDS DECISION
+Chowan,Appalachian St.                             18         NEEDS DECISION
+California-Davis                                   18         NEEDS DECISION
+Arkansas P.B.                                      18         NEEDS DECISION
+Jacksonv. St.                                      18         NEEDS DECISION
+Texas A&M,S.F. Austin                              17         NEEDS DECISION
+Chabot,UCLA                                        17         NEEDS DECISION
+Colorado Mesa,Colorado                             17         NEEDS DECISION
+East Central (OK)                                  17         NEEDS DECISION
+UC Riverside,Long Beach St.                        17         NEEDS DECISION
+West Los Angeles College,Washington                17         NEEDS DECISION
+Montclair St.                                      17         NEEDS DECISION
+MacMurray,Syracuse                                 17         NEEDS DECISION
+Towson State                                       17         NEEDS DECISION
+Washington & Lee                                   17         NEEDS DECISION
+UC Santa Barbara                                   16         NEEDS DECISION
+St. Lawrence                                       16         NEEDS DECISION
+Salem                                              16         NEEDS DECISION
+Carthage                                           16         NEEDS DECISION
+Cerritos (CA),Washington                           16         NEEDS DECISION
+New Haven                                          16         NEEDS DECISION
+UCLA,Hawaii                                        16         NEEDS DECISION
+St. Mary's (CA)                                    16         NEEDS DECISION
+Gustavus Adolphus                                  16         NEEDS DECISION
+UT Martin                                          16         NEEDS DECISION
+Southern,Missouri                                  16         NEEDS DECISION
+NE State (OK),Texas A&M                            16         NEEDS DECISION
+McMurry                                            16         NEEDS DECISION
+Wake                                               16         NEEDS DECISION
+Trinity (TX)                                       15         NEEDS DECISION
+Cal State-Chico                                    15         NEEDS DECISION
+Williams                                           15         NEEDS DECISION
+Kilgore College,Yankton                            15         NEEDS DECISION
+Cerritos (CA),California                           15         NEEDS DECISION
+Kansas St.,Fort Hays St.                           15         NEEDS DECISION
+C.W. Post                                          15         NEEDS DECISION
+Cheyney                                            15         NEEDS DECISION
+Drake,Wisconsin                                    15         NEEDS DECISION
+East Carolina,North Carolina                       15         NEEDS DECISION
+N'western St.                                      15         NEEDS DECISION
+N.C. AT                                            15         NEEDS DECISION
+Scranton                                           15         NEEDS DECISION
+Trinity Valley CC (TX)                             14         NEEDS DECISION
+Allen                                              14         NEEDS DECISION
+Arkansas Tech                                      14         NEEDS DECISION
+U.S. International                                 14         NEEDS DECISION
+Wyoming,Bishop                                     14         NEEDS DECISION
+Central College (IA)                               14         NEEDS DECISION
+Doane                                              14         NEEDS DECISION
+UC Riverside                                       14         NEEDS DECISION
+Augsburg,North Dakota St.                          14         NEEDS DECISION
+Rutgers-Camden,Widener                             14         NEEDS DECISION
+Knoxville                                          14         NEEDS DECISION
+Shepherd                                           14         NEEDS DECISION
+Chowan,East Carolina                               14         NEEDS DECISION
+Millikin                                           14         NEEDS DECISION
+Dodge City (KS),Northwestern                       14         NEEDS DECISION
+Memphis,Arkansas St.                               14         NEEDS DECISION
+Tulane,La-Monroe                                   14         NEEDS DECISION
+Occidental                                         14         NEEDS DECISION
+Graceland College (IA)                             14         NEEDS DECISION
+Central Washington,Washington St.                  14         NEEDS DECISION
+Northwest Mississippi CC,Miami (FL)                14         NEEDS DECISION
+San Diego St.,Grossmont College (CA),UCLA          14         NEEDS DECISION
+Utah St.,Utah                                      14         NEEDS DECISION
+Linfield                                           13         NEEDS DECISION
+Minnesota-Duluth                                   13         NEEDS DECISION
+Cerritos (CA),USC                                  13         NEEDS DECISION
+UT Martin,Florida                                  13         NEEDS DECISION
+Colorado,Colorado Mesa                             13         NEEDS DECISION
+Oregon St.,SMU                                     13         NEEDS DECISION
+Coffeyville CC,Purdue                              13         NEEDS DECISION
+Arizona St.,Florida                                13         NEEDS DECISION
+Pacific (OR),Montana                               13         NEEDS DECISION
+Central State (OH),South Carolina St.              13         NEEDS DECISION
+Walla Walla CC (WA)                                13         NEEDS DECISION
+Marshall,Georgia                                   13         NEEDS DECISION
+Western Wash.                                      13         NEEDS DECISION
+Case Western Reserve                               13         NEEDS DECISION
+Delta College,Pacific                              12         NEEDS DECISION
+Texas,Texas St.,Howard Payne                       12         NEEDS DECISION
+Wisconsin–Superior                                 12         NEEDS DECISION
+Hamline                                            12         NEEDS DECISION
+Whittier                                           12         NEEDS DECISION
+Florida Atlantic,Duke                              12         NEEDS DECISION
+Colorado State-Pueblo                              12         NEEDS DECISION
+Colorado,USC                                       12         NEEDS DECISION
+Alabama A&M,Tennessee St.                          12         NEEDS DECISION
+Iowa Central,Iowa                                  12         NEEDS DECISION
+Augustana (SD),Minnesota                           12         NEEDS DECISION
+NE Oklahoma A&M,Oklahoma                           12         NEEDS DECISION
+Penn St.,West Virginia                             12         NEEDS DECISION
+Mississippi Gulf Coast CC,Delta St.                12         NEEDS DECISION
+Oklahoma,UCLA                                      12         NEEDS DECISION
+LSU,La-Monroe                                      12         NEEDS DECISION
+Golden West,Arizona                                12         NEEDS DECISION
+Purdue,Illinois                                    12         NEEDS DECISION
+Bishop,Colorado Mesa                               12         NEEDS DECISION
+Virginia,Ferrum                                    12         NEEDS DECISION
+Hinds CC,Alabama                                   12         NEEDS DECISION
+Colorado St.,Colorado                              12         NEEDS DECISION
+Copiah-Lincoln CC,Akron                            12         NEEDS DECISION
+Butler (KS),Kansas                                 12         NEEDS DECISION
+Hinds CC,Auburn                                    12         NEEDS DECISION
+Flagler,Florida St.                                12         NEEDS DECISION
+DuPage (IL),Saginaw Valley St.                     12         NEEDS DECISION
+Gavilan College,San Jose St.                       12         NEEDS DECISION
+T A&M K'ville                                      12         NEEDS DECISION
+Loyola Marymount                                   12         NEEDS DECISION
+TTech                                              12         NEEDS DECISION
+Mizzou                                             12         NEEDS DECISION
+TCU,Tulsa                                          11         NEEDS DECISION
+Air Force,Houston,Hawaii                           11         NEEDS DECISION
+Arizona St.,Pacific                                11         NEEDS DECISION
+Texas Southern,Weber St.                           11         NEEDS DECISION
+Newberry                                           11         NEEDS DECISION
+Oklahoma,Texas-Arlington                           11         NEEDS DECISION
+King Alfred's (England)                            11         NEEDS DECISION
+U.S. International,San Diego St.                   11         NEEDS DECISION
+WisconsinâMilwaukee                              11         NEEDS DECISION
+Cerritos (CA),Cal Poly-Pomona                      11         NEEDS DECISION
+Chabot,California                                  11         NEEDS DECISION
+Texas,West Texas A&M                               11         NEEDS DECISION
+Oregon St.,San Diego St.                           11         NEEDS DECISION
+Pacific Lutheran                                   11         NEEDS DECISION
+Nassau CC,Duke                                     11         NEEDS DECISION
+Chowan,Virginia Tech                               11         NEEDS DECISION
+Arizona St.,Hawaii                                 11         NEEDS DECISION
+Cerritos (CA),Kansas                               11         NEEDS DECISION
+Chabot,Sacramento St.                              11         NEEDS DECISION
+Texas-El Paso,Hinds CC,Idaho                       11         NEEDS DECISION
+Miami (FL),Florida St.                             11         NEEDS DECISION
+Wake Technical CC                                  11         NEEDS DECISION
+Hinds CC,Emporia St.                               11         NEEDS DECISION
+Davidson,North Carolina                            11         NEEDS DECISION
+Princeton,Columbia                                 11         NEEDS DECISION
+Navy,Penn St.                                      11         NEEDS DECISION
+Northwest Mississippi CC,Mississippi               11         NEEDS DECISION
+Wisconsin,Western Illinois                         11         NEEDS DECISION
+Muhlenberg                                         11         NEEDS DECISION
+St. Bonaventure                                    11         NEEDS DECISION
+UMass                                              11         NEEDS DECISION
+Kent                                               11         NEEDS DECISION
+JMU                                                11         NEEDS DECISION
+Chattanooga,Delta St.                              10         NEEDS DECISION
+New Mex. Mil. Inst.,Navy                           10         NEEDS DECISION
+Angelo State (TX),Texas-El Paso                    10         NEEDS DECISION
+Palomar (CA)                                       10         NEEDS DECISION
+Morningside                                        10         NEEDS DECISION
+Michigan Tech,Western Michigan                     10         NEEDS DECISION
+Texas,Texas St.                                    10         NEEDS DECISION
+Cal Poly-San Luis Obispo,San Diego St.             10         NEEDS DECISION
+Wiley,Ark-Pine Bluff                               10         NEEDS DECISION
+Northern Virginia CC                               10         NEEDS DECISION
+Grossmont College (CA),San Diego St.               10         NEEDS DECISION
+West Liberty St.                                   10         NEEDS DECISION
+Texas A&M,North Texas                              10         NEEDS DECISION
+Idaho St.,Kentucky                                 10         NEEDS DECISION
+Montana,Nevada                                     10         NEEDS DECISION
+Peru St.,WisconsinâLaCrosse                      10         NEEDS DECISION
+Holy Cross,Santa Clara                             10         NEEDS DECISION
+Eastern Arizona,Arizona St.,East Central (OK)      10         NEEDS DECISION
+Chowan,West Virginia                               10         NEEDS DECISION
+Long Beach St.,Utah                                10         NEEDS DECISION
+Arizona St.,UNLV,Arizona                           10         NEEDS DECISION
+Montana,Texas                                      10         NEEDS DECISION
+Arkansas,Louisiana Tech                            10         NEEDS DECISION
+Sacramento St.,UC Davis                            10         NEEDS DECISION
+NE Oklahoma A&M,Louisville                         10         NEEDS DECISION
+New York Tech,Lamar                                10         NEEDS DECISION
+Cal Poly-Pomona,Utah St.                           10         NEEDS DECISION
+Eastern Arizona,Northern Arizona                   10         NEEDS DECISION
+Pasadena CC,Tennessee                              10         NEEDS DECISION
+SMU,UCLA                                           10         NEEDS DECISION
+Butler (KS),Auburn                                 10         NEEDS DECISION
+Morgan St.,Towson                                  10         NEEDS DECISION
+Fairmont St.                                       10         NEEDS DECISION
+Oklahoma,Coffeyville CC,Central Oklahoma           10         NEEDS DECISION
+Georgia,Tennessee,Carson-Newman                    10         NEEDS DECISION
+Oklahoma,Stanford                                  10         NEEDS DECISION
+WisconsinâStevens Point                          10         NEEDS DECISION
+Long Beach CC                                      10         NEEDS DECISION
+Missouri Valley                                    10         NEEDS DECISION
+Michigan,Miami (FL)                                10         NEEDS DECISION
+Morris Brown,Georgia Tech                          10         NEEDS DECISION
+ECU                                                10         NEEDS DECISION
+Washington St.,San Diego St.                       9          NEEDS DECISION
+Iowa St.,Lakeland                                  9          NEEDS DECISION
+City College of San Francisco,USC                  9          NEEDS DECISION
+South Dakota,Nebraska-Omaha                        9          NEEDS DECISION
+Tabor                                              9          NEEDS DECISION
+Colorado Mesa,Colorado St.                         9          NEEDS DECISION
+Missouri,Tampa                                     9          NEEDS DECISION
+Merchant Marine                                    9          NEEDS DECISION
+New Mex. Highlands,Cameron                         9          NEEDS DECISION
+St. Bernard,Auburn                                 9          NEEDS DECISION
+Oregon,San Jose St.                                9          NEEDS DECISION
+Concordia-Moorhead (MN),San Jose St.               9          NEEDS DECISION
+Jackson St.,Abilene Christian                      9          NEEDS DECISION
+California,Nebraska                                9          NEEDS DECISION
+California,San Jose St.                            9          NEEDS DECISION
+Rhodes                                             9          NEEDS DECISION
+Syracuse,Louisville                                9          NEEDS DECISION
+Nebraska,Baylor                                    9          NEEDS DECISION
+WisconsinâLaCrosse,Purdue                        9          NEEDS DECISION
+Arizona St.,Northern Colorado                      9          NEEDS DECISION
+Villanova,Ohio St.                                 9          NEEDS DECISION
+Northern Arizona,Boise St.                         9          NEEDS DECISION
+Chowan,Liberty                                     9          NEEDS DECISION
+Oregon St.,Long Beach St.                          9          NEEDS DECISION
+Southeastern Louisiana,Southern                    9          NEEDS DECISION
+Hinds CC,Cincinnati                                9          NEEDS DECISION
+Austin,Texas Tech                                  9          NEEDS DECISION
+California Lutheran,Cal State-Northridge           9          NEEDS DECISION
+Northwestern,Arizona St.                           9          NEEDS DECISION
+Texas A&M,Abilene Christian                        9          NEEDS DECISION
+Colorado Mesa                                      9          NEEDS DECISION
+Diablo Valley College,Sacramento St.               9          NEEDS DECISION
+Cal Poly-Pomona,Hawaii                             9          NEEDS DECISION
+Maryland,Cornell                                   9          NEEDS DECISION
+Washington,Illinois                                9          NEEDS DECISION
+Penn St.,Michigan St.                              9          NEEDS DECISION
+Western Illinois,Aurora,Chadron St.                9          NEEDS DECISION
+Stanford,Oregon Tech                               9          NEEDS DECISION
+Gardner-Webb,North Carolina                        9          NEEDS DECISION
+Notre Dame,Ohio St.                                9          NEEDS DECISION
+Butler (KS),Tennessee                              9          NEEDS DECISION
+St. Joseph's (IN),Ball St.                         9          NEEDS DECISION
+UCLA,Rice                                          9          NEEDS DECISION
+LSU,Troy                                           9          NEEDS DECISION
+LSU,Trinity (IL)                                   9          NEEDS DECISION
+Henderson St.,Memphis                              9          NEEDS DECISION
+Tenn. Tech                                         9          NEEDS DECISION
+Austin                                             9          NEEDS DECISION
+Middle Tennessee                                   9          NEEDS DECISION
+Illinois,Utah                                      8          NEEDS DECISION
+Defiance                                           8          NEEDS DECISION
+New Mexico St.,Los Angeles St.                     8          NEEDS DECISION
+Boise St.,Oregon                                   8          NEEDS DECISION
+Willamette                                         8          NEEDS DECISION
+Arizona,Northern Arizona                           8          NEEDS DECISION
+Tufts                                              8          NEEDS DECISION
+Austria Technical                                  8          NEEDS DECISION
+Baylor,Mississippi St.                             8          NEEDS DECISION
+Shaw                                               8          NEEDS DECISION
+Hawaii,BYU                                         8          NEEDS DECISION
+Colorado Col.                                      8          NEEDS DECISION
+Pierce College (CA),UCLA                           8          NEEDS DECISION
+New Mex. Highlands,New Mexico                      8          NEEDS DECISION
+Duke,BYU                                           8          NEEDS DECISION
+San Jose St.,UCLA                                  8          NEEDS DECISION
+Ashland,New Mexico St.                             8          NEEDS DECISION
+Coffeyville CC,Ohio St.                            8          NEEDS DECISION
+UCLA,San Jose St.                                  8          NEEDS DECISION
+Wooster                                            8          NEEDS DECISION
+UC Riverside,USC                                   8          NEEDS DECISION
+Tulsa,Arkansas                                     8          NEEDS DECISION
+Butler (KS),Missouri                               8          NEEDS DECISION
+Kansas St.,Eastern Illinois                        8          NEEDS DECISION
+Wisconsin,North Texas                              8          NEEDS DECISION
+Delta St.                                          8          NEEDS DECISION
+Minnesota,Cal Poly-Pomona                          8          NEEDS DECISION
+Coffeyville CC,Nebraska                            8          NEEDS DECISION
+Cal Poly-Pomona,Washington                         8          NEEDS DECISION
+Emporia St.,Iowa St.                               8          NEEDS DECISION
+Northwest Mississippi CC,Southern                  8          NEEDS DECISION
+Puget Sound                                        8          NEEDS DECISION
+Pittsburgh,Northern Arizona                        8          NEEDS DECISION
+Kentucky,Louisville                                8          NEEDS DECISION
+Oregon St.,Texas A&M                               8          NEEDS DECISION
+Western Washington,Colorado                        8          NEEDS DECISION
+Oklahoma St.,North Carolina A&T                    8          NEEDS DECISION
+Air Force,Stanford                                 8          NEEDS DECISION
+Northwest Mississippi CC,La-Monroe                 8          NEEDS DECISION
+Hawaii,Boise St.                                   8          NEEDS DECISION
+BYU,Texas A&M                                      8          NEEDS DECISION
+Navy,Georgia                                       8          NEEDS DECISION
+Butte JC (CA),Sonoma St.                           8          NEEDS DECISION
+Notre Dame,Georgia Tech                            8          NEEDS DECISION
+West Los Angeles College,Santa Monica College (CA),Memphis 8          NEEDS DECISION
+Hinds CC,Florida St.                               8          NEEDS DECISION
+Washington,North Carolina A&T                      8          NEEDS DECISION
+Ohio St.,Pittsburgh                                8          NEEDS DECISION
+P. View AM                                         8          NEEDS DECISION
+Carnegie Mellon                                    8          NEEDS DECISION
+St. Ambrose                                        8          NEEDS DECISION
+Sam Houston State                                  8          NEEDS DECISION
+GTech                                              8          NEEDS DECISION
+SJSt.                                              8          NEEDS DECISION
+Montana St.,Oregon St.                             7          NEEDS DECISION
+Hawaii,San Jose St.                                7          NEEDS DECISION
+Upper Iowa                                         7          NEEDS DECISION
+Santa Monica College (CA),UCLA                     7          NEEDS DECISION
+Lewis & Clark                                      7          NEEDS DECISION
+Michigan St.,USC                                   7          NEEDS DECISION
+Yankton                                            7          NEEDS DECISION
+Eastern Michigan,Wayne State (MI)                  7          NEEDS DECISION
+Fayetteville St.                                   7          NEEDS DECISION
+Connecticut,Massachusetts                          7          NEEDS DECISION
+Iowa Central,Grambling St.                         7          NEEDS DECISION
+San Diego St.,BYU,Colorado                         7          NEEDS DECISION
+Washington,Texas A&M                               7          NEEDS DECISION
+Hawaii,Linfield                                    7          NEEDS DECISION
+San Diego St.,Cal State-Fullerton                  7          NEEDS DECISION
+St. Cloud St.,California                           7          NEEDS DECISION
+UCLA,BYU                                           7          NEEDS DECISION
+North Carolina St.,Fordham                         7          NEEDS DECISION
+Chabot,BYU                                         7          NEEDS DECISION
+U.S. International,Utah St.                        7          NEEDS DECISION
+Cal State-Fullerton,Arizona St.                    7          NEEDS DECISION
+St. John's (NY)                                    7          NEEDS DECISION
+Central Connecticut St.                            7          NEEDS DECISION
+Northwest Mississippi CC,South Carolina            7          NEEDS DECISION
+North Alabama,Alabama                              7          NEEDS DECISION
+Nevada,Sacramento CC,San Diego St.                 7          NEEDS DECISION
+Albion                                             7          NEEDS DECISION
+Sacramento CC,Tulane                               7          NEEDS DECISION
+Queens (Canada)                                    7          NEEDS DECISION
+Tulsa,Coffeyville CC,Central Missouri St.          7          NEEDS DECISION
+NE Oklahoma A&M,Florida St.                        7          NEEDS DECISION
+Nebraska Wesleyan                                  7          NEEDS DECISION
+Alabama,Arizona                                    7          NEEDS DECISION
+Mississippi,Florida A&M                            7          NEEDS DECISION
+Tennessee St.,Toledo                               7          NEEDS DECISION
+Air Force,Tennessee                                7          NEEDS DECISION
+Hastings                                           7          NEEDS DECISION
+Missouri,Wayne State (NE)                          7          NEEDS DECISION
+Long Beach St.,Georgia                             7          NEEDS DECISION
+Mississippi Delta CC                               7          NEEDS DECISION
+Itawamba (MS)                                      7          NEEDS DECISION
+Kilgore College,Texas A&M-Kingsville               7          NEEDS DECISION
+South Carolina,Savannah St.                        7          NEEDS DECISION
+Boston Univ.,William & Mary                        7          NEEDS DECISION
+McGill                                             7          NEEDS DECISION
+Oklahoma City                                      7          NEEDS DECISION
+Sul Ross St.                                       7          NEEDS DECISION
+Troy State                                         7          NEEDS DECISION
+NIU                                                7          NEEDS DECISION
+Edward Waters                                      6          NEEDS DECISION
+Indiana,Dayton                                     6          NEEDS DECISION
+Schreiner College,New Mexico St.                   6          NEEDS DECISION
+Waynesburg,Indiana (PA)                            6          NEEDS DECISION
+Notre Dame,American Int.                           6          NEEDS DECISION
+Grambling St.,Northern Arizona,Eastern Michigan    6          NEEDS DECISION
+Col. of the Sequoias,San Diego St.                 6          NEEDS DECISION
+Washington,Montana                                 6          NEEDS DECISION
+Parsons,Tennessee Tech                             6          NEEDS DECISION
+Arizona St.,Cal State-Northridge                   6          NEEDS DECISION
+Arkansas,Memphis                                   6          NEEDS DECISION
+Otterbein                                          6          NEEDS DECISION
+Cincinnati,Jackson St.                             6          NEEDS DECISION
+Hawaii,Willamette                                  6          NEEDS DECISION
+Oklahoma,UNLV                                      6          NEEDS DECISION
+New Mexico,Hawaii                                  6          NEEDS DECISION
+Blinn College (TX),Baylor                          6          NEEDS DECISION
+Ferris St.,Michigan,Jackson St.                    6          NEEDS DECISION
+Youngstown St.,Millikin                            6          NEEDS DECISION
+Tampa,Pittsburgh                                   6          NEEDS DECISION
+Tampa,Kansas St.                                   6          NEEDS DECISION
+California,Fresno St.                              6          NEEDS DECISION
+San Mateo,BYU                                      6          NEEDS DECISION
+Ferrum,Oklahoma                                    6          NEEDS DECISION
+Snow College (UT),Iowa St.                         6          NEEDS DECISION
+Fort Lewis,Colorado State-Pueblo                   6          NEEDS DECISION
+MD-Eastern Shore,Wichita St.                       6          NEEDS DECISION
+Prairie View A&M,North Dakota St.                  6          NEEDS DECISION
+Cerritos (CA),UCLA                                 6          NEEDS DECISION
+Muskingum                                          6          NEEDS DECISION
+Southern Illinois,Florida                          6          NEEDS DECISION
+Butler (KS),Ohio St.                               6          NEEDS DECISION
+Texas,Cameron                                      6          NEEDS DECISION
+Georgia,Miami (FL)                                 6          NEEDS DECISION
+SMU,Tulane                                         6          NEEDS DECISION
+Northwest Mississippi CC,Houston                   6          NEEDS DECISION
+Yale,Notre Dame                                    6          NEEDS DECISION
+Pittsburgh-Johnstown                               6          NEEDS DECISION
+Georgia,Oregon Tech                                6          NEEDS DECISION
+Northwest Mississippi CC,Mississippi,Troy          6          NEEDS DECISION
+Chowan,Clemson                                     6          NEEDS DECISION
+Iowa Central,Mississippi                           6          NEEDS DECISION
+Northwest Mississippi CC,Florida St.               6          NEEDS DECISION
+North Carolina,La-Monroe                           6          NEEDS DECISION
+WisconsinâWhitewater,Wisconsin                   6          NEEDS DECISION
+Washington St.,Wyoming                             6          NEEDS DECISION
+Louisville,Indiana St.                             6          NEEDS DECISION
+Texas A&M-Kingsville,Texas A&M                     6          NEEDS DECISION
+West Los Angeles College,USC                       6          NEEDS DECISION
+Northwest Mississippi CC,Miss. Valley St.,Mississippi,UT Martin 6          NEEDS DECISION
+East Mississippi CC,La-Monroe                      6          NEEDS DECISION
+Cisco (TX),Emporia St.                             6          NEEDS DECISION
+Butler (KS),Houston                                6          NEEDS DECISION
+Sacramento St.,Pacific,California                  6          NEEDS DECISION
+Jacksonville                                       6          NEEDS DECISION
+NC Central                                         6          NEEDS DECISION
+Western State Colorado                             6          NEEDS DECISION
+Lenoir-Rhyne University                            6          NEEDS DECISION
+Gonzaga                                            6          NEEDS DECISION
+Colorado Mines                                     6          NEEDS DECISION
+St. Vincent                                        6          NEEDS DECISION
+Evansville                                         6          NEEDS DECISION
+Wagner                                             6          NEEDS DECISION
+Parsons                                            6          NEEDS DECISION
+Bethune–Cookman                                    6          NEEDS DECISION
+Southwestern Louisiana                             6          NEEDS DECISION
+Delaware Valley                                    5          NEEDS DECISION
+Ottawa (KS)                                        5          NEEDS DECISION
+Minnesota,New Mexico St.                           5          NEEDS DECISION
+Arizona,Cameron,Missouri                           5          NEEDS DECISION
+Tennessee,Tennessee Tech                           5          NEEDS DECISION
+South Carolina St.,Miss. Valley St.                5          NEEDS DECISION
+BYU,San Diego St.                                  5          NEEDS DECISION
+Ferrum,Clarion,Duquesne,Richmond                   5          NEEDS DECISION
+Utah St.,San Diego St.                             5          NEEDS DECISION
+North Central                                      5          NEEDS DECISION
+USC,San Diego St.                                  5          NEEDS DECISION
+Bakersfield JC                                     5          NEEDS DECISION
+Santa Monica College (CA),Long Beach St.           5          NEEDS DECISION
+Randolph-Macon,Louisville                          5          NEEDS DECISION
+Ark-Pine Bluff,La-Monroe                           5          NEEDS DECISION
+Western Montana,Montana                            5          NEEDS DECISION
+Virginia,South Carolina                            5          NEEDS DECISION
+Macalester                                         5          NEEDS DECISION
+Knox                                               5          NEEDS DECISION
+Texas,Utah St.                                     5          NEEDS DECISION
+Colorado Mesa,Maryland                             5          NEEDS DECISION
+Mount San Antonio JC                               5          NEEDS DECISION
+Mississippi Gulf Coast CC,Miss. Valley St.         5          NEEDS DECISION
+Florida A&M,Bethune-Cookman                        5          NEEDS DECISION
+Memphis,Miami (FL)                                 5          NEEDS DECISION
+Redlands                                           5          NEEDS DECISION
+Pasadena CC,Arizona St.                            5          NEEDS DECISION
+Bridgeport,Connecticut                             5          NEEDS DECISION
+Sam Houston St.,Baylor                             5          NEEDS DECISION
+Santa Monica College (CA),Colorado St.             5          NEEDS DECISION
+East Mississippi CC,Troy                           5          NEEDS DECISION
+Norwich                                            5          NEEDS DECISION
+Lakeland,Illinois                                  5          NEEDS DECISION
+Moorhead State (MN)                                5          NEEDS DECISION
+La Verne                                           5          NEEDS DECISION
+Cal Poly-San Luis Obispo,UCLA                      5          NEEDS DECISION
+West Virginia St.,East Carolina                    5          NEEDS DECISION
+Weber St.,Fresno St.                               5          NEEDS DECISION
+Trinity (CT)                                       5          NEEDS DECISION
+Wittenberg                                         5          NEEDS DECISION
+Cal Poly-Pomona,Fresno St.                         5          NEEDS DECISION
+West Virginia Tech                                 5          NEEDS DECISION
+Franklin & Marshall                                5          NEEDS DECISION
+Purdue,San Diego St.                               5          NEEDS DECISION
+Nebraska-Omaha,Nebraska                            5          NEEDS DECISION
+Northern Arizona,Nevada                            5          NEEDS DECISION
+DePauw                                             5          NEEDS DECISION
+Tennessee St.,Carson-Newman                        5          NEEDS DECISION
+Notre Dame,Syracuse                                5          NEEDS DECISION
+West Virginia,Louisville                           5          NEEDS DECISION
+Iowa,San Diego St.                                 5          NEEDS DECISION
+Oklahoma,Louisville                                5          NEEDS DECISION
+Eastern Michigan,Ohio Wesleyan                     5          NEEDS DECISION
+Sacramento CC,Texas A&M,Central Oklahoma           5          NEEDS DECISION
+Iowa Central,Missouri,Colorado St.                 5          NEEDS DECISION
+Pittsburgh,Mississippi St.                         5          NEEDS DECISION
+Pittsburgh,UCLA                                    5          NEEDS DECISION
+Purdue,UNLV                                        5          NEEDS DECISION
+Sacramento CC,Nevada                               5          NEEDS DECISION
+California,Panhandle State (OK)                    5          NEEDS DECISION
+East Mississippi CC,Houston                        5          NEEDS DECISION
+Alabama,Mississippi                                5          NEEDS DECISION
+Kilgore College,NE State (OK)                      5          NEEDS DECISION
+Michigan,Clemson                                   5          NEEDS DECISION
+Michigan,Southern Illinois                         5          NEEDS DECISION
+Mercyhurst,Langston                                5          NEEDS DECISION
+Hinds CC,Knoxville                                 5          NEEDS DECISION
+Holmes (MS),Florida St.                            5          NEEDS DECISION
+Florida,South Carolina                             5          NEEDS DECISION
+UC Riverside,Washington St.                        5          NEEDS DECISION
+Pittsburgh,Indiana (PA)                            5          NEEDS DECISION
+Georgia Military,Appalachian St.                   5          NEEDS DECISION
+Louisiana College                                  5          NEEDS DECISION
+Virginia Commonwealth                              5          NEEDS DECISION
+Centenary                                          5          NEEDS DECISION
+Wesleyan                                           5          NEEDS DECISION
+Col. of Idaho                                      5          NEEDS DECISION
+Springfield                                        5          NEEDS DECISION
+Capital                                            5          NEEDS DECISION
+Cal Poly                                           5          NEEDS DECISION
+Angelo State                                       5          NEEDS DECISION
+SC St.                                             5          NEEDS DECISION
+W. Mich                                            5          NEEDS DECISION
+Texas-San Antonio                                  5          NEEDS DECISION
+E. Mich                                            5          NEEDS DECISION
+Central St.                                        5          NEEDS DECISION
+Jackson St.,Tennessee St.                          4          NEEDS DECISION
+Kentucky,Western Kentucky                          4          NEEDS DECISION
+East Mississippi CC,Mississippi St.                4          NEEDS DECISION
+Pittsburgh,Tennessee                               4          NEEDS DECISION
+Kentucky,Texas A&M                                 4          NEEDS DECISION
+Philander Smith                                    4          NEEDS DECISION
+UCLA,USC                                           4          NEEDS DECISION
+USC,Hawaii                                         4          NEEDS DECISION
+North Texas,Texas,Coast Guard                      4          NEEDS DECISION
+LSU,McNeese St.                                    4          NEEDS DECISION
+Utah,USC                                           4          NEEDS DECISION
+Fort Lewis                                         4          NEEDS DECISION
+Iowa,Miami (FL)                                    4          NEEDS DECISION
+Washington,San Diego St.                           4          NEEDS DECISION
+William Jewell                                     4          NEEDS DECISION
+UCLA,SMU                                           4          NEEDS DECISION
+Ferrum,Wake Forest                                 4          NEEDS DECISION
+Eastern Arizona,Arizona                            4          NEEDS DECISION
+California,Southern                                4          NEEDS DECISION
+New Mexico,Cal State-Chico                         4          NEEDS DECISION
+Colorado,San Diego St.                             4          NEEDS DECISION
+Marshall,Tampa                                     4          NEEDS DECISION
+Cal State-Hayward                                  4          NEEDS DECISION
+Ferrum,Virginia Tech,Lenoir-Rhyne,Clemson          4          NEEDS DECISION
+Oregon,Hawaii,Portland St.                         4          NEEDS DECISION
+Michigan St.,Hawaii                                4          NEEDS DECISION
+UCLA,Tulsa                                         4          NEEDS DECISION
+Ferrum,Tennessee Tech,Cincinnati                   4          NEEDS DECISION
+Oregon St.,Prairie View A&M                        4          NEEDS DECISION
+Weber St.,Utah St.                                 4          NEEDS DECISION
+Ferrum,Clemson                                     4          NEEDS DECISION
+Memphis,California (PA)                            4          NEEDS DECISION
+Oklahoma St.,San Diego St.                         4          NEEDS DECISION
+Utah,Colorado                                      4          NEEDS DECISION
+East Tennessee St.,Carson-Newman                   4          NEEDS DECISION
+Air Force,Tulsa                                    4          NEEDS DECISION
+Bowie St.                                          4          NEEDS DECISION
+Westminster (MO),Wyoming                           4          NEEDS DECISION
+Wisconsin,Tulsa                                    4          NEEDS DECISION
+Texas Southern,Nebraska                            4          NEEDS DECISION
+Florida A&M,Alabama                                4          NEEDS DECISION
+Stanford,Missouri,Indiana                          4          NEEDS DECISION
+Chabot,Washington St.                              4          NEEDS DECISION
+Ferrum,Montclair St.                               4          NEEDS DECISION
+Iowa,South Dakota St.                              4          NEEDS DECISION
+Alma                                               4          NEEDS DECISION
+USC,Iowa St.                                       4          NEEDS DECISION
+Nebraska,USC                                       4          NEEDS DECISION
+Pittsburgh,West Virginia                           4          NEEDS DECISION
+Michigan,Texas A&M                                 4          NEEDS DECISION
+UCLA,Texas                                         4          NEEDS DECISION
+Western Michigan,Pittsburgh                        4          NEEDS DECISION
+Oklahoma St.,Western Illinois                      4          NEEDS DECISION
+NE State (OK),Indiana                              4          NEEDS DECISION
+Hawaii,Fresno St.                                  4          NEEDS DECISION
+Tennessee,Mississippi                              4          NEEDS DECISION
+Alabama,La-Monroe                                  4          NEEDS DECISION
+Copiah-Lincoln CC,Ark-Pine Bluff,Texas Southern    4          NEEDS DECISION
+Chadron St.                                        4          NEEDS DECISION
+Pasadena CC                                        4          NEEDS DECISION
+Southern Utah,Stanford                             4          NEEDS DECISION
+Ferrum                                             4          NEEDS DECISION
+Towson,Maryland                                    4          NEEDS DECISION
+Iowa St.,Colorado St.                              4          NEEDS DECISION
+Michigan St.,Boston Univ.                          4          NEEDS DECISION
+Acadia (Canada),Washington                         4          NEEDS DECISION
+NE Oklahoma A&M,Indiana                            4          NEEDS DECISION
+Hinds CC,Jackson St.                               4          NEEDS DECISION
+Georgia Military,Clemson                           4          NEEDS DECISION
+Stanford,Nebraska                                  4          NEEDS DECISION
+East Tennessee St.,Ala-Birmingham                  4          NEEDS DECISION
+Michigan,Stanford                                  4          NEEDS DECISION
+Ohio St.,Troy                                      4          NEEDS DECISION
+Augusta State (GA)                                 4          NEEDS DECISION
+Michigan,Western Illinois                          4          NEEDS DECISION
+Sacramento St.,Pacific,UCLA                        4          NEEDS DECISION
+Grove City                                         4          NEEDS DECISION
+McGill Univ.                                       4          NEEDS DECISION
+Limestone College                                  4          NEEDS DECISION
+UBC                                                4          NEEDS DECISION
+Manhattan                                          4          NEEDS DECISION
+Creighton                                          4          NEEDS DECISION
+Illinois Wesleyan                                  4          NEEDS DECISION
+Ripon                                              4          NEEDS DECISION
+Geneva                                             4          NEEDS DECISION
+Lawrence                                           4          NEEDS DECISION
+Denison                                            4          NEEDS DECISION
+Pepperdine                                         4          NEEDS DECISION
+Wiley                                              4          NEEDS DECISION
+Southeast Missouri State                           4          NEEDS DECISION
+Memphis State                                      4          NEEDS DECISION
+WisconsinâStout                                  4          NEEDS DECISION
+Eastern Montana                                    4          NEEDS DECISION
+Wisconsin–Whitewater                               4          NEEDS DECISION
+Southern Connecticut State                         4          NEEDS DECISION
+Oregon Tech                                        4          NEEDS DECISION
+Saginaw Valley State                               4          NEEDS DECISION
+OkSU                                               4          NEEDS DECISION
+Wash St.                                           4          NEEDS DECISION
+West Virginia,UT Martin                            3          NEEDS DECISION
+Cameron,Arizona                                    3          NEEDS DECISION
+Compton CC (CA)                                    3          NEEDS DECISION
+Marquette,Drake                                    3          NEEDS DECISION
+Detroit Mercy,Houston                              3          NEEDS DECISION
+North Park                                         3          NEEDS DECISION
+Georgia,Tulsa                                      3          NEEDS DECISION
+San Jose St.,San Diego St.                         3          NEEDS DECISION
+Missouri,Truman St.                                3          NEEDS DECISION
+Loyola (LA),Tulane                                 3          NEEDS DECISION
+Wiley,Jackson St.                                  3          NEEDS DECISION
+Tampa,Syracuse                                     3          NEEDS DECISION
+Gavilan College,California                         3          NEEDS DECISION
+Texas,Texas-El Paso                                3          NEEDS DECISION
+Texas A&M,NW (IA)                                  3          NEEDS DECISION
+Memphis,Kent St.                                   3          NEEDS DECISION
+New Mex. Highlands,California                      3          NEEDS DECISION
+Hiram,Colorado St.                                 3          NEEDS DECISION
+St. Joseph's (PA)                                  3          NEEDS DECISION
+Notre Dame,Kent St.                                3          NEEDS DECISION
+Minot St.                                          3          NEEDS DECISION
+Minot St.,Montana                                  3          NEEDS DECISION
+Nebraska,Nebraska-Omaha                            3          NEEDS DECISION
+Tampa,Cincinnati                                   3          NEEDS DECISION
+College of the Canyons (CA),Morris Brown,UNLV      3          NEEDS DECISION
+Cal State-Fullerton,San Jose St.                   3          NEEDS DECISION
+Maryland,Youngstown St.                            3          NEEDS DECISION
+Lincoln (MO),Minnesota                             3          NEEDS DECISION
+Washington,Idaho                                   3          NEEDS DECISION
+Oregon St.,Nebraska                                3          NEEDS DECISION
+West Virginia Wesleyan                             3          NEEDS DECISION
+Cincinnati,Arizona                                 3          NEEDS DECISION
+Oregon,San Diego St.                               3          NEEDS DECISION
+Oklahoma,Central Oklahoma                          3          NEEDS DECISION
+Saint John's (MN)                                  3          NEEDS DECISION
+Arizona St.,LSU                                    3          NEEDS DECISION
+Oregon Tech,Boise St.                              3          NEEDS DECISION
+Weber St.,St. Mary's (CA)                          3          NEEDS DECISION
+Purdue,Elon                                        3          NEEDS DECISION
+Oklahoma,Maryland                                  3          NEEDS DECISION
+Winona St.                                         3          NEEDS DECISION
+Colorado,Arizona                                   3          NEEDS DECISION
+Texas,Bishop                                       3          NEEDS DECISION
+Bates                                              3          NEEDS DECISION
+Upsala                                             3          NEEDS DECISION
+Lock Haven                                         3          NEEDS DECISION
+Oregon Tech,Portland St.                           3          NEEDS DECISION
+Union (NY)                                         3          NEEDS DECISION
+Toronto                                            3          NEEDS DECISION
+North Carolina,Tulsa                               3          NEEDS DECISION
+Wichita St.,Michigan St.                           3          NEEDS DECISION
+Cisco (TX),Houston                                 3          NEEDS DECISION
+WisconsinâPlatteville,Minnesota-Duluth           3          NEEDS DECISION
+Wichita St.,Arizona St.                            3          NEEDS DECISION
+LSU,Nicholls St.                                   3          NEEDS DECISION
+SMU,Arizona St.                                    3          NEEDS DECISION
+SMU,Texas St.                                      3          NEEDS DECISION
+Independence (KS),West Virginia                    3          NEEDS DECISION
+USC,Long Beach St.                                 3          NEEDS DECISION
+Anderson (IN)                                      3          NEEDS DECISION
+Florida St.,Louisiana Tech                         3          NEEDS DECISION
+Prairie View A&M,Liberty                           3          NEEDS DECISION
+Colorado,Drake                                     3          NEEDS DECISION
+Oklahoma,Washington                                3          NEEDS DECISION
+Troy,NE State (OK)                                 3          NEEDS DECISION
+Texas-El Paso,Missouri                             3          NEEDS DECISION
+UCLA,Texas A&M                                     3          NEEDS DECISION
+Saginaw Valley St.,Wayne State (MI)                3          NEEDS DECISION
+Lamar,New Mexico St.                               3          NEEDS DECISION
+Tennessee,South Carolina                           3          NEEDS DECISION
+Fort Hays St.,Eastern Michigan                     3          NEEDS DECISION
+Southwest Mississippi CC,Houston                   3          NEEDS DECISION
+Michigan,Central State (OH)                        3          NEEDS DECISION
+Wake Forest,East Carolina                          3          NEEDS DECISION
+Kent St.,Louisiana                                 3          NEEDS DECISION
+Cal Poly-San Luis Obispo,San Jose St.              3          NEEDS DECISION
+Hinds CC,Houston                                   3          NEEDS DECISION
+Allegheny                                          3          NEEDS DECISION
+Tulane,Middle Tenn. St.                            3          NEEDS DECISION
+Oklahoma,Sam Houston St.                           3          NEEDS DECISION
+East Mississippi CC,North Alabama                  3          NEEDS DECISION
+Grossmont College (CA),Oregon                      3          NEEDS DECISION
+Georgia Military,Fort Valley St.                   3          NEEDS DECISION
+Georgia Southern,Valdosta St.                      3          NEEDS DECISION
+Northwest Mississippi CC,Kentucky St.              3          NEEDS DECISION
+Arkansas,Northwestern St. (LA)                     3          NEEDS DECISION
+Los Angeles Valley,Oregon St.                      3          NEEDS DECISION
+Mississippi St.,Jackson St.                        3          NEEDS DECISION
+Copiah-Lincoln CC,Mississippi St.                  3          NEEDS DECISION
+Georgia Tech,Florida                               3          NEEDS DECISION
+Copiah-Lincoln CC,Florida St.                      3          NEEDS DECISION
+Butte JC (CA)                                      3          NEEDS DECISION
+Louisiana,Southern                                 3          NEEDS DECISION
+Central Florida,Morgan St.,Grambling St.           3          NEEDS DECISION
+Mt S. Antonio                                      3          NEEDS DECISION
+SE Missouri                                        3          NEEDS DECISION
+Shepherd Univ.                                     3          NEEDS DECISION
+Missouri University of Science & Technology        3          NEEDS DECISION
+NYU                                                3          NEEDS DECISION
+Catholic                                           3          NEEDS DECISION
+Providence                                         3          NEEDS DECISION
+Centre                                             3          NEEDS DECISION
+Luther                                             3          NEEDS DECISION
+Susquehanna                                        3          NEEDS DECISION
+Rochester                                          3          NEEDS DECISION
+Shurtleff                                          3          NEEDS DECISION
+Guilford                                           3          NEEDS DECISION
+Loras                                              3          NEEDS DECISION
+Middlebury                                         3          NEEDS DECISION
+WisconsinâSuperior                               3          NEEDS DECISION
+Vermont                                            3          NEEDS DECISION
+Pomona                                             3          NEEDS DECISION
+Emory & Henry                                      3          NEEDS DECISION
+Univ. of the South                                 3          NEEDS DECISION
+Simpson                                            3          NEEDS DECISION
+Boston University                                  3          NEEDS DECISION
+Mayville St.                                       3          NEEDS DECISION
+Cal State Fullerton                                3          NEEDS DECISION
+Wisconsin–La Crosse                                3          NEEDS DECISION
+Evangel                                            3          NEEDS DECISION
+W&M                                                3          NEEDS DECISION
+NC A&T                                             3          NEEDS DECISION
+Mount                                              3          NEEDS DECISION
+Clem                                               3          NEEDS DECISION
+VTech                                              3          NEEDS DECISION
+Cinci                                              3          NEEDS DECISION
+Missouri Western                                   3          NEEDS DECISION
+FA&M                                               3          NEEDS DECISION
+Campbell                                           3          NEEDS DECISION
+Louisiana-Lafayette                                3          NEEDS DECISION
+UL Laf                                             3          NEEDS DECISION
+SIU                                                3          NEEDS DECISION
+M. Tenn St.                                        3          NEEDS DECISION
+N. Texas                                           3          NEEDS DECISION
+M. Tenn. St.                                       3          NEEDS DECISION
+Indiana,Evansville                                 2          NEEDS DECISION
+Arkansas,Arkansas St.                              2          NEEDS DECISION
+Texas A&M,Texas A&M-Kingsville                     2          NEEDS DECISION
+SMU,Tulsa                                          2          NEEDS DECISION
+Los Angeles St.,UCLA                               2          NEEDS DECISION
+Houston,Howard Payne                               2          NEEDS DECISION
+Utah,Wyoming                                       2          NEEDS DECISION
+Miami (FL),Wagner                                  2          NEEDS DECISION
+Gettysburg                                         2          NEEDS DECISION
+Laney,Long Beach St.                               2          NEEDS DECISION
+Montana Tech                                       2          NEEDS DECISION
+Florida,Michigan                                   2          NEEDS DECISION
+California Lutheran,Alabama St.                    2          NEEDS DECISION
+Ferrum,Tennessee                                   2          NEEDS DECISION
+New Mex. Highlands,Eastern Michigan                2          NEEDS DECISION
+Stanford,San Diego St.                             2          NEEDS DECISION
+Murray St.,North Carolina St.                      2          NEEDS DECISION
+Wichita St.,Missouri Southern                      2          NEEDS DECISION
+Buffalo,Virginia Tech                              2          NEEDS DECISION
+California,Long Beach St.                          2          NEEDS DECISION
+Alabama,Troy                                       2          NEEDS DECISION
+Hartnell,Grambling St.                             2          NEEDS DECISION
+Mississippi Gulf Coast CC,Oklahoma St.             2          NEEDS DECISION
+Taft,Miami (FL)                                    2          NEEDS DECISION
+Oklahoma St.,Arizona                               2          NEEDS DECISION
+Chowan,Edinboro                                    2          NEEDS DECISION
+West Texas A&M,Utah St.                            2          NEEDS DECISION
+Bishop,North Texas                                 2          NEEDS DECISION
+Puget Sound,Idaho                                  2          NEEDS DECISION
+Pasadena CC,Texas Tech                             2          NEEDS DECISION
+BYU,Arizona                                        2          NEEDS DECISION
+Illinois,DePauw                                    2          NEEDS DECISION
+Park,MidAmerica Nazarene University                2          NEEDS DECISION
+West Texas A&M,Illinois                            2          NEEDS DECISION
+Washington St.,Hawaii                              2          NEEDS DECISION
+Southern,Nicholls St.                              2          NEEDS DECISION
+Texas Tech,Texas St.                               2          NEEDS DECISION
+Northwestern,Kansas                                2          NEEDS DECISION
+Ferrum,West Virginia Tech                          2          NEEDS DECISION
+Boston Col.,Delaware                               2          NEEDS DECISION
+Ferrum,West Virginia                               2          NEEDS DECISION
+Texas St.,Houston                                  2          NEEDS DECISION
+East Mississippi CC,Chattanooga                    2          NEEDS DECISION
+Notre Dame,Maryland                                2          NEEDS DECISION
+Nevada,Sacramento St.                              2          NEEDS DECISION
+Kent St.,Arkansas                                  2          NEEDS DECISION
+Wisconsin,Villanova                                2          NEEDS DECISION
+Notre Dame,Tulane                                  2          NEEDS DECISION
+Mount Senario                                      2          NEEDS DECISION
+St. Joseph's (IN)                                  2          NEEDS DECISION
+Thiel                                              2          NEEDS DECISION
+UNLV,Southern                                      2          NEEDS DECISION
+Washington,Cal State-Fullerton                     2          NEEDS DECISION
+Chapman                                            2          NEEDS DECISION
+Columbia,Princeton                                 2          NEEDS DECISION
+Marion Military Institute,Central Florida          2          NEEDS DECISION
+Tulane,Southern                                    2          NEEDS DECISION
+Mississippi Gulf Coast CC,LSU,Louisiana            2          NEEDS DECISION
+Florida,Oklahoma                                   2          NEEDS DECISION
+Oregon St.,UNLV                                    2          NEEDS DECISION
+Oklahoma,Southern Miss                             2          NEEDS DECISION
+Laney,Cal State-Fullerton                          2          NEEDS DECISION
+Notre Dame,Baylor                                  2          NEEDS DECISION
+Penn St.,Bloomsburg                                2          NEEDS DECISION
+Arizona St.,Nevada                                 2          NEEDS DECISION
+Wesleyan,Connecticut                               2          NEEDS DECISION
+Notre Dame,UCLA                                    2          NEEDS DECISION
+Minnesota,La-Monroe,ArkansasâMonticello,Rowan    2          NEEDS DECISION
+Lamar,Texas-El Paso                                2          NEEDS DECISION
+Long Beach St.,Howard                              2          NEEDS DECISION
+Clemson,Chattanooga                                2          NEEDS DECISION
+Northwest Mississippi CC,Alcorn St.                2          NEEDS DECISION
+NW Oklahoma St.,Kansas St.                         2          NEEDS DECISION
+Tennessee,Memphis                                  2          NEEDS DECISION
+Eastern Michigan,Illinois St.                      2          NEEDS DECISION
+TCU,Murray St.                                     2          NEEDS DECISION
+Arkansas,Murray St.                                2          NEEDS DECISION
+Utah St.,Troy                                      2          NEEDS DECISION
+Purdue,Towson                                      2          NEEDS DECISION
+Oregon St.,Pacific                                 2          NEEDS DECISION
+Illinois,Western Illinois                          2          NEEDS DECISION
+S.F. Austin,Kansas St.                             2          NEEDS DECISION
+Tulsa,Tarleton St.                                 2          NEEDS DECISION
+Blinn College (TX),Angelo State (TX)               2          NEEDS DECISION
+Utah St.,Eastern Washington                        2          NEEDS DECISION
+Chabot,San Jose St.                                2          NEEDS DECISION
+Jamestown                                          2          NEEDS DECISION
+Washington St.,Utah                                2          NEEDS DECISION
+Notre Dame,California                              2          NEEDS DECISION
+West Virginia,James Madison                        2          NEEDS DECISION
+Minnesota,Texas St.                                2          NEEDS DECISION
+Butler (KS),Idaho                                  2          NEEDS DECISION
+North Carolina St.,Tennessee                       2          NEEDS DECISION
+Cerritos (CA),West Texas A&M                       2          NEEDS DECISION
+Louisville,Georgia Tech                            2          NEEDS DECISION
+South Carolina,Arkansas St.                        2          NEEDS DECISION
+Butler (KS),Oklahoma                               2          NEEDS DECISION
+Blinn College (TX),Kansas St.                      2          NEEDS DECISION
+West Georgia,Lambuth                               2          NEEDS DECISION
+San Jose St.,USC                                   2          NEEDS DECISION
+Idaho,San Jose St.                                 2          NEEDS DECISION
+East Central CC (MS),Mississippi                   2          NEEDS DECISION
+Colorado Mesa,Weber St.                            2          NEEDS DECISION
+San Jose St.,Gavilan College,Hawaii                2          NEEDS DECISION
+Gavilan College,Akron                              2          NEEDS DECISION
+Texas A&M,Western Illinois                         2          NEEDS DECISION
+Cal-Bakersfield                                    2          NEEDS DECISION
+P. View A&M                                        2          NEEDS DECISION
+Lamar Univ.                                        2          NEEDS DECISION
+Northeast Mississippi Community College            2          NEEDS DECISION
+Kennesaw State University                          2          NEEDS DECISION
+Chicago                                            2          NEEDS DECISION
+Albright                                           2          NEEDS DECISION
+Niagara                                            2          NEEDS DECISION
+Tarkio                                             2          NEEDS DECISION
+Davis & Elkins                                     2          NEEDS DECISION
+Ohio Wesleyan                                      2          NEEDS DECISION
+Western Maryland                                   2          NEEDS DECISION
+Weber                                              2          NEEDS DECISION
+Hampden-Sydney                                     2          NEEDS DECISION
+Hanover                                            2          NEEDS DECISION
+Washington & Jefferson                             2          NEEDS DECISION
+Army/Mississippi                                   2          NEEDS DECISION
+St. Olaf                                           2          NEEDS DECISION
+North Texas State                                  2          NEEDS DECISION
+Colby                                              2          NEEDS DECISION
+Bluffton                                           2          NEEDS DECISION
+New Mexico Highlands                               2          NEEDS DECISION
+Huron                                              2          NEEDS DECISION
+Panhandle State (OK)                               2          NEEDS DECISION
+WisconsinâRiver Falls                            2          NEEDS DECISION
+Santa Ana JC                                       2          NEEDS DECISION
+Corpus Christi                                     2          NEEDS DECISION
+Olivet                                             2          NEEDS DECISION
+Bowdoin                                            2          NEEDS DECISION
+Northern State Univ.                               2          NEEDS DECISION
+Clark Atlanta                                      2          NEEDS DECISION
+Peru St.                                           2          NEEDS DECISION
+Kenyon                                             2          NEEDS DECISION
+Western New Mexico                                 2          NEEDS DECISION
+Bluefield                                          2          NEEDS DECISION
+South Dakota-Springfield                           2          NEEDS DECISION
+West Liberty                                       2          NEEDS DECISION
+Cal Poly Pomona                                    2          NEEDS DECISION
+St. Thomas (MN)                                    2          NEEDS DECISION
+Northwestern Oklahoma State                        2          NEEDS DECISION
+Elizabeth City State                               2          NEEDS DECISION
+Graceland                                          2          NEEDS DECISION
+Mankato State                                      2          NEEDS DECISION
+Long Beach State                                   2          NEEDS DECISION
+Carroll                                            2          NEEDS DECISION
+Southwest Minnesota                                2          NEEDS DECISION
+Northeast Louisiana                                2          NEEDS DECISION
+Louisiana–Lafayette                                2          NEEDS DECISION
+Cin                                                2          NEEDS DECISION
+Tusculum                                           2          NEEDS DECISION
+Albany (NY)                                        2          NEEDS DECISION
+Vir                                                2          NEEDS DECISION
+Mizz                                               2          NEEDS DECISION
+Concordia-St.Paul (MN)                             2          NEEDS DECISION
+Neveda                                             2          NEEDS DECISION
+SD St                                              2          NEEDS DECISION
+SE Miss St.                                        2          NEEDS DECISION
+SDSt                                               2          NEEDS DECISION
+S Miss                                             2          NEEDS DECISION
+RI                                                 2          NEEDS DECISION
+Alcorn                                             2          NEEDS DECISION
+Central                                            2          NEEDS DECISION
+Mich State                                         2          NEEDS DECISION
+NDSt.                                              2          NEEDS DECISION
+S. Dakota                                          2          NEEDS DECISION
+ND St.                                             2          NEEDS DECISION
+N. Iowa                                            2          NEEDS DECISION
+S. Miss                                            2          NEEDS DECISION
+Ark St.                                            2          NEEDS DECISION
+W. Mich.                                           2          NEEDS DECISION
+E.Mich                                             2          NEEDS DECISION
+UL Laf.                                            2          NEEDS DECISION
+Colorado Mesa,Arizona St.                          1          NEEDS DECISION
+Pacific (OR)                                       1          NEEDS DECISION
+Michigan St.,Hillsdale                             1          NEEDS DECISION
+San Francisco St.,U.S. International               1          NEEDS DECISION
+Wake Forest,Clemson,Georgia                        1          NEEDS DECISION
+Auburn,Arkansas                                    1          NEEDS DECISION
+Kansas,Hofstra                                     1          NEEDS DECISION
+Eastern Michigan,Western Michigan                  1          NEEDS DECISION
+Army,Tennessee                                     1          NEEDS DECISION
+Washington St.,Arizona St.                         1          NEEDS DECISION
+Phoenix College (JC)                               1          NEEDS DECISION
+Indiana,Tulsa                                      1          NEEDS DECISION
+Arizona,Lamar                                      1          NEEDS DECISION
+Texas Tech,Georgia                                 1          NEEDS DECISION
+Stanford,Idaho                                     1          NEEDS DECISION
+Newport (Wales)                                    1          NEEDS DECISION
+Texas A&M,Wake Forest                              1          NEEDS DECISION
+Minnesota,Hardin-Simmons,Arizona St.               1          NEEDS DECISION
+North Carolina,Syracuse                            1          NEEDS DECISION
+Tulsa,San Diego St.                                1          NEEDS DECISION
+Mississippi St.,Memphis                            1          NEEDS DECISION
+Laney,New Mexico St.                               1          NEEDS DECISION
+Johnson C. Smith,Illinois                          1          NEEDS DECISION
+Central College (IA),Iowa St.                      1          NEEDS DECISION
+Southern Illinois,Grambling St.                    1          NEEDS DECISION
+Memphis,Troy                                       1          NEEDS DECISION
+Connecticut,Emporia St.                            1          NEEDS DECISION
+Drake,Michigan St.                                 1          NEEDS DECISION
+New Mex. Mil. Inst.,Iowa St.                       1          NEEDS DECISION
+New Mexico St.,Hawaii                              1          NEEDS DECISION
+Cincinnati,UT Martin                               1          NEEDS DECISION
+Northern Arizona,Missouri Valley                   1          NEEDS DECISION
+Xavier (OH),Cincinnati                             1          NEEDS DECISION
+Anahuac (Mexico),U.S. International                1          NEEDS DECISION
+Northwest Mississippi CC,Jackson St.               1          NEEDS DECISION
+Santa Rosa JC                                      1          NEEDS DECISION
+Northern Arizona,Texas-Arlington                   1          NEEDS DECISION
+Arkansas,Sam Houston St.                           1          NEEDS DECISION
+Oregon St.,Miami (FL)                              1          NEEDS DECISION
+Texas Southern,Oklahoma                            1          NEEDS DECISION
+Colorado,UNLV                                      1          NEEDS DECISION
+Southwestern (TX),Humboldt St.                     1          NEEDS DECISION
+Auburn,Southern Miss                               1          NEEDS DECISION
+Wesley,Wake Forest                                 1          NEEDS DECISION
+SE Oklahoma St.,Oklahoma St.                       1          NEEDS DECISION
+Penn St.,Temple                                    1          NEEDS DECISION
+Tennessee St.,Southern                             1          NEEDS DECISION
+Davis & Elkins,Abilene Christian                   1          NEEDS DECISION
+Wesley,Florida St.                                 1          NEEDS DECISION
+WisconsinâWhitewater,Milton                      1          NEEDS DECISION
+Army,Nebraska                                      1          NEEDS DECISION
+Oklahoma,La-Monroe                                 1          NEEDS DECISION
+Michigan St.,UNLV                                  1          NEEDS DECISION
+Savannah St.,Lenoir-Rhyne                          1          NEEDS DECISION
+St. Mary's (Canada)                                1          NEEDS DECISION
+California (PA),Waynesburg                         1          NEEDS DECISION
+Grossmont College (CA),California                  1          NEEDS DECISION
+Notre Dame,UNLV                                    1          NEEDS DECISION
+Kansas,Tulsa,Missouri Southern                     1          NEEDS DECISION
+UCLA,Colorado,Northern Colorado                    1          NEEDS DECISION
+Western Illinois,Florida St.                       1          NEEDS DECISION
+Louisiana Tech,Utah St.                            1          NEEDS DECISION
+New Mex. Mil. Inst.,Col. of the Sequoias,Southeastern Louisiana 1          NEEDS DECISION
+Gonzaga,Utah St.                                   1          NEEDS DECISION
+Purdue,Arizona                                     1          NEEDS DECISION
+Northwestern,Villanova,Syracuse                    1          NEEDS DECISION
+USC,Utah                                           1          NEEDS DECISION
+New Mexico,Angelo State (TX)                       1          NEEDS DECISION
+San Diego St.,Long Beach St.                       1          NEEDS DECISION
+Augsburg                                           1          NEEDS DECISION
+Colorado,Oregon                                    1          NEEDS DECISION
+Texas A&M-Kingsville,Central Oklahoma              1          NEEDS DECISION
+Utah St.,Boise St.                                 1          NEEDS DECISION
+Missouri,Western Illinois                          1          NEEDS DECISION
+Texas-El Paso,Louisiana Tech                       1          NEEDS DECISION
+Texas A&M,Texas Southern                           1          NEEDS DECISION
+Jacksonville St.,Auburn                            1          NEEDS DECISION
+Idaho,BYU                                          1          NEEDS DECISION
+Grossmont College (CA),Eastern Illinois            1          NEEDS DECISION
+Yankton,Wayne State (NE)                           1          NEEDS DECISION
+Oklahoma,USC                                       1          NEEDS DECISION
+UNLV,San Diego St.                                 1          NEEDS DECISION
+Florida,Tulane                                     1          NEEDS DECISION
+Oregon,Long Beach St.                              1          NEEDS DECISION
+Alcorn St.,Mississippi St.                         1          NEEDS DECISION
+Colorado St.,Colorado Mesa                         1          NEEDS DECISION
+Liberty,West Alabama                               1          NEEDS DECISION
+Tennessee St.,Fordham                              1          NEEDS DECISION
+Valparaiso,Indiana                                 1          NEEDS DECISION
+Arizona St.,Northern Arizona                       1          NEEDS DECISION
+Independence (KS),Western Illinois                 1          NEEDS DECISION
+Texas-El Paso,Memphis                              1          NEEDS DECISION
+Dana                                               1          NEEDS DECISION
+C.W. Post,New York Tech                            1          NEEDS DECISION
+Idaho,Carroll (MT)                                 1          NEEDS DECISION
+Taylor                                             1          NEEDS DECISION
+Kent St.,Findlay                                   1          NEEDS DECISION
+Central State (OH),Cincinnati                      1          NEEDS DECISION
+South Carolina St.,Bethune-Cookman                 1          NEEDS DECISION
+Florida St.,Murray St.                             1          NEEDS DECISION
+Connecticut,West Virginia                          1          NEEDS DECISION
+Penn St.,Ball St.                                  1          NEEDS DECISION
+Texas Tech,Fresno St.                              1          NEEDS DECISION
+Tennessee,Missouri                                 1          NEEDS DECISION
+Central Arkansas,Arkansas                          1          NEEDS DECISION
+Rhode Island,Massachusetts                         1          NEEDS DECISION
+Texas A&M,Baylor                                   1          NEEDS DECISION
+East Carolina,Catawba                              1          NEEDS DECISION
+NW Missouri St.,Oklahoma St.                       1          NEEDS DECISION
+Tennessee,Texas                                    1          NEEDS DECISION
+Plymouth St.                                       1          NEEDS DECISION
+Wisconsin,WisconsinâWhitewater                   1          NEEDS DECISION
+Springfield,Troy                                   1          NEEDS DECISION
+LSU,Louisiana                                      1          NEEDS DECISION
+Cal Poly-Pomona,Wichita St.                        1          NEEDS DECISION
+Evangel (MO)                                       1          NEEDS DECISION
+Iowa Central,Illinois St.                          1          NEEDS DECISION
+Chabot,Eastern Illinois                            1          NEEDS DECISION
+Salem,Findlay                                      1          NEEDS DECISION
+Illinois,Bethune-Cookman                           1          NEEDS DECISION
+Sacramento CC,Arizona                              1          NEEDS DECISION
+Florida,Fort Hays St.                              1          NEEDS DECISION
+Cal State-Fullerton,Iowa St.                       1          NEEDS DECISION
+Iowa St.,Bowling Green                             1          NEEDS DECISION
+Oregon St.,BYU                                     1          NEEDS DECISION
+Wesley,Hampton                                     1          NEEDS DECISION
+Northern Illinois,Northern Iowa                    1          NEEDS DECISION
+Illinois,Texas A&M                                 1          NEEDS DECISION
+Moraine Valley CC (IL)                             1          NEEDS DECISION
+Vanderbilt,Southern Miss                           1          NEEDS DECISION
+Elmhurst                                           1          NEEDS DECISION
+Southern Miss,Jackson St.                          1          NEEDS DECISION
+Concordia (WI),Lincoln (MO)                        1          NEEDS DECISION
+Baldwin Wallace,Central Florida                    1          NEEDS DECISION
+Iowa,Upsala                                        1          NEEDS DECISION
+Kentucky,North Carolina St.                        1          NEEDS DECISION
+Adams St.,Colorado Mesa                            1          NEEDS DECISION
+Davidson,North Carolina St.                        1          NEEDS DECISION
+Tulane,Utah St.                                    1          NEEDS DECISION
+Cisco (TX),Texas St.                               1          NEEDS DECISION
+Idaho St.,South Dakota St.                         1          NEEDS DECISION
+Colorado,Colorado State-Pueblo                     1          NEEDS DECISION
+West Chester,Kutztown (PA)                         1          NEEDS DECISION
+Illinois,Illinois St.                              1          NEEDS DECISION
+Menlo,Stanford                                     1          NEEDS DECISION
+Colorado State-Pueblo,Idaho                        1          NEEDS DECISION
+William Paterson                                   1          NEEDS DECISION
+Allentown College,Southern Connecticut St.         1          NEEDS DECISION
+Michigan,Houston                                   1          NEEDS DECISION
+Kansas St.,Southern                                1          NEEDS DECISION
+SMU,Grambling St.                                  1          NEEDS DECISION
+Colorado,San Jose St.                              1          NEEDS DECISION
+North Carolina St.,Southern                        1          NEEDS DECISION
+Anderson (IN),Western Kentucky                     1          NEEDS DECISION
+Ursinus,Pennsylvania                               1          NEEDS DECISION
+Butler (KS),Kansas,Wichita St.                     1          NEEDS DECISION
+Lock Haven,Clarion,Indiana (PA)                    1          NEEDS DECISION
+Northwestern,Boston Col.                           1          NEEDS DECISION
+Central Oklahoma,NW Oklahoma St.                   1          NEEDS DECISION
+Miami (FL),California Lutheran                     1          NEEDS DECISION
+Simon Fraser,British Columbia                      1          NEEDS DECISION
+San Diego St.,Sacramento St.                       1          NEEDS DECISION
+Ohio St.,Mount Union                               1          NEEDS DECISION
+Colorado St.,Boise St.                             1          NEEDS DECISION
+Utah St.,Prairie View A&M                          1          NEEDS DECISION
+Cal State-Northridge,Fresno St.                    1          NEEDS DECISION
+Grossmont College (CA),BYU                         1          NEEDS DECISION
+William & Mary,Tennessee                           1          NEEDS DECISION
+British Columbia,Idaho                             1          NEEDS DECISION
+Illinois Benedictine,Eastern Illinois              1          NEEDS DECISION
+Utah St.,Weber St.                                 1          NEEDS DECISION
+Drake,Utah St.                                     1          NEEDS DECISION
+Miami (FL),Kentucky                                1          NEEDS DECISION
+Long Beach St.,San Diego St.                       1          NEEDS DECISION
+San Diego St.,UNLV                                 1          NEEDS DECISION
+Principia                                          1          NEEDS DECISION
+Oregon St.,Boise St.                               1          NEEDS DECISION
+Purdue,Utah                                        1          NEEDS DECISION
+Wisconsin,St. Leo                                  1          NEEDS DECISION
+Maryland,Cincinnati,Miami (FL)                     1          NEEDS DECISION
+Boston Univ.,Southern Connecticut St.              1          NEEDS DECISION
+Wichita St.,Louisville                             1          NEEDS DECISION
+The Citadel,Jackson St.,Savannah St.               1          NEEDS DECISION
+Oregon St.,Portland St.                            1          NEEDS DECISION
+Iowa Central,Washburn                              1          NEEDS DECISION
+Kansas St.,Nebraska                                1          NEEDS DECISION
+Iowa St.,Arizona                                   1          NEEDS DECISION
+Wisconsin,Minnesota                                1          NEEDS DECISION
+Washington St.,Cal State-Fullerton                 1          NEEDS DECISION
+Oklahoma St.,SE Oklahoma St.                       1          NEEDS DECISION
+College of the Redwoods,Weber St.,Humboldt St.     1          NEEDS DECISION
+Utah St.,Idaho St.                                 1          NEEDS DECISION
+Eastern Washington,Arizona                         1          NEEDS DECISION
+Georgia Tech,Miami (FL)                            1          NEEDS DECISION
+Montana Tech,Pacific Lutheran                      1          NEEDS DECISION
+Northwest Mississippi CC,Alabama A&M               1          NEEDS DECISION
+Willamette,Arizona St.                             1          NEEDS DECISION
+Valdosta St.,Pittsburg St.                         1          NEEDS DECISION
+Holy Cross (IN),Notre Dame                         1          NEEDS DECISION
+Salem,Ohio                                         1          NEEDS DECISION
+Coffeyville CC,Alabama                             1          NEEDS DECISION
+Northwestern,Colorado St.                          1          NEEDS DECISION
+Arkansas,Henderson St.                             1          NEEDS DECISION
+Johnson C. Smith,VMI                               1          NEEDS DECISION
+California,C.W. Post                               1          NEEDS DECISION
+Florida St.,Evangel (MO)                           1          NEEDS DECISION
+Tennessee St.,Western Michigan                     1          NEEDS DECISION
+Arizona St.,Fresno St.                             1          NEEDS DECISION
+Catawba,Hampton                                    1          NEEDS DECISION
+Tennessee,Pacific                                  1          NEEDS DECISION
+Michigan,Boston Col.                               1          NEEDS DECISION
+Eastern Arizona,Highline,Utah                      1          NEEDS DECISION
+Indiana,Butler                                     1          NEEDS DECISION
+Hofstra,Rhode Island                               1          NEEDS DECISION
+NE Oklahoma A&M,Tennessee                          1          NEEDS DECISION
+Arkansas,Sonoma St.                                1          NEEDS DECISION
+Iowa,Arizona St.                                   1          NEEDS DECISION
+Mississippi Gulf Coast CC,LSU                      1          NEEDS DECISION
+Tennessee,Louisville                               1          NEEDS DECISION
+Florida,Marshall                                   1          NEEDS DECISION
+Iowa St.,Morgan St.                                1          NEEDS DECISION
+Independence (KS),Kansas                           1          NEEDS DECISION
+Vanderbilt,Troy                                    1          NEEDS DECISION
+Mississippi Gulf Coast CC,Temple                   1          NEEDS DECISION
+Arkansas Tech,Northwestern St. (LA)                1          NEEDS DECISION
+Colorado,West Virginia                             1          NEEDS DECISION
+Illinois,Evansville,Northwestern                   1          NEEDS DECISION
+Mississippi,Arkansas,Lambuth                       1          NEEDS DECISION
+Savannah St.,Troy                                  1          NEEDS DECISION
+Georgia,Hinds CC                                   1          NEEDS DECISION
+Santa Monica College (CA),Utah                     1          NEEDS DECISION
+Stanford,Yale                                      1          NEEDS DECISION
+Cerritos (CA),Oregon St.                           1          NEEDS DECISION
+Langston,Santa Monica College (CA),Oregon St.      1          NEEDS DECISION
+East Mississippi CC,Ala-Birmingham                 1          NEEDS DECISION
+Garden City (KS)                                   1          NEEDS DECISION
+Snow College (UT),Kansas St.                       1          NEEDS DECISION
+Florida St.,South Florida                          1          NEEDS DECISION
+Central State (OH),Memphis                         1          NEEDS DECISION
+Boston Univ.,Maine                                 1          NEEDS DECISION
+Wisconsin,Maryland                                 1          NEEDS DECISION
+Indiana,Illinois St.                               1          NEEDS DECISION
+St. Cloud St.,WisconsinâStout                    1          NEEDS DECISION
+Mississippi Gulf Coast CC,Georgia                  1          NEEDS DECISION
+Eastern Arizona,Fresno St.                         1          NEEDS DECISION
+Furman,Carson-Newman                               1          NEEDS DECISION
+Hinds CC,Mississippi St.                           1          NEEDS DECISION
+N. Car A&T                                         1          NEEDS DECISION
+Elon College                                       1          NEEDS DECISION
+Nebr.-Omaha                                        1          NEEDS DECISION
+Cent Conn St.                                      1          NEEDS DECISION
+E. Tenn. St.                                       1          NEEDS DECISION
+Montreal Univ.                                     1          NEEDS DECISION
+Southeastern Oklahoma State University             1          NEEDS DECISION
+Saint Mary's (CA)                                  1          NEEDS DECISION
+DePaul                                             1          NEEDS DECISION
+Texas Western                                      1          NEEDS DECISION
+St. Anselm                                         1          NEEDS DECISION
+St. Mary's (MN)                                    1          NEEDS DECISION
+Union (TN)                                         1          NEEDS DECISION
+Portland                                           1          NEEDS DECISION
+Haverford                                          1          NEEDS DECISION
+Hampden–Sydney                                     1          NEEDS DECISION
+UW–Platteville                                     1          NEEDS DECISION
+Brooklyn                                           1          NEEDS DECISION
+Alabama/Navy                                       1          NEEDS DECISION
+Dickinson                                          1          NEEDS DECISION
+Kansas Wesleyan                                    1          NEEDS DECISION
+Tulsa/Army                                         1          NEEDS DECISION
+Compton JC                                         1          NEEDS DECISION
+Rollins                                            1          NEEDS DECISION
+St. Edward's                                       1          NEEDS DECISION
+Rensselaer Polytechnic Institute                   1          NEEDS DECISION
+Dakota Wesleyan                                    1          NEEDS DECISION
+Loyola (CA)                                        1          NEEDS DECISION
+Oklahoma A&M                                       1          NEEDS DECISION
+Arnold                                             1          NEEDS DECISION
+Mansfield                                          1          NEEDS DECISION
+Colorado/Army                                      1          NEEDS DECISION
+Lewis University                                   1          NEEDS DECISION
+Army/William Jewell                                1          NEEDS DECISION
+Army/Missouri                                      1          NEEDS DECISION
+Army/Beloit                                        1          NEEDS DECISION
+Army/Notre Dame                                    1          NEEDS DECISION
+Panola JC                                          1          NEEDS DECISION
+Army/Kansas St.                                    1          NEEDS DECISION
+Army/Villanova                                     1          NEEDS DECISION
+Navy/Syracuse                                      1          NEEDS DECISION
+Arkansas City JC                                   1          NEEDS DECISION
+Ozarks (AR)                                        1          NEEDS DECISION
+Alfred                                             1          NEEDS DECISION
+Syracuse/Army                                      1          NEEDS DECISION
+Eureka (IL)                                        1          NEEDS DECISION
+Col. of Emporia                                    1          NEEDS DECISION
+Brandeis                                           1          NEEDS DECISION
+Lincoln (PA)                                       1          NEEDS DECISION
+Glenville St.                                      1          NEEDS DECISION
+Miles                                              1          NEEDS DECISION
+Tyler JC                                           1          NEEDS DECISION
+Morris Harvey College                              1          NEEDS DECISION
+Contra Costa JC                                    1          NEEDS DECISION
+San Diego City Coll                                1          NEEDS DECISION
+Southwest JC (MS)                                  1          NEEDS DECISION
+Beloit                                             1          NEEDS DECISION
+LA City College                                    1          NEEDS DECISION
+Bridgeport                                         1          NEEDS DECISION
+Compton Junior College                             1          NEEDS DECISION
+Cornell Col.                                       1          NEEDS DECISION
+San Bernardino Valley                              1          NEEDS DECISION
+Compton                                            1          NEEDS DECISION
+Minnesota–Duluth                                   1          NEEDS DECISION
+Northeast Louisiana State                          1          NEEDS DECISION
+Marietta                                           1          NEEDS DECISION
+San Francisco State                                1          NEEDS DECISION
+Wenatchee Valley JC                                1          NEEDS DECISION
+Texas–Arlington                                    1          NEEDS DECISION
+Phoenix College                                    1          NEEDS DECISION
+Cortland St.                                       1          NEEDS DECISION
+Kalamazoo                                          1          NEEDS DECISION
+Midland Lutheran                                   1          NEEDS DECISION
+Franklin (IN)                                      1          NEEDS DECISION
+Ithaca                                             1          NEEDS DECISION
+Northland (WI)                                     1          NEEDS DECISION
+No. Montana                                        1          NEEDS DECISION
+Palomar                                            1          NEEDS DECISION
+Lakeland                                           1          NEEDS DECISION
+George Fox                                         1          NEEDS DECISION
+Johns Hopkins                                      1          NEEDS DECISION
+Black Hills St.                                    1          NEEDS DECISION
+Lebanon Valley                                     1          NEEDS DECISION
+Arkansas AM&N                                      1          NEEDS DECISION
+Northern Virginia                                  1          NEEDS DECISION
+Cal Poly-Pomona                                    1          NEEDS DECISION
+Sterling                                           1          NEEDS DECISION
+Claremont-Mudd-Scripps                             1          NEEDS DECISION
+Saint Louis                                        1          NEEDS DECISION
+Massachusetts-Boston                               1          NEEDS DECISION
+Wichita State                                      1          NEEDS DECISION
+Wisconsin-Milwaukee                                1          NEEDS DECISION
+Valley City                                        1          NEEDS DECISION
+Western Montana                                    1          NEEDS DECISION
+Glassboro State                                    1          NEEDS DECISION
+Milton College                                     1          NEEDS DECISION
+Cal State                                          1          NEEDS DECISION
+Ursinus                                            1          NEEDS DECISION
+Cal State Hayward                                  1          NEEDS DECISION
+Wilmington                                         1          NEEDS DECISION
+American International                             1          NEEDS DECISION
+East Texas State                                   1          NEEDS DECISION
+Plymouth State                                     1          NEEDS DECISION
+C. W. Post                                         1          NEEDS DECISION
+Saint Joseph's                                     1          NEEDS DECISION
+Coffeyville J.C.                                   1          NEEDS DECISION
+Southwest Texas State                              1          NEEDS DECISION
+East Texas                                         1          NEEDS DECISION
+Long Beach City College                            1          NEEDS DECISION
+Winston–Salem State                                1          NEEDS DECISION
+SJ St.                                             1          NEEDS DECISION
+Panhandle State                                    1          NEEDS DECISION
+Cortland                                           1          NEEDS DECISION
+Southwest Missouri State                           1          NEEDS DECISION
+Rocky Mountain                                     1          NEEDS DECISION
+Hinds CC                                           1          NEEDS DECISION
+Garden City CC                                     1          NEEDS DECISION
+Wisconsin–Stout                                    1          NEEDS DECISION
+Brockport                                          1          NEEDS DECISION
+Winston-Salem State                                1          NEEDS DECISION
+Menlo                                              1          NEEDS DECISION
+Southern Connecticut                               1          NEEDS DECISION
+Central Missouri State                             1          NEEDS DECISION
+Coe                                                1          NEEDS DECISION
+ITESM                                              1          NEEDS DECISION
+Pearl River CC                                     1          NEEDS DECISION
+MichSt                                             1          NEEDS DECISION
+Bethel (TN)                                        1          NEEDS DECISION
+Northwest Missouri State                           1          NEEDS DECISION
+Monmouth (IL)                                      1          NEEDS DECISION
+Wash St                                            1          NEEDS DECISION
+Wisconsin–Milwaukee                                1          NEEDS DECISION
+K St                                               1          NEEDS DECISION
+SJSt                                               1          NEEDS DECISION
+Ari St                                             1          NEEDS DECISION
+W. Ken                                             1          NEEDS DECISION
+PennWest California                                1          NEEDS DECISION
+Oreg. St.                                          1          NEEDS DECISION
+RPI                                                1          NEEDS DECISION
+Marshfield                                         1          NEEDS DECISION
+Wesley                                             1          NEEDS DECISION
+Concordia–Moorhead                                 1          NEEDS DECISION
+VCU                                                1          NEEDS DECISION
+Greenville                                         1          NEEDS DECISION
+Tenn of Chat                                       1          NEEDS DECISION
+Miss. Western                                      1          NEEDS DECISION
+Duka                                               1          NEEDS DECISION
+York                                               1          NEEDS DECISION
+OrSU                                               1          NEEDS DECISION
+N. Ari.                                            1          NEEDS DECISION
+Fresno                                             1          NEEDS DECISION
+UL Mon.                                            1          NEEDS DECISION
+Valdosta                                           1          NEEDS DECISION
+Berry                                              1          NEEDS DECISION
+W. Illi                                            1          NEEDS DECISION
+E Mich                                             1          NEEDS DECISION
+Sac St.                                            1          NEEDS DECISION
+Friends                                            1          NEEDS DECISION
+M Tenn St.                                         1          NEEDS DECISION
+S Dakota St.                                       1          NEEDS DECISION
+Ball                                               1          NEEDS DECISION
+N.C. A&T                                           1          NEEDS DECISION
+Wisconsin Pal.                                     1          NEEDS DECISION
+Miss. State                                        1          NEEDS DECISION
+Tennessee Chat.                                    1          NEEDS DECISION
+Miss. West                                         1          NEEDS DECISION
+Ark. State                                         1          NEEDS DECISION
+Nicholls                                           1          NEEDS DECISION
+SD                                                 1          NEEDS DECISION
+NMU                                                1          NEEDS DECISION
+San Jose CC                                        1          NEEDS DECISION
+McNeese                                            1          NEEDS DECISION
+Marrietta                                          1          NEEDS DECISION
+N. Dakota St.                                      1          NEEDS DECISION
+N Texas                                            1          NEEDS DECISION
+Ohio Dom                                           1          NEEDS DECISION
+Tex S.                                             1          NEEDS DECISION
+C. Conn St.                                        1          NEEDS DECISION
+ESU                                                1          NEEDS DECISION
+S. Utah                                            1          NEEDS DECISION
+G. Tech                                            1          NEEDS DECISION
+Grambling                                          1          NEEDS DECISION
+SE Louisania                                       1          NEEDS DECISION
+NM St.                                             1          NEEDS DECISION
+Mercyhurst                                         1          NEEDS DECISION
+SE MSt.                                            1          NEEDS DECISION
+Tech Tech                                          1          NEEDS DECISION
+Murray                                             1          NEEDS DECISION
+Carrol                                             1          NEEDS DECISION
+E. Wash                                            1          NEEDS DECISION
+Bosie St.                                          1          NEEDS DECISION
+SCSt.                                              1          NEEDS DECISION
+E. Ken                                             1          NEEDS DECISION
+Cen. Wash.                                         1          NEEDS DECISION
+Ili St.                                            1          NEEDS DECISION
+Indi St.                                           1          NEEDS DECISION
+SE Louis                                           1          NEEDS DECISION
+Tenn St.                                           1          NEEDS DECISION
+W. Kent                                            1          NEEDS DECISION
+Bukcs                                              1          NEEDS DECISION
+Miss. St.                                          1          NEEDS DECISION
+Old Dom.                                           1          NEEDS DECISION
+CCU                                                1          NEEDS DECISION
+C. Mich                                            1          NEEDS DECISION
+Miss Valley                                        1          NEEDS DECISION

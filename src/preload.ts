@@ -119,7 +119,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAvailableYears: () =>
       ipcRenderer.invoke('roster-generator:get-available-years'),
     getStats: (players: any[]) =>
-      ipcRenderer.invoke('roster-generator:get-stats', players)
+      ipcRenderer.invoke('roster-generator:get-stats', players),
+    save: (players: any[], templatePath: string, outputPath: string) =>
+      ipcRenderer.invoke('roster-generator:save', players, templatePath, outputPath)
   },
 
   // Debug APIs

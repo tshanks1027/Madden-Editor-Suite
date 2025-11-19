@@ -1,0 +1,36 @@
+
+Found 98 obvious matches affecting 396 players:
+
+        'Howard Payne': 'Howard',
+        'Kentucky St.': 'Kentucky',
+        'California-Davis': 'California',
+        'Washington & Lee': 'Washington',
+        'Arkansas Tech': 'Arkansas',
+        'Colorado Mesa': 'Colorado',
+        'Wisconsin–Superior': 'Wisconsin',
+        'Colorado State-Pueblo': 'Colorado State',
+        'Colorado Mesa': 'Colorado',
+        'Kent': 'Kentucky',
+        'Colorado Mesa': 'Colorado',
+        'Oregon Tech': 'Oregon',
+        'Austin': 'Austin Peay',
+        'Colorado Col.': 'Colorado',
+        'North Carolina A&T': 'North Carolina',
+        'North Carolina A&T': 'North Carolina',
+        'Oklahoma City': 'Oklahoma',
+        'Colorado State-Pueblo': 'Colorado State',
+        'Pittsburgh-Johnstown': 'Pittsburgh',
+        'Oregon Tech': 'Oregon',
+        'Jacksonville': 'Jacksonville State',
+        'Colorado Mines': 'Colorado',
+        'West Virginia Tech': 'West Virginia',
+        'Wesleyan': 'Kentucky Wesleyan',
+        'Central St.': 'Central State (OH)',
+Traceback (most recent call last):
+  File "C:\Users\tshan\Documents\Dev\madden-editor-suite\scripts\extract-obvious-matches.py", line 87, in <module>
+    print(f"        '{source}': '{target}',")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 19-20: character maps to <undefined>

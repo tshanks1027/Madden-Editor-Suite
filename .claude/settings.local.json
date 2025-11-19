@@ -54,7 +54,8 @@
       "Bash(pip install:*)",
       "Bash(timeout /t 5)",
       "Bash(awk:*)",
-      "Bash(/tmp/restart-signal.txt)"
+      "Bash(/tmp/restart-signal.txt)",
+      "Bash(npm run typecheck:*)"
     ],
     "deny": [],
     "ask": []

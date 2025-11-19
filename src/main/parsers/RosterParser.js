@@ -79,6 +79,15 @@ async function parseRosterFile(filePath) {
         PEPS: sample.PEPS
       });
 
+      // Extra debug for name fields
+      console.log('[RosterParser] 🔍 NAME FIELD DEBUG:');
+      console.log(`  PFNA exists: ${sample.hasOwnProperty('PFNA')}, value: "${sample.PFNA}", type: ${typeof sample.PFNA}`);
+      console.log(`  PLNA exists: ${sample.hasOwnProperty('PLNA')}, value: "${sample.PLNA}", type: ${typeof sample.PLNA}`);
+      console.log(`  First 5 players names:`);
+      for (let i = 0; i < Math.min(5, players.length); i++) {
+        console.log(`    Player ${i}: "${players[i].PFNA}" "${players[i].PLNA}" (Overall: ${players[i].POVR})`);
+      }
+
       console.log('[RosterParser] Total fields:', allFields.length);
 
       // Check for birthday/age/archetype fields specifically
@@ -175,7 +184,10 @@ async function saveRosterFile(filePath, players, originalData) {
     // Update player values in the TDB2 file
     const playerTable = file.PLAY;
 
-    console.log('[RosterParser] Updating', players.length, 'player records');
+    console.log('[RosterParser] ===== SAVE DEBUG =====');
+    console.log('[RosterParser] Template has', playerTable.records.length, 'record slots');
+    console.log('[RosterParser] We have', players.length, 'players to write');
+    console.log('[RosterParser] Will update MIN(', players.length, ',', playerTable.records.length, ') records');
     let fieldsUpdated = 0;
 
     for (let i = 0; i < players.length && i < playerTable.records.length; i++) {

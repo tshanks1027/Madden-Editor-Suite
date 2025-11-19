@@ -1,0 +1,893 @@
+====================================================================================================
+REMAINING COLLEGES THAT NEED MAPPING
+====================================================================================================
+
+Total unmapped colleges: 884
+Total affected players: 5743
+
+College Name                                        Count
+----------------------------------------------------------------------------------------------------
+  1. Boston Univ.                                          139
+  2. MD-Eastern Shore                                      116
+  3. Texas-Arlington                                       112
+  4. Santa Clara                                           109
+  5. Chattanooga                                           109
+  6. Wichita St.                                           105
+  7. Long Beach St.                                         98
+  8. Tampa                                                  59
+  9. Marquette                                              56
+ 10. Detroit Mercy                                          53
+ 11. San Francisco                                          50
+ 12. Howard Payne                                           49
+ 13. Langston                                               47
+ 14. Elizabeth City St.                                     45
+ 15. Angelo State (TX)                                      43
+ 16. Kentucky St.                                           39
+ 17. Hardin-Simmons                                         38
+ 18. Bishop                                                 36
+ 19. San Diego St.                                          36
+ 20. Johnson C. Smith                                       35
+ 21. American Int.                                          35
+ 22. Bradley                                                34
+ 23. WisconsinâLaCrosse                                   34
+ 24. Tenn-Chat                                              33
+ 25. San Francisco St.                                      32
+ 26. Amherst                                                31
+ 27. Millersville                                           31
+ 28. Denver                                                 31
+ 29. Fisk                                                   30
+ 30. California Lutheran                                    29
+ 31. George Washington                                      26
+ 32. Clark (GA)                                             26
+ 33. Xavier (OH)                                            26
+ 34. Abilene Chr.                                           26
+ 35. S. Dakota St.                                          26
+ 36. Eastern New Mexico                                     25
+ 37. Southern Connecticut St.                               25
+ 38. NE State (OK)                                          24
+ 39. WisconsinâWhitewater                                 24
+ 40. Concordia-Moorhead (MN)                                23
+ 41. Kansas St.                                             23
+ 42. St. Louis                                              23
+ 43. Los Angeles St.                                        22
+ 44. Indiana (PA)                                           22
+ 45. Adams St.                                              21
+ 46. Widener                                                21
+ 47. Wabash                                                 21
+ 48. Sacranento State                                       21
+ 49. Jackson St.                                            20
+ 50. Livingstone                                            20
+ 51. Milton                                                 20
+ 52. San Diego St.                                          19
+ 53. Benedictine                                            19
+ 54. Waynesburg                                             18
+ 55. San Jose St.                                           18
+ 56. Cameron                                                18
+ 57. Western St. (CO)                                       18
+ 58. St. Thomas                                             18
+ 59. Appalachian St.                                        18
+ 60. California-Davis                                       18
+ 61. Arkansas P.B.                                          18
+ 62. Jacksonv. St.                                          18
+ 63. East Central (OK)                                      17
+ 64. Long Beach St.                                         17
+ 65. Montclair St.                                          17
+ 66. Towson State                                           17
+ 67. Washington & Lee                                       17
+ 68. UC Santa Barbara                                       16
+ 69. St. Lawrence                                           16
+ 70. Salem                                                  16
+ 71. Carthage                                               16
+ 72. New Haven                                              16
+ 73. St. Mary's (CA)                                        16
+ 74. Gustavus Adolphus                                      16
+ 75. UT Martin                                              16
+ 76. McMurry                                                16
+ 77. Wake                                                   16
+ 78. Trinity (TX)                                           15
+ 79. Cal State-Chico                                        15
+ 80. Williams                                               15
+ 81. Yankton                                                15
+ 82. Fort Hays St.                                          15
+ 83. C.W. Post                                              15
+ 84. Cheyney                                                15
+ 85. N'western St.                                          15
+ 86. N.C. AT                                                15
+ 87. Scranton                                               15
+ 88. Trinity Valley CC (TX)                                 14
+ 89. Allen                                                  14
+ 90. Arkansas Tech                                          14
+ 91. U.S. International                                     14
+ 92. Bishop                                                 14
+ 93. Central College (IA)                                   14
+ 94. Doane                                                  14
+ 95. UC Riverside                                           14
+ 96. North Dakota St.                                       14
+ 97. Widener                                                14
+ 98. Knoxville                                              14
+ 99. Shepherd                                               14
+100. Millikin                                               14
+101. Arkansas St.                                           14
+102. Occidental                                             14
+103. Graceland College (IA)                                 14
+104. Washington St.                                         14
+105. Grossmont College (CA)                                 14
+106. Linfield                                               13
+107. Minnesota-Duluth                                       13
+108. Colorado Mesa                                          13
+109. South Carolina St.                                     13
+110. Walla Walla CC (WA)                                    13
+111. Western Wash.                                          13
+112. Case Western Reserve                                   13
+113. Wisconsin–Superior                                     12
+114. Hamline                                                12
+115. Whittier                                               12
+116. Colorado State-Pueblo                                  12
+117. Tennessee St.                                          12
+118. Delta St.                                              12
+119. Colorado Mesa                                          12
+120. Ferrum                                                 12
+121. Florida St.                                            12
+122. Saginaw Valley St.                                     12
+123. San Jose St.                                           12
+124. T A&M K'ville                                          12
+125. Loyola Marymount                                       12
+126. TTech                                                  12
+127. Mizzou                                                 12
+128. Newberry                                               11
+129. Texas-Arlington                                        11
+130. King Alfred's (England)                                11
+131. San Diego St.                                          11
+132. WisconsinâMilwaukee                                  11
+133. Cal Poly-Pomona                                        11
+134. West Texas A&M                                         11
+135. San Diego St.                                          11
+136. Pacific Lutheran                                       11
+137. Hinds CC                                               11
+138. Florida St.                                            11
+139. Wake Technical CC                                      11
+140. Emporia St.                                            11
+141. Western Illinois                                       11
+142. Muhlenberg                                             11
+143. St. Bonaventure                                        11
+144. UMass                                                  11
+145. Kent                                                   11
+146. JMU                                                    11
+147. Delta St.                                              10
+148. Palomar (CA)                                           10
+149. Morningside                                            10
+150. San Diego St.                                          10
+151. Northern Virginia CC                                   10
+152. San Diego St.                                          10
+153. West Liberty St.                                       10
+154. WisconsinâLaCrosse                                   10
+155. Santa Clara                                            10
+156. Arizona St.                                            10
+157. Fairmont St.                                           10
+158. Coffeyville CC                                         10
+159. WisconsinâStevens Point                              10
+160. Long Beach CC                                          10
+161. Missouri Valley                                        10
+162. ECU                                                    10
+163. San Diego St.                                           9
+164. Lakeland                                                9
+165. Tabor                                                   9
+166. Colorado St.                                            9
+167. Tampa                                                   9
+168. Merchant Marine                                         9
+169. Cameron                                                 9
+170. San Jose St.                                            9
+171. San Jose St.                                            9
+172. Abilene Christian                                       9
+173. San Jose St.                                            9
+174. Rhodes                                                  9
+175. Long Beach St.                                          9
+176. Arizona St.                                             9
+177. Abilene Christian                                       9
+178. Colorado Mesa                                           9
+179. Michigan St.                                            9
+180. Aurora                                                  9
+181. Oregon Tech                                             9
+182. Trinity (IL)                                            9
+183. Tenn. Tech                                              9
+184. Austin                                                  9
+185. Middle Tennessee                                        9
+186. Defiance                                                8
+187. Los Angeles St.                                         8
+188. Willamette                                              8
+189. Tufts                                                   8
+190. Austria Technical                                       8
+191. Mississippi St.                                         8
+192. Shaw                                                    8
+193. Colorado Col.                                           8
+194. New Mexico St.                                          8
+195. San Jose St.                                            8
+196. Wooster                                                 8
+197. Delta St.                                               8
+198. Cal Poly-Pomona                                         8
+199. Puget Sound                                             8
+200. North Carolina A&T                                      8
+201. Sonoma St.                                              8
+202. Santa Monica College (CA)                               8
+203. Florida St.                                             8
+204. North Carolina A&T                                      8
+205. P. View AM                                              8
+206. Carnegie Mellon                                         8
+207. St. Ambrose                                             8
+208. Sam Houston State                                       8
+209. GTech                                                   8
+210. SJSt.                                                   8
+211. Oregon St.                                              7
+212. San Jose St.                                            7
+213. Upper Iowa                                              7
+214. Lewis & Clark                                           7
+215. Yankton                                                 7
+216. Wayne State (MI)                                        7
+217. Fayetteville St.                                        7
+218. Grambling St.                                           7
+219. Linfield                                                7
+220. Arizona St.                                             7
+221. St. John's (NY)                                         7
+222. Central Connecticut St.                                 7
+223. Sacramento CC                                           7
+224. Albion                                                  7
+225. Queens (Canada)                                         7
+226. Coffeyville CC                                          7
+227. Florida St.                                             7
+228. Nebraska Wesleyan                                       7
+229. Hastings                                                7
+230. Wayne State (NE)                                        7
+231. Mississippi Delta CC                                    7
+232. Itawamba (MS)                                           7
+233. Texas A&M-Kingsville                                    7
+234. Savannah St.                                            7
+235. McGill                                                  7
+236. Oklahoma City                                           7
+237. Sul Ross St.                                            7
+238. Troy State                                              7
+239. NIU                                                     7
+240. Edward Waters                                           6
+241. New Mexico St.                                          6
+242. Indiana (PA)                                            6
+243. American Int.                                           6
+244. San Diego St.                                           6
+245. Tennessee Tech                                          6
+246. Otterbein                                               6
+247. Jackson St.                                             6
+248. Willamette                                              6
+249. Millikin                                                6
+250. Kansas St.                                              6
+251. Fresno St.                                              6
+252. Colorado State-Pueblo                                   6
+253. Wichita St.                                             6
+254. North Dakota St.                                        6
+255. Muskingum                                               6
+256. Cameron                                                 6
+257. Pittsburgh-Johnstown                                    6
+258. Oregon Tech                                             6
+259. Florida St.                                             6
+260. Indiana St.                                             6
+261. Emporia St.                                             6
+262. Jacksonville                                            6
+263. NC Central                                              6
+264. Western State Colorado                                  6
+265. Lenoir-Rhyne University                                 6
+266. Gonzaga                                                 6
+267. Colorado Mines                                          6
+268. St. Vincent                                             6
+269. Evansville                                              6
+270. Wagner                                                  6
+271. Parsons                                                 6
+272. Bethune–Cookman                                         6
+273. Southwestern Louisiana                                  6
+274. Delaware Valley                                         5
+275. Ottawa (KS)                                             5
+276. New Mexico St.                                          5
+277. Cameron                                                 5
+278. Tennessee Tech                                          5
+279. San Diego St.                                           5
+280. San Diego St.                                           5
+281. North Central                                           5
+282. San Diego St.                                           5
+283. Bakersfield JC                                          5
+284. Long Beach St.                                          5
+285. Macalester                                              5
+286. Knox                                                    5
+287. Mount San Antonio JC                                    5
+288. Redlands                                                5
+289. Arizona St.                                             5
+290. Colorado St.                                            5
+291. Norwich                                                 5
+292. Moorhead State (MN)                                     5
+293. La Verne                                                5
+294. Fresno St.                                              5
+295. Trinity (CT)                                            5
+296. Wittenberg                                              5
+297. Fresno St.                                              5
+298. West Virginia Tech                                      5
+299. Franklin & Marshall                                     5
+300. San Diego St.                                           5
+301. DePauw                                                  5
+302. San Diego St.                                           5
+303. Ohio Wesleyan                                           5
+304. Mississippi St.                                         5
+305. Panhandle State (OK)                                    5
+306. NE State (OK)                                           5
+307. Langston                                                5
+308. Knoxville                                               5
+309. Florida St.                                             5
+310. Washington St.                                          5
+311. Indiana (PA)                                            5
+312. Appalachian St.                                         5
+313. Louisiana College                                       5
+314. Centenary                                               5
+315. Wesleyan                                                5
+316. Col. of Idaho                                           5
+317. Springfield                                             5
+318. Capital                                                 5
+319. Cal Poly                                                5
+320. Angelo State                                            5
+321. SC St.                                                  5
+322. W. Mich                                                 5
+323. Texas-San Antonio                                       5
+324. E. Mich                                                 5
+325. Central St.                                             5
+326. Tennessee St.                                           4
+327. Mississippi St.                                         4
+328. Philander Smith                                         4
+329. McNeese St.                                             4
+330. Fort Lewis                                              4
+331. San Diego St.                                           4
+332. William Jewell                                          4
+333. Cal State-Chico                                         4
+334. San Diego St.                                           4
+335. Tampa                                                   4
+336. Cal State-Hayward                                       4
+337. Tennessee Tech                                          4
+338. Prairie View A&M                                        4
+339. San Diego St.                                           4
+340. Bowie St.                                               4
+341. Washington St.                                          4
+342. Montclair St.                                           4
+343. South Dakota St.                                        4
+344. Alma                                                    4
+345. Western Illinois                                        4
+346. Fresno St.                                              4
+347. Chadron St.                                             4
+348. Pasadena CC                                             4
+349. Ferrum                                                  4
+350. Colorado St.                                            4
+351. Boston Univ.                                            4
+352. Jackson St.                                             4
+353. Augusta State (GA)                                      4
+354. Western Illinois                                        4
+355. Grove City                                              4
+356. McGill Univ.                                            4
+357. Limestone College                                       4
+358. UBC                                                     4
+359. Manhattan                                               4
+360. Creighton                                               4
+361. Illinois Wesleyan                                       4
+362. Ripon                                                   4
+363. Geneva                                                  4
+364. Lawrence                                                4
+365. Denison                                                 4
+366. Pepperdine                                              4
+367. Wiley                                                   4
+368. Southeast Missouri State                                4
+369. Memphis State                                           4
+370. WisconsinâStout                                       4
+371. Eastern Montana                                         4
+372. Wisconsin–Whitewater                                    4
+373. Southern Connecticut State                              4
+374. Oregon Tech                                             4
+375. Saginaw Valley State                                    4
+376. OkSU                                                    4
+377. Wash St.                                                4
+378. UT Martin                                               3
+379. Compton CC (CA)                                         3
+380. North Park                                              3
+381. San Diego St.                                           3
+382. Truman St.                                              3
+383. Jackson St.                                             3
+384. NW (IA)                                                 3
+385. Colorado St.                                            3
+386. St. Joseph's (PA)                                       3
+387. Minot St.                                               3
+388. San Jose St.                                            3
+389. Youngstown St.                                          3
+390. West Virginia Wesleyan                                  3
+391. San Diego St.                                           3
+392. Saint John's (MN)                                       3
+393. St. Mary's (CA)                                         3
+394. Winona St.                                              3
+395. Bishop                                                  3
+396. Bates                                                   3
+397. Upsala                                                  3
+398. Lock Haven                                              3
+399. Portland St.                                            3
+400. Union (NY)                                              3
+401. Toronto                                                 3
+402. Michigan St.                                            3
+403. Minnesota-Duluth                                        3
+404. Arizona St.                                             3
+405. Nicholls St.                                            3
+406. Arizona St.                                             3
+407. Long Beach St.                                          3
+408. Anderson (IN)                                           3
+409. NE State (OK)                                           3
+410. Wayne State (MI)                                        3
+411. New Mexico St.                                          3
+412. San Jose St.                                            3
+413. Allegheny                                               3
+414. Sam Houston St.                                         3
+415. Fort Valley St.                                         3
+416. Valdosta St.                                            3
+417. Kentucky St.                                            3
+418. Northwestern St. (LA)                                   3
+419. Oregon St.                                              3
+420. Jackson St.                                             3
+421. Mississippi St.                                         3
+422. Florida St.                                             3
+423. Butte JC (CA)                                           3
+424. Morgan St.                                              3
+425. Mt S. Antonio                                           3
+426. SE Missouri                                             3
+427. Shepherd Univ.                                          3
+428. Missouri University of Science & Technology             3
+429. NYU                                                     3
+430. Catholic                                                3
+431. Providence                                              3
+432. Centre                                                  3
+433. Luther                                                  3
+434. Susquehanna                                             3
+435. Rochester                                               3
+436. Shurtleff                                               3
+437. Guilford                                                3
+438. Loras                                                   3
+439. Middlebury                                              3
+440. WisconsinâSuperior                                    3
+441. Vermont                                                 3
+442. Pomona                                                  3
+443. Emory & Henry                                           3
+444. Univ. of the South                                      3
+445. Simpson                                                 3
+446. Boston University                                       3
+447. Mayville St.                                            3
+448. Cal State Fullerton                                     3
+449. Wisconsin–La Crosse                                     3
+450. Evangel                                                 3
+451. W&M                                                     3
+452. NC A&T                                                  3
+453. Mount                                                   3
+454. Clem                                                    3
+455. Cinci                                                   3
+456. Missouri Western                                        3
+457. FA&M                                                    3
+458. Campbell                                                3
+459. Louisiana-Lafayette                                     3
+460. UL Laf                                                  3
+461. SIU                                                     3
+462. M. Tenn St.                                             3
+463. N. Texas                                                3
+464. M. Tenn. St.                                            3
+465. Evansville                                              2
+466. Arkansas St.                                            2
+467. Texas A&M-Kingsville                                    2
+468. Howard Payne                                            2
+469. Wagner                                                  2
+470. Gettysburg                                              2
+471. Long Beach St.                                          2
+472. Montana Tech                                            2
+473. Alabama St.                                             2
+474. San Diego St.                                           2
+475. North Carolina St.                                      2
+476. Missouri Southern                                       2
+477. Long Beach St.                                          2
+478. Grambling St.                                           2
+479. Oklahoma St.                                            2
+480. DePauw                                                  2
+481. MidAmerica Nazarene University                          2
+482. Nicholls St.                                            2
+483. West Virginia Tech                                      2
+484. Chattanooga                                             2
+485. Mount Senario                                           2
+486. St. Joseph's (IN)                                       2
+487. Thiel                                                   2
+488. Chapman                                                 2
+489. Chattanooga                                             2
+490. Alcorn St.                                              2
+491. Kansas St.                                              2
+492. Illinois St.                                            2
+493. Murray St.                                              2
+494. Murray St.                                              2
+495. Western Illinois                                        2
+496. Kansas St.                                              2
+497. Tarleton St.                                            2
+498. Angelo State (TX)                                       2
+499. San Jose St.                                            2
+500. Jamestown                                               2
+501. West Texas A&M                                          2
+502. Arkansas St.                                            2
+503. Kansas St.                                              2
+504. San Jose St.                                            2
+505. Gavilan College                                         2
+506. Western Illinois                                        2
+507. Cal-Bakersfield                                         2
+508. P. View A&M                                             2
+509. Lamar Univ.                                             2
+510. Northeast Mississippi Community College                 2
+511. Kennesaw State University                               2
+512. Chicago                                                 2
+513. Albright                                                2
+514. Niagara                                                 2
+515. Tarkio                                                  2
+516. Davis & Elkins                                          2
+517. Ohio Wesleyan                                           2
+518. Western Maryland                                        2
+519. Weber                                                   2
+520. Hampden-Sydney                                          2
+521. Hanover                                                 2
+522. Washington & Jefferson                                  2
+523. Army/Mississippi                                        2
+524. St. Olaf                                                2
+525. North Texas State                                       2
+526. Colby                                                   2
+527. Bluffton                                                2
+528. New Mexico Highlands                                    2
+529. Huron                                                   2
+530. Panhandle State (OK)                                    2
+531. WisconsinâRiver Falls                                 2
+532. Santa Ana JC                                            2
+533. Corpus Christi                                          2
+534. Olivet                                                  2
+535. Bowdoin                                                 2
+536. Northern State Univ.                                    2
+537. Clark Atlanta                                           2
+538. Peru St.                                                2
+539. Kenyon                                                  2
+540. Western New Mexico                                      2
+541. Bluefield                                               2
+542. South Dakota-Springfield                                2
+543. West Liberty                                            2
+544. Cal Poly Pomona                                         2
+545. St. Thomas (MN)                                         2
+546. Northwestern Oklahoma State                             2
+547. Elizabeth City State                                    2
+548. Graceland                                               2
+549. Mankato State                                           2
+550. Long Beach State                                        2
+551. Carroll                                                 2
+552. Southwest Minnesota                                     2
+553. Northeast Louisiana                                     2
+554. Louisiana–Lafayette                                     2
+555. Cin                                                     2
+556. Tusculum                                                2
+557. Albany (NY)                                             2
+558. Vir                                                     2
+559. Mizz                                                    2
+560. Concordia-St.Paul (MN)                                  2
+561. Neveda                                                  2
+562. SD St                                                   2
+563. SE Miss St.                                             2
+564. SDSt                                                    2
+565. S Miss                                                  2
+566. RI                                                      2
+567. Alcorn                                                  2
+568. Central                                                 2
+569. Mich State                                              2
+570. NDSt.                                                   2
+571. S. Dakota                                               2
+572. ND St.                                                  2
+573. N. Iowa                                                 2
+574. S. Miss                                                 2
+575. Ark St.                                                 2
+576. W. Mich.                                                2
+577. E.Mich                                                  2
+578. UL Laf.                                                 2
+579. Arizona St.                                             1
+580. Pacific (OR)                                            1
+581. U.S. International                                      1
+582. Arizona St.                                             1
+583. Phoenix College (JC)                                    1
+584. Newport (Wales)                                         1
+585. Hardin-Simmons                                          1
+586. San Diego St.                                           1
+587. New Mexico St.                                          1
+588. Grambling St.                                           1
+589. Emporia St.                                             1
+590. Michigan St.                                            1
+591. UT Martin                                               1
+592. Missouri Valley                                         1
+593. U.S. International                                      1
+594. Jackson St.                                             1
+595. Santa Rosa JC                                           1
+596. Texas-Arlington                                         1
+597. Sam Houston St.                                         1
+598. Humboldt St.                                            1
+599. Oklahoma St.                                            1
+600. Abilene Christian                                       1
+601. Florida St.                                             1
+602. Milton                                                  1
+603. Lenoir-Rhyne                                            1
+604. St. Mary's (Canada)                                     1
+605. Waynesburg                                              1
+606. Florida St.                                             1
+607. Col. of the Sequoias                                    1
+608. Angelo State (TX)                                       1
+609. Long Beach St.                                          1
+610. Augsburg                                                1
+611. Western Illinois                                        1
+612. Wayne State (NE)                                        1
+613. San Diego St.                                           1
+614. Long Beach St.                                          1
+615. Mississippi St.                                         1
+616. Colorado Mesa                                           1
+617. Western Illinois                                        1
+618. Dana                                                    1
+619. New York Tech                                           1
+620. Carroll (MT)                                            1
+621. Taylor                                                  1
+622. Murray St.                                              1
+623. Fresno St.                                              1
+624. Oklahoma St.                                            1
+625. Plymouth St.                                            1
+626. WisconsinâWhitewater                                  1
+627. Wichita St.                                             1
+628. Evangel (MO)                                            1
+629. Illinois St.                                            1
+630. Fort Hays St.                                           1
+631. Moraine Valley CC (IL)                                  1
+632. Elmhurst                                                1
+633. Jackson St.                                             1
+634. Upsala                                                  1
+635. North Carolina St.                                      1
+636. Colorado Mesa                                           1
+637. North Carolina St.                                      1
+638. South Dakota St.                                        1
+639. Colorado State-Pueblo                                   1
+640. Illinois St.                                            1
+641. William Paterson                                        1
+642. Southern Connecticut St.                                1
+643. Grambling St.                                           1
+644. San Jose St.                                            1
+645. NW Oklahoma St.                                         1
+646. California Lutheran                                     1
+647. British Columbia                                        1
+648. Prairie View A&M                                        1
+649. Fresno St.                                              1
+650. San Diego St.                                           1
+651. Principia                                               1
+652. St. Leo                                                 1
+653. Southern Connecticut St.                                1
+654. Jackson St.                                             1
+655. Portland St.                                            1
+656. SE Oklahoma St.                                         1
+657. Pacific Lutheran                                        1
+658. Arizona St.                                             1
+659. Pittsburg St.                                           1
+660. Colorado St.                                            1
+661. Henderson St.                                           1
+662. C.W. Post                                               1
+663. Evangel (MO)                                            1
+664. Fresno St.                                              1
+665. Highline                                                1
+666. Sonoma St.                                              1
+667. Arizona St.                                             1
+668. Morgan St.                                              1
+669. Northwestern St. (LA)                                   1
+670. Evansville                                              1
+671. Hinds CC                                                1
+672. Oregon St.                                              1
+673. Santa Monica College (CA)                               1
+674. Garden City (KS)                                        1
+675. Kansas St.                                              1
+676. Illinois St.                                            1
+677. WisconsinâStout                                       1
+678. Fresno St.                                              1
+679. Mississippi St.                                         1
+680. N. Car A&T                                              1
+681. Elon College                                            1
+682. Nebr.-Omaha                                             1
+683. Cent Conn St.                                           1
+684. E. Tenn. St.                                            1
+685. Montreal Univ.                                          1
+686. Southeastern Oklahoma State University                  1
+687. Saint Mary's (CA)                                       1
+688. DePaul                                                  1
+689. Texas Western                                           1
+690. St. Anselm                                              1
+691. St. Mary's (MN)                                         1
+692. Union (TN)                                              1
+693. Portland                                                1
+694. Haverford                                               1
+695. Hampden–Sydney                                          1
+696. UW–Platteville                                          1
+697. Brooklyn                                                1
+698. Alabama/Navy                                            1
+699. Dickinson                                               1
+700. Kansas Wesleyan                                         1
+701. Tulsa/Army                                              1
+702. Compton JC                                              1
+703. Rollins                                                 1
+704. St. Edward's                                            1
+705. Rensselaer Polytechnic Institute                        1
+706. Dakota Wesleyan                                         1
+707. Loyola (CA)                                             1
+708. Oklahoma A&M                                            1
+709. Arnold                                                  1
+710. Mansfield                                               1
+711. Colorado/Army                                           1
+712. Lewis University                                        1
+713. Army/William Jewell                                     1
+714. Army/Missouri                                           1
+715. Army/Beloit                                             1
+716. Army/Notre Dame                                         1
+717. Panola JC                                               1
+718. Army/Kansas St.                                         1
+719. Army/Villanova                                          1
+720. Navy/Syracuse                                           1
+721. Arkansas City JC                                        1
+722. Ozarks (AR)                                             1
+723. Alfred                                                  1
+724. Syracuse/Army                                           1
+725. Eureka (IL)                                             1
+726. Col. of Emporia                                         1
+727. Brandeis                                                1
+728. Lincoln (PA)                                            1
+729. Glenville St.                                           1
+730. Miles                                                   1
+731. Tyler JC                                                1
+732. Morris Harvey College                                   1
+733. Contra Costa JC                                         1
+734. San Diego City Coll                                     1
+735. Southwest JC (MS)                                       1
+736. Beloit                                                  1
+737. LA City College                                         1
+738. Bridgeport                                              1
+739. Compton Junior College                                  1
+740. Cornell Col.                                            1
+741. San Bernardino Valley                                   1
+742. Compton                                                 1
+743. Minnesota–Duluth                                        1
+744. Northeast Louisiana State                               1
+745. Marietta                                                1
+746. San Francisco State                                     1
+747. Wenatchee Valley JC                                     1
+748. Texas–Arlington                                         1
+749. Phoenix College                                         1
+750. Cortland St.                                            1
+751. Kalamazoo                                               1
+752. Midland Lutheran                                        1
+753. Franklin (IN)                                           1
+754. Ithaca                                                  1
+755. Northland (WI)                                          1
+756. No. Montana                                             1
+757. Palomar                                                 1
+758. Lakeland                                                1
+759. George Fox                                              1
+760. Johns Hopkins                                           1
+761. Black Hills St.                                         1
+762. Lebanon Valley                                          1
+763. Arkansas AM&N                                           1
+764. Northern Virginia                                       1
+765. Cal Poly-Pomona                                         1
+766. Sterling                                                1
+767. Claremont-Mudd-Scripps                                  1
+768. Saint Louis                                             1
+769. Massachusetts-Boston                                    1
+770. Wichita State                                           1
+771. Wisconsin-Milwaukee                                     1
+772. Valley City                                             1
+773. Western Montana                                         1
+774. Glassboro State                                         1
+775. Milton College                                          1
+776. Cal State                                               1
+777. Ursinus                                                 1
+778. Cal State Hayward                                       1
+779. Wilmington                                              1
+780. American International                                  1
+781. East Texas State                                        1
+782. Plymouth State                                          1
+783. C. W. Post                                              1
+784. Saint Joseph's                                          1
+785. Coffeyville J.C.                                        1
+786. Southwest Texas State                                   1
+787. East Texas                                              1
+788. Long Beach City College                                 1
+789. Winston–Salem State                                     1
+790. SJ St.                                                  1
+791. Panhandle State                                         1
+792. Cortland                                                1
+793. Southwest Missouri State                                1
+794. Rocky Mountain                                          1
+795. Hinds CC                                                1
+796. Garden City CC                                          1
+797. Wisconsin–Stout                                         1
+798. Brockport                                               1
+799. Winston-Salem State                                     1
+800. Menlo                                                   1
+801. Southern Connecticut                                    1
+802. Central Missouri State                                  1
+803. Coe                                                     1
+804. ITESM                                                   1
+805. Pearl River CC                                          1
+806. MichSt                                                  1
+807. Bethel (TN)                                             1
+808. Northwest Missouri State                                1
+809. Monmouth (IL)                                           1
+810. Wash St                                                 1
+811. Wisconsin–Milwaukee                                     1
+812. K St                                                    1
+813. SJSt                                                    1
+814. Ari St                                                  1
+815. W. Ken                                                  1
+816. PennWest California                                     1
+817. Oreg. St.                                               1
+818. RPI                                                     1
+819. Marshfield                                              1
+820. Wesley                                                  1
+821. Concordia–Moorhead                                      1
+822. VCU                                                     1
+823. Greenville                                              1
+824. Tenn of Chat                                            1
+825. Miss. Western                                           1
+826. Duka                                                    1
+827. York                                                    1
+828. OrSU                                                    1
+829. N. Ari.                                                 1
+830. Fresno                                                  1
+831. UL Mon.                                                 1
+832. Valdosta                                                1
+833. Berry                                                   1
+834. W. Illi                                                 1
+835. E Mich                                                  1
+836. Sac St.                                                 1
+837. Friends                                                 1
+838. M Tenn St.                                              1
+839. S Dakota St.                                            1
+840. Ball                                                    1
+841. N.C. A&T                                                1
+842. Wisconsin Pal.                                          1
+843. Miss. State                                             1
+844. Tennessee Chat.                                         1
+845. Miss. West                                              1
+846. Ark. State                                              1
+847. Nicholls                                                1
+848. SD                                                      1
+849. NMU                                                     1
+850. San Jose CC                                             1
+851. McNeese                                                 1
+852. Marrietta                                               1
+853. N. Dakota St.                                           1
+854. N Texas                                                 1
+855. Ohio Dom                                                1
+856. Tex S.                                                  1
+857. C. Conn St.                                             1
+858. ESU                                                     1
+859. S. Utah                                                 1
+860. G. Tech                                                 1
+861. Grambling                                               1
+862. SE Louisania                                            1
+863. NM St.                                                  1
+864. Mercyhurst                                              1
+865. SE MSt.                                                 1
+866. Tech Tech                                               1
+867. Murray                                                  1
+868. Carrol                                                  1
+869. E. Wash                                                 1
+870. Bosie St.                                               1
+871. SCSt.                                                   1
+872. E. Ken                                                  1
+873. Cen. Wash.                                              1
+874. Ili St.                                                 1
+875. Indi St.                                                1
+876. SE Louis                                                1
+877. Tenn St.                                                1
+878. W. Kent                                                 1
+879. Bukcs                                                   1
+880. Miss. St.                                               1
+881. Old Dom.                                                1
+882. CCU                                                     1
+883. C. Mich                                                 1
+884. Miss Valley                                             1

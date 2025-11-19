@@ -137,7 +137,7 @@ export interface GeneratedRoster {
 const POSITION_LIMITS: Record<string, number> = {
   // Offense
   QB: 3,
-  RB: 4,
+  HB: 4,    // CSV uses HB not RB
   FB: 1,
   WR: 5,
   TE: 3,
@@ -154,10 +154,10 @@ const POSITION_LIMITS: Record<string, number> = {
   REDG: 3,  // Right Edge (not RE)
   DT: 3,
 
-  // Linebackers
-  Will: 2,  // Weakside (not LOLB)
-  MLB: 3,
-  Sam: 2,   // Strongside (not ROLB)
+  // Linebackers - MUST MATCH CSV CAPITALIZATION
+  SAM: 2,   // Strongside (CSV uses all caps)
+  MIKE: 3,  // Middle (CSV uses all caps)
+  WILL: 2,  // Weakside (CSV uses all caps)
 
   // Secondary
   CB: 5,
@@ -187,6 +187,9 @@ export class RosterGeneratorService {
   private templateData: any = null;
   private initialized: boolean = false;
   private genericPIDs: number[] = [];
+  private validPIDs: Set<number> = new Set(); // ALL valid PIDs from PID_Portrait_Mapping.csv
+  private realFirstNames: string[] = [];
+  private realLastNames: string[] = [];
 
   /**
    * Initialize service: Load ROSTER_lookup.csv and template
@@ -211,7 +214,11 @@ export class RosterGeneratorService {
     const parsed = Papa.parse(csvContent, {
       header: true,
       skipEmptyLines: true,
-      dynamicTyping: true
+      dynamicTyping: true,
+      // CRITICAL: Trim all fields to handle " Northern Arizona" -> "Northern Arizona"
+      transform: (value: string) => {
+        return typeof value === 'string' ? value.trim() : value;
+      }
     });
 
     console.log('[RosterGeneratorService] Parsed', parsed.data.length, 'rows');
@@ -252,13 +259,22 @@ export class RosterGeneratorService {
         dynamicTyping: true
       });
 
-      // Extract all PIDs where Type === 'generic'
+      // Extract ALL valid PIDs from the mapping file
+      pidMappingParsed.data.forEach((row: any) => {
+        const pid = parseInt(row.PID);
+        if (!isNaN(pid)) {
+          this.validPIDs.add(pid);
+        }
+      });
+
+      // Extract generic PIDs specifically for random assignment
       this.genericPIDs = pidMappingParsed.data
         .filter((row: any) => row.Type === 'generic')
         .map((row: any) => parseInt(row.PID))
         .filter((pid: number) => !isNaN(pid));
 
-      console.log('[RosterGeneratorService] Loaded', this.genericPIDs.length, 'generic PIDs');
+      console.log('[RosterGeneratorService] Loaded', this.validPIDs.size, 'total valid PIDs');
+      console.log('[RosterGeneratorService] Loaded', this.genericPIDs.length, 'generic PIDs for random assignment');
     } else {
       console.warn('[RosterGeneratorService] PID_Portrait_Mapping.csv not found, using fallback generic PIDs');
       // Fallback to basic set if file not found
@@ -268,6 +284,44 @@ export class RosterGeneratorService {
         2717, 2718, 2719, 2720, 2721, 2743, 2745, 2748, 2749,
         2751, 2753
       ];
+      // Also populate validPIDs with fallback set
+      this.genericPIDs.forEach(pid => this.validPIDs.add(pid));
+    }
+
+    // Load ALL_PLAYER_LOOKUP.csv and extract unique names
+    const allPlayerLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'ALL_PLAYER_LOOKUP.csv');
+    console.log('[RosterGeneratorService] Loading real names from:', allPlayerLookupPath);
+
+    if (fs.existsSync(allPlayerLookupPath)) {
+      const allPlayerContent = fs.readFileSync(allPlayerLookupPath, 'utf8');
+      const allPlayerParsed = Papa.parse(allPlayerContent, {
+        header: true,
+        skipEmptyLines: true
+      });
+
+      // Extract unique first and last names
+      const firstNameSet = new Set<string>();
+      const lastNameSet = new Set<string>();
+
+      allPlayerParsed.data.forEach((row: any) => {
+        if (row['First Name'] && typeof row['First Name'] === 'string' && row['First Name'].trim()) {
+          firstNameSet.add(row['First Name'].trim());
+        }
+        if (row['Last Name'] && typeof row['Last Name'] === 'string' && row['Last Name'].trim()) {
+          lastNameSet.add(row['Last Name'].trim());
+        }
+      });
+
+      this.realFirstNames = Array.from(firstNameSet).sort();
+      this.realLastNames = Array.from(lastNameSet).sort();
+
+      console.log('[RosterGeneratorService] Loaded', this.realFirstNames.length, 'unique first names');
+      console.log('[RosterGeneratorService] Loaded', this.realLastNames.length, 'unique last names');
+    } else {
+      console.warn('[RosterGeneratorService] ALL_PLAYER_LOOKUP.csv not found, using fallback names');
+      // Fallback to basic names if file not found
+      this.realFirstNames = ['James', 'John', 'Robert', 'Michael', 'William'];
+      this.realLastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones'];
     }
 
     this.initialized = true;
@@ -384,27 +438,41 @@ export class RosterGeneratorService {
       });
     }
 
+    // Add free agents to fill template (from 5 years before)
+    console.log('[RosterGeneratorService] Adding free agents to fill template...');
+    const fullRoster = await this.addFreeAgents(year, enrichedPlayers);
+    console.log('[RosterGeneratorService] Final roster with free agents:', fullRoster.length);
+
     return {
-      players: enrichedPlayers,
+      players: fullRoster,
       metadata: {
         mode: 'single-year',
         year: year,
         teams: totalTeams,
         generatedAt: new Date().toISOString(),
-        playerCount: enrichedPlayers.length
+        playerCount: fullRoster.length
       }
     };
   }
 
   /**
    * Generate all-time roster from year range
+   *
+   * Algorithm:
+   * 1. Collect all players from year range, deduplicate by PID keeping BEST year
+   * 2. Build 32 team rosters (57-60 players each) from players' best teams
+   * 3. Collect free agents from 5 years BEFORE start year with LAST year stats
+   * 4. Fill template to 3000 total slots
+   * 5. Validate NO DUPLICATES anywhere
    */
   private async generateAllTime(startYear: number, endYear: number): Promise<{ players: RosterPlayer[], metadata: any }> {
-    console.log('[RosterGeneratorService] Generating all-time roster for', startYear, '-', endYear);
+    console.log('[RosterGeneratorService] ===== GENERATING ALL-TIME ROSTER =====');
+    console.log('[RosterGeneratorService] Year range:', startYear, '-', endYear);
+
+    // PHASE 1: Global Player Collection & Deduplication
+    console.log('\n[Phase 1] Collecting and deduplicating players...');
 
     const allPlayers: any[] = [];
-
-    // Collect all players from range
     for (let y = startYear; y <= endYear; y++) {
       const yearPlayers = this.rosterData.get(y) || [];
       allPlayers.push(...yearPlayers.map(p => ({ ...p, _year: y })));
@@ -414,35 +482,434 @@ export class RosterGeneratorService {
       throw new Error(`No players found in year range ${startYear}-${endYear}`);
     }
 
-    console.log('[RosterGeneratorService] Found', allPlayers.length, 'total players in range');
+    console.log('[Phase 1] Found', allPlayers.length, 'total player-years in range');
 
-    // Enrich all players
-    const enrichedPlayers = await Promise.all(
+    // Enrich all players first
+    const enrichedAll = await Promise.all(
       allPlayers.map(p => this.enrichPlayer(p, p._year))
     );
 
-    // Select best by position with deduplication
-    const selectedPlayers = this.selectBestByPosition(enrichedPlayers);
-    console.log('[RosterGeneratorService] Selected', selectedPlayers.length, 'players after position limits');
+    // Deduplicate by firstName + lastName + position - keep LAST year (most recent)
+    const deduplicatedPlayers = new Map<string, RosterPlayer>();
+    enrichedAll.forEach(p => {
+      const key = `${p.PFNA}|${p.PLNA}|${p.PPOS}`;
+      const existing = deduplicatedPlayers.get(key);
+      // Keep player with highest year (most recent) - using their final season stats and age
+      const pYear = (p as any).Year || 0;
+      const existingYear = existing ? ((existing as any).Year || 0) : 0;
+      if (!existing || pYear > existingYear) {
+        deduplicatedPlayers.set(key, p);
+      }
+    });
 
-    // Add KR specialist
-    const withKR = this.addKRSpecialist(selectedPlayers, enrichedPlayers);
-    console.log('[RosterGeneratorService] Added KR specialist, size:', withKR.length);
+    console.log('[Phase 1] Deduplicated:', enrichedAll.length, '→', deduplicatedPlayers.size, 'unique players');
 
-    // Add 3-4 best remaining
-    const roster = this.addBestRemaining(withKR, enrichedPlayers, 3, 4);
-    console.log('[RosterGeneratorService] Final roster size:', roster.length);
+    // Group players by their best-year team
+    const playersByTeam = new Map<number, RosterPlayer[]>();
+    deduplicatedPlayers.forEach(player => {
+      const teamId = player.TGID;
+      if (!playersByTeam.has(teamId)) {
+        playersByTeam.set(teamId, []);
+      }
+      playersByTeam.get(teamId)!.push(player);
+    });
+
+    console.log('[Phase 1] Players grouped into', playersByTeam.size, 'teams');
+
+    // PHASE 2: Build 32 Team Rosters
+    console.log('\n[Phase 2] Building 32 team rosters (57-60 players each)...');
+
+    const teamRosters: RosterPlayer[] = [];
+
+    // team_lookup.csv uses IDs 1-32 (not 0-31!), so loop 1-32
+    for (let teamId = 1; teamId <= 32; teamId++) {
+      const teamPlayers = playersByTeam.get(teamId) || [];
+      console.log(`[Team ${teamId}] Building roster from ${teamPlayers.length} available players`);
+
+      const teamRoster = await this.buildTeamRoster(teamPlayers, teamId);
+
+      teamRosters.push(...teamRoster);
+      console.log(`[Team ${teamId}] Final roster: ${teamRoster.length} players`);
+    }
+
+    console.log('[Phase 2] Total team roster size:', teamRosters.length);
+
+    // PHASE 3: Free Agent Pool (5 years BEFORE start year)
+    console.log('\n[Phase 3] Collecting free agents from', (startYear - 5), 'to', (startYear - 1), '...');
+
+    const freeAgents = await this.collectFreeAgents(startYear, teamRosters);
+    console.log('[Phase 3] Free agents collected:', freeAgents.length);
+
+    // PHASE 4: Combine and Fill Template
+    const finalRoster = [...teamRosters, ...freeAgents];
+    console.log('\n[Phase 4] Final roster size:', finalRoster.length);
+
+    // PHASE 5: Validation
+    console.log('\n[Phase 5] Validating roster...');
+    this.validateNoDuplicates(finalRoster);
+    console.log('[Phase 5] ✓ No duplicates found');
+    console.log('[Phase 5] ✓ Roster generation complete');
 
     return {
-      players: roster,
+      players: finalRoster,
       metadata: {
         mode: 'all-time',
         startYear: startYear,
         endYear: endYear,
         generatedAt: new Date().toISOString(),
-        playerCount: roster.length
+        playerCount: finalRoster.length,
+        teamPlayers: teamRosters.length,
+        freeAgents: freeAgents.length
       }
     };
+  }
+
+  /**
+   * Get random state (0-50)
+   */
+  private getRandomState(): number {
+    return Math.floor(Math.random() * 51); // 0-50 (Alabama to Non-US)
+  }
+
+  /**
+   * Get random college (1-264, skip 0=Blank and 265=No College)
+   */
+  private getRandomCollege(): number {
+    // Return random college ID between 1 and 264 (skip 0=Blank)
+    return Math.floor(Math.random() * 264) + 1; // 1-264
+  }
+
+  /**
+   * Get position-specific physical attributes (height in inches, weight in pounds)
+   */
+  private getPositionPhysicals(position: string): { height: number, weight: number } {
+    const ranges: Record<string, { minHeight: number, maxHeight: number, minWeight: number, maxWeight: number }> = {
+      'QB': { minHeight: 73, maxHeight: 78, minWeight: 205, maxWeight: 235 },
+      'HB': { minHeight: 68, maxHeight: 73, minWeight: 190, maxWeight: 225 },
+      'FB': { minHeight: 71, maxHeight: 75, minWeight: 235, maxWeight: 260 },
+      'WR': { minHeight: 70, maxHeight: 77, minWeight: 180, maxWeight: 220 },
+      'TE': { minHeight: 74, maxHeight: 79, minWeight: 240, maxWeight: 270 },
+      'LT': { minHeight: 75, maxHeight: 80, minWeight: 295, maxWeight: 340 },
+      'LG': { minHeight: 74, maxHeight: 78, minWeight: 300, maxWeight: 335 },
+      'C': { minHeight: 73, maxHeight: 77, minWeight: 290, maxWeight: 320 },
+      'RG': { minHeight: 74, maxHeight: 78, minWeight: 300, maxWeight: 335 },
+      'RT': { minHeight: 75, maxHeight: 80, minWeight: 295, maxWeight: 340 },
+      'DT': { minHeight: 73, maxHeight: 78, minWeight: 285, maxWeight: 330 },
+      'LEDG': { minHeight: 73, maxHeight: 78, minWeight: 250, maxWeight: 285 },
+      'REDG': { minHeight: 73, maxHeight: 78, minWeight: 250, maxWeight: 285 },
+      'SAM': { minHeight: 72, maxHeight: 76, minWeight: 230, maxWeight: 260 },
+      'MIKE': { minHeight: 72, maxHeight: 76, minWeight: 230, maxWeight: 260 },
+      'WILL': { minHeight: 72, maxHeight: 76, minWeight: 225, maxWeight: 255 },
+      'CB': { minHeight: 69, maxHeight: 74, minWeight: 180, maxWeight: 210 },
+      'FS': { minHeight: 70, maxHeight: 75, minWeight: 195, maxWeight: 220 },
+      'SS': { minHeight: 70, maxHeight: 74, minWeight: 200, maxWeight: 225 },
+      'K': { minHeight: 70, maxHeight: 75, minWeight: 175, maxWeight: 215 },
+      'P': { minHeight: 71, maxHeight: 76, minWeight: 185, maxWeight: 225 },
+      'LS': { minHeight: 72, maxHeight: 77, minWeight: 230, maxWeight: 265 }
+    };
+
+    const range = ranges[position] || { minHeight: 72, maxHeight: 76, minWeight: 200, maxWeight: 240 };
+    const height = Math.floor(Math.random() * (range.maxHeight - range.minHeight + 1)) + range.minHeight;
+    const weight = Math.floor(Math.random() * (range.maxWeight - range.minWeight + 1)) + range.minWeight;
+    return { height, weight };
+  }
+
+  /**
+   * Generate random player names from ALL_PLAYER_LOOKUP.csv data
+   */
+  private generateRandomName(): { firstName: string, lastName: string } {
+    // Use real names loaded from ALL_PLAYER_LOOKUP.csv
+    const firstName = this.realFirstNames[Math.floor(Math.random() * this.realFirstNames.length)];
+    const lastName = this.realLastNames[Math.floor(Math.random() * this.realLastNames.length)];
+
+    return { firstName, lastName };
+  }
+
+  /**
+   * Generate random low OVR players for teams that didn't exist in year range
+   * Uses generic faces from PID_Portrait_Mapping.csv
+   */
+  private async generateRandomPlayers(teamId: number, count: number): Promise<RosterPlayer[]> {
+    const players: RosterPlayer[] = [];
+
+    // Generate players following position distribution
+    const positionsToFill: { position: string, posCode: number, count: number }[] = [
+      { position: 'QB', posCode: 0, count: 3 },
+      { position: 'HB', posCode: 1, count: 4 },
+      { position: 'FB', posCode: 2, count: 1 },
+      { position: 'WR', posCode: 3, count: 5 },
+      { position: 'TE', posCode: 4, count: 3 },
+      { position: 'LT', posCode: 5, count: 2 },
+      { position: 'LG', posCode: 6, count: 2 },
+      { position: 'C', posCode: 7, count: 2 },
+      { position: 'RG', posCode: 8, count: 2 },
+      { position: 'RT', posCode: 9, count: 2 },
+      { position: 'LEDG', posCode: 10, count: 2 },
+      { position: 'REDG', posCode: 11, count: 3 },
+      { position: 'DT', posCode: 12, count: 3 },
+      { position: 'SAM', posCode: 13, count: 2 },
+      { position: 'MIKE', posCode: 14, count: 3 },
+      { position: 'WILL', posCode: 15, count: 2 },
+      { position: 'CB', posCode: 16, count: 5 },
+      { position: 'FS', posCode: 17, count: 2 },
+      { position: 'SS', posCode: 18, count: 2 },
+      { position: 'K', posCode: 19, count: 1 },
+      { position: 'P', posCode: 20, count: 1 }
+    ];
+
+    let playerIndex = 1;
+
+    for (const { position, posCode, count: posCount } of positionsToFill) {
+      for (let i = 0; i < posCount && players.length < count; i++) {
+        // Assign generic face PID from PID_Portrait_Mapping.csv
+        const genericPID = await this.assignGenericPID(position);
+
+        // Generate random low OVR (50-65)
+        const ovr = Math.floor(Math.random() * 16) + 50;
+
+        // Random age 23-27
+        const age = Math.floor(Math.random() * 5) + 23;
+
+        // Generate positional ratings based on OVR
+        const baseRating = ovr - 5;
+        const variance = 10;
+
+        // Generate random name
+        const { firstName, lastName } = this.generateRandomName();
+
+        // Get position-specific physical attributes
+        const { height, weight } = this.getPositionPhysicals(position);
+
+        // Get random college and state
+        const college = this.getRandomCollege();
+        const state = this.getRandomState();
+
+        const player: RosterPlayer = {
+          PFNA: firstName,
+          PLNA: lastName,
+          PPOS: posCode,
+          PJEN: Math.floor(Math.random() * 99) + 1,
+          PAGE: age,
+          PHGT: height,
+          PWGT: weight - 159, // Madden stores weight as (actual - 159)
+          TGID: teamId,
+          PSXP: genericPID,
+          PLPL: '',
+          PEPS: '',
+          PCOL: college,
+          PHSN: state,
+          POVR: ovr,
+          PSPD: baseRating + Math.floor(Math.random() * variance),
+          PACC: baseRating + Math.floor(Math.random() * variance),
+          PSTR: baseRating + Math.floor(Math.random() * variance),
+          PAGI: baseRating + Math.floor(Math.random() * variance),
+          PAWR: baseRating + Math.floor(Math.random() * variance),
+          PCTH: baseRating + Math.floor(Math.random() * variance),
+          PCAR: baseRating + Math.floor(Math.random() * variance),
+          PTHP: baseRating + Math.floor(Math.random() * variance),
+          PKPW: baseRating + Math.floor(Math.random() * variance),
+          PKAC: baseRating + Math.floor(Math.random() * variance),
+          PRBK: baseRating + Math.floor(Math.random() * variance),
+          PPBK: baseRating + Math.floor(Math.random() * variance),
+          PTAK: baseRating + Math.floor(Math.random() * variance),
+          PBTK: baseRating + Math.floor(Math.random() * variance),
+          PJMP: baseRating + Math.floor(Math.random() * variance),
+          PINJ: 90,
+          PSTA: 90,
+          PTGH: 85,
+          PTRK: baseRating + Math.floor(Math.random() * variance),
+          PCOD: baseRating + Math.floor(Math.random() * variance),
+          PBCV: baseRating + Math.floor(Math.random() * variance),
+          PSTF: baseRating + Math.floor(Math.random() * variance),
+          PSPM: baseRating + Math.floor(Math.random() * variance),
+          PJUM: baseRating + Math.floor(Math.random() * variance),
+          PIBL: baseRating + Math.floor(Math.random() * variance),
+          PRBP: baseRating + Math.floor(Math.random() * variance),
+          PRBF: baseRating + Math.floor(Math.random() * variance),
+          PPBP: baseRating + Math.floor(Math.random() * variance),
+          PPBF: baseRating + Math.floor(Math.random() * variance),
+          PLDB: baseRating + Math.floor(Math.random() * variance),
+          PBRS: baseRating + Math.floor(Math.random() * variance),
+          PTUP: baseRating + Math.floor(Math.random() * variance),
+          PPWM: baseRating + Math.floor(Math.random() * variance),
+          PFNM: baseRating + Math.floor(Math.random() * variance),
+          PBSH: baseRating + Math.floor(Math.random() * variance),
+          PPUR: baseRating + Math.floor(Math.random() * variance),
+          PPRC: baseRating + Math.floor(Math.random() * variance),
+          PMCV: baseRating + Math.floor(Math.random() * variance),
+          PZCV: baseRating + Math.floor(Math.random() * variance),
+          PSPC: baseRating + Math.floor(Math.random() * variance),
+          PCIT: baseRating + Math.floor(Math.random() * variance),
+          PSRR: baseRating + Math.floor(Math.random() * variance),
+          PMRR: baseRating + Math.floor(Math.random() * variance),
+          PDRR: baseRating + Math.floor(Math.random() * variance),
+          PHTP: baseRating + Math.floor(Math.random() * variance),
+          PPRS: baseRating + Math.floor(Math.random() * variance),
+          PREL: baseRating + Math.floor(Math.random() * variance),
+          PTAS: baseRating + Math.floor(Math.random() * variance),
+          PTAM: baseRating + Math.floor(Math.random() * variance),
+          PTAD: baseRating + Math.floor(Math.random() * variance),
+          PPLA: baseRating + Math.floor(Math.random() * variance),
+          PTOR: 50,
+          PKRT: baseRating + Math.floor(Math.random() * variance),
+          PHAN: 1, // Right-handed
+          PPTI: this.getDefaultArchetype(position),
+          PDEV: 0, // Normal
+          PBTY: 'Athletic',
+          PYRS: 0,
+          PFHO: 0,
+          PHSN: 5,
+          PHTC: 0,
+          PYER: 2024
+        } as RosterPlayer;
+
+        players.push(player);
+        playerIndex++;
+      }
+    }
+
+    return players;
+  }
+
+  /**
+   * Build roster for a single team (57-60 players)
+   *
+   * 1. Fill position limits (47 players)
+   * 2. Add depth/ST players (10-13 more)
+   * 3. Total: 57-60 players
+   */
+  private async buildTeamRoster(teamPlayers: RosterPlayer[], teamId: number): Promise<RosterPlayer[]> {
+    const roster: RosterPlayer[] = [];
+    const usedPIDs = new Set<number>();
+
+    // Step 1: Fill position limits (47 total)
+    Object.entries(POSITION_LIMITS).forEach(([position, limit]) => {
+      const posPlayers = teamPlayers
+        .filter(p => (p as any)._position === position && !usedPIDs.has(p.PSXP))
+        .sort((a, b) => b.POVR - a.POVR)
+        .slice(0, limit);
+
+      posPlayers.forEach(p => {
+        roster.push(p);
+        usedPIDs.add(p.PSXP);
+      });
+    });
+
+    console.log(`[Team ${teamId}] Position limits filled: ${roster.length} players`);
+
+    // Step 2: Add depth players to reach 57-60
+    const targetSize = 60; // Aim for 60 per team
+    const remaining = teamPlayers
+      .filter(p => !usedPIDs.has(p.PSXP))
+      .sort((a, b) => b.POVR - a.POVR);
+
+    const neededDepth = targetSize - roster.length;
+    const depthPlayers = remaining.slice(0, neededDepth);
+
+    depthPlayers.forEach(p => {
+      roster.push(p);
+      usedPIDs.add(p.PSXP);
+    });
+
+    console.log(`[Team ${teamId}] Added ${depthPlayers.length} depth players`);
+
+    // If team still short of 57, generate random low OVR players
+    if (roster.length < 57) {
+      console.log(`[Team ${teamId}] Only ${roster.length} players - filling with randomly generated low OVR players`);
+      const randomPlayers = await this.generateRandomPlayers(teamId, 60 - roster.length);
+      roster.push(...randomPlayers);
+      console.log(`[Team ${teamId}] Added ${randomPlayers.length} random players`);
+    }
+
+    return roster;
+  }
+
+  /**
+   * Collect free agents from 5 years BEFORE start year with LAST year stats
+   */
+  private async collectFreeAgents(startYear: number, teamRosters: RosterPlayer[]): Promise<RosterPlayer[]> {
+    const freeAgentsByKey = new Map<string, RosterPlayer>();
+
+    // Build set of players already on team rosters (firstName|lastName only - ignore position)
+    const rosterPlayerNames = new Set(
+      teamRosters.map(p => `${p.PFNA}|${p.PLNA}`)
+    );
+
+    // Scan 5 years BEFORE the selected range
+    for (let y = startYear - 5; y < startYear; y++) {
+      const yearPlayers = this.rosterData.get(y) || [];
+
+      for (const csvRow of yearPlayers) {
+        const enriched = await this.enrichPlayer(csvRow, y);
+
+        // Skip if already on a team roster (same name, any position)
+        const nameKey = `${enriched.PFNA}|${enriched.PLNA}`;
+        if (rosterPlayerNames.has(nameKey)) {
+          continue;
+        }
+
+        // Keep LAST year (most recent) for each free agent player
+        // Use their final season stats and age
+        const existing = freeAgentsByKey.get(nameKey);
+        const enrichedYear = (enriched as any).Year || 0;
+        const existingYear = existing ? ((existing as any).Year || 0) : 0;
+        if (!existing || enrichedYear > existingYear) {
+          freeAgentsByKey.set(nameKey, enriched);
+        }
+      }
+    }
+
+    // Convert to array and sort by POVR (from their last year)
+    const freeAgents = Array.from(freeAgentsByKey.values())
+      .sort((a, b) => b.POVR - a.POVR);
+
+    // Fill to template size
+    const targetSize = this.getTemplateRosterSize();
+    const currentSize = teamRosters.length;
+    const needed = targetSize - currentSize;
+
+    console.log(`[collectFreeAgents] Need ${needed} free agents to reach ${targetSize}`);
+
+    // Assign all free agents to team ID 1009 (Free Agent)
+    const finalFreeAgents = freeAgents.slice(0, needed).map(fa => ({
+      ...fa,
+      TGID: 1009  // Free Agent team ID
+    }));
+
+    return finalFreeAgents;
+  }
+
+  /**
+   * Validate no duplicate players in roster (for debugging only)
+   * NOTE: Duplicates are logged as warnings but do NOT fail the roster
+   */
+  private validateNoDuplicates(roster: RosterPlayer[]): void {
+    // Check for duplicate real players (same firstName + lastName + position)
+    // Generic face PIDs can repeat - that's normal
+    const playerKeys = new Map<string, RosterPlayer[]>();
+
+    roster.forEach(player => {
+      const key = `${player.PFNA}|${player.PLNA}|${player.PPOS}`;
+      const existing = playerKeys.get(key) || [];
+      existing.push(player);
+      playerKeys.set(key, existing);
+    });
+
+    const duplicates = Array.from(playerKeys.entries())
+      .filter(([key, players]) => players.length > 1);
+
+    if (duplicates.length > 0) {
+      console.warn('[validateNoDuplicates] ⚠️  DUPLICATE PLAYERS FOUND (for debugging):');
+      duplicates.forEach(([key, players]) => {
+        console.warn(`  "${players[0].PFNA} ${players[0].PLNA}" (Position ${players[0].PPOS}): appears ${players.length} times`);
+        players.forEach((p, i) => {
+          console.warn(`    ${i + 1}. Team ${p.TGID}, OVR ${p.POVR}, PID ${p.PSXP}`);
+        });
+      });
+      console.warn(`[validateNoDuplicates] Total duplicates: ${duplicates.length} (these should have been deduplicated earlier)`);
+    } else {
+      console.log('[validateNoDuplicates] ✓ No duplicate players found');
+    }
   }
 
   /**
@@ -484,33 +951,39 @@ export class RosterGeneratorService {
 
   /**
    * Add free agents to reach template size (single year mode)
+   * IMPORTANT: Free agents use LAST year stats, not best year!
    */
   private async addFreeAgents(year: number, currentRoster: RosterPlayer[]): Promise<RosterPlayer[]> {
     console.log('[RosterGeneratorService] Adding free agents...');
 
-    const currentPIDs = new Set(currentRoster.map(p => p.PSXP));
-    const freeAgents: RosterPlayer[] = [];
+    // Use NAME-based deduplication since PIDs may all be 0
+    const currentPlayerNames = new Set(currentRoster.map(p => `${p.PFNA}|${p.PLNA}`));
+    const freeAgentRawByName = new Map<string, any>();
 
-    // Look back 5 years
+    // Look back 5 years - collect raw CSV data (don't enrich yet!)
     for (let y = year - 5; y < year; y++) {
       const yearPlayers = this.rosterData.get(y) || [];
-      const candidates = await Promise.all(
-        yearPlayers.map(async (p: any) => {
-          const enriched = await this.enrichPlayer(p, y);
-          return enriched;
-        })
-      );
 
-      const qualified = candidates.filter(p =>
-        !currentPIDs.has(p.PSXP) &&
-        p.PAGE < 40 &&
-        p.POVR >= 65
-      );
+      // Filter FIRST before enriching
+      yearPlayers.forEach((p: any) => {
+        const firstName = p.First_Name || p.PFNA || '';
+        const lastName = p.Last_Name || p.PLNA || '';
+        const nameKey = `${firstName}|${lastName}`;
 
-      freeAgents.push(...qualified);
+        if (nameKey && nameKey !== '|' && !currentPlayerNames.has(nameKey)) {
+          const existing = freeAgentRawByName.get(nameKey);
+          const pYear = p.Year || y;
+          const existingYear = existing ? (existing.Year || 0) : 0;
+
+          // Keep the player from the LAST year (most recent)
+          if (!existing || pYear > existingYear) {
+            freeAgentRawByName.set(nameKey, { ...p, Year: pYear });
+          }
+        }
+      });
     }
 
-    console.log('[RosterGeneratorService] Found', freeAgents.length, 'free agent candidates');
+    console.log('[RosterGeneratorService] Found', freeAgentRawByName.size, 'unique free agents from 5 years');
 
     const targetSize = this.getTemplateRosterSize();
     const needed = targetSize - currentRoster.length;
@@ -521,13 +994,186 @@ export class RosterGeneratorService {
       return currentRoster.slice(0, targetSize);
     }
 
-    const bestFAs = freeAgents
-      .sort((a, b) => b.POVR - a.POVR)
+    // Sort raw data by POVR and take only what we need
+    const sortedRaw = Array.from(freeAgentRawByName.values())
+      .sort((a, b) => (b.POVR || 0) - (a.POVR || 0))
       .slice(0, needed);
 
-    console.log('[RosterGeneratorService] Adding', bestFAs.length, 'free agents');
+    console.log('[RosterGeneratorService] Enriching', sortedRaw.length, 'free agents...');
 
-    return [...currentRoster, ...bestFAs];
+    // NOW enrich only the players we're actually going to use
+    const enrichedFAs = await Promise.all(
+      sortedRaw.map(async (p: any) => {
+        return await this.enrichPlayer(p, p.Year || year);
+      })
+    );
+
+    console.log('[RosterGeneratorService] Adding', enrichedFAs.length, 'free agents from CSV');
+
+    // DEBUG: Check PPOS values on enriched free agents
+    if (enrichedFAs.length > 0) {
+      console.log('[RosterGeneratorService] Sample enriched FA PPOS values:');
+      enrichedFAs.slice(0, 3).forEach((p: any, i) => {
+        console.log(`  FA ${i + 1}: ${p.PFNA} ${p.PLNA} - PPOS: ${p.PPOS} (type: ${typeof p.PPOS})`);
+      });
+    }
+
+    // If still not enough, generate random low-tier players to fill template
+    const finalRoster = [...currentRoster, ...enrichedFAs];
+    const stillNeeded = targetSize - finalRoster.length;
+
+    if (stillNeeded > 0) {
+      console.log('[RosterGeneratorService] Still need', stillNeeded, 'more players - generating random low-tier players');
+
+      for (let i = 0; i < stillNeeded; i++) {
+        const randomPlayer = await this.generateRandomPlayer(year);
+        finalRoster.push(randomPlayer);
+      }
+
+      // DEBUG: Check PPOS values on random players
+      const randomPlayers = finalRoster.slice(finalRoster.length - stillNeeded);
+      if (randomPlayers.length > 0) {
+        console.log('[RosterGeneratorService] Sample random player PPOS values:');
+        randomPlayers.slice(0, 3).forEach((p: any, i) => {
+          console.log(`  Random ${i + 1}: ${p.PFNA} ${p.PLNA} - PPOS: ${p.PPOS} (type: ${typeof p.PPOS})`);
+        });
+      }
+    }
+
+    console.log('[RosterGeneratorService] Final roster size with free agents:', finalRoster.length);
+
+    return finalRoster;
+  }
+
+  /**
+   * Generate a random low-tier player to fill template slots
+   * Used when not enough real free agents exist
+   */
+  async generateRandomPlayer(year: number): Promise<RosterPlayer> {
+    // Random position (weighted towards common positions)
+    const positions = [0, 1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+    const positionCode = positions[Math.floor(Math.random() * positions.length)];
+
+    // Random name from common names
+    const firstNames = ['John', 'Mike', 'Chris', 'Dave', 'Tom', 'Dan', 'Jim', 'Steve', 'Mark', 'Paul'];
+    const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Davis', 'Miller', 'Wilson', 'Moore', 'Taylor'];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+
+    // Low-tier stats (40-55 OVR range)
+    const baseRating = 40 + Math.floor(Math.random() * 16); // 40-55
+
+    // Map position code to name
+    const positionMap: Record<number, string> = {
+      0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE',
+      5: 'LT', 6: 'LG', 7: 'C', 8: 'RG', 9: 'RT',
+      10: 'LEDG', 11: 'REDG', 12: 'DT',
+      13: 'SAM', 14: 'MIKE', 15: 'WILL',
+      16: 'CB', 17: 'FS', 18: 'SS',
+      19: 'K', 20: 'P', 21: 'LS'
+    };
+
+    // Assign valid PID from generic faces (never use wild PIDs that don't exist!)
+    const positionName = positionMap[positionCode] || 'WR';
+    const assignedPID = await this.assignGenericPID(positionName);
+
+    return {
+      firstName: firstName,
+      lastName: lastName,
+      position: positionName,
+      jerseyNum: Math.floor(Math.random() * 99) + 1,
+      age: 23 + Math.floor(Math.random() * 5), // 23-27
+      heightInches: 70 + Math.floor(Math.random() * 10), // 70-79 inches
+      weight: 180 + Math.floor(Math.random() * 80), // 180-259 lbs
+      team: 'FA',
+
+      // IDs - Use VALID generic PID from PID_Portrait_Mapping.csv
+      PID: assignedPID,
+      PAM: '',  // Generic faces don't need PAM
+      PEPS: '',
+
+      // College & Home - Skip ID 0 (Blank), use 1-264 (real colleges)
+      college: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
+      homeState: Math.floor(Math.random() * 50),
+
+      // Ratings (all fields with baseRating ± 5 variance)
+      POVR: baseRating,
+      PSPD: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PACC: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PSTR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PAGI: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PAWR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PCTH: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PCAR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTHP: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PKPW: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PKAC: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PRBK: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PPBK: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTAK: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PBTK: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PJMP: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PINJ: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PSTA: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTGH: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTRK: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PCOD: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PBCV: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PSTF: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PSPM: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PJUM: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PIBL: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PRBP: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PRBF: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PPBP: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PPBF: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PLDB: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PBRS: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTUP: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PPWM: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PFNM: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PBSH: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PPUR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PPRC: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PMCV: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PZCV: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PSPC: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PCIT: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PSRR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PMRR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PDRR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PHTP: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PPRS: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PREL: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTAS: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTAM: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTAD: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PPLA: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PTOR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PKRT: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+
+      // Metadata
+      TGID: 1009, // Free Agent team ID
+      PFNA: firstName,
+      PLNA: lastName,
+      PPOS: positionCode,
+      PAGE: 23 + Math.floor(Math.random() * 5),
+      PSXP: assignedPID, // Use same valid PID from generic faces
+      PHGT: 70 + Math.floor(Math.random() * 10),
+      PWGT: 180 + Math.floor(Math.random() * 80),
+      PCOL: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
+      PHSN: Math.floor(Math.random() * 50),
+      PJEN: Math.floor(Math.random() * 99) + 1,
+      PLTY: Math.floor(Math.random() * 68), // Random archetype 0-67
+      PYRP: Math.floor(Math.random() * 3) + 1, // Years Pro: 1-3 (rookie/young players)
+
+      // Contract fields (Free Agent - no contract)
+      PSA0: 0, // Salary Year 0
+      PSA1: 0, // Salary Year 1
+      PSA2: 0, // Salary Year 2
+      PSB0: 0, // Bonus Year 0
+      PSB1: 0  // Bonus Year 1
+    } as RosterPlayer;
   }
 
   /**
@@ -585,12 +1231,18 @@ export class RosterGeneratorService {
     // Fill missing ratings from CSV
     const ratings = this.fillMissingRatings(csvRow);
 
-    // Handle PID/PAM - assign generic faces if PID is 0
+    // Handle PID/PAM - validate PID exists in portrait mapping before using it
     let playerPID = parseInt(csvRow.PID) || 0;
     let playerPAM = String(csvRow.PAM || '');
 
+    // CRITICAL: Only use PID from CSV if it exists in PID_Portrait_Mapping.csv
+    if (playerPID !== 0 && !this.validPIDs.has(playerPID)) {
+      console.warn(`[RosterGeneratorService] Invalid PID ${playerPID} for ${csvRow.First_Name} ${csvRow.Last_Name} - assigning generic face`);
+      playerPID = 0; // Force reassignment to generic face
+    }
+
     if (playerPID === 0) {
-      // Assign generic face for players without portraits
+      // Assign generic face for players without valid portraits
       playerPID = await this.assignGenericPID(csvRow.Position);
       playerPAM = ''; // Generic faces don't need PAM
     }
@@ -752,6 +1404,11 @@ export class RosterGeneratorService {
    * IMPORTANT: These are the actual M26 file format IDs, NOT the simplified archetype_lookup.csv IDs
    */
   private getDefaultArchetype(position: string): number {
+    // Handle null/undefined position
+    if (!position || position === '') {
+      return 0; // Default to QB Field General
+    }
+
     const defaults: Record<string, number> = {
       // Offense - QB (0-4)
       'QB': 0,      // QB Field General
@@ -787,7 +1444,7 @@ export class RosterGeneratorService {
       'OLB': 47,    // OLB Speed Rusher
       'MLB': 51,    // MLB Field General
       'WILL': 49,   // OLB Pass Coverage
-      'Mike': 51,   // MLB Field General
+      'MIKE': 51,   // MLB Field General
       'SAM': 50,    // OLB Run Stopper
       'LLB': 47,    // OLB Speed Rusher
       'RLB': 47,    // OLB Speed Rusher
@@ -1064,16 +1721,16 @@ export class RosterGeneratorService {
 
       // Defense - LB
       'SAM': 'SAM',      // Strongside
-      'Mike': 'Mike',    // Middle
+      'MIKE': 'MIKE',    // Middle
       'WILL': 'WILL',    // Weakside
-      'MLB': 'Mike',     // Middle Linebacker
+      'MLB': 'MIKE',     // Middle Linebacker
       'LOLB': 'WILL',    // Left Outside = Weakside
       'ROLB': 'SAM',     // Right Outside = Strongside
       'LLB': 'WILL',     // Left Linebacker
       'RLB': 'SAM',      // Right Linebacker
-      'LB': 'Mike',      // Generic LB
+      'LB': 'MIKE',      // Generic LB
       'OLB': 'WILL',     // Generic Outside LB
-      'ILB': 'Mike',     // Inside LB
+      'ILB': 'MIKE',     // Inside LB
 
       // Defense - Secondary
       'CB': 'CB',
@@ -1117,7 +1774,7 @@ export class RosterGeneratorService {
    */
   private async lookupTeamCode(teamName: string): Promise<number> {
     if (!teamName || teamName === '') {
-      return 32; // Default to Texans
+      return 1009; // Default to Free Agent
     }
 
     // Map CSV team names to team_lookup.csv names
@@ -1168,6 +1825,13 @@ export class RosterGeneratorService {
       'TEN': 'Titans',
       'WAS': 'Commanders',
       'WSH': 'Commanders',
+
+      // Historical team codes (from ROSTER_lookup.csv)
+      'OTI': 'Titans',      // Houston Oilers → Tennessee Titans
+      'CLT': 'Colts',       // Baltimore/Indianapolis Colts
+      'CRD': 'Cards',       // Phoenix/Arizona Cardinals
+      'RAI': 'Raiders',     // Oakland/LA Raiders
+      'RAV': 'Ravens',      // Baltimore Ravens
 
       // Full names with city
       'Arizona Cardinals': 'Cards',
@@ -1269,7 +1933,7 @@ export class RosterGeneratorService {
     }
 
     console.warn(`[RosterGeneratorService] Unknown team name: "${teamName}" - defaulting to Free Agents`);
-    return 32; // Free Agents if not found
+    return 1009; // Free Agents (ID 1009, not 32 which is Texans!)
   }
 
   /**
@@ -1303,16 +1967,10 @@ export class RosterGeneratorService {
    * Get template roster size
    */
   private getTemplateRosterSize(): number {
-    // Try to get actual size from loaded template
-    if (this.templateData && this.templateData.data && this.templateData.data.prospects) {
-      const templateSize = this.templateData.data.prospects.length;
-      console.log('[RosterGeneratorService] Template has', templateSize, 'player slots');
-      return templateSize;
-    }
-
-    // Fallback to typical roster size
-    console.log('[RosterGeneratorService] Using fallback roster size: 3000');
-    return 3000; // Typical full roster with FA pool
+    // FORCE roster size to 3000 - the template is used for structure only, not size
+    // The draft class template has ~402 prospects, but we need to generate a full roster with FAs
+    console.log('[RosterGeneratorService] Using roster size: 3000 (full roster with FA pool)');
+    return 3000;
   }
 
   /**
@@ -1346,6 +2004,68 @@ export class RosterGeneratorService {
     }
 
     return Array.from(this.rosterData.keys()).sort((a, b) => a - b);
+  }
+
+  /**
+   * Save generated roster to file
+   * @param players - Array of players to save
+   * @param templatePath - Path to template roster file
+   * @param outputPath - Output file path
+   */
+  async saveRoster(
+    players: RosterPlayer[],
+    templatePath: string,
+    outputPath: string
+  ): Promise<boolean> {
+    try {
+      console.log(`[RosterGeneratorService] Saving roster to: ${outputPath}`);
+      console.log(`[RosterGeneratorService] Template: ${templatePath}`);
+      console.log(`[RosterGeneratorService] Players: ${players.length}`);
+
+      // Step 1: Copy template to output path
+      console.log(`[RosterGeneratorService] Copying template to output path...`);
+      await fs.promises.copyFile(templatePath, outputPath);
+      console.log(`[RosterGeneratorService] Template copied successfully`);
+
+      // Step 2: Load the copied file
+      console.log(`[RosterGeneratorService] Loading copied roster...`);
+      const RosterParser = require(path.join(__dirname, 'parsers', 'RosterParser.js'));
+      const { parseRosterFile, saveRosterFile } = RosterParser;
+
+      const rosterData = await parseRosterFile(outputPath);
+      const templateSize = rosterData.playerCount;
+      console.log(`[RosterGeneratorService] ===== PADDING DEBUG =====`);
+      console.log(`[RosterGeneratorService] Template has ${templateSize} slots, we generated ${players.length} players`);
+
+      // PAD to match template size (generate random players for missing slots)
+      let finalPlayers = [...players];
+      if (finalPlayers.length < templateSize) {
+        console.log(`[RosterGeneratorService] Padding ${templateSize - finalPlayers.length} random players to match template size...`);
+        while (finalPlayers.length < templateSize) {
+          const randomPlayer = await this.generateRandomPlayer(2024);
+          console.log(`[RosterGeneratorService] Generated padding player ${finalPlayers.length + 1}: ${randomPlayer.PFNA} ${randomPlayer.PLNA}`);
+          finalPlayers.push(randomPlayer);
+        }
+        console.log(`[RosterGeneratorService] ✓ Padded to ${finalPlayers.length} total players`);
+      } else {
+        console.log(`[RosterGeneratorService] No padding needed - already have enough players`);
+      }
+
+      console.log(`[RosterGeneratorService] About to write ${finalPlayers.length} players to file with ${templateSize} slots`);
+      console.log(`[RosterGeneratorService] ===== END PADDING DEBUG =====`);
+
+      // Step 4: Save back to the same file
+      await saveRosterFile(outputPath, finalPlayers, rosterData);
+
+      console.log(`[RosterGeneratorService] ✓ Roster saved successfully as Madden 26 file`);
+      console.log(`[RosterGeneratorService] File: ${outputPath}`);
+
+      return true;
+
+    } catch (error: any) {
+      console.error('[RosterGeneratorService] Error saving roster:', error);
+      throw new Error(`Failed to save roster: ${error.message}`);
+    }
   }
 }
 

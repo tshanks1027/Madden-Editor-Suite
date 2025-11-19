@@ -70,10 +70,13 @@ async function loadAvailableYears() {
 
   try {
     const result = await window.electronAPI.rosterGenerator.getAvailableYears();
+    console.log('[RosterWizard] 🔍 DIAGNOSTIC: getAvailableYears() returned:', result);
 
     if (result.success) {
       rosterWizardState.availableYears = result.years;
-      console.log('[RosterWizard] Available years:', result.years.length);
+      console.log('[RosterWizard] Available years count:', result.years.length);
+      console.log('[RosterWizard] 🔍 DIAGNOSTIC: First 5 years:', result.years.slice(0, 5));
+      console.log('[RosterWizard] 🔍 DIAGNOSTIC: Year types:', result.years.slice(0, 3).map(y => `${y} (${typeof y})`));
 
       // Populate year dropdowns
       populateYearDropdowns(result.years);
@@ -91,21 +94,31 @@ async function loadAvailableYears() {
  * Populate year dropdown elements
  */
 function populateYearDropdowns(years) {
+  console.log('[RosterWizard] 🔍 DIAGNOSTIC: populateYearDropdowns() called with:', years);
+
   // Single year dropdown
   const singleYearSelect = document.getElementById('roster-single-year');
+  console.log('[RosterWizard] 🔍 DIAGNOSTIC: singleYearSelect element:', singleYearSelect ? 'found' : 'NOT FOUND');
+
   if (singleYearSelect) {
     singleYearSelect.innerHTML = '';
-    years.forEach(year => {
+    years.forEach((year, index) => {
       const option = document.createElement('option');
       option.value = year;
       option.textContent = year;
       singleYearSelect.appendChild(option);
+
+      if (index < 3) {
+        console.log(`[RosterWizard] 🔍 DIAGNOSTIC: Created option ${index}: value="${option.value}", text="${option.textContent}"`);
+      }
     });
 
     // Set default to most recent year
     if (years.length > 0) {
-      singleYearSelect.value = years[years.length - 1];
-      rosterWizardState.year = years[years.length - 1];
+      const defaultYear = years[years.length - 1];
+      singleYearSelect.value = defaultYear;
+      rosterWizardState.year = defaultYear;
+      console.log(`[RosterWizard] 🔍 DIAGNOSTIC: Set default year to ${defaultYear}, dropdown.value="${singleYearSelect.value}", state.year=${rosterWizardState.year}`);
     }
   }
 
@@ -174,7 +187,11 @@ function rosterNextStep() {
     // Capture year selection
     if (rosterWizardState.mode === 'single-year') {
       const yearSelect = document.getElementById('roster-single-year');
+      console.log('[RosterWizard] 🔍 DIAGNOSTIC: Capturing year selection...');
+      console.log(`[RosterWizard] 🔍 DIAGNOSTIC: yearSelect.value = "${yearSelect.value}" (type: ${typeof yearSelect.value})`);
+      console.log(`[RosterWizard] 🔍 DIAGNOSTIC: parseInt(yearSelect.value) = ${parseInt(yearSelect.value)}`);
       rosterWizardState.year = parseInt(yearSelect.value);
+      console.log(`[RosterWizard] 🔍 DIAGNOSTIC: rosterWizardState.year = ${rosterWizardState.year}`);
     } else if (rosterWizardState.mode === 'all-time') {
       const startYearSelect = document.getElementById('roster-start-year');
       const endYearSelect = document.getElementById('roster-end-year');
@@ -481,9 +498,12 @@ async function saveRosterFile() {
 
     console.log('[RosterWizard] Save path:', savePath);
 
-    // TODO: Implement roster save through DraftClassService
-    // For now, we'll use the draft class save method since rosters use same M26 format
-    const result = await window.electronAPI.draftClass.save(savePath, rosterWizardState.generatedRoster);
+    // Save roster using the roster-generator save method (copy template, edit, save)
+    const result = await window.electronAPI.rosterGenerator.save(
+      rosterWizardState.generatedRoster.players,
+      'ROSTER-Official', // Template path - will be resolved to full path in backend
+      savePath
+    );
 
     if (result.success) {
       showRosterMessage('Roster saved successfully!', 'success');

@@ -1,18 +1,10 @@
 // NFL Team Data - Colors, Names, Abbreviations, Logos
 // Colors scraped by scrape-agent from teampalettes.com
 // Logos scraped by scrape-agent from NFL.com official CDN
+//
+// IMPORTANT: Team IDs match team_lookup.csv (1-32, NOT 0-31!)
 
 export const NFL_TEAMS = {
-  0: {
-    id: 0,
-    name: 'Texans',
-    city: 'Houston',
-    fullName: 'Houston Texans',
-    abbr: 'HOU',
-    primary: '#03202F',
-    secondary: '#A71930',
-    logo: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/hou.png'
-  },
   1: {
     id: 1,
     name: 'Bears',
@@ -331,7 +323,7 @@ export const NFL_TEAMS = {
     abbr: 'HOU',
     primary: '#03202F',
     secondary: '#A71930',
-    logo: 'https://static.www.nfl.com/league/api/clubs/logos/HOU.svg'
+    logo: 'https://a.espncdn.com/combiner/i?img=/i/teamlogos/nfl/500/hou.png'
   },
   1009: {
     id: 1009,

@@ -5,27 +5,78 @@
  * Communicates between renderer process and RosterGeneratorService.
  */
 
+console.log('[roster-generator-handlers] ===== LOADING HANDLER FILE =====');
+
 import { ipcMain } from 'electron';
 import { rosterGeneratorService, RosterGeneratorOptions } from '../services/RosterGeneratorService';
+
+console.log('[roster-generator-handlers] Imports successful');
+
+// Position code to name mapping (from position_lookup.csv)
+const POSITION_MAP: Record<number, string> = {
+  0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE',
+  5: 'LT', 6: 'LG', 7: 'C', 8: 'RG', 9: 'RT',
+  10: 'LEDG', 11: 'REDG', 12: 'DT',
+  13: 'SAM', 14: 'MIKE', 15: 'WILL',
+  16: 'CB', 17: 'FS', 18: 'SS',
+  19: 'K', 20: 'P', 21: 'LS'
+};
+
+// Team ID to name mapping (from team_lookup.csv - IDs are 1-32, not 0-31!)
+const TEAM_MAP: Record<number, string> = {
+  1: 'Bears', 2: 'Bengals', 3: 'Bills', 4: 'Broncos',
+  5: 'Browns', 6: 'Buccs', 7: 'Cards', 8: 'Chargers',
+  9: 'Chiefs',  // Note: team_lookup.csv has "Cheifs" (misspelled) but display as Chiefs
+  10: 'Colts', 11: 'Cowboys', 12: 'Dolphins', 13: 'Eagles', 14: 'Falcons',
+  15: '49ers', 16: 'Giants', 17: 'Jags', 18: 'Jets', 19: 'Lions',
+  20: 'Packers', 21: 'Panthers', 22: 'Pats', 23: 'Raiders', 24: 'Rams',
+  25: 'Ravens', 26: 'Commanders', 27: 'Saints', 28: 'Seahawks', 29: 'Steelers',
+  30: 'Titans', 31: 'Vikings', 32: 'Texans',
+  1009: 'Free Agent'
+};
 
 /**
  * Handle: roster-generator:generate
  * Generate roster with specified options
  */
 ipcMain.handle('roster-generator:generate', async (event, options: RosterGeneratorOptions) => {
-  console.log('[roster-generator-handlers] ===== GENERATE REQUEST =====');
+  console.log('[roster-generator-handlers] ===== GENERATE REQUEST RECEIVED =====');
+  console.log('[roster-generator-handlers] Handler is being called!');
   console.log('[roster-generator-handlers] Options:', JSON.stringify(options));
+  console.log('[roster-generator-handlers] ===============================');
 
   try {
+    console.log('[roster-generator-handlers] Calling rosterGeneratorService.generate()...');
     const result = await rosterGeneratorService.generate(options);
 
     console.log('[roster-generator-handlers] Generation successful');
     console.log('[roster-generator-handlers] Player count:', result.players.length);
     console.log('[roster-generator-handlers] Metadata:', JSON.stringify(result.metadata));
 
+    // Enrich players with display names for frontend
+    const enrichedPlayers = result.players.map(player => ({
+      ...player,
+      _position: POSITION_MAP[player.PPOS] || 'Unknown',
+      _sourceTeam: TEAM_MAP[player.TGID] || 'Unknown'
+    }));
+
+    // DEBUG: Log first 5 players to see TGID values
+    console.log('[roster-generator-handlers] === DEBUGGING TEAM MAPPING ===');
+    console.log('[roster-generator-handlers] First 5 players:');
+    enrichedPlayers.slice(0, 5).forEach((p, i) => {
+      console.log(`  ${i + 1}. ${p.PFNA} ${p.PLNA} - TGID: ${p.TGID} → _sourceTeam: ${p._sourceTeam}`);
+    });
+    console.log('[roster-generator-handlers] Team IDs in TEAM_MAP:', Object.keys(TEAM_MAP).sort((a, b) => Number(a) - Number(b)));
+    console.log('[roster-generator-handlers] =============================');
+
+    console.log('[roster-generator-handlers] Enriched players with _position and _sourceTeam fields');
+
     return {
       success: true,
-      data: result
+      data: {
+        ...result,
+        players: enrichedPlayers
+      }
     };
 
   } catch (error: any) {
@@ -147,6 +198,51 @@ ipcMain.handle('roster-generator:get-stats', async (event, players: any[]) => {
     return {
       success: false,
       error: error.message || 'Unknown error calculating stats'
+    };
+  }
+});
+
+/**
+ * Handle: roster-generator:save
+ * Save generated roster to file
+ */
+ipcMain.handle('roster-generator:save', async (event, players: any[], templatePath: string, outputPath: string) => {
+  console.log('[roster-generator-handlers] ===== IPC SAVE REQUEST =====');
+  console.log('[roster-generator-handlers] Player count:', players.length);
+  console.log('[roster-generator-handlers] Template:', templatePath);
+  console.log('[roster-generator-handlers] Output:', outputPath);
+
+  try {
+    // If templatePath is just 'ROSTER-Official', resolve to full path
+    let resolvedTemplatePath = templatePath;
+    if (templatePath === 'ROSTER-Official' || !templatePath) {
+      const { app } = require('electron');
+      const path = require('path');
+      resolvedTemplatePath = path.join(app.getAppPath(), 'data', 'Templates', 'ROSTER-Official');
+      console.log('[roster-generator-handlers] Resolved template path:', resolvedTemplatePath);
+    }
+
+    const success = await rosterGeneratorService.saveRoster(
+      players,
+      resolvedTemplatePath,
+      outputPath
+    );
+
+    console.log('[roster-generator-handlers] Save successful');
+
+    return {
+      success: true
+    };
+
+  } catch (error: any) {
+    console.error('[roster-generator-handlers] ===== IPC SAVE ERROR =====');
+    console.error('[roster-generator-handlers] Error:', error);
+    console.error('[roster-generator-handlers] Stack:', error.stack);
+    console.error('[roster-generator-handlers] ===================================');
+
+    return {
+      success: false,
+      error: error.message || 'Unknown error saving roster'
     };
   }
 });

@@ -1,5 +1,5 @@
 appId: com.krazynuttZ.madden-editor-suite
-productName: Madden Editor Suite
+productName: madden-editor-suite
 copyright: Copyright © 2025 KRaZyNuttZ
 electronVersion: 38.1.2
 
@@ -45,7 +45,7 @@ nsis:
   uninstallerSidebar: build-assets/splash.png
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  shortcutName: Madden Editor Suite
+  shortcutName: madden-editor-suite
   deleteAppDataOnUninstall: false
   runAfterFinish: true
   menuCategory: true

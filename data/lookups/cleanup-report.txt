@@ -1,0 +1,41 @@
+======================================================================
+PLAYER DATA CLEANUP REPORT
+Generated: 2025-11-14 14:18:39
+======================================================================
+
+1. 2024 DUPLICATE REMOVAL
+----------------------------------------------------------------------
+Total 2024 rows before:  2368
+Total 2024 rows after:   2368
+Duplicates removed:      0
+Unique players kept:     2368
+
+2. ARCHETYPE ASSIGNMENT
+----------------------------------------------------------------------
+Missing archetypes before: 2591
+Archetypes assigned:       0
+Still missing after:       2591
+
+Archetypes assigned by type:
+
+3a. PID/PAM BACKFILL FROM ALL_PLAYER_LOOKUP
+----------------------------------------------------------------------
+Players matched by name:          0
+PAM values backfilled:            0
+
+3b. GENERIC PID ASSIGNMENT
+----------------------------------------------------------------------
+PIDs assigned (PID=0 -> unique): 0
+PID range assigned:              79038 to 79037
+PAM values cleaned (0 -> empty): 0
+Generic portrait mappings added: 0
+
+4. PID PORTRAIT MAPPING UPDATE
+----------------------------------------------------------------------
+PAM values updated:        0
+New PIDs added:            0
+Total valid PID->PAM maps: 450
+
+======================================================================
+CLEANUP COMPLETE
+======================================================================
