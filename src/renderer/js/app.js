@@ -798,8 +798,12 @@ class MaddenEditorApp {
         this.updateStats();
     }
 
-    renderRoster() {
+    renderRoster(scrollLeft = 0) {
+        console.log('[renderRoster] START - sortColumns:', JSON.stringify(this.sortColumns));
         const container = document.getElementById('rosterGrid');
+
+        // Store scroll position to restore after table creation
+        this.pendingScrollLeft = scrollLeft;
 
         if (this.players.length === 0) {
             container.innerHTML = `
@@ -813,10 +817,14 @@ class MaddenEditorApp {
         }
 
         // Apply filtering and sorting to get the view
+        const beforePOVR = this.players.slice(0, 3).map(p => p.POVR);
+        console.log('[renderRoster] BEFORE applyFiltersAndSort - first 3 players POVR:', beforePOVR);
         this.applyFiltersAndSort();
+        const afterPOVR = this.filteredPlayers.slice(0, 3).map(p => p.POVR);
+        console.log('[renderRoster] AFTER applyFiltersAndSort - first 3 filtered players POVR:', afterPOVR);
 
-        // Destroy existing Handsontable instance if it exists
-        if (this.hotTable) {
+        // Destroy existing table
+        if (this.hotTable && !this.hotTable.isDestroyed) {
             this.hotTable.destroy();
         }
 
@@ -910,6 +918,16 @@ class MaddenEditorApp {
                 })
             ];
         });
+
+        // DEBUG: Check what data Handsontable is receiving
+        const povrIndex = fieldCodes.indexOf('POVR');
+        if (povrIndex !== -1) {
+            const firstFivePOVR = data.slice(0, 5).map(row => row[povrIndex + 1]); // +1 because portrait is first
+            const paginatedPOVR = paginatedPlayers.slice(0, 5).map(p => p.POVR);
+            console.log('[renderRoster] 🎯 DATA BEING SENT TO HANDSONTABLE - First 5 POVR values:', JSON.stringify(firstFivePOVR));
+            console.log('[renderRoster] 🎯 Paginated players first 5 POVR:', JSON.stringify(paginatedPOVR));
+            console.log('[renderRoster] 🎯 filteredPlayers first 5 POVR:', JSON.stringify(this.filteredPlayers.slice(0, 5).map(p => p.POVR)));
+        }
 
         // Create portrait renderer function (MUST be synchronous for Handsontable)
         const portraitRenderer = (instance, td, row, col, prop, value, cellProperties) => {
@@ -1107,7 +1125,7 @@ class MaddenEditorApp {
             manualRowResize: false,
             rowHeights: 70, // Set row height to accommodate 64px portraits
 
-            // Column sorting - disable built-in plugins since we handle sorting manually
+            // Column sorting - DISABLED (we use custom sorting via toggleColumnSort)
             columnSorting: false,
             multiColumnSorting: false,
 
@@ -1121,7 +1139,7 @@ class MaddenEditorApp {
 
             // Freeze columns
             fixedColumnsStart: 3, // Freeze Portrait, First Name, and Last Name columns
-            preventOverflow: 'horizontal', // Prevent column misalignment during scroll
+            preventOverflow: 'horizontal',
 
             // Fix row alignment issues with fixed columns during vertical scroll
             renderAllRows: false, // Use virtual scrolling
@@ -1264,6 +1282,20 @@ class MaddenEditorApp {
                 // CRITICAL FIX: Only run expensive setup ONCE on initial load
                 // Running on every render causes massive slowdown - every click triggers render
                 // which triggers setup which adds event listeners - this compounds to freeze
+
+                // Restore scroll position IMMEDIATELY on first render if pending
+                if (this.pendingScrollLeft > 0) {
+                    try {
+                        const holder = this.hotTable.view?._wt?.wtTable?.holder;
+                        if (holder) {
+                            holder.scrollLeft = this.pendingScrollLeft;
+                            console.log('[afterRender] Restored scrollLeft to:', this.pendingScrollLeft);
+                        }
+                    } catch (e) {
+                        console.error('[afterRender] Error restoring scroll:', e);
+                    }
+                    this.pendingScrollLeft = 0; // Clear after restoring
+                }
 
                 if (!this.initialSetupComplete) {
                     console.log('[afterRender] Running initial setup...');
@@ -1587,50 +1619,18 @@ class MaddenEditorApp {
     }
 
     /**
-     * Custom renderer for POVR (Overall Rating) - calculates dynamically based on other ratings
-     * Uses position-specific weighted formulas to calculate the overall rating
+     * Custom renderer for POVR (Overall Rating) - displays the stored value
      */
     ovrRenderer(instance, td, row, col, prop, value, cellProperties) {
-        // Get the full player data for this row
-        const rowData = instance.getDataAtRow(row);
-
-        // Get position index
-        const posIndex = this.currentFieldMapping.indexOf('PPOS');
-        const position = posIndex !== -1 ? rowData[posIndex] : null;
-
-        if (!position) {
-            // No position available, show the stored value
-            Handsontable.renderers.NumericRenderer.apply(this, arguments);
-            td.style.backgroundColor = '#1a1612';
-            td.style.color = 'var(--gray-text)';
-            return td;
-        }
-
-        // Build ratings object from current row data
-        const ratings = this.buildRatingsFromRow(rowData);
-
-        // Calculate overall rating asynchronously
-        window.electronAPI.rating.calculateOverall(ratings, position)
-            .then(calculatedOVR => {
-                // Update the cell with calculated OVR
-                td.textContent = calculatedOVR;
-                td.style.backgroundColor = '#1a1612';  // Darker to show it's calculated
-                td.style.color = 'var(--primary-orange)';  // Orange to highlight it's special
-                td.style.fontWeight = 'bold';
-                td.style.border = '1px solid var(--border-color)';
-                td.style.fontSize = '0.875rem';
-                td.style.textAlign = 'center';
-
-                // Add title with explanation
-                td.title = 'Calculated Overall Rating (based on position-specific attribute weights)';
-            })
-            .catch(error => {
-                console.error('[ovrRenderer] Error calculating OVR:', error);
-                // Fallback to stored value
-                td.textContent = value || '-';
-                td.style.backgroundColor = '#1a1612';
-                td.style.color = 'var(--gray-text)';
-            });
+        // Display the stored POVR value directly
+        td.textContent = value || '-';
+        td.style.backgroundColor = '#1a1612';
+        td.style.color = 'var(--primary-orange)';
+        td.style.fontWeight = 'bold';
+        td.style.border = '1px solid var(--border-color)';
+        td.style.fontSize = '0.875rem';
+        td.style.textAlign = 'center';
+        td.title = 'Overall Rating';
 
         return td;
     }
@@ -2049,7 +2049,13 @@ class MaddenEditorApp {
         }
 
         // Apply sorting
+        console.log('[applyFiltersAndSort] About to apply sorting, sortColumns:', JSON.stringify(this.sortColumns));
+        const beforeSort = filtered.slice(0, 5).map(p => p.POVR);
+        console.log('[applyFiltersAndSort] BEFORE sort - first 5 POVR values:', beforeSort);
         if (this.sortColumns.length > 0) {
+            console.log('[applyFiltersAndSort] Sorting array of', filtered.length, 'players by', this.sortColumns.map(s => s.column).join(', '));
+
+            let comparisonCount = 0;
             filtered.sort((a, b) => {
                 // Multi-column sort - check each sort column in order
                 for (const sortCol of this.sortColumns) {
@@ -2057,13 +2063,19 @@ class MaddenEditorApp {
                     const valueA = this.getPlayerFieldValue(a, fieldName);
                     const valueB = this.getPlayerFieldValue(b, fieldName);
 
+                    // Log first 3 comparisons for debugging
+                    if (comparisonCount < 3) {
+                        console.log(`[SORT COMPARE #${comparisonCount}] Field: ${fieldName}, A: ${valueA} (${typeof valueA}), B: ${valueB} (${typeof valueB})`);
+                        comparisonCount++;
+                    }
+
                     // Compare values
                     let comparison = 0;
 
-                    // Handle empty values
-                    if (valueA === '' || valueA === null || valueA === undefined) {
+                    // Handle empty values and NaN
+                    if (valueA === '' || valueA === null || valueA === undefined || (typeof valueA === 'number' && isNaN(valueA))) {
                         comparison = 1;
-                    } else if (valueB === '' || valueB === null || valueB === undefined) {
+                    } else if (valueB === '' || valueB === null || valueB === undefined || (typeof valueB === 'number' && isNaN(valueB))) {
                         comparison = -1;
                     } else if (typeof valueA === 'number' && typeof valueB === 'number') {
                         // Numeric comparison
@@ -2084,10 +2096,14 @@ class MaddenEditorApp {
                 }
                 return 0;
             });
+            const afterSort = filtered.slice(0, 5).map(p => p.POVR);
+            console.log('[applyFiltersAndSort] AFTER sort - first 5 POVR values:', afterSort);
+            console.log('[applyFiltersAndSort] ⚠️ DID VALUES CHANGE?', JSON.stringify(beforeSort), '=>', JSON.stringify(afterSort));
         }
 
         // Store filtered and sorted result
         this.filteredPlayers = filtered;
+        console.log('[applyFiltersAndSort] Stored in this.filteredPlayers, count:', this.filteredPlayers.length);
     }
 
     setupScrollWheelEditing(table = this.hotTable, fieldMapping = this.currentFieldMapping) {
@@ -2595,9 +2611,23 @@ class MaddenEditorApp {
             }
         }
 
+        // Save scroll position before re-render
+        let scrollLeft = 0;
+        if (this.hotTable && !this.hotTable.isDestroyed) {
+            // Try multiple ways to get scroll position
+            const holder = this.hotTable.view?._wt?.wtTable?.holder;
+            if (holder) {
+                scrollLeft = holder.scrollLeft;
+                console.log('[toggleColumnSort] Got scrollLeft from holder:', scrollLeft);
+            } else {
+                console.log('[toggleColumnSort] Could not find holder');
+            }
+        }
+        console.log('[toggleColumnSort] Final scroll position to save:', scrollLeft);
+
         // Reset to first page and re-render
         this.currentPage = 1;
-        this.renderRoster();
+        this.renderRoster(scrollLeft);
     }
 
     filterPlayers() {
@@ -3321,7 +3351,7 @@ class MaddenEditorApp {
             // Get PID_Portrait_Mapping.csv data
             const mapping = await window.electronAPI.lookup.getPIDPortraitMapping();
 
-            // Filter to only Type='generic' entries
+            // Filter to only type='generic' entries (lowercase 'type' because IPC handler returns lowercase properties)
             const genericFaces = mapping.filter(entry => entry.type === 'generic');
 
             console.log(`Loaded ${genericFaces.length} generic faces`);
@@ -4132,7 +4162,7 @@ class MaddenEditorApp {
             contextMenu: true,
             selectionMode: 'multiple',
             fixedColumnsStart: 5,  // Freeze first 5 columns (Draft Pos, Portrait, Last Name, First Name, Position)
-            preventOverflow: 'horizontal', // Prevent column misalignment during scroll
+            preventOverflow: 'horizontal',
             manualRowMove: true, // Enable row dragging for reordering
             renderAllRows: true, // Render all rows (disable virtual scrolling for debugging)
             // viewportRowRenderingOffset: 100, // Not needed when renderAllRows is true
@@ -5296,7 +5326,7 @@ class MaddenEditorApp {
                 renderAllRows: false, // Use virtual scrolling
                 viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
                 fixedColumnsStart: 4, // Freeze first 4 columns (Draft Pos, First, Last, Pos) to prevent alignment issues
-                preventOverflow: 'horizontal', // Prevent horizontal overflow causing misalignment
+                preventOverflow: false, // Allow natural scrolling to prevent snap-left issues
                 manualRowMove: true, // Enable row dragging for reordering
                 afterRowMove: (movedRows, finalIndex, dropIndex, movePossible, orderChanged) => {
                     // Just re-render to update the position numbers (they're calculated from row position)
@@ -5560,7 +5590,7 @@ class MaddenEditorApp {
                 renderAllRows: false, // Use virtual scrolling
                 viewportRowRenderingOffset: 100, // Render extra rows to prevent misalignment
                 fixedColumnsStart: 3, // Freeze first 3 columns (Last, First, Pos) to prevent alignment issues
-                preventOverflow: 'horizontal', // Prevent horizontal overflow causing misalignment
+                preventOverflow: false, // Allow natural scrolling to prevent snap-left issues
                 // Highlight entire row on selection
                 afterSelection: (row, column, row2, column2, preventScrolling, selectionLayerLevel) => {
                     if (!this.rosterCreatorGrid) return;
@@ -5992,8 +6022,8 @@ class MaddenEditorApp {
             // Switch to roster editor tab
             this.switchTool('roster');
 
-            // Store the generated players as the current roster data
-            this.players = this.generatedRosterPlayers;
+            // Store the generated players as the current roster data (DEEP COPY to avoid reference issues)
+            this.players = JSON.parse(JSON.stringify(this.generatedRosterPlayers));
 
             // Set current file to template path (so save knows where to write)
             const templatePath = document.getElementById('rosterTemplate')?.value;
