@@ -183,12 +183,41 @@ export const POSITION_MAPPINGS = {
     16: 'FS', 17: 'SS', 18: 'K', 19: 'P'
 };
 
-// Team mappings (simplified - full lookup would come from roster file)
+// Team mappings - matches team_lookup.csv TGID values (1-32)
 export const TEAM_MAPPINGS = {
-    0: 'ARI', 1: 'ATL', 2: 'BAL', 3: 'BUF', 4: 'CAR', 5: 'CHI', 6: 'CIN', 7: 'CLE',
-    8: 'DAL', 9: 'DEN', 10: 'DET', 11: 'GB', 12: 'HOU', 13: 'IND', 14: 'JAX', 15: 'KC',
-    16: 'LV', 17: 'LAC', 18: 'LAR', 19: 'MIA', 20: 'MIN', 21: 'NE', 22: 'NO', 23: 'NYG',
-    24: 'NYJ', 25: 'PHI', 26: 'PIT', 27: 'SF', 28: 'SEA', 29: 'TB', 30: 'TEN', 31: 'WAS'
+    1: 'CHI',   // Bears
+    2: 'CIN',   // Bengals
+    3: 'BUF',   // Bills
+    4: 'DEN',   // Broncos
+    5: 'CLE',   // Browns
+    6: 'TB',    // Buccs
+    7: 'ARI',   // Cards
+    8: 'LAC',   // Chargers
+    9: 'KC',    // Chiefs
+    10: 'IND',  // Colts
+    11: 'DAL',  // Cowboys
+    12: 'MIA',  // Dolphins
+    13: 'PHI',  // Eagles
+    14: 'ATL',  // Falcons
+    15: 'SF',   // 49ers
+    16: 'NYG',  // Giants
+    17: 'JAX',  // Jags
+    18: 'NYJ',  // Jets
+    19: 'DET',  // Lions
+    20: 'GB',   // Packers
+    21: 'CAR',  // Panthers
+    22: 'NE',   // Pats
+    23: 'LV',   // Raiders
+    24: 'LAR',  // Rams
+    25: 'BAL',  // Ravens
+    26: 'WAS',  // Commanders
+    27: 'NO',   // Saints
+    28: 'SEA',  // Seahawks
+    29: 'PIT',  // Steelers
+    30: 'TEN',  // Titans
+    31: 'MIN',  // Vikings
+    32: 'HOU',  // Texans
+    1009: 'FA'  // Free Agent
 };
 
 // Lookup data storage - exported for use in other modules
@@ -543,7 +572,7 @@ export function getLookupValue(lookupType, value) {
  * @returns {object} Field definition or default
  */
 export function getFieldDefinition(fieldName) {
-    return MADDEN_FIELDS[fieldName] || {
+    const fieldDef = MADDEN_FIELDS[fieldName] || {
         display: fieldName,
         type: 'numeric',
         editable: true,
@@ -551,6 +580,22 @@ export function getFieldDefinition(fieldName) {
         min: 0,
         max: 99
     };
+
+    // Populate options array from LOOKUP_DATA for dropdown fields
+    if (fieldDef.type === 'lookup' && fieldDef.lookup && !fieldDef.options) {
+        const lookupMap = LOOKUP_DATA[fieldDef.lookup];
+        if (lookupMap && lookupMap.size > 0) {
+            fieldDef.options = [];
+            lookupMap.forEach((displayName, id) => {
+                fieldDef.options.push({
+                    value: id,
+                    display: displayName
+                });
+            });
+        }
+    }
+
+    return fieldDef;
 }
 
 /**

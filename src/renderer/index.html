@@ -11,6 +11,132 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/creator.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- AG-Grid Styles -->
+    <style>
+        @import 'ag-grid-community/styles/ag-grid.css';
+        @import 'ag-grid-community/styles/ag-theme-alpine.css';
+
+        /* Professional dark theme matching Handsontable styling */
+        .ag-theme-alpine {
+            --ag-background-color: #1a1612;
+            --ag-foreground-color: #e0e0e0;
+            --ag-header-background-color: #000000;
+            --ag-header-foreground-color: #ffa726;
+            --ag-odd-row-background-color: #1a1612;
+            --ag-row-hover-color: #1d1914;
+            --ag-selected-row-background-color: #ff8c00;
+            --ag-border-color: transparent;
+            --ag-row-border-color: transparent;
+            --ag-cell-horizontal-border: none;
+            --ag-font-size: 15px;
+            --ag-row-height: 70px;
+            --ag-header-height: 40px;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        /* Glowing orange header text - Reduced glow for readability */
+        .ag-theme-alpine .ag-header-cell-text {
+            color: #ffa726 !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            font-size: 13px !important;
+            letter-spacing: 0.8px !important;
+            text-shadow:
+                0 0 2px rgba(255, 255, 255, 0.8),
+                0 0 5px rgba(255, 200, 100, 0.6),
+                0 0 10px rgba(255, 167, 38, 0.4),
+                0 1px 2px rgba(0, 0, 0, 0.8) !important;
+        }
+
+        /* Column headers - background set dynamically via JavaScript */
+        .ag-theme-alpine .ag-header-cell {
+            border: none !important;
+            padding: 10px 8px !important;
+            min-height: 43px !important;
+        }
+
+        /* Header row container - background set dynamically via JavaScript */
+        .ag-theme-alpine .ag-header,
+        .ag-theme-alpine .ag-header-row,
+        .ag-theme-alpine .ag-header-viewport {
+            /* background set dynamically */
+        }
+
+        /* Hide hamburger menu icons (three line things) */
+        .ag-theme-alpine .ag-header-cell-menu-button,
+        .ag-theme-alpine .ag-icon-menu,
+        .ag-theme-alpine .ag-header-icon,
+        .ag-theme-alpine .ag-header-cell-menu-button::before,
+        .ag-theme-alpine .ag-header-cell-menu-button::after {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+
+        /* Prevent hover state from showing menu button */
+        .ag-theme-alpine .ag-header-cell:hover .ag-header-cell-menu-button {
+            display: none !important;
+            opacity: 0 !important;
+        }
+
+        /* Data cells - no !important on colors to allow team color themes */
+        .ag-theme-alpine .ag-cell {
+            border: none !important;
+            padding: 6px 8px !important;
+            font-size: 15px !important;
+            font-weight: 400 !important;
+            line-height: 1.4 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            transition: background-color 0.2s ease, color 0.2s ease !important;
+        }
+
+        /* Zebra stripe rows - alternating darker */
+        .ag-theme-alpine .ag-row-even .ag-cell {
+            background-color: #15120f !important;
+        }
+
+        /* Hover effect */
+        .ag-theme-alpine .ag-row-hover .ag-cell {
+            background-color: #1d1914 !important;
+        }
+
+        /* Selected row - orange highlight */
+        .ag-theme-alpine .ag-row-selected .ag-cell {
+            background-color: rgba(255, 140, 0, 0.3) !important;
+        }
+
+        /* Remove default AG-Grid borders */
+        .ag-theme-alpine .ag-row {
+            border: none !important;
+        }
+
+        .ag-theme-alpine .ag-root-wrapper {
+            border: none;
+        }
+
+        /* Portrait column styling (pinned left) */
+        .ag-theme-alpine .ag-pinned-left-cols-container .ag-cell {
+            background-color: #1a1a1a !important;
+        }
+
+        .ag-theme-alpine .ag-row-even .ag-pinned-left-cols-container .ag-cell {
+            background-color: #15120f !important;
+        }
+
+        .ag-theme-alpine .ag-row-hover .ag-pinned-left-cols-container .ag-cell {
+            background-color: #1d1914 !important;
+        }
+
+        .portrait-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+    </style>
 </head>
 <body>
     <!-- Splash Screen -->
@@ -180,7 +306,7 @@
                 </div>
 
                 <!-- Data Grid Container -->
-                <div id="rosterGrid" class="data-grid-container">
+                <div id="rosterGrid" class="data-grid-container ag-theme-alpine">
                     <div class="empty-state">
                         <div class="empty-icon">📊</div>
                         <h3 class="empty-title">No players loaded</h3>
@@ -213,6 +339,20 @@
                 </div>
 
                 <div class="filter-controls" style="padding: 10px; background-color: #2a2a2a; border-bottom: 1px solid #444; display: flex; gap: 15px; align-items: center;">
+                    <div class="control-group">
+                        <label for="draftRoundFilter" class="control-label">Round:</label>
+                        <select id="draftRoundFilter" class="control-select">
+                            <option value="">All Rounds</option>
+                            <option value="1">Round 1</option>
+                            <option value="2">Round 2</option>
+                            <option value="3">Round 3</option>
+                            <option value="4">Round 4</option>
+                            <option value="5">Round 5</option>
+                            <option value="6">Round 6</option>
+                            <option value="7">Round 7</option>
+                            <option value="ufa">UFA (Undrafted)</option>
+                        </select>
+                    </div>
                     <div class="control-group">
                         <label for="draftPositionFilter" class="control-label">Position:</label>
                         <select id="draftPositionFilter" class="control-select">
@@ -247,8 +387,8 @@
                     </div>
                 </div>
 
-                <div id="draft-grid-container" class="grid-container">
-                    <!-- Handsontable will be inserted here -->
+                <div id="draft-grid-container" class="grid-container ag-theme-alpine">
+                    <!-- AG-Grid will be inserted here -->
                 </div>
             </div>
 
@@ -907,9 +1047,6 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
         </div>
     </div>
 
-    <script src="js/draft-wizard.js"></script>
-    <script src="js/roster-wizard.js"></script>
     <script type="module" src="js/app.js"></script>
-    <script src="update-notification.js"></script>
 </body>
 </html>

@@ -8,6 +8,22 @@ import 'handsontable/dist/handsontable.full.min.css';
 // Expose Handsontable globally for use in non-module scripts (e.g., draft-wizard.js)
 window.Handsontable = Handsontable;
 
+// Import AG-Grid for main roster table
+import { createGrid } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import {
+    initializeAGGridRoster,
+    updateAGGridData,
+    destroyAGGrid,
+    applyHeaderColors
+} from './ag-grid-roster-complete.js';
+
+// Import wizard scripts to ensure they're bundled by Vite
+import './draft-wizard.js';
+import './roster-wizard.js';
+import '../update-notification.js';
+
 import {
     getFieldDefinition,
     getVisibleFields,
@@ -100,6 +116,7 @@ class MaddenEditorApp {
         this.currentDraftClass = null;
         this.currentDraftFilePath = null;
         this.draftGrid = null;
+        this.selectedDraftRound = ''; // Selected round filter for draft class editor
 
         // Portrait cache - persists across renders for performance
         this.portraitCache = new Map();
@@ -243,6 +260,11 @@ class MaddenEditorApp {
 
         document.getElementById('export-draft-json-btn').addEventListener('click', () => {
             this.exportDraftJSON();
+        });
+
+        document.getElementById('draftRoundFilter').addEventListener('change', (e) => {
+            this.selectedDraftRound = e.target.value;
+            this.filterDraftProspects();
         });
 
         document.getElementById('draftPositionFilter').addEventListener('change', (e) => {
@@ -426,53 +448,7 @@ class MaddenEditorApp {
             });
         }
 
-        // Draft Class Creator event listeners
-        const generateDraftBtn = document.getElementById('generateDraftBtn');
-        if (generateDraftBtn) {
-            generateDraftBtn.addEventListener('click', async () => {
-                await this.generateDraftClass();
-            });
-        }
-
-        const saveGeneratedDraftBtn = document.getElementById('saveGeneratedDraft');
-        if (saveGeneratedDraftBtn) {
-            saveGeneratedDraftBtn.addEventListener('click', async () => {
-                await this.saveGeneratedDraftClass();
-            });
-        }
-
-        const loadIntoDraftEditorBtn = document.getElementById('loadIntoDraftEditor');
-        if (loadIntoDraftEditorBtn) {
-            loadIntoDraftEditorBtn.addEventListener('click', async () => {
-                await this.loadGeneratedDraftIntoEditor();
-            });
-        }
-
-        // Roster Creator event listeners
-        const generateRosterBtn = document.getElementById('generateRosterBtn');
-        if (generateRosterBtn) {
-            console.log('[App] Roster generate button found, adding click listener');
-            generateRosterBtn.addEventListener('click', async () => {
-                console.log('[App] Generate roster button clicked!');
-                await this.generateRoster();
-            });
-        } else {
-            console.error('[App] Generate roster button NOT found!');
-        }
-
-        const loadIntoRosterEditorBtn = document.getElementById('loadIntoRosterEditor');
-        if (loadIntoRosterEditorBtn) {
-            loadIntoRosterEditorBtn.addEventListener('click', async () => {
-                await this.loadGeneratedRosterIntoEditor();
-            });
-        }
-
-        const saveGeneratedRosterBtn = document.getElementById('saveGeneratedRoster');
-        if (saveGeneratedRosterBtn) {
-            saveGeneratedRosterBtn.addEventListener('click', async () => {
-                await this.saveGeneratedRoster();
-            });
-        }
+        // Wizard event handlers are now in draft-wizard.js and roster-wizard.js
 
         // Enable/disable generate buttons based on input
         const draftYearInput = document.getElementById('draftYear');
@@ -522,6 +498,16 @@ class MaddenEditorApp {
 
         this.currentTool = toolName;
         console.log(`Switched to ${toolName} tool`);
+
+        // CRITICAL FIX: Reset wizard state when switching to generator tools
+        // This ensures wizards start fresh and don't stay stuck on results step
+        if (toolName === 'create-roster' && window.rosterWizard && typeof window.rosterWizard.restart === 'function') {
+            console.log('[App] Resetting roster wizard state on tool switch');
+            window.rosterWizard.restart();
+        } else if (toolName === 'create-draft' && window.draftWizard && typeof window.draftWizard.restart === 'function') {
+            console.log('[App] Resetting draft wizard state on tool switch');
+            window.draftWizard.restart();
+        }
     }
 
     async openFileDialog() {
@@ -826,11 +812,14 @@ class MaddenEditorApp {
         // Destroy existing table
         if (this.hotTable && !this.hotTable.isDestroyed) {
             this.hotTable.destroy();
+            this.hotTable = null;
+        }
+        if (this.agGrid) {
+            destroyAGGrid(this);
         }
 
-        // Clear container and create Handsontable element
-        container.innerHTML = '<div id="handsontable-container" style="height: 100%; background: var(--gray-dark);"></div>';
-        const hotContainer = document.getElementById('handsontable-container');
+        // Clear container
+        container.innerHTML = '';
 
         // Get visible fields (always use default field order)
         const visibleFields = getVisibleFields(false);
@@ -883,15 +872,23 @@ class MaddenEditorApp {
                                 this.portraitCache.set(cacheKey, null);
                             }
                             portraitsLoaded++;
-                            if (portraitsLoaded === portraitsToLoad && this.hotTable) {
-                                this.hotTable.render();
+                            if (portraitsLoaded === portraitsToLoad) {
+                                if (this.agGrid) {
+                                    this.agGrid.refreshCells({ force: true });
+                                } else if (this.hotTable) {
+                                    this.hotTable.render();
+                                }
                             }
                         }).catch((error) => {
                             console.error(`Error loading portrait for PID ${pid}:`, error);
                             this.portraitCache.set(cacheKey, null);
                             portraitsLoaded++;
-                            if (portraitsLoaded === portraitsToLoad && this.hotTable) {
-                                this.hotTable.render();
+                            if (portraitsLoaded === portraitsToLoad) {
+                                if (this.agGrid) {
+                                    this.agGrid.refreshCells({ force: true });
+                                } else if (this.hotTable) {
+                                    this.hotTable.render();
+                                }
                             }
                         });
                     }
@@ -901,13 +898,25 @@ class MaddenEditorApp {
             // If all portraits already in cache, trigger re-render after table init
             if (portraitsToLoad === 0) {
                 setTimeout(() => {
-                    if (this.hotTable) {
+                    if (this.agGrid) {
+                        this.agGrid.refreshCells({ force: true });
+                    } else if (this.hotTable) {
                         this.hotTable.render();
                     }
                 }, 100);
             }
         }
 
+        // Initialize AG-Grid roster table
+        console.log('[renderRoster] Initializing AG-Grid with', paginatedPlayers.length, 'players');
+        initializeAGGridRoster(this, container, paginatedPlayers, visibleFields, displayNames, fieldCodes);
+
+        this.updateStats();
+        this.updatePaginationUI();
+    }
+
+    // OLD HANDSONTABLE CODE BELOW - KEEPING FOR REFERENCE, REMOVE LATER
+    _oldRenderRosterHandsontable_REMOVE_ME() {
         // Prepare data and columns for Handsontable (only current page)
         const data = paginatedPlayers.map(player => {
             // Add portrait placeholder as first column (will be rendered from PID)
@@ -1137,9 +1146,9 @@ class MaddenEditorApp {
             scrollH: true,
             scrollV: true,
 
-            // Freeze columns
-            fixedColumnsStart: 3, // Freeze Portrait, First Name, and Last Name columns
-            preventOverflow: 'horizontal',
+            // Disable frozen columns to prevent snap-left scrolling issues
+            fixedColumnsStart: 0,  // No frozen columns
+            preventOverflow: false,  // Allow natural scrolling
 
             // Fix row alignment issues with fixed columns during vertical scroll
             renderAllRows: false, // Use virtual scrolling
@@ -1361,6 +1370,12 @@ class MaddenEditorApp {
         if (this._fieldReadCount < 5) {
             console.log(`[getPlayerFieldValue] Field: ${fieldName}, Value in player: ${player[fieldName]}, FieldDef type: ${fieldDef?.type}, FieldDef lookup: ${fieldDef?.lookup}`);
             this._fieldReadCount++;
+        }
+
+        // Handle PYRP (Years Pro) - if undefined or null, return 0 instead of NaN
+        if (fieldName === 'PYRP') {
+            const value = player[fieldName];
+            return (value !== undefined && value !== null) ? value : 0;
         }
 
         // Handle lookup fields
@@ -2688,6 +2703,12 @@ class MaddenEditorApp {
 
         // Filter and render
         this.filterPlayers();
+
+        // Update header colors after grid is rendered
+        const container = document.getElementById('rosterGrid');
+        if (container) {
+            applyHeaderColors(this, container);
+        }
     }
 
     exitTeamView() {
@@ -2703,6 +2724,12 @@ class MaddenEditorApp {
 
         // Re-render
         this.filterPlayers();
+
+        // Update header colors after grid is rendered
+        const container = document.getElementById('rosterGrid');
+        if (container) {
+            applyHeaderColors(this, container);
+        }
     }
 
     applyTeamColors(team) {
@@ -3746,6 +3773,7 @@ class MaddenEditorApp {
                 draftable: prospect.draftable,
                 draftPick: prospect.draftPick,
                 draftRound: prospect.draftRound,
+                pick: prospect.pick,
                 devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'][prospect.devTrait] || prospect.devTrait,
 
                 // IDs and Assets
@@ -3818,6 +3846,18 @@ class MaddenEditorApp {
                 index: prospects.indexOf(prospect)
             };
 
+            // Calculate round based on draft position (0-indexed, so add 1 to get pick number)
+            // 32 picks per round, rounds 1-7 (picks 1-224), rest are UFA (round 8)
+            const pickNum = rowData.draftPosition + 1; // Convert 0-indexed position to 1-indexed pick
+            if (pickNum <= 224) {
+                rowData.round = Math.floor((pickNum - 1) / 32) + 1;
+            } else {
+                rowData.round = 8; // UFA
+            }
+
+            // IMPORTANT: Store round back to original prospect object so it persists through sorts/filters
+            prospect.round = rowData.round;
+
             return rowData;
         }));
 
@@ -3863,11 +3903,17 @@ class MaddenEditorApp {
             Handsontable.renderers.DropdownRenderer.apply(this, [instance, td, row, col, prop, displayValue, cellProperties]);
         };
 
-        // Custom renderer for draft position - ALWAYS display current row position (1-indexed)
-        // Position is NOT stored - it's calculated from the row's physical position in the grid
+        // Custom renderer for draft position - display actual draft pick number (1-402+)
+        // Uses the draftPosition from the source data (0-indexed), displays as 1-indexed
         const draftPositionRenderer = function(instance, td, row, col, prop, value, cellProperties) {
-            // Always display the current physical row position (row numbers are 0-indexed, display as 1-indexed)
-            const displayValue = row + 1;
+            // Get the actual draftPosition from the source data
+            const physicalRow = instance.toPhysicalRow(row);
+            const sourceData = instance.getSourceDataAtRow(physicalRow);
+            const draftPos = (sourceData && sourceData.draftPosition !== undefined) ? sourceData.draftPosition : row;
+
+            // Display as 1-indexed (draftPosition is 0-indexed in data)
+            const displayValue = draftPos + 1;
+
             Handsontable.renderers.TextRenderer.apply(this, [instance, td, row, col, prop, displayValue, cellProperties]);
             td.style.textAlign = 'center';
             td.style.fontWeight = 'bold';
@@ -4048,7 +4094,38 @@ class MaddenEditorApp {
                     }
                 }
             },
-            // Portrait column (Second column)
+            // Round column (calculated from pick number)
+            {
+                data: 'round',
+                title: 'Round',
+                width: 70,
+                type: 'numeric',
+                readOnly: true,
+                renderer: function(instance, td, row, col, prop, value, cellProperties) {
+                    td.innerHTML = '';
+                    td.style.textAlign = 'center';
+                    td.style.backgroundColor = '#2a2a2a';
+
+                    // Debug: Log first 3 rows to see what value we're getting
+                    if (row < 3) {
+                        console.log(`[Round Renderer] Row ${row}: value = ${value} (type: ${typeof value})`);
+                    }
+
+                    if (value === 8) {
+                        td.textContent = 'UFA';
+                        td.style.color = '#888';
+                    } else if (value) {
+                        td.textContent = value;
+                    } else {
+                        td.textContent = '';
+                        if (row < 3) {
+                            console.warn(`[Round Renderer] Row ${row}: No round value!`);
+                        }
+                    }
+                    return td;
+                }
+            },
+            // Portrait column (Third column)
             {
                 data: 'portrait',
                 title: '📷',
@@ -4071,7 +4148,7 @@ class MaddenEditorApp {
             },
             { data: 'jerseyNum', title: 'Jersey #', width: 80, type: 'numeric' },
             { data: 'college', title: 'College', width: 150, type: 'dropdown', source: collegeOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
-            { data: 'age', title: 'Age', width: 50, type: 'numeric', readOnly: true, renderer: ageRenderer },
+            { data: 'age', title: 'Age', width: 50, type: 'numeric', renderer: ageRenderer },
             { data: 'homeState', title: 'State', width: 100, type: 'dropdown', source: stateOptions, strict: true, allowInvalid: false, renderer: dropdownRenderer },
             { data: 'PID', title: 'PID', width: 70, type: 'numeric' },
             { data: 'playerPic', title: 'Player Pic', width: 150, type: 'autocomplete', source: playerPicOptions, strict: false, allowInvalid: true },
@@ -4161,11 +4238,11 @@ class MaddenEditorApp {
             dropdownMenu: false,  // Disable dropdown menu (removes filter arrows)
             contextMenu: true,
             selectionMode: 'multiple',
-            fixedColumnsStart: 5,  // Freeze first 5 columns (Draft Pos, Portrait, Last Name, First Name, Position)
-            preventOverflow: 'horizontal',
+            fixedColumnsStart: 6,  // Freeze first 6 columns (Draft Pos, Round, Portrait, Last Name, First Name, Position)
+            preventOverflow: false,  // Changed from 'horizontal' - allow natural scrolling to prevent snap-left
             manualRowMove: true, // Enable row dragging for reordering
-            renderAllRows: true, // Render all rows (disable virtual scrolling for debugging)
-            // viewportRowRenderingOffset: 100, // Not needed when renderAllRows is true
+            renderAllRows: false, // Use virtual scrolling for better performance with large draft classes
+            viewportRowRenderingOffset: 100, // Render extra rows to prevent row misalignment during scroll
             columnSorting: {
                 indicator: true,
                 headerAction: true,
@@ -4224,13 +4301,44 @@ class MaddenEditorApp {
                 }
             },
             afterRowMove: (movedRows, finalIndex, dropIndex, movePossible, orderChanged) => {
-                // Just re-render to update the position numbers (they're calculated from row position)
+                // Update draft positions and rounds after reordering
                 if (orderChanged && this.draftGrid && !this.draftGrid.isDestroyed) {
                     try {
+                        console.log('[Draft Editor] Rows reordered - updating draft positions and rounds');
+
+                        // Get all source data
+                        const allData = this.draftGrid.getSourceData();
+
+                        // Update draftPosition and round for ALL rows based on their new position
+                        allData.forEach((row, index) => {
+                            // Update draftPosition (0-indexed)
+                            row.draftPosition = index;
+
+                            // Recalculate round based on new pick number
+                            const pickNum = index + 1; // Convert to 1-indexed
+                            if (pickNum <= 224) {
+                                row.round = Math.floor((pickNum - 1) / 32) + 1;
+                            } else {
+                                row.round = 8; // UFA
+                            }
+
+                            // Also update the original prospect object if it exists
+                            if (this.currentDraftClass && this.currentDraftClass.prospects) {
+                                const originalProspect = this.currentDraftClass.prospects.find(
+                                    p => p.firstName === row.firstName && p.lastName === row.lastName
+                                );
+                                if (originalProspect) {
+                                    originalProspect.draftPosition = index;
+                                    originalProspect.round = row.round;
+                                }
+                            }
+                        });
+
+                        // Re-render to show updated positions and rounds
                         this.draftGrid.render();
-                        console.log('[Draft Editor] Draft order updated - rows reordered');
+                        console.log('[Draft Editor] Draft positions and rounds updated successfully');
                     } catch (e) {
-                        console.log('[Draft] afterRowMove: Could not render (table may be destroyed)');
+                        console.error('[Draft] afterRowMove: Error updating positions:', e);
                     }
                 }
             },
@@ -4865,6 +4973,23 @@ class MaddenEditorApp {
         const allProspects = this.currentDraftClass.prospects;
         let filtered = [...allProspects];
 
+        // Apply round filter
+        if (this.selectedDraftRound) {
+            if (this.selectedDraftRound === 'ufa') {
+                // UFA = round 8 or higher (picks beyond 224)
+                filtered = filtered.filter(prospect => {
+                    const round = prospect.round || 0;
+                    return round >= 8;
+                });
+            } else {
+                // Specific round (1-7)
+                const targetRound = parseInt(this.selectedDraftRound);
+                filtered = filtered.filter(prospect => {
+                    return prospect.round === targetRound;
+                });
+            }
+        }
+
         // Apply position filter
         if (this.selectedDraftPosition) {
             filtered = filtered.filter(prospect => {
@@ -4880,6 +5005,31 @@ class MaddenEditorApp {
                 const lastName = (prospect.lastName || '').toLowerCase();
                 const fullName = `${firstName} ${lastName}`;
                 return fullName.includes(this.draftSearchTerm);
+            });
+        }
+
+        // Sort by round and pick when showing all rounds, or just by draftPosition within a single round
+        if (!this.selectedDraftRound) {
+            // When showing all rounds, sort by round first, then by draft position
+            filtered.sort((a, b) => {
+                const roundA = a.round || 999; // Put players without round at end
+                const roundB = b.round || 999;
+
+                if (roundA !== roundB) {
+                    return roundA - roundB;
+                }
+
+                // Within same round, sort by draft position
+                const posA = a.draftPosition !== undefined ? a.draftPosition : 999;
+                const posB = b.draftPosition !== undefined ? b.draftPosition : 999;
+                return posA - posB;
+            });
+        } else {
+            // When filtering to a specific round, sort by draft position
+            filtered.sort((a, b) => {
+                const posA = a.draftPosition !== undefined ? a.draftPosition : 999;
+                const posB = b.draftPosition !== undefined ? b.draftPosition : 999;
+                return posA - posB;
             });
         }
 
@@ -5329,10 +5479,34 @@ class MaddenEditorApp {
                 preventOverflow: false, // Allow natural scrolling to prevent snap-left issues
                 manualRowMove: true, // Enable row dragging for reordering
                 afterRowMove: (movedRows, finalIndex, dropIndex, movePossible, orderChanged) => {
-                    // Just re-render to update the position numbers (they're calculated from row position)
-                    if (orderChanged) {
-                        this.draftCreatorGrid.render();
-                        console.log('[Draft Creator] Draft order updated - rows reordered');
+                    // Update draft positions and rounds after reordering
+                    if (orderChanged && this.draftCreatorGrid && !this.draftCreatorGrid.isDestroyed) {
+                        try {
+                            console.log('[Draft Creator] Rows reordered - updating draft positions and rounds');
+
+                            // Get all source data
+                            const allData = this.draftCreatorGrid.getSourceData();
+
+                            // Update draftPosition and round for ALL rows based on their new position
+                            allData.forEach((row, index) => {
+                                // Update draftPosition (0-indexed)
+                                row.draftPosition = index;
+
+                                // Recalculate round based on new pick number
+                                const pickNum = index + 1; // Convert to 1-indexed
+                                if (pickNum <= 224) {
+                                    row.round = Math.floor((pickNum - 1) / 32) + 1;
+                                } else {
+                                    row.round = 8; // UFA
+                                }
+                            });
+
+                            // Re-render to show updated positions and rounds
+                            this.draftCreatorGrid.render();
+                            console.log('[Draft Creator] Draft positions and rounds updated successfully');
+                        } catch (e) {
+                            console.error('[Draft Creator] afterRowMove: Error updating positions:', e);
+                        }
                     }
                 },
                 // Highlight entire row on selection
@@ -6077,6 +6251,23 @@ class MaddenEditorApp {
     // ========================================
     // Player Card Methods
     // ========================================
+
+    /**
+     * Show player card for a specific row index (bridge method for AG-Grid)
+     */
+    showPlayerCard(rowIndex) {
+        // Get player data from paginated/filtered players array
+        const playerIndex = this.paginatedPlayerIndices ? this.paginatedPlayerIndices[rowIndex] : rowIndex;
+        const playerData = this.filteredPlayers[playerIndex];
+
+        if (!playerData) {
+            console.error(`[showPlayerCard] No player found at row index ${rowIndex}`);
+            return;
+        }
+
+        // Call the existing openPlayerCard method
+        this.openPlayerCard(playerData, rowIndex);
+    }
 
     openPlayerCard(playerData, rowIndex) {
         // Store current player data for saving
