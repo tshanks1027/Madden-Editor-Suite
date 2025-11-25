@@ -188,6 +188,8 @@ export class RosterGeneratorService {
   private initialized: boolean = false;
   private genericPIDs: number[] = [];
   private validPIDs: Set<number> = new Set(); // ALL valid PIDs from PID_Portrait_Mapping.csv
+  private pidToPAM: Map<number, string> = new Map(); // PID → PAM mapping from PID_Portrait_Mapping.csv
+  private pidToPortrait: Map<number, string> = new Map(); // PID → Portrait name (for race filtering)
   private realFirstNames: string[] = [];
   private realLastNames: string[] = [];
 
@@ -259,11 +261,23 @@ export class RosterGeneratorService {
         dynamicTyping: true
       });
 
-      // Extract ALL valid PIDs from the mapping file
+      // Extract ALL valid PIDs and PAM mappings from the mapping file
       pidMappingParsed.data.forEach((row: any) => {
         const pid = parseInt(row.PID);
         if (!isNaN(pid)) {
           this.validPIDs.add(pid);
+
+          // Store PAM mapping if present (column 5: PAM)
+          const pam = row.PAM;
+          if (pam && typeof pam === 'string' && pam.trim().length > 0) {
+            this.pidToPAM.set(pid, pam.trim());
+          }
+
+          // Store Portrait name for race filtering (column 4: Portrait)
+          const portrait = row.Portrait;
+          if (portrait && typeof portrait === 'string') {
+            this.pidToPortrait.set(pid, portrait.trim());
+          }
         }
       });
 
@@ -274,7 +288,16 @@ export class RosterGeneratorService {
         .filter((pid: number) => !isNaN(pid));
 
       console.log('[RosterGeneratorService] Loaded', this.validPIDs.size, 'total valid PIDs');
+      console.log('[RosterGeneratorService] Loaded', this.pidToPAM.size, 'PID → PAM mappings');
+      console.log('[RosterGeneratorService] Loaded', this.pidToPortrait.size, 'PID → Portrait mappings');
       console.log('[RosterGeneratorService] Loaded', this.genericPIDs.length, 'generic PIDs for random assignment');
+
+      // Debug: Check some generic portraits
+      const sampleGenericPIDs = this.genericPIDs.slice(0, 5);
+      console.log('[RosterGeneratorService] Sample generic PIDs and portraits:');
+      sampleGenericPIDs.forEach(pid => {
+        console.log(`  PID ${pid}: ${this.pidToPortrait.get(pid)}`);
+      });
     } else {
       console.warn('[RosterGeneratorService] PID_Portrait_Mapping.csv not found, using fallback generic PIDs');
       // Fallback to basic set if file not found
@@ -954,15 +977,19 @@ export class RosterGeneratorService {
    * IMPORTANT: Free agents use LAST year stats, not best year!
    */
   private async addFreeAgents(year: number, currentRoster: RosterPlayer[]): Promise<RosterPlayer[]> {
-    console.log('[RosterGeneratorService] Adding free agents...');
+    console.log('\n========== FREE AGENT BACKFILL ==========');
+    console.log('[RosterGeneratorService] Target year:', year);
+    console.log('[RosterGeneratorService] Current roster size:', currentRoster.length);
 
     // Use NAME-based deduplication since PIDs may all be 0
     const currentPlayerNames = new Set(currentRoster.map(p => `${p.PFNA}|${p.PLNA}`));
     const freeAgentRawByName = new Map<string, any>();
 
     // Look back 5 years - collect raw CSV data (don't enrich yet!)
+    console.log('[RosterGeneratorService] Searching for free agents in years', year - 5, 'to', year - 1, '...');
     for (let y = year - 5; y < year; y++) {
       const yearPlayers = this.rosterData.get(y) || [];
+      console.log(`[RosterGeneratorService]   Year ${y}: ${yearPlayers.length} players in database`);
 
       // Filter FIRST before enriching
       yearPlayers.forEach((p: any) => {
@@ -983,14 +1010,17 @@ export class RosterGeneratorService {
       });
     }
 
-    console.log('[RosterGeneratorService] Found', freeAgentRawByName.size, 'unique free agents from 5 years');
+    console.log('[RosterGeneratorService] ✓ Found', freeAgentRawByName.size, 'unique free agents from 5-year lookback');
 
     const targetSize = this.getTemplateRosterSize();
     const needed = targetSize - currentRoster.length;
 
-    console.log('[RosterGeneratorService] Target size:', targetSize, '| Current:', currentRoster.length, '| Need:', needed);
+    console.log('[RosterGeneratorService] Target roster size:', targetSize);
+    console.log('[RosterGeneratorService] Players needed:', needed);
 
     if (needed <= 0) {
+      console.log('[RosterGeneratorService] ✓ Roster already at target size - no free agents needed');
+      console.log('==========================================\n');
       return currentRoster.slice(0, targetSize);
     }
 
@@ -999,16 +1029,20 @@ export class RosterGeneratorService {
       .sort((a, b) => (b.POVR || 0) - (a.POVR || 0))
       .slice(0, needed);
 
-    console.log('[RosterGeneratorService] Enriching', sortedRaw.length, 'free agents...');
+    console.log('[RosterGeneratorService] ⚙ Enriching', sortedRaw.length, 'free agents from CSV...');
 
     // NOW enrich only the players we're actually going to use
     const enrichedFAs = await Promise.all(
       sortedRaw.map(async (p: any) => {
-        return await this.enrichPlayer(p, p.Year || year);
+        const enriched = await this.enrichPlayer(p, p.Year || year);
+        // CRITICAL: Set TGID to 1009 (Free Agents) AFTER enriching
+        // enrichPlayer sets TGID based on CSV's Season_Team, but we need FA team
+        enriched.TGID = 1009;
+        return enriched;
       })
     );
 
-    console.log('[RosterGeneratorService] Adding', enrichedFAs.length, 'free agents from CSV');
+    console.log('[RosterGeneratorService] ✓ Added', enrichedFAs.length, 'free agents from historical data');
 
     // DEBUG: Check PPOS values on enriched free agents
     if (enrichedFAs.length > 0) {
@@ -1023,24 +1057,26 @@ export class RosterGeneratorService {
     const stillNeeded = targetSize - finalRoster.length;
 
     if (stillNeeded > 0) {
-      console.log('[RosterGeneratorService] Still need', stillNeeded, 'more players - generating random low-tier players');
+      console.log('[RosterGeneratorService] ⚠ Still need', stillNeeded, 'more players to reach target');
+      console.log('[RosterGeneratorService] ⚙ Generating', stillNeeded, 'random low-tier players (40-55 OVR)...');
 
       for (let i = 0; i < stillNeeded; i++) {
         const randomPlayer = await this.generateRandomPlayer(year);
         finalRoster.push(randomPlayer);
       }
 
-      // DEBUG: Check PPOS values on random players
-      const randomPlayers = finalRoster.slice(finalRoster.length - stillNeeded);
-      if (randomPlayers.length > 0) {
-        console.log('[RosterGeneratorService] Sample random player PPOS values:');
-        randomPlayers.slice(0, 3).forEach((p: any, i) => {
-          console.log(`  Random ${i + 1}: ${p.PFNA} ${p.PLNA} - PPOS: ${p.PPOS} (type: ${typeof p.PPOS})`);
-        });
-      }
+      console.log('[RosterGeneratorService] ✓ Generated', stillNeeded, 'random low-tier players');
+    } else {
+      console.log('[RosterGeneratorService] ✓ Roster complete - no random generation needed');
     }
 
-    console.log('[RosterGeneratorService] Final roster size with free agents:', finalRoster.length);
+    console.log('[RosterGeneratorService] ========================================');
+    console.log('[RosterGeneratorService] FINAL ROSTER COMPOSITION:');
+    console.log('[RosterGeneratorService]   Real players (from year data):', currentRoster.length);
+    console.log('[RosterGeneratorService]   Free agents (from 5-year lookback):', enrichedFAs.length);
+    console.log('[RosterGeneratorService]   Random generated players:', stillNeeded > 0 ? stillNeeded : 0);
+    console.log('[RosterGeneratorService]   TOTAL:', finalRoster.length, '/', targetSize);
+    console.log('[RosterGeneratorService] ========================================\n');
 
     return finalRoster;
   }
@@ -1219,11 +1255,14 @@ export class RosterGeneratorService {
    * The CSV already has most fields - we just need to map them to roster format
    */
   private async enrichPlayer(csvRow: any, year: number): Promise<RosterPlayer> {
-    // Parse archetype to numeric (0-67)
-    const archetype = await this.parseArchetype(csvRow.Archetype, csvRow.Position);
-
-    // Map position string to position code (QB=0, HB=1, etc.)
+    // Map position string to position code (QB=0, HB=1, etc.) - DO THIS FIRST
     const positionCode = await this.lookupPositionCode(csvRow.Position);
+
+    // Get mapped position name for archetype lookup
+    const positionName = await this.getPositionName(positionCode);
+
+    // Parse archetype to numeric (0-67) - use MAPPED position name
+    const archetype = await this.parseArchetype(csvRow.Archetype, positionName);
 
     // Map team string to team code
     const teamCode = await this.lookupTeamCode(csvRow.Season_Team);
@@ -1234,17 +1273,53 @@ export class RosterGeneratorService {
     // Handle PID/PAM - validate PID exists in portrait mapping before using it
     let playerPID = parseInt(csvRow.PID) || 0;
     let playerPAM = String(csvRow.PAM || '');
+    const csvRace = parseInt(csvRow.Race) || 1; // Get race from CSV
 
-    // CRITICAL: Only use PID from CSV if it exists in PID_Portrait_Mapping.csv
-    if (playerPID !== 0 && !this.validPIDs.has(playerPID)) {
-      console.warn(`[RosterGeneratorService] Invalid PID ${playerPID} for ${csvRow.First_Name} ${csvRow.Last_Name} - assigning generic face`);
-      playerPID = 0; // Force reassignment to generic face
+    // CRITICAL: Only use PID from CSV if it exists in PID_Portrait_Mapping.csv AND matches the race
+    if (playerPID !== 0) {
+      if (!this.validPIDs.has(playerPID)) {
+        console.warn(`[RosterGeneratorService] Invalid PID ${playerPID} for ${csvRow.First_Name} ${csvRow.Last_Name} - assigning generic face`);
+        playerPID = 0; // Force reassignment to generic face
+      } else {
+        // Check if PID's race matches CSV race
+        const portrait = this.pidToPortrait.get(playerPID);
+        if (portrait && portrait.includes('plpo_generic_')) {
+          // Extract race from portrait name (e.g., "plpo_generic_6_001" → race 6)
+          const match = portrait.match(/plpo_generic_(\d+)_/);
+          if (match) {
+            const pidRace = parseInt(match[1]);
+            if (pidRace !== csvRace) {
+              console.warn(`[RosterGeneratorService] Race mismatch for ${csvRow.First_Name} ${csvRow.Last_Name}: CSV race=${csvRace}, PID ${playerPID} race=${pidRace} - reassigning`);
+              playerPID = 0; // Force reassignment with correct race
+            }
+          }
+        }
+      }
     }
 
     if (playerPID === 0) {
-      // Assign generic face for players without valid portraits
-      playerPID = await this.assignGenericPID(csvRow.Position);
+      // Assign generic face for players without valid portraits - use race from CSV
+      playerPID = await this.assignGenericPID(csvRow.Position, csvRace);
       playerPAM = ''; // Generic faces don't need PAM
+    } else {
+      // Use PAM from PID_Portrait_Mapping.csv if available, otherwise use CSV value
+      const mappedPAM = this.pidToPAM.get(playerPID);
+      if (mappedPAM) {
+        playerPAM = mappedPAM;
+      } else if (!playerPAM) {
+        // No PAM in CSV or mapping, use empty string
+        playerPAM = '';
+      }
+    }
+
+    // Calculate years pro based on draft year and target roster year
+    const draftYear = parseFloat(csvRow.Draft_Year);
+    let yearsPro = 0;
+    if (!isNaN(draftYear) && draftYear > 0) {
+      yearsPro = Math.max(0, year - Math.floor(draftYear));
+    } else {
+      // Fall back to CSV value if no draft year
+      yearsPro = parseInt(csvRow.Years_Pro ?? csvRow.YearsPro ?? 0) || 0;
     }
 
     // Map CSV field names to UPPERCASE roster editor field codes
@@ -1288,47 +1363,52 @@ export class RosterGeneratorService {
       PINJ: parseInt(ratings.PINJ) || 50,
       PSTA: parseInt(ratings.PSTA) || 50,
       PTGH: parseInt(ratings.PTGH) || 50,
-      PTRK: parseInt(ratings.PTRK) || 50,
-      PCOD: parseInt(ratings.PCOD) || 50,
+      // Use Madden-named columns directly (now exist in CSV after update)
+      PLTR: parseInt(ratings.PLTR) || parseInt(ratings.PTRK) || 50,  // Trucking
+      PELU: parseInt(ratings.PELU) || parseInt(ratings.PCOD) || 50,  // Change of Direction
       PBCV: parseInt(ratings.PBCV) || 50,
-      PSTF: parseInt(ratings.PSTF) || 50,
-      PSPM: parseInt(ratings.PSPM) || 50,
-      PJUM: parseInt(ratings.PJUM) || 50,
-      PIBL: parseInt(ratings.PIBL) || 50,
+      PLSA: parseInt(ratings.PLSA) || parseInt(ratings.PSTF) || 50,  // Stiff Arm
+      PLSM: parseInt(ratings.PLSM) || parseInt(ratings.PSPM) || 50,  // Spin Move
+      PLJM: parseInt(ratings.PLJM) || parseInt(ratings.PJUM) || 50,  // Juke Move
+      PLIB: parseInt(ratings.PLIB) || parseInt(ratings.PIBL) || 50,  // Impact Blocking
       PRBP: parseInt(ratings.PRBP) || 50,
       PRBF: parseInt(ratings.PRBF) || 50,
       PPBP: parseInt(ratings.PPBP) || 50,
       PPBF: parseInt(ratings.PPBF) || 50,
-      PLDB: parseInt(ratings.PLDB) || 50,
+      PLBK: parseInt(ratings.PLBK) || parseInt(ratings.PLDB) || 50,  // Lead Block
       PBRS: parseInt(ratings.PBRS) || 50,
       PTUP: parseInt(ratings.PTUP) || 50,
-      PPWM: parseInt(ratings.PPWM) || 50,
-      PFNM: parseInt(ratings.PFNM) || 50,
-      PBSH: parseInt(ratings.PBSH) || 50,
-      PPUR: parseInt(ratings.PPUR) || 50,
-      PPRC: parseInt(ratings.PPRC) || 50,
-      PMCV: parseInt(ratings.PMCV) || 50,
-      PZCV: parseInt(ratings.PZCV) || 50,
-      PSPC: parseInt(ratings.PSPC) || 50,
-      PCIT: parseInt(ratings.PCIT) || 50,
-      PSRR: parseInt(ratings.PSRR) || 50,
+      PLPM: parseInt(ratings.PLPM) || parseInt(ratings.PPWM) || 50,  // Power Moves
+      PFMS: parseInt(ratings.PFMS) || parseInt(ratings.PFNM) || 50,  // Finesse Moves
+      PBSG: parseInt(ratings.PBSG) || parseInt(ratings.PBSH) || 50,  // Block Shedding
+      PLPU: parseInt(ratings.PLPU) || parseInt(ratings.PPUR) || 50,  // Pursuit
+      PLPR: parseInt(ratings.PLPR) || parseInt(ratings.PPRC) || 50,  // Play Recognition
+      PLMC: parseInt(ratings.PLMC) || parseInt(ratings.PMCV) || 50,  // Man Coverage
+      PLZC: parseInt(ratings.PLZC) || parseInt(ratings.PZCV) || 50,  // Zone Coverage
+      PLSC: parseInt(ratings.PLSC) || parseInt(ratings.PSPC) || 50,  // Spectacular Catch
+      PLCI: parseInt(ratings.PLCI) || parseInt(ratings.PCIT) || 50,  // Catch in Traffic
+      SRRN: parseInt(ratings.SRRN) || parseInt(ratings.PSRR) || 50,  // Short Route Running
       PMRR: parseInt(ratings.PMRR) || 50,
       PDRR: parseInt(ratings.PDRR) || 50,
-      PHTP: parseInt(ratings.PHTP) || 50,
-      PPRS: parseInt(ratings.PPRS) || 50,
-      PREL: parseInt(ratings.PREL) || 50,
+      PLHT: parseInt(ratings.PLHT) || parseInt(ratings.PHTP) || 50,  // Hit Power
+      PLPE: parseInt(ratings.PLPE) || parseInt(ratings.PPRS) || 50,  // Press
+      PLRL: parseInt(ratings.PLRL) || parseInt(ratings.PREL) || 50,  // Release
+      PPBS: parseInt(ratings.PPBS) || 50,  // Pass Block Strength (new)
+      PRBS: parseInt(ratings.PRBS) || 50,  // Run Block Strength (new)
       PTAS: parseInt(ratings.PTAS) || 50,
       PTAM: parseInt(ratings.PTAM) || 50,
       PTAD: parseInt(ratings.PTAD) || 50,
       PPLA: parseInt(ratings.PPLA) || 50,
       PTOR: parseInt(ratings.PTOR) || 50,
       PKRT: parseInt(ratings.PKRT) || 50,
+      PBSK: parseInt(ratings.PBSK) || 50,  // Break Sack
 
       // Metadata
       PLTY: parseInt(archetype) || 0,  // Archetype ID (PLTY, not PTAR!)
       PTAR: this.determineBodyType(csvRow),  // Body type (PTAR is actually body type, not archetype!)
-      PYRP: parseInt(csvRow.Years_Pro ?? csvRow.YearsPro ?? 0),  // Years pro (CSV has both columns)
+      PYRP: yearsPro,  // Years pro - calculated from draft year
       PDEV: this.determineDevTrait(parseInt(ratings.POVR) || 50),  // Dev trait
+      PSKI: parseInt(csvRow.Race) || 0,  // Skin tone/race (0-6, used for generic face assignment)
 
       // Source data (for internal tracking - keep original string values for filtering)
       _year: year,
@@ -1381,12 +1461,56 @@ export class RosterGeneratorService {
     }
 
     // If string, try to map it using ArchetypeService
-    // The CSV contains simplified names like "Field General", "Elusive Back", etc.
-    // ArchetypeService.getArchetypeId() can handle both simplified and full names
+    // CSV format is "QB_Scrambler", "MLB_FieldGeneral", "HB_ElusiveBack"
+    // Need to convert to "QB Scrambler" format (space instead of underscore)
     if (typeof archetypeValue === 'string' && archetypeValue.trim() !== '') {
       try {
-        const archetypeId = ArchetypeService.getArchetypeId(archetypeValue.trim(), position);
-        if (archetypeId !== 0 || archetypeValue.trim() === 'QB Field General') {
+        // Convert "MLB_FieldGeneral" → "MLB Field General"
+        let archetypeName = archetypeValue.trim().replace(/_/g, ' ');
+
+        // Special case: "MantoMan" → "Man-to-Man" (before camelCase splitting)
+        archetypeName = archetypeName.replace(/MantoMan/g, 'Man-to-Man');
+
+        // Add spaces before capital letters in the second part
+        // "MLBFieldGeneral" → "MLB Field General"
+        archetypeName = archetypeName.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+        // CRITICAL: Validate archetype matches position
+        // Extract position prefix from archetype (e.g., "MLB" from "MLB Field General")
+        const archetypePrefix = archetypeName.split(' ')[0].toUpperCase();
+        const positionUpper = position.toUpperCase();
+
+        // Map position abbreviations to archetype prefixes
+        const positionToArchetypePrefix: Record<string, string> = {
+          'QB': 'QB', 'HB': 'HB', 'FB': 'FB', 'WR': 'WR', 'TE': 'TE',
+          'LT': 'OT', 'RT': 'OT', 'LG': 'G', 'RG': 'G', 'C': 'C',
+          'LEDG': 'DE', 'REDG': 'DE', 'DT': 'DT',
+          'SAM': 'OLB', 'WILL': 'OLB', 'MIKE': 'MLB',
+          'CB': 'CB', 'FS': 'S', 'SS': 'S',
+          'K': 'KP', 'P': 'KP', 'LS': 'LS'
+        };
+
+        const expectedPrefix = positionToArchetypePrefix[positionUpper] || positionUpper;
+
+        // DEBUG: Write to file
+        const fs = require('fs');
+        const path = require('path');
+        const { app } = require('electron');
+        const debugPath = path.join(app.getPath('userData'), 'ARCHETYPE_DEBUG.txt');
+        fs.appendFileSync(debugPath, `\nCSV: "${archetypeValue}" → Converted: "${archetypeName}" (pos: ${position})\n`);
+        fs.appendFileSync(debugPath, `Position: ${position} → Expected prefix: ${expectedPrefix}, Got: ${archetypePrefix}\n`);
+
+        // If archetype doesn't match position, use default
+        if (archetypePrefix !== expectedPrefix) {
+          fs.appendFileSync(debugPath, `MISMATCH! Using default archetype for ${position}\n`);
+          console.warn(`[RosterGeneratorService] Archetype mismatch: ${archetypeValue} for position ${position} - using default`);
+          return this.getDefaultArchetype(position);
+        }
+
+        const archetypeId = ArchetypeService.getArchetypeId(archetypeName, position);
+        fs.appendFileSync(debugPath, `Result ID: ${archetypeId}\n`);
+
+        if (archetypeId !== 0 || archetypeName === 'QB Field General') {
           return archetypeId;
         }
       } catch (error) {
@@ -1488,17 +1612,48 @@ export class RosterGeneratorService {
 
   /**
    * Assign generic PID for player without portrait
+   * @param position - Player position
+   * @param race - Race code (1=white, 2=?, 3=?, 4=?, 5=?, 6=black, 7=?)
    */
-  private async assignGenericPID(position: string): Promise<number> {
+  private async assignGenericPID(position: string, race: number = 1): Promise<number> {
     // Use loaded generic PIDs (5600+ faces)
     if (this.genericPIDs.length === 0) {
       console.warn('[RosterGeneratorService] No generic PIDs loaded, returning default');
       return 719; // Fallback to a known generic PID
     }
 
+    // DEBUG: Write to file for visibility
+    const fs = require('fs');
+    const path = require('path');
+    const { app } = require('electron');
+    const debugPath = path.join(app.getPath('userData'), 'RACE_DEBUG.txt');
+    const debugMsg = `\n=== assignGenericPID called ===\nPosition: ${position}\nRace: ${race}\nTotal generic PIDs: ${this.genericPIDs.length}\nFirst 3 generic PIDs: ${this.genericPIDs.slice(0, 3).map(pid => `${pid}:${this.pidToPortrait.get(pid)}`).join(', ')}\n`;
+    fs.appendFileSync(debugPath, debugMsg);
+
+    // Filter PIDs by race using PID_Portrait_Mapping
+    // Generic faces are named like "plpo_generic_1_001" where 1 is the race code
+    const raceFilteredPIDs = [];
+    for (const pid of this.genericPIDs) {
+      const portraitInfo = this.pidToPortrait.get(pid);
+      if (portraitInfo && portraitInfo.includes(`plpo_generic_${race}_`)) {
+        raceFilteredPIDs.push(pid);
+      }
+    }
+
+    fs.appendFileSync(debugPath, `Filtered to ${raceFilteredPIDs.length} PIDs for race ${race}\n`);
+    if (raceFilteredPIDs.length > 0) {
+      fs.appendFileSync(debugPath, `Sample: ${raceFilteredPIDs.slice(0, 3).map(pid => `${pid}:${this.pidToPortrait.get(pid)}`).join(', ')}\n`);
+    }
+
+    // If no faces found for this race, fall back to all generic faces
+    const pidsToUse = raceFilteredPIDs.length > 0 ? raceFilteredPIDs : this.genericPIDs;
+    fs.appendFileSync(debugPath, `Using ${pidsToUse.length} PIDs (${raceFilteredPIDs.length > 0 ? 'race-filtered' : 'FALLBACK - NO RACE MATCH!'})\n`);
+
     // Randomly select a generic face
-    const randomIndex = Math.floor(Math.random() * this.genericPIDs.length);
-    return this.genericPIDs[randomIndex];
+    const randomIndex = Math.floor(Math.random() * pidsToUse.length);
+    const selectedPID = pidsToUse[randomIndex];
+    fs.appendFileSync(debugPath, `Selected: PID ${selectedPID}, portrait: ${this.pidToPortrait.get(selectedPID)}\n`);
+    return selectedPID;
   }
 
   /**
@@ -1677,6 +1832,20 @@ export class RosterGeneratorService {
   }
 
   /**
+   * Get position name from position code (reverse lookup)
+   */
+  private async getPositionName(positionCode: number): Promise<string> {
+    try {
+      const options = await lookupService.getDropdownOptions('position_lookup.csv');
+      const match = options.find((opt: any) => opt.id === positionCode);
+      return match ? match.name : 'QB'; // Fallback to QB
+    } catch (error) {
+      console.warn('[RosterGeneratorService] Position name lookup failed for code:', positionCode);
+      return 'QB';
+    }
+  }
+
+  /**
    * Lookup position code from position string (handles old position names)
    */
   private async lookupPositionCode(positionName: string): Promise<number> {
@@ -1721,16 +1890,16 @@ export class RosterGeneratorService {
 
       // Defense - LB
       'SAM': 'SAM',      // Strongside
-      'MIKE': 'MIKE',    // Middle
+      'MIKE': 'Mike',    // Middle - MUST match position_lookup.csv exactly (capital M)
       'WILL': 'WILL',    // Weakside
-      'MLB': 'MIKE',     // Middle Linebacker
+      'MLB': 'Mike',     // Middle Linebacker
       'LOLB': 'WILL',    // Left Outside = Weakside
       'ROLB': 'SAM',     // Right Outside = Strongside
       'LLB': 'WILL',     // Left Linebacker
       'RLB': 'SAM',      // Right Linebacker
-      'LB': 'MIKE',      // Generic LB
+      'LB': 'Mike',      // Generic LB
       'OLB': 'WILL',     // Generic Outside LB
-      'ILB': 'MIKE',     // Inside LB
+      'ILB': 'Mike',     // Inside LB
 
       // Defense - Secondary
       'CB': 'CB',

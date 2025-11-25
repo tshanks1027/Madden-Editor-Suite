@@ -106,10 +106,10 @@ ipcMain.handle('lookup:get-pid-portrait-mapping', async (event) => {
     const content = fs.readFileSync(dataPath, 'utf-8');
     const lines = content.split('\n');
 
-    const mappings: Array<{pid: number, name: string, type: string, portrait: string}> = [];
+    const mappings: Array<{pid: number, name: string, type: string, portrait: string, pam?: string}> = [];
 
     // Parse CSV (skip header line)
-    // Format: PID,Player Name,Type,Portrait
+    // Format: PID,Player Name,Type,Portrait,PAM
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
@@ -121,9 +121,10 @@ ipcMain.handle('lookup:get-pid-portrait-mapping', async (event) => {
       const name = parts[1].trim();
       const type = parts[2].trim();
       const portrait = parts[3].trim();
+      const pam = parts.length >= 5 ? parts[4].trim() : undefined;
 
       if (!isNaN(pid) && portrait) {
-        mappings.push({ pid, name, type, portrait });
+        mappings.push({ pid, name, type, portrait, pam });
       }
     }
 

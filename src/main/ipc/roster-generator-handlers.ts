@@ -40,6 +40,13 @@ const TEAM_MAP: Record<number, string> = {
  * Generate roster with specified options
  */
 ipcMain.handle('roster-generator:generate', async (event, options: RosterGeneratorOptions) => {
+  // WRITE TO FILE TO PROVE WE'RE HERE
+  const fs = require('fs');
+  const path = require('path');
+  const { app } = require('electron');
+  const logPath = path.join(app.getPath('userData'), 'BACKEND_CALLED.txt');
+  fs.writeFileSync(logPath, `BACKEND WAS CALLED AT ${new Date().toISOString()}\nOptions: ${JSON.stringify(options)}\n`);
+
   console.log('[roster-generator-handlers] ===== GENERATE REQUEST RECEIVED =====');
   console.log('[roster-generator-handlers] Handler is being called!');
   console.log('[roster-generator-handlers] Options:', JSON.stringify(options));

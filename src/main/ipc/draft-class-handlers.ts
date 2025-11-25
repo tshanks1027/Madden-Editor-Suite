@@ -227,12 +227,11 @@ ipcMain.handle('draft-class:load-template', async () => {
     const fs = require('fs');
 
     // Get the template file path
-    // In development: .vite/build/data/Templates/CAREERDRAFT-2026Template
+    // Both dev and prod use the same relative path from appPath
+    // In development: <appPath>/.vite/build/data/Templates/CAREERDRAFT-2026Template
     // In production: resources/app/.vite/build/data/Templates/CAREERDRAFT-2026Template
     const appPath = app.getAppPath();
-    const templatePath = app.isPackaged
-      ? path.join(appPath, '..', 'data', 'Templates', 'CAREERDRAFT-2026Template')
-      : path.join(appPath, '.vite', 'build', 'data', 'Templates', 'CAREERDRAFT-2026Template');
+    const templatePath = path.join(appPath, '.vite', 'build', 'data', 'Templates', 'CAREERDRAFT-2026Template');
 
     console.log('[draft-class-handlers] Template path:', templatePath);
     console.log('[draft-class-handlers] Template exists:', fs.existsSync(templatePath));

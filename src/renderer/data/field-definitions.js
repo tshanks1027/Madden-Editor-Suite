@@ -151,8 +151,14 @@ export const FIELD_ORDER = [
     ["PSPD", "Speed"], ["PLSM", "Spin Move"], ["PSTA", "Stamina"], ["PLSA", "Stiff Arm"],
     ["PSTR", "Strength"], ["PTAK", "Tackling"], ["PTAD", "Deep Throw"], ["PTAM", "Med Throw"],
     ["PTAS", "Short Throw"], ["PTOR", "Throw on Run"], ["PTHP", "Throw Power"],
-    ["PTUP", "Throw Under Pressure"], ["PTGH", "Toughness"], ["PLTR", "Truck"], ["PLZC", "Zone Coverage"],
-    ["PCON", "Contract Years"], ["PCYL", "Years Left"], ["TOTAL_SALARY", "Total Salary"], ["PSBO", "Signing Bonus"]
+    ["PTUP", "Throw Under Pressure"], ["PTGH", "Toughness"], ["PLTR", "Truck"], ["PLZC", "Zone Coverage"]
+];
+
+// Contract fields - only shown in player card, not in main editor grid
+export const CONTRACT_FIELDS = [
+    ["PCON", "Contract Years"], ["PCYL", "Years Left"], ["TOTAL_SALARY", "Total Salary"], ["PSBO", "Signing Bonus"],
+    ["PSA0", "Salary Yr 1"], ["PSA1", "Salary Yr 2"], ["PSA2", "Salary Yr 3"], ["PSA3", "Salary Yr 4"],
+    ["PSA4", "Salary Yr 5"], ["PSA5", "Salary Yr 6"], ["PSA6", "Salary Yr 7"]
 ];
 
 // Madden export order (for file saving - exact order for roster file export)

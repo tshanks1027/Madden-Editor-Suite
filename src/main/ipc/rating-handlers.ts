@@ -8,6 +8,7 @@
 import { ipcMain } from 'electron';
 import { ratingCalculator, MaddenRatings } from '../services/RatingCalculator';
 import { maddenFormulaCalculator } from '../services/rating-modes/MaddenFormulaCalculator';
+import { ovrWeightsCalculator } from '../services/rating-modes/OVRWeightsCalculator';
 import { ArchetypeService, ArchetypeOption } from '../services/utils/archetypeService';
 import { DateConverter } from '../services/utils/dateConverter';
 
@@ -56,9 +57,9 @@ export function registerRatingHandlers(): void {
   );
 
   /**
-   * Calculate OVR using Madden formulas
+   * Calculate OVR using Madden formulas (uses ovrweights.json archetype-based formula)
    * @param position - Player position
-   * @param attributes - All player attributes
+   * @param attributes - All player attributes (field codes like PSPD, PAWR, etc.)
    * @param archetype - Optional archetype name
    * @returns Calculated OVR
    */
@@ -66,11 +67,12 @@ export function registerRatingHandlers(): void {
     'rating:calculate-ovr-madden',
     async (_event, position: string, attributes: any, archetype?: string): Promise<number> => {
       try {
-        console.log(`[RatingHandlers] Calculating Madden OVR for ${position}${archetype ? ` (${archetype})` : ''}`);
-        return maddenFormulaCalculator.calculateOVR(position, attributes, archetype);
+        console.log(`[RatingHandlers] Calculating OVR for ${position}${archetype ? ` (${archetype})` : ''}`);
+        // Use the new ovrWeightsCalculator which implements the official Madden archetype-based formula
+        return ovrWeightsCalculator.calculateOVR(attributes, position, archetype);
       } catch (error: any) {
-        console.error('[RatingHandlers] Error calculating Madden OVR:', error);
-        return 65;
+        console.error('[RatingHandlers] Error calculating OVR:', error);
+        return 50;
       }
     }
   );

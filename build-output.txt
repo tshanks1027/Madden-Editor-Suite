@@ -1,0 +1,201 @@
+
+> madden-editor-suite@2.0.3 package
+> electron-forge package
+
+[33m❯[39m Checking your system
+[33m❯[39m Checking package manager version
+[32m✔[39m Found npm@11.6.2
+[32m✔[39m Checking your system
+[?25h[33m❯[39m Preparing to package application
+[32m✔[39m Preparing to package application
+[33m❯[39m Running packaging hooks
+[33m❯[39m Running generateAssets hook
+[32m✔[39m Running generateAssets hook
+[33m❯[39m Running prePackage hook
+[33m❯[39m [plugin-vite] Building production Vite bundles
+[33m❯[39m Building main and preload targets...
+[33m❯[39m Building renderer targets...
+[33m❯[39m Building src/main.ts target
+[33m❯[39m Building src/preload.ts target
+[32m✔[39m Building src/preload.ts target
+Copied ALL_PLAYER_LOOKUP.backup-before-add.1763741908572.csv to build output
+Copied ALL_PLAYER_LOOKUP.backup.1763741733382.csv to build output
+Copied ALL_PLAYER_LOOKUP.backup.1763741915131.csv to build output
+Copied ALL_PLAYER_LOOKUP.csv to build output
+Copied archetype_lookup.csv to build output
+Copied Coach_lookup.csv to build output
+Copied college_lookup.csv to build output
+Copied FutureDraft_Lookup.csv to build output
+Copied FutureDraft_Lookup_MERGED.csv to build output
+Copied PID_lookup.csv to build output
+Copied PID_Portrait_Mapping.csv to build output
+Copied position_lookup.csv to build output
+Copied ROSTER_lookup.csv to build output
+Copied state_lookup.csv to build output
+Copied team_lookup.csv to build output
+Copied portrait-atlas.json to build output
+Copied coach-atlas.json to build output
+Copied 95 portrait sprite sheets
+Copied 4 coach sprite sheets
+Copied formula file: madden-formulas.txt
+Copied template file: CAREERDRAFT-2026Template
+Copied template file: ROSTER-Official
+Copied parser: RosterParser.js
+Copied service: CoachPortraitService.ts
+Copied service: CreatorService.ts
+Copied service: DraftClassService.ts
+Copied service: ArchetypeAssigner.ts
+Copied service: ComparableMatcherService.ts
+Copied service: DecadeClassService.ts
+Copied service: DraftSizeService.ts
+Copied service: FutureDraftService.ts
+Copied service: PlayerDataService.ts
+Copied service: lookup-service.ts
+Copied service: PortraitService.ts
+Copied service: PortraitSpriteService.ts
+Copied service: PresentationIdFixService.ts
+Copied service: position-attribute-weights.json
+Copied service: rowdy-randy-tiers.json
+Copied service: HistoricalRatingGenerator.ts
+Copied service: index.ts
+Copied service: IRatingGenerator.ts
+Copied service: MaddenFormulaCalculator.ts
+Copied service: MaddenRatingGenerator.ts
+Copied service: RandomRatingGenerator.ts
+Copied service: RatingModeFactory.ts
+Copied service: RealisticRatingGenerator.ts
+Copied service: VarianceRatingGenerator.ts
+Copied service: RatingCalculator.ts
+Copied service: RosterCreatorService.ts
+Copied service: RosterGeneratorService.ts
+Copied service: ScraperService.ts
+Copied service: UpdateChecker.ts
+Copied service: archetypeService.ts
+Copied service: dateConverter.ts
+Copied lib: Decompressor.js
+Copied lib: draftClassFunctions.js
+Copied lib: DraftClassParser.js
+Copied lib: examine-file.js
+Copied lib: FileParser.js
+Copied lib: index.js
+Copied lib: M25toM26Converter.js
+Copied lib: M26Parser.js
+Copied lib: M26Writer.js
+Copied lib: test-output.json
+Copied lib: test-parser.js
+Copied lib: test-service.js
+Copied lib: Archive.js
+Copied lib: ArchivedFile.js
+Copied lib: Archive_Old.js
+Copied lib: File.js
+Copied lib: FileParser.js
+Copied lib: FileTransformParser.js
+Copied lib: File_Old.js
+Copied lib: SimpleParser.js
+Copied lib: ASTEntry.js
+Copied lib: ASTFile.js
+Copied lib: ASTFile_Old.js
+Copied lib: CASFile.js
+Copied lib: DDSFile.js
+Copied lib: EBXData.js
+Copied lib: EBXDataObject.js
+Copied lib: EBXField.js
+Copied lib: EBXFieldTypes.js
+Copied lib: EBXPointer.js
+Copied lib: EBXResourceReference.js
+Copied lib: Field.js
+Copied lib: Type.js
+Copied lib: TypeDescriptorList.js
+Copied lib: CompressedFile.js
+Copied lib: LegacyFile.js
+Copied lib: PNGFile.js
+Copied lib: SBFile.js
+Copied lib: HuffmanLeafNode.js
+Copied lib: HuffmanNode.js
+Copied lib: HuffmanRoot.js
+Copied lib: TDBExtraDataField.js
+Copied lib: TDBField.js
+Copied lib: TDBFile.js
+Copied lib: TDBHuffmanField.js
+Copied lib: TDBRecord.js
+Copied lib: TDBTable.js
+Copied lib: TDBUncompressedField.js
+Copied lib: originalTDB2Field.js
+Copied lib: originalTDB2Table.js
+Copied lib: TDB2Field.js
+Copied lib: TDB2File.js
+Copied lib: TDB2Record.js
+Copied lib: TDB2Table.js
+Copied lib: Entry.js
+Copied lib: Field.js
+Copied lib: FieldDataTypes.js
+Copied lib: TOCData.js
+Copied lib: TOCFile.js
+Copied lib: DBHelperFactory.js
+Copied lib: HC09Helper.js
+Copied lib: MaddenRosterHelper.js
+Copied lib: NCAAB10Helper.js
+Copied lib: TDBHelper.js
+Copied lib: index.js
+Copied lib: package-lock.json
+Copied lib: package.json
+Copied lib: GameFileManager.js
+Copied lib: EBXDataReader.js
+Copied lib: Madden22CASBlockReader.js
+Copied lib: Madden22FileReader.js
+Copied lib: Madden22InitFsReader.js
+Copied lib: Madden22SharedTypeDescriptorReader.js
+Copied lib: CRC.js
+Copied lib: fileService.js
+Copied lib: HexReader.js
+Copied lib: huffmanTreeParser.js
+Copied lib: maddenTypeService.js
+Copied lib: MemoryManager.js
+Copied lib: sjcl.js
+Copied lib: utilService.js
+Copied lib: ASTParser.js
+Copied lib: ASTTransformer.js
+Copied lib: CASBlockParser.js
+Copied lib: CASBlockTransformer.js
+Copied lib: CASLegacyParser.js
+Copied lib: CompressedLegacyFileReader.js
+Copied lib: DDSParser.js
+Copied lib: EBXParser.js
+Copied lib: SharedTypeDescriptorParser.js
+Copied lib: MaddenParser.js
+Copied lib: SBParser.js
+Copied lib: originalTDB2Parser.js
+Copied lib: subTableWriter.js
+Copied lib: TDB2Parser.js
+Copied lib: TDB2Writer.js
+Copied lib: TDBParser.js
+Copied lib: TDBWriter.js
+Copied lib: TOCParser.js
+Copied lib: WritableParser.js
+Copied node_module: bit-buffer
+Copied node_module: stream-parser
+Copied node_module: crc-32
+Copied node_module: fzstd
+Copied node_module: papaparse
+Vite build complete - lib dependencies copied to .vite/build/node_modules
+[32m✔[39m Building src/main.ts target
+[32m✔[39m Building main and preload targets...
+[32m✔[39m Built target renderer
+[32m✔[39m Building renderer targets...
+[32m✔[39m [plugin-vite] Building production Vite bundles
+[32m✔[39m Running prePackage hook
+[32m✔[39m Running packaging hooks
+[33m❯[39m Packaging application
+› Determining targets...
+[33m❯[39m Packaging for x64 on win32
+[33m❯[39m Copying files
+[33m❯[39m Preparing native dependencies
+[33m❯[39m Finalizing package
+[32m✔[39m Copying files
+[32m✔[39m Preparing native dependencies: 2 / 2
+[32m✔[39m Finalizing package
+[32m✔[39m Packaging for x64 on win32
+[32m✔[39m Packaging application
+[33m❯[39m Running postPackage hook
+[32m✔[39m Running postPackage hook
+[?25h

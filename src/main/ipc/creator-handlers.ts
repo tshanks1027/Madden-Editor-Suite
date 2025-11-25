@@ -6,6 +6,8 @@
  */
 
 import { ipcMain } from 'electron';
+import { creatorService } from '../services/CreatorService';
+import { scraperService } from '../services/ScraperService';
 
 /**
  * Register all creator IPC handlers
@@ -20,8 +22,6 @@ export function registerCreatorHandlers(): void {
     try {
       console.log(`[CreatorHandlers] Generating draft class for ${year} (Testing Mode: ${testingMode}, Rating Mode: ${ratingMode})`);
 
-      // Lazy load to avoid loading Puppeteer until first use
-      const { creatorService } = await import('../services/CreatorService');
       const players = await creatorService.generateDraftClassFromLookup(year, testingMode, undefined, ratingMode);
 
       // DEBUG: Log first player data BEFORE sending to renderer
@@ -68,12 +68,6 @@ export function registerCreatorHandlers(): void {
     console.log(`[CreatorHandlers V2] Options received:`, JSON.stringify(options, null, 2));
 
     try {
-      console.log(`[CreatorHandlers V2] Importing CreatorService...`);
-
-      // Lazy load to avoid loading services until first use
-      const { creatorService } = await import('../services/CreatorService');
-
-      console.log(`[CreatorHandlers V2] CreatorService imported successfully`);
       console.log(`[CreatorHandlers V2] Calling generateDraftClassV2...`);
 
       const players = await creatorService.generateDraftClassV2(options);
@@ -117,8 +111,6 @@ export function registerCreatorHandlers(): void {
     try {
       console.log(`[CreatorHandlers] Generating roster for ${year} (${teams.length} teams, Rating Mode: ${ratingMode})`);
 
-      // Lazy load to avoid loading Puppeteer until first use
-      const { creatorService } = await import('../services/CreatorService');
       const players = await creatorService.generateRoster(year, teams, 3000, undefined, undefined, ratingMode);
 
       return {
@@ -253,8 +245,6 @@ export function registerCreatorHandlers(): void {
     try {
       console.log(`[CreatorHandlers] Testing scraper with year ${year}`);
 
-      // Lazy load to avoid loading Puppeteer until first use
-      const { scraperService } = await import('../services/ScraperService');
       const prospects = await scraperService.scrapeDraftClass(year);
       await scraperService.closeBrowser();
 

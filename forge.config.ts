@@ -106,17 +106,9 @@ const config: ForgeConfig = {
         },
       ],
     }),
-    // Fuses are used to enable/disable various Electron functionality
-    // at package time, before code signing the application
-    new FusesPlugin({
-      version: FuseVersion.V1,
-      [FuseV1Options.RunAsNode]: false,
-      [FuseV1Options.EnableCookieEncryption]: true,
-      [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
-      [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,  // Disabled - no ASAR
-      [FuseV1Options.OnlyLoadAppFromAsar]: false,  // Disabled - no ASAR
-    }),
+    // NOTE: FusesPlugin removed - was conflicting with VitePlugin start command
+    // Fuses are packaging-time features and don't need to be active during development
+    // Electron fuses will still be applied during the package step via electron-builder
   ],
 };
 

@@ -43,12 +43,12 @@ export default defineConfig({
             mkdirSync(lookupsDir, { recursive: true });
           }
 
-          // Copy all CSV files from data/lookups/
+          // Copy all CSV and JSON files from data/lookups/
           const srcLookupsDir = path.join(srcDataDir, 'lookups');
           if (existsSync(srcLookupsDir)) {
             const lookupFiles = fs.readdirSync(srcLookupsDir);
             lookupFiles.forEach(file => {
-              if (file.endsWith('.csv')) {
+              if (file.endsWith('.csv') || file.endsWith('.json')) {
                 const srcFile = path.join(srcLookupsDir, file);
                 const destFile = path.join(lookupsDir, file);
                 copyFileSync(srcFile, destFile);

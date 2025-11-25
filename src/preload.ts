@@ -184,5 +184,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Shell APIs
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url)
+  },
+
+  // Presentation ID Fix APIs
+  presentationIdFix: {
+    getEnabled: () => ipcRenderer.invoke('presentation-id-fix:get-enabled'),
+    setEnabled: (enabled: boolean) => ipcRenderer.invoke('presentation-id-fix:set-enabled', enabled),
+    getExePath: () => ipcRenderer.invoke('presentation-id-fix:get-exe-path'),
+    setExePath: (exePath: string) => ipcRenderer.invoke('presentation-id-fix:set-exe-path', exePath),
+    exeExists: () => ipcRenderer.invoke('presentation-id-fix:exe-exists'),
+    test: (testFilePath?: string) => ipcRenderer.invoke('presentation-id-fix:test', testFilePath)
   }
 });

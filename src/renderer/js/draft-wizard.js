@@ -498,7 +498,7 @@ async function loadIntoEditor() {
     // Body type and archetype
     bodyType: player.bodyType,
     archetype: player.archetype || 0,  // Already a NUMERIC archetype ID from backend
-    yearsPro: player.yearsPro || 0
+    yearsPro: 0  // Draft prospects are rookies, always 0
   }));
 
   // Load the M26 template file to get the buffer structure for saving
@@ -636,5 +636,6 @@ function restartWizard() {
 // Export for use in main app.js
 window.draftWizard = {
   init: initDraftWizard,
+  restart: restartWizard,
   getState: () => wizardState
 };

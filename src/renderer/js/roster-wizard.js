@@ -669,3 +669,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initRosterWizard();
   }
 });
+
+// Export for use in main app.js
+window.rosterWizard = {
+  init: initRosterWizard,
+  restart: restartRosterWizard,
+  getState: () => rosterWizardState
+};

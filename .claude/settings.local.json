@@ -55,7 +55,8 @@
       "Bash(timeout /t 5)",
       "Bash(awk:*)",
       "Bash(/tmp/restart-signal.txt)",
-      "Bash(npm run typecheck:*)"
+      "Bash(npm run typecheck:*)",
+      "Bash(start \"\" \"madden-editor-suite.exe\")"
     ],
     "deny": [],
     "ask": []

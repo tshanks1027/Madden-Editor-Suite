@@ -2661,16 +2661,23 @@ class MaddenEditorApp {
         const teamFilter = document.getElementById('teamFilter');
         const teams = getAllTeams();
 
-        // Clear existing options (except "All Teams")
-        teamFilter.innerHTML = '<option value="">All Teams</option>';
+        // Build all options as HTML string for fast rendering
+        // This avoids slow native select rendering in Chromium/Electron
+        const optionsHtml = teams.map(team =>
+            `<option value="${team.id}">${team.fullName}</option>`
+        ).join('');
 
-        // Add team options
-        teams.forEach(team => {
-            const option = document.createElement('option');
-            option.value = team.id;
-            option.textContent = team.fullName;
-            teamFilter.appendChild(option);
-        });
+        teamFilter.innerHTML = '<option value="">All Teams</option>' + optionsHtml;
+
+        // Initialize custom dropdowns to replace slow native selects
+        console.log('[App] Checking for initCustomDropdowns:', typeof window.initCustomDropdowns);
+        if (window.initCustomDropdowns) {
+            console.log('[App] Calling initCustomDropdowns');
+            this.customDropdowns = window.initCustomDropdowns();
+            console.log('[App] Custom dropdowns initialized:', this.customDropdowns?.size);
+        } else {
+            console.warn('[App] initCustomDropdowns not found on window!');
+        }
     }
 
     enterTeamView(teamId) {
@@ -3416,16 +3423,22 @@ class MaddenEditorApp {
         const isDraft = 'PID' in this.currentFacePickerPlayer;
         console.log(`[GenericFacePicker] isRoster: ${isRoster}, isDraft: ${isDraft}`);
 
-        const grid = isRoster ? this.hotTable : (isDraft ? this.draftGrid : null);
+        const grid = isRoster ? this.agGrid : (isDraft ? this.draftGrid : null);
         const dataArray = isRoster ? this.filteredPlayers : (isDraft ? this.draftProspects : null);
 
-        console.log(`[GenericFacePicker] Grid exists: ${!!grid}, destroyed: ${grid ? grid.isDestroyed : 'N/A'}`);
+        console.log(`[GenericFacePicker] Grid exists: ${!!grid}`);
         console.log(`[GenericFacePicker] DataArray exists: ${!!dataArray}, length: ${dataArray ? dataArray.length : 'N/A'}`);
 
-        if (!grid || grid.isDestroyed) {
-            console.error('[GenericFacePicker] Grid is missing or destroyed');
-            console.error(`  - this.hotTable: ${!!this.hotTable}`);
+        if (!grid) {
+            console.error('[GenericFacePicker] Grid is missing');
+            console.error(`  - this.agGrid: ${!!this.agGrid}`);
             console.error(`  - this.draftGrid: ${!!this.draftGrid}`);
+            return;
+        }
+
+        // For Handsontable (draft mode only), check if destroyed
+        if (isDraft && grid.isDestroyed) {
+            console.error('[GenericFacePicker] Draft grid is destroyed');
             return;
         }
 
@@ -3465,11 +3478,17 @@ class MaddenEditorApp {
         if (isRoster) {
             // For roster, look for PSXP and PLAYERPIC fields in currentFieldMapping
             // currentFieldMapping is ['', 'field1', 'field2', ...] where '' is portrait column at index 0
-            pidColumnIndex = this.currentFieldMapping.indexOf('PSXP');
-            playerPicColumnIndex = this.currentFieldMapping.indexOf('PLAYERPIC');
+            console.log(`[GenericFacePicker] this.currentFieldMapping exists: ${!!this.currentFieldMapping}`);
             console.log(`[GenericFacePicker] currentFieldMapping:`, this.currentFieldMapping);
-            console.log(`[GenericFacePicker] PSXP column index: ${pidColumnIndex}`);
-            console.log(`[GenericFacePicker] PLAYERPIC column index: ${playerPicColumnIndex}`);
+
+            if (this.currentFieldMapping) {
+                pidColumnIndex = this.currentFieldMapping.indexOf('PSXP');
+                playerPicColumnIndex = this.currentFieldMapping.indexOf('PLAYERPIC');
+                console.log(`[GenericFacePicker] PSXP column index: ${pidColumnIndex}`);
+                console.log(`[GenericFacePicker] PLAYERPIC column index: ${playerPicColumnIndex}`);
+            } else {
+                console.error(`[GenericFacePicker] ERROR: currentFieldMapping is undefined/null!`);
+            }
         } else if (isDraft) {
             // For draft class, PID field should be in the columns
             const colHeaders = grid.getColHeader();
@@ -3510,8 +3529,12 @@ class MaddenEditorApp {
                 if (imageData && imageData.length > 0) {
                     this.portraitCache.set(cacheKey, imageData);
                     console.log(`[GenericFacePicker] Portrait loaded in background, length: ${imageData.length}`);
-                    // Re-render just this cell to show the loaded portrait
-                    if (grid && !grid.isDestroyed) {
+                    // Re-render to show the loaded portrait
+                    if (isRoster && this.agGrid) {
+                        // AG-Grid: refresh cells to update portrait display
+                        this.agGrid.refreshCells({ force: true });
+                    } else if (isDraft && grid && !grid.isDestroyed) {
+                        // Handsontable: render the grid
                         grid.render();
                     }
                 } else {
@@ -3526,32 +3549,36 @@ class MaddenEditorApp {
             console.log(`[GenericFacePicker] Portrait already in cache: ${cacheKey}`);
         }
 
-        console.log(`[GenericFacePicker] Updating cells using setDataAtCell (instant, no waiting)...`);
+        console.log(`[GenericFacePicker] Updating grid display...`);
 
-        // Batch all cell updates together using setDataAtCell
-        // Format: [[row, col, value], [row, col, value], ...]
-        const changes = [];
+        if (isRoster && this.agGrid) {
+            // AG-Grid: Data already updated in filteredPlayers array, just refresh the display
+            this.agGrid.refreshCells({ force: true });
+            console.log(`[GenericFacePicker] AG-Grid refreshed - portrait and PID updated`);
+        } else if (isDraft) {
+            // Handsontable: Use setDataAtCell to update the grid
+            const changes = [];
 
-        // Update portrait cell (column 0) - just set row index to trigger portrait renderer
-        changes.push([gridRowIndex, 0, gridRowIndex]);
+            // Update portrait cell (column 0) - just set row index to trigger portrait renderer
+            changes.push([gridRowIndex, 0, gridRowIndex]);
 
-        // Update PID column if found
-        if (pidColumnIndex >= 0) {
-            changes.push([gridRowIndex, pidColumnIndex, pid]);
-            console.log(`[GenericFacePicker] Queuing PID update: row ${gridRowIndex}, col ${pidColumnIndex}, value ${pid}`);
-        }
+            // Update PID column if found
+            if (pidColumnIndex >= 0) {
+                changes.push([gridRowIndex, pidColumnIndex, pid]);
+                console.log(`[GenericFacePicker] Queuing PID update: row ${gridRowIndex}, col ${pidColumnIndex}, value ${pid}`);
+            }
 
-        // Update Player Pic column if found
-        if (playerPicColumnIndex >= 0) {
-            changes.push([gridRowIndex, playerPicColumnIndex, 'Generic Face']);
-            console.log(`[GenericFacePicker] Queuing Player Pic update: row ${gridRowIndex}, col ${playerPicColumnIndex}, value "Generic Face"`);
-        }
+            // Update Player Pic column if found
+            if (playerPicColumnIndex >= 0) {
+                changes.push([gridRowIndex, playerPicColumnIndex, 'Generic Face']);
+                console.log(`[GenericFacePicker] Queuing Player Pic update: row ${gridRowIndex}, col ${playerPicColumnIndex}, value "Generic Face"`);
+            }
 
-        // Apply all changes in one batch
-        // setDataAtCell will trigger render, but afterRender only runs setup once (via initialSetupComplete flag)
-        if (changes.length > 0 && !grid.isDestroyed) {
-            grid.setDataAtCell(changes, null, null, 'GenericFacePicker');
-            console.log(`[GenericFacePicker] Applied ${changes.length} cell updates via setDataAtCell`);
+            // Apply all changes in one batch
+            if (changes.length > 0 && !grid.isDestroyed) {
+                grid.setDataAtCell(changes, null, null, 'GenericFacePicker');
+                console.log(`[GenericFacePicker] Applied ${changes.length} cell updates via setDataAtCell`);
+            }
         }
 
         // Close modal after updates
@@ -6373,16 +6400,25 @@ class MaddenEditorApp {
 
         document.getElementById('playerCardJersey').value = playerData.PJEN || '';
 
-        // Contract section - display only
-        const yearsLeft = playerData.PCYL !== undefined ? playerData.PCYL : '--';
-        const totalSalary = this.calculateTotalSalary(playerData);
-        const bonus = playerData.PSBO ? `$${(playerData.PSBO / 100).toFixed(1)}M` : '--';
-        const currentSalary = playerData.PSA0 ? `$${(playerData.PSA0 / 100).toFixed(1)}M` : '--';
+        // Contract section - editable
+        document.getElementById('playerCardContractYears').value = playerData.PCON || 0;
+        document.getElementById('playerCardYearsLeft').value = playerData.PCYL || 0;
+        document.getElementById('playerCardBonus').value = playerData.PSBO ? (playerData.PSBO / 100).toFixed(1) : 0;
 
-        document.getElementById('playerCardYearsLeft').textContent = yearsLeft;
-        document.getElementById('playerCardTotalSalary').textContent = totalSalary !== '--' ? `$${totalSalary}M` : '--';
-        document.getElementById('playerCardBonus').textContent = bonus;
-        document.getElementById('playerCardCurrentSalary').textContent = currentSalary;
+        // Yearly salaries (stored in hundredths, displayed in millions)
+        for (let i = 0; i <= 6; i++) {
+            const salaryField = `PSA${i}`;
+            const salaryInput = document.getElementById(`playerCardSalary${i}`);
+            if (salaryInput) {
+                salaryInput.value = playerData[salaryField] ? (playerData[salaryField] / 100).toFixed(1) : 0;
+            }
+        }
+
+        // Calculate and display total salary
+        this.updateContractTotalDisplay(playerData);
+
+        // Add event listeners for salary inputs to update total on change
+        this.setupContractSalaryListeners();
 
         // Ratings section - populate based on position
         this.populatePlayerRatings(playerData, position);
@@ -6429,9 +6465,27 @@ class MaddenEditorApp {
         this.currentPlayerCardData.PJEN = jersey;
         this.currentPlayerCardData.PSXP = pid;
 
+        // Update contract data (values stored in hundredths, inputs in millions)
+        const contractYears = parseInt(document.getElementById('playerCardContractYears').value) || 0;
+        const yearsLeft = parseInt(document.getElementById('playerCardYearsLeft').value) || 0;
+        const bonus = parseFloat(document.getElementById('playerCardBonus').value) || 0;
+
+        this.currentPlayerCardData.PCON = contractYears;
+        this.currentPlayerCardData.PCYL = yearsLeft;
+        this.currentPlayerCardData.PSBO = Math.round(bonus * 100); // Convert from millions to hundredths
+
+        // Update yearly salaries
+        for (let i = 0; i <= 6; i++) {
+            const salaryInput = document.getElementById(`playerCardSalary${i}`);
+            if (salaryInput) {
+                const salaryValue = parseFloat(salaryInput.value) || 0;
+                this.currentPlayerCardData[`PSA${i}`] = Math.round(salaryValue * 100); // Convert from millions to hundredths
+            }
+        }
+
         // Update ratings from editable inputs
         if (this.currentPlayerCardRatings) {
-            this.currentPlayerCardRatings.forEach(fieldCode => {
+            Object.keys(this.originalPlayerCardRatings).forEach(fieldCode => {
                 const input = document.getElementById(`playerCardRating_${fieldCode}`);
                 if (input) {
                     this.currentPlayerCardData[fieldCode] = parseInt(input.value) || 0;
@@ -6439,13 +6493,54 @@ class MaddenEditorApp {
             });
         }
 
-        // Update the players array
-        this.players[this.currentPlayerCardRow] = this.currentPlayerCardData;
+        // Get the OVR that's currently displayed in the player card header
+        // This is the delta-based calculated OVR that the user has been seeing
+        const ovrDisplay = document.getElementById('playerCardOverall');
+        const displayedOVR = ovrDisplay ? parseInt(ovrDisplay.textContent) || this.currentPlayerCardData.POVR : this.currentPlayerCardData.POVR;
+        const oldOVR = this.originalPlayerCardPOVR || this.currentPlayerCardData.POVR;
 
-        // Re-render the grid to show updated data
+        if (displayedOVR !== oldOVR) {
+            this.currentPlayerCardData.POVR = displayedOVR;
+            console.log(`[Player Card] Updated OVR: ${oldOVR} → ${displayedOVR}`);
+        }
+
+        // Find the player in the filteredPlayers and players arrays and update
+        // The currentPlayerCardRow might be the paginated index, we need to find the actual player
+        const playerIndex = this.paginatedPlayerIndices ? this.paginatedPlayerIndices[this.currentPlayerCardRow] : this.currentPlayerCardRow;
+
+        // Update in filteredPlayers
+        if (this.filteredPlayers && this.filteredPlayers[playerIndex]) {
+            this.filteredPlayers[playerIndex] = this.currentPlayerCardData;
+        }
+
+        // Also find and update in the main players array
+        const mainPlayerIndex = this.players.findIndex(p =>
+            p.PFNA === this.currentPlayerCardData.PFNA &&
+            p.PLNA === this.currentPlayerCardData.PLNA &&
+            p.Year === this.currentPlayerCardData.Year
+        );
+        if (mainPlayerIndex !== -1) {
+            this.players[mainPlayerIndex] = this.currentPlayerCardData;
+        }
+
+        // Update AG-Grid if it's being used
+        if (window.agGridApi) {
+            // Get the row node and update its data
+            const rowNode = window.agGridApi.getRowNode(String(playerIndex));
+            if (rowNode) {
+                rowNode.setData(this.currentPlayerCardData);
+                console.log('[Player Card] Updated AG-Grid row:', playerIndex);
+            } else {
+                // Force a full refresh if we can't find the row node
+                window.agGridApi.refreshCells();
+                console.log('[Player Card] Refreshed AG-Grid cells');
+            }
+        }
+
+        // Also re-render Handsontable if it exists
         if (this.hotTable && !this.hotTable.isDestroyed) {
             this.hotTable.render();
-            console.log('[Player Card] Saved changes for row:', this.currentPlayerCardRow);
+            console.log('[Player Card] Saved changes for Handsontable row:', this.currentPlayerCardRow);
         }
 
         // Close the modal
@@ -6507,6 +6602,55 @@ class MaddenEditorApp {
         return total > 0 ? (total / 100).toFixed(1) : '--';
     }
 
+    updateContractTotalDisplay() {
+        // Calculate total from the input fields
+        let total = 0;
+        for (let i = 0; i <= 6; i++) {
+            const salaryInput = document.getElementById(`playerCardSalary${i}`);
+            if (salaryInput) {
+                total += parseFloat(salaryInput.value) || 0;
+            }
+        }
+        // Add signing bonus to total
+        const bonusInput = document.getElementById('playerCardBonus');
+        if (bonusInput) {
+            total += parseFloat(bonusInput.value) || 0;
+        }
+        const totalDisplay = document.getElementById('playerCardTotalSalary');
+        if (totalDisplay) {
+            totalDisplay.textContent = total > 0 ? `$${total.toFixed(1)}M` : '--';
+        }
+    }
+
+    setupContractSalaryListeners() {
+        // Remove any existing listeners first
+        for (let i = 0; i <= 6; i++) {
+            const salaryInput = document.getElementById(`playerCardSalary${i}`);
+            if (salaryInput) {
+                salaryInput.removeEventListener('input', this._contractInputHandler);
+            }
+        }
+        const bonusInput = document.getElementById('playerCardBonus');
+        if (bonusInput) {
+            bonusInput.removeEventListener('input', this._contractInputHandler);
+        }
+
+        // Create bound handler
+        this._contractInputHandler = () => this.updateContractTotalDisplay();
+
+        // Add listeners to salary inputs
+        for (let i = 0; i <= 6; i++) {
+            const salaryInput = document.getElementById(`playerCardSalary${i}`);
+            if (salaryInput) {
+                salaryInput.addEventListener('input', this._contractInputHandler);
+            }
+        }
+        // Add listener to bonus input
+        if (bonusInput) {
+            bonusInput.addEventListener('input', this._contractInputHandler);
+        }
+    }
+
     getRatingClass(value) {
         if (value >= 90) return 'elite';
         if (value >= 80) return 'great';
@@ -6519,27 +6663,43 @@ class MaddenEditorApp {
         const ratingsContainer = document.getElementById('playerCardRatings');
         ratingsContainer.innerHTML = '';
 
-        // Define position-specific key ratings
+        // Store original ratings for delta-based OVR calculation
+        // This preserves the stored OVR and only adjusts based on changes
+        this.originalPlayerCardRatings = {};
+
+        // Define position-specific key ratings (matches OVR formula attributes)
+        // These are the attributes that directly affect OVR calculation for each position
         const positionRatings = {
-            'QB': ['PSPD', 'PACC', 'PAWR', 'PTAS', 'PTAM', 'PTAD', 'PTHP', 'PTOR', 'PTUP', 'PPLA'],
-            'HB': ['PSPD', 'PACC', 'PAGI', 'PBCV', 'PCAR', 'PLTR', 'PBKT', 'PLJM', 'PLSM', 'PLSA', 'PCTH'],
-            'FB': ['PSPD', 'PSTR', 'PBKT', 'PLTR', 'PLIB', 'PRBK', 'PCTH'],
-            'WR': ['PSPD', 'PACC', 'PAGI', 'PCTH', 'PLCI', 'PLSC', 'SRRN', 'PMRR', 'PDRR', 'PLRL'],
-            'TE': ['PSPD', 'PSTR', 'PCTH', 'PLCI', 'PLSC', 'SRRN', 'PMRR', 'PRBK', 'PLIB'],
-            'LT': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
-            'LG': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
-            'C': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
-            'RG': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
-            'RT': ['PSTR', 'PAWR', 'PRBK', 'PRBS', 'PRBF', 'PPBK', 'PPBS', 'PPBF'],
-            'LEDG': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
-            'REDG': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
-            'DT': ['PSPD', 'PSTR', 'PAWR', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PTAK'],
-            'SAM': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
-            'Mike': ['PSPD', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
-            'WILL': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
-            'CB': ['PSPD', 'PACC', 'PAGI', 'PAWR', 'PLMC', 'PLZC', 'PLPE', 'PLPR', 'PCTH', 'PTAK'],
-            'FS': ['PSPD', 'PACC', 'PAGI', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PCTH', 'PTAK', 'PLHT'],
-            'SS': ['PSPD', 'PACC', 'PSTR', 'PAWR', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PTAK', 'PLHT'],
+            // QB OVR: PAWR*0.16 + PTHP*0.16 + PTAS*0.12 + PTAM*0.12 + PTAD*0.10 + PTOR*0.04 + PSPD*0.03 + PCAR*0.02 + PAGI*0.02 + PSTR*0.02 + PINJ*0.01 + PSTA*0.01
+            // Added PTUP (Throw Under Pressure) and PBSK (Break Sack) which are key QB stats
+            'QB': ['PAWR', 'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PBSK', 'PSPD', 'PCAR', 'PAGI', 'PSTR'],
+            // HB OVR: PSPD*0.20 + PACC*0.10 + PAGI*0.08 + PCAR*0.10 + PBCV*0.08 + PBKT*0.08 + PSTR*0.06 + PELU*0.06 + PCTH*0.04 + PAWR*0.08 + PSTA*0.04 + PINJ*0.03 + PJMP*0.03 + PTGH*0.02
+            'HB': ['PSPD', 'PACC', 'PAGI', 'PCAR', 'PBCV', 'PBKT', 'PSTR', 'PELU', 'PCTH', 'PAWR'],
+            'FB': ['PSPD', 'PACC', 'PAGI', 'PCAR', 'PBCV', 'PBKT', 'PSTR', 'PELU', 'PCTH', 'PAWR'],
+            // WR OVR: PSPD*0.18 + PCTH*0.12 + PLCI*0.10 + PAWR*0.10 + PACC*0.08 + PAGI*0.08 + SRRN*0.06 + PDRR*0.06 + PMRR*0.06 + PLSC*0.04 + PJMP*0.04 + PSTR*0.03 + PLRL*0.03 + PSTA*0.02
+            'WR': ['PSPD', 'PCTH', 'PLCI', 'PAWR', 'PACC', 'PAGI', 'SRRN', 'PDRR', 'PMRR', 'PLSC'],
+            // TE OVR: PSPD*0.08 + PCTH*0.10 + PLCI*0.08 + PAWR*0.08 + PACC*0.06 + PAGI*0.06 + PRBK*0.10 + PPBK*0.10 + PSTR*0.08 + SRRN*0.05 + PMRR*0.05 + PDRR*0.05 + PJMP*0.04 + PLRL*0.03 + PSTA*0.02 + PINJ*0.02
+            'TE': ['PCTH', 'PRBK', 'PPBK', 'PSTR', 'PAWR', 'PLCI', 'PSPD', 'PACC', 'PAGI', 'SRRN'],
+            // OL OVR: PSTR*0.20 + PRBK*0.20 + PPBK*0.20 + PAWR*0.15 + PAGI*0.10 + PACC*0.05 + PSTA*0.05 + PINJ*0.05
+            'LT': ['PSTR', 'PRBK', 'PPBK', 'PAWR', 'PAGI', 'PACC'],
+            'LG': ['PSTR', 'PRBK', 'PPBK', 'PAWR', 'PAGI', 'PACC'],
+            'C': ['PSTR', 'PRBK', 'PPBK', 'PAWR', 'PAGI', 'PACC'],
+            'RG': ['PSTR', 'PRBK', 'PPBK', 'PAWR', 'PAGI', 'PACC'],
+            'RT': ['PSTR', 'PRBK', 'PPBK', 'PAWR', 'PAGI', 'PACC'],
+            // DL OVR: PSTR*0.15 + PTAK*0.12 + PBSG*0.12 + PAWR*0.10 + PLPR*0.10 + PFMS*0.08 + PLPM*0.08 + PSPD*0.06 + PACC*0.05 + PAGI*0.05 + PLPU*0.04 + PSTA*0.03 + PINJ*0.02
+            'LEDG': ['PSTR', 'PTAK', 'PBSG', 'PAWR', 'PLPR', 'PFMS', 'PLPM', 'PSPD', 'PACC', 'PAGI'],
+            'REDG': ['PSTR', 'PTAK', 'PBSG', 'PAWR', 'PLPR', 'PFMS', 'PLPM', 'PSPD', 'PACC', 'PAGI'],
+            'DT': ['PSTR', 'PTAK', 'PBSG', 'PAWR', 'PLPR', 'PFMS', 'PLPM', 'PSPD', 'PACC', 'PAGI'],
+            // LB OVR: PTAK*0.15 + PLPR*0.12 + PAWR*0.10 + PLPU*0.10 + PBSG*0.08 + PLHT*0.08 + PSPD*0.07 + PACC*0.06 + PAGI*0.06 + PLZC*0.05 + PLMC*0.05 + PSTR*0.04 + PSTA*0.02 + PINJ*0.02
+            'SAM': ['PTAK', 'PLPR', 'PAWR', 'PLPU', 'PBSG', 'PLHT', 'PSPD', 'PACC', 'PAGI', 'PLZC'],
+            'MIKE': ['PTAK', 'PLPR', 'PAWR', 'PLPU', 'PBSG', 'PLHT', 'PSPD', 'PACC', 'PAGI', 'PLZC'],
+            'WILL': ['PTAK', 'PLPR', 'PAWR', 'PLPU', 'PBSG', 'PLHT', 'PSPD', 'PACC', 'PAGI', 'PLZC'],
+            // CB OVR: PSPD*0.15 + PLMC*0.12 + PLZC*0.12 + PAWR*0.10 + PLPR*0.10 + PACC*0.08 + PAGI*0.08 + PLPE*0.06 + PCTH*0.05 + PLPU*0.05 + PTAK*0.04 + PSTA*0.03 + PINJ*0.02
+            'CB': ['PSPD', 'PLMC', 'PLZC', 'PAWR', 'PLPR', 'PACC', 'PAGI', 'PLPE', 'PCTH', 'PLPU'],
+            // Safety OVR: PLZC*0.14 + PAWR*0.12 + PLPR*0.10 + PLPU*0.10 + PTAK*0.09 + PSPD*0.08 + PLHT*0.07 + PACC*0.06 + PAGI*0.06 + PLMC*0.06 + PSTR*0.04 + PSTA*0.04 + PINJ*0.04
+            'FS': ['PLZC', 'PAWR', 'PLPR', 'PLPU', 'PTAK', 'PSPD', 'PLHT', 'PACC', 'PAGI', 'PLMC'],
+            'SS': ['PLZC', 'PAWR', 'PLPR', 'PLPU', 'PTAK', 'PSPD', 'PLHT', 'PACC', 'PAGI', 'PLMC'],
+            // K/P OVR: PKAC*0.50 + PKPR*0.30 + PAWR*0.15 + PINJ*0.05
             'K': ['PKAC', 'PKPR', 'PAWR'],
             'P': ['PKAC', 'PKPR', 'PAWR'],
             'LS': ['PSTR', 'PAWR']
@@ -6551,11 +6711,17 @@ class MaddenEditorApp {
         // Store the current ratings list for saving later
         this.currentPlayerCardRatings = ratings;
 
+        // Store original POVR for delta-based calculation
+        this.originalPlayerCardPOVR = playerData.POVR || 50;
+
         // Create rating items with editable inputs
         ratings.forEach(fieldCode => {
             const fieldDef = getFieldDefinition(fieldCode);
             const value = playerData[fieldCode] || 0;
             const ratingClass = this.getRatingClass(value);
+
+            // Store original value for delta calculation
+            this.originalPlayerCardRatings[fieldCode] = value;
 
             const ratingItem = document.createElement('div');
             ratingItem.className = 'rating-item';
@@ -6575,17 +6741,118 @@ class MaddenEditorApp {
             input.max = 99;
             input.dataset.fieldCode = fieldCode;
 
-            // Update color class on input change
+            // Update color class and OVR on input change
             input.addEventListener('input', (e) => {
                 const newValue = parseInt(e.target.value) || 0;
                 const newClass = this.getRatingClass(newValue);
                 e.target.className = `rating-value ${newClass}`;
+
+                // Update OVR in real-time using delta-based calculation
+                this.updatePlayerCardOVR();
             });
 
             ratingItem.appendChild(label);
             ratingItem.appendChild(input);
             ratingsContainer.appendChild(ratingItem);
         });
+    }
+
+    updatePlayerCardOVR() {
+        if (!this.currentPlayerCardData || !this.currentPlayerCardRatings) {
+            console.log('[updatePlayerCardOVR] No data or ratings, returning');
+            return;
+        }
+
+        // Delta-based OVR calculation:
+        // 1. Start with the original stored OVR from the CSV
+        // 2. Calculate the weighted delta based on attribute changes
+        // 3. Add delta to original OVR
+        // This preserves the stored OVR and only adjusts based on user changes
+
+        // Position-specific attribute weights for delta calculation
+        // These should match the OVR formula weights
+        const positionWeights = {
+            'QB': { PAWR: 0.16, PTHP: 0.16, PTAS: 0.12, PTAM: 0.12, PTAD: 0.10, PTOR: 0.04, PTUP: 0.04, PBSK: 0.03, PSPD: 0.03, PCAR: 0.02, PAGI: 0.02, PSTR: 0.02 },
+            'HB': { PSPD: 0.20, PACC: 0.10, PAGI: 0.08, PCAR: 0.10, PBCV: 0.08, PBKT: 0.08, PSTR: 0.06, PELU: 0.06, PCTH: 0.04, PAWR: 0.08 },
+            'FB': { PSPD: 0.20, PACC: 0.10, PAGI: 0.08, PCAR: 0.10, PBCV: 0.08, PBKT: 0.08, PSTR: 0.06, PELU: 0.06, PCTH: 0.04, PAWR: 0.08 },
+            'WR': { PSPD: 0.18, PCTH: 0.12, PLCI: 0.10, PAWR: 0.10, PACC: 0.08, PAGI: 0.08, SRRN: 0.06, PDRR: 0.06, PMRR: 0.06, PLSC: 0.04 },
+            'TE': { PCTH: 0.10, PRBK: 0.10, PPBK: 0.10, PSTR: 0.08, PAWR: 0.08, PLCI: 0.08, PSPD: 0.08, PACC: 0.06, PAGI: 0.06, SRRN: 0.05 },
+            'LT': { PSTR: 0.20, PRBK: 0.20, PPBK: 0.20, PAWR: 0.15, PAGI: 0.10, PACC: 0.05 },
+            'LG': { PSTR: 0.20, PRBK: 0.20, PPBK: 0.20, PAWR: 0.15, PAGI: 0.10, PACC: 0.05 },
+            'C': { PSTR: 0.20, PRBK: 0.20, PPBK: 0.20, PAWR: 0.15, PAGI: 0.10, PACC: 0.05 },
+            'RG': { PSTR: 0.20, PRBK: 0.20, PPBK: 0.20, PAWR: 0.15, PAGI: 0.10, PACC: 0.05 },
+            'RT': { PSTR: 0.20, PRBK: 0.20, PPBK: 0.20, PAWR: 0.15, PAGI: 0.10, PACC: 0.05 },
+            'LEDG': { PSTR: 0.15, PTAK: 0.12, PBSG: 0.12, PAWR: 0.10, PLPR: 0.10, PFMS: 0.08, PLPM: 0.08, PSPD: 0.06, PACC: 0.05, PAGI: 0.05 },
+            'REDG': { PSTR: 0.15, PTAK: 0.12, PBSG: 0.12, PAWR: 0.10, PLPR: 0.10, PFMS: 0.08, PLPM: 0.08, PSPD: 0.06, PACC: 0.05, PAGI: 0.05 },
+            'DT': { PSTR: 0.15, PTAK: 0.12, PBSG: 0.12, PAWR: 0.10, PLPR: 0.10, PFMS: 0.08, PLPM: 0.08, PSPD: 0.06, PACC: 0.05, PAGI: 0.05 },
+            'SAM': { PTAK: 0.15, PLPR: 0.12, PAWR: 0.10, PLPU: 0.10, PBSG: 0.08, PLHT: 0.08, PSPD: 0.07, PACC: 0.06, PAGI: 0.06, PLZC: 0.05 },
+            'MIKE': { PTAK: 0.15, PLPR: 0.12, PAWR: 0.10, PLPU: 0.10, PBSG: 0.08, PLHT: 0.08, PSPD: 0.07, PACC: 0.06, PAGI: 0.06, PLZC: 0.05 },
+            'WILL': { PTAK: 0.15, PLPR: 0.12, PAWR: 0.10, PLPU: 0.10, PBSG: 0.08, PLHT: 0.08, PSPD: 0.07, PACC: 0.06, PAGI: 0.06, PLZC: 0.05 },
+            'CB': { PSPD: 0.15, PLMC: 0.12, PLZC: 0.12, PAWR: 0.10, PLPR: 0.10, PACC: 0.08, PAGI: 0.08, PLPE: 0.06, PCTH: 0.05, PLPU: 0.05 },
+            'FS': { PLZC: 0.14, PAWR: 0.12, PLPR: 0.10, PLPU: 0.10, PTAK: 0.09, PSPD: 0.08, PLHT: 0.07, PACC: 0.06, PAGI: 0.06, PLMC: 0.06 },
+            'SS': { PLZC: 0.14, PAWR: 0.12, PLPR: 0.10, PLPU: 0.10, PTAK: 0.09, PSPD: 0.08, PLHT: 0.07, PACC: 0.06, PAGI: 0.06, PLMC: 0.06 },
+            'K': { PKAC: 0.50, PKPR: 0.30, PAWR: 0.15 },
+            'P': { PKAC: 0.50, PKPR: 0.30, PAWR: 0.15 }
+        };
+
+        // Get position from player data
+        const position = this.currentPlayerCardData.Position ||
+            (this.currentPlayerCardData.PPOS !== undefined ? this.getPositionName(this.currentPlayerCardData.PPOS) : null);
+
+        if (!position) {
+            console.log('[updatePlayerCardOVR] No position found');
+            return;
+        }
+
+        const weights = positionWeights[position] || {};
+
+        // Calculate weighted delta from attribute changes
+        let ovrDelta = 0;
+        const changes = [];
+
+        Object.keys(this.originalPlayerCardRatings).forEach(fieldCode => {
+            const input = document.getElementById(`playerCardRating_${fieldCode}`);
+            if (input) {
+                const originalValue = this.originalPlayerCardRatings[fieldCode] || 0;
+                const currentValue = parseInt(input.value) || 0;
+                const attrDelta = currentValue - originalValue;
+
+                if (attrDelta !== 0) {
+                    const weight = weights[fieldCode] || 0.05; // Default weight if not in formula
+                    const weightedDelta = attrDelta * weight;
+                    ovrDelta += weightedDelta;
+                    changes.push(`${fieldCode}: ${originalValue} -> ${currentValue} (delta: ${attrDelta}, weight: ${weight}, contribution: ${weightedDelta.toFixed(2)})`);
+                }
+            }
+        });
+
+        // Calculate new OVR: original + delta
+        const originalOVR = this.originalPlayerCardPOVR || 50;
+        const newOVR = Math.max(0, Math.min(99, Math.round(originalOVR + ovrDelta)));
+
+        console.log('[updatePlayerCardOVR] Position:', position);
+        console.log('[updatePlayerCardOVR] Original OVR:', originalOVR);
+        console.log('[updatePlayerCardOVR] Changes:', changes.length > 0 ? changes.join(', ') : 'None');
+        console.log('[updatePlayerCardOVR] Total delta:', ovrDelta.toFixed(2));
+        console.log('[updatePlayerCardOVR] New OVR:', newOVR);
+
+        // Update OVR display in the header
+        const ovrDisplay = document.getElementById('playerCardOverall');
+        if (ovrDisplay) {
+            ovrDisplay.textContent = newOVR;
+        }
+
+        // Also update the cached player data so it's saved correctly
+        this.currentPlayerCardData.POVR = newOVR;
+    }
+
+    getPositionName(ppos) {
+        const positionMap = {
+            0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
+            8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'MIKE',
+            15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+        };
+        return positionMap[ppos] || null;
     }
 }
 

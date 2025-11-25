@@ -21,9 +21,7 @@ const { readDraftClass: readM25, writeDraftClass: writeM25 } = require('madden-d
  * M25 has "Madden-25" in the fileName field at offset 0x22
  * M26 has "Madden-26" or similar
  */
-function detectMaddenVersion(filePath: string): 'M25' | 'M26' | 'unknown' {
-  const buffer = fs.readFileSync(filePath);
-
+function detectMaddenVersion(buffer: Buffer): 'M25' | 'M26' | 'unknown' {
   // Check FBCHUNKS signature
   const signature = buffer.toString('ascii', 0, 8);
   if (signature !== 'FBCHUNKS') {
@@ -57,15 +55,17 @@ export class DraftClassService {
     try {
       console.log('[DraftClassService] Loading draft class from:', filePath);
 
-      // Detect game version
-      const version = detectMaddenVersion(filePath);
+      // Read file once and reuse the buffer
+      const buffer = fs.readFileSync(filePath);
+
+      // Detect game version using the buffer
+      const version = detectMaddenVersion(buffer);
       console.log(`[DraftClassService] Detected version: ${version}`);
 
       let draftClass: any;
 
       if (version === 'M25') {
-        // Use madden-draft-class-tools for M25
-        const buffer = fs.readFileSync(filePath);
+        // Use madden-draft-class-tools for M25 (already have buffer)
         draftClass = readM25(buffer);
 
         // Map M25 field names to M26 field names for consistency
@@ -116,8 +116,7 @@ export class DraftClassService {
         const m26ParserPath = path.join(__dirname, 'lib', 'draft-class', 'M26Parser');
         const { parseM26Prospects } = require(m26ParserPath);
 
-        // Parse header first (same structure, different offset)
-        const buffer = fs.readFileSync(filePath);
+        // Parse header first (same structure, different offset - already have buffer)
         const signature = buffer.toString('ascii', 0, 8);
         const versionByte = buffer.readUInt8(8);
         const year = buffer.readUInt16LE(0x16);
@@ -198,14 +197,75 @@ export class DraftClassService {
         buffer = writeM25(draftClassData);
       }
 
-      fs.writeFileSync(filePath, buffer);
+      // Use atomic write: write to temp file, then rename
+      // This prevents corruption if write fails and handles locked files better
+      const tempPath = `${filePath}.tmp`;
 
-      console.log('[DraftClassService] Successfully saved draft class');
+      try {
+        // Write to temp file first
+        fs.writeFileSync(tempPath, buffer);
 
-      return true;
+        // Delete original file if it exists (handle locked file case)
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (unlinkError: any) {
+            // If we can't delete, try to force close handles (Windows)
+            if (unlinkError.code === 'EPERM' || unlinkError.code === 'EBUSY') {
+              console.warn('[DraftClassService] File is locked, attempting to overwrite directly');
+              // Try direct overwrite as fallback
+              fs.writeFileSync(filePath, buffer);
+              // Clean up temp file
+              try { fs.unlinkSync(tempPath); } catch (e) { /* ignore */ }
+              console.log('[DraftClassService] Successfully saved draft class (direct overwrite)');
+              return true;
+            }
+            throw unlinkError;
+          }
+        }
+
+        // Rename temp to final
+        fs.renameSync(tempPath, filePath);
+        console.log('[DraftClassService] Successfully saved draft class');
+        return true;
+
+      } catch (writeError: any) {
+        // Clean up temp file if it exists
+        try {
+          if (fs.existsSync(tempPath)) {
+            fs.unlinkSync(tempPath);
+          }
+        } catch (cleanupError) {
+          // Ignore cleanup errors
+        }
+        throw writeError;
+      }
 
     } catch (error: any) {
       console.error('[DraftClassService] Error saving draft class:', error);
+
+      // Provide specific error messages for common issues
+      if (error.code === 'EPERM') {
+        throw new Error(
+          `Permission denied when saving file. Possible causes:\n` +
+          `• The file is open in another program (close it and try again)\n` +
+          `• The directory is read-only\n` +
+          `• Antivirus is blocking the file\n` +
+          `• You don't have write permissions for this location\n\n` +
+          `File: ${filePath}`
+        );
+      } else if (error.code === 'EBUSY') {
+        throw new Error(
+          `File is locked by another process. Close any programs that have this file open and try again.\n\n` +
+          `File: ${filePath}`
+        );
+      } else if (error.code === 'ENOENT') {
+        throw new Error(
+          `Directory does not exist. Create the folder first.\n\n` +
+          `Path: ${path.dirname(filePath)}`
+        );
+      }
+
       throw new Error(`Failed to save draft class: ${error.message}`);
     }
   }

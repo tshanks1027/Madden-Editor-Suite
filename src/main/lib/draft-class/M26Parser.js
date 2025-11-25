@@ -97,29 +97,6 @@ function parseM26Prospects(buffer, header) {
     const attributeData = buffer.subarray(attributeOffset, attributeOffset + ATTRIBUTE_DATA_SIZE);
     const attributes = parseM26AttributeData(attributeData);
 
-    // DEBUG: For first 3 prospects, dump the entire block to find birthDate location
-    if (prospectNum < 3) {
-      const fs = require('fs');
-      const path = require('path');
-      const logFile = path.join(process.cwd(), `M26_prospect_${prospectNum + 1}_dump.txt`);
-
-      let dumpText = `\n=== PROSPECT #${prospectNum + 1} FULL BLOCK DUMP ===\n`;
-      dumpText += `Name: ${attributes.firstName} ${attributes.lastName}\n`;
-      dumpText += `PID: ${attributes.PID}\n`;
-      dumpText += `Block offset: 0x${blockStart.toString(16)}\n\n`;
-
-      // Dump the entire 4296-byte block as hex + ASCII
-      for (let offset = 0; offset < BLOCK_SIZE; offset += 16) {
-        const chunk = buffer.subarray(blockStart + offset, Math.min(blockStart + offset + 16, blockStart + BLOCK_SIZE));
-        const hex = Array.from(chunk).map(b => b.toString(16).padStart(2, '0')).join(' ');
-        const ascii = Array.from(chunk).map(b => (b >= 32 && b <= 126) ? String.fromCharCode(b) : '.').join('');
-        dumpText += `0x${offset.toString(16).padStart(4, '0')}: ${hex.padEnd(48)} | ${ascii}\n`;
-      }
-
-      fs.writeFileSync(logFile, dumpText);
-      console.log(`[M26Parser] Wrote full block dump for prospect #${prospectNum + 1} to ${logFile}`);
-    }
-
     // Populate PEPS - prioritize assetName (player-specific) over genericHeadName (generic)
     if (visuals) {
       // assetName = player-specific face (e.g., "AdomitisCal_22250")

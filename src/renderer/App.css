@@ -67,6 +67,11 @@
   background-color: #3e4248;
 }
 
+/* Center header text for rating columns */
+.ag-theme-alpine .ag-header-center .ag-header-cell-label {
+  justify-content: center;
+}
+
 /* Pinned column styling */
 .ag-theme-alpine .ag-pinned-left-header,
 .ag-theme-alpine .ag-pinned-left-cols-container {
@@ -188,6 +193,86 @@
   background-color: #3e4248;
 }
 
+/* Disable default AG-Grid selection styling - we handle it via JavaScript */
+.ag-theme-alpine {
+  --ag-selected-row-background-color: transparent;
+  --ag-range-selection-background-color: transparent;
+  --ag-range-selection-border-color: transparent;
+}
+
+/* Row selection - orange highlight for selected rows */
+.ag-theme-alpine .ag-row-selected,
+.ag-theme-alpine .ag-row-selected .ag-cell,
+.ag-theme-alpine .ag-row-selected .ag-cell[style] {
+  background-color: #ffa726 !important;
+  background: #ffa726 !important;
+  color: #000000 !important;
+}
+
+/* Selection for pinned columns (row number, portrait, names) */
+.ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected,
+.ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell,
+.ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell[style],
+.ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .portrait-cell,
+.ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .row-number-cell {
+  background-color: #ffa726 !important;
+  background: #ffa726 !important;
+  color: #000000 !important;
+}
+
+/* Disable cell focus highlight that causes white borders */
+.ag-theme-alpine .ag-cell-focus,
+.ag-theme-alpine .ag-cell.ag-cell-focus,
+.ag-theme-alpine .ag-cell:focus,
+.ag-theme-alpine .ag-cell:focus-within {
+  border: none !important;
+  outline: none !important;
+  background-color: inherit !important;
+}
+
+/* Kill cell focus white background - be aggressive */
+.ag-theme-alpine .ag-cell-focus:not(.ag-cell-inline-editing),
+.ag-theme-alpine .ag-cell.ag-cell-focus:not(.ag-cell-inline-editing) {
+  background-color: inherit !important;
+  background: inherit !important;
+}
+
+/* Disable range selection highlight */
+.ag-theme-alpine .ag-cell-range-selected,
+.ag-theme-alpine .ag-cell-range-selected-1,
+.ag-theme-alpine .ag-cell-range-selected-2,
+.ag-theme-alpine .ag-cell-range-selected-3,
+.ag-theme-alpine .ag-cell-range-selected-4 {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* Remove row highlight on hover when not selected */
+.ag-theme-alpine .ag-row:not(.ag-row-selected):hover {
+  background-color: var(--ag-row-hover-color) !important;
+}
+
+/* Kill any leftover white/light backgrounds from focus states */
+.ag-theme-alpine .ag-row:not(.ag-row-selected) .ag-cell-focus,
+.ag-theme-alpine .ag-row:not(.ag-row-selected) .ag-cell.ag-cell-focus {
+  background-color: inherit !important;
+  background: inherit !important;
+}
+
+/* Tooltip styling - appear in front of headers, readable */
+.ag-theme-alpine .ag-tooltip {
+  background-color: #222 !important;
+  color: #fff !important;
+  border: 2px solid #ffa726 !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  z-index: 999999 !important;
+  pointer-events: none !important;
+  position: fixed !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.8) !important;
+}
+
 /* Global app styles */
 body {
   margin: 0;
@@ -208,4 +293,88 @@ body {
 #root {
   height: 100vh;
   overflow: hidden;
+}
+
+/* ========================================
+   Team View Active - AG-Grid Styling
+   Use team colors for headers when viewing a team
+   ======================================== */
+
+/* Team header background - apply to ALL header containers */
+.team-view-active .ag-theme-alpine .ag-header {
+  background: linear-gradient(to right, var(--team-primary) 0%, var(--team-secondary) 100%) !important;
+}
+
+/* Header viewport (the scrollable area) */
+.team-view-active .ag-theme-alpine .ag-header-viewport {
+  background: transparent !important;
+}
+
+/* Header container */
+.team-view-active .ag-theme-alpine .ag-header-container {
+  background: transparent !important;
+}
+
+/* All header rows */
+.team-view-active .ag-theme-alpine .ag-header-row {
+  background: transparent !important;
+}
+
+/* All header cells - pinned and scrollable */
+.team-view-active .ag-theme-alpine .ag-header-cell {
+  background: transparent !important;
+  color: #ffffff !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.team-view-active .ag-theme-alpine .ag-header-cell:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Pinned header containers - make transparent so parent gradient shows through */
+.team-view-active .ag-theme-alpine .ag-pinned-left-header,
+.team-view-active .ag-theme-alpine .ag-pinned-right-header {
+  background: transparent !important;
+}
+
+/* Header cell label text color */
+.team-view-active .ag-theme-alpine .ag-header-cell-label {
+  color: #ffffff !important;
+}
+
+/* Ensure header group cells are also transparent */
+.team-view-active .ag-theme-alpine .ag-header-group-cell {
+  background: transparent !important;
+}
+
+/* Sort icons in team view */
+.team-view-active .ag-theme-alpine .ag-sort-ascending-icon,
+.team-view-active .ag-theme-alpine .ag-sort-descending-icon {
+  color: #ffffff !important;
+}
+
+/* Team row selection - use team colors */
+.team-view-active .ag-theme-alpine .ag-row-selected,
+.team-view-active .ag-theme-alpine .ag-row-selected .ag-cell,
+.team-view-active .ag-theme-alpine .ag-row-selected .ag-cell[style] {
+  background-color: var(--team-primary) !important;
+  background: var(--team-primary) !important;
+  color: #ffffff !important;
+}
+
+/* Team selection for pinned columns */
+.team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected,
+.team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell,
+.team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell[style],
+.team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .portrait-cell,
+.team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .row-number-cell {
+  background-color: var(--team-primary) !important;
+  background: var(--team-primary) !important;
+  color: #ffffff !important;
+}
+
+/* Team pinned column border */
+.team-view-active .ag-theme-alpine .ag-pinned-left-cols-container {
+  border-right: 2px solid var(--team-primary) !important;
 }

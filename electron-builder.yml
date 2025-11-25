@@ -29,6 +29,7 @@ win:
   artifactName: ${productName}-Setup-${version}.${ext}
   forceCodeSigning: false  # Disable code signing
   signAndEditExecutable: false  # Skip signing executables
+  signtoolOptions: null  # Disable signtool
   compression: normal  # Use normal compression instead of maximum for faster install
 
 nsis:

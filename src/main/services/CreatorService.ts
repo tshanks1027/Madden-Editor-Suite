@@ -2632,6 +2632,30 @@ export class CreatorService {
           }
         }
 
+        // CRITICAL: Ensure archetype is never 0 (would display as blank)
+        if (archetypeId === 0 || archetypeId === undefined || archetypeId === null) {
+          console.warn(`[CreatorService V2] ⚠️ Archetype ID is 0 for ${fullName} (${mappedPosition.name}), forcing default`);
+          archetypeId = archetypeService.getDefaultArchetypeForPosition(mappedPosition.name);
+
+          // If still 0, force a basic archetype based on position group
+          if (archetypeId === 0) {
+            // Fallback defaults by position
+            const fallbackArchetypes: Record<string, number> = {
+              'QB': 0, 'HB': 5, 'FB': 8, 'WR': 9, 'TE': 14,
+              'LT': 17, 'LG': 17, 'C': 17, 'RG': 17, 'RT': 17,
+              'LEDG': 33, 'REDG': 33, 'DT': 38,
+              'SAM': 42, 'Mike': 42, 'WILL': 42,
+              'CB': 46, 'FS': 52, 'SS': 52,
+              'K': 56, 'P': 58
+            };
+            archetypeId = fallbackArchetypes[mappedPosition.name] || 0;
+            console.warn(`[CreatorService V2] Using hardcoded fallback archetype ${archetypeId} for ${mappedPosition.name}`);
+          }
+        }
+
+        // Apply minimum rating floor to prevent 0 ratings
+        this.applyMinimumRatingFloor(maddenRatings);
+
         // Create generated player
         const generatedPlayer: GeneratedPlayer = {
           firstName,
@@ -4579,6 +4603,36 @@ export class CreatorService {
 
     // Recalculate overall after boosts
     ratings.overall = Math.max(ratings.overall, Math.min(85, Math.floor(ratings.overall * 1.05)));
+  }
+
+  /**
+   * Apply minimum rating floor to prevent 0 ratings
+   * Ensures all ratings are between 15-35 minimum
+   */
+  private applyMinimumRatingFloor(ratings: any): void {
+    // List of all rating fields to check
+    const ratingFields = [
+      'speed', 'acceleration', 'agility', 'strength', 'awareness', 'jumping',
+      'stamina', 'changeOfDirection', 'toughness', 'carrying', 'ballCarrierVision',
+      'breakTackle', 'trucking', 'stiffArm', 'spinMove', 'jukeMove',
+      'catching', 'catchInTraffic', 'spectacularCatch', 'shortRouteRunning',
+      'mediumRouteRunning', 'deepRouteRunning', 'release', 'throwPower',
+      'throwAccuracyShort', 'throwAccuracyMid', 'throwAccuracyDeep',
+      'throwOnTheRun', 'throwUnderPressure', 'playAction', 'breakSack',
+      'passBlock', 'passBlockPower', 'passBlockFinesse', 'runBlock',
+      'runBlockPower', 'runBlockFinesse', 'leadBlock', 'impactBlocking',
+      'injury', 'tackle', 'hitPower', 'powerMoves', 'finesseMoves',
+      'blockShedding', 'pursuit', 'playRecognition', 'manCoverage',
+      'zoneCoverage', 'pressCoverage', 'kickPower', 'kickAccuracy',
+      'kickReturn', 'longSnap'
+    ];
+
+    for (const field of ratingFields) {
+      if (ratings[field] !== undefined && ratings[field] === 0) {
+        // Random value between 15 and 35
+        ratings[field] = Math.floor(Math.random() * 21) + 15;
+      }
+    }
   }
 
   /**

@@ -223,6 +223,17 @@ async function saveRosterFile(filePath, players, originalData) {
     await helper.save(filePath);
 
     console.log('[RosterParser] Roster saved successfully');
+
+    // Run presentationIdFix to fix comm IDs before completing save
+    try {
+      const { presentationIdFixService } = require('../services/PresentationIdFixService');
+      console.log('[RosterParser] Running presentation ID fix...');
+      await presentationIdFixService.fixPresentationIds(filePath);
+    } catch (fixError) {
+      console.warn('[RosterParser] Presentation ID fix failed (non-fatal):', fixError.message);
+      // Continue - this is non-fatal
+    }
+
     console.log('[RosterParser] ===========================');
 
   } catch (error) {

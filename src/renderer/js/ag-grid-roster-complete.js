@@ -9,6 +9,7 @@ import {
     getLookupValue,
     TEAM_MAPPINGS
 } from '../data/field-definitions.js';
+import { FastSelectEditor } from './FastSelectEditor.js';
 
 // Team colors for row styling
 const TEAM_COLORS = {
@@ -65,7 +66,6 @@ class PortraitCellRenderer {
             height: 100%;
             cursor: pointer;
             padding: 2px;
-            background-color: #1a1a1a;
         `;
 
         const player = data;
@@ -121,9 +121,6 @@ class PortraitCellRenderer {
 }
 
 /**
- * Create AG-Grid column definitions from field definitions
- */
-/**
  * Row Number Cell Renderer - clickable row numbers for player cards
  */
 class RowNumberCellRenderer {
@@ -140,7 +137,6 @@ class RowNumberCellRenderer {
             cursor: pointer;
             font-weight: 500;
             color: #e0e0e0;
-            background: linear-gradient(90deg, #3a3a3a 0%, #2a2a2a 100%);
         `;
 
         this.eGui.textContent = (params.node.rowIndex + 1).toString();
@@ -149,15 +145,6 @@ class RowNumberCellRenderer {
         this.eGui.addEventListener('click', () => {
             const rowIndex = params.node.rowIndex;
             app.showPlayerCard(rowIndex);
-        });
-
-        // Hover effect
-        this.eGui.addEventListener('mouseenter', () => {
-            this.eGui.style.background = 'linear-gradient(90deg, #4a4a4a 0%, #3a3a3a 100%)';
-        });
-
-        this.eGui.addEventListener('mouseleave', () => {
-            this.eGui.style.background = 'linear-gradient(90deg, #3a3a3a 0%, #2a2a2a 100%)';
         });
     }
 
@@ -227,7 +214,7 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
         editable: false,
         suppressHeaderMenuButton: true,
         suppressHeaderContextMenu: true,
-        cellStyle: { padding: '2px', backgroundColor: '#1a1a1a' }
+        cellStyle: { padding: '2px' }
     });
 
     // Create columns for each field (skip empty fields)
@@ -251,6 +238,7 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
 
         const colDef = {
             headerName: displayName,
+            headerTooltip: fieldDef.display || displayName, // Full name on hover
             field: fieldName,
             editable: !fieldDef.readOnly,
             sortable: true,
@@ -260,8 +248,32 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             suppressHeaderContextMenu: true,
             // Auto-size columns based on content
             autoHeaderHeight: true,
-            wrapHeaderText: true
+            wrapHeaderText: false
         };
+
+        // Rating columns (0-99 numeric fields) - width fits 3-char header, centered
+        if (fieldDef.type === 'numeric' && fieldDef.min === 0 && fieldDef.max === 99) {
+            colDef.width = 55;
+            colDef.minWidth = 55;
+            colDef.maxWidth = 70;
+            colDef.cellStyle = { textAlign: 'center' };
+            colDef.headerClass = 'ag-header-center';
+        }
+
+        // HGT, WGT, YRS columns - same compact width, centered
+        if (fieldName === 'PHGT' || fieldName === 'PWGT' || fieldName === 'PYRP') {
+            colDef.width = 55;
+            colDef.minWidth = 55;
+            colDef.maxWidth = 70;
+            colDef.cellStyle = { textAlign: 'center' };
+            colDef.headerClass = 'ag-header-center';
+        }
+
+        // PAM column - wide enough for values like "plpo_generic_1_001"
+        if (fieldName === 'PEPS') {
+            colDef.width = 180;
+            colDef.minWidth = 150;
+        }
 
         // Pin Last Name and First Name columns to the left
         if (fieldName === 'PLNA' || fieldName === 'PFNA') {
@@ -312,8 +324,8 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
                 return false;
             };
 
-            // Use agSelectCellEditor with player names
-            colDef.cellEditor = 'agSelectCellEditor';
+            // Use FastSelectEditor with player names (replaces slow native select)
+            colDef.cellEditor = FastSelectEditor;
             colDef.cellEditorParams = {
                 values: playerNames
             };
@@ -352,8 +364,8 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
                     return display;
                 };
 
-                // Editor: Basic select with display names
-                colDef.cellEditor = 'agSelectCellEditor';
+                // Editor: FastSelectEditor with display names (replaces slow native select)
+                colDef.cellEditor = FastSelectEditor;
                 colDef.cellEditorParams = {
                     values: fieldDef.options.map(opt => opt.display)
                 };
@@ -440,6 +452,7 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
     // Grid options
     const gridOptions = {
+        theme: 'legacy', // Use legacy theming to work with ag-grid.css
         columnDefs: columnDefs,
         rowData: players,
         defaultColDef: {
@@ -447,42 +460,34 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             sortable: true,
             filter: true,
             editable: false,
-            // Apply colors based on view mode - ALL TEXT IS WHITE
+            // Only set text color - let CSS handle row backgrounds
             cellStyle: (params) => {
-                // Main page (all teams): BLACK background, WHITE text
-                // Team page (filtered): Team color background, WHITE text
+                // When filtering by team, use team colors on row backgrounds via getRowStyle
+                // Here we only set text color
                 if (!app.selectedTeamId) {
-                    // Main page - black background, WHITE text
+                    // Main page - white text
                     return {
-                        backgroundColor: '#000000',
                         color: '#FFFFFF'
                     };
                 }
-
-                // Team-filtered page - apply team colors with WHITE text
-                if (!params.data || !params.data.TGID) {
-                    return {
-                        backgroundColor: '#000000',
-                        color: '#ffa726'
-                    };
-                }
-
-                const teamAbbr = TEAM_MAPPINGS[params.data.TGID];
-                const teamColors = TEAM_COLORS[teamAbbr];
-
-                if (!teamColors) {
-                    return {
-                        backgroundColor: '#000000',
-                        color: '#ffa726'
-                    };
-                }
-
-                // Team color background with WHITE text
+                // Team-filtered page - white text
                 return {
-                    backgroundColor: teamColors.primary,
                     color: '#FFFFFF'
                 };
             }
+        },
+        // Apply row background colors based on team filter
+        getRowStyle: (params) => {
+            // When filtering by a specific team, apply team color to row background
+            if (app.selectedTeamId && params.data && params.data.TGID) {
+                const teamAbbr = TEAM_MAPPINGS[params.data.TGID];
+                const teamColors = TEAM_COLORS[teamAbbr];
+                if (teamColors) {
+                    return { backgroundColor: teamColors.primary };
+                }
+            }
+            // For main page (all teams), use default CSS row backgrounds (dark theme)
+            return null;
         },
         rowHeight: 70,
         headerHeight: 40,
@@ -490,7 +495,10 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
         rowSelection: 'single',
         suppressRowClickSelection: false,
         enableCellTextSelection: true,
-        suppressCellFocus: false,
+        suppressCellFocus: true, // Disable cell focus to prevent white highlight
+
+        // Tooltips - enableBrowserTooltips required for headerTooltip to work
+        enableBrowserTooltips: true,
 
         // Editing
         singleClickEdit: false,
@@ -525,6 +533,9 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             // Row number clicks handled separately via custom row header renderer
         },
 
+        // Selection is handled purely by CSS using .ag-row-selected class
+        // No custom onSelectionChanged handler needed
+
         onGridReady: (params) => {
             console.log('[AG-Grid] Grid ready, player count:', players.length);
             // Auto-size all columns to fit content
@@ -553,7 +564,12 @@ export function applyHeaderColors(app, container) {
     console.log('[DEBUG applyHeaderColors] app.selectedTeamId:', app.selectedTeamId);
     console.log('[DEBUG applyHeaderColors] app.filteredPlayers length:', app.filteredPlayers?.length);
 
-    const headerElements = container.querySelectorAll('.ag-header, .ag-header-row, .ag-header-viewport, .ag-header-cell');
+    // Select ALL header-related elements including pinned and scrollable containers
+    const headerElements = container.querySelectorAll(
+        '.ag-header, .ag-header-row, .ag-header-viewport, .ag-header-container, ' +
+        '.ag-header-cell, .ag-pinned-left-header, .ag-pinned-right-header, ' +
+        '.ag-header-cell-comp-wrapper, .ag-header-group-cell'
+    );
     console.log('[DEBUG applyHeaderColors] Found header elements:', headerElements.length);
 
     let bgColor, textColor;
@@ -594,24 +610,77 @@ export function applyHeaderColors(app, container) {
         }
     }
 
-    // Apply background to header elements
-    console.log('[DEBUG applyHeaderColors] Applying background color to', headerElements.length, 'elements');
-    headerElements.forEach((el, index) => {
-        el.style.backgroundColor = bgColor;
-        if (index === 0) {
-            console.log('[DEBUG applyHeaderColors] First element after bg:', el.style.backgroundColor);
-        }
-    });
+    // Inject dynamic CSS to override AG-Grid theme styles
+    // This is needed because AG-Grid's CSS variables in .ag-theme-alpine have higher specificity
+    const styleId = 'ag-grid-dynamic-header-colors';
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = styleId;
+        document.head.appendChild(styleEl);
+    }
 
-    // Apply text color to header text elements with !important
-    const headerTextElements = container.querySelectorAll('.ag-header-cell-text');
-    console.log('[DEBUG applyHeaderColors] Found header text elements:', headerTextElements.length);
-    headerTextElements.forEach((el, index) => {
-        el.style.setProperty('color', textColor, 'important');
-        if (index === 0) {
-            console.log('[DEBUG applyHeaderColors] First text element after color:', el.style.color);
+    // Use highly specific CSS rules to override the theme
+    styleEl.textContent = `
+        #rosterGrid.ag-theme-alpine .ag-header,
+        #rosterGrid.ag-theme-alpine .ag-header-viewport,
+        #rosterGrid.ag-theme-alpine .ag-header-container,
+        #rosterGrid.ag-theme-alpine .ag-header-row,
+        #rosterGrid.ag-theme-alpine .ag-header-cell,
+        #rosterGrid.ag-theme-alpine .ag-pinned-left-header,
+        #rosterGrid.ag-theme-alpine .ag-pinned-right-header,
+        #rosterGrid.ag-theme-alpine .ag-header-group-cell {
+            background-color: ${bgColor} !important;
+            background: ${bgColor} !important;
         }
-    });
+        #rosterGrid.ag-theme-alpine .ag-header-cell-text,
+        #rosterGrid.ag-theme-alpine .ag-header-cell-label {
+            color: ${textColor} !important;
+        }
+    `;
+    console.log('[DEBUG applyHeaderColors] Injected dynamic CSS with BG:', bgColor, 'Text:', textColor);
+
+    // Also set CSS variables on container as backup
+    container.style.setProperty('--ag-header-background-color', bgColor);
+    container.style.setProperty('--ag-header-foreground-color', textColor);
+
+    // Update selection colors CSS variables
+    // For team pages, use team secondary color as selection background
+    // For main page, use orange
+    let selectionBgColor, selectionTextColor;
+    if (!app.selectedTeamId) {
+        // Main page - orange selection
+        selectionBgColor = '#ffa726';
+        selectionTextColor = '#000000';
+    } else {
+        // Team page - use team secondary color for selection
+        const firstPlayer = app.filteredPlayers && app.filteredPlayers.length > 0 ? app.filteredPlayers[0] : null;
+        if (firstPlayer && firstPlayer.TGID) {
+            const teamAbbr = TEAM_MAPPINGS[firstPlayer.TGID];
+            const teamColors = TEAM_COLORS[teamAbbr];
+            if (teamColors) {
+                selectionBgColor = teamColors.secondary;
+                // Determine text color based on secondary color brightness
+                // If secondary is dark (black), use white text; if light, use black text
+                const isSecondaryDark = teamColors.secondary === '#000000' ||
+                    teamColors.secondary.toLowerCase() === '#000' ||
+                    teamColors.secondary === '#101820' ||
+                    teamColors.secondary === '#1a1a1a';
+                selectionTextColor = isSecondaryDark ? '#FFFFFF' : '#000000';
+            } else {
+                selectionBgColor = '#ffa726';
+                selectionTextColor = '#000000';
+            }
+        } else {
+            selectionBgColor = '#ffa726';
+            selectionTextColor = '#000000';
+        }
+    }
+
+    // Apply selection colors to CSS variables on the grid container
+    container.style.setProperty('--selection-bg-color', selectionBgColor);
+    container.style.setProperty('--selection-text-color', selectionTextColor);
+    console.log(`[AG-Grid] Applied selection colors - BG: ${selectionBgColor}, Text: ${selectionTextColor}`);
 
     console.log(`[AG-Grid] Applied header colors - BG: ${bgColor}, Text: ${textColor}`);
 }
