@@ -261,8 +261,9 @@ export class PlayerDataService {
 
   /**
    * Initialize all data caches
+   * Can be called externally to preload data before heavy operations
    */
-  private async initialize(): Promise<void> {
+  public async initialize(): Promise<void> {
     if (this.isInitialized) {
       return;
     }
@@ -515,13 +516,55 @@ export class PlayerDataService {
         psta: parts[31] ? parseInt(parts[31].trim()) : undefined,
         ptgh: parts[32] ? parseInt(parts[32].trim()) : undefined,
         ptrk: parts[33] ? parseInt(parts[33].trim()) : undefined,
-        // ... more ratings (simplified for brevity - include all 99 in production)
-        yearsPro: parts[58] ? parts[58].trim() : undefined,
-        fortyYd: parts[60] ? parseFloat(parts[60].trim()) : undefined,
-        draftYear: parts[68] ? parseInt(parts[68].trim()) : undefined,
-        devTrait: parts[72] ? parts[72].trim() : undefined,
-        archetypeDetailed: parts[73] ? parseInt(parts[73].trim()) : undefined,
-        av: parts[80] ? parseInt(parts[80].trim()) : undefined  // Approximate Value
+        pcod: parts[34] ? parseInt(parts[34].trim()) : undefined,
+        pbcv: parts[35] ? parseInt(parts[35].trim()) : undefined,
+        pstf: parts[36] ? parseInt(parts[36].trim()) : undefined,
+        pspm: parts[37] ? parseInt(parts[37].trim()) : undefined,
+        pjum: parts[38] ? parseInt(parts[38].trim()) : undefined,
+        pibl: parts[39] ? parseInt(parts[39].trim()) : undefined,
+        prbp: parts[40] ? parseInt(parts[40].trim()) : undefined,
+        prbf: parts[41] ? parseInt(parts[41].trim()) : undefined,
+        ppbp: parts[42] ? parseInt(parts[42].trim()) : undefined,
+        ppbf: parts[43] ? parseInt(parts[43].trim()) : undefined,
+        pldb: parts[44] ? parseInt(parts[44].trim()) : undefined,
+        pbrs: parts[45] ? parseInt(parts[45].trim()) : undefined,
+        ptup: parts[46] ? parseInt(parts[46].trim()) : undefined,
+        ppwm: parts[47] ? parseInt(parts[47].trim()) : undefined,
+        pfnm: parts[48] ? parseInt(parts[48].trim()) : undefined,
+        pbsh: parts[49] ? parseInt(parts[49].trim()) : undefined,
+        ppur: parts[50] ? parseInt(parts[50].trim()) : undefined,
+        pprc: parts[51] ? parseInt(parts[51].trim()) : undefined,
+        pmcv: parts[52] ? parseInt(parts[52].trim()) : undefined,
+        pzcv: parts[53] ? parseInt(parts[53].trim()) : undefined,
+        pspc: parts[54] ? parseInt(parts[54].trim()) : undefined,
+        pcit: parts[55] ? parseInt(parts[55].trim()) : undefined,
+        psrr: parts[56] ? parseInt(parts[56].trim()) : undefined,
+        pmrr: parts[57] ? parseInt(parts[57].trim()) : undefined,
+        pdrr: parts[58] ? parseInt(parts[58].trim()) : undefined,
+        phtp: parts[59] ? parseInt(parts[59].trim()) : undefined,
+        pprs: parts[60] ? parseInt(parts[60].trim()) : undefined,
+        prel: parts[61] ? parseInt(parts[61].trim()) : undefined,
+        ptas: parts[62] ? parseInt(parts[62].trim()) : undefined,  // Throw Accuracy Short
+        ptam: parts[63] ? parseInt(parts[63].trim()) : undefined,  // Throw Accuracy Mid
+        ptad: parts[64] ? parseInt(parts[64].trim()) : undefined,  // Throw Accuracy Deep
+        ppla: parts[65] ? parseInt(parts[65].trim()) : undefined,  // Play Action
+        ptor: parts[66] ? parseInt(parts[66].trim()) : undefined,  // Throw on Run
+        // Non-rating fields
+        birthDate: parts[67] ? parts[67].trim() : undefined,
+        yearsPro: parts[68] ? parts[68].trim() : undefined,
+        handedness: parts[69] ? parts[69].trim() : undefined,
+        fortyYd: parts[70] ? parseFloat(parts[70].trim()) : undefined,
+        vertical: parts[71] ? parseFloat(parts[71].trim()) : undefined,
+        bench: parts[72] ? parseInt(parts[72].trim()) : undefined,
+        broadJump: parts[73] ? parseFloat(parts[73].trim()) : undefined,
+        threeCone: parts[74] ? parseFloat(parts[74].trim()) : undefined,
+        shuttle: parts[75] ? parseFloat(parts[75].trim()) : undefined,
+        draftYear: parts[76] ? parseInt(parts[76].trim()) : undefined,
+        games: parts[77] ? parseInt(parts[77].trim()) : undefined,
+        gamesStarted: parts[78] ? parseInt(parts[78].trim()) : undefined,
+        av: parts[79] ? parseInt(parts[79].trim()) : undefined,  // Approximate Value
+        devTrait: parts[80] ? parts[80].trim() : undefined,
+        archetypeDetailed: parts[81] ? parseInt(parts[81].trim()) : undefined
       };
 
       // Cache by "PlayerName_Year" key for fast rookie lookup
@@ -552,6 +595,19 @@ export class PlayerDataService {
     }
 
     console.log(`[PlayerDataService] Loaded ${parsedCount} roster lookup entries`);
+    console.log(`[PlayerDataService] Cache has ${this.rosterLookupCache.size} unique keys`);
+
+    // Verify Andrew Luck 2013 is in the cache
+    const testKey = 'andrew luck_2013';
+    const testData = this.rosterLookupCache.get(testKey);
+    if (testData && testData.length > 0) {
+      console.log(`[PlayerDataService] ✅ TEST: Found "${testKey}" in cache with OVR=${testData[0].povr}`);
+    } else {
+      console.log(`[PlayerDataService] ❌ TEST: "${testKey}" NOT FOUND in cache`);
+      // Show some sample keys
+      const sampleKeys = Array.from(this.rosterLookupCache.keys()).slice(0, 10);
+      console.log(`[PlayerDataService]   Sample keys: ${sampleKeys.join(', ')}`);
+    }
   }
 
   // ===========================
@@ -608,20 +664,30 @@ export class PlayerDataService {
     const key = `${normalizedName}_${rookieSeasonYear}`;
     const stats = this.rosterLookupCache.get(key);
 
-    if (playerName === 'Joe Burrow' || playerName === 'Chase Young' || playerName.includes('Wills') || playerName.includes('Wirfs')) {
+    // Debug ALL lookups to understand what's happening
+    const isDebugPlayer = playerName.includes('Luck') || playerName.includes('Burrow') || playerName.includes('Young') || playerName.includes('Wills') || playerName.includes('Wirfs');
+
+    // Always log to console for first few lookups and debug players
+    if (isDebugPlayer || this.rosterLookupCache.size < 10) {
       console.log(`[PlayerDataService] getRookieStats lookup: "${playerName}"`);
       console.log(`[PlayerDataService]   Normalized: "${normalizedName}"`);
       console.log(`[PlayerDataService]   Draft Year: ${draftYear} -> Rookie Season: ${rookieSeasonYear}`);
       console.log(`[PlayerDataService]   Lookup Key: "${key}"`);
+      console.log(`[PlayerDataService]   Cache size: ${this.rosterLookupCache.size}`);
       console.log(`[PlayerDataService]   Found in cache: ${stats ? 'YES (' + stats.length + ' entries)' : 'NO'}`);
       if (stats && stats.length > 0) {
         console.log(`[PlayerDataService]   Returning stats - Position: ${stats[0].position}, OVR: ${stats[0].povr}`);
       } else {
         // Try to find similar keys for debugging
+        const lastName = normalizedName.split(' ')[1] || '';
         const similarKeys = Array.from(this.rosterLookupCache.keys())
-          .filter(k => k.includes(normalizedName.split(' ')[1] || ''))
-          .slice(0, 5);
-        console.log(`[PlayerDataService]   Similar keys in cache:`, similarKeys);
+          .filter(k => k.includes(lastName))
+          .slice(0, 10);
+        console.log(`[PlayerDataService]   Similar keys with "${lastName}":`, similarKeys);
+
+        // Also try the exact key we're looking for
+        const hasExactKey = this.rosterLookupCache.has(key);
+        console.log(`[PlayerDataService]   Has exact key "${key}": ${hasExactKey}`);
       }
     }
 

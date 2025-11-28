@@ -2,18 +2,18 @@
  * M26 Draft Class Parser
  *
  * Madden 26 uses a different structure from M25:
- * - 4296-byte blocks (not 4322)
- * - Variable-length JSON visual data
- * - Prospects span 1-4 blocks depending on visual data size
- * - No fixed prospect size - must scan for next prospect
+ * - 4296-byte blocks (0x10C8) per prospect
+ * - First 4096 bytes (0x1000): Visual JSON data (appearance)
+ * - Last 200 bytes (0xC8): Attribute binary data (player stats)
+ * - Fixed block structure - each prospect is exactly one block
  */
 
 const FileParser = require('./FileParser');
 const fs = require('fs');
 const path = require('path');
 
-const BLOCK_SIZE = 4296;
-const ATTRIBUTE_DATA_SIZE = 226; // 0xE2 bytes - same as M25
+const BLOCK_SIZE = 4296; // 0x10C8 - CORRECT value (was incorrectly 4322)
+const ATTRIBUTE_DATA_SIZE = 200; // 0xC8 bytes per attribute section (4296 - 4096 = 200)
 const JSON_START_MARKER = Buffer.from('{"bodyType"');
 
 /**
@@ -28,10 +28,10 @@ function parseM26Prospects(buffer, header) {
   console.log(`[M26Parser] Starting parse at offset 0x${header.dataStartOffset.toString(16)}`);
   console.log(`[M26Parser] File size: ${buffer.length} bytes`);
 
-  // M26 Structure: Each prospect occupies exactly ONE 4296-byte block
+  // M26 Structure: Each prospect occupies exactly ONE 4296-byte block (0x10C8)
+  // - First 4096 bytes (0x1000): Visual data section (JSON for appearance)
+  // - Last 200 bytes (0xC8): Attribute data section (binary player stats)
   // Attributes are ALWAYS at block_start + 0x1000 (4096 bytes)
-  // Prospects WITH visual data: JSON at block_start, attributes at block_start + 0x1000
-  // Prospects WITHOUT visual data: Empty/null at block_start, attributes at block_start + 0x1000
 
   const totalProspects = 402; // Fixed capacity in M26 files
 
@@ -93,7 +93,7 @@ function parseM26Prospects(buffer, header) {
       }
     }
 
-    // Parse attribute data (ALWAYS at +0x1000 offset)
+    // Parse attribute data (at +0x1000 offset from block start)
     const attributeData = buffer.subarray(attributeOffset, attributeOffset + ATTRIBUTE_DATA_SIZE);
     const attributes = parseM26AttributeData(attributeData);
 
@@ -136,9 +136,10 @@ function parseM26Prospects(buffer, header) {
 
 /**
  * Parse M26 attribute data (DIFFERENT structure from M25!)
- * M26 stores attributes BEFORE JSON in each 4296-byte block
+ * M26 stores attributes in the last 200 bytes of each 4296-byte block
+ * Attribute section starts at block_offset + 0x1000 (4096 bytes)
  *
- * @param {Buffer} attributeData - Attribute buffer (starts at block + 0x1000)
+ * @param {Buffer} attributeData - Attribute buffer (200 bytes, starts at block + 0x1000)
  * @returns {Object} Prospect attributes
  */
 function parseM26AttributeData(attributeData) {
@@ -170,9 +171,9 @@ function parseM26AttributeData(attributeData) {
     attributes.position = attributeData[0x4a];  // Confirmed ✓
     attributes.archetype = attributeData[0x4b] || 0;  // Confirmed ✓ (Global archetype ID 0-67)
     attributes.jerseyNum = attributeData[0x4c] || 0;  // Likely jersey or year
-    attributes.draftable = 1;  // Assumed draftable
-    attributes.draftPick = attributeData[0x4e] || 0;  // Likely pick number
-    attributes.draftRound = 0;  // Not yet found
+    attributes.draftable = attributeData[0x4d] || 1;  // Draft eligible flag
+    attributes.draftPick = attributeData[0x4e] || 0;  // Pick number within round (1-32)
+    attributes.draftRound = attributeData[0x50] || 0;  // Round number (1-7, or 63 for UDFA)
     attributes.devTrait = attributeData[0x8c] || 0;  // Confirmed ✓ (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
 
     // PID (Player ID) - stored at 0x92 as uint16LE
@@ -217,7 +218,7 @@ function parseM26AttributeData(attributeData) {
     // Throwing Attributes (QB)
     attributes.throwPower = attributeData[0x86] || 0; // CORRECT: Game reads throwPower from 0x86
     attributes.throwAccuracyShort = attributeData[0x84] || 0;
-    attributes.throwAccuracyMid = attributeData[0x82] || 0;
+    attributes.throwAccuracyMid = attributeData[0x82] || 0;  // CONFIRMED: 0x82 is TAM (original file analysis)
     attributes.throwAccuracyDeep = attributeData[0x81] || 0;
     attributes.throwOnTheRun = attributeData[0x85] || 0;
     attributes.throwUnderPressure = attributeData[0x87] || 0;
@@ -251,10 +252,10 @@ function parseM26AttributeData(attributeData) {
     attributes.kickPower = attributeData[0x64] || 0;
     attributes.kickAccuracy = attributeData[0x63] || 0;
     attributes.kickReturn = attributeData[0x65] || 0;
-    attributes.longSnap = attributeData[0x50] || 0; // CORRECT: Long snap at 0x50
+    attributes.longSnap = attributeData[0x8B] || 0; // Long snap at 0x8B (was incorrectly 0x50 which is draftRound)
 
-    // Calculate overall from speed (placeholder - should be calculated properly)
-    attributes.overall = attributes.speed || 0;
+    // Read overall rating from 0x51 (game stores OVR here)
+    attributes.overall = attributeData[0x51] || 0;
 
   } catch (error) {
     console.error('[M26Parser] Error parsing attribute data:', error.message);

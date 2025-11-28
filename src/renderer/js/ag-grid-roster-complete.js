@@ -495,7 +495,7 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
         rowSelection: 'single',
         suppressRowClickSelection: false,
         enableCellTextSelection: true,
-        suppressCellFocus: true, // Disable cell focus to prevent white highlight
+        // Note: suppressCellFocus removed to allow cell focus for copy/paste
 
         // Tooltips - enableBrowserTooltips required for headerTooltip to work
         enableBrowserTooltips: true,
@@ -510,7 +510,8 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
             // Mark file as modified
             app.hasUnsavedChanges = true;
-            app.updateSaveButton();
+            const saveBtn = document.getElementById('saveRosterBtn');
+            if (saveBtn) saveBtn.style.display = 'inline-block';
 
             // Update the original player object
             const rowIndex = event.node.rowIndex;
@@ -543,6 +544,93 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
             // Apply header colors
             applyHeaderColors(app, container);
+
+            // Copy/Paste handlers for spreadsheet-like functionality
+            document.addEventListener('keydown', (e) => {
+                // Only handle if grid container is focused or contains active element
+                if (!container.contains(document.activeElement) &&
+                    document.activeElement !== document.body) {
+                    return;
+                }
+
+                const focusedCell = params.api.getFocusedCell();
+                if (!focusedCell) return;
+
+                // Ctrl+C - Copy current cell value
+                if (e.ctrlKey && e.key === 'c' && !e.shiftKey) {
+                    const rowNode = params.api.getDisplayedRowAtIndex(focusedCell.rowIndex);
+                    if (rowNode) {
+                        const value = params.api.getValue(focusedCell.column, rowNode);
+                        if (value !== null && value !== undefined) {
+                            navigator.clipboard.writeText(String(value)).then(() => {
+                                console.log('[AG-Grid] Copied:', value);
+                            }).catch(err => console.error('[AG-Grid] Copy failed:', err));
+                        }
+                    }
+                }
+
+                // Ctrl+V - Paste (supports multi-row from spreadsheet)
+                if (e.ctrlKey && e.key === 'v' && !e.shiftKey) {
+                    e.preventDefault();
+
+                    navigator.clipboard.readText().then(text => {
+                        if (!text) return;
+
+                        // Split by newlines (handles both \n and \r\n from spreadsheets)
+                        const lines = text.split(/\r?\n/).filter(line => line !== '');
+
+                        const startRowIndex = focusedCell.rowIndex;
+                        const colId = focusedCell.column.getColId();
+                        const colDef = focusedCell.column.getColDef();
+
+                        // Only paste to editable columns
+                        if (!colDef.editable) {
+                            console.log('[AG-Grid] Column not editable:', colId);
+                            return;
+                        }
+
+                        let pastedCount = 0;
+                        const totalRows = params.api.getDisplayedRowCount();
+
+                        // Paste each line to consecutive rows
+                        lines.forEach((line, idx) => {
+                            const targetRowIndex = startRowIndex + idx;
+                            if (targetRowIndex >= totalRows) return;
+
+                            const rowNode = params.api.getDisplayedRowAtIndex(targetRowIndex);
+                            if (!rowNode) return;
+
+                            // Handle tab-separated values (take first column only for single-column paste)
+                            const value = line.split('\t')[0];
+
+                            // Update the cell
+                            rowNode.setDataValue(colId, value);
+                            pastedCount++;
+
+                            // Update the underlying player data
+                            const filteredIndex = app.paginatedPlayerIndices ?
+                                app.paginatedPlayerIndices[targetRowIndex] : targetRowIndex;
+                            const actualPlayer = app.filteredPlayers[filteredIndex];
+                            if (actualPlayer) {
+                                actualPlayer[colId] = value;
+                                const playerIndex = app.players.findIndex(p => p === actualPlayer);
+                                if (playerIndex !== -1) {
+                                    app.players[playerIndex][colId] = value;
+                                }
+                            }
+                        });
+
+                        if (pastedCount > 0) {
+                            console.log('[AG-Grid] Pasted', pastedCount, 'cells');
+                            app.hasUnsavedChanges = true;
+                            // Show the save button (no updateSaveButton method, just DOM manipulation)
+                            const saveBtn = document.getElementById('saveRosterBtn');
+                            if (saveBtn) saveBtn.style.display = 'inline-block';
+                            params.api.refreshCells({ force: true });
+                        }
+                    }).catch(err => console.error('[AG-Grid] Paste failed:', err));
+                }
+            });
         }
     };
 

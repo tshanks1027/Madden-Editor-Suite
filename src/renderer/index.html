@@ -239,6 +239,10 @@
                         <span class="tab-icon">🔄</span>
                         M25→M26 Converter
                     </button>
+                    <button class="tool-tab" data-tool="retro">
+                        <span class="tab-icon">🕰️</span>
+                        Retro Editor
+                    </button>
                 </nav>
 
                 <div class="header-right">
@@ -549,6 +553,191 @@
                                         <div id="conversionProgressBar" class="progress-fill"></div>
                                     </div>
                                     <p id="conversionProgressText" class="progress-text">Converting...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Retro Editor Tool -->
+            <div id="retro-tool" class="tool-panel">
+                <div class="creator-container">
+                    <div class="creator-header">
+                        <h2 class="creator-title">Retro Franchise Editor</h2>
+                        <p class="creator-subtitle">Configure franchise files for historical NFL seasons (1966-2025)</p>
+                    </div>
+
+                    <div id="retro-wizard-section" class="wizard-container">
+                        <!-- Message area -->
+                        <div id="retro-wizard-message" class="wizard-message" style="display: none;"></div>
+
+                        <!-- Step Indicators -->
+                        <div class="wizard-steps">
+                            <div class="retro-step-indicator active">1. Load File</div>
+                            <div class="retro-step-indicator">2. Select Year</div>
+                            <div class="retro-step-indicator">3. Preview</div>
+                            <div class="retro-step-indicator">4. Apply & Save</div>
+                        </div>
+
+                        <!-- Step 1: Load Franchise File -->
+                        <div class="wizard-step active" id="retro-wizard-step-1">
+                            <div class="step-header">
+                                <span class="step-number">1</span>
+                                <h3 class="step-title">Load Franchise File</h3>
+                            </div>
+                            <div class="step-content">
+                                <p class="step-description">Select a Madden 26 franchise file to modify for a historical season.</p>
+                                <div class="form-group">
+                                    <div style="display: flex; gap: 10px; align-items: center;">
+                                        <input type="text" id="retro-franchise-file" class="form-input" placeholder="No file selected..." readonly style="flex: 1;">
+                                        <button id="retro-select-file" class="btn btn-primary">
+                                            <span class="btn-icon">&#128194;</span>
+                                            Browse
+                                        </button>
+                                    </div>
+                                    <span class="form-hint">Select a .ft or .franchise file from your Madden 26 saves folder</span>
+                                </div>
+                                <div id="retro-file-info" class="info-box" style="display: none;">
+                                    <span class="info-icon">&#9432;</span>
+                                    <div class="info-text">
+                                        <strong>File Info:</strong>
+                                        <p id="retro-file-details"></p>
+                                    </div>
+                                </div>
+                                <div class="wizard-nav">
+                                    <button class="btn btn-primary retro-wizard-next" disabled>Next: Select Year</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Select Year -->
+                        <div class="wizard-step" id="retro-wizard-step-2" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">2</span>
+                                <h3 class="step-title">Select Target Year</h3>
+                            </div>
+                            <div class="step-content">
+                                <p class="step-description">Choose the historical season year to configure the franchise for.</p>
+                                <div class="form-group">
+                                    <label for="retro-year-select" class="form-label">Season Year:</label>
+                                    <select id="retro-year-select" class="form-input">
+                                        <option value="">Loading years...</option>
+                                    </select>
+                                    <span class="form-hint">Available seasons: 1966-2025 (Super Bowl I through Super Bowl LX)</span>
+                                </div>
+                                <div id="retro-year-info" class="info-box" style="display: none;">
+                                    <span class="info-icon">&#127942;</span>
+                                    <div class="info-text">
+                                        <strong id="retro-superbowl-label">Super Bowl Info</strong>
+                                        <p id="retro-superbowl-details"></p>
+                                    </div>
+                                </div>
+                                <div class="wizard-nav">
+                                    <button class="btn btn-secondary retro-wizard-back">Back</button>
+                                    <button class="btn btn-primary retro-wizard-next" disabled>Next: Preview Changes</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Preview Changes -->
+                        <div class="wizard-step" id="retro-wizard-step-3" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">3</span>
+                                <h3 class="step-title">Preview Changes</h3>
+                            </div>
+                            <div class="step-content">
+                                <p class="step-description">Review the changes that will be made to your franchise file.</p>
+
+                                <!-- Season Changes -->
+                                <div class="retro-preview-section">
+                                    <h4 class="retro-section-title">&#128197; Season Settings</h4>
+                                    <div id="retro-season-changes" class="retro-changes-list">
+                                        <div class="retro-change-item">
+                                            <span class="change-label">Season Year:</span>
+                                            <span id="preview-season-year" class="change-value">--</span>
+                                        </div>
+                                        <div class="retro-change-item">
+                                            <span class="change-label">Super Bowl:</span>
+                                            <span id="preview-superbowl" class="change-value">--</span>
+                                        </div>
+                                        <div class="retro-change-item">
+                                            <span class="change-label">Calendar Year:</span>
+                                            <span id="preview-calendar-year" class="change-value">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Team Changes -->
+                                <div class="retro-preview-section">
+                                    <h4 class="retro-section-title">&#127944; Team Name Changes</h4>
+                                    <div id="retro-team-changes" class="retro-changes-list">
+                                        <p class="no-changes">No team name changes for this year</p>
+                                    </div>
+                                </div>
+
+                                <!-- Draft Changes -->
+                                <div class="retro-preview-section">
+                                    <h4 class="retro-section-title">&#128203; Draft Pick Reordering</h4>
+                                    <div id="retro-draft-changes" class="retro-changes-list">
+                                        <p class="no-changes">No draft pick changes needed</p>
+                                    </div>
+                                </div>
+
+                                <div class="wizard-nav">
+                                    <button class="btn btn-secondary retro-wizard-back">Back</button>
+                                    <button class="btn btn-primary retro-wizard-next">Apply Changes</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Apply & Save -->
+                        <div class="wizard-step" id="retro-wizard-step-4" style="display: none;">
+                            <div class="step-header">
+                                <span class="step-number">4</span>
+                                <h3 class="step-title">Apply & Save</h3>
+                            </div>
+                            <div class="step-content">
+                                <div id="retro-progress-section">
+                                    <div id="retro-progress" class="generate-progress">
+                                        <div class="progress-bar">
+                                            <div id="retro-progress-bar" class="progress-fill" style="width: 0%;"></div>
+                                        </div>
+                                        <p id="retro-progress-text" class="progress-text">Ready to apply changes...</p>
+                                    </div>
+                                </div>
+
+                                <div id="retro-results-section" style="display: none;">
+                                    <div class="retro-results-box success">
+                                        <h4>&#9989; Changes Applied Successfully!</h4>
+                                        <div id="retro-results-summary" class="results-summary">
+                                            <!-- Results will be populated here -->
+                                        </div>
+                                    </div>
+                                    <div class="form-group" style="margin-top: 20px;">
+                                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                            <button id="retro-save-file-as" class="btn btn-primary btn-large">
+                                                <span class="btn-icon">&#128190;</span>
+                                                Save As New File
+                                            </button>
+                                            <button id="retro-save-file" class="btn btn-secondary btn-large">
+                                                <span class="btn-icon">&#128190;</span>
+                                                Overwrite Original
+                                            </button>
+                                        </div>
+                                        <span class="form-hint" style="margin-top: 8px; display: block;">Save As creates a new file (recommended). Overwrite replaces the original.</span>
+                                    </div>
+                                </div>
+
+                                <div id="retro-error-section" style="display: none;">
+                                    <div class="retro-results-box error">
+                                        <h4>&#10060; Error Applying Changes</h4>
+                                        <p id="retro-error-message"></p>
+                                    </div>
+                                </div>
+
+                                <div class="wizard-nav">
+                                    <button class="btn btn-secondary retro-wizard-restart">Start Over</button>
                                 </div>
                             </div>
                         </div>
@@ -1139,6 +1328,7 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
     </div>
 
     <script src="js/custom-dropdown.js"></script>
+    <script src="js/retro-editor.js"></script>
     <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -316,3 +316,221 @@
         margin-top: 8px;
     }
 }
+
+/* ==============================================
+   RETRO FRANCHISE EDITOR STYLES
+   ============================================== */
+
+/* Wizard Step Indicators */
+.wizard-steps {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.retro-step-indicator {
+    padding: 10px 20px;
+    background: #1a1a1a;
+    border: 2px solid #333;
+    border-radius: 8px;
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.retro-step-indicator.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: #667eea;
+    color: #fff;
+}
+
+.retro-step-indicator.completed {
+    background: #2a5a2a;
+    border-color: #4CAF50;
+    color: #4CAF50;
+}
+
+/* Wizard Steps Content */
+.wizard-step {
+    background: #1a1a1a;
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.step-description {
+    color: #999;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+/* Wizard Navigation */
+.wizard-nav {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #333;
+}
+
+.wizard-message {
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.wizard-message.info {
+    background: rgba(102, 126, 234, 0.1);
+    border: 1px solid #667eea;
+    color: #a5b4fc;
+}
+
+.wizard-message.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+}
+
+.wizard-message.success {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid #22c55e;
+    color: #86efac;
+}
+
+/* Retro Preview Sections */
+.retro-preview-section {
+    background: #0f0f0f;
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.retro-section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #333;
+}
+
+.retro-changes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.retro-change-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #1a1a1a;
+    border-radius: 6px;
+}
+
+.change-label {
+    color: #999;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+.change-arrow {
+    color: #667eea;
+    font-size: 16px;
+}
+
+.change-value {
+    color: #4CAF50;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.no-changes {
+    color: #666;
+    font-size: 14px;
+    font-style: italic;
+    margin: 0;
+}
+
+.inactive-teams-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.inactive-teams-list li {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+/* Results Box */
+.retro-results-box {
+    padding: 24px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+}
+
+.retro-results-box.success {
+    background: rgba(34, 197, 94, 0.1);
+    border: 2px solid #22c55e;
+}
+
+.retro-results-box.success h4 {
+    color: #22c55e;
+    margin: 0 0 16px 0;
+    font-size: 18px;
+}
+
+.retro-results-box.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 2px solid #ef4444;
+}
+
+.retro-results-box.error h4 {
+    color: #ef4444;
+    margin: 0 0 12px 0;
+    font-size: 18px;
+}
+
+.retro-results-box.error p {
+    color: #fca5a5;
+    margin: 0;
+}
+
+.results-summary {
+    color: #ccc;
+}
+
+.results-summary ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.results-summary li {
+    margin-bottom: 8px;
+    color: #a5b4fc;
+}
+
+/* Button States */
+.btn.success {
+    background: #22c55e;
+    border-color: #22c55e;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

@@ -194,5 +194,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setExePath: (exePath: string) => ipcRenderer.invoke('presentation-id-fix:set-exe-path', exePath),
     exeExists: () => ipcRenderer.invoke('presentation-id-fix:exe-exists'),
     test: (testFilePath?: string) => ipcRenderer.invoke('presentation-id-fix:test', testFilePath)
+  },
+
+  // Retro Editor APIs (Franchise file retro modifications)
+  retro: {
+    selectFile: () => ipcRenderer.invoke('retro:select-file'),
+    loadFile: (filePath: string) => ipcRenderer.invoke('retro:load-file', filePath),
+    getAvailableYears: () => ipcRenderer.invoke('retro:get-available-years'),
+    previewChanges: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:preview-changes', filePath, year),
+    setSeasonYear: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:set-season-year', filePath, year),
+    updateTeamNames: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:update-team-names', filePath, year),
+    reorderDraftPicks: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:reorder-draft-picks', filePath, year),
+    getTeamList: (filePath: string) => ipcRenderer.invoke('retro:get-team-list', filePath),
+    saveFile: (filePath: string) => ipcRenderer.invoke('retro:save-file', filePath),
+    saveFileAs: (originalPath: string) => ipcRenderer.invoke('retro:save-file-as', originalPath),
+    closeFile: (filePath: string) => ipcRenderer.invoke('retro:close-file', filePath),
+    applyAllChanges: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-all-changes', filePath, year),
+    dumpTables: (filePath: string) =>
+      ipcRenderer.invoke('retro:dump-tables', filePath),
+    debugTeamTable: (filePath: string) =>
+      ipcRenderer.invoke('retro:debug-team-table', filePath)
   }
 });

@@ -12,6 +12,7 @@ export default defineConfig({
         'sharp',
         'puppeteer',
         'papaparse',
+        'madden-franchise', // ESM module needs to be loaded from node_modules at runtime
         // Do NOT externalize bit-buffer, stream-parser - they need to be bundled
         // so they're available when RosterParser.js requires them at runtime
       ],
@@ -140,6 +141,24 @@ export default defineConfig({
               const destFile = path.join(destTemplatesDir, file);
               copyFileSync(srcFile, destFile);
               console.log(`Copied template file: ${file}`);
+            });
+          }
+
+          // Copy retro directory (historical team data for retro franchise editor)
+          const srcRetroDir = path.join(srcDataDir, 'retro');
+          const destRetroDir = path.join(destDataDir, 'retro');
+          if (existsSync(srcRetroDir)) {
+            if (!existsSync(destRetroDir)) {
+              mkdirSync(destRetroDir, { recursive: true });
+            }
+            const retroFiles = fs.readdirSync(srcRetroDir);
+            retroFiles.forEach(file => {
+              if (file.endsWith('.json')) {
+                const srcFile = path.join(srcRetroDir, file);
+                const destFile = path.join(destRetroDir, file);
+                copyFileSync(srcFile, destFile);
+                console.log(`Copied retro data file: ${file}`);
+              }
             });
           }
         }

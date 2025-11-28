@@ -2,15 +2,17 @@
  * M26 Draft Class Writer
  *
  * Writes prospect data to M26 draft class binary format
- * Supports both editing existing files and creating new M26 files
+ * M26 block structure: 4296 bytes (0x10C8) per prospect
+ * - First 4096 bytes (0x1000): Visual JSON data (appearance)
+ * - Last 200 bytes (0xC8): Attribute binary data (player stats)
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const BLOCK_SIZE = 4296;
-const ATTRIBUTE_DATA_SIZE = 226; // 0xE2 bytes
-const ATTRIBUTE_OFFSET = 0x1000; // 4096 bytes into each block
+const BLOCK_SIZE = 4296; // 0x10C8 - CORRECT value (was incorrectly 4322)
+const ATTRIBUTE_DATA_SIZE = 200; // 0xC8 bytes per attribute section (4296 - 4096 = 200)
+const ATTRIBUTE_OFFSET = 0x1000; // 4096 bytes into each block (visual section size)
 
 /**
  * Write M26 draft class file
@@ -23,24 +25,48 @@ function writeM26DraftClass(originalBuffer, prospects, header) {
   // Create a copy of the original buffer to preserve all unchanged data
   const modifiedBuffer = Buffer.from(originalBuffer);
 
+  console.log(`[M26Writer] ====================================`);
   console.log(`[M26Writer] Writing ${prospects.length} prospects`);
   console.log(`[M26Writer] dataStartOffset: 0x${header.dataStartOffset.toString(16)}`);
+  console.log(`[M26Writer] Buffer size: ${originalBuffer.length} bytes`);
 
-  // Debug first 3 prospects
-  for (let i = 0; i < Math.min(3, prospects.length); i++) {
+  // IMPORTANT: The game determines draft order by BLOCK POSITION in the file
+  // Block 0 = Pick 1, Block 1 = Pick 2, etc.
+  // The draftPick field at 0x4e is for "pick within round" (1-32), NOT overall pick
+  //
+  // DO NOT SORT - write prospects in the exact order they appear in the grid
+  // The frontend sends them in grid display order, which IS the draft order
+  const sortedProspects = prospects; // Use array as-is, no sorting
+
+  console.log(`[M26Writer] Writing prospects in grid order (block position = draft order)`);
+  console.log(`[M26Writer] First 5 prospects to write:`);
+  for (let i = 0; i < Math.min(5, sortedProspects.length); i++) {
+    console.log(`  Block ${i} (Pick ${i+1}): ${sortedProspects[i].firstName} ${sortedProspects[i].lastName}`);
+  }
+
+  // Debug first 5 prospects with full data
+  for (let i = 0; i < Math.min(5, sortedProspects.length); i++) {
     console.log(`[M26Writer] Prospect #${i + 1} received:`);
-    console.log(`  firstName: ${prospects[i].firstName}`);
-    console.log(`  lastName: ${prospects[i].lastName}`);
-    console.log(`  PEPS: ${prospects[i].PEPS}`);
-    console.log(`  bodyType: ${prospects[i].bodyType}`);
+    console.log(`  firstName: ${sortedProspects[i].firstName}`);
+    console.log(`  lastName: ${sortedProspects[i].lastName}`);
+    console.log(`  position: ${sortedProspects[i].position}`);
+    console.log(`  speed: ${sortedProspects[i].speed}`);
+    console.log(`  throwPower: ${sortedProspects[i].throwPower}`);
+    console.log(`  awareness: ${sortedProspects[i].awareness}`);
+    console.log(`  PEPS: ${sortedProspects[i].PEPS}`);
+    console.log(`  bodyType: ${sortedProspects[i].bodyType}`);
+    console.log(`  college: ${sortedProspects[i].college}`);
+    console.log(`  age: ${sortedProspects[i].age}`);
+    console.log(`  heightInches: ${sortedProspects[i].heightInches}`);
+    console.log(`  weight: ${sortedProspects[i].weight}`);
   }
 
   let prospectsWritten = 0;
   let prospectsSkipped = 0;
   let prospectsWithoutPEPS = 0;
 
-  for (let i = 0; i < prospects.length; i++) {
-    const prospect = prospects[i];
+  for (let i = 0; i < sortedProspects.length; i++) {
+    const prospect = sortedProspects[i];
     const blockStart = header.dataStartOffset + (i * BLOCK_SIZE);
     const attributeOffset = blockStart + ATTRIBUTE_OFFSET;
 
@@ -52,8 +78,8 @@ function writeM26DraftClass(originalBuffer, prospects, header) {
       break;
     }
 
-    // Write attribute data for this prospect
-    writeM26AttributeData(modifiedBuffer, attributeOffset, prospect);
+    // Write attribute data for this prospect at blockStart + 0x1000
+    writeM26AttributeData(modifiedBuffer, attributeOffset, prospect, i);
 
     // Update visual JSON if PEPS or bodyType were modified
     const hasPEPS = prospect.PEPS !== undefined && prospect.PEPS !== null;
@@ -72,10 +98,26 @@ function writeM26DraftClass(originalBuffer, prospects, header) {
   }
 
   console.log(`[M26Writer] === WRITE SUMMARY ===`);
-  console.log(`[M26Writer] Total prospects received: ${prospects.length}`);
+  console.log(`[M26Writer] Total prospects received: ${sortedProspects.length}`);
   console.log(`[M26Writer] Prospects with PEPS/bodyType written: ${prospectsWritten}`);
   console.log(`[M26Writer] Prospects without PEPS/bodyType: ${prospectsWithoutPEPS}`);
   console.log(`[M26Writer] Prospects skipped (file size): ${prospectsSkipped}`);
+
+  // VERIFICATION: Read back first 5 prospects to confirm data was written
+  console.log(`[M26Writer] VERIFICATION - Reading back first 5 prospects from buffer:`);
+  for (let v = 0; v < Math.min(5, sortedProspects.length); v++) {
+    const blockVStart = header.dataStartOffset + (v * BLOCK_SIZE);
+    const attrVOffset = blockVStart + 0x1000; // Attribute section at block + 0x1000
+    const firstNameV = modifiedBuffer.toString('ascii', attrVOffset, attrVOffset + 0x11).replace(/\0/g, '').trim();
+    const lastNameV = modifiedBuffer.toString('ascii', attrVOffset + 0x11, attrVOffset + 0x26).replace(/\0/g, '').trim();
+    const positionV = modifiedBuffer[attrVOffset + 0x4a];
+    const draftPickV = modifiedBuffer[attrVOffset + 0x4e];
+    const speedV = modifiedBuffer[attrVOffset + 0x7B];
+
+    console.log(`[M26Writer]   Prospect #${v + 1}: ${firstNameV} ${lastNameV} | pos=${positionV} | draftPick=${draftPickV} | spd=${speedV}`);
+    console.log(`[M26Writer]   EXPECTED: ${sortedProspects[v].firstName} ${sortedProspects[v].lastName} | draftPick=${sortedProspects[v].draftPick}`);
+  }
+
   console.log(`[M26Writer] Write complete`);
   return modifiedBuffer;
 }
@@ -85,17 +127,38 @@ function writeM26DraftClass(originalBuffer, prospects, header) {
  * @param {Buffer} buffer - File buffer to write to
  * @param {number} offset - Offset where attribute data starts
  * @param {Object} prospect - Prospect data
+ * @param {number} prospectIndex - Index of this prospect in the array (0-based)
  */
-function writeM26AttributeData(buffer, offset, prospect) {
-  // Debug logging for first prospect
-  const prospectIndex = (offset - 0x1046) / 4296;
-  if (prospectIndex === 0) {
-    console.log('[M26Writer] Writing first prospect:');
+function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
+  // Debug logging for first 3 prospects - comprehensive attribute dump
+  if (prospectIndex < 3) {
+    console.log(`\n[M26Writer] === WRITING PROSPECT ${prospectIndex + 1}: ${prospect.firstName} ${prospect.lastName} ===`);
+    console.log('[M26Writer] CRITICAL - Overall Rating:');
+    console.log(`  overall: ${prospect.overall} <-- THIS IS WHAT GETS WRITTEN TO 0x51`);
+    console.log('[M26Writer] All QB-related properties:');
+    console.log(`  speed: ${prospect.speed}`);
+    console.log(`  acceleration: ${prospect.acceleration}`);
+    console.log(`  awareness: ${prospect.awareness}`);
     console.log(`  throwPower: ${prospect.throwPower}`);
+    console.log(`  throwAccuracyDeep: ${prospect.throwAccuracyDeep}`);
+    console.log(`  throwAccuracyMid: ${prospect.throwAccuracyMid}`);
+    console.log(`  throwAccuracyShort: ${prospect.throwAccuracyShort}`);
+    console.log(`  throwOnTheRun: ${prospect.throwOnTheRun}`);
+    console.log(`  throwUnderPressure: ${prospect.throwUnderPressure}`);
+    console.log(`  position: ${prospect.position}`);
     console.log(`  injury: ${prospect.injury}`);
-    console.log(`  jerseyNum: ${prospect.jerseyNum}`);
     console.log(`  PEPS: ${prospect.PEPS}`);
     console.log(`  bodyType: ${prospect.bodyType}`);
+
+    // Also log keys to see what properties exist
+    const keys = Object.keys(prospect);
+    console.log(`[M26Writer] Prospect has ${keys.length} properties`);
+    // Log rating-related keys
+    const ratingKeys = keys.filter(k =>
+      k.includes('throw') || k.includes('speed') || k.includes('acceleration') ||
+      k.includes('awareness') || k.includes('PSPD') || k.includes('PTAD') || k.includes('PTHP')
+    );
+    console.log(`[M26Writer] Rating-related keys: ${ratingKeys.join(', ')}`);
   }
 
   // String fields (first name and last name)
@@ -128,10 +191,42 @@ function writeM26AttributeData(buffer, offset, prospect) {
   if (prospect.heightInches !== undefined) buffer[offset + 0x47] = prospect.heightInches;
   if (prospect.weight !== undefined) buffer[offset + 0x48] = Math.max(0, prospect.weight - 160);
   if (prospect.position !== undefined) buffer[offset + 0x4a] = prospect.position;
+  if (prospect.archetype !== undefined) buffer[offset + 0x4b] = prospect.archetype;
   if (prospect.jerseyNum !== undefined) buffer[offset + 0x4c] = prospect.jerseyNum;
+
+  // Draft order fields - preserve values from original file
+  // M26 structure: 0x4d = draftable flag
+  //                0x4e = pick number within round (1-32 for drafted)
+  //                0x50 = round number (1-7 for drafted, 63 for UDFA)
+  if (prospect.draftable !== undefined) buffer[offset + 0x4d] = prospect.draftable;
+  if (prospect.draftPick !== undefined && prospect.draftPick !== null) {
+    buffer[offset + 0x4e] = prospect.draftPick;
+  }
+  if (prospect.draftRound !== undefined && prospect.draftRound !== null) {
+    buffer[offset + 0x50] = prospect.draftRound;
+  }
+
+  // Also log details for first 10 prospects
+  if (prospectIndex < 10) {
+    console.log(`[M26Writer] === WRITING PROSPECT ${prospectIndex} ===`);
+    console.log(`  Block: ${prospectIndex}, Offset: 0x${offset.toString(16)}`);
+    console.log(`  Name: ${prospect.firstName} ${prospect.lastName}`);
+    console.log(`  draftPick being written: ${prospect.draftPick}`);
+  }
+
   if (prospect.devTrait !== undefined) buffer[offset + 0x8c] = prospect.devTrait;
   if (prospect.PID !== undefined) buffer.writeUInt16LE(prospect.PID, offset + 0x92);
   // PEPS is stored in visuals JSON, not in binary attributes
+
+  // Write Overall Rating to 0x51
+  // The game uses this for display AND calculation verification
+  // If prospect.overall is provided, write it; otherwise calculate from ratings
+  if (prospect.overall !== undefined && prospect.overall !== null) {
+    buffer[offset + 0x51] = Math.max(0, Math.min(99, prospect.overall));
+    if (prospectIndex < 3) {
+      console.log(`[M26Writer] Writing OVR ${prospect.overall} to offset 0x51`);
+    }
+  }
 
   // Write all ratings using the correct M26 byte offsets
   // Core Physical Attributes
@@ -167,7 +262,7 @@ function writeM26AttributeData(buffer, offset, prospect) {
   // Throwing Attributes (QB)
   if (prospect.throwPower !== undefined) buffer[offset + 0x86] = prospect.throwPower; // CORRECT: Game reads throwPower from 0x86
   if (prospect.throwAccuracyShort !== undefined) buffer[offset + 0x84] = prospect.throwAccuracyShort;
-  if (prospect.throwAccuracyMid !== undefined) buffer[offset + 0x82] = prospect.throwAccuracyMid;
+  if (prospect.throwAccuracyMid !== undefined) buffer[offset + 0x82] = prospect.throwAccuracyMid;  // CONFIRMED: 0x82 is TAM (original file analysis)
   if (prospect.throwAccuracyDeep !== undefined) buffer[offset + 0x81] = prospect.throwAccuracyDeep;
   if (prospect.throwOnTheRun !== undefined) buffer[offset + 0x85] = prospect.throwOnTheRun;
   if (prospect.throwUnderPressure !== undefined) buffer[offset + 0x87] = prospect.throwUnderPressure;
@@ -239,7 +334,7 @@ function writeM26AttributeData(buffer, offset, prospect) {
  * Update visual JSON data in the buffer
  * Handles updating PEPS (genericHeadName) and bodyType fields
  * @param {Buffer} buffer - File buffer to write to
- * @param {number} blockStart - Start offset of the 4296-byte block
+ * @param {number} blockStart - Start offset of the 4296-byte block (0x10C8)
  * @param {Object} prospect - Prospect data with PEPS and/or bodyType
  */
 function updateM26VisualJSON(buffer, blockStart, prospect) {

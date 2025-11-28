@@ -186,10 +186,51 @@ export class DraftClassService {
           throw new Error('Cannot save M26 file - original buffer not found');
         }
 
+        // CRITICAL FIX: Ensure _originalBuffer is a proper Buffer
+        // When passed through IPC, Buffer objects get serialized as objects with numeric keys
+        // Convert back to Buffer if necessary
+        let originalBuffer = draftClassData._originalBuffer;
+        if (!(originalBuffer instanceof Buffer)) {
+          console.log('[DraftClassService] Converting serialized buffer back to Buffer');
+          console.log('[DraftClassService]   Original type:', typeof originalBuffer);
+          console.log('[DraftClassService]   Is array:', Array.isArray(originalBuffer));
+          console.log('[DraftClassService]   Has data property:', originalBuffer?.data !== undefined);
+          console.log('[DraftClassService]   Has type property:', originalBuffer?.type);
+
+          if (originalBuffer?.type === 'Buffer' && Array.isArray(originalBuffer?.data)) {
+            // Node.js Buffer serialized format: { type: 'Buffer', data: [...] }
+            originalBuffer = Buffer.from(originalBuffer.data);
+            console.log('[DraftClassService]   Converted from {type:Buffer,data:[]} format');
+          } else if (Array.isArray(originalBuffer)) {
+            // Plain array of bytes
+            originalBuffer = Buffer.from(originalBuffer);
+            console.log('[DraftClassService]   Converted from array format');
+          } else if (typeof originalBuffer === 'object') {
+            // Object with numeric keys (Electron IPC serialization)
+            const values = Object.values(originalBuffer);
+            originalBuffer = Buffer.from(values as number[]);
+            console.log('[DraftClassService]   Converted from object-with-numeric-keys format');
+          }
+          console.log('[DraftClassService]   Final buffer length:', originalBuffer?.length);
+        }
+
+        // Ensure header has dataStartOffset (required by M26Writer)
+        const header = draftClassData.header;
+        if (header.dataStartOffset === undefined) {
+          console.warn('[DraftClassService] header.dataStartOffset is missing! Setting to 0x46');
+          header.dataStartOffset = 0x46; // M26 default
+        }
+
+        console.log('[DraftClassService] Writing M26 draft class:');
+        console.log('[DraftClassService]   Buffer length:', originalBuffer?.length);
+        console.log('[DraftClassService]   Prospects count:', draftClassData.prospects?.length);
+        console.log('[DraftClassService]   header.dataStartOffset:', header.dataStartOffset);
+        console.log('[DraftClassService]   First prospect:', draftClassData.prospects?.[0]?.firstName, draftClassData.prospects?.[0]?.lastName);
+
         buffer = writeM26DraftClass(
-          draftClassData._originalBuffer,
+          originalBuffer,
           draftClassData.prospects,
-          draftClassData.header
+          header
         );
 
       } else {

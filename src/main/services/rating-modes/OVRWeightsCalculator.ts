@@ -2,9 +2,26 @@
  * OVR Weights Calculator
  *
  * Calculates Overall Rating using the official Madden archetype-based formulas
- * from ovrweights.json. Formula: OVR = Sum(attribute * weight) / 10
- * where weights sum to 10 for each archetype.
+ * from ovrweights.json.
+ *
+ * OVR Formula: Sum(attribute * weight) / divisor
+ *   - Roster/Franchise files: divisor = 10 (legacy compatibility)
+ *   - Draft class files: divisor = 11 (verified against M24 real data)
+ *
+ * Validated against 2368 Madden 24 roster players:
+ *   - Divisor 11: avg error 3.81 pts, 51 archetype categories better
+ *   - Divisor 10: avg error 7.47 pts, 12 archetype categories better
+ *
+ * The game recalculates OVR from attributes when loading, ignoring stored values.
  */
+
+// Divisors for different file types
+// Verified against Madden 24 roster data (2368 players):
+// - LE Speed Rushers: Div 11 avg error 2.2 vs Div 10 avg error 6.4
+// - CB Man-to-Man: Div 11 avg error 2.7 vs Div 10 avg error 8.3
+// - Average needed divisor across all positions: ~11
+const ROSTER_DIVISOR = 10;      // Standard roster/franchise files (for legacy compatibility)
+const DRAFT_CLASS_DIVISOR = 11; // Draft class files - verified against M24 real data
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -78,6 +95,110 @@ const POSITION_ID_TO_NAME: { [key: number]: string } = {
   0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
   8: 'RG', 9: 'RT', 10: 'LE', 11: 'RE', 12: 'DT', 13: 'LOLB', 14: 'MLB',
   15: 'ROLB', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+};
+
+// Mapping from global archetype ID (0-67) to OVRWeights formula name
+// The game uses these IDs at offset 0x4b in draft class files
+const ARCHETYPE_ID_TO_FORMULA: { [key: number]: string } = {
+  // QB Archetypes (0-4)
+  0: 'QB_FieldGeneral',
+  1: 'QB_StrongArm',
+  2: 'QB_Improviser',
+  3: 'QB_Scrambler',
+  4: 'QB_Scrambler',  // Pure Scrambler uses Scrambler formula
+
+  // HB Archetypes (5-11)
+  5: 'HB_PowerBack',
+  6: 'HB_ElusiveBack',
+  7: 'HB_ReceivingBack',
+  8: 'HB_PowerBack',  // Power Blocking
+  9: 'HB_ReceivingBack',  // Power Receiving
+  10: 'HB_ElusiveBack',  // Elusive Power
+  11: 'HB_ReceivingBack',  // Elusive Receiving
+
+  // FB Archetypes (12-13)
+  12: 'FB_Blocking',
+  13: 'FB_Utility',
+
+  // WR Archetypes (14-21)
+  14: 'WR_DeepThreat',
+  15: 'WR_Playmaker',
+  16: 'WR_Physical',  // Physical Route Runner
+  17: 'WR_Slot',  // Shifty Route Runner
+  18: 'WR_Physical',  // Physical Blocker
+  19: 'WR_Slot',  // Gadget Receiver
+  20: 'WR_Physical',
+  21: 'WR_Slot',
+
+  // TE Archetypes (22-26)
+  22: 'TE_Blocking',
+  23: 'TE_VerticalThreat',
+  24: 'TE_Possession',  // Physical Route Runner
+  25: 'TE_Blocking',  // Possession Blocking
+  26: 'TE_Possession',
+
+  // C Archetypes (27-30)
+  27: 'C_PassProtector',
+  28: 'C_Power',
+  29: 'C_Agile',  // Well-Rounded
+  30: 'C_Agile',
+
+  // OT Archetypes (31-34)
+  31: 'OT_PassProtector',
+  32: 'OT_Power',
+  33: 'OT_Agile',  // Well-Rounded
+  34: 'OT_Agile',
+
+  // G Archetypes (35-38)
+  35: 'G_PassProtector',
+  36: 'G_Agile',  // Well-Rounded
+  37: 'G_Power',
+  38: 'G_Agile',
+
+  // DE Archetypes (39-42)
+  39: 'DE_SmallerSpeedRusher',
+  40: 'DE_PowerRusher',
+  41: 'DE_PowerRusher',  // Pure Power
+  42: 'DE_RunStopper',
+
+  // DT Archetypes (43-46)
+  43: 'DT_RunStopper',  // Nose Tackle
+  44: 'DT_PowerRusher',  // Pure Power
+  45: 'DT_SpeedRusher',
+  46: 'DT_PowerRusher',
+
+  // OLB Archetypes (47-50)
+  47: 'OLB_SpeedRusher',
+  48: 'OLB_PowerRusher',
+  49: 'OLB_PassCoverage',
+  50: 'OLB_RunStopper',
+
+  // MLB Archetypes (51-53)
+  51: 'MLB_FieldGeneral',
+  52: 'MLB_PassCoverage',
+  53: 'MLB_RunStopper',
+
+  // CB Archetypes (54-57)
+  54: 'CB_MantoMan',
+  55: 'CB_Slot',
+  56: 'CB_Zone',
+  57: 'CB_MantoMan',  // Hybrid Corner
+
+  // S Archetypes (58-60)
+  58: 'S_Zone',
+  59: 'S_Hybrid',
+  60: 'S_RunSupport',
+
+  // Special Teams Archetypes (61-66)
+  61: 'KP_Accurate',
+  62: 'KP_Power',
+  63: 'KP_Accurate',  // KR Balanced - use default
+  64: 'KP_Accurate',  // PR Balanced - use default
+  65: 'C_Power',  // LS Power - use Center formula
+  66: 'C_PassProtector',  // LS Accurate - use Center formula
+
+  // Gadget (67)
+  67: 'WR_Slot'  // Gadget - use Slot WR formula
 };
 
 // Map position names to JSON position names
@@ -239,13 +360,24 @@ export class OVRWeightsCalculator {
 
   /**
    * Find the best matching archetype for a player
+   * Handles both numeric archetype IDs (0-67) and string archetype names
    */
   private findArchetype(player: PlayerAttributes, jsonPos: string): string | null {
     // First, try to use the player's archetype field
     const playerArchetype = player['ARCHETYPE'] || player['Archetype'] || player['archetype'] ||
                            player['PLTY'] || player['PlayerType'];
 
-    if (playerArchetype) {
+    if (playerArchetype !== undefined && playerArchetype !== null) {
+      // Check if it's a numeric archetype ID (0-67)
+      const numericId = Number(playerArchetype);
+      if (!isNaN(numericId) && numericId >= 0 && numericId <= 67) {
+        const formulaName = ARCHETYPE_ID_TO_FORMULA[numericId];
+        if (formulaName && this.weights.has(formulaName)) {
+          console.log(`[OVRWeightsCalculator] Archetype ID ${numericId} -> Formula: ${formulaName}`);
+          return formulaName;
+        }
+      }
+
       const archetypeStr = String(playerArchetype).trim();
 
       // Check if it's already a full archetype name (e.g., "QB_FieldGeneral")
@@ -277,9 +409,10 @@ export class OVRWeightsCalculator {
    * @param attributes - Player attributes object with field codes (PSPD, PAWR, etc.)
    * @param position - Player position (string name or numeric ID)
    * @param archetype - Optional archetype override
+   * @param isDraftClass - If true, use draft class divisor (11.1), otherwise roster divisor (10)
    * @returns Calculated Overall Rating (0-99)
    */
-  calculateOVR(attributes: PlayerAttributes, position: string | number, archetype?: string): number {
+  calculateOVR(attributes: PlayerAttributes, position: string | number, archetype?: string, isDraftClass: boolean = false): number {
     if (!this.initialized) {
       console.warn('[OVRWeightsCalculator] Weights not loaded');
       return 50;
@@ -337,21 +470,25 @@ export class OVRWeightsCalculator {
       }
     }
 
-    // Divide by 10 (weights sum to 10)
-    const rawOVR = weightedSum / 10;
+    // Use appropriate divisor based on file type
+    // Draft classes use 11.1 (discovered by analyzing EA's CAREERDRAFT-2026Template)
+    // Roster/Franchise files use 10 (standard formula)
+    const divisor = isDraftClass ? DRAFT_CLASS_DIVISOR : ROSTER_DIVISOR;
+    const rawOVR = weightedSum / divisor;
 
     // Round and clamp to 0-99
     const finalOVR = Math.max(0, Math.min(99, Math.round(rawOVR)));
 
-    console.log(`[OVRWeightsCalculator] Pos: ${normalizedPos} | Archetype: ${archetypeName} | Raw: ${rawOVR.toFixed(2)} | Final: ${finalOVR}`);
+    console.log(`[OVRWeightsCalculator] Pos: ${normalizedPos} | Archetype: ${archetypeName} | Divisor: ${divisor} | Raw: ${rawOVR.toFixed(2)} | Final: ${finalOVR}`);
 
     return finalOVR;
   }
 
   /**
    * Calculate OVR with detailed breakdown
+   * @param isDraftClass - If true, use draft class divisor (11.1), otherwise roster divisor (10)
    */
-  calculateOVRWithBreakdown(attributes: PlayerAttributes, position: string | number, archetype?: string): OVRBreakdown {
+  calculateOVRWithBreakdown(attributes: PlayerAttributes, position: string | number, archetype?: string, isDraftClass: boolean = false): OVRBreakdown {
     if (!this.initialized) {
       return { ovr: 50, archetype: null, breakdown: {} };
     }
@@ -388,6 +525,9 @@ export class OVRWeightsCalculator {
       return { ovr: 50, archetype: archetypeName, breakdown: {} };
     }
 
+    // Use appropriate divisor based on file type
+    const divisor = isDraftClass ? DRAFT_CLASS_DIVISOR : ROSTER_DIVISOR;
+
     // Calculate with breakdown
     let weightedSum = 0;
     const breakdown: OVRBreakdown['breakdown'] = {};
@@ -402,12 +542,12 @@ export class OVRWeightsCalculator {
           name: attrName.replace('Rating', ''),
           value: attrValue,
           weight: weight,
-          contribution: contribution / 10 // Normalized contribution
+          contribution: contribution / divisor // Normalized contribution using correct divisor
         };
       }
     }
 
-    const rawOVR = weightedSum / 10;
+    const rawOVR = weightedSum / divisor;
     const finalOVR = Math.max(0, Math.min(99, Math.round(rawOVR)));
 
     return {
@@ -455,6 +595,71 @@ export class OVRWeightsCalculator {
    */
   getOVRAttributes(): string[] {
     return Object.values(ATTR_NAME_TO_FIELD);
+  }
+
+  /**
+   * Find the best archetype for a player based on their ratings
+   * Madden assigns the archetype that produces the HIGHEST OVR for the player's stats
+   * @param attributes - Player attributes object
+   * @param position - Player position
+   * @param isDraftClass - If true, use draft class divisor (11.1), otherwise roster divisor (10)
+   * @returns Best archetype name and calculated OVR
+   */
+  findBestArchetype(attributes: PlayerAttributes, position: string | number, isDraftClass: boolean = false): { archetype: string; ovr: number; archetypeId: number } | null {
+    if (!this.initialized) {
+      console.warn('[OVRWeightsCalculator] Weights not loaded');
+      return null;
+    }
+
+    // Normalize position
+    const normalizedPos = this.normalizePosition(position);
+    if (!normalizedPos) {
+      console.log('[OVRWeightsCalculator] Could not normalize position:', position);
+      return null;
+    }
+
+    // Map to JSON position name
+    const jsonPos = POSITION_TO_JSON_POS[normalizedPos];
+    if (!jsonPos) {
+      console.log('[OVRWeightsCalculator] No JSON position mapping for:', normalizedPos);
+      return null;
+    }
+
+    // Get all archetypes for this position
+    const archetypes = this.getArchetypesForPosition(normalizedPos);
+    if (archetypes.length === 0) {
+      console.log('[OVRWeightsCalculator] No archetypes found for position:', normalizedPos);
+      return null;
+    }
+
+    // Calculate OVR for each archetype and find the best one
+    let bestArchetype = archetypes[0];
+    let bestOVR = 0;
+
+    for (const archetype of archetypes) {
+      const ovr = this.calculateOVR(attributes, position, archetype, isDraftClass);
+      if (ovr > bestOVR) {
+        bestOVR = ovr;
+        bestArchetype = archetype;
+      }
+    }
+
+    // Find the archetype ID from the archetype name
+    let archetypeId = 0;
+    for (const [id, formulaName] of Object.entries(ARCHETYPE_ID_TO_FORMULA)) {
+      if (formulaName === bestArchetype) {
+        archetypeId = parseInt(id);
+        break;
+      }
+    }
+
+    console.log(`[OVRWeightsCalculator] Best archetype for ${normalizedPos}: ${bestArchetype} (ID: ${archetypeId}) with OVR ${bestOVR} (isDraftClass: ${isDraftClass})`);
+
+    return {
+      archetype: bestArchetype,
+      ovr: bestOVR,
+      archetypeId
+    };
   }
 }
 

@@ -74,6 +74,110 @@ const POSITION_ID_TO_NAME = {
     15: 'ROLB', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
 };
 
+// Mapping from global archetype ID (0-67) to OVRWeights formula name
+// The game uses these IDs at offset 0x4b in draft class files
+const ARCHETYPE_ID_TO_FORMULA = {
+    // QB Archetypes (0-4)
+    0: 'QB_FieldGeneral',
+    1: 'QB_StrongArm',
+    2: 'QB_Improviser',
+    3: 'QB_Scrambler',
+    4: 'QB_Scrambler',  // Pure Scrambler uses Scrambler formula
+
+    // HB Archetypes (5-11)
+    5: 'HB_PowerBack',
+    6: 'HB_ElusiveBack',
+    7: 'HB_ReceivingBack',
+    8: 'HB_PowerBack',  // Power Blocking
+    9: 'HB_ReceivingBack',  // Power Receiving
+    10: 'HB_ElusiveBack',  // Elusive Power
+    11: 'HB_ReceivingBack',  // Elusive Receiving
+
+    // FB Archetypes (12-13)
+    12: 'FB_Blocking',
+    13: 'FB_Utility',
+
+    // WR Archetypes (14-21)
+    14: 'WR_DeepThreat',
+    15: 'WR_Playmaker',
+    16: 'WR_Physical',  // Physical Route Runner
+    17: 'WR_Slot',  // Shifty Route Runner
+    18: 'WR_Physical',  // Physical Blocker
+    19: 'WR_Slot',  // Gadget Receiver
+    20: 'WR_Physical',
+    21: 'WR_Slot',
+
+    // TE Archetypes (22-26)
+    22: 'TE_Blocking',
+    23: 'TE_VerticalThreat',
+    24: 'TE_Possession',  // Physical Route Runner
+    25: 'TE_Blocking',  // Possession Blocking
+    26: 'TE_Possession',
+
+    // C Archetypes (27-30)
+    27: 'C_PassProtector',
+    28: 'C_Power',
+    29: 'C_Agile',  // Well-Rounded
+    30: 'C_Agile',
+
+    // OT Archetypes (31-34)
+    31: 'OT_PassProtector',
+    32: 'OT_Power',
+    33: 'OT_Agile',  // Well-Rounded
+    34: 'OT_Agile',
+
+    // G Archetypes (35-38)
+    35: 'G_PassProtector',
+    36: 'G_Agile',  // Well-Rounded
+    37: 'G_Power',
+    38: 'G_Agile',
+
+    // DE Archetypes (39-42)
+    39: 'DE_SmallerSpeedRusher',
+    40: 'DE_PowerRusher',
+    41: 'DE_PowerRusher',  // Pure Power
+    42: 'DE_RunStopper',
+
+    // DT Archetypes (43-46)
+    43: 'DT_RunStopper',  // Nose Tackle
+    44: 'DT_PowerRusher',  // Pure Power
+    45: 'DT_SpeedRusher',
+    46: 'DT_PowerRusher',
+
+    // OLB Archetypes (47-50)
+    47: 'OLB_SpeedRusher',
+    48: 'OLB_PowerRusher',
+    49: 'OLB_PassCoverage',
+    50: 'OLB_RunStopper',
+
+    // MLB Archetypes (51-53)
+    51: 'MLB_FieldGeneral',
+    52: 'MLB_PassCoverage',
+    53: 'MLB_RunStopper',
+
+    // CB Archetypes (54-57)
+    54: 'CB_MantoMan',
+    55: 'CB_Slot',
+    56: 'CB_Zone',
+    57: 'CB_MantoMan',  // Hybrid Corner
+
+    // S Archetypes (58-60)
+    58: 'S_Zone',
+    59: 'S_Hybrid',
+    60: 'S_RunSupport',
+
+    // Special Teams Archetypes (61-66)
+    61: 'KP_Accurate',
+    62: 'KP_Power',
+    63: 'KP_Accurate',  // KR Balanced - use default
+    64: 'KP_Accurate',  // PR Balanced - use default
+    65: 'C_Power',  // LS Power - use Center formula
+    66: 'C_PassProtector',  // LS Accurate - use Center formula
+
+    // Gadget (67)
+    67: 'WR_Slot'  // Gadget - use Slot WR formula
+};
+
 // Map position names to JSON position names
 const POSITION_TO_JSON_POS = {
     'QB': 'QB',
@@ -191,6 +295,7 @@ function normalizePosition(pos) {
 
 /**
  * Find the best matching archetype for a player
+ * Handles both numeric archetype IDs (0-67) and string archetype names
  * @param {Object} player - Player object
  * @param {string} jsonPos - Position name from JSON (e.g., 'QB', 'HB', 'OT')
  * @returns {string|null} - Archetype name or null if not found
@@ -199,7 +304,17 @@ function findArchetype(player, jsonPos) {
     // First, try to use the player's archetype field
     const playerArchetype = player.ARCHETYPE || player.Archetype || player.archetype;
 
-    if (playerArchetype && OVR_WEIGHTS) {
+    if (playerArchetype !== undefined && playerArchetype !== null && OVR_WEIGHTS) {
+        // Check if it's a numeric archetype ID (0-67)
+        const numericId = Number(playerArchetype);
+        if (!isNaN(numericId) && numericId >= 0 && numericId <= 67) {
+            const formulaName = ARCHETYPE_ID_TO_FORMULA[numericId];
+            if (formulaName && OVR_WEIGHTS[formulaName]) {
+                console.log(`[OVR] Archetype ID ${numericId} -> Formula: ${formulaName}`);
+                return formulaName;
+            }
+        }
+
         // Try exact match with archetype string
         const archetypeStr = String(playerArchetype).trim();
 

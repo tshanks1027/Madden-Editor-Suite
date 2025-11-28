@@ -2,6 +2,7 @@ import { IRatingGenerator, RatingContext, PlayerRatings } from './IRatingGenerat
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+import { ovrWeightsCalculator } from './OVRWeightsCalculator';
 
 interface TierRange {
   min: number;
@@ -93,7 +94,16 @@ export class RealisticRatingGenerator implements IRatingGenerator {
       context.position
     );
 
-    finalRatings.POVR = targetOVR;
+    // Step 8: Calculate actual OVR using the official Madden archetype-based formula
+    // Draft classes use divisor 11.1 instead of standard 10
+    if (ovrWeightsCalculator.isInitialized()) {
+      const archetype = context.careerStats?.archetype;
+      finalRatings.POVR = ovrWeightsCalculator.calculateOVR(finalRatings, context.position, archetype, true);
+      console.log(`[RealisticRatingGenerator] ${context.name}: Draft class OVR formula (divisor 11.1) = ${finalRatings.POVR} (target was ${targetOVR})`);
+    } else {
+      // Fallback to target OVR
+      finalRatings.POVR = targetOVR;
+    }
 
     return finalRatings;
   }

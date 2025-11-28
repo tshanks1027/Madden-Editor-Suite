@@ -485,9 +485,9 @@ async function loadIntoEditor() {
     homeState: player.homeState,  // Already numeric ID from CreatorService
     jerseyNum: player.jerseyNum,
 
-    // Draft info
+    // Draft info - preserve round=0 for UDFAs (don't use || which treats 0 as falsy)
     pick: player.pick !== undefined ? player.pick : index + 1,
-    round: player.round || Math.floor(index / 32) + 1,
+    round: player.round !== undefined ? player.round : Math.floor(index / 32) + 1,
 
     // Dev Trait
     devTrait: player.devTrait,

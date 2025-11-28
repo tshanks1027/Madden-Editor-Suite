@@ -12,6 +12,7 @@
 import { IRatingGenerator, RatingContext, PlayerRatings } from './IRatingGenerator';
 import { MaddenFormulaCalculator } from './MaddenFormulaCalculator';
 import { playerDataService } from '../generator/PlayerDataService';
+import { ovrWeightsCalculator } from './OVRWeightsCalculator';
 
 /**
  * Draft rating guidelines by round (OVR ranges)
@@ -90,30 +91,35 @@ export class VarianceRatingGenerator implements IRatingGenerator {
       ratings = allAttributes as PlayerRatings;
     }
 
-    // Step 5: Calculate OVR with VARIANCE MODE logic
-    // VARIANCE MODE creates draft-time ratings that reflect potential/scouting variance
-    // We DON'T want to use actual career performance because that removes all uncertainty
-    // Instead: use career/rookie data to INFORM the range, but add realistic variance
+    // Step 5: Calculate OVR using the OFFICIAL MADDEN FORMULA
+    // This ensures OVR accurately reflects the player's attributes based on their archetype
+    // The official formula uses weighted averages based on archetype-specific weights
 
-    if (context.careerStats?.wAV !== undefined && context.careerStats.wAV !== null) {
-      // Use career wAV to determine talent tier, then apply variance
-      ratings.POVR = this.calculateVarianceOVR(
-        context.careerStats.wAV,
-        context.position,
-        context.draftRound,
-        context.draftPosition,
-        context.careerStats?.archetype
-      );
+    // Get archetype for formula calculation
+    const archetype = context.careerStats?.archetype;
 
-      if (context.draftPosition && context.draftPosition <= 10) {
-        console.log(`[VarianceRatingGenerator] ${context.name}: wAV=${context.careerStats.wAV}, OVR=${ratings.POVR}, Round=${context.draftRound}, Pick=${context.draftPosition}`);
-      }
+    // Use the official Madden OVR weights calculator
+    // Draft classes use divisor 11.1 instead of standard 10
+    if (ovrWeightsCalculator.isInitialized()) {
+      ratings.POVR = ovrWeightsCalculator.calculateOVR(ratings, context.position, archetype, true);
+      console.log(`[VarianceRatingGenerator] ${context.name}: Draft class OVR formula (divisor 11.1) = ${ratings.POVR} for ${context.position}${archetype ? ` (${archetype})` : ''}`);
     } else {
-      // No performance data: use attribute-based calculation with draft caps
-      ratings.POVR = this.calculatePositionOVR(ratings, context.position);
+      // Fallback to legacy calculation if weights not loaded
+      console.warn('[VarianceRatingGenerator] OVR weights not loaded, using legacy calculation');
+      if (context.careerStats?.wAV !== undefined && context.careerStats.wAV !== null) {
+        ratings.POVR = this.calculateVarianceOVR(
+          context.careerStats.wAV,
+          context.position,
+          context.draftRound,
+          context.draftPosition,
+          archetype
+        );
+      } else {
+        ratings.POVR = this.calculatePositionOVR(ratings, context.position);
 
-      if (context.draftRound) {
-        ratings.POVR = this.applyDraftRatingCap(ratings.POVR, context.draftRound, context.draftPosition);
+        if (context.draftRound) {
+          ratings.POVR = this.applyDraftRatingCap(ratings.POVR, context.draftRound, context.draftPosition);
+        }
       }
     }
 

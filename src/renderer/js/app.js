@@ -259,7 +259,7 @@ class MaddenEditorApp {
         });
 
         document.getElementById('export-draft-json-btn').addEventListener('click', () => {
-            this.exportDraftJSON();
+            this.exportDraftCSV();
         });
 
         document.getElementById('draftRoundFilter').addEventListener('change', (e) => {
@@ -3806,8 +3806,8 @@ class MaddenEditorApp {
                 // IDs and Assets
                 PID: prospect.PID,
                 PEPS: peps,
-                // Body type is now a string from backend ("Lean", "Athletic", "Heavy", "Stocky")
-                bodyType: typeof bodyType === 'number' ? ['Lean', 'Athletic', 'Heavy', 'Stocky'][bodyType] : bodyType,
+                // Body type is now a string from backend ("Thin", "Muscular", "Heavy")
+                bodyType: typeof bodyType === 'number' ? ['Thin', 'Muscular', 'Heavy'][bodyType] : bodyType,
                 playerPic: playerPic,
 
                 // All stat fields (explicit list to avoid corruption)
@@ -3873,17 +3873,22 @@ class MaddenEditorApp {
                 index: prospects.indexOf(prospect)
             };
 
-            // Calculate round based on draft position (0-indexed, so add 1 to get pick number)
-            // 32 picks per round, rounds 1-7 (picks 1-224), rest are UFA (round 8)
-            const pickNum = rowData.draftPosition + 1; // Convert 0-indexed position to 1-indexed pick
-            if (pickNum <= 224) {
-                rowData.round = Math.floor((pickNum - 1) / 32) + 1;
+            // Use existing round if available (preserves round=0 for UDFAs)
+            // Only calculate round if not provided
+            if (prospect.round !== undefined && prospect.round !== null) {
+                rowData.round = prospect.round;
             } else {
-                rowData.round = 8; // UFA
+                // Calculate round based on draft position (0-indexed, so add 1 to get pick number)
+                // 32 picks per round, rounds 1-7 (picks 1-224), rest are UFA (round 8)
+                const pickNum = rowData.draftPosition + 1; // Convert 0-indexed position to 1-indexed pick
+                if (pickNum <= 224) {
+                    rowData.round = Math.floor((pickNum - 1) / 32) + 1;
+                } else {
+                    rowData.round = 8; // UFA
+                }
+                // Store calculated round back to original prospect
+                prospect.round = rowData.round;
             }
-
-            // IMPORTANT: Store round back to original prospect object so it persists through sorts/filters
-            prospect.round = rowData.round;
 
             return rowData;
         }));
@@ -3894,7 +3899,7 @@ class MaddenEditorApp {
         const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
         const stateOptions = getLookupOptions('states').map(opt => opt.label);
         const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
-        const bodyTypeOptions = ['Lean', 'Athletic', 'Heavy', 'Stocky'];  // Match Madden M26 format
+        const bodyTypeOptions = ['Thin', 'Muscular', 'Heavy'];  // CORRECT Madden M26 format
         // Use capitalized names for player pic autocomplete
         const playerPicOptions = Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face']);
 
@@ -4692,6 +4697,10 @@ class MaddenEditorApp {
                 // Build updated prospect object
                 const updated = {
                     ...prospect,
+                    // CRITICAL: Set draftPick based on row index (1-indexed)
+                    // The game reads prospects by block position, so block 0 = pick 1
+                    // This ensures the saved order matches the grid display order
+                    draftPick: index + 1,
                     // Convert position name to ID
                     position: getLookupOptions('positions').find(opt => opt.label === prospect.position)?.value ?? originalProspect.position,
                     // Convert college name to ID
@@ -4704,8 +4713,8 @@ class MaddenEditorApp {
                         : originalProspect.devTrait,
                     // Archetype: keep as numeric ID from original data (archetype field is display string only)
                     archetype: originalProspect.archetype,
-                    // Keep body type as string (M26Writer expects strings: "Lean", "Athletic", "Heavy", "Stocky")
-                    bodyType: ['Lean', 'Athletic', 'Heavy', 'Stocky'].includes(prospect.bodyType)
+                    // Keep body type as string (M26Writer expects strings: "Thin", "Muscular", "Heavy")
+                    bodyType: ['Thin', 'Muscular', 'Heavy'].includes(prospect.bodyType)
                         ? prospect.bodyType
                         : originalProspect.bodyType,
                     // Explicitly preserve PEPS from grid
@@ -4753,6 +4762,29 @@ class MaddenEditorApp {
             // Grid data is already in draft order (no sorting needed)
             // The order of rows in the grid IS the draft order
             console.log('[Save] Using grid order for draft class (prospects already in correct order)');
+            console.log('[Save] Total prospects to save:', updatedProspects.length);
+
+            // Log first 5 prospects with key data including QB attributes
+            for (let i = 0; i < Math.min(5, updatedProspects.length); i++) {
+                const p = updatedProspects[i];
+                console.log(`[Save] Prospect #${i + 1}: ${p.firstName} ${p.lastName}`);
+                console.log(`  position: ${p.position}`);
+                console.log(`  speed: ${p.speed}`);
+                console.log(`  awareness: ${p.awareness}`);
+                console.log(`  throwPower: ${p.throwPower}`);
+                console.log(`  throwAccuracyDeep: ${p.throwAccuracyDeep}`);
+                console.log(`  throwAccuracyMid: ${p.throwAccuracyMid}`);
+                console.log(`  throwAccuracyShort: ${p.throwAccuracyShort}`);
+                console.log(`  throwOnTheRun: ${p.throwOnTheRun}`);
+                console.log(`  throwUnderPressure: ${p.throwUnderPressure}`);
+                console.log(`  college: ${p.college}`);
+                // Log all rating-related keys
+                const ratingKeys = Object.keys(p).filter(k =>
+                  k.includes('throw') || k.includes('speed') || k.includes('acceleration') ||
+                  k.includes('awareness') || k.includes('PSPD') || k.includes('PTAD') || k.includes('PTHP')
+                );
+                console.log(`  Rating-related keys: ${ratingKeys.join(', ')}`);
+            }
 
             // Save via IPC
             // Pass complete draft class data (prevents data loss when saving over same file)
@@ -4762,6 +4794,10 @@ class MaddenEditorApp {
                 _originalBuffer: this.currentDraftClass._originalBuffer,
                 _version: this.currentDraftClass._version || 'M25'
             };
+
+            console.log('[Save] draftClassData._version:', draftClassData._version);
+            console.log('[Save] draftClassData.header:', JSON.stringify(draftClassData.header));
+            console.log('[Save] draftClassData._originalBuffer length:', draftClassData._originalBuffer?.length || 'NULL');
 
             const saveResult = await window.electronAPI.draftClass.save(
                 result.filePath,
@@ -4809,6 +4845,143 @@ class MaddenEditorApp {
         } catch (error) {
             console.error('Error exporting JSON:', error);
             this.showError(`Failed to export JSON: ${error.message}`);
+        }
+    }
+
+    async exportDraftCSV() {
+        try {
+            if (!this.draftGrid) {
+                this.showError('No draft class loaded');
+                return;
+            }
+
+            const data = this.draftGrid.getSourceData();
+            if (!data || data.length === 0) {
+                this.showError('No draft class data to export');
+                return;
+            }
+
+            // Define columns to export (excluding portrait which is a rendered column)
+            const exportColumns = [
+                { data: 'draftPosition', title: 'Draft Position' },
+                { data: 'draftRound', title: 'Round' },
+                { data: 'lastName', title: 'Last Name' },
+                { data: 'firstName', title: 'First Name' },
+                { data: 'position', title: 'Position' },
+                { data: 'archetype', title: 'Archetype' },
+                { data: 'jerseyNum', title: 'Jersey #' },
+                { data: 'college', title: 'College' },
+                { data: 'age', title: 'Age' },
+                { data: 'homeState', title: 'State' },
+                { data: 'PID', title: 'PID' },
+                { data: 'playerPic', title: 'Player Pic' },
+                { data: 'PEPS', title: 'Asset ID (PEPS)' },
+                { data: 'bodyType', title: 'Body Type' },
+                { data: 'overall', title: 'OVR' },
+                { data: 'acceleration', title: 'ACC' },
+                { data: 'agility', title: 'AGI' },
+                { data: 'awareness', title: 'AWR' },
+                { data: 'breakTackle', title: 'BTK' },
+                { data: 'ballCarrierVision', title: 'BCV' },
+                { data: 'blockShedding', title: 'BSH' },
+                { data: 'breakSack', title: 'BSK' },
+                { data: 'carrying', title: 'CAR' },
+                { data: 'catchInTraffic', title: 'CIT' },
+                { data: 'catching', title: 'CTH' },
+                { data: 'deepRouteRunning', title: 'DRR' },
+                { data: 'changeOfDirection', title: 'COD' },
+                { data: 'finesseMoves', title: 'FMV' },
+                { data: 'hitPower', title: 'POW' },
+                { data: 'impactBlocking', title: 'IBL' },
+                { data: 'injury', title: 'INJ' },
+                { data: 'jukeMove', title: 'JKM' },
+                { data: 'jumping', title: 'JMP' },
+                { data: 'kickAccuracy', title: 'KAC' },
+                { data: 'kickPower', title: 'KPW' },
+                { data: 'kickReturn', title: 'KR' },
+                { data: 'longSnap', title: 'LS' },
+                { data: 'leadBlock', title: 'LBK' },
+                { data: 'manCoverage', title: 'MCV' },
+                { data: 'mediumRouteRunning', title: 'MRR' },
+                { data: 'passBlock', title: 'PBK' },
+                { data: 'passBlockFinesse', title: 'PBF' },
+                { data: 'passBlockPower', title: 'PBS' },
+                { data: 'playAction', title: 'PAC' },
+                { data: 'powerMoves', title: 'PMV' },
+                { data: 'pressCoverage', title: 'PRS' },
+                { data: 'pursuit', title: 'PUR' },
+                { data: 'playRecognition', title: 'PRC' },
+                { data: 'release', title: 'RLS' },
+                { data: 'runBlock', title: 'RBK' },
+                { data: 'runBlockFinesse', title: 'RBF' },
+                { data: 'runBlockPower', title: 'RBS' },
+                { data: 'shortRouteRunning', title: 'SRR' },
+                { data: 'spectacularCatch', title: 'SPC' },
+                { data: 'speed', title: 'SPD' },
+                { data: 'spinMove', title: 'SPM' },
+                { data: 'stamina', title: 'STA' },
+                { data: 'stiffArm', title: 'SFA' },
+                { data: 'strength', title: 'STR' },
+                { data: 'tackle', title: 'TAK' },
+                { data: 'throwAccuracyDeep', title: 'TAD' },
+                { data: 'throwAccuracyMid', title: 'TAM' },
+                { data: 'throwAccuracyShort', title: 'TAS' },
+                { data: 'throwOnTheRun', title: 'TOR' },
+                { data: 'throwPower', title: 'THP' },
+                { data: 'throwUnderPressure', title: 'TUP' },
+                { data: 'toughness', title: 'TGH' },
+                { data: 'trucking', title: 'TRK' },
+                { data: 'zoneCoverage', title: 'ZCV' },
+                { data: 'heightInches', title: 'Height' },
+                { data: 'weight', title: 'Weight' },
+                { data: 'devTrait', title: 'Dev Trait' }
+            ];
+
+            // Build CSV content
+            const rows = [];
+
+            // Header row with friendly titles
+            rows.push(exportColumns.map(col => col.title).join(','));
+
+            // Data rows
+            for (const prospect of data) {
+                const rowData = exportColumns.map(col => {
+                    const value = prospect[col.data];
+                    // Escape values containing commas or quotes
+                    if (value === null || value === undefined) return '';
+                    const strValue = String(value);
+                    if (strValue.includes(',') || strValue.includes('"') || strValue.includes('\n')) {
+                        return `"${strValue.replace(/"/g, '""')}"`;
+                    }
+                    return strValue;
+                });
+                rows.push(rowData.join(','));
+            }
+
+            const csvContent = rows.join('\n');
+
+            // Trigger download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+
+            const fileName = this.currentDraftFilePath ?
+                this.currentDraftFilePath.replace(/^.*[\\/]/, '').replace(/\.[^.]+$/, '') + '.csv' :
+                'draft_class.csv';
+
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            this.setStatus(`Exported ${data.length} prospects to CSV`);
+            console.log(`Exported ${data.length} prospects to CSV`);
+
+        } catch (error) {
+            console.error('Error exporting draft CSV:', error);
+            this.showError(`Failed to export CSV: ${error.message}`);
         }
     }
 
@@ -5910,6 +6083,7 @@ class MaddenEditorApp {
                 firstName: player.firstName,
                 lastName: player.lastName,
                 position: player.positionCode, // Use numeric code for draft class
+                archetype: player.archetype,   // CRITICAL: Include archetype ID (0=FieldGeneral, etc.)
                 college: player.college || 'Unknown',
                 jerseyNum: player.jerseyNum,
                 age: player.age,
@@ -5935,15 +6109,16 @@ class MaddenEditorApp {
                 changeOfDirection: player.ratings.changeOfDirection || 0,
                 toughness: player.ratings.toughness || 0,
 
-                // Position-specific attributes (use || 0 for numeric fields)
-                throwPower: player.ratings.throwPower || 0,
-                throwAccuracyShort: player.ratings.throwAccuracyShort || 0,
-                throwAccuracyMid: player.ratings.throwAccuracyMid || 0,
-                throwAccuracyDeep: player.ratings.throwAccuracyDeep || 0,
-                throwOnTheRun: player.ratings.throwOnTheRun || 0,
-                throwUnderPressure: player.ratings.throwUnderPressure || 0,
-                playAction: player.ratings.playAction || 0,
-                breakSack: player.ratings.breakSack || 0,
+                // Position-specific attributes
+                // QB throwing attributes need higher defaults (they affect OVR heavily)
+                throwPower: player.ratings.throwPower || 75,
+                throwAccuracyShort: player.ratings.throwAccuracyShort || 70,
+                throwAccuracyMid: player.ratings.throwAccuracyMid || 68,
+                throwAccuracyDeep: player.ratings.throwAccuracyDeep || 65,
+                throwOnTheRun: player.ratings.throwOnTheRun || 65,
+                throwUnderPressure: player.ratings.throwUnderPressure || 65,  // CRITICAL: Was 0, caused OVR to drop 10+ points
+                playAction: player.ratings.playAction || 65,
+                breakSack: player.ratings.breakSack || 60,  // CRITICAL: Was 0, caused OVR to drop significantly
 
                 carrying: player.ratings.carrying || 0,
                 ballCarrierVision: player.ratings.ballCarrierVision || 0,

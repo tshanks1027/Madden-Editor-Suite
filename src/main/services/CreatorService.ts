@@ -59,7 +59,7 @@ export interface GeneratedPlayer {
   PID: number; // Portrait ID (0 for generic)
   PAM: string | null; // Player Asset Manager ID (same as PEPS)
   PEPS: string | null; // Player Equipment Preset (null for generic)
-  bodyType: string; // Madden body type string: "Lean", "Athletic", "Heavy", "Stocky"
+  bodyType: string; // Madden body type string: "Thin", "Muscular", "Heavy"
   yearsPro: number; // Years in the league (0 for rookies)
   archetype: string; // Player archetype (e.g., "Field General", "Scrambler")
 
@@ -357,11 +357,23 @@ export class CreatorService {
       const mappedCategory = this.mapRaceToCategory(raceData);
       if (mappedCategory > 0) {
         targetCategory = mappedCategory;
-        console.log(`[CreatorService] Using race data for "${firstName} ${lastName}": "${raceData}" -> Category ${targetCategory}`);
+        console.log(`[CreatorService] Using MASTER_LOOKUP race for "${firstName} ${lastName}": "${raceData}" -> Category ${targetCategory}`);
       }
     }
-    // Priority 2: Fall back to position-based probability (existing logic)
+    // Priority 2: Look up race from ROSTER_lookup.csv
     else {
+      const rosterRace = this.lookupPlayerRace(firstName, lastName);
+      if (rosterRace) {
+        const mappedCategory = this.mapRaceToCategory(rosterRace);
+        if (mappedCategory > 0) {
+          targetCategory = mappedCategory;
+          console.log(`[CreatorService] Using ROSTER_lookup race for "${firstName} ${lastName}": "${rosterRace}" -> Category ${targetCategory}`);
+        }
+      }
+    }
+
+    // Priority 3: Fall back to position-based probability (if no race data found)
+    if (targetCategory === 7 && !raceData && !this.lookupPlayerRace(firstName, lastName)) {
       // Simple heuristic: NFL is ~70% Black, ~25% White, ~5% other
       // Position-based distribution (rough NFL demographics):
       // - QB, K, P: More likely to be white (50%+ white)
@@ -415,13 +427,19 @@ export class CreatorService {
       const targetPortrait = `plpo_generic_${targetCategory}_${String(faceNum).padStart(3, '0')}`;
 
       // Find all PIDs that map to this portrait
+      // CSV Format: PID,Player Name,Type,Portrait,PAM
       const matchingPIDs: number[] = [];
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        const [pidStr, type, portrait] = line.split(',');
-        if (portrait && portrait.trim() === targetPortrait) {
+        const parts = line.split(',');
+        if (parts.length < 4) continue;
+
+        const pidStr = parts[0].trim();
+        const portrait = parts[3].trim();  // Portrait is column 4 (index 3)
+
+        if (portrait === targetPortrait) {
           const pid = parseInt(pidStr);
           if (!isNaN(pid)) {
             matchingPIDs.push(pid);
@@ -467,8 +485,9 @@ export class CreatorService {
    * @returns NULL (game uses PID for generic assets)
    */
   private assignGenericAsset(pid: number, raceData?: string): string | null {
-    // Look up the PID in PID_Portrait_Mapping.csv to get the portrait name
-    // Then convert the portrait name to PEPS format (GEN_X_Y_Z_NNN)
+    // Generate proper Madden genericHeadName format: gen_X_YY_ZZ_NNN
+    // Where: X=race (1-7), YY=body type code, ZZ=face variant, NNN=number
+    // Example valid formats: gen_1_B_N_010, gen_7_B_G_005, gen_7_M_MB_009
 
     try {
       const pidPortraitPath = path.join(__dirname, '../../data/lookups/PID_Portrait_Mapping.csv');
@@ -476,47 +495,155 @@ export class CreatorService {
       const lines = csvContent.split('\n');
 
       // Find the portrait for this PID
+      // CSV Format: PID,Player Name,Type,Portrait,PAM
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        const [pidStr, type, portrait] = line.split(',');
-        const linePID = parseInt(pidStr);
+        const parts = line.split(',');
+        if (parts.length < 4) continue;
+
+        const linePID = parseInt(parts[0].trim());
+        const playerName = parts[1].trim();
+        const type = parts[2].trim();       // 'generic', 'legend', or 'player'
+        const portrait = parts[3].trim();   // e.g., plpo_legends_ArringtonLavar
+        const pam = parts.length >= 5 ? parts[4].trim() : '';  // e.g., arringtonLavar_12345
 
         if (linePID === pid && portrait) {
-          const portraitName = portrait.trim();
+          // For legend/player types, prefer the PAM column if it exists
+          if ((type === 'legend' || type === 'player') && pam) {
+            console.log(`[CreatorService] ✓ Found PAM for PID ${pid} (${playerName}): "${pam}"`);
+            return pam;
+          }
 
-          // Convert portrait name to PEPS format
-          // Example: plpo_generic_2_B_S_001 -> GEN_2_B_S_001
-          // Example: plpo_generic_1_001_morphed -> GEN_1_001
+          // For legends without PAM, derive from portrait name
+          // Example: plpo_legends_ArringtonLavar -> arringtonLavar
+          if (type === 'legend' && !pam) {
+            const legendMatch = portrait.match(/plpo_legends_([A-Za-z_]+)/);
+            if (legendMatch) {
+              let derivedPam = legendMatch[1]
+                .replace(/_Profile$/, '')
+                .replace(/_/g, '');
+              derivedPam = derivedPam.charAt(0).toLowerCase() + derivedPam.slice(1);
+              console.log(`[CreatorService] ✓ Derived PAM for legend PID ${pid} (${playerName}): "${derivedPam}"`);
+              return derivedPam;
+            }
+          }
 
-          let pepsName = portraitName
-            .replace('plpo_', '')           // Remove plpo_ prefix
-            .replace('generic_', 'GEN_')    // Replace generic_ with GEN_
-            .replace('_morphed', '')        // Remove _morphed suffix
-            .toUpperCase();                 // Convert to uppercase
+          // For player types without PAM, derive from portrait name
+          if (type === 'player' && !pam) {
+            const playerMatch = portrait.match(/plpo_([A-Za-z_0-9]+)/);
+            if (playerMatch) {
+              const derivedPam = playerMatch[1];
+              console.log(`[CreatorService] ✓ Derived PAM for player PID ${pid} (${playerName}): "${derivedPam}"`);
+              return derivedPam;
+            }
+          }
 
-          console.log(`[CreatorService] ✓ Converted PID ${pid} portrait "${portraitName}" -> PEPS "${pepsName}"`);
-          return pepsName;
+          // For generic faces, generate proper genericHeadName format
+          // The portrait in CSV is simple: plpo_generic_1_001
+          // We need to generate: gen_1_B_N_010 format
+          if (type === 'generic') {
+            // Extract race category from portrait (plpo_generic_X_NNN)
+            const genericMatch = portrait.match(/plpo_generic_(\d+)_(\d+)/);
+            if (genericMatch) {
+              const race = genericMatch[1];
+              // Generate proper genericHeadName with body and face codes
+              const genericHeadName = this.generateGenericHeadName(parseInt(race));
+              console.log(`[CreatorService] ✓ Generated genericHeadName for PID ${pid} (${playerName}): "${genericHeadName}"`);
+              return genericHeadName;
+            }
+          }
         }
       }
 
-      // If no portrait found for this PID, return null
-      console.log(`[CreatorService] No portrait mapping found for PID ${pid} - returning NULL`);
-      return null;
+      // If no portrait found for this PID, generate based on race data
+      const race = this.mapRaceToCategory(raceData || '');
+      const fallbackRace = race > 0 ? race : 7; // Default to category 7
+      const genericHeadName = this.generateGenericHeadName(fallbackRace);
+      console.log(`[CreatorService] No portrait mapping for PID ${pid}, generated genericHeadName: "${genericHeadName}"`);
+      return genericHeadName;
 
     } catch (error) {
       console.error('[CreatorService] Error looking up PID portrait mapping:', error);
-      return null;
+      // Fallback to default generic head name
+      return this.generateGenericHeadName(7);
     }
   }
 
   /**
-   * Map race string from MASTER_LOOKUP to generic face category
-   * Returns category number (1-7) or 0 if unknown
+   * Generate a valid Madden genericHeadName in format: gen_X_YY_ZZ_NNN
+   * Based on patterns from working draft class files:
+   * - gen_1_B_N_010, gen_7_B_G_005, gen_7_M_MB_009
+   * @param race Race category (1-7)
+   * @returns Valid genericHeadName string
+   */
+  private generateGenericHeadName(race: number): string {
+    // Valid body codes observed in working files
+    const bodyCodes = ['B', 'BM', 'BMH', 'H', 'M'];
+    // Valid face codes observed in working files
+    const faceCodes = ['B', 'BD', 'G', 'GM', 'MB', 'N', 'S', 'M'];
+
+    // Select random body and face codes
+    const bodyCode = bodyCodes[Math.floor(Math.random() * bodyCodes.length)];
+    const faceCode = faceCodes[Math.floor(Math.random() * faceCodes.length)];
+
+    // Generate number (01-20 range, some use 001-015)
+    const useThreeDigit = Math.random() < 0.5;
+    const maxNum = useThreeDigit ? 15 : 20;
+    const num = Math.floor(Math.random() * maxNum) + 1;
+    const numStr = useThreeDigit ? String(num).padStart(3, '0') : String(num).padStart(2, '0');
+
+    const genericHeadName = `gen_${race}_${bodyCode}_${faceCode}_${numStr}`;
+    return genericHeadName;
+  }
+
+  /**
+   * Map race value from ROSTER_lookup or MASTER_LOOKUP to generic face category
+   * Handles both numeric values (from ROSTER_lookup) and string values (from MASTER_LOOKUP)
+   *
+   * ROSTER_lookup numeric values:
+   *   1 = Caucasian (Category 1) - ~30k players
+   *   2 = African American Medium (Category 7) - ~41k players (largest group)
+   *   3 = African American Light (Category 2) - ~14k players
+   *   4 = African American Dark (Category 3) - ~278 players
+   *   5 = Hispanic/Latino (Category 5) - ~510 players
+   *   6 = Mixed/Multi-Racial (Category 6) - ~8.5k players
+   *   7 = Asian (Category 6/Mixed) - ~486 players
+   *
+   * Returns category number (1-7) for generic face assignment, or 0 if unknown
    */
   private mapRaceToCategory(raceValue: string): number {
-    const normalized = raceValue.toLowerCase().trim();
+    if (!raceValue || !raceValue.trim()) return 0;
+
+    const trimmed = raceValue.trim();
+
+    // First check if it's a numeric value (from ROSTER_lookup)
+    const numericValue = parseInt(trimmed);
+    if (!isNaN(numericValue)) {
+      // Map ROSTER_lookup numeric race codes to generic face categories
+      switch (numericValue) {
+        case 1: return 1;  // Caucasian -> Category 1
+        case 2: return 7;  // African American Medium -> Category 7
+        case 3: return 2;  // African American Light -> Category 2
+        case 4: return 3;  // African American Dark -> Category 3
+        case 5: return 5;  // Hispanic/Latino -> Category 5
+        case 6: return 6;  // Mixed/Multi-Racial -> Category 6
+        case 7: return 6;  // Asian -> Category 6 (closest match)
+        default:
+          // Handle values 10-55 (variant faces within categories)
+          // These are sub-variations, map to main category
+          if (numericValue >= 10 && numericValue < 20) return 1;  // Caucasian variants
+          if (numericValue >= 20 && numericValue < 30) return 7;  // AA Medium variants
+          if (numericValue >= 30 && numericValue < 40) return 2;  // AA Light variants
+          if (numericValue >= 40 && numericValue < 50) return 3;  // AA Dark variants
+          if (numericValue >= 50 && numericValue < 60) return 5;  // Hispanic variants
+          return 7; // Default to Black-Medium (largest pool)
+      }
+    }
+
+    // Handle string values (from MASTER_LOOKUP)
+    const normalized = trimmed.toLowerCase();
 
     // African American/Black variations
     if (normalized.includes('african dark') || normalized.includes('black dark')) {
@@ -549,7 +676,92 @@ export class CreatorService {
       return 6; // Category 6: Mixed
     }
 
+    // Light/Dark skin tone variations
+    if (normalized === 'light') return 2;  // African American Light
+    if (normalized === 'dark') return 3;   // African American Dark
+
     return 0; // Unknown race
+  }
+
+  /**
+   * Cache for race data from ROSTER_lookup.csv
+   * Key: "firstname_lastname" (lowercase), Value: race code (string)
+   */
+  private rosterRaceCache?: Map<string, string>;
+
+  /**
+   * Load race data from ROSTER_lookup.csv for race-based generic face/PAM assignment
+   * ROSTER_lookup has ~100k player entries with actual Madden race codes
+   */
+  private loadRosterRaceData(): Map<string, string> {
+    if (this.rosterRaceCache) {
+      return this.rosterRaceCache;
+    }
+
+    this.rosterRaceCache = new Map<string, string>();
+
+    try {
+      const { app } = require('electron');
+      const basePath = app.isPackaged
+        ? path.join(app.getAppPath(), 'data/lookups')
+        : path.join(__dirname, '../../data/lookups');
+      const rosterPath = path.join(basePath, 'ROSTER_lookup.csv');
+
+      const csvContent = fs.readFileSync(rosterPath, 'utf-8');
+      const lines = csvContent.split('\n');
+
+      // Parse header to find column indices
+      const header = lines[0].split(',').map(h => h.trim());
+      const firstNameIdx = header.indexOf('First_Name');
+      const lastNameIdx = header.indexOf('Last_Name');
+      const raceIdx = header.indexOf('Race');
+      const pamIdx = header.indexOf('PAM');
+
+      if (firstNameIdx === -1 || lastNameIdx === -1 || raceIdx === -1) {
+        console.error('[CreatorService] ROSTER_lookup.csv missing required columns');
+        return this.rosterRaceCache;
+      }
+
+      // Parse data rows
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = line.split(',');
+        if (values.length <= Math.max(firstNameIdx, lastNameIdx, raceIdx)) continue;
+
+        const firstName = (values[firstNameIdx] || '').trim().toLowerCase();
+        const lastName = (values[lastNameIdx] || '').trim().toLowerCase();
+        const race = (values[raceIdx] || '').trim();
+        const pam = pamIdx >= 0 ? (values[pamIdx] || '').trim() : '';
+
+        if (firstName && lastName && race) {
+          const key = `${firstName}_${lastName}`;
+          // Store race (and optionally PAM for future use)
+          if (!this.rosterRaceCache.has(key)) {
+            this.rosterRaceCache.set(key, race);
+          }
+        }
+      }
+
+      console.log(`[CreatorService] Loaded ${this.rosterRaceCache.size} player race entries from ROSTER_lookup.csv`);
+    } catch (error) {
+      console.error('[CreatorService] Error loading ROSTER_lookup.csv race data:', error);
+    }
+
+    return this.rosterRaceCache;
+  }
+
+  /**
+   * Look up a player's race from ROSTER_lookup.csv
+   * @param firstName Player first name
+   * @param lastName Player last name
+   * @returns Race code string (numeric like "1", "2", etc.) or undefined if not found
+   */
+  private lookupPlayerRace(firstName: string, lastName: string): string | undefined {
+    const raceData = this.loadRosterRaceData();
+    const key = `${firstName.toLowerCase().trim()}_${lastName.toLowerCase().trim()}`;
+    return raceData.get(key);
   }
 
   /**
@@ -1586,16 +1798,16 @@ export class CreatorService {
         // Generate ratings based on selected mode
         let ratings: MaddenRatings;
 
-        if (ratingMode === 'random' || ratingMode === 'realistic') {
-          // Use rating mode factory for random or realistic modes
+        if (ratingMode === 'random' || ratingMode === 'realistic' || ratingMode === 'variance' || ratingMode === 'madden') {
+          // Use rating mode factory for all supported rating modes
           try {
-            // Debug logging for first 3 players in realistic mode
-            if (ratingMode === 'realistic' && i < 3) {
+            // Debug logging for first 3 players in realistic/madden mode
+            if ((ratingMode === 'realistic' || ratingMode === 'madden') && i < 3) {
               const fs = require('fs');
               const path = require('path');
               const { app } = require('electron');
-              const logPath = path.join(app.getPath('temp'), 'realistic-mode-debug.txt');
-              fs.appendFileSync(logPath, `\n[CreatorService] ${firstName} ${lastName}: prospect.pick=${prospect.pick}, prospect.round=${prospect.round}, typeof pick=${typeof prospect.pick}, typeof round=${typeof prospect.round}\n`);
+              const logPath = path.join(app.getPath('temp'), `${ratingMode}-mode-debug.txt`);
+              fs.appendFileSync(logPath, `\n[CreatorService] ${firstName} ${lastName}: prospect.pick=${prospect.pick}, prospect.round=${prospect.round}, draftClass=${year}, wAV=${wAV}\n`);
             }
 
             const generator = RatingModeFactory.create(ratingMode as RatingMode);
@@ -1605,11 +1817,19 @@ export class CreatorService {
               draftRound: prospect.round,
               fortyTime: prospect.fortyTime,
               age: this.calculateAge(year, prospect.round),
-              name: `${firstName} ${lastName}`
+              name: `${firstName} ${lastName}`,
+              // Include careerStats for MaddenRatingGenerator lookup
+              careerStats: {
+                draftClass: year,  // Draft year for rookie stats lookup
+                wAV: wAV || 0,
+                archetype: prospect.archetype || '',
+                height: heightInches || 0,
+                weight: weight || 0
+              }
             });
 
             // Convert from factory format to MaddenRatings format
-            ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings);
+            ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings, ratingMode);
 
             // Log first 3 players in realistic mode for debugging
             if (ratingMode === 'realistic' && i < 3) {
@@ -1992,16 +2212,16 @@ export class CreatorService {
         // Generate ratings based on selected mode
         let ratings: MaddenRatings;
 
-        if (ratingMode === 'random' || ratingMode === 'realistic') {
-          // Use rating mode factory for random or realistic modes
+        if (ratingMode === 'random' || ratingMode === 'realistic' || ratingMode === 'variance' || ratingMode === 'madden') {
+          // Use rating mode factory for all supported rating modes
           try {
-            // Debug logging for first 3 players in realistic mode
-            if (ratingMode === 'realistic' && i < 3) {
+            // Debug logging for first 3 players in realistic/madden mode
+            if ((ratingMode === 'realistic' || ratingMode === 'madden') && i < 3) {
               const fs = require('fs');
               const path = require('path');
               const { app } = require('electron');
-              const logPath = path.join(app.getPath('temp'), 'realistic-mode-debug.txt');
-              fs.appendFileSync(logPath, `\n[CreatorService-Roster] ${firstName} ${lastName}: prospect.pick=${prospect.pick}, prospect.round=${prospect.round}, typeof pick=${typeof prospect.pick}, typeof round=${typeof prospect.round}\n`);
+              const logPath = path.join(app.getPath('temp'), `${ratingMode}-mode-debug.txt`);
+              fs.appendFileSync(logPath, `\n[CreatorService-Roster] ${firstName} ${lastName}: prospect.pick=${prospect.pick}, prospect.round=${prospect.round}, draftClass=${year}, wAV=${wAV}\n`);
             }
 
             const generator = RatingModeFactory.create(ratingMode as RatingMode);
@@ -2011,11 +2231,19 @@ export class CreatorService {
               draftRound: prospect.round,
               fortyTime: prospect.fortyTime,
               age: this.calculateAge(year, prospect.round),
-              name: `${firstName} ${lastName}`
+              name: `${firstName} ${lastName}`,
+              // Include careerStats for MaddenRatingGenerator lookup
+              careerStats: {
+                draftClass: year,  // Draft year for rookie stats lookup
+                wAV: wAV || 0,
+                archetype: prospect.archetype || '',
+                height: heightInches || 0,
+                weight: weight || 0
+              }
             });
 
             // Convert from factory format to MaddenRatings format
-            ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings);
+            ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings, ratingMode);
 
             // Log first 3 players in realistic mode for debugging
             if (ratingMode === 'realistic' && i < 3) {
@@ -2576,8 +2804,16 @@ export class CreatorService {
         // Convert archetype NAME to NUMERIC ID for Madden draft class format
         let archetypeId = 0;
 
-        // Check if ArchetypeAssigner already calculated the ID (for players not in ROSTER_lookup)
-        if ((player as any).archetypeId !== undefined) {
+        // FIRST: Check if rating generator calculated the best archetype from attributes
+        // This is the most accurate method - it picks the archetype that maximizes OVR
+        if ((ratings as any).ARCHETYPE_ID !== undefined && (ratings as any).ARCHETYPE_ID > 0) {
+          archetypeId = (ratings as any).ARCHETYPE_ID;
+          if (i < 5) {
+            console.log(`[CreatorService V2] ${fullName}: Using BEST archetype ID ${archetypeId} (${(ratings as any).ARCHETYPE_NAME}) from rating generator`);
+          }
+        }
+        // SECOND: Check if ArchetypeAssigner already calculated the ID (for players not in ROSTER_lookup)
+        else if ((player as any).archetypeId !== undefined) {
           archetypeId = (player as any).archetypeId;
           if (i < 5) {
             console.log(`[CreatorService V2] ${fullName}: Using pre-calculated archetype ID ${archetypeId} from ArchetypeAssigner`);
@@ -3171,11 +3407,15 @@ export class CreatorService {
           const isNonExistentTeam = (playerStats as any)._isNonExistentTeam || false;
           let ratings: MaddenRatings;
 
-          if (ratingMode === 'random' || ratingMode === 'realistic') {
-            // Use rating mode factory for random or realistic modes
+          if (ratingMode === 'random' || ratingMode === 'realistic' || ratingMode === 'variance' || ratingMode === 'madden') {
+            // Use rating mode factory for all supported rating modes
             try {
               const generator = RatingModeFactory.create(ratingMode as RatingMode);
               const playerAge = playerStats.age || this.calculateAge(year, yearsPro);
+
+              // For roster mode with 'madden' ratings, we need the current year stats (not rookie year)
+              // The draftClass in careerStats is the draft year for rookies, but for roster players
+              // we use yearsPro to determine their experience level, and year is their current roster year
               const generatedRatings = await generator.generateRatings({
                 position: mappedPosition.name,
                 age: playerAge,
@@ -3183,11 +3423,20 @@ export class CreatorService {
                 yearsExperience: yearsPro,
                 // Roster players don't have draft position/round
                 draftPosition: undefined,
-                draftRound: undefined
+                draftRound: undefined,
+                // Include careerStats - for roster players, set draftClass to (year - yearsPro)
+                // to allow proper rookie year lookup
+                careerStats: {
+                  draftClass: yearsPro > 0 ? year - yearsPro : year,  // Calculate draft year from years of experience
+                  wAV: proRatedWAV || 0,
+                  archetype: '',
+                  height: heightInches || 0,
+                  weight: weight || 0
+                }
               });
 
               // Convert from factory format to MaddenRatings format
-              ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings);
+              ratings = this.convertFactoryRatingsToMaddenRatings(generatedRatings, ratingMode);
 
               if (debugDetail) {
                 console.log(`[CreatorService] ✅ Using ${ratingMode} mode ratings: OVR ${ratings.overall}`);
@@ -3666,6 +3915,61 @@ export class CreatorService {
   }
 
   /**
+   * Normalize QB ratings for Madden 26 OVR calculation compatibility.
+   * Historical Madden games (14-25) had different OVR formulas that didn't heavily weight
+   * PTUP (Throw Under Pressure) and PBSK (Break Sack). Madden 26 weights these significantly:
+   * - PBSK: 10% of QB Scrambler OVR
+   * - PTUP: 7% of QB Scrambler OVR
+   *
+   * This function estimates reasonable values when the CSV has suspiciously low ratings
+   * that would cause the calculated OVR to be much lower than the stored POVR.
+   */
+  private normalizeQBRatingsForM26(factoryRatings: any): any {
+    const position = String(factoryRatings.Position || factoryRatings.PPOS || '').toUpperCase();
+
+    // Only normalize for QBs
+    if (position !== 'QB' && position !== '0') {
+      return factoryRatings;
+    }
+
+    const result = { ...factoryRatings };
+
+    // Calculate average throwing accuracy as baseline
+    const throwAccAvg = Math.round(
+      ((factoryRatings.PTAS || 50) + (factoryRatings.PTAM || 50) + (factoryRatings.PTAD || 50)) / 3
+    );
+    const targetOVR = factoryRatings.POVR || 70;
+
+    // PTUP (Throw Under Pressure) - should be close to throw accuracy average for good QBs
+    // If CSV value is more than 30 points below throw accuracy average, it's likely incorrect
+    const ptup = factoryRatings.PTUP || 0;
+    if (ptup < 40 || (throwAccAvg - ptup > 30)) {
+      // Estimate based on throw accuracy with some variance
+      result.PTUP = Math.max(50, Math.min(99, throwAccAvg - 5 + Math.floor(Math.random() * 10) - 5));
+      console.log(`[CreatorService] Normalized PTUP for QB: ${ptup} -> ${result.PTUP} (based on avg throw acc: ${throwAccAvg})`);
+    }
+
+    // PBSK (Break Sack) - for mobile QBs this should be higher
+    // If CSV value is below 40, estimate based on speed/agility
+    const pbsk = factoryRatings.PBSK || factoryRatings.PBRS || 0;
+    const speedAgility = Math.round(((factoryRatings.PSPD || 70) + (factoryRatings.PAGI || 70)) / 2);
+    if (pbsk < 40 || (speedAgility - pbsk > 40)) {
+      // Estimate based on speed/agility average with variance
+      result.PBSK = Math.max(50, Math.min(95, speedAgility - 10 + Math.floor(Math.random() * 10) - 5));
+      console.log(`[CreatorService] Normalized PBSK for QB: ${pbsk} -> ${result.PBSK} (based on spd/agi avg: ${speedAgility})`);
+    }
+
+    // Also normalize awareness if it's suspiciously low for the target OVR
+    const pawr = factoryRatings.PAWR || 50;
+    if (targetOVR >= 75 && pawr < 55) {
+      result.PAWR = Math.max(60, Math.min(99, targetOVR - 15 + Math.floor(Math.random() * 10) - 5));
+      console.log(`[CreatorService] Normalized PAWR for QB: ${pawr} -> ${result.PAWR} (based on target OVR: ${targetOVR})`);
+    }
+
+    return result;
+  }
+
+  /**
    * Convert factory PlayerRatings format to MaddenRatings format
    * @param factoryRatings - Ratings from the rating generator
    * @param ratingMode - Rating mode ('madden' = use exact values, others = use defaults for missing values)
@@ -3674,25 +3978,28 @@ export class CreatorService {
     // For Madden mode, use EXACT values from CSV with NO defaults
     // This preserves the actual rookie ratings
     if (ratingMode === 'madden') {
+      // Normalize QB ratings to ensure M26 OVR calculation works correctly
+      const normalized = this.normalizeQBRatingsForM26(factoryRatings);
+
       return {
-        overall: factoryRatings.POVR,
-        speed: factoryRatings.PSPD,
-        acceleration: factoryRatings.PACC,
-        agility: factoryRatings.PAGI,
-        strength: factoryRatings.PSTR,
-        jumping: factoryRatings.PJMP,
-        stamina: factoryRatings.PSTA,
-        injury: factoryRatings.PINJ,
-        toughness: factoryRatings.PTGH,
-        awareness: factoryRatings.PAWR,
-        throwAccuracyDeep: factoryRatings.PTAD,
-        throwAccuracyMid: factoryRatings.PTAM,
-        throwAccuracyShort: factoryRatings.PTAS,
-        throwPower: factoryRatings.PTHP,
-        throwUnderPressure: factoryRatings.PTUP,
-        throwOnTheRun: factoryRatings.PTOR,
-        playAction: factoryRatings.PPLA,
-        breakSack: factoryRatings.PBSK,
+        overall: normalized.POVR,
+        speed: normalized.PSPD,
+        acceleration: normalized.PACC,
+        agility: normalized.PAGI,
+        strength: normalized.PSTR,
+        jumping: normalized.PJMP,
+        stamina: normalized.PSTA,
+        injury: normalized.PINJ,
+        toughness: normalized.PTGH,
+        awareness: normalized.PAWR,
+        throwAccuracyDeep: normalized.PTAD,
+        throwAccuracyMid: normalized.PTAM,
+        throwAccuracyShort: normalized.PTAS,
+        throwPower: normalized.PTHP,
+        throwUnderPressure: normalized.PTUP,
+        throwOnTheRun: normalized.PTOR,
+        playAction: normalized.PPLA,
+        breakSack: normalized.PBSK,
         carrying: factoryRatings.PCAR,
         ballCarrierVision: factoryRatings.PBCV,
         breakTackle: factoryRatings.PBTK,
@@ -4263,7 +4570,8 @@ export class CreatorService {
 
   /**
    * Determine body type based on position, weight, and height
-   * Returns Madden body type STRING (not integer): "Lean", "Athletic", "Heavy", "Stocky"
+   * Returns Madden body type STRING: "Thin", "Muscular", "Heavy"
+   * These are the ONLY valid values for draft class visuals JSON
    */
   private determineBodyType(position: string, weight?: number, height?: number): string {
     const pos = position.toUpperCase();
@@ -4272,23 +4580,24 @@ export class CreatorService {
 
     // Ensure we have valid numbers
     if (!w || !h || w <= 0 || h <= 0) {
-      console.warn(`[CreatorService] Invalid weight/height for body type: w=${w}, h=${h}, using default Athletic`);
-      return 'Athletic'; // Default Athletic
+      console.warn(`[CreatorService] Invalid weight/height for body type: w=${w}, h=${h}, using default Muscular`);
+      return 'Muscular'; // Default Muscular
     }
 
-    // Body types (Madden strings): "Lean", "Athletic", "Heavy", "Stocky"
+    // CORRECT Madden body types: "Thin", "Muscular", "Heavy"
+    // These are the only valid values for draft class JSON
     const bmi = (w / (h * h)) * 703; // Calculate BMI
 
     if (['WR', 'CB', 'FS'].includes(pos)) {
-      return bmi < 24 ? 'Lean' : 'Athletic'; // Lean or Athletic
+      return bmi < 24 ? 'Thin' : 'Muscular'; // Thin for lean receivers/DBs, Muscular otherwise
     } else if (['HB', 'FB', 'SAM', 'Mike', 'WILL', 'SS', 'TE'].includes(pos)) {
-      return bmi < 26 ? 'Athletic' : 'Heavy'; // Athletic or Heavy
+      return bmi < 26 ? 'Muscular' : 'Heavy'; // Muscular for skill, Heavy for bigger players
     } else if (['QB'].includes(pos)) {
-      return 'Athletic'; // Athletic
+      return 'Muscular'; // QBs are typically Muscular
     } else if (['LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT'].includes(pos)) {
-      return bmi < 32 ? 'Heavy' : 'Stocky'; // Heavy or Stocky (linemen)
+      return 'Heavy'; // Linemen are Heavy
     } else {
-      return 'Athletic'; // Default Athletic
+      return 'Muscular'; // Default Muscular
     }
   }
 
@@ -4607,18 +4916,35 @@ export class CreatorService {
 
   /**
    * Apply minimum rating floor to prevent 0 ratings
-   * Ensures all ratings are between 15-35 minimum
+   * Uses position-aware minimums for critical OVR attributes
+   *
+   * CRITICAL FIX: QB attributes like throwUnderPressure and breakSack were getting
+   * random 15-35 values which severely hurt OVR calculation (TUP has 0.7 weight in QB_Scrambler)
+   *
+   * Now uses higher minimums for position-critical attributes:
+   * - QB throwing attributes: 55-75 (affects OVR significantly)
+   * - Generic attributes: 15-35 (non-OVR affecting)
    */
   private applyMinimumRatingFloor(ratings: any): void {
-    // List of all rating fields to check
-    const ratingFields = [
+    // QB-critical throwing attributes - need higher minimums because they affect OVR heavily
+    const qbCriticalFields: Record<string, { min: number; max: number }> = {
+      'throwPower': { min: 70, max: 85 },
+      'throwAccuracyShort': { min: 65, max: 80 },
+      'throwAccuracyMid': { min: 60, max: 78 },
+      'throwAccuracyDeep': { min: 55, max: 75 },
+      'throwOnTheRun': { min: 55, max: 75 },
+      'throwUnderPressure': { min: 55, max: 78 },  // CRITICAL: Was getting 15-35, needs 55+
+      'playAction': { min: 55, max: 75 },
+      'breakSack': { min: 50, max: 70 }  // CRITICAL: Was getting 15-35, needs 50+
+    };
+
+    // List of all other rating fields with generic minimums
+    const genericRatingFields = [
       'speed', 'acceleration', 'agility', 'strength', 'awareness', 'jumping',
       'stamina', 'changeOfDirection', 'toughness', 'carrying', 'ballCarrierVision',
       'breakTackle', 'trucking', 'stiffArm', 'spinMove', 'jukeMove',
       'catching', 'catchInTraffic', 'spectacularCatch', 'shortRouteRunning',
-      'mediumRouteRunning', 'deepRouteRunning', 'release', 'throwPower',
-      'throwAccuracyShort', 'throwAccuracyMid', 'throwAccuracyDeep',
-      'throwOnTheRun', 'throwUnderPressure', 'playAction', 'breakSack',
+      'mediumRouteRunning', 'deepRouteRunning', 'release',
       'passBlock', 'passBlockPower', 'passBlockFinesse', 'runBlock',
       'runBlockPower', 'runBlockFinesse', 'leadBlock', 'impactBlocking',
       'injury', 'tackle', 'hitPower', 'powerMoves', 'finesseMoves',
@@ -4627,7 +4953,16 @@ export class CreatorService {
       'kickReturn', 'longSnap'
     ];
 
-    for (const field of ratingFields) {
+    // Apply QB-critical minimums first (with higher ranges)
+    for (const [field, range] of Object.entries(qbCriticalFields)) {
+      if (ratings[field] !== undefined && ratings[field] < range.min) {
+        // Set to random value within the appropriate range for this attribute
+        ratings[field] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
+      }
+    }
+
+    // Apply generic minimums for other fields
+    for (const field of genericRatingFields) {
       if (ratings[field] !== undefined && ratings[field] === 0) {
         // Random value between 15 and 35
         ratings[field] = Math.floor(Math.random() * 21) + 15;

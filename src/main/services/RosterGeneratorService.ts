@@ -512,32 +512,55 @@ export class RosterGeneratorService {
       allPlayers.map(p => this.enrichPlayer(p, p._year))
     );
 
-    // Deduplicate by firstName + lastName + position - keep LAST year (most recent)
+    // Deduplicate by firstName + lastName + position - keep BEST year (highest POVR)
     const deduplicatedPlayers = new Map<string, RosterPlayer>();
     enrichedAll.forEach(p => {
       const key = `${p.PFNA}|${p.PLNA}|${p.PPOS}`;
       const existing = deduplicatedPlayers.get(key);
-      // Keep player with highest year (most recent) - using their final season stats and age
-      const pYear = (p as any).Year || 0;
-      const existingYear = existing ? ((existing as any).Year || 0) : 0;
-      if (!existing || pYear > existingYear) {
+      // Keep player with highest POVR - their best season goes to their best team
+      const pPOVR = p.POVR || 0;
+      const existingPOVR = existing ? (existing.POVR || 0) : 0;
+      if (!existing || pPOVR > existingPOVR) {
         deduplicatedPlayers.set(key, p);
       }
     });
 
     console.log('[Phase 1] Deduplicated:', enrichedAll.length, '→', deduplicatedPlayers.size, 'unique players');
 
+    // DEBUG: Log key players to verify they're being kept correctly
+    const keyPlayersToCheck = ['Joe|Montana', 'Adrian|Peterson', 'Steve|Young', 'Jerry|Rice', 'Tom|Brady'];
+    keyPlayersToCheck.forEach(keyName => {
+      deduplicatedPlayers.forEach((player, key) => {
+        if (key.startsWith(keyName)) {
+          console.log(`[Phase 1] KEY PLAYER: ${player.PFNA} ${player.PLNA} (${key})`);
+          console.log(`  - POVR: ${player.POVR}, Team ID: ${player.TGID}, Position: ${player.PPOS}`);
+        }
+      });
+    });
+
     // Group players by their best-year team
     const playersByTeam = new Map<number, RosterPlayer[]>();
+    let playersWithTeam0 = 0;
     deduplicatedPlayers.forEach(player => {
       const teamId = player.TGID;
+      if (teamId === 0) {
+        playersWithTeam0++;
+        // Log first few with TGID=0
+        if (playersWithTeam0 <= 5) {
+          console.log(`[Phase 1] ⚠️ Player with TGID=0: ${player.PFNA} ${player.PLNA} - POVR: ${player.POVR}`);
+        }
+      }
       if (!playersByTeam.has(teamId)) {
         playersByTeam.set(teamId, []);
       }
       playersByTeam.get(teamId)!.push(player);
     });
 
+    if (playersWithTeam0 > 0) {
+      console.log(`[Phase 1] ⚠️ WARNING: ${playersWithTeam0} players have TGID=0 (will not be assigned to any team!)`);
+    }
     console.log('[Phase 1] Players grouped into', playersByTeam.size, 'teams');
+    console.log('[Phase 1] Team IDs found:', Array.from(playersByTeam.keys()).sort((a, b) => a - b).join(', '));
 
     // PHASE 2: Build 32 Team Rosters
     console.log('\n[Phase 2] Building 32 team rosters (57-60 players each)...');
@@ -557,11 +580,28 @@ export class RosterGeneratorService {
 
     console.log('[Phase 2] Total team roster size:', teamRosters.length);
 
-    // PHASE 3: Free Agent Pool (5 years BEFORE start year)
-    console.log('\n[Phase 3] Collecting free agents from', (startYear - 5), 'to', (startYear - 1), '...');
+    // PHASE 3: Free Agent Pool - players from year range who didn't make team rosters
+    console.log('\n[Phase 3] Collecting free agents from leftover players in year range...');
 
-    const freeAgents = await this.collectFreeAgents(startYear, teamRosters);
-    console.log('[Phase 3] Free agents collected:', freeAgents.length);
+    // Get names of players who made team rosters
+    const teamRosterNames = new Set(teamRosters.map(p => `${p.PFNA}|${p.PLNA}|${p.PPOS}`));
+
+    // Leftover players are those in deduplicatedPlayers but not on team rosters
+    const leftoverPlayers = Array.from(deduplicatedPlayers.values())
+      .filter(p => !teamRosterNames.has(`${p.PFNA}|${p.PLNA}|${p.PPOS}`));
+
+    console.log('[Phase 3] Leftover players from year range:', leftoverPlayers.length);
+
+    // Sort by POVR and take what we need to fill to 3000
+    const targetSize = this.getTemplateRosterSize();
+    const needed = targetSize - teamRosters.length;
+
+    const freeAgents = leftoverPlayers
+      .sort((a, b) => b.POVR - a.POVR)
+      .slice(0, needed)
+      .map(p => ({ ...p, TGID: 1009 })); // Assign to Free Agent team
+
+    console.log('[Phase 3] Free agents added:', freeAgents.length);
 
     // PHASE 4: Combine and Fill Template
     const finalRoster = [...teamRosters, ...freeAgents];
@@ -1111,7 +1151,10 @@ export class RosterGeneratorService {
 
     // Assign valid PID from generic faces (never use wild PIDs that don't exist!)
     const positionName = positionMap[positionCode] || 'WR';
-    const assignedPID = await this.assignGenericPID(positionName);
+    const fillerRace = Math.floor(Math.random() * 7) + 1; // Random race 1-7
+    const assignedPID = await this.assignGenericPID(positionName, fillerRace);
+    // Generate proper genericHeadName format for generic faces
+    const genericPEPS = this.generateGenericHeadName(fillerRace);
 
     return {
       firstName: firstName,
@@ -1125,8 +1168,8 @@ export class RosterGeneratorService {
 
       // IDs - Use VALID generic PID from PID_Portrait_Mapping.csv
       PID: assignedPID,
-      PAM: '',  // Generic faces don't need PAM
-      PEPS: '',
+      PAM: genericPEPS,  // Use proper genericHeadName format for generic faces
+      PEPS: genericPEPS,
 
       // College & Home - Skip ID 0 (Blank), use 1-264 (real colleges)
       college: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
@@ -1300,7 +1343,8 @@ export class RosterGeneratorService {
     if (playerPID === 0) {
       // Assign generic face for players without valid portraits - use race from CSV
       playerPID = await this.assignGenericPID(csvRow.Position, csvRace);
-      playerPAM = ''; // Generic faces don't need PAM
+      // Generate proper genericHeadName format for generic faces
+      playerPAM = this.generateGenericHeadName(csvRace);
     } else {
       // Use PAM from PID_Portrait_Mapping.csv if available, otherwise use CSV value
       const mappedPAM = this.pidToPAM.get(playerPID);
@@ -1658,10 +1702,35 @@ export class RosterGeneratorService {
 
   /**
    * Assign generic PAM for player without portrait
+   * Generate proper Madden genericHeadName format: gen_X_YY_ZZ_NNN
+   * Where: X=race (1-7), YY=body type code, ZZ=face variant, NNN=number
+   * Example valid formats: gen_1_B_N_010, gen_7_B_G_005, gen_7_M_MB_009
    */
-  private async assignGenericPAM(position: string): Promise<string> {
-    // Generic players don't need PAM (handled by PID)
-    return '';
+  private async assignGenericPAM(position: string, race?: number): Promise<string> {
+    return this.generateGenericHeadName(race || 1);
+  }
+
+  /**
+   * Generate a valid Madden genericHeadName in format: gen_X_YY_ZZ_NNN
+   * Based on actual working draft class files that use patterns like:
+   * gen_1_B_N_010, gen_7_B_G_005, gen_7_M_MB_009
+   */
+  private generateGenericHeadName(race: number): string {
+    // Valid body codes from working files
+    const bodyCodes = ['B', 'BM', 'BMH', 'H', 'M'];
+    // Valid face codes from working files
+    const faceCodes = ['B', 'BD', 'G', 'GM', 'MB', 'N', 'S', 'M'];
+
+    const bodyCode = bodyCodes[Math.floor(Math.random() * bodyCodes.length)];
+    const faceCode = faceCodes[Math.floor(Math.random() * faceCodes.length)];
+
+    // Generate number - working files use both 2 and 3 digit formats
+    const useThreeDigit = Math.random() < 0.5;
+    const maxNum = useThreeDigit ? 15 : 20;
+    const num = Math.floor(Math.random() * maxNum) + 1;
+    const numStr = useThreeDigit ? String(num).padStart(3, '0') : String(num).padStart(2, '0');
+
+    return `gen_${race}_${bodyCode}_${faceCode}_${numStr}`;
   }
 
   /**
@@ -2087,14 +2156,16 @@ export class RosterGeneratorService {
       const mappedName = TEAM_NAME_MAP[cleanName] || TEAM_NAME_MAP[cleanName.toUpperCase()];
       if (mappedName) {
         const teamId = lookupService.getNumericId('team_lookup.csv', mappedName);
-        if (teamId !== -1) {
+        // getNumericId returns 0 when not found, but valid team IDs are 1-32 and 1009
+        if (teamId > 0) {
           return teamId;
         }
       }
 
       // Try direct lookup as fallback
       const teamId = lookupService.getNumericId('team_lookup.csv', cleanName);
-      if (teamId !== -1) {
+      // getNumericId returns 0 when not found, but valid team IDs are 1-32 and 1009
+      if (teamId > 0) {
         return teamId;
       }
     } catch (error) {
@@ -2107,18 +2178,27 @@ export class RosterGeneratorService {
 
   /**
    * Determine body type based on position and weight
+   * CORRECT Madden M26 body types: "Thin", "Muscular", "Heavy" (NOT Lean/Athletic/Stocky!)
    */
   private determineBodyType(csvRow: any): string {
     const weight = csvRow.Weight || 200;
+    const height = csvRow.Height || 72;
     const position = csvRow.Position || '';
 
-    // Simplified body type logic
-    if (['QB', 'WR', 'CB', 'FS', 'SS'].includes(position)) {
-      return weight < 200 ? 'Lean' : 'Athletic';
-    } else if (['RB', 'LB', 'MLB', 'Will', 'Sam'].includes(position)) {
-      return weight < 220 ? 'Athletic' : 'Stocky';
+    // Calculate BMI-like metric for body type determination
+    const bmi = weight / (height * height) * 703;
+
+    // Correct Madden body types based on position and build
+    if (['QB'].includes(position)) {
+      return 'Muscular';
+    } else if (['WR', 'CB', 'FS'].includes(position)) {
+      return bmi < 24 ? 'Thin' : 'Muscular';
+    } else if (['HB', 'FB', 'SS', 'MLB', 'LOLB', 'ROLB', 'TE'].includes(position)) {
+      return bmi < 26 ? 'Muscular' : 'Heavy';
+    } else if (['LT', 'LG', 'C', 'RG', 'RT', 'LE', 'RE', 'DT'].includes(position)) {
+      return 'Heavy';
     } else {
-      return weight < 280 ? 'Stocky' : 'Heavy';
+      return 'Muscular';
     }
   }
 
