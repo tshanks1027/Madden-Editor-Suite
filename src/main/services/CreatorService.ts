@@ -62,6 +62,7 @@ export interface GeneratedPlayer {
   bodyType: string; // Madden body type string: "Thin", "Muscular", "Heavy"
   yearsPro: number; // Years in the league (0 for rookies)
   archetype: string; // Player archetype (e.g., "Field General", "Scrambler")
+  race?: number; // Race code from MASTER_LOOKUP (1=White, 5=Hispanic, 7=Black)
 
   // Source data (for reference)
   _sourceStats?: PlayerStats;
@@ -119,6 +120,9 @@ export class CreatorService {
       normalized = normalized.replace(/\./g, '');
       // Remove commas (for "Feamster Jr., Tom" format)
       normalized = normalized.replace(/,/g, '');
+      // Remove special characters like ‡ and any numbers following them (e.g., "Pearson‡1" -> "Pearson")
+      // This handles pro-football-reference disambiguation markers
+      normalized = normalized.replace(/[‡†*]+\d*/g, '');
       // Normalize whitespace
       normalized = normalized.replace(/\s+/g, ' ').trim();
       return normalized;
@@ -252,13 +256,18 @@ export class CreatorService {
    */
   private matchPIDFromPortraitMapping(firstName: string, lastName: string, draftYear?: number): number {
     try {
-      const pidPortraitPath = path.join(__dirname, '../../data/lookups/PID_Portrait_Mapping.csv');
+      const { app } = require('electron');
+      const pidPortraitPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
       const csvContent = fs.readFileSync(pidPortraitPath, 'utf-8');
       const lines = csvContent.split('\n');
 
       // Normalize input names
       const normalizeName = (name: string): string => {
-        return name.trim().toLowerCase().replace(/\./g, '').replace(/,/g, '').replace(/\s+/g, ' ');
+        return name.trim().toLowerCase()
+          .replace(/\./g, '')
+          .replace(/,/g, '')
+          .replace(/[‡†*]+\d*/g, '')  // Remove pro-football-reference disambiguation markers
+          .replace(/\s+/g, ' ');
       };
 
       const stripSuffixes = (name: string): string => {
@@ -343,12 +352,9 @@ export class CreatorService {
    * @returns Generic face PID from PID_Portrait_Mapping.csv
    */
   private assignGenericFace(firstName: string, lastName: string, position?: string, raceData?: string): number {
-    // Load PID portrait mapping
+    // Load PID portrait mapping - use app.getAppPath() for both dev and packaged
     const { app } = require('electron');
-    const basePath = app.isPackaged
-      ? path.join(app.getAppPath(), 'data/lookups')
-      : path.join(__dirname, '../../data/lookups');
-    const pidPortraitPath = path.join(basePath, 'PID_Portrait_Mapping.csv');
+    const pidPortraitPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
 
     let targetCategory = 7; // Default to Black-Medium (largest pool)
 
@@ -474,27 +480,26 @@ export class CreatorService {
   }
 
   /**
-   * Assign generic asset (PAM/PEPS) based on player's PID
-   * Maps PID to corresponding generic asset name for in-game body models
+   * Assign PAM/PEPS based on player's PID
    *
-   * CRITICAL: Must match the EXACT format the PID's portrait uses!
-   * Returns NULL for players with generic faces - let game handle with PID only
+   * RESEARCH CONCLUSION: Generic face players should have BLANK PAM
+   * The game uses the PID to look up the correct face automatically.
+   * Only players with REAL face scans (player-format PAM) need explicit PAM values.
    *
    * @param pid Player Portrait ID
-   * @param raceData Race string from MASTER_LOOKUP (if available)
-   * @returns NULL (game uses PID for generic assets)
+   * @param raceData Race string (unused - kept for API compatibility)
+   * @returns Player-format PAM for real faces, NULL for generic faces
    */
   private assignGenericAsset(pid: number, raceData?: string): string | null {
-    // Generate proper Madden genericHeadName format: gen_X_YY_ZZ_NNN
-    // Where: X=race (1-7), YY=body type code, ZZ=face variant, NNN=number
-    // Example valid formats: gen_1_B_N_010, gen_7_B_G_005, gen_7_M_MB_009
+    // For generic faces, return null - game uses PID lookup
+    // Only return PAM for players with real face scans (player-format PAM in portrait mapping)
 
     try {
-      const pidPortraitPath = path.join(__dirname, '../../data/lookups/PID_Portrait_Mapping.csv');
+      const { app } = require('electron');
+      const pidPortraitPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
       const csvContent = fs.readFileSync(pidPortraitPath, 'utf-8');
       const lines = csvContent.split('\n');
 
-      // Find the portrait for this PID
       // CSV Format: PID,Player Name,Type,Portrait,PAM
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -504,70 +509,31 @@ export class CreatorService {
         if (parts.length < 4) continue;
 
         const linePID = parseInt(parts[0].trim());
+        if (linePID !== pid) continue;
+
         const playerName = parts[1].trim();
         const type = parts[2].trim();       // 'generic', 'legend', or 'player'
-        const portrait = parts[3].trim();   // e.g., plpo_legends_ArringtonLavar
-        const pam = parts.length >= 5 ? parts[4].trim() : '';  // e.g., arringtonLavar_12345
+        const pam = parts.length >= 5 ? parts[4].trim() : '';
 
-        if (linePID === pid && portrait) {
-          // For legend/player types, prefer the PAM column if it exists
-          if ((type === 'legend' || type === 'player') && pam) {
-            console.log(`[CreatorService] ✓ Found PAM for PID ${pid} (${playerName}): "${pam}"`);
-            return pam;
-          }
-
-          // For legends without PAM, derive from portrait name
-          // Example: plpo_legends_ArringtonLavar -> arringtonLavar
-          if (type === 'legend' && !pam) {
-            const legendMatch = portrait.match(/plpo_legends_([A-Za-z_]+)/);
-            if (legendMatch) {
-              let derivedPam = legendMatch[1]
-                .replace(/_Profile$/, '')
-                .replace(/_/g, '');
-              derivedPam = derivedPam.charAt(0).toLowerCase() + derivedPam.slice(1);
-              console.log(`[CreatorService] ✓ Derived PAM for legend PID ${pid} (${playerName}): "${derivedPam}"`);
-              return derivedPam;
-            }
-          }
-
-          // For player types without PAM, derive from portrait name
-          if (type === 'player' && !pam) {
-            const playerMatch = portrait.match(/plpo_([A-Za-z_0-9]+)/);
-            if (playerMatch) {
-              const derivedPam = playerMatch[1];
-              console.log(`[CreatorService] ✓ Derived PAM for player PID ${pid} (${playerName}): "${derivedPam}"`);
-              return derivedPam;
-            }
-          }
-
-          // For generic faces, generate proper genericHeadName format
-          // The portrait in CSV is simple: plpo_generic_1_001
-          // We need to generate: gen_1_B_N_010 format
-          if (type === 'generic') {
-            // Extract race category from portrait (plpo_generic_X_NNN)
-            const genericMatch = portrait.match(/plpo_generic_(\d+)_(\d+)/);
-            if (genericMatch) {
-              const race = genericMatch[1];
-              // Generate proper genericHeadName with body and face codes
-              const genericHeadName = this.generateGenericHeadName(parseInt(race));
-              console.log(`[CreatorService] ✓ Generated genericHeadName for PID ${pid} (${playerName}): "${genericHeadName}"`);
-              return genericHeadName;
-            }
-          }
+        // Only return PAM for real face scans (player-format, not gen_X_Y_Z format)
+        if (pam && !pam.startsWith('gen_')) {
+          console.log(`[CreatorService] Real face PAM for PID ${pid} (${playerName}): "${pam}"`);
+          return pam;
         }
+
+        // For generic/legend types or no PAM: return null (blank)
+        // Game will use PID to look up the correct generic face
+        console.log(`[CreatorService] Generic face for PID ${pid} (${playerName}): PAM=BLANK (game uses PID lookup)`);
+        return null;
       }
 
-      // If no portrait found for this PID, generate based on race data
-      const race = this.mapRaceToCategory(raceData || '');
-      const fallbackRace = race > 0 ? race : 7; // Default to category 7
-      const genericHeadName = this.generateGenericHeadName(fallbackRace);
-      console.log(`[CreatorService] No portrait mapping for PID ${pid}, generated genericHeadName: "${genericHeadName}"`);
-      return genericHeadName;
+      // PID not found in mapping - return null (blank)
+      console.log(`[CreatorService] PID ${pid} not in portrait mapping: PAM=BLANK`);
+      return null;
 
     } catch (error) {
       console.error('[CreatorService] Error looking up PID portrait mapping:', error);
-      // Fallback to default generic head name
-      return this.generateGenericHeadName(7);
+      return null; // Return null on error - game will handle
     }
   }
 
@@ -702,10 +668,8 @@ export class CreatorService {
 
     try {
       const { app } = require('electron');
-      const basePath = app.isPackaged
-        ? path.join(app.getAppPath(), 'data/lookups')
-        : path.join(__dirname, '../../data/lookups');
-      const rosterPath = path.join(basePath, 'ROSTER_lookup.csv');
+      // Use app.getAppPath() for both dev and packaged builds
+      const rosterPath = path.join(app.getAppPath(), 'data', 'lookups', 'ROSTER_lookup.csv');
 
       const csvContent = fs.readFileSync(rosterPath, 'utf-8');
       const lines = csvContent.split('\n');
@@ -779,39 +743,51 @@ export class CreatorService {
     this.masterLookupCache = new Map<string, any>();
 
     try {
-      const masterLookupPath = path.join(__dirname, '../../data/lookups/ALL_PLAYER_LOOKUP.csv');
+      // Use app.getAppPath() for correct path resolution in both dev and packaged builds
+      const { app } = require('electron');
+      const Papa = require('papaparse');
+
+      const masterLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'ALL_PLAYER_LOOKUP.csv');
+      console.log(`[CreatorService] Loading MASTER_LOOKUP from: ${masterLookupPath}`);
+
+      if (!fs.existsSync(masterLookupPath)) {
+        console.error(`[CreatorService] ALL_PLAYER_LOOKUP.csv NOT FOUND at ${masterLookupPath}`);
+        return this.masterLookupCache;
+      }
+
       const csvContent = fs.readFileSync(masterLookupPath, 'utf-8');
-      const lines = csvContent.split('\n');
 
-      // Parse header
-      const header = lines[0].split(',').map(h => h.trim());
+      // Use Papa Parse for robust CSV parsing (handles quoted fields, commas, etc.)
+      const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true });
 
-      // Parse rows
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+      console.log(`[CreatorService] Papa Parse found ${parsed.data.length} rows in ALL_PLAYER_LOOKUP.csv`);
 
-        // Handle CSV with potential commas in quoted fields
-        const values = this.parseCSVLine(line);
-        if (values.length < header.length) continue;
+      // Strip pro-football-reference disambiguation markers (e.g., ‡1, †2) from names
+      const stripMarkers = (name: string): string => {
+        return name.toLowerCase().replace(/[‡†*]+\d*/g, '').trim();
+      };
 
-        const entry: any = {};
-        for (let j = 0; j < header.length; j++) {
-          entry[header[j]] = values[j]?.trim() || '';
-        }
-
-        // Create composite key: "firstname lastname draftclass"
+      for (const entry of parsed.data as any[]) {
         const firstName = entry['First Name'] || '';
         const lastName = entry['Last Name'] || '';
         const draftClass = entry['Draft Class'] || '';
 
         if (firstName && lastName && draftClass) {
-          const key = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${draftClass}`;
+          const key = `${stripMarkers(firstName)} ${stripMarkers(lastName)} ${draftClass}`;
           this.masterLookupCache.set(key, entry);
         }
       }
 
-      console.log(`[CreatorService] Loaded ${this.masterLookupCache.size} players from ALL_PLAYER_LOOKUP.csv`);
+      console.log(`[CreatorService] Loaded ${this.masterLookupCache.size} players into MASTER_LOOKUP cache`);
+
+      // Debug: Check if Staubach is in the cache
+      const staubachKey = 'roger staubach 1964';
+      if (this.masterLookupCache.has(staubachKey)) {
+        const staubach = this.masterLookupCache.get(staubachKey);
+        console.log(`[CreatorService] ✅ Staubach found in cache: PhotoID=${staubach['PhotoID']}, From=${staubach['From']}, To=${staubach['To']}`);
+      } else {
+        console.error(`[CreatorService] ❌ Staubach NOT found in cache with key "${staubachKey}"`);
+      }
     } catch (error) {
       console.error('[CreatorService] Failed to load ALL_PLAYER_LOOKUP.csv:', error);
     }
@@ -834,7 +810,8 @@ export class CreatorService {
     this.futureDraftLookupCache = new Map<string, any>();
 
     try {
-      const futureDraftLookupPath = path.join(__dirname, '../../data/lookups/FutureDraft_Lookup.csv');
+      const { app } = require('electron');
+      const futureDraftLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'FutureDraft_Lookup.csv');
       const csvContent = fs.readFileSync(futureDraftLookupPath, 'utf-8');
       const lines = csvContent.split('\n');
 
@@ -856,10 +833,15 @@ export class CreatorService {
         }
 
         // Create composite key: "firstname lastname draftclass"
+        // Strip pro-football-reference disambiguation markers (e.g., ‡1, †2) from names
+        const stripMarkers = (name: string): string => {
+          return name.toLowerCase().replace(/[‡†*]+\d*/g, '').trim();
+        };
+
         const firstName = entry['First Name'] || '';
         const lastName = entry['Last Name'] || '';
         const draftClass = entry['Draft Class'] || '';
-        const key = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${draftClass}`;
+        const key = `${stripMarkers(firstName)} ${stripMarkers(lastName)} ${draftClass}`;
 
         this.futureDraftLookupCache.set(key, entry);
       }
@@ -937,32 +919,81 @@ export class CreatorService {
   ): any | null {
     const masterLookup = this.loadMasterLookup();
 
-    // Normalize names
-    const normalizedFirst = firstName.toLowerCase().trim();
-    const normalizedLast = lastName.toLowerCase().trim();
+    // DEBUG: Check cache status
+    console.log(`[findPlayerInMASTERLookup] Cache size: ${masterLookup.size} entries`);
+
+    // Helper to strip pro-football-reference disambiguation markers (e.g., ‡1, †2)
+    const stripMarkers = (name: string): string => {
+      return name.toLowerCase().trim().replace(/[‡†*]+\d*/g, '');
+    };
+
+    // Helper to strip name suffixes (Jr., Sr., II, III, IV, V)
+    // This is critical for matching scraped names like "Patrick Mahomes II" to CSV "Patrick Mahomes"
+    const stripSuffixes = (name: string): string => {
+      return name.replace(/\b(jr|sr|ii|iii|iv|v)\b/gi, '').trim();
+    };
+
+    // Helper to normalize initials (T.J. -> tj, J.J. -> jj)
+    const normalizeInitials = (name: string): string => {
+      return name.replace(/\./g, '');
+    };
+
+    // Combined normalization: lowercase, strip markers, strip suffixes, normalize initials
+    // Handles: "T.J. Watt" vs "TJ Watt", "Patrick Mahomes II" vs "Patrick Mahomes"
+    const normalizeName = (name: string): string => {
+      return normalizeInitials(stripSuffixes(stripMarkers(name)));
+    };
+
+    // Normalize names (now handles both markers AND suffixes)
+    const normalizedFirst = normalizeName(firstName);
+    const normalizedLast = normalizeName(lastName);
+
+    console.log(`[findPlayerInMASTERLookup v2] Looking for: "${normalizedFirst}" "${normalizedLast}" in year ${rosterYear} (normalization: suffixes+initials)`);
+
+    // DEBUG: Specific check for Staubach
+    if (normalizedLast === 'staubach') {
+      console.log(`[findPlayerInMASTERLookup] STAUBACH DEBUG: Iterating through ${masterLookup.size} entries...`);
+      let staubachFound = false;
+      for (const [key, entry] of masterLookup.entries()) {
+        if (normalizeName(entry['Last Name'] || '') === 'staubach') {
+          console.log(`[findPlayerInMASTERLookup] STAUBACH ENTRY: key="${key}", First="${entry['First Name']}", Last="${entry['Last Name']}", From=${entry['From']}, To=${entry['To']}, PhotoID=${entry['PhotoID']}`);
+          staubachFound = true;
+        }
+      }
+      if (!staubachFound) {
+        console.log(`[findPlayerInMASTERLookup] STAUBACH NOT IN CACHE AT ALL!`);
+      }
+    }
 
     // Search through all entries
     for (const [key, entry] of masterLookup.entries()) {
-      const entryFirst = (entry['First Name'] || '').toLowerCase().trim();
-      const entryLast = (entry['Last Name'] || '').toLowerCase().trim();
+      const entryFirst = normalizeName(entry['First Name'] || '');
+      const entryLast = normalizeName(entry['Last Name'] || '');
 
-      // Name must match
+      // Name must match (now handles suffixes like Jr., II, III)
       if (entryFirst !== normalizedFirst || entryLast !== normalizedLast) {
         continue;
       }
+
+      // DEBUG: Name matched - log what we found
+      console.log(`[findPlayerInMASTERLookup] NAME MATCH: ${entryFirst} ${entryLast} - checking year range...`);
 
       // Check if player was active in this year
       const from = parseInt(entry['From']) || 0;
       const to = parseInt(entry['To']) || 0;
       const draftClass = parseInt(entry['Draft Class']) || 0;
 
+      console.log(`[findPlayerInMASTERLookup] Year data: From=${entry['From']} (parsed: ${from}), To=${entry['To']} (parsed: ${to}), DraftClass=${entry['Draft Class']}, RosterYear=${rosterYear}`);
+
       // PRIORITY 1: If From/To are available and roster year is in range - EXACT MATCH
       if (from > 0 && to > 0) {
+        console.log(`[findPlayerInMASTERLookup] Checking: ${rosterYear} >= ${from} && ${rosterYear} <= ${to} = ${rosterYear >= from && rosterYear <= to}`);
         if (rosterYear >= from && rosterYear <= to) {
           console.log(`[CreatorService] ✅ Found ${firstName} ${lastName} in MASTER_LOOKUP (active ${from}-${to}, roster year ${rosterYear})`);
           return entry;
         }
         // If From/To exist but year is out of range, skip this entry (wrong player with same name)
+        console.log(`[findPlayerInMASTERLookup] Year ${rosterYear} NOT in range ${from}-${to}, continuing search...`);
         continue;
       }
 
@@ -1088,7 +1119,8 @@ export class CreatorService {
     this.collegeLookupCache = new Map<string, number>();
 
     try {
-      const collegeLookupPath = path.join(__dirname, '../../data/lookups/college_lookup.csv');
+      const { app } = require('electron');
+      const collegeLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'college_lookup.csv');
       const csvContent = fs.readFileSync(collegeLookupPath, 'utf-8');
       const lines = csvContent.split('\n');
 
@@ -1283,7 +1315,8 @@ export class CreatorService {
     this.stateLookupCache = new Map<string, number>();
 
     try {
-      const stateLookupPath = path.join(__dirname, '../../data/lookups/state_lookup.csv');
+      const { app } = require('electron');
+      const stateLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'state_lookup.csv');
       const csvContent = fs.readFileSync(stateLookupPath, 'utf-8');
       const lines = csvContent.split('\n');
 
@@ -1605,8 +1638,8 @@ export class CreatorService {
           const nameParts = prospect.name.split(' ');
           const firstName = nameParts[0];
           const lastName = nameParts.slice(1).join(' ');
-          const lookupKey = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${year}`;
-          const lookupEntry = masterLookup.get(lookupKey);
+          // FIX: Use findPlayerInMASTERLookup which checks From/To year range, not just draft class
+          const lookupEntry = this.findPlayerInMASTERLookup(firstName, lastName, year);
 
           if (!lookupEntry) {
             console.warn(`[CreatorService] No MASTER_LOOKUP entry for ${prospect.name} (${year}) - including by default`);
@@ -1758,9 +1791,8 @@ export class CreatorService {
         const lastName = nameParts.slice(1).join(' ') || 'Doe';
 
         // Load player data from MASTER_LOOKUP (needed for wAV and other enhancements)
-        const masterLookup = this.loadMasterLookup();
-        const lookupKey = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${year}`;
-        const lookupEntry = masterLookup.get(lookupKey);
+        // FIX: Use findPlayerInMASTERLookup which checks From/To year range, not just draft class
+        const lookupEntry = this.findPlayerInMASTERLookup(firstName, lastName, year);
 
         // Get weight and height from MASTER_LOOKUP or prospect (needed for historical position mapping)
         let weight = prospect.weight || 0;
@@ -1899,8 +1931,20 @@ export class CreatorService {
         // Convert weight to Madden offset format (actual - 160)
         const maddenWeight = this.convertWeightToMaddenFormat(weight);
 
-        // Match PID from lookup table with disambiguation
-        let matchedPID = this.matchPID(firstName, lastName, year, mappedPosition.name, prospect.college);
+        // Get PID directly from MASTER_LOOKUP if available
+        let matchedPID = 0;
+        if (lookupEntry) {
+          const lookupPID = parseInt(lookupEntry['PhotoID']);
+          if (!isNaN(lookupPID) && lookupPID > 0) {
+            matchedPID = lookupPID;
+            console.log(`[CreatorService] Using PhotoID from MASTER_LOOKUP for ${firstName} ${lastName}: ${matchedPID}`);
+          }
+        }
+
+        // Fallback: Match PID from lookup table with disambiguation
+        if (matchedPID === 0) {
+          matchedPID = this.matchPID(firstName, lastName, year, mappedPosition.name, prospect.college);
+        }
 
         // Check for (R) tag and replace with preferred non-(R) version if available
         if (matchedPID > 0) {
@@ -2312,8 +2356,20 @@ export class CreatorService {
         // Convert weight to Madden offset format (actual - 160)
         const maddenWeight = this.convertWeightToMaddenFormat(weight);
 
-        // Match PID from lookup table with disambiguation
-        let matchedPID = this.matchPID(firstName, lastName, year, mappedPosition.name, prospect.college);
+        // Get PID directly from MASTER_LOOKUP if available
+        let matchedPID = 0;
+        if (lookupEntry) {
+          const lookupPID = parseInt(lookupEntry['PhotoID']);
+          if (!isNaN(lookupPID) && lookupPID > 0) {
+            matchedPID = lookupPID;
+            console.log(`[CreatorService] Using PhotoID from MASTER_LOOKUP for ${firstName} ${lastName}: ${matchedPID}`);
+          }
+        }
+
+        // Fallback: Match PID from lookup table with disambiguation
+        if (matchedPID === 0) {
+          matchedPID = this.matchPID(firstName, lastName, year, mappedPosition.name, prospect.college);
+        }
 
         // Check for (R) tag and replace with preferred non-(R) version if available
         if (matchedPID > 0) {
@@ -2417,8 +2473,18 @@ export class CreatorService {
           this.fillMissingRatings(ratings, mappedPosition.name);
           this.capRatingsByPosition(ratings, mappedPosition.name); // Apply rookie caps
 
-          // Match PID and asset
-          let matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, college);
+          // Get PID directly from ufaEntry if available
+          let matchedPID = 0;
+          const ufaPID = parseInt(ufaEntry['PhotoID']);
+          if (!isNaN(ufaPID) && ufaPID > 0) {
+            matchedPID = ufaPID;
+            console.log(`[CreatorService] Using PhotoID from MASTER_LOOKUP for UFA ${firstName} ${lastName}: ${matchedPID}`);
+          }
+
+          // Fallback: Match PID with disambiguation
+          if (matchedPID === 0) {
+            matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, college);
+          }
           if (matchedPID > 0) {
             matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
           }
@@ -3177,7 +3243,8 @@ export class CreatorService {
       // Load team history for AFL/NFL filtering
       let teamHistory: any = null;
       try {
-        const teamHistoryPath = path.join(__dirname, '../../data/lookups/team_history.json');
+        const { app } = require('electron');
+        const teamHistoryPath = path.join(app.getAppPath(), 'data', 'lookups', 'team_history.json');
         teamHistory = JSON.parse(fs.readFileSync(teamHistoryPath, 'utf-8'));
 
         // Filter teams by AFL/NFL if year 1960-1969
@@ -3196,6 +3263,15 @@ export class CreatorService {
         }
       } catch (error) {
         console.warn('[CreatorService] Could not load team_history.json, skipping league filtering');
+      }
+
+      // AUTO-POPULATE TEAMS: If teams array is empty, get all teams that existed in this year
+      if (teams.length === 0) {
+        console.log(`[CreatorService] Teams array is empty - auto-populating teams for year ${year}...`);
+        // Get all teams that existed in this year from the scraper service
+        const allTeams = scraperService.getTeamsForYear(year);
+        teams = allTeams;
+        console.log(`[CreatorService] Auto-populated ${teams.length} teams: ${teams.slice(0, 5).join(', ')}...`);
       }
 
       // Step 1: Get HOF players active in this year
@@ -3310,7 +3386,9 @@ export class CreatorService {
           const lastName = nameParts.slice(1).join(' ') || 'Doe';
 
           // **NEW: MATCH PLAYER TO MASTER_LOOKUP**
+          console.log(`[CreatorService] 🔍 LOOKUP DEBUG: Searching for "${firstName}" "${lastName}" in year ${year}`);
           const lookupEntry = this.findPlayerInMASTERLookup(firstName, lastName, year);
+          console.log(`[CreatorService] 🔍 LOOKUP DEBUG: Result for ${firstName} ${lastName} = ${lookupEntry ? 'FOUND (PID=' + lookupEntry['PhotoID'] + ')' : 'NOT FOUND'}`);
 
           let proRatedWAV = 0;
           let weight = playerStats.weight || 0;
@@ -3360,20 +3438,23 @@ export class CreatorService {
             // Get race data for generic face matching
             raceData = lookupEntry['Race'] || undefined;
 
+            // Get PID directly from MASTER_LOOKUP (don't re-search with matchPID)
+            const lookupPID = parseInt(lookupEntry['PhotoID']);
+            if (!isNaN(lookupPID) && lookupPID > 0) {
+              matchedPID = lookupPID;
+              console.log(`[CreatorService] Using PhotoID from MASTER_LOOKUP for ${firstName} ${lastName}: ${matchedPID}`);
+            }
+
             // Get PAM (Player Assets ID) from MASTER_LOOKUP
             playerAssetId = lookupEntry['Player Assets ID'] || undefined;
-
-            // Auto-populate asset ID if missing
-            if (!playerAssetId || playerAssetId.trim() === '') {
-              playerAssetId = this.assignGenericAsset(matchedPID, raceData);
-            }
 
             // Get draft year for years pro calculation
             draftYear = parseInt(lookupEntry['Draft Class']) || undefined;
 
             // Get college from MASTER_LOOKUP if not scraped
-            if (collegeName === 'Unknown' && lookupEntry['College']) {
-              collegeName = lookupEntry['College'];
+            // Note: CSV header is 'College/Univ', not 'College'
+            if (collegeName === 'Unknown' && lookupEntry['College/Univ']) {
+              collegeName = lookupEntry['College/Univ'];
             }
           }
 
@@ -3535,8 +3616,10 @@ export class CreatorService {
           // Use scraped jersey number if available, otherwise generate
           const jerseyNum = (playerStats as any).jerseyNumber || this.generateJerseyNumber(mappedPosition.name);
 
-          // **MATCH PID WITH RACE DATA**
-          matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, collegeName);
+          // **MATCH PID** - Only search if not already found from MASTER_LOOKUP
+          if (matchedPID === 0) {
+            matchedPID = this.matchPID(firstName, lastName, draftYear, mappedPosition.name, collegeName);
+          }
 
           // Check for (R) tag and replace with preferred non-(R) version
           if (matchedPID > 0) {
@@ -3545,7 +3628,11 @@ export class CreatorService {
 
           // If no real portrait found, assign generic face with race data
           if (matchedPID === 0) {
+            console.log(`[CreatorService] ⚠️ NO PID FOUND for ${firstName} ${lastName} - assigning generic face (raceData=${raceData})`);
             matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
+            console.log(`[CreatorService] Assigned generic PID: ${matchedPID}`);
+          } else {
+            console.log(`[CreatorService] ✅ Using PID ${matchedPID} for ${firstName} ${lastName}`);
           }
 
           // Match college to valid college ID
@@ -3581,6 +3668,7 @@ export class CreatorService {
             PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             yearsPro,
+            race: raceData ? parseInt(raceData) || undefined : undefined, // Race from MASTER_LOOKUP for skin tone matching
             _sourceStats: playerStats
           };
 
@@ -4588,12 +4676,13 @@ export class CreatorService {
     // These are the only valid values for draft class JSON
     const bmi = (w / (h * h)) * 703; // Calculate BMI
 
-    if (['WR', 'CB', 'FS'].includes(pos)) {
+    // HB should ALWAYS be Muscular - never Heavy (causes fat appearance)
+    if (['HB', 'QB'].includes(pos)) {
+      return 'Muscular'; // RBs and QBs are always Muscular
+    } else if (['WR', 'CB', 'FS'].includes(pos)) {
       return bmi < 24 ? 'Thin' : 'Muscular'; // Thin for lean receivers/DBs, Muscular otherwise
-    } else if (['HB', 'FB', 'SAM', 'Mike', 'WILL', 'SS', 'TE'].includes(pos)) {
-      return bmi < 26 ? 'Muscular' : 'Heavy'; // Muscular for skill, Heavy for bigger players
-    } else if (['QB'].includes(pos)) {
-      return 'Muscular'; // QBs are typically Muscular
+    } else if (['FB', 'SAM', 'MIKE', 'WILL', 'SS', 'TE'].includes(pos)) {
+      return bmi < 28 ? 'Muscular' : 'Heavy'; // Higher threshold - only very large players get Heavy
     } else if (['LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT'].includes(pos)) {
       return 'Heavy'; // Linemen are Heavy
     } else {
