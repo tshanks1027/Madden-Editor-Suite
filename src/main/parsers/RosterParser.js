@@ -15,6 +15,16 @@ const path = require('path');
 // In build: parsers/ is at .vite/build/parsers/, lib/ is at .vite/build/lib/
 const MaddenRosterHelper = require(path.join(__dirname, '..', 'lib', 'helpers', 'MaddenRosterHelper'));
 
+// Generic Face Service for updating BLBM with race-appropriate faces
+let genericFaceService = null;
+try {
+  const serviceModule = require(path.join(__dirname, 'GenericFaceService'));
+  genericFaceService = serviceModule.genericFaceService;
+  console.log('[RosterParser] GenericFaceService loaded');
+} catch (e) {
+  console.log('[RosterParser] GenericFaceService not available:', e.message);
+}
+
 /**
  * Parse a Madden FBCHUNKS roster file
  * @param {string} filePath - Absolute path to roster file
@@ -218,6 +228,18 @@ async function saveRosterFile(filePath, players, originalData) {
 
     console.log('[RosterParser] Updated', fieldsUpdated, 'field values');
     console.log('[RosterParser] Original record has', Object.keys(playerTable.records[0].fields).length, 'fields - all preserved');
+
+    // Update BLBM with race-appropriate generic faces for players without PAM
+    if (genericFaceService) {
+      try {
+        console.log('[RosterParser] Updating BLBM generic faces...');
+        const blbmUpdated = await genericFaceService.updateBLBMForGenericFaces(file, players);
+        console.log('[RosterParser] BLBM updates complete:', blbmUpdated, 'players updated');
+      } catch (blbmError) {
+        console.warn('[RosterParser] BLBM update failed (non-fatal):', blbmError.message);
+        // Continue - this is non-fatal
+      }
+    }
 
     // Save using MaddenRosterHelper
     await helper.save(filePath);
