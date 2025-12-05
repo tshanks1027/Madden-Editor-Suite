@@ -108,6 +108,7 @@ export interface RosterPlayer {
   // Source data
   _year: number;
   _sourceTeam: string;
+  _race?: number;  // Race value (1-7) for BLBM GENR/SKNT assignment
 }
 
 export interface RosterGeneratorOptions {
@@ -190,11 +191,16 @@ export class RosterGeneratorService {
   private validPIDs: Set<number> = new Set(); // ALL valid PIDs from PID_Portrait_Mapping.csv
   private pidToPAM: Map<number, string> = new Map(); // PID → PAM mapping from PID_Portrait_Mapping.csv
   private pidToPortrait: Map<number, string> = new Map(); // PID → Portrait name (for race filtering)
+  // NEW: Generic faces grouped by race for proper skin-tone matching
+  private genericFacesByRace: Map<number, { pid: number; pam: string; pghe: number }[]> = new Map();
+  private pidToPGHE: Map<number, number> = new Map(); // PID → PGHE mapping
+  private pidToRace: Map<number, number> = new Map(); // PID → Race mapping from PID_Portrait_Mapping.csv
   private realFirstNames: string[] = [];
   private realLastNames: string[] = [];
+  private pamRaceMapping: { white: string[]; hispanic: string[]; black: string[] } | null = null;
 
   /**
-   * Initialize service: Load ROSTER_lookup.csv and template
+   * Initialize service: Load roster data from database and template
    */
   async initialize(): Promise<void> {
     if (this.initialized) {
@@ -204,7 +210,7 @@ export class RosterGeneratorService {
 
     console.log('[RosterGeneratorService] ===== INITIALIZING =====');
 
-    // Load CSV data
+    // Load CSV data directly (more reliable than database)
     const csvPath = path.join(app.getAppPath(), 'data', 'lookups', 'ROSTER_lookup.csv');
     console.log('[RosterGeneratorService] Loading CSV from:', csvPath);
 
@@ -262,6 +268,27 @@ export class RosterGeneratorService {
       });
 
       // Extract ALL valid PIDs and PAM mappings from the mapping file
+      // Also build race-based generic face lookup for proper skin-tone matching
+      const genericFacesByRaceTemp: Map<number, { pid: number; pam: string; pghe: number }[]> = new Map();
+
+      // Helper to parse skin tone from portrait name - FIRST DIGIT is skin tone (1-7)
+      // Portrait format: plpo_generic_X_Y_Z_NNN where X is skin tone (1=lightest, 7=darkest)
+      const parseSkinToneFromPortrait = (portrait: string): { skinTone: number; headName: string } | null => {
+        // Extract the head name after "plpo_generic_"
+        if (!portrait.startsWith('plpo_generic_')) return null;
+        const headName = portrait.substring('plpo_generic_'.length); // e.g., "7_M_G_005"
+        const firstChar = headName.charAt(0);
+        const skinTone = parseInt(firstChar);
+        if (isNaN(skinTone) || skinTone < 1 || skinTone > 7) return null;
+        return { skinTone, headName };
+      };
+
+      // REMOVED: generatePAMFromPortrait was incorrectly converting PLPO to PAM
+      // PLPO format: plpo_generic_SKINTONE_... (first digit = skin tone 1-7)
+      // PAM format: gen_GENERATION_BODYCODE_... (first digit = generation 1-3, BODYCODE = B/H/M/T for race)
+      // These encode different information and cannot be directly converted!
+      // Instead, use generateGenericHeadName(race) which selects from pam-race-mapping.json
+
       pidMappingParsed.data.forEach((row: any) => {
         const pid = parseInt(row.PID);
         if (!isNaN(pid)) {
@@ -278,8 +305,34 @@ export class RosterGeneratorService {
           if (portrait && typeof portrait === 'string') {
             this.pidToPortrait.set(pid, portrait.trim());
           }
+
+          // Store PGHE mapping if present (column 7: PGHE) - may not exist in original CSV
+          const pghe = parseInt(row.PGHE);
+          if (!isNaN(pghe)) {
+            this.pidToPGHE.set(pid, pghe);
+          }
+
+          // Store Race mapping from CSV (column 6: Race)
+          const race = parseInt(row.Race);
+          if (!isNaN(race)) {
+            this.pidToRace.set(pid, race);
+          }
+
+          // For generic faces, only cache existing PAM from CSV - do NOT generate from PLPO
+          // PAM selection will be done at runtime using generateGenericHeadName(race)
+          if (row.Type === 'generic' && portrait) {
+            // Only cache if CSV already has a valid PAM
+            if (pam && typeof pam === 'string' && pam.trim().length > 0 && !this.pidToPAM.has(pid)) {
+              this.pidToPAM.set(pid, pam.trim());
+            }
+            // NOTE: We no longer build genericFacesByRace from PLPO portrait names
+            // because PLPO skin tone (1-7) does NOT map to PAM format.
+          }
         }
       });
+
+      // Store the race-based mapping
+      this.genericFacesByRace = genericFacesByRaceTemp;
 
       // Extract generic PIDs specifically for random assignment
       this.genericPIDs = pidMappingParsed.data
@@ -290,13 +343,21 @@ export class RosterGeneratorService {
       console.log('[RosterGeneratorService] Loaded', this.validPIDs.size, 'total valid PIDs');
       console.log('[RosterGeneratorService] Loaded', this.pidToPAM.size, 'PID → PAM mappings');
       console.log('[RosterGeneratorService] Loaded', this.pidToPortrait.size, 'PID → Portrait mappings');
+      console.log('[RosterGeneratorService] Loaded', this.pidToPGHE.size, 'PID → PGHE mappings');
+      console.log('[RosterGeneratorService] Loaded', this.pidToRace.size, 'PID → Race mappings');
       console.log('[RosterGeneratorService] Loaded', this.genericPIDs.length, 'generic PIDs for random assignment');
+
+      // Log generic faces by race
+      console.log('[RosterGeneratorService] Generic faces by race:');
+      this.genericFacesByRace.forEach((faces, race) => {
+        console.log(`  Race ${race}: ${faces.length} faces`);
+      });
 
       // Debug: Check some generic portraits
       const sampleGenericPIDs = this.genericPIDs.slice(0, 5);
       console.log('[RosterGeneratorService] Sample generic PIDs and portraits:');
       sampleGenericPIDs.forEach(pid => {
-        console.log(`  PID ${pid}: ${this.pidToPortrait.get(pid)}`);
+        console.log(`  PID ${pid}: ${this.pidToPortrait.get(pid)}, PGHE: ${this.pidToPGHE.get(pid)}`);
       });
     } else {
       console.warn('[RosterGeneratorService] PID_Portrait_Mapping.csv not found, using fallback generic PIDs');
@@ -309,6 +370,21 @@ export class RosterGeneratorService {
       ];
       // Also populate validPIDs with fallback set
       this.genericPIDs.forEach(pid => this.validPIDs.add(pid));
+    }
+
+    // Load PAM race mapping for proper skin-tone matching
+    const pamRaceMappingPath = path.join(app.getAppPath(), 'data', 'lookups', 'pam-race-mapping.json');
+    console.log('[RosterGeneratorService] Loading PAM race mapping from:', pamRaceMappingPath);
+
+    if (fs.existsSync(pamRaceMappingPath)) {
+      const pamRaceMappingContent = fs.readFileSync(pamRaceMappingPath, 'utf8');
+      this.pamRaceMapping = JSON.parse(pamRaceMappingContent);
+      console.log('[RosterGeneratorService] Loaded PAM race mapping:',
+        `${this.pamRaceMapping?.white?.length || 0} white,`,
+        `${this.pamRaceMapping?.hispanic?.length || 0} hispanic,`,
+        `${this.pamRaceMapping?.black?.length || 0} black`);
+    } else {
+      console.warn('[RosterGeneratorService] pam-race-mapping.json not found, will use fallback generation');
     }
 
     // Load ALL_PLAYER_LOOKUP.csv and extract unique names
@@ -457,9 +533,48 @@ export class RosterGeneratorService {
     if (enrichedPlayers.length > 0) {
       console.log('[RosterGeneratorService] Sample enriched players:');
       enrichedPlayers.slice(0, 3).forEach((p: any, i) => {
-        console.log(`  Player ${i + 1}: ${p.PFNA} ${p.PLNA} - Team ID: ${p.TGID}, PID: ${p.PSXP}, College: ${p.PCOL}, State: ${p.PHSN}, Archetype: ${p.PLTY}`);
+        console.log(`  Player ${i + 1}: ${p.PFNA} ${p.PLNA} - Team ID: ${p.TGID}, PID: ${p.PSXP}, PEPS: "${p.PEPS}", PLPL: ${p.PLPL}, College: ${p.PCOL}, Archetype: ${p.PLTY}`);
       });
     }
+
+    // Count and log generic face players with their PEPS values
+    const genericFacePlayers = enrichedPlayers.filter((p: any) => p.PLPL === 0);
+    console.log(`[RosterGeneratorService] Found ${genericFacePlayers.length} generic face players (PLPL=0)`);
+
+    // CRITICAL DEBUG: Write to file so we can see the actual values
+    const fs = require('fs');
+    const path = require('path');
+    const { app } = require('electron');
+    const pepsDebugPath = path.join(app.getPath('userData'), 'PEPS_DEBUG.txt');
+    const debugLines = [
+      `\n=== PEPS DEBUG ${new Date().toISOString()} ===`,
+      `Total players: ${enrichedPlayers.length}`,
+      `Generic face players (PLPL=0): ${genericFacePlayers.length}`,
+      `\nSample generic face players:`
+    ];
+
+    if (genericFacePlayers.length > 0) {
+      const sampleGeneric = genericFacePlayers.slice(0, 10);
+      console.log('[RosterGeneratorService] Sample generic face players:');
+      sampleGeneric.forEach((p: any, i) => {
+        const line = `  Generic ${i + 1}: ${p.PFNA} ${p.PLNA} - PID: ${p.PSXP}, PEPS: "${p.PEPS}", PSKI: ${p.PSKI}, PLPL: ${p.PLPL}`;
+        console.log(line);
+        debugLines.push(line);
+      });
+    }
+
+    // Also sample some real face players
+    const realFacePlayers = enrichedPlayers.filter((p: any) => p.PLPL === 100);
+    debugLines.push(`\nReal face players (PLPL=100): ${realFacePlayers.length}`);
+    if (realFacePlayers.length > 0) {
+      debugLines.push(`\nSample real face players:`);
+      realFacePlayers.slice(0, 5).forEach((p: any, i) => {
+        debugLines.push(`  Real ${i + 1}: ${p.PFNA} ${p.PLNA} - PID: ${p.PSXP}, PEPS: "${p.PEPS}"`);
+      });
+    }
+
+    fs.writeFileSync(pepsDebugPath, debugLines.join('\n'));
+    console.log(`[RosterGeneratorService] PEPS debug written to: ${pepsDebugPath}`);
 
     // Add free agents to fill template (from 5 years before)
     console.log('[RosterGeneratorService] Adding free agents to fill template...');
@@ -724,8 +839,12 @@ export class RosterGeneratorService {
 
     for (const { position, posCode, count: posCount } of positionsToFill) {
       for (let i = 0; i < posCount && players.length < count; i++) {
-        // Assign generic face PID from PID_Portrait_Mapping.csv
-        const genericPID = await this.assignGenericPID(position);
+        // Random race for this player
+        const fillerRace = Math.floor(Math.random() * 7) + 1; // Random race 1-7
+
+        // Assign generic face that matches race
+        const genericFace = this.selectGenericFaceByRace(fillerRace);
+        // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
 
         // Generate random low OVR (50-65)
         const ovr = Math.floor(Math.random() * 16) + 50;
@@ -756,9 +875,12 @@ export class RosterGeneratorService {
           PHGT: height,
           PWGT: weight - 159, // Madden stores weight as (actual - 159)
           TGID: teamId,
-          PSXP: genericPID,
-          PLPL: '',
-          PEPS: '',
+          PSXP: genericFace.pid,
+          PLPL: 0, // Generic face marker
+          PEPS: '', // EMPTY - BLBM GENR/SKNT controls the face
+          // DON'T SET PSKI - BLBM handles it
+          PGHE: genericFace.pghe,
+          _race: fillerRace, // Race for BLBM GENR/SKNT assignment
           PCOL: college,
           PHSN: state,
           POVR: ovr,
@@ -1149,12 +1271,11 @@ export class RosterGeneratorService {
       19: 'K', 20: 'P', 21: 'LS'
     };
 
-    // Assign valid PID from generic faces (never use wild PIDs that don't exist!)
+    // Select a complete generic face (PID, PAM, PGHE) that matches race
     const positionName = positionMap[positionCode] || 'WR';
     const fillerRace = Math.floor(Math.random() * 7) + 1; // Random race 1-7
-    const assignedPID = await this.assignGenericPID(positionName, fillerRace);
-    // Generate proper genericHeadName format for generic faces
-    const genericPEPS = this.generateGenericHeadName(fillerRace);
+    const genericFace = this.selectGenericFaceByRace(fillerRace);
+    // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
 
     return {
       firstName: firstName,
@@ -1166,10 +1287,10 @@ export class RosterGeneratorService {
       weight: 180 + Math.floor(Math.random() * 80), // 180-259 lbs
       team: 'FA',
 
-      // IDs - Use VALID generic PID from PID_Portrait_Mapping.csv
-      PID: assignedPID,
-      PAM: genericPEPS,  // Use proper genericHeadName format for generic faces
-      PEPS: genericPEPS,
+      // IDs - For generic faces: PLPL=0 (number), PEPS stays EMPTY
+      PID: genericFace.pid,
+      PAM: 0,  // Generic faces use 0 (number) for PLPL
+      PEPS: '',  // EMPTY - BLBM GENR/SKNT controls the face
 
       // College & Home - Skip ID 0 (Blank), use 1-264 (real colleges)
       college: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
@@ -1237,7 +1358,8 @@ export class RosterGeneratorService {
       PLNA: lastName,
       PPOS: positionCode,
       PAGE: 23 + Math.floor(Math.random() * 5),
-      PSXP: assignedPID, // Use same valid PID from generic faces
+      PSXP: genericFace.pid, // PID from race-matched generic face
+      PEPS: '', // EMPTY - BLBM GENR/SKNT controls the face
       PHGT: 70 + Math.floor(Math.random() * 10),
       PWGT: 180 + Math.floor(Math.random() * 80),
       PCOL: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
@@ -1245,13 +1367,19 @@ export class RosterGeneratorService {
       PJEN: Math.floor(Math.random() * 99) + 1,
       PLTY: Math.floor(Math.random() * 68), // Random archetype 0-67
       PYRP: Math.floor(Math.random() * 3) + 1, // Years Pro: 1-3 (rookie/young players)
+      PCBT: this.determineFillerPCBT(positionCode), // Body type based on position (numeric)
+      PTAR: this.determineFillerPTAR(positionCode), // Body type based on position (string)
+      PGHE: genericFace.pghe, // Generic head ID from race-matched face
+      // DON'T SET PSKI - BLBM handles it
+      PLPL: 0, // Generic face marker (number, not string)
+      _race: fillerRace, // Store race for BLBM GENR/SKNT assignment
 
       // Contract fields (Free Agent - no contract)
       PSA0: 0, // Salary Year 0
       PSA1: 0, // Salary Year 1
       PSA2: 0, // Salary Year 2
       PSB0: 0, // Bonus Year 0
-      PSB1: 0  // Bonus Year 1
+      PSB1: 0, // Bonus Year 1
     } as RosterPlayer;
   }
 
@@ -1324,35 +1452,91 @@ export class RosterGeneratorService {
         console.warn(`[RosterGeneratorService] Invalid PID ${playerPID} for ${csvRow.First_Name} ${csvRow.Last_Name} - assigning generic face`);
         playerPID = 0; // Force reassignment to generic face
       } else {
-        // Check if PID's race matches CSV race
+        // Check if PID's race matches CSV race (for generic faces only)
         const portrait = this.pidToPortrait.get(playerPID);
-        if (portrait && portrait.includes('plpo_generic_')) {
-          // Extract race from portrait name (e.g., "plpo_generic_6_001" → race 6)
-          const match = portrait.match(/plpo_generic_(\d+)_/);
-          if (match) {
-            const pidRace = parseInt(match[1]);
-            if (pidRace !== csvRace) {
-              console.warn(`[RosterGeneratorService] Race mismatch for ${csvRow.First_Name} ${csvRow.Last_Name}: CSV race=${csvRace}, PID ${playerPID} race=${pidRace} - reassigning`);
-              playerPID = 0; // Force reassignment with correct race
-            }
+        const isGenericPortrait = portrait && portrait.includes('plpo_generic_');
+
+        // Only check race mismatch for generic faces - legends keep their PID
+        if (isGenericPortrait) {
+          // Use the pidToRace map (from CSV Race column) for accurate comparison
+          const pidRace = this.pidToRace.get(playerPID);
+          if (pidRace !== undefined && pidRace !== csvRace) {
+            console.warn(`[RosterGeneratorService] Race mismatch for ${csvRow.First_Name} ${csvRow.Last_Name}: CSV race=${csvRace}, PID ${playerPID} race=${pidRace} - reassigning`);
+            playerPID = 0; // Force reassignment with correct race
           }
         }
       }
     }
 
+    // Variables for generic face handling
+    let isGenericFace = false;
+    let pgheValue = 0;
+    // DON'T track pskiValue - BLBM GENR/SKNT controls face appearance
+    let plplValue: number = 100; // Default to real face (100)
+    let pepsValue: string = ''; // Will be set below based on face type
+
     if (playerPID === 0) {
-      // Assign generic face for players without valid portraits - use race from CSV
-      playerPID = await this.assignGenericPID(csvRow.Position, csvRace);
-      // Generate proper genericHeadName format for generic faces
-      playerPAM = this.generateGenericHeadName(csvRace);
+      // Assign generic face for players without valid portraits
+      // Use the new selectGenericFaceByRace which returns matching PID, PAM, and PGHE
+      isGenericFace = true;
+      const genericFace = this.selectGenericFaceByRace(csvRace);
+      playerPID = genericFace.pid;
+      plplValue = 0; // Generic face flag
+      pepsValue = ''; // EMPTY - BLBM GENR/SKNT controls the face, not PEPS
+      pgheValue = genericFace.pghe;
+      // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
+      console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic face - PID=${playerPID}, PEPS="" (empty), PGHE=${pgheValue}, race=${csvRace}`);
     } else {
-      // Use PAM from PID_Portrait_Mapping.csv if available, otherwise use CSV value
+      // Player has valid PID - check if they have a real portrait
       const mappedPAM = this.pidToPAM.get(playerPID);
-      if (mappedPAM) {
-        playerPAM = mappedPAM;
-      } else if (!playerPAM) {
-        // No PAM in CSV or mapping, use empty string
-        playerPAM = '';
+      const mappedPortrait = this.pidToPortrait.get(playerPID);
+
+      // Check portrait type to determine face handling:
+      // - plpo_legends_* = Legend portrait (real face, PLPL=100)
+      // - plpo_generic_* = Generic face (PLPL=0)
+      // - Other non-generic portrait = Real face (PLPL=100)
+      // - Player-format PAM (not gen_*) = Real face (PLPL=100)
+      const isLegendPortrait = mappedPortrait && mappedPortrait.includes('legends');
+      const isGenericPortrait = mappedPortrait && mappedPortrait.includes('generic');
+      const isRealFacePAM = mappedPAM && !mappedPAM.startsWith('gen_');
+
+      // Real face = legend portrait OR non-generic portrait OR player-format PAM
+      const isRealFace = isLegendPortrait || (!isGenericPortrait && mappedPortrait) || isRealFacePAM;
+
+      if (isRealFace) {
+        // Real face (legend or player scan) - keep PID, set PLPL=100
+        plplValue = 100;
+        // Use PAM from lookup if available, otherwise leave blank - game handles it
+        pepsValue = mappedPAM || '';
+        console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Real face PID ${playerPID}, Portrait="${mappedPortrait}", PEPS="${pepsValue}"`);
+      } else if (isGenericPortrait) {
+        // Generic face portrait - keep PID but set PLPL=0
+        // PEPS stays EMPTY - BLBM GENR/SKNT controls the face appearance
+        isGenericFace = true;
+        plplValue = 0;
+        pepsValue = ''; // EMPTY - BLBM handles face via GENR/SKNT
+        pgheValue = this.pidToPGHE.get(playerPID) || this.assignGenericPGHE(csvRace);
+        // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
+        console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic portrait PID ${playerPID}, PEPS="" (empty), PGHE=${pgheValue}, race=${csvRace}`);
+      } else {
+        // No portrait at all - need to assign generic face
+        // BUT FIRST check if player has valid PID in validPIDs - if so, keep it!
+        if (this.validPIDs.has(playerPID)) {
+          // Player has valid PID but no portrait data - keep PID, use as real face
+          plplValue = 100;
+          pepsValue = mappedPAM || '';
+          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Valid PID ${playerPID} with no portrait, keeping as real face`);
+        } else {
+          // Truly no valid portrait - select a generic face by race
+          isGenericFace = true;
+          plplValue = 0;
+          const genericFace = this.selectGenericFaceByRace(csvRace);
+          playerPID = genericFace.pid;
+          pepsValue = ''; // EMPTY - BLBM GENR/SKNT controls the face, not PEPS
+          pgheValue = genericFace.pghe;
+          // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
+          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: No portrait, generic face - PID=${playerPID}, PEPS="" (empty), PGHE=${pgheValue}, race=${csvRace}`);
+        }
       }
     }
 
@@ -1377,11 +1561,12 @@ export class RosterGeneratorService {
       PHGT: parseInt(csvRow.Height) || 72,  // Height in inches
       PWGT: Math.max(1, (parseInt(csvRow.Weight) || 200) - 159), // Weight stored as offset: real_weight - 159 (so 200lbs = 41)
       TGID: teamCode,                  // Team ID (numeric)
+      PCBT: this.determinePCBT(csvRow),  // Body type (0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy)
 
       // IDs - Use processed PID/PAM (generic if original was 0)
       PSXP: playerPID,       // Player ID (PID) - Generic face if CSV had 0
-      PLPL: playerPAM,        // Player Asset (PAM) - Empty for generic faces
-      PEPS: playerPAM,        // Equipment - same as PAM
+      PLPL: plplValue,        // Player Asset (PAM) - 0 for generic, 100 for real face
+      PEPS: pepsValue,        // Equipment string - "LastNameFirstName_XXXX"
 
       // College & Home - LOOKUP from CSV strings
       PCOL: await this.lookupCollege(csvRow.College), // College is string, needs lookup
@@ -1452,12 +1637,15 @@ export class RosterGeneratorService {
       PTAR: this.determineBodyType(csvRow),  // Body type (PTAR is actually body type, not archetype!)
       PYRP: yearsPro,  // Years pro - calculated from draft year
       PDEV: this.determineDevTrait(parseInt(ratings.POVR) || 50),  // Dev trait
-      PSKI: parseInt(csvRow.Race) || 0,  // Skin tone/race (0-6, used for generic face assignment)
+      // DON'T SET PSKI for generic faces - BLBM GENR/SKNT controls face appearance
+      // Only set PGHE for generic faces
+      PGHE: pgheValue,  // Generic head ID (only used for generic faces, 1-290)
 
       // Source data (for internal tracking - keep original string values for filtering)
       _year: year,
       _sourceTeam: csvRow.Season_Team || '',
-      _position: csvRow.Position || ''  // Store position string for filtering
+      _position: csvRow.Position || '',  // Store position string for filtering
+      _race: csvRace  // Race value (1-7) for BLBM GENR/SKNT assignment
     };
   }
 
@@ -1701,6 +1889,140 @@ export class RosterGeneratorService {
   }
 
   /**
+   * Assign PGHE (generic head ID) based on race
+   * PGHE values 1-290 control which generic face mesh is used
+   * Based on analysis of official EA roster template
+   */
+  private assignGenericPGHE(race: number): number {
+    // PGHE ranges that work well for each skin tone (from official roster analysis)
+    // Many PGHEs overlap and work for multiple races - the PSKI field controls body skin
+    const blackPGHEs = [6, 42, 57, 64, 79, 89, 101, 102, 108, 114, 131, 138, 143, 148, 160, 161, 164, 190, 209, 210, 211, 224, 230, 255, 257, 267, 274, 280];
+    const whitePGHEs = [11, 12, 18, 24, 50, 54, 55, 56, 85, 90, 146, 154, 155, 158, 176, 202, 212, 227, 239, 243, 245, 253, 256, 264, 290];
+    // Shared PGHEs work for either race (most common)
+    const sharedPGHEs = [1, 7, 21, 25, 27, 34, 36, 53, 59, 62, 67, 77, 84, 93, 99, 100, 109, 119, 120, 128, 132, 139, 142, 147, 157, 162, 183, 188, 200, 232, 246, 247, 261, 271, 273, 278, 282, 286, 287, 288];
+
+    let pgheList: number[];
+
+    // Map race to appropriate PGHE pool
+    switch (race) {
+      case 1: // Caucasian - use white or shared
+        pgheList = [...whitePGHEs, ...sharedPGHEs];
+        break;
+      case 2: // African American Medium
+      case 3: // African American Light
+      case 4: // African American Dark
+      case 7: // Default (Black)
+        pgheList = [...blackPGHEs, ...sharedPGHEs];
+        break;
+      case 5: // Hispanic/Latino
+      case 6: // Mixed/Multi-Racial
+        pgheList = sharedPGHEs; // Use shared pool for mixed
+        break;
+      default:
+        pgheList = sharedPGHEs;
+    }
+
+    // Random selection from appropriate pool
+    return pgheList[Math.floor(Math.random() * pgheList.length)];
+  }
+
+  /**
+   * Map CSV race code to Madden PSKI value
+   * PSKI controls body skin tone for GENERIC faces (PLPL=0):
+   * Verified from official EA roster (M26):
+   * - Kyle McCord, Quinn Ewers, Graham Mertz, Jaxson Dart (white) = PSKI 2
+   * - Cam Ward, Ashton Jeanty, Jalen Milroe, Quinshon Judkins (black) = PSKI 1
+   * - 0 = Mixed/default
+   * - 1 = Black/darker skin
+   * - 2 = White/lighter skin
+   */
+  /**
+   * Map race to PSKI (body skin tone)
+   * PSKI must match the face's skin tone to avoid mismatched head/body
+   */
+  private mapRaceToPSKI(race: number): number {
+    switch (race) {
+      case 1: // Caucasian
+        return 2; // White body (PSKI 2)
+      case 2: // African American Medium
+      case 3: // African American Light
+      case 4: // African American Dark
+      case 7: // Default (Black)
+        return 1; // Black body (PSKI 1)
+      case 5: // Hispanic/Latino
+      case 6: // Mixed/Multi-Racial
+        return 0; // Mixed/default (PSKI 0)
+      default:
+        return 1; // Default to black (NFL demographics)
+    }
+  }
+
+  /**
+   * Derive PSKI from PAM string to ensure body matches face
+   * PAM format: gen_X_Y_Z_NNN where X is skin tone (1-7)
+   * Returns: PSKI value (1=black, 2=white, 0=mixed)
+   */
+  private getPSKIFromPAM(pam: string): number {
+    if (!pam || !pam.startsWith('gen_')) return 1; // Default to black
+    const skinTone = parseInt(pam.charAt(4)); // First digit after "gen_"
+    if (isNaN(skinTone)) return 1;
+
+    // Map skin tone to PSKI
+    if (skinTone <= 2) return 2; // Light skin -> white body
+    if (skinTone >= 5) return 1; // Dark skin -> black body
+    return 0; // Medium skin -> mixed body
+  }
+
+  /**
+   * Map CSV race to skin tone (1-7) used in generic head names
+   * Skin tone is the FIRST DIGIT of head name (1=lightest, 7=darkest)
+   * CSV race: 1=Caucasian, 2-4,7=Black variants, 5=Hispanic, 6=Mixed
+   */
+  private mapCsvRaceToSkinTone(csvRace: number): number {
+    switch (csvRace) {
+      case 1: // Caucasian -> lightest skin tones
+        return Math.random() < 0.5 ? 1 : 2;
+      case 2: // African American Medium
+        return 5;
+      case 3: // African American Light
+        return 4;
+      case 4: // African American Dark
+        return 7;
+      case 7: // Default (Black) -> darkest skin tones
+        return Math.random() < 0.5 ? 6 : 7;
+      case 5: // Hispanic/Latino -> medium skin tones
+        return Math.random() < 0.5 ? 3 : 4;
+      case 6: // Mixed/Multi-Racial -> medium range
+        return Math.random() < 0.33 ? 3 : (Math.random() < 0.5 ? 4 : 5);
+      default:
+        return 6; // Default to darker
+    }
+  }
+
+  /**
+   * Select a random generic face that matches the player's race
+   * Returns PID, PAM, and PGHE as a complete set that will have matching skin tones
+   * PAM is selected from pam-race-mapping.json based on body code (B/H/M/T), NOT skin tone
+   */
+  private selectGenericFaceByRace(race: number): { pid: number; pam: string; pghe: number } {
+    // Get the correct PAM from pamRaceMapping based on race (uses body code B/H/M/T)
+    // PAM determines the actual skin tone display in-game
+    const pam = this.generateGenericHeadName(race);
+
+    // Get matching PGHE (head mesh) for this race
+    const pghe = this.assignGenericPGHE(race);
+
+    // Get a random generic PID (for portraits) - use any from our list
+    const pid = this.genericPIDs.length > 0
+      ? this.genericPIDs[Math.floor(Math.random() * this.genericPIDs.length)]
+      : 719; // Fallback PID
+
+    console.log(`[RosterGeneratorService] Selected generic face for race ${race}: PID=${pid}, PAM=${pam} (from pamRaceMapping), PGHE=${pghe}`);
+
+    return { pid, pam, pghe };
+  }
+
+  /**
    * Assign generic PAM for player without portrait
    * Generate proper Madden genericHeadName format: gen_X_YY_ZZ_NNN
    * Where: X=race (1-7), YY=body type code, ZZ=face variant, NNN=number
@@ -1711,15 +2033,79 @@ export class RosterGeneratorService {
   }
 
   /**
-   * Generate a valid Madden genericHeadName in format: gen_X_YY_ZZ_NNN
-   * Based on actual working draft class files that use patterns like:
-   * gen_1_B_N_010, gen_7_B_G_005, gen_7_M_MB_009
+   * Generate a valid Madden genericHeadName by selecting from actual PAM assets.
+   *
+   * Uses pam-race-mapping.json which contains real PAM names extracted from game files.
+   * This ensures the PAM will actually work in-game with proper skin tone matching.
+   *
+   * IMPORTANT: Body code determines skin tone for arms/body:
+   * - M, T = Mixed/Tan (white/light skin)
+   * - H = Hispanic
+   * - B, BM, BMH = Black
+   *
+   * Race mapping (from ROSTER_lookup):
+   * 1 = Caucasian -> white PAMs (M or T body codes)
+   * 2 = African American Medium -> black PAMs (B body codes)
+   * 3 = African American Light -> black PAMs (BM body codes)
+   * 4 = African American Dark -> black PAMs (B body codes)
+   * 5 = Hispanic/Latino -> hispanic PAMs (H body codes)
+   * 6 = Mixed/Multi-Racial -> white or hispanic PAMs (M or BM body codes)
+   * 7 = Default (Black) -> black PAMs (B body codes)
    */
   private generateGenericHeadName(race: number): string {
-    // Valid body codes from working files
-    const bodyCodes = ['B', 'BM', 'BMH', 'H', 'M'];
+    // If we have the PAM mapping loaded, use it for accurate PAM selection
+    if (this.pamRaceMapping) {
+      let pamList: string[];
+
+      switch (race) {
+        case 1: // Caucasian - white skin
+          pamList = this.pamRaceMapping.white;
+          break;
+        case 5: // Hispanic/Latino
+          pamList = this.pamRaceMapping.hispanic;
+          break;
+        case 6: // Mixed/Multi-Racial - could be either
+          // Randomly choose between white and hispanic for mixed race
+          pamList = Math.random() < 0.5 ? this.pamRaceMapping.white : this.pamRaceMapping.hispanic;
+          break;
+        case 2: // African American Medium
+        case 3: // African American Light
+        case 4: // African American Dark
+        case 7: // Default Black
+        default:
+          pamList = this.pamRaceMapping.black;
+          break;
+      }
+
+      if (pamList && pamList.length > 0) {
+        return pamList[Math.floor(Math.random() * pamList.length)];
+      }
+    }
+
+    // Fallback: Generate PAM name if mapping not available
+    // Select body code based on race to match skin tone
+    let bodyCodes: string[];
+    switch (race) {
+      case 1: // Caucasian - white skin
+        bodyCodes = ['M', 'T'];
+        break;
+      case 5: // Hispanic/Latino
+        bodyCodes = ['H'];
+        break;
+      case 6: // Mixed/Multi-Racial
+        bodyCodes = ['M', 'BM'];
+        break;
+      case 2: // African American Medium
+      case 3: // African American Light
+      case 4: // African American Dark
+      case 7: // Default Black
+      default:
+        bodyCodes = ['B', 'BM', 'BMH'];
+        break;
+    }
+
     // Valid face codes from working files
-    const faceCodes = ['B', 'BD', 'G', 'GM', 'MB', 'N', 'S', 'M'];
+    const faceCodes = ['B', 'BD', 'G', 'GM', 'MB', 'N', 'S'];
 
     const bodyCode = bodyCodes[Math.floor(Math.random() * bodyCodes.length)];
     const faceCode = faceCodes[Math.floor(Math.random() * faceCodes.length)];
@@ -2177,29 +2563,186 @@ export class RosterGeneratorService {
   }
 
   /**
-   * Determine body type based on position and weight
-   * CORRECT Madden M26 body types: "Thin", "Muscular", "Heavy" (NOT Lean/Athletic/Stocky!)
+   * Determine PCBT (body type code) for roster files
+   * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy
+   * Based on EA's official roster file body type distribution
    */
-  private determineBodyType(csvRow: any): string {
-    const weight = csvRow.Weight || 200;
-    const height = csvRow.Height || 72;
-    const position = csvRow.Position || '';
+  private determinePCBT(csvRow: any): number {
+    const weight = parseInt(csvRow.Weight) || 200;
+    const position = (csvRow.Position || '').toUpperCase();
 
-    // Calculate BMI-like metric for body type determination
-    const bmi = weight / (height * height) * 703;
+    // Offensive Line - Heavy (3) for most, Extra Heavy (4) for 330+ lbs
+    if (['LT', 'LG', 'C', 'RG', 'RT'].includes(position)) {
+      return weight >= 330 ? 4 : 3; // Extra Heavy for massive OL, otherwise Heavy
+    }
 
-    // Correct Madden body types based on position and build
-    if (['QB'].includes(position)) {
-      return 'Muscular';
-    } else if (['WR', 'CB', 'FS'].includes(position)) {
-      return bmi < 24 ? 'Thin' : 'Muscular';
-    } else if (['HB', 'FB', 'SS', 'MLB', 'LOLB', 'ROLB', 'TE'].includes(position)) {
-      return bmi < 26 ? 'Muscular' : 'Heavy';
-    } else if (['LT', 'LG', 'C', 'RG', 'RT', 'LE', 'RE', 'DT'].includes(position)) {
+    // Defensive Tackle - Heavy (3) for most, Extra Heavy (4) for 330+ lbs
+    if (position === 'DT') {
+      return weight >= 330 ? 4 : 3;
+    }
+
+    // Edge Rushers - Muscular (2)
+    if (['LEDG', 'REDG', 'LE', 'RE', 'DE'].includes(position)) {
+      return 2; // Muscular
+    }
+
+    // Tight End - Muscular (2) for bigger TEs, Standard (0) for others
+    if (position === 'TE') {
+      return weight >= 260 ? 2 : 0;
+    }
+
+    // Fullback - Heavy (3) or Muscular (2) based on weight
+    if (position === 'FB') {
+      return weight >= 250 ? 3 : 2;
+    }
+
+    // Kicker/Punter - Thin (1)
+    if (position === 'K' || position === 'P') {
+      return 1; // Thin
+    }
+
+    // All other positions (QB, WR, HB, CB, FS, SS, LB, LS): Standard (0)
+    return 0;
+  }
+
+  /**
+   * Determine PCBT (body type code) for filler players based on position code
+   * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy
+   * Position codes: QB=0, HB=1, FB=2, WR=3, TE=4, LT=5, LG=6, C=7, RG=8, RT=9, LE=10, RE=11, DT=12, LOLB=13, MLB=14, ROLB=15, CB=16, FS=17, SS=18, K=19, P=20
+   */
+  private determineFillerPCBT(positionCode: number): number {
+    // Offensive Line (LT=5, LG=6, C=7, RG=8, RT=9) - Heavy (3)
+    if (positionCode >= 5 && positionCode <= 9) {
+      return 3; // Heavy
+    }
+
+    // Defensive Tackle (DT=12) - Heavy (3)
+    if (positionCode === 12) {
+      return 3; // Heavy
+    }
+
+    // Edge Rushers (LE=10, RE=11) - Muscular (2)
+    if (positionCode === 10 || positionCode === 11) {
+      return 2; // Muscular
+    }
+
+    // Tight End (TE=4) - Muscular (2)
+    if (positionCode === 4) {
+      return 2; // Muscular
+    }
+
+    // Fullback (FB=2) - Muscular (2)
+    if (positionCode === 2) {
+      return 2; // Muscular
+    }
+
+    // Kicker/Punter (K=19, P=20) - Thin (1)
+    if (positionCode === 19 || positionCode === 20) {
+      return 1; // Thin
+    }
+
+    // All other positions: Standard (0)
+    return 0;
+  }
+
+  /**
+   * Determine PTAR (body type string) for filler players based on position code
+   * Returns string: "Thin", "Muscular", or "Heavy"
+   * NEVER returns null - null causes Madden to default to incorrect body types
+   * Position codes: QB=0, HB=1, FB=2, WR=3, TE=4, LT=5, LG=6, C=7, RG=8, RT=9, LE=10, RE=11, DT=12, LOLB=13, MLB=14, ROLB=15, CB=16, FS=17, SS=18, K=19, P=20
+   */
+  private determineFillerPTAR(positionCode: number): string {
+    // Offensive Line (LT=5, LG=6, C=7, RG=8, RT=9) - Heavy
+    if (positionCode >= 5 && positionCode <= 9) {
       return 'Heavy';
-    } else {
+    }
+
+    // Defensive Tackle (DT=12) - Heavy
+    if (positionCode === 12) {
+      return 'Heavy';
+    }
+
+    // Edge Rushers (LE=10, RE=11) - Muscular
+    if (positionCode === 10 || positionCode === 11) {
       return 'Muscular';
     }
+
+    // Tight End (TE=4) - Muscular
+    if (positionCode === 4) {
+      return 'Muscular';
+    }
+
+    // Fullback (FB=2) - Muscular
+    if (positionCode === 2) {
+      return 'Muscular';
+    }
+
+    // Kicker/Punter (K=19, P=20) - Thin
+    if (positionCode === 19 || positionCode === 20) {
+      return 'Thin';
+    }
+
+    // QB (0) - Muscular (not fat!)
+    if (positionCode === 0) {
+      return 'Muscular';
+    }
+
+    // HB (1), WR (3), CB (16), FS (17), SS (18), Linebackers (13, 14, 15) - Muscular
+    // These positions should NEVER be fat
+    return 'Muscular';
+  }
+
+  /**
+   * Determine body type based on position and weight/height using BMI
+   * Returns Madden body type STRING: "Thin", "Muscular", or "Heavy"
+   * NEVER returns null - null causes Madden to default to incorrect body types (fat players)
+   * Based on CreatorService BMI-based logic for realistic body proportions
+   */
+  private determineBodyType(csvRow: any): string {
+    const weight = parseInt(csvRow.Weight) || 200;
+    const position = (csvRow.Position || '').toUpperCase();
+    const height = parseInt(csvRow.Height) || 73; // Default 6'1"
+
+    // Calculate BMI for proportional body type assignment
+    const bmi = (weight / (height * height)) * 703;
+
+    // Offensive Line - ALWAYS Heavy
+    if (['LT', 'LG', 'C', 'RG', 'RT'].includes(position)) {
+      return 'Heavy';
+    }
+
+    // Defensive Tackle - Heavy
+    if (position === 'DT') {
+      return 'Heavy';
+    }
+
+    // Edge Rushers (LEDG/REDG, LE/RE) - Muscular
+    if (['LEDG', 'REDG', 'LE', 'RE', 'DE'].includes(position)) {
+      return 'Muscular';
+    }
+
+    // Kicker/Punter - Thin
+    if (position === 'K' || position === 'P') {
+      return 'Thin';
+    }
+
+    // QB - Muscular (not Heavy, not Thin)
+    if (position === 'QB') {
+      return 'Muscular';
+    }
+
+    // WR, CB, FS - Thin for lean players, Muscular for bigger ones
+    if (['WR', 'CB', 'FS'].includes(position)) {
+      return bmi < 24 ? 'Thin' : 'Muscular';
+    }
+
+    // HB, FB, SS, TE, Linebackers - Muscular for skill players, Heavy for bigger ones
+    if (['HB', 'FB', 'SS', 'TE', 'SAM', 'MIKE', 'WILL', 'MLB', 'LOLB', 'ROLB'].includes(position)) {
+      return bmi < 26 ? 'Muscular' : 'Heavy';
+    }
+
+    // Default: Muscular (safe default that looks normal in-game)
+    return 'Muscular';
   }
 
   /**

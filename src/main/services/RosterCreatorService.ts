@@ -99,6 +99,454 @@ const NFL_TEAMS = [
  * Roster Creator Service Class
  */
 export class RosterCreatorService {
+  // PAM/PID mapping data for assigning generic faces
+  private pidToPortrait: Map<number, string> = new Map();
+  private pidToPAM: Map<number, string> = new Map();
+  private pidToPGHE: Map<number, number> = new Map();
+  private pidToType: Map<number, string> = new Map(); // 'legend', 'player', or 'generic'
+  private pidToRace: Map<number, number> = new Map(); // PID -> Race code (1=white, 5=hispanic, 7=black)
+  private validPIDs: Set<number> = new Set(); // All valid PIDs from mapping
+  private genericPIDs: number[] = [];
+  // NEW: Generic faces grouped by race for proper skin-tone matching
+  private genericFacesByRace: Map<number, { pid: number; pam: string; pghe: number }[]> = new Map();
+  private pamRaceMapping: { white: string[]; hispanic: string[]; black: string[] } | null = null;
+  private dataLoaded: boolean = false;
+
+  /**
+   * Load PID_Portrait_Mapping.csv and pam-race-mapping.json for generic face assignment
+   */
+  private async loadMappingData(): Promise<void> {
+    if (this.dataLoaded) return;
+
+    try {
+      // Load PID_Portrait_Mapping.csv
+      const pidMappingPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
+      if (fs.existsSync(pidMappingPath)) {
+        const csvContent = fs.readFileSync(pidMappingPath, 'utf8');
+        const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true });
+
+        // Build race-based generic face lookup
+        const genericFacesByRaceTemp: Map<number, { pid: number; pam: string; pghe: number }[]> = new Map();
+
+        // Helper to parse skin tone from portrait name - FIRST DIGIT is skin tone (1-7)
+        // Portrait format: plpo_generic_X_Y_Z_NNN where X is skin tone (1=lightest, 7=darkest)
+        const parseSkinToneFromPortrait = (portrait: string): { skinTone: number; headName: string } | null => {
+          if (!portrait.startsWith('plpo_generic_')) return null;
+          const headName = portrait.substring('plpo_generic_'.length); // e.g., "7_M_G_005"
+          const firstChar = headName.charAt(0);
+          const skinTone = parseInt(firstChar);
+          if (isNaN(skinTone) || skinTone < 1 || skinTone > 7) return null;
+          return { skinTone, headName };
+        };
+
+        // REMOVED: generatePAMFromPortrait was incorrectly converting PLPO to PAM
+        // PLPO format: plpo_generic_SKINTONE_... (first digit = skin tone 1-7)
+        // PAM format: gen_GENERATION_BODYCODE_... (first digit = generation 1-3, BODYCODE = B/H/M/T for race)
+        // These encode different information and cannot be directly converted!
+        // Instead, use getGenericPAM(race) which selects from pam-race-mapping.json
+
+        for (const row of parsed.data as any[]) {
+          const pid = parseInt(row.PID);
+          if (!isNaN(pid)) {
+            // Track all valid PIDs
+            this.validPIDs.add(pid);
+
+            // Store portrait, type, and race for each PID
+            const portrait = row.Portrait || '';
+            const type = row.Type || 'generic';
+            const race = parseInt(row.Race) || 0;
+            if (portrait) this.pidToPortrait.set(pid, portrait);
+            this.pidToType.set(pid, type);
+            if (race > 0) this.pidToRace.set(pid, race);
+
+            // Store PGHE mapping if present (may not exist in original CSV)
+            const pghe = parseInt(row.PGHE);
+            if (!isNaN(pghe)) {
+              this.pidToPGHE.set(pid, pghe);
+            }
+
+            // Handle PAM - only use if it exists in CSV, otherwise leave blank
+            const rawPAM = row.PAM ? String(row.PAM).trim() : '';
+            if (rawPAM && rawPAM !== '0') {
+              this.pidToPAM.set(pid, rawPAM);
+            }
+            // If no PAM in lookup, leave blank - game handles it via PID
+
+            // Collect generic PIDs for fallback random selection
+            if (type === 'generic' && portrait) {
+              this.genericPIDs.push(pid);
+
+              // NOTE: We no longer build genericFacesByRace from PLPO portrait names
+              // because PLPO skin tone (1-7) does NOT map to PAM format.
+              // PAM selection will be done at runtime using getGenericPAM(race)
+              // which properly selects from pam-race-mapping.json based on body code.
+
+              // Only cache if CSV already has a valid PAM
+              if (rawPAM && rawPAM !== '0' && !this.pidToPAM.has(pid)) {
+                this.pidToPAM.set(pid, rawPAM);
+              }
+            }
+          }
+        }
+
+        this.genericFacesByRace = genericFacesByRaceTemp;
+
+        console.log(`[RosterCreatorService] Loaded ${this.pidToPortrait.size} PID mappings, ${this.genericPIDs.length} generic PIDs, ${this.pidToRace.size} race mappings`);
+        console.log('[RosterCreatorService] Generic faces by race:');
+        this.genericFacesByRace.forEach((faces, race) => {
+          console.log(`  Race ${race}: ${faces.length} faces`);
+        });
+      }
+
+      // Load pam-race-mapping.json
+      const pamMappingPath = path.join(app.getAppPath(), 'data', 'lookups', 'pam-race-mapping.json');
+      if (fs.existsSync(pamMappingPath)) {
+        const jsonContent = fs.readFileSync(pamMappingPath, 'utf8');
+        this.pamRaceMapping = JSON.parse(jsonContent);
+        console.log(`[RosterCreatorService] Loaded PAM race mapping: ${this.pamRaceMapping?.white.length} white, ${this.pamRaceMapping?.hispanic.length} hispanic, ${this.pamRaceMapping?.black.length} black`);
+      }
+
+      // CRITICAL FIX: Also load ALL_PLAYER_LOOKUP.csv to ensure ALL valid PIDs and race data are available
+      // This ensures PIDs from MASTER_LOOKUP (used by CreatorService) are recognized as valid
+      const allPlayerLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'ALL_PLAYER_LOOKUP.csv');
+      if (fs.existsSync(allPlayerLookupPath)) {
+        const allPlayerContent = fs.readFileSync(allPlayerLookupPath, 'utf8');
+        const allPlayerParsed = Papa.parse(allPlayerContent, { header: true, skipEmptyLines: true });
+
+        let addedFromMaster = 0;
+        let raceAddedFromMaster = 0;
+
+        for (const row of allPlayerParsed.data as any[]) {
+          const photoId = parseInt(row['PhotoID']);
+          if (!isNaN(photoId) && photoId > 0) {
+            // Add to validPIDs if not already present
+            if (!this.validPIDs.has(photoId)) {
+              this.validPIDs.add(photoId);
+              addedFromMaster++;
+            }
+
+            // Add race mapping if not already present and race is valid
+            const race = parseInt(row['Race']);
+            if (!isNaN(race) && race > 0 && !this.pidToRace.has(photoId)) {
+              this.pidToRace.set(photoId, race);
+              raceAddedFromMaster++;
+            }
+
+            // Also set type to 'player' or 'legend' based on presence of PLPO
+            if (!this.pidToType.has(photoId)) {
+              const plpo = row['PLPO'] || '';
+              if (plpo.includes('legends')) {
+                this.pidToType.set(photoId, 'legend');
+              } else if (plpo) {
+                this.pidToType.set(photoId, 'player');
+              } else {
+                this.pidToType.set(photoId, 'player'); // Default real players to 'player' type
+              }
+            }
+
+            // Also store PAM (Player Assets ID) if not already present
+            const pamValue = row['Player Assets ID'] || '';
+            if (pamValue && !this.pidToPAM.has(photoId)) {
+              this.pidToPAM.set(photoId, pamValue);
+            }
+          }
+        }
+
+        console.log(`[RosterCreatorService] Extended from ALL_PLAYER_LOOKUP: ${addedFromMaster} new PIDs, ${raceAddedFromMaster} new race mappings`);
+        console.log(`[RosterCreatorService] TOTAL: ${this.validPIDs.size} valid PIDs, ${this.pidToRace.size} race mappings`);
+
+        // DEBUG: Verify Staubach's PID 2966 is in validPIDs
+        console.log(`[RosterCreatorService] ✓ VERIFY: validPIDs.has(2966) = ${this.validPIDs.has(2966)}`);
+        console.log(`[RosterCreatorService] ✓ VERIFY: pidToRace.get(2966) = ${this.pidToRace.get(2966)}`);
+        console.log(`[RosterCreatorService] ✓ VERIFY: pidToType.get(2966) = ${this.pidToType.get(2966)}`);
+      } else {
+        console.warn(`[RosterCreatorService] ALL_PLAYER_LOOKUP.csv not found at ${allPlayerLookupPath}`);
+      }
+
+      this.dataLoaded = true;
+    } catch (error) {
+      console.error('[RosterCreatorService] Error loading mapping data:', error);
+    }
+  }
+
+  /**
+   * Check if a PID has a valid PAM in the mapping
+   */
+  private hasValidPAM(pid: number): boolean {
+    if (!pid || pid === 0) return false;
+    const pam = this.pidToPAM.get(pid);
+    return !!(pam && pam.length > 0);
+  }
+
+  /**
+   * Get a random generic PID for a given race
+   * @param race - Race code (1=white, 2-7=black variants)
+   */
+  private getGenericPID(race: number): number {
+    if (this.genericPIDs.length === 0) {
+      return 719; // Fallback to known generic PID
+    }
+
+    // Filter by race if possible using portrait name pattern
+    // Generic faces are named like "plpo_generic_1_001" where 1 is the race code
+    const raceCode = race === 1 ? 1 : 7; // Simplify to 1 (white) or 7 (black)
+    const raceFilteredPIDs = this.genericPIDs.filter(pid => {
+      const portrait = this.pidToPortrait.get(pid);
+      return portrait && portrait.includes(`plpo_generic_${raceCode}_`);
+    });
+
+    const pidsToUse = raceFilteredPIDs.length > 0 ? raceFilteredPIDs : this.genericPIDs;
+    return pidsToUse[Math.floor(Math.random() * pidsToUse.length)];
+  }
+
+  /**
+   * Get a random generic PAM for a given race from pam-race-mapping.json
+   * @param race - Race code (1=white, 5=hispanic, 2-4/6-7=black)
+   * @returns A valid PAM string - NEVER returns undefined/null/empty
+   */
+  private getGenericPAM(race: number): string {
+    // Hardcoded PAM arrays as fallback to ALWAYS work even if files don't load
+    const FALLBACK_WHITE_PAMS = ['gen_1_M_N_02', 'gen_1_M_S_011', 'gen_1_T_EA_JP', 'gen_1_T_N_004', 'gen_2_M_N_04', 'gen_2_T_N_01'];
+    const FALLBACK_BLACK_PAMS = ['gen_1_B_N_01', 'gen_1_B_N_02', 'gen_2_B_N_01', 'gen_2_B_N_02', 'gen_2_B_EA_CM', 'gen_3_B_N_01'];
+    const FALLBACK_HISPANIC_PAMS = ['gen_1_H_N_010', 'gen_1_H_S_003', 'gen_2_H_N_03', 'gen_2_H_B_002'];
+    const ULTIMATE_FALLBACK = 'gen_2_B_N_01'; // Guaranteed valid PAM
+
+    let pamList: string[] = [];
+    let selected: string | undefined;
+
+    // Try to use loaded mapping first
+    if (this.pamRaceMapping) {
+      switch (race) {
+        case 1: // Caucasian
+          pamList = this.pamRaceMapping.white || [];
+          break;
+        case 5: // Hispanic/Latino
+          pamList = this.pamRaceMapping.hispanic || [];
+          break;
+        case 6: // Mixed - randomly choose
+          pamList = Math.random() < 0.5 ? (this.pamRaceMapping.white || []) : (this.pamRaceMapping.hispanic || []);
+          break;
+        default: // All black variants (2, 3, 4, 7)
+          pamList = this.pamRaceMapping.black || [];
+          break;
+      }
+      if (pamList && pamList.length > 0) {
+        selected = pamList[Math.floor(Math.random() * pamList.length)];
+        if (selected && selected.length > 0) {
+          console.log(`[RosterCreatorService] getGenericPAM: race=${race}, selected PAM from mapping: ${selected}`);
+          return selected;
+        }
+      }
+    }
+
+    // Fallback to hardcoded arrays
+    console.log(`[RosterCreatorService] getGenericPAM: Using FALLBACK PAMs (mapping not loaded or empty)`);
+    switch (race) {
+      case 1: // Caucasian
+        pamList = FALLBACK_WHITE_PAMS;
+        break;
+      case 5: // Hispanic
+        pamList = FALLBACK_HISPANIC_PAMS;
+        break;
+      default: // Black
+        pamList = FALLBACK_BLACK_PAMS;
+        break;
+    }
+    selected = pamList[Math.floor(Math.random() * pamList.length)];
+
+    // SAFETY: Ensure we NEVER return undefined/null/empty
+    if (!selected || selected.length === 0) {
+      console.warn(`[RosterCreatorService] getGenericPAM: CRITICAL - all PAM sources failed, using ultimate fallback`);
+      return ULTIMATE_FALLBACK;
+    }
+
+    console.log(`[RosterCreatorService] getGenericPAM: race=${race}, selected FALLBACK PAM: ${selected}`);
+    return selected;
+  }
+
+  /**
+   * Get generic PGHE (head mesh) based on race
+   */
+  private getGenericPGHE(race: number): number {
+    const blackPGHEs = [6, 42, 57, 64, 79, 89, 101, 102, 108, 114, 131, 138, 143, 148, 160, 161, 164, 190, 209, 210, 211, 224, 230, 255, 257, 267, 274, 280];
+    const whitePGHEs = [11, 12, 18, 24, 50, 54, 55, 56, 85, 90, 146, 154, 155, 158, 176, 202, 212, 227, 239, 243, 245, 253, 256, 264, 290];
+    const sharedPGHEs = [1, 7, 21, 25, 27, 34, 36, 53, 59, 62, 67, 77, 84, 93, 99, 100, 109, 119, 120, 128, 132, 139, 142, 147, 157, 162, 183, 188, 200, 232, 246, 247, 261, 271, 273, 278, 282, 286, 287, 288];
+
+    let pgheList: number[];
+    switch (race) {
+      case 1: // Caucasian
+        pgheList = [...whitePGHEs, ...sharedPGHEs];
+        break;
+      case 5: // Hispanic
+      case 6: // Mixed
+        pgheList = sharedPGHEs;
+        break;
+      default: // Black variants
+        pgheList = [...blackPGHEs, ...sharedPGHEs];
+        break;
+    }
+
+    return pgheList[Math.floor(Math.random() * pgheList.length)];
+  }
+
+  /**
+   * Map race to PSKI (skin tone for body)
+   * PSKI 1 = Black, PSKI 2 = White
+   */
+  private mapRaceToPSKI(race: number): number {
+    switch (race) {
+      case 1: // Caucasian
+        return 2; // White skin
+      case 5: // Hispanic
+      case 6: // Mixed
+        return 0; // Default/mixed
+      default: // Black variants (2, 3, 4, 7)
+        return 1; // Black skin
+    }
+  }
+
+  /**
+   * Reverse map PSKI (skin tone) back to race code
+   * Used when we have PSKI but need race for PAM selection
+   * PSKI 1 = Black skin -> race 7 (African descent)
+   * PSKI 2 = White skin -> race 1 (Caucasian)
+   * PSKI 0 = Default -> race 7 (default to black based on NFL demographics)
+   */
+  private mapPSKIToRace(pski: number): number {
+    switch (pski) {
+      case 2: // White skin
+        return 1; // Caucasian race
+      case 1: // Black skin
+        return 7; // African descent race
+      case 0: // Default/unknown
+      default:
+        return 7; // Default to black based on NFL demographics (~70%)
+    }
+  }
+
+  /**
+   * Map CSV race to skin tone (1-7) used in generic head names
+   * Skin tone is the FIRST DIGIT of head name (1=lightest, 7=darkest)
+   * CSV race: 1=Caucasian, 2-4,7=Black variants, 5=Hispanic, 6=Mixed
+   */
+  private mapCsvRaceToSkinTone(csvRace: number): number {
+    switch (csvRace) {
+      case 1: // Caucasian -> lightest skin tones
+        return Math.random() < 0.5 ? 1 : 2;
+      case 2: // African American Medium
+        return 5;
+      case 3: // African American Light
+        return 4;
+      case 4: // African American Dark
+        return 7;
+      case 7: // Default (Black) -> darkest skin tones
+        return Math.random() < 0.5 ? 6 : 7;
+      case 5: // Hispanic/Latino -> medium skin tones
+        return Math.random() < 0.5 ? 3 : 4;
+      case 6: // Mixed/Multi-Racial -> medium range
+        return Math.random() < 0.33 ? 3 : (Math.random() < 0.5 ? 4 : 5);
+      default:
+        return 6; // Default to darker
+    }
+  }
+
+  /**
+   * Derive PSKI from PAM string to ensure body matches face
+   * PAM format: gen_X_Y_Z_NNN where X is skin tone (1-7)
+   * Returns: PSKI value (1=black, 2=white, 0=mixed)
+   */
+  private getPSKIFromPAM(pam: string): number {
+    if (!pam || !pam.startsWith('gen_')) return 1; // Default to black
+    const skinTone = parseInt(pam.charAt(4)); // First digit after "gen_"
+    if (isNaN(skinTone)) return 1;
+
+    // Map skin tone to PSKI
+    if (skinTone <= 2) return 2; // Light skin -> white body
+    if (skinTone >= 5) return 1; // Dark skin -> black body
+    return 0; // Medium skin -> mixed body
+  }
+
+  /**
+   * Select a random generic face that matches the player's race
+   * Returns PID, PAM, and PGHE as a complete set that will have matching skin tones
+   * PAM is selected from pam-race-mapping.json based on body code (B/H/M/T), NOT skin tone
+   */
+  private selectGenericFaceByRace(race: number): { pid: number; pam: string; pghe: number } {
+    // Get PAM from pam-race-mapping.json based on race (uses body code B/H/M/T)
+    const pam = this.getGenericPAM(race);
+
+    // Get matching PGHE (head mesh) for this race
+    const pghe = this.getGenericPGHE(race);
+
+    // Get a random generic PID (for portraits) - use any from our list
+    const pid = this.genericPIDs.length > 0
+      ? this.genericPIDs[Math.floor(Math.random() * this.genericPIDs.length)]
+      : 719; // Fallback PID
+
+    console.log(`[RosterCreatorService] Selected generic face for race ${race}: PID=${pid}, PAM=${pam}, PGHE=${pghe}`);
+
+    return { pid, pam, pghe };
+  }
+
+  /**
+   * Assign generic face data for a player without a valid PID/PAM
+   * Sets PLPL=0 (generic), assigns PGHE, PID
+   * PEPS stays EMPTY - BLBM GENR/SKNT controls the face appearance
+   * DON'T SET PSKI - BLBM handles it
+   */
+  private assignGenericFace(player: RosterPlayer, race: number): void {
+    const genericFace = this.selectGenericFaceByRace(race);
+    player.PLPL = 0; // Generic face
+    player.PSXP = genericFace.pid;
+    player.PEPS = ''; // EMPTY - BLBM GENR/SKNT controls the face
+    player.PGHE = genericFace.pghe;
+    // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
+    player._race = race; // Store race for BLBM GENR/SKNT assignment
+  }
+
+  /**
+   * Determine PBOD (body type code) based on position code
+   * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy
+   * Position codes: QB=0, HB=1, FB=2, WR=3, TE=4, LT=5, LG=6, C=7, RG=8, RT=9, LE=10, RE=11, DT=12, LOLB=13, MLB=14, ROLB=15, CB=16, FS=17, SS=18, K=19, P=20
+   *
+   * IMPORTANT: Do NOT return 0 (Standard) for QB/HB/WR - they look fat in-game!
+   * Use 2 (Muscular) as the default for skill positions.
+   */
+  private determineBodyType(positionCode: number): number {
+    // Offensive Line (LT=5, LG=6, C=7, RG=8, RT=9) - Heavy
+    if (positionCode >= 5 && positionCode <= 9) {
+      return 3; // Heavy
+    }
+
+    // Defensive Tackle (DT=12) - Heavy
+    if (positionCode === 12) {
+      return 3; // Heavy
+    }
+
+    // Edge Rushers (LE=10, RE=11) - Muscular
+    if (positionCode === 10 || positionCode === 11) {
+      return 2; // Muscular
+    }
+
+    // Tight End (TE=4) - Muscular
+    if (positionCode === 4) {
+      return 2; // Muscular
+    }
+
+    // Fullback (FB=2) - Muscular
+    if (positionCode === 2) {
+      return 2; // Muscular
+    }
+
+    // Kicker/Punter (K=19, P=20) - Thin
+    if (positionCode === 19 || positionCode === 20) {
+      return 1; // Thin
+    }
+
+    // QB (0), HB (1), WR (3), CB (16), FS (17), SS (18), Linebackers (13, 14, 15)
+    // Use Muscular (2) - NOT Standard (0) which causes fat appearance!
+    return 2; // Muscular
+  }
 
   /**
    * Generate a historical roster for a given year
@@ -122,6 +570,9 @@ export class RosterCreatorService {
 
       console.log(`[RosterCreatorService] Starting roster generation for ${year}`);
 
+      // Load PID/PAM mapping data for generic face assignment
+      await this.loadMappingData();
+
       progressCallback?.(0, `Loading template roster...`);
 
       // Load template roster FIRST to determine max player count
@@ -144,10 +595,14 @@ export class RosterCreatorService {
       progressCallback?.(30, `Generating roster using scraper service...`);
 
       // Generate roster using the creator service (web scraping)
+      // NOTE: generateRoster signature is (year, teams, maxPlayers, league, progressCallback, ratingMode)
       const generatedPlayers = await creatorService.generateRoster(
         year,
-        [],
-        ratingMode
+        [],          // teams - empty array means all teams for the year
+        3000,        // maxPlayers
+        undefined,   // league
+        undefined,   // progressCallback
+        ratingMode   // ratingMode (6th parameter)
       );
 
       console.log(`[RosterCreatorService] Generated ${generatedPlayers.length} players from scraper`);
@@ -167,11 +622,57 @@ export class RosterCreatorService {
         console.log(`  - College ID: ${firstGen.college}, HomeState ID: ${firstGen.homeState}`);
         console.log(`  - Overall: ${firstGen.ratings?.overall || 'N/A'}`);
         console.log(`  - Speed: ${firstGen.ratings?.speed || 'N/A'}, Strength: ${firstGen.ratings?.strength || 'N/A'}`);
+        console.log(`  - PID: ${firstGen.PID}`);
+        console.log(`  - PEPS: ${firstGen.PEPS}`);
         console.log(`  - Has source stats: ${!!firstGen._sourceStats}`);
         if (firstGen._sourceStats) {
           const s = firstGen._sourceStats;
           console.log(`  - Source stats: pass=${s.passAttempts}, rush=${s.rushAttempts}, rec=${s.receptions}, tkl=${s.tackles}`);
         }
+      }
+
+      // DEBUG: Find and log Staubach's GeneratedPlayer data
+      const staubachGen = generatedPlayers.find(p =>
+        (p.PLNA || p.lastName || '').toLowerCase() === 'staubach'
+      );
+
+      // Write debug to file for easy access
+      const debugLogPath = path.join(app.getAppPath(), 'pid-debug.log');
+      let debugContent = `=== PID DEBUG LOG - ${new Date().toISOString()} ===\n\n`;
+
+      if (staubachGen) {
+        console.log(`\n[RosterCreatorService] ========== STAUBACH FOUND IN GENERATED PLAYERS ==========`);
+        console.log(`  Name: ${staubachGen.PFNA || staubachGen.firstName} ${staubachGen.PLNA || staubachGen.lastName}`);
+        console.log(`  Team: ${staubachGen.team}`);
+        console.log(`  PID: ${staubachGen.PID} (should be 2966 for real face)`);
+        console.log(`  PEPS: ${staubachGen.PEPS}`);
+        console.log(`  Race: ${staubachGen.race}`);
+        console.log(`  College: ${staubachGen.college}`);
+        console.log(`  ================================================================\n`);
+
+        debugContent += `STAUBACH FOUND IN GENERATED PLAYERS:\n`;
+        debugContent += `  Name: ${staubachGen.PFNA || staubachGen.firstName} ${staubachGen.PLNA || staubachGen.lastName}\n`;
+        debugContent += `  Team: ${staubachGen.team}\n`;
+        debugContent += `  PID: ${staubachGen.PID} (should be 2966 for real face)\n`;
+        debugContent += `  PEPS: ${staubachGen.PEPS}\n`;
+        debugContent += `  Race: ${staubachGen.race}\n`;
+        debugContent += `  College: ${staubachGen.college}\n`;
+        debugContent += `\n`;
+      } else {
+        console.log(`\n[RosterCreatorService] ⚠️ STAUBACH NOT FOUND IN GENERATED PLAYERS!\n`);
+        debugContent += `⚠️ STAUBACH NOT FOUND IN GENERATED PLAYERS!\n\n`;
+      }
+
+      debugContent += `\nTotal Generated Players: ${generatedPlayers.length}\n`;
+      debugContent += `ValidPIDs count: ${this.validPIDs.size}\n`;
+      debugContent += `validPIDs.has(2966): ${this.validPIDs.has(2966)}\n`;
+
+      // Write to file
+      try {
+        fs.writeFileSync(debugLogPath, debugContent);
+        console.log(`[RosterCreatorService] Debug log written to: ${debugLogPath}`);
+      } catch (err) {
+        console.error(`[RosterCreatorService] Failed to write debug log:`, err);
       }
 
       // Convert GeneratedPlayer format to RosterPlayer format
@@ -207,10 +708,18 @@ export class RosterCreatorService {
           PDEV: player.devTrait,
 
           // PID (Player Picture ID), PAM, and Years Pro
-          PSXP: player.PID, // Player Picture ID for face/headshot
-          PEPS: player.PEPS || '', // Player Asset Model (PAM) - blank string for historical players
+          // Use rosterGeneratorService to get valid PIDs and PAMs for generic faces
+          PSXP: player.PID, // Player Picture ID for face/headshot (will be updated below if needed)
+          PEPS: player.PEPS || '', // Player Asset Model (PAM) - will be updated below if needed
           PYRP: player.yearsPro, // Years in league
           PBOD: player.bodyType,
+
+          // Face type fields - will be set after checking if PID is valid
+          PLPL: 100, // Default to real face, updated below if generic
+          PGHE: 0, // Generic head ID, updated below if generic
+          // FIX: Don't use player.race (doesn't exist on GeneratedPlayer interface)
+          // PSKI will be set correctly by assignGenericFace from PAM body code
+          PSKI: 0, // Will be overwritten by assignGenericFace
 
           // All ratings from GeneratedPlayer.ratings
           // NOTE: Field names MUST match Madden 26 field definitions exactly!
@@ -291,6 +800,77 @@ export class RosterCreatorService {
         return rosterPlayer;
       });
 
+      // POST-PROCESSING: Set up generic face data while PRESERVING valid PIDs
+      // Historical players don't have 3D face scans, but may have valid portrait PIDs
+      console.log(`[RosterCreatorService] ===== SETTING UP FACE DATA =====`);
+      let preservedPIDCount = 0;
+      let assignedGenericCount = 0;
+      for (let i = 0; i < rosterPlayers.length; i++) {
+        const player = rosterPlayers[i];
+        const existingPID = player.PSXP as number;
+
+        // Check if player has a valid PID (exists in portrait mapping)
+        const hasValidPID = existingPID > 0 && this.validPIDs.has(existingPID);
+
+        // DEBUG: Specific Staubach trace
+        const lastName = player.PLNA?.toLowerCase() || '';
+        if (lastName === 'staubach') {
+          console.log(`\n[RosterCreatorService] ========== STAUBACH TRACE ==========`);
+          console.log(`[RosterCreatorService] Player: ${player.PFNA} ${player.PLNA}`);
+          console.log(`[RosterCreatorService] existingPID (PSXP): ${existingPID}`);
+          console.log(`[RosterCreatorService] existingPID > 0: ${existingPID > 0}`);
+          console.log(`[RosterCreatorService] validPIDs.has(${existingPID}): ${this.validPIDs.has(existingPID)}`);
+          console.log(`[RosterCreatorService] hasValidPID: ${hasValidPID}`);
+          console.log(`[RosterCreatorService] validPIDs size: ${this.validPIDs.size}`);
+          // Check if 2966 specifically is in validPIDs
+          console.log(`[RosterCreatorService] validPIDs.has(2966): ${this.validPIDs.has(2966)}`);
+          console.log(`[RosterCreatorService] =====================================\n`);
+        }
+
+        // Get race: prioritize CSV race mapping for valid PIDs, then original player data, then PSKI fallback
+        const originalPlayer = generatedPlayers[i];
+        const csvRace = hasValidPID ? this.pidToRace.get(existingPID) : undefined;
+        const race = csvRace || originalPlayer?.race || this.mapPSKIToRace(player.PSKI || 0);
+
+        if (hasValidPID) {
+          // PRESERVE the existing PID - player has a valid portrait/identity
+          const playerType = this.pidToType.get(existingPID) || 'generic';
+          const isLegendOrPlayer = playerType === 'legend' || playerType === 'player';
+
+          // Use the PAM from mapping if available
+          const mappedPAM = this.pidToPAM.get(existingPID);
+          if (mappedPAM) {
+            player.PEPS = mappedPAM; // Use PAM from mapping (legend or generic)
+            player.PGHE = this.pidToPGHE.get(existingPID) || this.getGenericPGHE(race);
+            player.PLPL = isLegendOrPlayer ? 100 : 0; // Legends have real faces (100), generics have 0
+          } else {
+            // No PAM mapped for this PID - select a race-matched generic face
+            const genericFace = this.selectGenericFaceByRace(race);
+            player.PEPS = ''; // EMPTY - BLBM GENR/SKNT controls the face
+            player.PGHE = genericFace.pghe;
+            player.PLPL = 0; // Generic face
+            player._race = race; // Store race for BLBM GENR/SKNT assignment
+          }
+
+          // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
+          // Only set _race for BLBM to use
+          player._race = race;
+
+          preservedPIDCount++;
+          if (preservedPIDCount <= 5) {
+            console.log(`[RosterCreatorService] Preserved PID for ${player.PFNA} ${player.PLNA}: PID=${existingPID}, PEPS="${player.PEPS}", PLPL=${player.PLPL}, type=${playerType}, csvRace=${csvRace}, race=${race}, PSKI=${player.PSKI}`);
+          }
+        } else {
+          // No valid PID - assign generic PID and face
+          this.assignGenericFace(player, race);
+          assignedGenericCount++;
+          if (assignedGenericCount <= 5) {
+            console.log(`[RosterCreatorService] Assigned generic face to ${player.PFNA} ${player.PLNA}: PID=${player.PSXP}, PEPS="${player.PEPS}", PLPL=0, race=${race}`);
+          }
+        }
+      }
+      console.log(`[RosterCreatorService] Face data: ${preservedPIDCount} preserved PIDs, ${assignedGenericCount} assigned generic`);
+
       // DEBUG: Log first player AFTER conversion
       if (rosterPlayers.length > 0) {
         const firstRoster = rosterPlayers[0];
@@ -327,6 +907,12 @@ export class RosterCreatorService {
       // Combine team rosters with free agents
       const finalRoster = [...rosterPlayers, ...freeAgents];
       console.log(`[RosterCreatorService] Final roster size: ${finalRoster.length} (team: ${rosterPlayers.length}, FA: ${freeAgents.length})`);
+
+      // NOTE: Face data is already assigned correctly:
+      // - Team roster players with valid PIDs have faces preserved (lines ~705-743)
+      // - Team roster players without valid PIDs got generic faces assigned
+      // - Free agents have face data from CSV or from random generation
+      // Do NOT re-apply generic faces here as it would overwrite preserved PIDs!
 
       progressCallback?.(100, `Roster generation complete! ${finalRoster.length} players created.`);
 
@@ -556,6 +1142,8 @@ export class RosterCreatorService {
 
           // PID, PAM, Years Pro
           PSXP: csvRow.PSXP || csvRow.PID || 0,
+          // Keep PAM from CSV - both real faces and gen_ formats are valid
+          // gen_ PAMs ensure face and body skin tones match
           PEPS: csvRow.PEPS || csvRow.PAM || '',
           PYRP: csvRow.PYRP || csvRow.yearsPro || 0,
           PBOD: csvRow.PBOD || csvRow.bodyType || 0,
@@ -630,6 +1218,13 @@ export class RosterCreatorService {
 
           // Overall
           POVR: csvRow.POVR || 50,
+
+          // Face/Appearance fields - read from CSV or use defaults
+          // These will be overwritten by assignGenericFace in the final loop
+          PLPL: csvRow.PLPL || 0, // Generic face (will be set properly later)
+          PGHE: csvRow.PGHE || 0, // Generic head ID (will be set properly later)
+          // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
+          _race: parseInt(csvRow.Race) || 7, // Store race for BLBM GENR/SKNT
 
           // Metadata
           isHallOfFamer: (csvRow.PDEV || csvRow.devTrait || 0) === 3
@@ -718,7 +1313,7 @@ export class RosterCreatorService {
       PID: 0,
       PEPS: '',
       yearsPro: 0,
-      bodyType: 0,
+      bodyType: this.determineBodyType(position), // Position-aware body type
       ratings: {
         overall: baseRating,
         speed: baseRating + Math.floor(Math.random() * 10) - 5,
@@ -798,6 +1393,14 @@ export class RosterCreatorService {
     // Low-tier stats (40-55 OVR range)
     const baseRating = 40 + Math.floor(Math.random() * 16); // 40-55
 
+    // Random race (weighted: 70% black, 25% white, 5% hispanic based on NFL demographics)
+    const raceRoll = Math.random();
+    const race = raceRoll < 0.70 ? 7 : (raceRoll < 0.95 ? 1 : 5);
+
+    // Select a complete generic face (PID, PAM, PGHE) that matches race
+    const genericFace = this.selectGenericFaceByRace(race);
+    // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
+
     return {
       PFNA: firstName,
       PLNA: lastName,
@@ -810,10 +1413,14 @@ export class RosterCreatorService {
       PCOL: 0,
       PHSN: 0,
       PDEV: 0,
-      PSXP: 0,
-      PEPS: '',
+      PSXP: genericFace.pid, // Generic PID from race-matched face
+      PEPS: '', // EMPTY - BLBM GENR/SKNT controls the face
       PYRP: 0,
-      PBOD: 0,
+      PBOD: this.determineBodyType(position), // Position-aware body type
+      PLPL: 0, // Generic face (not real face)
+      PGHE: genericFace.pghe, // Generic head mesh from race-matched face
+      // DON'T SET PSKI - BLBM handles it
+      _race: race, // Store race for BLBM GENR/SKNT assignment
 
       // All ratings around baseRating ± 5
       POVR: baseRating,
