@@ -97,21 +97,26 @@ function parseM26Prospects(buffer, header) {
     const attributeData = buffer.subarray(attributeOffset, attributeOffset + ATTRIBUTE_DATA_SIZE);
     const attributes = parseM26AttributeData(attributeData);
 
-    // Populate PEPS - prioritize assetName (player-specific) over genericHeadName (generic)
-    if (visuals) {
-      // assetName = player-specific face (e.g., "AdomitisCal_22250")
-      // genericHeadName = generic face (e.g., "p_gen_head_white_1")
-      if (visuals.assetName) {
-        attributes.PEPS = visuals.assetName;
-        // Debug log for first 5 prospects with assetName
-        if (prospectNum < 5) {
-          console.log(`[M26Parser] Prospect #${prospectNum + 1} - Using assetName: ${visuals.assetName}`);
-        }
-      } else if (visuals.genericHeadName) {
-        attributes.PEPS = visuals.genericHeadName;
-        if (prospectNum < 5) {
-          console.log(`[M26Parser] Prospect #${prospectNum + 1} - Using genericHeadName: ${visuals.genericHeadName}`);
-        }
+    // Populate PEPS - prioritize BINARY assetName (0x9E) > visuals.assetName > visuals.genericHeadName
+    // Binary assetName stores real player faces like "WilliamsCaleb_14500"
+    // visuals.genericHeadName stores generic faces like "gen_5_M_M_005"
+    if (attributes.assetName) {
+      // Binary field has real player asset - use it
+      attributes.PEPS = attributes.assetName;
+      if (prospectNum < 5) {
+        console.log(`[M26Parser] Prospect #${prospectNum + 1} - Using binary assetName: ${attributes.assetName}`);
+      }
+    } else if (visuals && visuals.assetName) {
+      // Fallback to visuals JSON assetName
+      attributes.PEPS = visuals.assetName;
+      if (prospectNum < 5) {
+        console.log(`[M26Parser] Prospect #${prospectNum + 1} - Using visuals.assetName: ${visuals.assetName}`);
+      }
+    } else if (visuals && visuals.genericHeadName) {
+      // Final fallback to generic head
+      attributes.PEPS = visuals.genericHeadName;
+      if (prospectNum < 5) {
+        console.log(`[M26Parser] Prospect #${prospectNum + 1} - Using genericHeadName: ${visuals.genericHeadName}`);
       }
     }
 
@@ -146,7 +151,7 @@ function parseM26AttributeData(attributeData) {
   const attributes = {};
 
   try {
-    // String fields (NO assetName field in M26!)
+    // String fields - assetName is at 0x9E (42 bytes), read after other attributes
     const firstName = attributeData.toString('ascii', 0, 0x11).replace(/\0/g, '').trim();
     const lastName = attributeData.toString('ascii', 0x11, 0x26).replace(/\0/g, '').trim();
     // HomeTown field contains state code + "PLACEHOLDER" text
@@ -179,8 +184,12 @@ function parseM26AttributeData(attributeData) {
     // PID (Player ID) - stored at 0x92 as uint16LE
     attributes.PID = attributeData.readUInt16LE(0x92) || 0;  // Confirmed ✓
 
-    // PEPS (Player Equipment Preset System) - stored in visuals JSON as genericHeadName
-    attributes.PEPS = null;  // Will be populated from visuals.genericHeadName by frontend
+    // PEPS (Player Equipment Preset System) - read from binary assetName field at 0x9E (42 bytes)
+    // This field stores real player assets like "WilliamsCaleb_14500"
+    // Generic assets are stored in visuals.genericHeadName instead
+    const binaryAssetName = attributeData.toString('ascii', 0x9E, 0x9E + 42).replace(/\0/g, '').trim();
+    attributes.assetName = binaryAssetName || null;  // Store in assetName for later use
+    attributes.PEPS = null;  // Will be populated from assetName or visuals.genericHeadName
 
     // M26 Attribute Mapping (reverse-engineered from binary analysis)
     // Ratings are NOT sequential - M26 uses a different byte order than M25
