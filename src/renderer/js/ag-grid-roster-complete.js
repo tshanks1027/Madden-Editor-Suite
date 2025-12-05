@@ -344,6 +344,7 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             // Dropdown editor for lookup fields (position, team, college, etc.)
             if (fieldDef.options && fieldDef.options.length > 0) {
                 colDef.editable = true;
+                colDef.singleClickEdit = true; // Open dropdown on single click
 
                 console.log(`[DEBUG DROPDOWN ${fieldName}] Has options:`, fieldDef.options.length);
                 console.log(`[DEBUG DROPDOWN ${fieldName}] First 3 options:`, fieldDef.options.slice(0, 3));
@@ -553,6 +554,11 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     return;
                 }
 
+                // Guard against destroyed grid - check if API still exists and grid is not destroyed
+                if (!params.api || params.api.isDestroyed?.()) {
+                    return;
+                }
+
                 const focusedCell = params.api.getFocusedCell();
                 if (!focusedCell) return;
 
@@ -565,6 +571,28 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                             navigator.clipboard.writeText(String(value)).then(() => {
                                 console.log('[AG-Grid] Copied:', value);
                             }).catch(err => console.error('[AG-Grid] Copy failed:', err));
+                        }
+                    }
+                }
+
+                // Ctrl+Shift+C - Copy entire row
+                if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                    e.preventDefault();
+                    const rowNode = params.api.getDisplayedRowAtIndex(focusedCell.rowIndex);
+                    if (rowNode && rowNode.data) {
+                        // Deep copy the row data
+                        app.copiedRowData = JSON.parse(JSON.stringify(rowNode.data));
+                        console.log('[AG-Grid] Copied entire row:', app.copiedRowData.firstName, app.copiedRowData.lastName);
+
+                        // Visual feedback - briefly flash the row
+                        const rowElement = document.querySelector(`[row-index="${focusedCell.rowIndex}"]`);
+                        if (rowElement) {
+                            rowElement.style.transition = 'background-color 0.2s';
+                            const originalBg = rowElement.style.backgroundColor;
+                            rowElement.style.backgroundColor = '#4CAF50';
+                            setTimeout(() => {
+                                rowElement.style.backgroundColor = originalBg;
+                            }, 200);
                         }
                     }
                 }
@@ -629,6 +657,71 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                             params.api.refreshCells({ force: true });
                         }
                     }).catch(err => console.error('[AG-Grid] Paste failed:', err));
+                }
+
+                // Ctrl+Shift+V - Paste entire row
+                if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+                    e.preventDefault();
+
+                    if (!app.copiedRowData) {
+                        console.log('[AG-Grid] No row data copied');
+                        return;
+                    }
+
+                    const rowNode = params.api.getDisplayedRowAtIndex(focusedCell.rowIndex);
+                    if (!rowNode || !rowNode.data) return;
+
+                    // Get the target row's underlying player data
+                    const targetRowIndex = focusedCell.rowIndex;
+                    const filteredIndex = app.paginatedPlayerIndices ?
+                        app.paginatedPlayerIndices[targetRowIndex] : targetRowIndex;
+                    const actualPlayer = app.filteredPlayers[filteredIndex];
+
+                    if (!actualPlayer) {
+                        console.log('[AG-Grid] Could not find target player');
+                        return;
+                    }
+
+                    // Copy all properties except identity fields that should remain unique
+                    const excludeFields = ['index', 'originalIndex', 'visuals', 'draftPosition'];
+                    const copiedData = app.copiedRowData;
+
+                    for (const key of Object.keys(copiedData)) {
+                        if (excludeFields.includes(key)) continue;
+
+                        // Update grid row data
+                        rowNode.data[key] = copiedData[key];
+
+                        // Update the actual player object
+                        actualPlayer[key] = copiedData[key];
+
+                        // Update in main players array
+                        const playerIndex = app.players.findIndex(p => p === actualPlayer);
+                        if (playerIndex !== -1) {
+                            app.players[playerIndex][key] = copiedData[key];
+                        }
+                    }
+
+                    // Refresh the grid to show changes
+                    params.api.refreshCells({ rowNodes: [rowNode], force: true });
+
+                    // Mark as modified
+                    app.hasUnsavedChanges = true;
+                    const saveBtn = document.getElementById('saveRosterBtn');
+                    if (saveBtn) saveBtn.style.display = 'inline-block';
+
+                    console.log('[AG-Grid] Pasted row data to row', targetRowIndex);
+
+                    // Visual feedback - briefly flash the row
+                    const rowElement = document.querySelector(`[row-index="${targetRowIndex}"]`);
+                    if (rowElement) {
+                        rowElement.style.transition = 'background-color 0.2s';
+                        const originalBg = rowElement.style.backgroundColor;
+                        rowElement.style.backgroundColor = '#2196F3';
+                        setTimeout(() => {
+                            rowElement.style.backgroundColor = originalBg;
+                        }, 200);
+                    }
                 }
             });
         }
