@@ -10,6 +10,8 @@
     />
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/creator.css">
+    <link rel="stylesheet" href="css/database-player-card.css">
+    <link rel="stylesheet" href="css/player-browser.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <!-- AG-Grid Styles -->
     <style>
@@ -245,12 +247,6 @@
                     </button>
                 </nav>
 
-                <div class="header-right">
-                    <button id="reportBugBtn" class="btn-report" title="Report a bug or request a feature">
-                        <span class="report-icon">🐛</span>
-                        Report Bug / Request Feature
-                    </button>
-                </div>
             </div>
         </header>
 
@@ -258,17 +254,42 @@
         <main class="app-main">
             <!-- Roster Editor Tool -->
             <div id="roster-tool" class="tool-panel active">
-                <!-- Info Tooltips -->
+                <!-- Info Tooltips and Action Buttons -->
                 <div class="info-tooltips">
-                    <div class="info-tip">
-                        <span class="info-icon">ℹ️</span>
-                        <span class="info-text">Click column headers to sort. Shift+click to sort by multiple columns.</span>
+                    <div class="info-tips-left">
+                        <div class="info-tip">
+                            <span class="info-icon">ℹ️</span>
+                            <span class="info-text">Click column headers to sort. Shift+click to sort by multiple columns.</span>
+                        </div>
+                        <div class="info-tip">
+                            <span class="info-icon">ℹ️</span>
+                            <span class="info-text">Players tagged with (R) can be replaced easily in Mods.</span>
+                        </div>
                     </div>
-                    <div class="info-tip">
-                        <span class="info-icon">ℹ️</span>
-                        <span class="info-text">Players tagged with (R) can be replaced easily in Mods.</span>
+                    <div class="info-tips-right">
+                        <button id="openPlayerBrowserBtn" class="btn-browse-db" title="Browse player database">
+                            <span class="browse-icon">📚</span>
+                            Browse Players
+                        </button>
+                        <button id="reportBugBtn" class="btn-report" title="Report a bug or request a feature">
+                            <span class="report-icon">🐛</span>
+                            Report Bug / Request Feature
+                        </button>
                     </div>
                 </div>
+                <script>
+                    // Inline handler for Browse Players button
+                    document.getElementById('openPlayerBrowserBtn').addEventListener('click', function() {
+                        console.log('[Inline] Browse Players clicked');
+                        if (typeof window.openPlayerBrowser === 'function') {
+                            window.openPlayerBrowser();
+                        } else {
+                            // Fallback if script hasn't loaded yet
+                            var modal = document.getElementById('playerBrowserModal');
+                            if (modal) modal.style.display = 'flex';
+                        }
+                    });
+                </script>
 
                 <!-- Team View Header (hidden by default) -->
                 <div id="teamViewHeader" class="team-view-header" style="display: none;">
@@ -1312,6 +1333,720 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
         </div>
     </div>
 
+    <!-- Database Player Card Modal -->
+    <div id="dbPlayerCardModal" class="modal" style="display: none;">
+        <div class="modal-content db-player-card-modal">
+            <!-- Header -->
+            <div class="db-player-card-header">
+                <button class="db-player-card-close" id="closeDbPlayerCard">&times;</button>
+                <div class="db-player-card-portrait-container">
+                    <img id="dbPlayerCardPortrait" class="db-player-card-portrait" src="" alt="Player Portrait">
+                </div>
+                <div class="db-player-card-info">
+                    <div class="db-player-card-name-row">
+                        <h2 class="db-player-card-name" id="dbPlayerCardName">Player Name</h2>
+                        <span class="db-player-edited-badge" id="dbPlayerEditedIndicator" style="display: none;">Edited</span>
+                    </div>
+                    <div class="db-player-card-meta">
+                        <span>Database Player Editor</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body with Tabs -->
+            <div class="db-player-card-body">
+                <!-- Tab Navigation -->
+                <div class="db-player-tabs">
+                    <button class="db-player-tab active" data-tab="info">Player Info</button>
+                    <button class="db-player-tab" data-tab="madden">Madden IDs</button>
+                    <button class="db-player-tab" data-tab="ratings">Ratings</button>
+                    <button class="db-player-tab" data-tab="stats">Career Stats</button>
+                </div>
+
+                <!-- Player Info Tab -->
+                <div class="db-player-tab-content active" id="tab-info">
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Basic Information</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">First Name</label>
+                                <input type="text" class="db-form-input" id="dbPlayerFirstName" placeholder="First Name">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Last Name</label>
+                                <input type="text" class="db-form-input" id="dbPlayerLastName" placeholder="Last Name">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Position</label>
+                                <select class="db-form-select" id="dbPlayerPosition"></select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Hometown</label>
+                                <input type="text" class="db-form-input" id="dbPlayerHometown" placeholder="City, ST">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Height (inches)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerHeight" min="60" max="90">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Weight (lbs)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerWeight" min="150" max="400">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">College</label>
+                                <select class="db-form-select" id="dbPlayerCollege"></select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Race</label>
+                                <select class="db-form-select" id="dbPlayerRace"></select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Home State</label>
+                                <select class="db-form-select" id="dbPlayerHomeState"></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Draft Information</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">Draft Class (Year)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerDraftClass" min="1936" max="2100">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Round</label>
+                                <input type="text" class="db-form-input" id="dbPlayerDraftRound" placeholder="1, 2, UDFA...">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Pick</label>
+                                <input type="number" class="db-form-input" id="dbPlayerDraftPick" min="1" max="300">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Career Span</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">Career From (Year)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerCareerFrom" min="1920" max="2100">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Career To (Year)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerCareerTo" min="1920" max="2100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Madden IDs Tab -->
+                <div class="db-player-tab-content" id="tab-madden">
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Madden Identifiers</h4>
+                        <div class="db-form-grid db-form-grid-wide">
+                            <div class="db-form-item">
+                                <label class="db-form-label">Photo ID (PID)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerPID" placeholder="e.g., 12345">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Player Assets ID (PAM)</label>
+                                <input type="text" class="db-form-input" id="dbPlayerPAM" placeholder="e.g., Brady_Tom">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Portrait Key (PLPO)</label>
+                                <input type="text" class="db-form-input" id="dbPlayerPLPO" placeholder="e.g., PLPO_Brady_Tom">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Commentary ID</label>
+                                <input type="text" class="db-form-input" id="dbPlayerCommID" placeholder="Commentary ID">
+                            </div>
+                        </div>
+                        <p style="color: #a0a0a0; font-size: 12px; margin-top: 12px;">
+                            These IDs link the player to Madden assets like portraits and commentary.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Ratings Tab -->
+                <div class="db-player-tab-content" id="tab-ratings">
+                    <div class="db-year-selector">
+                        <label>Select Year:</label>
+                        <select id="dbPlayerYearSelect">
+                            <option value="">Select Year for Ratings</option>
+                        </select>
+                        <label class="db-apply-all-years-label" style="margin-left: 20px; display: inline-flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="dbApplyToAllYears" style="margin-right: 6px;">
+                            Apply changes to ALL years
+                        </label>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Season Info</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">Team</label>
+                                <input type="text" class="db-form-input" id="dbPlayerSeasonTeam" placeholder="Team abbreviation">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Jersey</label>
+                                <input type="number" class="db-form-input" id="dbPlayerSeasonJersey" min="0" max="99">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Age</label>
+                                <input type="number" class="db-form-input" id="dbPlayerSeasonAge" min="18" max="50">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Position</label>
+                                <select class="db-form-select" id="dbPlayerSeasonPosition">
+                                    <option value="">Select Position</option>
+                                </select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Archetype</label>
+                                <select class="db-form-select" id="dbPlayerSeasonArchetype">
+                                    <option value="">Select Position First</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Core Ratings</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">OVR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_POVR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">SPD</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PSPD" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">ACC</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PACC" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">STR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PSTR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">AGI</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PAGI" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">AWR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PAWR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">JMP</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PJMP" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">STA</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PSTM" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">INJ</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PINJ" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">TGH</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PTGH" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">COD</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PCOD" min="0" max="99">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Passing</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">THP</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPWR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">TAS</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PTAS" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">TAM</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PTAM" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">TAD</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PTAD" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">TOR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PTOR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">TUP</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PTUP" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">PAC</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPBK" min="0" max="99">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Running</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">CAR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PCAR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">BCV</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PBCV" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">BTK</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PBTK" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">TRK</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PTRK" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">ELU</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PELU" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">SFA</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PSFA" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">SPN</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PSPN" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">JKM</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PJKM" min="0" max="99">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Receiving</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">CTH</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PCTH" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">SPC</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PSPC" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">CIT</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PCIT" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">SRR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PSRR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">MRR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PMRR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">DRR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PDRR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">RLS</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PREL" min="0" max="99">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Blocking</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">RBK</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PRBK" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">PBK</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPBK2" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">IBL</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PIBK" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">LBK</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PLBK" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">RBF</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PFMS" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">RBP</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PRNS" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">PBF</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPBS" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">PBP</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPBP" min="0" max="99">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Defense</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">TAK</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PTAK" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">POW</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PHIT" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">PMV</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPWM" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">FMV</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PFMV" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">BSH</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PBSH" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">PUR</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPRC" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">PRC</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPLA" min="0" max="99">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Coverage</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">MCV</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PMCV" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">ZCV</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PZCV" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">PRS</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPRS" min="0" max="99">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Kicking</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">KPW</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PKPR" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">KAC</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PKAC" min="0" max="99">
+                            </div>
+                            <div class="db-rating-item">
+                                <span class="db-rating-label">KRT</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PKRT" min="0" max="99">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Career Stats Tab -->
+                <div class="db-player-tab-content" id="tab-stats">
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Career Accolades</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">All-Pro Selections (AP1)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerAP1" min="0" max="20">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Pro Bowls (PB)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerPB" min="0" max="20">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Starts (St)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerSt" min="0" max="400">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Weighted AV (wAV)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerWAV" min="0" max="300">
+                            </div>
+                            <div class="db-form-item db-form-checkbox">
+                                <input type="checkbox" id="dbPlayerHOF">
+                                <label class="db-form-label" style="margin: 0;">Hall of Famer</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="db-player-card-footer">
+                <div class="db-footer-left">
+                    <button class="db-btn db-btn-danger" id="resetDbPlayerBtn">Reset to Original</button>
+                </div>
+                <div class="db-footer-right">
+                    <button class="db-btn db-btn-secondary" id="addDbPlayerToRoster">Add to Roster</button>
+                    <button class="db-btn db-btn-secondary" id="addDbPlayerToDraft">Add to Draft Class</button>
+                    <button class="db-btn db-btn-primary" id="saveDbPlayerCardBtn" disabled>Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Player Browser Modal -->
+    <div id="playerBrowserModal" style="display: none;">
+        <div class="player-browser-container">
+            <div class="player-browser-header">
+                <h2>Player Database Browser</h2>
+                <button class="player-browser-close" id="closePlayerBrowser">&times;</button>
+            </div>
+            <div class="player-browser-controls">
+                <div class="player-browser-search-row">
+                    <input type="text" id="playerBrowserSearch" placeholder="Search by name...">
+                </div>
+                <div class="player-browser-filters">
+                    <div class="player-browser-filter-group">
+                        <label>Position:</label>
+                        <select id="playerBrowserPositionFilter">
+                            <option value="">All Positions</option>
+                        </select>
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>Draft Year:</label>
+                        <input type="number" id="playerBrowserDraftYearFrom" placeholder="From" min="1900" max="2050" style="width: 70px;">
+                        <span style="color: #666;">-</span>
+                        <input type="number" id="playerBrowserDraftYearTo" placeholder="To" min="1900" max="2050" style="width: 70px;">
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>College:</label>
+                        <select id="playerBrowserCollegeFilter" style="width: 140px;">
+                            <option value="">All Colleges</option>
+                        </select>
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>Empty:</label>
+                        <select id="playerBrowserEmptyFilter">
+                            <option value="">Show All</option>
+                            <option value="position">Empty Position</option>
+                            <option value="college">Empty College</option>
+                            <option value="height">Empty Height</option>
+                            <option value="weight">Empty Weight</option>
+                            <option value="draftClass">Empty Draft Year</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="player-browser-content">
+                <div class="player-browser-results-header">
+                    <div>Name</div>
+                    <div>Position</div>
+                    <div>College</div>
+                    <div>Draft</div>
+                    <div>Career</div>
+                    <div>Actions</div>
+                </div>
+                <div id="playerBrowserResults">
+                    <div class="player-browser-loading">Loading players...</div>
+                </div>
+            </div>
+            <div class="player-browser-footer">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="display: flex; gap: 8px;">
+                        <button id="addNewPlayerBtn" class="db-btn db-btn-primary" style="padding: 6px 12px;">+ Add Player</button>
+                        <button id="openCsvImport" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Import Created Players</button>
+                        <button id="openDbManagement" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Manage</button>
+                    </div>
+                    <div class="player-browser-pagination">
+                        <button id="playerBrowserPrevPage" disabled>&laquo; Previous</button>
+                        <span id="playerBrowserPageInfo">Page 1</span>
+                        <button id="playerBrowserNextPage">Next &raquo;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSV Import Modal -->
+    <div id="csvImportModal" class="modal" style="display: none;">
+        <div class="modal-content csv-import-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Import Created Players</h2>
+                <button class="modal-close" id="closeCsvImport">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Step 1: Select File -->
+                <div id="csvImportStep1">
+                    <p style="margin-bottom: 15px; color: #999;">
+                        Import your own custom players from a CSV file. Download the template below to get started.
+                    </p>
+
+                    <div style="background: #2a2a2a; border-radius: 6px; padding: 15px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="font-weight: 600; color: #ccc;">Step 1: Get the Template</span>
+                            <button id="csvDownloadTemplate" class="db-btn db-btn-secondary" style="padding: 6px 16px;">
+                                Download Template
+                            </button>
+                        </div>
+                        <p style="font-size: 11px; color: #888; margin: 0;">
+                            Fill out the template with your player data. Required fields: Last Name, First Name.
+                        </p>
+                    </div>
+
+                    <div style="background: #2a2a2a; border-radius: 6px; padding: 15px; margin-bottom: 15px;">
+                        <span style="font-weight: 600; color: #ccc; display: block; margin-bottom: 10px;">Step 2: Import Your File</span>
+                        <button id="csvImportSelectFile" class="db-btn db-btn-primary" style="width: 100%;">
+                            Select CSV File
+                        </button>
+                        <div id="csvImportFileName" style="color: #aaa; margin-top: 10px; text-align: center;"></div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Preview -->
+                <div id="csvImportStep2" style="display: none;">
+                    <div id="csvImportStats" style="margin-bottom: 15px; padding: 10px; background: #2a2a2a; border-radius: 4px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Total Rows:</span>
+                            <span id="csvTotalRows">0</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Valid Players:</span>
+                            <span id="csvValidCount" style="color: #4caf50;">0</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Errors:</span>
+                            <span id="csvErrorCount" style="color: #f44336;">0</span>
+                        </div>
+                    </div>
+
+                    <h4 style="margin-bottom: 10px; color: #ccc;">Preview (first 10 players):</h4>
+                    <div id="csvImportPreview" style="max-height: 200px; overflow-y: auto; background: #1e1e1e; border-radius: 4px; padding: 10px;">
+                        <!-- Preview rows will be inserted here -->
+                    </div>
+
+                    <div id="csvImportErrors" style="display: none; margin-top: 15px;">
+                        <h4 style="margin-bottom: 10px; color: #f44336;">Errors:</h4>
+                        <div id="csvImportErrorList" style="max-height: 100px; overflow-y: auto; background: #2a1515; border-radius: 4px; padding: 10px; font-size: 11px; color: #ff6b6b;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Progress -->
+                <div id="csvImportStep3" style="display: none;">
+                    <div style="text-align: center; padding: 30px;">
+                        <div id="csvImportProgress" style="margin-bottom: 15px; font-size: 18px;">Importing...</div>
+                        <div style="height: 6px; background: #333; border-radius: 3px; overflow: hidden;">
+                            <div id="csvImportProgressBar" style="height: 100%; background: #4caf50; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Complete -->
+                <div id="csvImportStep4" style="display: none;">
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 48px; color: #4caf50; margin-bottom: 15px;">&#10003;</div>
+                        <h3 style="color: #4caf50; margin-bottom: 10px;">Import Complete!</h3>
+                        <div id="csvImportResult" style="color: #aaa;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 15px; border-top: 1px solid #333;">
+                <button id="csvImportBack" class="db-btn db-btn-secondary" style="display: none;">Back</button>
+                <button id="csvImportCancel" class="db-btn db-btn-secondary">Cancel</button>
+                <button id="csvImportSubmit" class="db-btn db-btn-primary" style="display: none;">Import Players</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Management Modal -->
+    <div id="dbManagementModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Database Management</h2>
+                <button class="modal-close" id="closeDbManagement">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Statistics Section -->
+                <div style="margin-bottom: 20px; padding: 15px; background: #2a2a2a; border-radius: 6px;">
+                    <h4 style="margin: 0 0 12px 0; color: #ccc;">Database Statistics</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div style="padding: 10px; background: #1e1e1e; border-radius: 4px; text-align: center;">
+                            <div id="dbStatEditedPlayers" style="font-size: 24px; color: #4caf50;">0</div>
+                            <div style="font-size: 11px; color: #888;">Edited Players</div>
+                        </div>
+                        <div style="padding: 10px; background: #1e1e1e; border-radius: 4px; text-align: center;">
+                            <div id="dbStatCustomPlayers" style="font-size: 24px; color: #2196f3;">0</div>
+                            <div style="font-size: 11px; color: #888;">Custom Players</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reset Section -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 12px 0; color: #ccc;">Reset Data</h4>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button id="resetEditedPlayers" class="db-btn db-btn-secondary" style="width: 100%; text-align: left;">
+                            Reset All Edited Players
+                            <span style="float: right; color: #888; font-size: 11px;">Restore original values</span>
+                        </button>
+                        <button id="resetCustomPlayers" class="db-btn db-btn-secondary" style="width: 100%; text-align: left;">
+                            Delete All Custom Players
+                            <span style="float: right; color: #888; font-size: 11px;">Remove imported players</span>
+                        </button>
+                        <button id="resetAllDatabase" class="db-btn" style="width: 100%; text-align: left; background: #8b0000; color: white;">
+                            Reset Everything
+                            <span style="float: right; font-size: 11px;">Cannot be undone</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Backup Section -->
+                <div>
+                    <h4 style="margin: 0 0 12px 0; color: #ccc;">Backup & Restore</h4>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="createDbBackup" class="db-btn db-btn-primary" style="flex: 1;">Create Backup</button>
+                        <button id="restoreDbBackup" class="db-btn db-btn-secondary" style="flex: 1;">Restore Backup</button>
+                    </div>
+                    <div id="backupListContainer" style="margin-top: 10px; display: none;">
+                        <label style="color: #888; font-size: 11px;">Select backup to restore:</label>
+                        <select id="backupList" style="width: 100%; margin-top: 4px; padding: 6px; background: #1e1e1e; border: 1px solid #444; color: #ccc; border-radius: 4px;">
+                        </select>
+                        <button id="confirmRestoreBackup" class="db-btn db-btn-primary" style="width: 100%; margin-top: 8px;">Confirm Restore</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 15px; border-top: 1px solid #333; text-align: right;">
+                <button id="closeDbManagementBtn" class="db-btn db-btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Generic Face Picker Modal -->
     <div id="genericFacePickerModal" class="modal" style="display: none;">
         <div class="modal-content generic-face-picker-content">
@@ -1329,6 +2064,10 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
 
     <script src="js/custom-dropdown.js"></script>
     <script src="js/retro-editor.js"></script>
+    <script src="js/database-player-card.js"></script>
+    <script src="js/player-browser.js"></script>
+    <script src="js/csv-import.js"></script>
+    <script src="js/db-management.js"></script>
     <script type="module" src="js/app.js"></script>
 </body>
 </html>

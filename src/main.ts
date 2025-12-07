@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 
 // No custom module path configuration needed
@@ -32,6 +32,7 @@ import './main/ipc/portrait-handlers';
 import './main/ipc/shell-handlers';
 import './main/ipc/presentation-id-fix-handlers';
 import './main/ipc/retro-editor-handlers';
+import './main/ipc/database-handlers';
 import { registerCreatorHandlers } from './main/ipc/creator-handlers';
 import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';
@@ -46,6 +47,73 @@ registerCreatorHandlers();
 registerDebugHandlers();
 registerRatingHandlers();
 registerUpdateHandlers();
+
+// Register window focus handler - used to restore OS-level focus after native dialogs
+// Windows has focus theft prevention that can leave webContents without keyboard input
+// even when the window appears focused. Blur-then-focus simulates DevTools open/close
+// which reliably restores keyboard input.
+let windowFocusPending = false;
+let windowFocusTimeout: ReturnType<typeof setTimeout> | null = null;
+
+ipcMain.handle('window:focus', async () => {
+  // Debounce: if a focus operation is pending, skip this call
+  if (windowFocusPending) {
+    console.log('[main] window:focus IPC - skipping (debounced)');
+    return { success: true, debounced: true };
+  }
+
+  // Clear any pending timeout
+  if (windowFocusTimeout) {
+    clearTimeout(windowFocusTimeout);
+    windowFocusTimeout = null;
+  }
+
+  windowFocusPending = true;
+  console.log('[main] window:focus IPC called');
+
+  try {
+    const windows = BrowserWindow.getAllWindows();
+    const focusedWindow = windows.find(w => !w.isDestroyed());
+    if (focusedWindow) {
+      // CRITICAL: On Windows, after native dialogs (alert/confirm), the webContents
+      // can lose keyboard input even though it appears focused. Opening DevTools
+      // fixes this, so we simulate that by blurring then refocusing.
+
+      // 1. Focus the app itself first (steal: true forces focus)
+      app.focus({ steal: true });
+
+      // 2. BLUR the window first - this is the key to resetting Windows focus state
+      focusedWindow.blur();
+
+      // 3. Small delay to let Windows process the blur
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // 4. Now focus everything fresh
+      focusedWindow.show();
+      focusedWindow.focus();
+      focusedWindow.moveTop();
+
+      // 5. Focus webContents for keyboard input
+      focusedWindow.webContents.focus();
+
+      // 6. Another small delay
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // 7. Final webContents focus to ensure keyboard works
+      focusedWindow.webContents.focus();
+
+      console.log('[main] Window focused successfully (blur-refocus method)');
+      return { success: true };
+    }
+    console.log('[main] No window to focus');
+    return { success: false, error: 'No window available' };
+  } finally {
+    // Reset debounce after a delay to allow subsequent calls
+    windowFocusTimeout = setTimeout(() => {
+      windowFocusPending = false;
+    }, 300);
+  }
+});
 
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;
