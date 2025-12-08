@@ -26,7 +26,7 @@ jobs:
       run: npm run test
 
     - name: Build application
-      run: npm run make
+      run: npm run dist
       env:
         NODE_ENV: production
 
@@ -62,13 +62,17 @@ jobs:
         draft: false
         prerelease: ${{ contains(steps.get_version.outputs.VERSION, 'beta') || contains(steps.get_version.outputs.VERSION, 'alpha') }}
 
+    - name: Create Portable ZIP
+      run: |
+        Compress-Archive -Path "out\Madden Editor Suite-win32-x64\*" -DestinationPath "dist\MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Portable.zip"
+
     - name: Upload Windows Installer
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: out/make/squirrel.windows/x64/madden-editor-suite-${{ steps.get_version.outputs.VERSION }} Setup.exe
+        asset_path: dist/madden-editor-suite-Setup-${{ steps.get_version.outputs.VERSION }}.exe
         asset_name: MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Setup.exe
         asset_content_type: application/octet-stream
 
@@ -78,14 +82,14 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: out/make/zip/win32/x64/madden-editor-suite-win32-x64-${{ steps.get_version.outputs.VERSION }}.zip
+        asset_path: dist/MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Portable.zip
         asset_name: MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Portable.zip
         asset_content_type: application/zip
 
     - name: Generate checksums
       run: |
-        $setupFile = "out/make/squirrel.windows/x64/madden-editor-suite-${{ steps.get_version.outputs.VERSION }} Setup.exe"
-        $portableFile = "out/make/zip/win32/x64/madden-editor-suite-win32-x64-${{ steps.get_version.outputs.VERSION }}.zip"
+        $setupFile = "dist/madden-editor-suite-Setup-${{ steps.get_version.outputs.VERSION }}.exe"
+        $portableFile = "dist/MaddenEditorSuite-${{ steps.get_version.outputs.VERSION }}-Portable.zip"
 
         $setupHash = (Get-FileHash -Path $setupFile -Algorithm SHA256).Hash
         $portableHash = (Get-FileHash -Path $portableFile -Algorithm SHA256).Hash
