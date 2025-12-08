@@ -785,7 +785,7 @@ body {
     white-space: nowrap;
 }
 
-/* Data Grid Container */
+/* Data Grid Container (Roster) */
 .data-grid-container {
     flex: 1;
     min-height: 0;
@@ -793,6 +793,17 @@ body {
     position: relative;
     display: flex;
     flex-direction: column;
+}
+
+/* Grid Container (Draft Class) */
+.grid-container {
+    flex: 1;
+    min-height: 0;
+    background: var(--gray-dark);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
 }
 
 /* Floating Horizontal Scrollbar - Always visible at bottom */

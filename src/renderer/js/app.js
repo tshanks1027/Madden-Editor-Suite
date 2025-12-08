@@ -3815,6 +3815,31 @@ class MaddenEditorApp {
             this.currentDraftClass = result.data;
             this.currentDraftFilePath = filePath;
 
+            // Pre-calculate round for ALL prospects immediately
+            // This ensures filterDraftProspects works correctly even before grid is fully rendered
+            result.data.prospects.forEach((prospect, index) => {
+                if (prospect.round === undefined || prospect.round === null) {
+                    const draftPosition = prospect.draftPosition !== undefined ? prospect.draftPosition : index;
+                    const pickNum = draftPosition + 1;
+                    if (pickNum <= 224) {
+                        prospect.round = Math.floor((pickNum - 1) / 32) + 1;
+                    } else {
+                        prospect.round = 8; // UFA
+                    }
+                }
+            });
+            console.log(`[Draft] Pre-calculated rounds for ${result.data.prospects.length} prospects`);
+            console.log(`[Draft] Round distribution:`, {
+                round1: result.data.prospects.filter(p => p.round === 1).length,
+                round2: result.data.prospects.filter(p => p.round === 2).length,
+                round3: result.data.prospects.filter(p => p.round === 3).length,
+                round4: result.data.prospects.filter(p => p.round === 4).length,
+                round5: result.data.prospects.filter(p => p.round === 5).length,
+                round6: result.data.prospects.filter(p => p.round === 6).length,
+                round7: result.data.prospects.filter(p => p.round === 7).length,
+                ufa: result.data.prospects.filter(p => p.round === 8).length
+            });
+
             // Update UI
             document.getElementById('draft-file-name').textContent = filePath.split(/[/\\]/).pop();
             document.getElementById('draft-file-stats').textContent =
@@ -3826,8 +3851,8 @@ class MaddenEditorApp {
             document.getElementById('import-draft-csv-btn').disabled = false;
             document.getElementById('fillFromDbDraftBtn').disabled = false;
 
-            // Create grid
-            this.createDraftGrid(result.data.prospects);
+            // Create grid (await to ensure it completes)
+            await this.createDraftGrid(result.data.prospects);
 
             console.log('Draft class loaded successfully:', result.data.prospects.length, 'prospects');
         } catch (error) {
@@ -3886,10 +3911,23 @@ class MaddenEditorApp {
             this.draftGrid.destroy();
         }
 
-        // Set container to allow overflow scrolling
+        // Set container dimensions - Handsontable will handle its own scrolling
+        // Let CSS flex handle the container sizing, just set overflow and position
         container.style.width = '100%';
-        container.style.height = 'calc(100vh - 200px)';
-        container.style.overflow = 'auto';  // Enable both horizontal and vertical scrolling
+        container.style.overflow = 'hidden';  // Let Handsontable manage scrolling internally
+        container.style.position = 'relative'; // Required for Handsontable positioning
+
+        // Calculate actual available height dynamically
+        // This accounts for header, toolbar, and filter controls properly
+        const toolPanel = document.getElementById('draft-tool');
+        const toolHeader = toolPanel.querySelector('.tool-header');
+        const filterControls = toolPanel.querySelector('.filter-controls');
+        const headerHeight = toolHeader ? toolHeader.offsetHeight : 0;
+        const filterHeight = filterControls ? filterControls.offsetHeight : 0;
+        const appHeader = document.querySelector('.app-header');
+        const appHeaderHeight = appHeader ? appHeader.offsetHeight : 0;
+        const totalOffset = appHeaderHeight + headerHeight + filterHeight + 20; // 20px padding
+        const gridHeight = `calc(100vh - ${totalOffset}px)`;
 
         // Store original prospect data with numeric IDs
         this.originalProspectData = prospects.map(p => ({...p}));
@@ -4480,12 +4518,22 @@ class MaddenEditorApp {
             { data: 'devTrait', title: 'Dev Trait', width: 110, type: 'dropdown', source: devTraitOptions, allowInvalid: false, renderer: dropdownRenderer }
         ];
 
+        // Debug: Log counts to identify where data might be truncated
+        console.log(`[Draft Grid DEBUG] Input prospects: ${prospects.length}`);
+        console.log(`[Draft Grid DEBUG] Transformed prospects: ${transformedProspects.length}`);
+        console.log(`[Draft Grid DEBUG] First 5 prospects:`, transformedProspects.slice(0, 5).map(p => `${p.firstName} ${p.lastName}`));
+        console.log(`[Draft Grid DEBUG] Last 5 prospects:`, transformedProspects.slice(-5).map(p => `${p.firstName} ${p.lastName}`));
+        console.log(`[Draft Grid DEBUG] Prospect at index 107:`, transformedProspects[107] ? `${transformedProspects[107].firstName} ${transformedProspects[107].lastName}` : 'N/A');
+        console.log(`[Draft Grid DEBUG] Prospect at index 108:`, transformedProspects[108] ? `${transformedProspects[108].firstName} ${transformedProspects[108].lastName}` : 'N/A');
+        console.log(`[Draft Grid DEBUG] Prospect at index 200:`, transformedProspects[200] ? `${transformedProspects[200].firstName} ${transformedProspects[200].lastName}` : 'N/A');
+        console.log(`[Draft Grid DEBUG] Grid height:`, gridHeight);
+
         this.draftGrid = new Handsontable(container, {
             data: transformedProspects,
             columns: draftColumns,
             colHeaders: true,
             rowHeaders: true,
-            height: 'calc(100vh - 200px)',
+            height: gridHeight,  // Use dynamically calculated height
             rowHeights: 70, // Set row height to accommodate 64px portraits
             licenseKey: 'non-commercial-and-evaluation',
             stretchH: 'none',  // Allow horizontal scrolling instead of stretching columns
@@ -4499,8 +4547,8 @@ class MaddenEditorApp {
             fixedColumnsStart: 6,  // Freeze first 6 columns (Draft Pos, Round, Portrait, Last Name, First Name, Position)
             preventOverflow: false,  // Changed from 'horizontal' - allow natural scrolling to prevent snap-left
             manualRowMove: true, // Enable row dragging for reordering
-            renderAllRows: false, // Use virtual scrolling for better performance with large draft classes
-            viewportRowRenderingOffset: 100, // Render extra rows to prevent row misalignment during scroll
+            renderAllRows: true, // Render all rows - virtual scrolling causes scroll issues with 402 prospects
+            // viewportRowRenderingOffset: 100, // Not needed when renderAllRows is true
             columnSorting: {
                 indicator: true,
                 headerAction: true,
@@ -6661,8 +6709,22 @@ class MaddenEditorApp {
             document.getElementById('import-draft-csv-btn').disabled = false;
             document.getElementById('fillFromDbDraftBtn').disabled = false;
 
+            // Pre-calculate round for ALL prospects immediately
+            prospects.forEach((prospect, index) => {
+                if (prospect.round === undefined || prospect.round === null) {
+                    const draftPosition = prospect.draftPosition !== undefined ? prospect.draftPosition : index;
+                    const pickNum = draftPosition + 1;
+                    if (pickNum <= 224) {
+                        prospect.round = Math.floor((pickNum - 1) / 32) + 1;
+                    } else {
+                        prospect.round = 8; // UFA
+                    }
+                }
+            });
+            console.log(`[Creator] Pre-calculated rounds for ${prospects.length} prospects`);
+
             // Create grid with generated data
-            this.createDraftGrid(prospects);
+            await this.createDraftGrid(prospects);
 
             console.log('[Creator] Successfully loaded generated draft class into editor');
             this.setStatus(`Loaded ${prospects.length} generated prospects into Draft Class Editor`);
@@ -7083,12 +7145,16 @@ class MaddenEditorApp {
         }
 
         // Get updated values from inputs
-        const age = parseInt(document.getElementById('playerCardAge').value) || 0;
+        // CRITICAL: Never allow age=0, height=0, or jersey=0 - these cause game issues
+        const ageInput = parseInt(document.getElementById('playerCardAge').value);
+        const age = isNaN(ageInput) || ageInput < 21 ? (this.currentPlayerCardData.PAGE || 25) : Math.min(45, ageInput);
         const yearsPro = parseInt(document.getElementById('playerCardYearsPro').value) || 0;
-        const height = parseInt(document.getElementById('playerCardHeight').value) || 0;
+        const heightInput = parseInt(document.getElementById('playerCardHeight').value);
+        const height = isNaN(heightInput) || heightInput < 60 ? (this.currentPlayerCardData.PHGT || 72) : heightInput;
         const weight = parseInt(document.getElementById('playerCardWeight').value) || 160;
         const college = parseInt(document.getElementById('playerCardCollege').value) || 0;
-        const jersey = parseInt(document.getElementById('playerCardJersey').value) || 0;
+        const jerseyInput = parseInt(document.getElementById('playerCardJersey').value);
+        const jersey = isNaN(jerseyInput) || jerseyInput < 1 ? (this.currentPlayerCardData.PJEN || 1) : jerseyInput;
         const pid = parseInt(document.getElementById('playerCardPIDSelect').value) || this.currentPlayerCardData.PSXP;
 
         // Update player data
