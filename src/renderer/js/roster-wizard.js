@@ -609,11 +609,22 @@ async function loadRosterIntoEditor() {
     filenameDisplay.textContent = `Generated Roster (${rosterWizardState.generatedRoster.metadata.year || 'All-Time'}) - Unsaved`;
   }
 
-  // Show the save button
+  // Show all roster editor buttons
+  const fileNameEl = document.getElementById('fileName');
+  const currentFileEl = document.getElementById('currentFile');
+  const exportBtn = document.getElementById('exportCsvBtn');
+  const importBtn = document.getElementById('importCsvBtn');
+  const fillDbBtn = document.getElementById('fillFromDbRosterBtn');
   const saveButton = document.getElementById('saveRosterBtn');
-  if (saveButton) {
-    saveButton.style.display = 'inline-block';
-  }
+
+  if (fileNameEl) fileNameEl.textContent = `Generated Roster (${rosterWizardState.generatedRoster.metadata.year || 'All-Time'})`;
+  if (currentFileEl) currentFileEl.style.display = 'flex';
+  if (exportBtn) exportBtn.style.display = 'inline-flex';
+  if (importBtn) importBtn.style.display = 'inline-flex';
+  if (fillDbBtn) fillDbBtn.style.display = 'inline-flex';
+  if (saveButton) saveButton.style.display = 'inline-flex';
+
+  console.log('[RosterWizard] Buttons shown:', { exportBtn: !!exportBtn, importBtn: !!importBtn, fillDbBtn: !!fillDbBtn, saveButton: !!saveButton });
 
   // Mark as having unsaved changes
   app.hasUnsavedChanges = true;

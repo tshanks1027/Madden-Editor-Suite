@@ -156,6 +156,7 @@ export class ArchetypeService {
   ]);
 
   // Position-specific archetype lists (for dropdowns)
+  // Includes both old position names (MLB, LOLB, etc.) and M26 names (MIKE, SAM, LEDG, etc.)
   private static archetypesByPosition: Map<string, number[]> = new Map([
     ['QB', [0, 1, 2, 3, 4]],
     ['HB', [5, 6, 7, 8, 9, 10, 11]],
@@ -167,12 +168,22 @@ export class ArchetypeService {
     ['LG', [35, 36, 37, 38]],
     ['RG', [35, 36, 37, 38]],
     ['RT', [31, 32, 33, 34]],
+    // Old DE names
     ['LE', [39, 40, 41, 42]],
     ['RE', [39, 40, 41, 42]],
+    // M26 Edge Rusher names
+    ['LEDG', [39, 40, 41, 42]],
+    ['REDG', [39, 40, 41, 42]],
     ['DT', [43, 44, 45, 46]],
+    // Old LB names
     ['LOLB', [47, 48, 49, 50]],
     ['MLB', [51, 52, 53]],
     ['ROLB', [47, 48, 49, 50]],
+    // M26 LB names
+    ['SAM', [47, 48, 49, 50]],
+    ['MIKE', [51, 52, 53]],
+    ['Mike', [51, 52, 53]],  // Handle case variation
+    ['WILL', [47, 48, 49, 50]],
     ['CB', [54, 55, 56, 57]],
     ['FS', [58, 59, 60]],
     ['SS', [58, 59, 60]],

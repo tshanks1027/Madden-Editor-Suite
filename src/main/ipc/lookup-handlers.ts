@@ -47,12 +47,16 @@ ipcMain.handle('lookup:get-dropdown-options', async (event, fileName: string) =>
     // Map frontend request to actual loaded file
     if (fileName === 'ALLDATA_Lookup.csv') {
       options = lookupService.getDropdownOptions('ALL_PLAYER_LOOKUP.csv');
-      // Transform to include all fields (id -> value, name -> label, plpo -> plpo)
-      return options.map(opt => ({
-        value: opt.id,
-        label: opt.name,
-        plpo: opt.plpo || ''
-      }));
+      // Transform to include all fields
+      // IMPORTANT: Use entry.pid (actual PhotoID) instead of id (internal row ID)
+      // Only include entries with valid PIDs (not 0) for the PID lookup
+      return options
+        .filter(opt => opt.entry && opt.entry.pid > 0)
+        .map(opt => ({
+          value: opt.entry.pid,  // Use actual PID, not internal row ID
+          label: `${opt.entry.lastName}, ${opt.entry.firstName}`,  // "LastName, FirstName" format
+          plpo: opt.plpo || ''
+        }));
     } else {
       // All other lookups (position, team, college, state) remain the same
       options = lookupService.getDropdownOptions(fileName);
@@ -97,9 +101,8 @@ ipcMain.handle('lookup:get-pid-portrait-mapping', async (event) => {
     const path = await import('path');
     const { app } = await import('electron');
 
-    const dataPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'app', 'data', 'lookups', 'PID_Portrait_Mapping.csv')
-      : path.join(__dirname, '../../data/lookups/PID_Portrait_Mapping.csv');
+    // Use app.getAppPath() for both dev and packaged builds
+    const dataPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
 
     console.log('[PID Portrait Mapping] Loading from:', dataPath);
 
@@ -308,9 +311,8 @@ ipcMain.handle('lookup:get-coach-lookup', async (event) => {
     const path = await import('path');
     const { app } = await import('electron');
 
-    const dataPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'app', 'data', 'lookups', 'Coach_lookup.csv')
-      : path.join(__dirname, '../../data/lookups/Coach_lookup.csv');
+    // Use app.getAppPath() for both dev and packaged builds
+    const dataPath = path.join(app.getAppPath(), 'data', 'lookups', 'Coach_lookup.csv');
 
     console.log('[Coach Lookup] Loading from:', dataPath);
 
@@ -343,6 +345,20 @@ ipcMain.handle('lookup:get-coach-lookup', async (event) => {
   } catch (error: any) {
     console.error('Error loading coach lookup:', error);
     return { success: false, error: error.message, coaches: [] };
+  }
+});
+
+/**
+ * Handle: lookup:get-race-by-pid
+ * Get race value for a PID from the database
+ */
+ipcMain.handle('lookup:get-race-by-pid', async (event, pid: number) => {
+  try {
+    const race = lookupService.getRaceByPID(pid);
+    return race !== undefined ? race : null;
+  } catch (error) {
+    console.error('Error getting race by PID:', error);
+    return null;
   }
 });
 

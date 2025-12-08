@@ -25,6 +25,9 @@
     setupEventListeners();
     loadPositionFilter();
     loadCollegeFilter();
+    loadTeamFilter();
+    initAddToRosterModal();
+    initAddToDraftModal();
 
     console.log('[PlayerBrowser] Initialized');
   }
@@ -142,6 +145,24 @@
       });
     }
 
+    // Team filter
+    const teamFilter = document.getElementById('playerBrowserTeamFilter');
+    if (teamFilter) {
+      teamFilter.addEventListener('change', () => {
+        currentPage = 1;
+        performSearch();
+      });
+    }
+
+    // HOF filter
+    const hofFilter = document.getElementById('playerBrowserHofFilter');
+    if (hofFilter) {
+      hofFilter.addEventListener('change', () => {
+        currentPage = 1;
+        performSearch();
+      });
+    }
+
     // Empty filter
     const emptyFilter = document.getElementById('playerBrowserEmptyFilter');
     if (emptyFilter) {
@@ -244,6 +265,41 @@
 
     // Keep default option if API fails
     console.log('[PlayerBrowser] Could not load colleges - keeping default');
+  }
+
+  /**
+   * Load team filter options
+   */
+  async function loadTeamFilter() {
+    var select = document.getElementById('playerBrowserTeamFilter');
+    if (!select) return;
+
+    try {
+      if (window.electronAPI && window.electronAPI.lookup) {
+        var teams = await window.electronAPI.lookup.getDropdownOptions('team_lookup.csv');
+        if (teams && teams.length > 0) {
+          select.innerHTML = '<option value="">All Teams</option>';
+          teams.forEach(function(t) {
+            var teamName = t.label;
+            // Skip Free Agent and invalid entries
+            if (!teamName || teamName.trim() === '' || teamName === 'Free Agent') {
+              return;
+            }
+            var opt = document.createElement('option');
+            opt.value = teamName.trim();
+            opt.textContent = teamName.trim();
+            select.appendChild(opt);
+          });
+          console.log('[PlayerBrowser] Loaded teams from API');
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('[PlayerBrowser] Failed to load teams from API:', error);
+    }
+
+    // Keep default option if API fails
+    console.log('[PlayerBrowser] Could not load teams - keeping default');
   }
 
   /**
@@ -467,12 +523,16 @@
     const draftYearFromInput = document.getElementById('playerBrowserDraftYearFrom');
     const draftYearToInput = document.getElementById('playerBrowserDraftYearTo');
     const collegeFilterInput = document.getElementById('playerBrowserCollegeFilter');
+    const teamFilterInput = document.getElementById('playerBrowserTeamFilter');
+    const hofFilterInput = document.getElementById('playerBrowserHofFilter');
     const emptyFilterSelect = document.getElementById('playerBrowserEmptyFilter');
 
     const position = positionFilter ? positionFilter.value : '';
     const draftYearFrom = draftYearFromInput && draftYearFromInput.value ? parseInt(draftYearFromInput.value) : undefined;
     const draftYearTo = draftYearToInput && draftYearToInput.value ? parseInt(draftYearToInput.value) : undefined;
     const collegeFilter = collegeFilterInput ? collegeFilterInput.value : '';
+    const teamFilter = teamFilterInput ? teamFilterInput.value : '';
+    const hofFilter = hofFilterInput ? hofFilterInput.value : '';
     const emptyFilter = emptyFilterSelect ? emptyFilterSelect.value : '';
 
     isLoading = true;
@@ -487,7 +547,8 @@
           limit: 500,
           position: position || undefined,
           draftYearFrom: draftYearFrom,
-          draftYearTo: draftYearTo
+          draftYearTo: draftYearTo,
+          team: teamFilter || undefined
         });
 
         if (result.success) {
@@ -502,7 +563,8 @@
           limit: 30000, // High limit to get all filtered results
           position: position || undefined,
           draftYearFrom: draftYearFrom,
-          draftYearTo: draftYearTo
+          draftYearTo: draftYearTo,
+          team: teamFilter || undefined
         });
 
         if (result.success) {
@@ -516,6 +578,17 @@
       if (collegeFilter) {
         currentResults = currentResults.filter(player => {
           return player.college === collegeFilter;
+        });
+      }
+
+      // Apply client-side HOF filter
+      if (hofFilter === 'hof') {
+        currentResults = currentResults.filter(player => {
+          return player.isHof === true;
+        });
+      } else if (hofFilter === 'non-hof') {
+        currentResults = currentResults.filter(player => {
+          return player.isHof !== true;
         });
       }
 
@@ -666,13 +739,323 @@
     }
   };
 
+  // Pending add data (used by modals)
+  let pendingRosterAdd = null;
+  let pendingDraftAdd = null;
+
+  // Initialize Add to Roster modal handlers
+  function initAddToRosterModal() {
+    const modal = document.getElementById('addToRosterModal');
+    const closeBtn = document.getElementById('closeAddToRoster');
+    const cancelBtn = document.getElementById('addToRosterCancelBtn');
+    const confirmBtn = document.getElementById('addToRosterConfirmBtn');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeAddToRosterModal);
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closeAddToRosterModal);
+    }
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', confirmAddToRoster);
+    }
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeAddToRosterModal();
+      });
+    }
+  }
+
+  function closeAddToRosterModal() {
+    const modal = document.getElementById('addToRosterModal');
+    if (modal) modal.style.display = 'none';
+    pendingRosterAdd = null;
+    restoreFocusToSearch();
+  }
+
+  async function confirmAddToRoster() {
+    if (!pendingRosterAdd) return;
+
+    const { internalId, firstName, lastName, position, playerName } = pendingRosterAdd;
+    const teamSelect = document.getElementById('addToRosterTeam');
+    const yearSelect = document.getElementById('addToRosterYear');
+
+    const selectedTeamId = parseInt(teamSelect.value, 10);
+    const selectedYear = parseInt(yearSelect.value, 10);
+    const selectedTeamName = teamSelect.options[teamSelect.selectedIndex].text;
+
+    try {
+      // Get player data formatted for roster
+      const result = await window.electronAPI.database.getPlayerForRoster(internalId, selectedYear);
+      if (!result.success) {
+        alert('Failed to get player data: ' + result.error);
+        closeAddToRosterModal();
+        return;
+      }
+
+      const playerData = result.player;
+
+      // Set the selected team
+      playerData.TGID = selectedTeamId;
+
+      // Add player to the roster grid
+      window.app.agGrid.applyTransaction({
+        add: [playerData]
+      });
+
+      // Also add to app.players array for consistency
+      if (window.app.players) {
+        window.app.players.push(playerData);
+        window.app.filteredPlayers = window.app.players.slice();
+      }
+
+      // Mark roster as modified
+      if (window.app.rosterModified !== undefined) {
+        window.app.rosterModified = true;
+      }
+
+      // Track the player to prevent duplicates
+      if (window.electronAPI.editorTracking) {
+        await window.electronAPI.editorTracking.trackPlayer({
+          firstName: playerData.firstName || firstName,
+          lastName: playerData.lastName || lastName,
+          position: playerData.position || position,
+          internalId: internalId,
+          year: selectedYear,
+          povr: playerData.pOVR || 0
+        }, 'roster');
+      }
+
+      // Update stats display
+      if (window.app.updateStats) {
+        window.app.updateStats();
+      }
+
+      console.log('[PlayerBrowser] Added player to roster:', playerName, selectedYear, 'Team:', selectedTeamName);
+
+      // Close modal and show success
+      closeAddToRosterModal();
+      alert('Successfully added ' + playerName + ' (' + selectedYear + ') to ' + selectedTeamName + '!');
+
+    } catch (error) {
+      console.error('[PlayerBrowser] Error adding to roster:', error);
+      alert('Failed to add player to roster: ' + error.message);
+      closeAddToRosterModal();
+    }
+  }
+
+  // Initialize Add to Draft modal handlers
+  function initAddToDraftModal() {
+    const modal = document.getElementById('addToDraftModal');
+    const closeBtn = document.getElementById('closeAddToDraft');
+    const cancelBtn = document.getElementById('addToDraftCancelBtn');
+    const confirmBtn = document.getElementById('addToDraftConfirmBtn');
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeAddToDraftModal);
+    }
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', closeAddToDraftModal);
+    }
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', confirmAddToDraft);
+    }
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeAddToDraftModal();
+      });
+    }
+  }
+
+  function closeAddToDraftModal() {
+    const modal = document.getElementById('addToDraftModal');
+    if (modal) modal.style.display = 'none';
+    pendingDraftAdd = null;
+    restoreFocusToSearch();
+  }
+
+  async function confirmAddToDraft() {
+    if (!pendingDraftAdd) return;
+
+    const { internalId, firstName, lastName, position, playerName } = pendingDraftAdd;
+    const yearSelect = document.getElementById('addToDraftYear');
+    const selectedYear = parseInt(yearSelect.value, 10);
+
+    try {
+      // Get player data formatted for draft class
+      const result = await window.electronAPI.database.getPlayerForDraft(internalId, selectedYear);
+      if (!result.success) {
+        alert('Failed to get player data: ' + result.error);
+        closeAddToDraftModal();
+        return;
+      }
+
+      const prospectData = result.prospect;
+      const suggestedSlot = result.suggestedSlot;
+      const draftInfo = result.draftInfo;
+
+      // Get current draft data
+      const draftData = window.app.draftGrid.getSourceData();
+
+      // Calculate target slot - use historical draft position or find first empty
+      let targetSlot = suggestedSlot;
+
+      // If target slot is beyond current array, add at end
+      if (targetSlot >= draftData.length) {
+        targetSlot = draftData.length;
+      }
+
+      // Round display for logging
+      const roundNum = draftInfo.round || Math.floor(targetSlot / 32) + 1;
+      const pickInRound = (targetSlot % 32) + 1;
+      const roundDisplay = roundNum <= 7 ? 'Round ' + roundNum + ' Pick ' + pickInRound : 'UDFA';
+
+      // Build the row object matching draft grid columns
+      const newRow = {
+        draftPosition: targetSlot,
+        round: roundNum <= 7 ? roundNum : 8,
+        playerPic: '',
+        lastName: prospectData.lastName,
+        firstName: prospectData.firstName,
+        position: position,
+        archetype: prospectData.archetype || 0,
+        college: prospectData.college,
+        homeState: prospectData.homeState,
+        age: prospectData.age,
+        PID: prospectData.PID,
+        PEPS: prospectData.PEPS,
+        devTrait: prospectData.devTrait || 0,
+
+        // Ratings
+        overall: prospectData.overall || 70,
+        speed: prospectData.speed || 70,
+        acceleration: prospectData.acceleration || 70,
+        strength: prospectData.strength || 70,
+        agility: prospectData.agility || 70,
+        awareness: prospectData.awareness || 70,
+        jumping: prospectData.jumping || 70,
+        stamina: prospectData.stamina || 70,
+        changeOfDirection: prospectData.changeOfDirection || 70,
+        injury: prospectData.injury || 70,
+
+        carrying: prospectData.carrying || 70,
+        ballCarrierVision: prospectData.ballCarrierVision || 70,
+        breakTackle: prospectData.breakTackle || 70,
+        trucking: prospectData.trucking || 70,
+        stiffArm: prospectData.stiffArm || 70,
+        spinMove: prospectData.spinMove || 70,
+        jukeMove: prospectData.jukeMove || 70,
+
+        catching: prospectData.catching || 70,
+        catchInTraffic: prospectData.catchInTraffic || 70,
+        spectacularCatch: prospectData.spectacularCatch || 70,
+        shortRouteRunning: prospectData.shortRouteRunning || 70,
+        mediumRouteRunning: prospectData.mediumRouteRunning || 70,
+        deepRouteRunning: prospectData.deepRouteRunning || 70,
+        release: prospectData.release || 70,
+
+        throwPower: prospectData.throwPower || 70,
+        throwAccuracyShort: prospectData.throwAccuracyShort || 70,
+        throwAccuracyMid: prospectData.throwAccuracyMid || 70,
+        throwAccuracyDeep: prospectData.throwAccuracyDeep || 70,
+        throwOnTheRun: prospectData.throwOnTheRun || 70,
+        throwUnderPressure: prospectData.throwUnderPressure || 70,
+        playAction: prospectData.playAction || 70,
+        breakSack: prospectData.breakSack || 70,
+
+        passBlock: prospectData.passBlock || 70,
+        passBlockPower: prospectData.passBlockPower || 70,
+        passBlockFinesse: prospectData.passBlockFinesse || 70,
+        runBlock: prospectData.runBlock || 70,
+        runBlockPower: prospectData.runBlockPower || 70,
+        runBlockFinesse: prospectData.runBlockFinesse || 70,
+        leadBlock: prospectData.leadBlock || 70,
+        impactBlocking: prospectData.impactBlocking || 70,
+
+        tackle: prospectData.tackle || 70,
+        hitPower: prospectData.hitPower || 70,
+        powerMoves: prospectData.powerMoves || 70,
+        finesseMoves: prospectData.finesseMoves || 70,
+        blockShedding: prospectData.blockShedding || 70,
+        pursuit: prospectData.pursuit || 70,
+        playRecognition: prospectData.playRecognition || 70,
+        manCoverage: prospectData.manCoverage || 70,
+        zoneCoverage: prospectData.zoneCoverage || 70,
+        pressCoverage: prospectData.pressCoverage || 70,
+
+        kickPower: prospectData.kickPower || 70,
+        kickAccuracy: prospectData.kickAccuracy || 70,
+        kickReturn: prospectData.kickReturn || 70,
+
+        heightInches: prospectData.heightInches || 72,
+        weight: prospectData.weight || 200,
+        toughness: prospectData.toughness || 70,
+
+        visuals: prospectData.visuals
+      };
+
+      // Insert at target position
+      draftData.splice(targetSlot, 0, newRow);
+
+      // Renumber draft positions for all rows
+      for (let i = 0; i < draftData.length; i++) {
+        draftData[i].draftPosition = i;
+        if (i < 224) {
+          draftData[i].round = Math.floor(i / 32) + 1;
+        } else {
+          draftData[i].round = 8;
+        }
+      }
+
+      // Reload grid with new data
+      window.app.draftGrid.loadData(draftData);
+
+      // Update currentDraftClass.prospects if it exists
+      if (window.app.currentDraftClass && window.app.currentDraftClass.prospects) {
+        window.app.currentDraftClass.prospects = draftData;
+      }
+
+      // Track the player to prevent duplicates
+      if (window.electronAPI.editorTracking) {
+        await window.electronAPI.editorTracking.trackPlayer({
+          firstName: prospectData.firstName,
+          lastName: prospectData.lastName,
+          position: position,
+          internalId: internalId,
+          year: selectedYear,
+          povr: prospectData.overall || 70
+        }, 'draft');
+      }
+
+      // Update draft file stats
+      if (window.app.currentDraftClass) {
+        const statsEl = document.getElementById('draft-file-stats');
+        if (statsEl) {
+          const count = window.app.draftGrid.getSourceData().length;
+          statsEl.textContent = `${count} prospects | Year: ${window.app.currentDraftClass.header.year}`;
+        }
+      }
+
+      console.log('[PlayerBrowser] Added player to draft class:', playerName, selectedYear, 'at slot', targetSlot);
+
+      // Close modal and show success
+      closeAddToDraftModal();
+      alert('Successfully added ' + playerName + ' (' + selectedYear + ') to draft class at ' + roundDisplay + '!');
+
+    } catch (error) {
+      console.error('[PlayerBrowser] Error adding to draft:', error);
+      alert('Failed to add player to draft class: ' + error.message);
+      closeAddToDraftModal();
+    }
+  }
+
   window.addToRoster = async function(internalId) {
     console.log('[PlayerBrowser] Add to roster:', internalId);
 
     try {
-      // Check if roster is loaded
+      // Check if roster is loaded or created
       if (!window.app || !window.app.agGrid) {
-        alert('Please load a roster file first before adding players.');
+        alert('Please load or create a roster first.\n\nUse "Open Roster" to load an existing file, or "New Roster" to start fresh.');
         restoreFocusToSearch();
         return;
       }
@@ -689,74 +1072,99 @@
       const defaultYear = yearsResult.defaultYear;
       const playerName = yearsResult.playerName;
 
-      // If player has multiple years, let user choose
-      let selectedYear = defaultYear;
-      if (years.length > 1) {
-        const yearOptions = years.slice(0, 20).join(', '); // Show first 20 years
-        const userInput = prompt(
-          'Add ' + playerName + ' to roster\n\nAvailable years: ' + yearOptions + '\n\nEnter the year for player ratings:',
-          String(defaultYear)
-        );
-        if (!userInput) {
-          restoreFocusToSearch();
-          return; // User cancelled
+      // Get player basic info for duplicate check
+      const playerInfo = currentResults.find(p => p.internalId === internalId);
+      const firstName = playerInfo ? playerInfo.firstName : '';
+      const lastName = playerInfo ? playerInfo.lastName : '';
+      const position = playerInfo ? playerInfo.position : '';
+
+      // Check for duplicate using tracking service
+      if (window.electronAPI.editorTracking) {
+        const trackResult = await window.electronAPI.editorTracking.isTracked(firstName, lastName, position, 'roster');
+        if (trackResult.success && trackResult.isTracked) {
+          const existingPlayer = trackResult.player;
+          const msg = playerName + ' (' + position + ') is already in the roster' +
+            (existingPlayer && existingPlayer.povr ? ' with OVR ' + existingPlayer.povr : '') + '.\n\n' +
+            'Do you want to add another copy anyway?';
+          if (!confirm(msg)) {
+            restoreFocusToSearch();
+            return;
+          }
         }
-        selectedYear = parseInt(userInput, 10);
-        if (isNaN(selectedYear) || years.indexOf(selectedYear) === -1) {
-          alert('Invalid year selected. Please choose from the available years.');
+      }
+
+      // Check roster limit and offer replacement if full
+      const allRows = [];
+      window.app.agGrid.forEachNode(function(node) { allRows.push(node.data); });
+      const MAX_ROSTER_SIZE = 3000;
+      if (allRows.length >= MAX_ROSTER_SIZE) {
+        // Find lowest OVR player on Free Agent team (TGID = 1009)
+        const freeAgents = allRows.filter(p => p.TGID === 1009);
+        if (freeAgents.length === 0) {
+          alert('Roster is at maximum capacity (' + MAX_ROSTER_SIZE + ' players) and no Free Agents to replace. Remove players before adding new ones.');
           restoreFocusToSearch();
           return;
         }
+
+        // Sort by OVR ascending to find lowest
+        freeAgents.sort((a, b) => (a.POVR || 0) - (b.POVR || 0));
+        const lowestPlayer = freeAgents[0];
+        const lowestName = (lowestPlayer.PFNA || '') + ' ' + (lowestPlayer.PLNA || '');
+        const lowestOVR = lowestPlayer.POVR || 0;
+
+        const replaceMsg = 'Roster is at maximum capacity (' + MAX_ROSTER_SIZE + ' players).\n\n' +
+          'Would you like to replace the lowest-rated Free Agent?\n\n' +
+          'Player to remove: ' + lowestName.trim() + ' (OVR ' + lowestOVR + ')\n' +
+          'Player to add: ' + playerName;
+
+        if (!confirm(replaceMsg)) {
+          restoreFocusToSearch();
+          return;
+        }
+
+        // Remove the lowest player
+        window.app.agGrid.applyTransaction({ remove: [lowestPlayer] });
+
+        // Also remove from app.players array
+        if (window.app.players) {
+          const idx = window.app.players.indexOf(lowestPlayer);
+          if (idx !== -1) {
+            window.app.players.splice(idx, 1);
+            window.app.filteredPlayers = window.app.players.slice();
+          }
+        }
+
+        console.log('[PlayerBrowser] Removed lowest FA to make room:', lowestName.trim(), 'OVR:', lowestOVR);
       }
 
-      // Get player data formatted for roster
-      const result = await window.electronAPI.database.getPlayerForRoster(internalId, selectedYear);
-      if (!result.success) {
-        alert('Failed to get player data: ' + result.error);
-        restoreFocusToSearch();
-        return;
-      }
+      // Store pending data
+      pendingRosterAdd = {
+        internalId,
+        firstName,
+        lastName,
+        position,
+        playerName,
+        years,
+        defaultYear
+      };
 
-      const playerData = result.player;
+      // Populate and show modal
+      document.getElementById('addToRosterPlayerName').textContent = playerName;
+      document.getElementById('addToRosterPlayerInfo').textContent = position + ' | ' + years.length + ' season(s) available';
 
-      // Get current roster data
-      const allRows = [];
-      window.app.agGrid.forEachNode(function(node) { allRows.push(node.data); });
-
-      // Check roster limit
-      const MAX_ROSTER_SIZE = 3000;
-      if (allRows.length >= MAX_ROSTER_SIZE) {
-        alert('Roster is at maximum capacity (' + MAX_ROSTER_SIZE + ' players). Remove players before adding new ones.');
-        restoreFocusToSearch();
-        return;
-      }
-
-      // Ask user if they want to add to end or overwrite
-      const action = confirm(
-        'Add ' + playerName + ' (' + selectedYear + ') to roster?\n\nCurrent roster size: ' + allRows.length + '/' + MAX_ROSTER_SIZE + '\n\nClick OK to add to end of roster.\nClick Cancel to abort.'
-      );
-
-      if (!action) {
-        restoreFocusToSearch();
-        return;
-      }
-
-      // Add player to the roster grid
-      window.app.agGrid.applyTransaction({
-        add: [playerData]
+      // Populate year dropdown
+      const yearSelect = document.getElementById('addToRosterYear');
+      yearSelect.innerHTML = '';
+      years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === defaultYear) option.selected = true;
+        yearSelect.appendChild(option);
       });
 
-      // Mark roster as modified
-      if (window.app.rosterModified !== undefined) {
-        window.app.rosterModified = true;
-      }
-
-      // Update status
-      console.log('[PlayerBrowser] Added player to roster:', playerName, selectedYear);
-      alert('Successfully added ' + playerName + ' (' + selectedYear + ') to roster!');
-
-      // Close the player browser
-      closePlayerBrowser();
+      // Show modal
+      document.getElementById('addToRosterModal').style.display = 'flex';
 
     } catch (error) {
       console.error('[PlayerBrowser] Error adding to roster:', error);
@@ -767,8 +1175,108 @@
 
   window.addToDraft = async function(internalId) {
     console.log('[PlayerBrowser] Add to draft:', internalId);
-    alert('Add to Draft Class functionality coming soon!\n\nFor now, use the Database Player Card to view player details and manually add to draft class.');
-    restoreFocusToSearch();
+
+    try {
+      // Check if draft class is loaded or created
+      if (!window.app || !window.app.draftGrid) {
+        alert('Please load or create a draft class first.\n\nUse "Open Draft Class" to load an existing file, or "New Draft Class" to start fresh.');
+        restoreFocusToSearch();
+        return;
+      }
+
+      // Get available years for the player
+      const yearsResult = await window.electronAPI.database.getPlayerAvailableYears(internalId);
+      if (!yearsResult.success) {
+        alert('Failed to get player data: ' + yearsResult.error);
+        restoreFocusToSearch();
+        return;
+      }
+
+      const years = yearsResult.years;
+      const defaultYear = yearsResult.defaultYear;
+      const playerName = yearsResult.playerName;
+
+      // Get player basic info for duplicate check
+      const playerInfo = currentResults.find(p => p.internalId === internalId);
+      const firstName = playerInfo ? playerInfo.firstName : '';
+      const lastName = playerInfo ? playerInfo.lastName : '';
+      const position = playerInfo ? playerInfo.position : '';
+
+      // Check for duplicate using tracking service
+      if (window.electronAPI.editorTracking) {
+        const trackResult = await window.electronAPI.editorTracking.isTracked(firstName, lastName, position, 'draft');
+        if (trackResult.success && trackResult.isTracked) {
+          const existingPlayer = trackResult.player;
+          const msg = playerName + ' (' + position + ') is already in the draft class' +
+            (existingPlayer && existingPlayer.povr ? ' with OVR ' + existingPlayer.povr : '') + '.\n\n' +
+            'Do you want to add another copy anyway?';
+          if (!confirm(msg)) {
+            restoreFocusToSearch();
+            return;
+          }
+        }
+      }
+
+      // Check draft class limit (M26 supports max 402 prospects)
+      const draftData = window.app.draftGrid.getSourceData();
+      const MAX_DRAFT_SIZE = 402;
+      if (draftData.length >= MAX_DRAFT_SIZE) {
+        alert('Draft class is at maximum capacity (' + MAX_DRAFT_SIZE + ' prospects). Remove prospects before adding new ones.');
+        restoreFocusToSearch();
+        return;
+      }
+
+      // Store pending data
+      pendingDraftAdd = {
+        internalId,
+        firstName,
+        lastName,
+        position,
+        playerName,
+        years,
+        defaultYear
+      };
+
+      // Populate and show modal
+      document.getElementById('addToDraftPlayerName').textContent = playerName;
+      document.getElementById('addToDraftPlayerInfo').textContent = position + ' | ' + years.length + ' season(s) available';
+
+      // Populate year dropdown
+      const yearSelect = document.getElementById('addToDraftYear');
+      yearSelect.innerHTML = '';
+      years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        if (year === defaultYear) option.selected = true;
+        yearSelect.appendChild(option);
+      });
+
+      // Show draft position info based on default year
+      const draftInfoEl = document.getElementById('addToDraftPositionInfo');
+      if (draftInfoEl) {
+        // Get draft info for display
+        const result = await window.electronAPI.database.getPlayerForDraft(internalId, defaultYear);
+        if (result.success) {
+          const suggestedSlot = result.suggestedSlot;
+          const draftInfo = result.draftInfo;
+          const roundNum = draftInfo.round || Math.floor(suggestedSlot / 32) + 1;
+          const pickInRound = (suggestedSlot % 32) + 1;
+          const roundDisplay = roundNum <= 7 ? 'Round ' + roundNum + ', Pick ' + pickInRound : 'UDFA';
+          draftInfoEl.innerHTML = 'Historical draft position: <strong>' + roundDisplay + '</strong><br>Will be placed at slot ' + (suggestedSlot + 1);
+        } else {
+          draftInfoEl.innerHTML = 'Draft position will be calculated';
+        }
+      }
+
+      // Show modal
+      document.getElementById('addToDraftModal').style.display = 'flex';
+
+    } catch (error) {
+      console.error('[PlayerBrowser] Error adding to draft:', error);
+      alert('Failed to add player to draft class: ' + error.message);
+      restoreFocusToSearch();
+    }
   };
 
   // Make functions available globally

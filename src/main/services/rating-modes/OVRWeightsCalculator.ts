@@ -293,13 +293,8 @@ export class OVRWeightsCalculator {
   private loadWeights(): void {
     let weightsPath: string;
 
-    if (app.isPackaged) {
-      weightsPath = path.join(app.getAppPath(), 'data', 'lookups', 'ovrweights.json');
-    } else {
-      // In dev mode, compiled files are in .vite/build/services/rating-modes/
-      // Need to go up to .vite/build/, then into data/lookups/
-      weightsPath = path.join(__dirname, '../../data/lookups/ovrweights.json');
-    }
+    // Use app.getAppPath() for both dev and packaged builds
+    weightsPath = path.join(app.getAppPath(), 'data', 'lookups', 'ovrweights.json');
 
     console.log('[OVRWeightsCalculator] Loading weights from:', weightsPath);
 

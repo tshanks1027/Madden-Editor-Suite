@@ -101,6 +101,9 @@ class MaddenEditorApp {
         this.selectedPosition = '';
         this.selectedTeamId = null; // null = all teams, number = specific team
         this.rosterSearchTerm = ''; // Search term for roster editor
+        this.collegeSearchTerm = ''; // College search term for roster editor
+        this.pidSearchTerm = ''; // PID search term for roster editor
+        this.emptyFieldFilter = ''; // Empty field filter ('position', 'college', 'pid')
         this.draftSearchTerm = ''; // Search term for draft class editor
         this.disableChangeEvents = false;
 
@@ -232,6 +235,33 @@ class MaddenEditorApp {
             this.filterPlayers();
         });
 
+        // College search input (optional - may not exist)
+        const collegeSearch = document.getElementById('collegeSearchInput');
+        if (collegeSearch) {
+            collegeSearch.addEventListener('input', (e) => {
+                this.collegeSearchTerm = e.target.value.toLowerCase().trim();
+                this.filterPlayers();
+            });
+        }
+
+        // PID search input (optional - may not exist)
+        const pidSearch = document.getElementById('pidSearchInput');
+        if (pidSearch) {
+            pidSearch.addEventListener('input', (e) => {
+                this.pidSearchTerm = e.target.value.trim();
+                this.filterPlayers();
+            });
+        }
+
+        // Empty field filter (optional - may not exist)
+        const emptyFilter = document.getElementById('emptyFieldFilter');
+        if (emptyFilter) {
+            emptyFilter.addEventListener('change', (e) => {
+                this.emptyFieldFilter = e.target.value;
+                this.filterPlayers();
+            });
+        }
+
         // Back to all teams button
         document.getElementById('backToAllTeams').addEventListener('click', () => {
             this.exitTeamView();
@@ -260,6 +290,10 @@ class MaddenEditorApp {
 
         document.getElementById('export-draft-json-btn').addEventListener('click', () => {
             this.exportDraftCSV();
+        });
+
+        document.getElementById('import-draft-csv-btn').addEventListener('click', () => {
+            this.importDraftCSV();
         });
 
         document.getElementById('draftRoundFilter').addEventListener('change', (e) => {
@@ -541,8 +575,59 @@ class MaddenEditorApp {
         }
     }
 
+    /**
+     * Create a new empty roster from scratch
+     * Allows users to build a roster entirely from the database
+     */
+    createNewRoster() {
+        console.log('[app.js] Creating new empty roster');
+
+        // Clear existing data
+        this.players = [];
+        this.filteredPlayers = [];
+        this.originalData = null;
+        this.currentFile = null;
+
+        // Set flag so renderRoster creates grid even with no players
+        this._isNewRoster = true;
+
+        // Clear tracking for fresh roster
+        if (window.electronAPI && window.electronAPI.editorTracking) {
+            window.electronAPI.editorTracking.clear('roster');
+        }
+
+        // Update UI - show all roster buttons
+        const fileNameEl = document.getElementById('fileName');
+        const currentFileEl = document.getElementById('currentFile');
+        const exportBtn = document.getElementById('exportCsvBtn');
+        const importBtn = document.getElementById('importCsvBtn');
+        const fillDbBtn = document.getElementById('fillFromDbRosterBtn');
+        const saveBtn = document.getElementById('saveRosterBtn');
+
+        if (fileNameEl) fileNameEl.textContent = 'New Roster (unsaved)';
+        if (currentFileEl) currentFileEl.style.display = 'flex';
+        if (exportBtn) exportBtn.style.display = 'inline-flex';
+        if (importBtn) importBtn.style.display = 'inline-flex';
+        if (fillDbBtn) fillDbBtn.style.display = 'inline-flex';
+        if (saveBtn) saveBtn.style.display = 'inline-flex';
+
+        console.log('[createEmptyRoster] Buttons shown');
+
+        // Reset pagination
+        this.currentPage = 1;
+
+        // Render empty grid (will create AG-Grid even though players is empty)
+        this.renderRoster();
+
+        this.setStatus('New roster created - use Player Database to add players');
+        console.log('[app.js] New empty roster created');
+    }
+
     async loadRosterFile(filePath) {
         if (!filePath) return;
+
+        // Reset new roster flag when loading a file
+        this._isNewRoster = false;
 
         this.setStatus('Loading file...');
         this.showLoading(true, 'Initializing...', 10);
@@ -633,11 +718,27 @@ class MaddenEditorApp {
         this.currentFile = filePath;
         const fileName = filePath.replace(/^.*[\\/]/, '');
 
-        document.getElementById('fileName').textContent = fileName;
-        document.getElementById('currentFile').style.display = 'flex';
-        document.getElementById('exportCsvBtn').style.display = 'inline-flex';
-        document.getElementById('importCsvBtn').style.display = 'inline-flex';
-        document.getElementById('saveRosterBtn').style.display = 'inline-flex';
+        // Show file info and all roster buttons
+        const fileNameEl = document.getElementById('fileName');
+        const currentFileEl = document.getElementById('currentFile');
+        const exportBtn = document.getElementById('exportCsvBtn');
+        const importBtn = document.getElementById('importCsvBtn');
+        const fillDbBtn = document.getElementById('fillFromDbRosterBtn');
+        const saveBtn = document.getElementById('saveRosterBtn');
+
+        if (fileNameEl) fileNameEl.textContent = fileName;
+        if (currentFileEl) currentFileEl.style.display = 'flex';
+        if (exportBtn) exportBtn.style.display = 'inline-flex';
+        if (importBtn) importBtn.style.display = 'inline-flex';
+        if (fillDbBtn) fillDbBtn.style.display = 'inline-flex';
+        if (saveBtn) saveBtn.style.display = 'inline-flex';
+
+        console.log('[setCurrentFile] Buttons shown:', {
+            exportBtn: exportBtn ? 'found' : 'NOT FOUND',
+            importBtn: importBtn ? 'found' : 'NOT FOUND',
+            fillDbBtn: fillDbBtn ? 'found' : 'NOT FOUND',
+            saveBtn: saveBtn ? 'found' : 'NOT FOUND'
+        });
     }
 
     loadSampleData() {
@@ -791,7 +892,9 @@ class MaddenEditorApp {
         // Store scroll position to restore after table creation
         this.pendingScrollLeft = scrollLeft;
 
-        if (this.players.length === 0) {
+        // Even if no players, we need to initialize the grid for adding players
+        // Only show empty state if we haven't explicitly created a new roster
+        if (this.players.length === 0 && !this._isNewRoster) {
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">📊</div>
@@ -803,11 +906,15 @@ class MaddenEditorApp {
         }
 
         // Apply filtering and sorting to get the view
-        const beforePOVR = this.players.slice(0, 3).map(p => p.POVR);
-        console.log('[renderRoster] BEFORE applyFiltersAndSort - first 3 players POVR:', beforePOVR);
+        if (this.players.length > 0) {
+            const beforePOVR = this.players.slice(0, 3).map(p => p.POVR);
+            console.log('[renderRoster] BEFORE applyFiltersAndSort - first 3 players POVR:', beforePOVR);
+        }
         this.applyFiltersAndSort();
-        const afterPOVR = this.filteredPlayers.slice(0, 3).map(p => p.POVR);
-        console.log('[renderRoster] AFTER applyFiltersAndSort - first 3 filtered players POVR:', afterPOVR);
+        if (this.filteredPlayers.length > 0) {
+            const afterPOVR = this.filteredPlayers.slice(0, 3).map(p => p.POVR);
+            console.log('[renderRoster] AFTER applyFiltersAndSort - first 3 filtered players POVR:', afterPOVR);
+        }
 
         // Destroy existing table
         if (this.hotTable && !this.hotTable.isDestroyed) {
@@ -836,6 +943,9 @@ class MaddenEditorApp {
             });
         }
 
+        // Store field mapping for CSV export (with empty string for portrait column at index 0)
+        this.currentFieldMapping = ['', ...fieldCodes];
+
         // Calculate pagination using filteredPlayers
         this.totalPages = Math.ceil(this.filteredPlayers.length / this.rowsPerPage);
         const startIndex = (this.currentPage - 1) * this.rowsPerPage;
@@ -855,6 +965,7 @@ class MaddenEditorApp {
         if (psxpIndex !== -1) {
             paginatedPlayers.forEach((player) => {
                 const pid = this.getPlayerFieldValue(player, 'PSXP');
+                const pam = this.getPlayerFieldValue(player, 'PEPS'); // PAM/PEPS for generic face fallback
                 // Allow PID 0 (blank silhouette)
                 if (pid !== null && pid !== undefined) {
                     // Use PID as cache key directly
@@ -865,11 +976,26 @@ class MaddenEditorApp {
                         this.portraitCache.set(cacheKey, 'loading');
                         portraitsToLoad++;
 
-                        window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                        window.electronAPI.portrait.getByPID(pid).then(async (imageData) => {
                             if (imageData && imageData.length > 0) {
                                 this.portraitCache.set(cacheKey, imageData);
                             } else {
-                                this.portraitCache.set(cacheKey, null);
+                                // PID portrait not found - try PAM fallback for generic faces
+                                if (pam && typeof pam === 'string' && pam.startsWith('gen_')) {
+                                    try {
+                                        const pamImageData = await window.electronAPI.portrait.getImageDataByPam(pam);
+                                        if (pamImageData && pamImageData.length > 0) {
+                                            this.portraitCache.set(cacheKey, pamImageData);
+                                        } else {
+                                            this.portraitCache.set(cacheKey, null);
+                                        }
+                                    } catch (pamError) {
+                                        console.error(`Error loading PAM portrait for ${pam}:`, pamError);
+                                        this.portraitCache.set(cacheKey, null);
+                                    }
+                                } else {
+                                    this.portraitCache.set(cacheKey, null);
+                                }
                             }
                             portraitsLoaded++;
                             if (portraitsLoaded === portraitsToLoad) {
@@ -1225,6 +1351,20 @@ class MaddenEditorApp {
                         if (fieldName === 'PSXP' && newValue !== oldValue) {
                             const pid = parseInt(newValue);
                             const cacheKey = `pid_${pid}`;
+
+                            // Update race for BLBM GENR/SKNT assignment
+                            window.electronAPI.lookup.getRaceByPID(pid).then(race => {
+                                if (race !== null) {
+                                    // Update the player's _race field for BLBM update on save
+                                    const actualPlayerIndex = this.getActualPlayerIndex(row);
+                                    if (actualPlayerIndex !== -1 && this.players[actualPlayerIndex]) {
+                                        this.players[actualPlayerIndex]._race = race;
+                                        console.log(`[PID Change] Updated _race to ${race} for row ${row} (player index ${actualPlayerIndex})`);
+                                    }
+                                }
+                            }).catch(err => {
+                                console.warn(`[PID Change] Could not get race for PID ${pid}:`, err);
+                            });
 
                             if (!this.portraitCache.has(cacheKey)) {
                                 this.portraitCache.set(cacheKey, 'loading');
@@ -2063,6 +2203,50 @@ class MaddenEditorApp {
             });
         }
 
+        // Apply college filter
+        if (this.collegeSearchTerm) {
+            filtered = filtered.filter(player => {
+                const college = getLookupValue('colleges', player.PCOL) || '';
+                return college.toLowerCase().includes(this.collegeSearchTerm);
+            });
+        }
+
+        // Apply PID filter
+        if (this.pidSearchTerm) {
+            const pidValue = parseInt(this.pidSearchTerm, 10);
+            if (!isNaN(pidValue)) {
+                filtered = filtered.filter(player => {
+                    return player.PSXP === pidValue;
+                });
+            } else {
+                // If not a number, try to match as string prefix/contains
+                filtered = filtered.filter(player => {
+                    return String(player.PSXP || 0).includes(this.pidSearchTerm);
+                });
+            }
+        }
+
+        // Apply empty field filter
+        if (this.emptyFieldFilter) {
+            filtered = filtered.filter(player => {
+                switch (this.emptyFieldFilter) {
+                    case 'position':
+                        // Empty position (PPOS is 0, null, undefined, or maps to empty string)
+                        const position = getLookupValue('positions', player.PPOS);
+                        return !player.PPOS || player.PPOS === 0 || !position || position === '';
+                    case 'college':
+                        // Empty college (PCOL is 0, null, undefined, or maps to empty string)
+                        const college = getLookupValue('colleges', player.PCOL);
+                        return !player.PCOL || player.PCOL === 0 || !college || college === '';
+                    case 'pid':
+                        // Empty PID (PSXP is 0, null, or undefined)
+                        return !player.PSXP || player.PSXP === 0;
+                    default:
+                        return true;
+                }
+            });
+        }
+
         // Apply sorting
         console.log('[applyFiltersAndSort] About to apply sorting, sortColumns:', JSON.stringify(this.sortColumns));
         const beforeSort = filtered.slice(0, 5).map(p => p.POVR);
@@ -2661,22 +2845,19 @@ class MaddenEditorApp {
         const teamFilter = document.getElementById('teamFilter');
         const teams = getAllTeams();
 
-        // Build all options as HTML string for fast rendering
-        // This avoids slow native select rendering in Chromium/Electron
+        // Build options
         const optionsHtml = teams.map(team =>
             `<option value="${team.id}">${team.fullName}</option>`
         ).join('');
 
         teamFilter.innerHTML = '<option value="">All Teams</option>' + optionsHtml;
 
-        // Initialize custom dropdowns to replace slow native selects
-        console.log('[App] Checking for initCustomDropdowns:', typeof window.initCustomDropdowns);
+        // Skip custom dropdown for team filter - use native
+        teamFilter.dataset.customDropdown = 'skip';
+
+        // Initialize other custom dropdowns
         if (window.initCustomDropdowns) {
-            console.log('[App] Calling initCustomDropdowns');
             this.customDropdowns = window.initCustomDropdowns();
-            console.log('[App] Custom dropdowns initialized:', this.customDropdowns?.size);
-        } else {
-            console.warn('[App] initCustomDropdowns not found on window!');
         }
     }
 
@@ -3642,6 +3823,8 @@ class MaddenEditorApp {
             // Enable buttons
             document.getElementById('save-draft-btn').disabled = false;
             document.getElementById('export-draft-json-btn').disabled = false;
+            document.getElementById('import-draft-csv-btn').disabled = false;
+            document.getElementById('fillFromDbDraftBtn').disabled = false;
 
             // Create grid
             this.createDraftGrid(result.data.prospects);
@@ -3651,6 +3834,47 @@ class MaddenEditorApp {
             console.error('Error loading draft class:', error);
             this.showError(`Failed to load draft class: ${error.message}`);
         }
+    }
+
+    /**
+     * Create a new empty draft class from scratch
+     * Allows users to build a draft class entirely from the database
+     */
+    createNewDraftClass() {
+        console.log('[app.js] Creating new empty draft class');
+
+        // Create default header with current year
+        const currentYear = new Date().getFullYear();
+        this.currentDraftClass = {
+            header: {
+                year: currentYear,
+                version: 26,
+                prospectCount: 0
+            },
+            prospects: []
+        };
+        this.currentDraftFilePath = null;
+
+        // Clear tracking for fresh draft
+        if (window.electronAPI && window.electronAPI.editorTracking) {
+            window.electronAPI.editorTracking.clear('draft');
+        }
+
+        // Update UI
+        document.getElementById('draft-file-name').textContent = 'New Draft Class (unsaved)';
+        document.getElementById('draft-file-stats').textContent = `0 prospects | Year: ${currentYear}`;
+
+        // Enable buttons
+        document.getElementById('save-draft-btn').disabled = false;
+        document.getElementById('export-draft-json-btn').disabled = false;
+        document.getElementById('import-draft-csv-btn').disabled = false;
+        document.getElementById('fillFromDbDraftBtn').disabled = false;
+
+        // Create empty grid
+        this.createDraftGrid([]);
+
+        this.setStatus('New draft class created - use Player Database to add prospects');
+        console.log('[app.js] New empty draft class created');
     }
 
     async createDraftGrid(prospects) {
@@ -3806,8 +4030,10 @@ class MaddenEditorApp {
                 // IDs and Assets
                 PID: prospect.PID,
                 PEPS: peps,
-                // Body type is now a string from backend ("Thin", "Muscular", "Heavy")
-                bodyType: typeof bodyType === 'number' ? ['Thin', 'Muscular', 'Heavy'][bodyType] : bodyType,
+                // Body type is now a string from backend ("Thin", "Muscular", "Heavy", or null/undefined for "Standard")
+                bodyType: bodyType === null || bodyType === undefined ? 'Standard'
+                    : typeof bodyType === 'number' ? ['Standard', 'Thin', 'Muscular', 'Heavy'][bodyType] || 'Standard'
+                    : bodyType,
                 playerPic: playerPic,
 
                 // All stat fields (explicit list to avoid corruption)
@@ -3899,7 +4125,7 @@ class MaddenEditorApp {
         const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
         const stateOptions = getLookupOptions('states').map(opt => opt.label);
         const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
-        const bodyTypeOptions = ['Thin', 'Muscular', 'Heavy'];  // CORRECT Madden M26 format
+        const bodyTypeOptions = ['Standard', 'Thin', 'Muscular', 'Heavy'];  // CORRECT Madden M26 format - Standard is default (no bodyType field)
         // Use capitalized names for player pic autocomplete
         const playerPicOptions = Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face']);
 
@@ -4713,9 +4939,10 @@ class MaddenEditorApp {
                         : originalProspect.devTrait,
                     // Archetype: keep as numeric ID from original data (archetype field is display string only)
                     archetype: originalProspect.archetype,
-                    // Keep body type as string (M26Writer expects strings: "Thin", "Muscular", "Heavy")
-                    bodyType: ['Thin', 'Muscular', 'Heavy'].includes(prospect.bodyType)
-                        ? prospect.bodyType
+                    // Keep body type as string (M26Writer expects strings: "Thin", "Muscular", "Heavy", or null for Standard)
+                    // "Standard" maps to null (don't write bodyType field, uses Standard_BodyType in loadouts)
+                    bodyType: prospect.bodyType === 'Standard' ? null
+                        : ['Thin', 'Muscular', 'Heavy'].includes(prospect.bodyType) ? prospect.bodyType
                         : originalProspect.bodyType,
                     // Explicitly preserve PEPS from grid
                     PEPS: prospect.PEPS
@@ -4982,6 +5209,206 @@ class MaddenEditorApp {
         } catch (error) {
             console.error('Error exporting draft CSV:', error);
             this.showError(`Failed to export CSV: ${error.message}`);
+        }
+    }
+
+    async importDraftCSV() {
+        try {
+            if (!this.draftGrid) {
+                this.showError('Please create or open a draft class first');
+                return;
+            }
+
+            // Create file input for CSV
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.csv';
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const csvContent = event.target.result;
+                        const lines = csvContent.split('\n').map(line => line.trim()).filter(line => line);
+
+                        if (lines.length < 2) {
+                            this.showError('Invalid CSV format: needs header and data rows');
+                            return;
+                        }
+
+                        // Parse header row to get column order
+                        const headers = this.parseCSVLine(lines[0]);
+                        console.log('[Draft Import] Headers:', headers);
+
+                        // Column mapping from CSV headers to prospect properties
+                        const columnMap = {
+                            'Draft Position': 'draftPosition',
+                            'Round': 'draftRound',
+                            'Last Name': 'lastName',
+                            'First Name': 'firstName',
+                            'Position': 'position',
+                            'Archetype': 'archetype',
+                            'Jersey #': 'jerseyNum',
+                            'College': 'college',
+                            'Age': 'age',
+                            'State': 'homeState',
+                            'PID': 'PID',
+                            'Player Pic': 'playerPic',
+                            'Asset ID (PEPS)': 'PEPS',
+                            'Body Type': 'bodyType',
+                            'OVR': 'overall',
+                            'ACC': 'acceleration',
+                            'AGI': 'agility',
+                            'AWR': 'awareness',
+                            'BTK': 'breakTackle',
+                            'BCV': 'ballCarrierVision',
+                            'BSH': 'blockShedding',
+                            'BSK': 'breakSack',
+                            'CAR': 'carrying',
+                            'CIT': 'catchInTraffic',
+                            'CTH': 'catching',
+                            'DRR': 'deepRouteRunning',
+                            'COD': 'changeOfDirection',
+                            'FMV': 'finesseMoves',
+                            'POW': 'hitPower',
+                            'IBL': 'impactBlocking',
+                            'INJ': 'injury',
+                            'JKM': 'jukeMove',
+                            'JMP': 'jumping',
+                            'KAC': 'kickAccuracy',
+                            'KPW': 'kickPower',
+                            'KR': 'kickReturn',
+                            'LS': 'longSnap',
+                            'LBK': 'leadBlock',
+                            'MCV': 'manCoverage',
+                            'MRR': 'mediumRouteRunning',
+                            'PBK': 'passBlock',
+                            'PBF': 'passBlockFinesse',
+                            'PBS': 'passBlockPower',
+                            'PAC': 'playAction',
+                            'PMV': 'powerMoves',
+                            'PRS': 'pressCoverage',
+                            'PUR': 'pursuit',
+                            'PRC': 'playRecognition',
+                            'RLS': 'release',
+                            'RBK': 'runBlock',
+                            'RBF': 'runBlockFinesse',
+                            'RBS': 'runBlockPower',
+                            'SRR': 'shortRouteRunning',
+                            'SPC': 'spectacularCatch',
+                            'SPD': 'speed',
+                            'SPM': 'spinMove',
+                            'STA': 'stamina',
+                            'SFA': 'stiffArm',
+                            'STR': 'strength',
+                            'TAK': 'tackle',
+                            'TAD': 'throwAccuracyDeep',
+                            'TAM': 'throwAccuracyMid',
+                            'TAS': 'throwAccuracyShort',
+                            'TOR': 'throwOnTheRun',
+                            'THP': 'throwPower',
+                            'TUP': 'throwUnderPressure',
+                            'TGH': 'toughness',
+                            'TRK': 'trucking',
+                            'ZCV': 'zoneCoverage',
+                            'Height': 'heightInches',
+                            'Weight': 'weight',
+                            'Dev Trait': 'devTrait'
+                        };
+
+                        // Build header index map
+                        const headerIndex = {};
+                        headers.forEach((h, i) => {
+                            const propName = columnMap[h];
+                            if (propName) {
+                                headerIndex[propName] = i;
+                            }
+                        });
+
+                        console.log('[Draft Import] Property mapping:', headerIndex);
+
+                        // Get current data from grid
+                        const currentData = this.draftGrid.getSourceData();
+                        let updatedCount = 0;
+                        let errors = [];
+
+                        // Process each data row
+                        for (let i = 1; i < lines.length; i++) {
+                            const values = this.parseCSVLine(lines[i]);
+                            if (values.length === 0) continue;
+
+                            // Get draft position to match with existing row
+                            const draftPosIdx = headerIndex['draftPosition'];
+                            const draftPos = draftPosIdx !== undefined ? parseInt(values[draftPosIdx]) : i - 1;
+
+                            // Find matching row in grid by draft position
+                            const rowIndex = currentData.findIndex(p => p.draftPosition === draftPos);
+                            if (rowIndex === -1) {
+                                errors.push(`Row ${i}: No matching draft position ${draftPos}`);
+                                continue;
+                            }
+
+                            const prospect = currentData[rowIndex];
+
+                            // Update each field
+                            Object.entries(headerIndex).forEach(([prop, colIdx]) => {
+                                const value = values[colIdx];
+                                if (value !== undefined && value !== '') {
+                                    // Convert numeric fields
+                                    if (['overall', 'acceleration', 'agility', 'awareness', 'speed', 'strength',
+                                         'catching', 'carrying', 'tackle', 'injury', 'stamina', 'jumping',
+                                         'throwPower', 'kickPower', 'kickAccuracy', 'age', 'jerseyNum',
+                                         'draftPosition', 'draftRound', 'heightInches', 'weight', 'PID',
+                                         'blockShedding', 'breakTackle', 'ballCarrierVision', 'breakSack',
+                                         'catchInTraffic', 'deepRouteRunning', 'changeOfDirection', 'finesseMoves',
+                                         'hitPower', 'impactBlocking', 'jukeMove', 'kickReturn', 'longSnap',
+                                         'leadBlock', 'manCoverage', 'mediumRouteRunning', 'passBlock',
+                                         'passBlockFinesse', 'passBlockPower', 'playAction', 'powerMoves',
+                                         'pressCoverage', 'pursuit', 'playRecognition', 'release', 'runBlock',
+                                         'runBlockFinesse', 'runBlockPower', 'shortRouteRunning', 'spectacularCatch',
+                                         'spinMove', 'stiffArm', 'throwAccuracyDeep', 'throwAccuracyMid',
+                                         'throwAccuracyShort', 'throwOnTheRun', 'throwUnderPressure', 'toughness',
+                                         'trucking', 'zoneCoverage'].includes(prop)) {
+                                        const numVal = parseFloat(value);
+                                        if (!isNaN(numVal)) {
+                                            prospect[prop] = numVal;
+                                        }
+                                    } else {
+                                        prospect[prop] = value;
+                                    }
+                                }
+                            });
+
+                            updatedCount++;
+                        }
+
+                        // Update the grid
+                        this.draftGrid.loadData(currentData);
+
+                        if (errors.length > 0) {
+                            console.warn('[Draft Import] Errors:', errors);
+                        }
+
+                        this.setStatus(`Imported ${updatedCount} prospects from CSV`);
+                        console.log(`[Draft Import] Updated ${updatedCount} prospects`);
+
+                    } catch (error) {
+                        console.error('[Draft Import] Error:', error);
+                        this.showError(`Failed to import CSV: ${error.message}`);
+                    }
+                };
+
+                reader.readAsText(file);
+            };
+
+            input.click();
+
+        } catch (error) {
+            console.error('Error importing draft CSV:', error);
+            this.showError(`Failed to import CSV: ${error.message}`);
         }
     }
 
@@ -5387,6 +5814,13 @@ class MaddenEditorApp {
             console.log(`[Creator] HOF players: ${result.stats.hofPlayers}`);
             console.log(`[Creator] Average OVR: ${result.stats.averageOVR}`);
 
+            // DEBUG: Log PEPS/PAM values for first 5 players
+            console.log(`[Creator] ========== PEPS/PAM DEBUG ==========`);
+            result.players.slice(0, 5).forEach((p, i) => {
+                console.log(`[Creator] Player ${i + 1}: ${p.PFNA} ${p.PLNA} - PEPS="${p.PEPS}", PLPL=${p.PLPL}, PGHE=${p.PGHE}, PSKI=${p.PSKI}`);
+            });
+            console.log(`[Creator] =====================================`);
+
             progressBar.style.width = '100%';
             progressText.textContent = `Complete! Generated ${result.players.length} players`;
 
@@ -5789,6 +6223,12 @@ class MaddenEditorApp {
                 college: player.PCOL,
                 isHOF: player.isHallOfFamer ? 'Yes' : 'No',
 
+                // Face/Appearance fields
+                PAM: player.PEPS || '-',
+                faceType: player.PLPL === 100 ? 'Real' : 'Generic',
+                PGHE: player.PGHE || '-',
+                PSKI: player.PSKI || '-',
+
                 // Core Ratings
                 overall: player.POVR,
                 speed: player.PSPD,
@@ -5875,6 +6315,12 @@ class MaddenEditorApp {
             { data: 'heightInches', header: 'Ht"', width: 40, type: 'numeric' },
             { data: 'weight', header: 'Wt', width: 45, type: 'numeric' },
             { data: 'devTrait', header: 'Dev', width: 75 },
+
+            // Face/Appearance
+            { data: 'PAM', header: 'PAM', width: 150 },
+            { data: 'faceType', header: 'Face', width: 60 },
+            { data: 'PGHE', header: 'Head', width: 45, type: 'numeric' },
+            { data: 'PSKI', header: 'Skin', width: 45, type: 'numeric' },
 
             // Core Physical
             { data: 'overall', header: 'OVR', width: 45, type: 'numeric' },
@@ -6212,6 +6658,8 @@ class MaddenEditorApp {
             // Enable buttons
             document.getElementById('save-draft-btn').disabled = false;
             document.getElementById('export-draft-json-btn').disabled = false;
+            document.getElementById('import-draft-csv-btn').disabled = false;
+            document.getElementById('fillFromDbDraftBtn').disabled = false;
 
             // Create grid with generated data
             this.createDraftGrid(prospects);
@@ -6380,20 +6828,22 @@ class MaddenEditorApp {
             console.log('[Creator] Loading roster into editor...');
             console.log(`[Creator] ${this.generatedRosterPlayers.length} players ready`);
 
-            // DEBUG: Log first player's field names
-            if (this.generatedRosterPlayers.length > 0) {
-                const firstPlayer = this.generatedRosterPlayers[0];
-                console.log('[Creator] First player data:');
-                console.log('  - Field names:', Object.keys(firstPlayer));
-                console.log('  - PFNA (First Name):', firstPlayer.PFNA);
-                console.log('  - PLNA (Last Name):', firstPlayer.PLNA);
-                console.log('  - PPOS (Position):', firstPlayer.PPOS);
-                console.log('  - PSPD (Speed):', firstPlayer.PSPD);
-                console.log('  - PCOL (College):', firstPlayer.PCOL);
-                console.log('  - PPID (PID):', firstPlayer.PPID);
-                console.log('  - POVR (Overall):', firstPlayer.POVR);
-                console.log('  - Full first player:', JSON.stringify(firstPlayer, null, 2));
-            }
+            // DEBUG: Find key players and show their team assignments
+            const keyPlayers = ['Montana', 'Unitas', 'Brady', 'Rice', 'Payton'];
+            console.log('[Creator] ===== KEY PLAYER SEARCH =====');
+            keyPlayers.forEach(name => {
+                const found = this.generatedRosterPlayers.filter(p =>
+                    p.PLNA && p.PLNA.toLowerCase().includes(name.toLowerCase())
+                );
+                if (found.length > 0) {
+                    found.forEach(p => {
+                        console.log(`[Creator] FOUND: ${p.PFNA} ${p.PLNA} - Team ID: ${p.TGID}, OVR: ${p.POVR}, POS: ${p.PPOS}`);
+                    });
+                } else {
+                    console.log(`[Creator] NOT FOUND: ${name}`);
+                }
+            });
+            console.log('[Creator] ===========================');
 
             // Switch to roster editor tab
             this.switchTool('roster');
@@ -6420,16 +6870,26 @@ class MaddenEditorApp {
             // Render the roster in the editor grid (this method handles Handsontable setup)
             this.renderRoster();
 
-            // Update UI
+            // Update UI - show all roster buttons
+            const fileNameEl = document.getElementById('fileName');
+            const currentFileEl = document.getElementById('currentFile');
+            const exportBtn = document.getElementById('exportCsvBtn');
+            const importBtn = document.getElementById('importCsvBtn');
+            const fillDbBtn = document.getElementById('fillFromDbRosterBtn');
+            const saveBtn = document.getElementById('saveRosterBtn');
+
+            if (fileNameEl) fileNameEl.textContent = 'Generated Roster (unsaved)';
+            if (currentFileEl) currentFileEl.style.display = 'flex';
+            if (exportBtn) exportBtn.style.display = 'inline-flex';
+            if (importBtn) importBtn.style.display = 'inline-flex';
+            if (fillDbBtn) fillDbBtn.style.display = 'inline-flex';
+            if (saveBtn) saveBtn.style.display = 'inline-flex';
+
+            console.log('[loadGeneratedRoster] Buttons shown');
+
             const fileStatus = document.getElementById('fileStatus');
             if (fileStatus) {
                 fileStatus.textContent = `Generated Roster (${this.players.length} players) - Ready to save`;
-            }
-
-            // Show save button
-            const saveButton = document.getElementById('saveRosterBtn');
-            if (saveButton) {
-                saveButton.style.display = 'inline-block';
             }
 
             // Show success message

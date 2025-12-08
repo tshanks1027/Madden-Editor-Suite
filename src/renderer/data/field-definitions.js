@@ -17,7 +17,7 @@ export const MADDEN_FIELDS = {
     'PCOL': { display: 'College', shortDisplay: 'College', type: 'lookup', editable: true, width: 100, lookup: 'colleges' },
     'PAGE': { display: 'Age', shortDisplay: 'Age', type: 'numeric', editable: true, width: 60, min: 18, max: 45 },
     'PHTN': { display: 'Hometown', shortDisplay: 'Hometown', type: 'text', editable: true, width: 100 },
-    'PHSN': { display: 'State', shortDisplay: 'State', type: 'lookup', editable: true, width: 80, lookup: 'states' },
+    'PHSN': { display: 'State', shortDisplay: 'State', type: 'lookup', editable: true, width: 120, lookup: 'states' },
     'PACC': { display: 'Acceleration', shortDisplay: 'ACC', type: 'numeric', editable: true, width: 90, min: 0, max: 99 },
     'PAGI': { display: 'Agility', shortDisplay: 'AGI', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
     'PAWR': { display: 'Awareness', shortDisplay: 'AWR', type: 'numeric', editable: true, width: 90, min: 0, max: 99 },
@@ -73,6 +73,7 @@ export const MADDEN_FIELDS = {
     'PLZC': { display: 'Zone Coverage', shortDisplay: 'ZCV', type: 'numeric', editable: true, width: 110, min: 0, max: 99 },
     'PHGT': { display: 'Height', shortDisplay: 'HGT', type: 'numeric', editable: true, width: 70, min: 65, max: 85 },
     'PWGT': { display: 'Weight', shortDisplay: 'WGT', type: 'numeric', editable: true, width: 70, min: 160, max: 380, transform: { display: v => v + 160, save: v => v - 160 } },
+    'PCBT': { display: 'Body Type', shortDisplay: 'Body', type: 'lookup', editable: true, width: 90, lookup: 'bodytypes' },
 
     // Contract fields (stored in hundreds of thousands, displayed in millions - divide by 100 for display, multiply by 100 when saving)
     'PCON': { display: 'Contract Years', shortDisplay: 'CON', type: 'numeric', editable: true, width: 80, min: 0, max: 7 },
@@ -137,7 +138,7 @@ export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"],
     ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["ARCHETYPE", "Archetype"], ["PHTN", "Hometown"], ["PHSN", "State"],
-    ["PHGT", "Height"], ["PWGT", "Weight"], ["PYRP", "Years Pro"],
+    ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PYRP", "Years Pro"],
     ["POVR", "Overall"],
     ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBCV", "Vision"],
     ["PBSG", "Block Shed"], ["PBSK", "Break Sack"], ["PCAR", "Carrying"], ["PLCI", "Catch in Traffic"],
@@ -243,6 +244,13 @@ export let LOOKUP_DATA = {
         [1, 'Star'],
         [2, 'Superstar'],
         [3, 'X-Factor']
+    ]),
+    bodytypes: new Map([
+        [0, 'Standard'],
+        [1, 'Thin'],
+        [2, 'Muscular'],
+        [3, 'Heavy'],
+        [4, 'Extra Heavy']
     ])
 };
 
@@ -544,6 +552,8 @@ export function getLookupOptions(lookupType) {
             return Array.from(LOOKUP_DATA.pids.entries()).map(([value, label]) => ({ value, label }));
         case 'devtraits':
             return Array.from(LOOKUP_DATA.devtraits.entries()).map(([value, label]) => ({ value, label }));
+        case 'bodytypes':
+            return Array.from(LOOKUP_DATA.bodytypes.entries()).map(([value, label]) => ({ value, label }));
         default:
             return [];
     }
@@ -567,6 +577,8 @@ export function getLookupValue(lookupType, value) {
             return LOOKUP_DATA.states.get(value) || 'Unknown';
         case 'pids':
             return LOOKUP_DATA.pids.get(value) || 'Generic Name';
+        case 'bodytypes':
+            return LOOKUP_DATA.bodytypes.get(value) || 'Unknown';
         default:
             return 'Unknown';
     }

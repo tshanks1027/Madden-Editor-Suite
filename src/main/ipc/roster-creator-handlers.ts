@@ -54,6 +54,13 @@ ipcMain.handle('roster-creator:generate', async (event, year: number, templatePa
     console.log(`[roster-creator-handlers] - HOF players: ${stats.hofPlayers}`);
     console.log(`[roster-creator-handlers] - Average OVR: ${stats.averageOVR}`);
 
+    // DEBUG: Log first 3 players' PEPS/PAM values
+    console.log('[roster-creator-handlers] ===== PEPS/PAM DEBUG =====');
+    players.slice(0, 5).forEach((p: any, i: number) => {
+      console.log(`[roster-creator-handlers] Player ${i + 1}: ${p.PFNA} ${p.PLNA} - PEPS="${p.PEPS}", PLPL=${p.PLPL}, PGHE=${p.PGHE}, PSKI=${p.PSKI}`);
+    });
+    console.log('[roster-creator-handlers] ===========================');
+
     return {
       success: true,
       players,

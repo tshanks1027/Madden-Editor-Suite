@@ -43,7 +43,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCoachByPID: (pid: number) => ipcRenderer.invoke('lookup:get-coach-by-pid', pid),
     getCoachPIDFromPAM: (pam: string) => ipcRenderer.invoke('lookup:get-coach-pid-from-pam', pam),
     getCoachPAMFromPID: (pid: number) => ipcRenderer.invoke('lookup:get-coach-pam-from-pid', pid),
-    getCoachLookup: () => ipcRenderer.invoke('lookup:get-coach-lookup')
+    getCoachLookup: () => ipcRenderer.invoke('lookup:get-coach-lookup'),
+    // Race lookup for BLBM GENR/SKNT assignment
+    getRaceByPID: (pid: number) => ipcRenderer.invoke('lookup:get-race-by-pid', pid)
   },
 
   // Draft Class APIs
@@ -170,7 +172,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Portrait APIs
   portrait: {
     getByPLPO: (plpoKey: string) => ipcRenderer.invoke('portrait:get-image-data-by-plpo', plpoKey),
-    getByPID: (pid: number) => ipcRenderer.invoke('portrait:get-image-data-by-pid', pid)
+    getByPID: (pid: number) => ipcRenderer.invoke('portrait:get-image-data-by-pid', pid),
+    getImageDataByPam: (pamCode: string) => ipcRenderer.invoke('portrait:get-image-data-by-pam', pamCode)
   },
 
   // Coach Portrait APIs
@@ -219,5 +222,140 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('retro:dump-tables', filePath),
     debugTeamTable: (filePath: string) =>
       ipcRenderer.invoke('retro:debug-team-table', filePath)
+  },
+
+  // User Database APIs (Edit player database, custom players, CSV import)
+  database: {
+    // Service status
+    isReady: () => ipcRenderer.invoke('database:is-ready'),
+
+    // Player edit operations (edits to original database players)
+    savePlayerEdit: (originalId: number, edits: any) =>
+      ipcRenderer.invoke('database:save-player-edit', originalId, edits),
+    getPlayerEdit: (originalId: number) =>
+      ipcRenderer.invoke('database:get-player-edit', originalId),
+    hasPlayerEdit: (originalId: number) =>
+      ipcRenderer.invoke('database:has-player-edit', originalId),
+    resetPlayer: (originalId: number) =>
+      ipcRenderer.invoke('database:reset-player', originalId),
+    clearPlayerSeasons: (originalId: number) =>
+      ipcRenderer.invoke('database:clear-player-seasons', originalId),
+
+    // Appearance edit operations
+    saveAppearanceEdit: (originalPlayerId: number, edits: any) =>
+      ipcRenderer.invoke('database:save-appearance-edit', originalPlayerId, edits),
+    getAppearanceEdit: (originalPlayerId: number) =>
+      ipcRenderer.invoke('database:get-appearance-edit', originalPlayerId),
+
+    // Season edit operations
+    saveSeasonEdit: (originalPlayerId: number, year: number, edits: any) =>
+      ipcRenderer.invoke('database:save-season-edit', originalPlayerId, year, edits),
+    getSeasonEdit: (originalPlayerId: number, year: number) =>
+      ipcRenderer.invoke('database:get-season-edit', originalPlayerId, year),
+    getSeasonEditsForPlayer: (originalPlayerId: number) =>
+      ipcRenderer.invoke('database:get-season-edits-for-player', originalPlayerId),
+    // Apply edits to ALL seasons (for change-all-years feature)
+    saveSeasonEditAllYears: (originalPlayerId: number, edits: any) =>
+      ipcRenderer.invoke('database:save-season-edit-all-years', originalPlayerId, edits),
+
+    // Custom player operations
+    createCustomPlayer: (player: any) =>
+      ipcRenderer.invoke('database:create-custom-player', player),
+    updateCustomPlayer: (id: number, updates: any) =>
+      ipcRenderer.invoke('database:update-custom-player', id, updates),
+    getCustomPlayer: (id: number) =>
+      ipcRenderer.invoke('database:get-custom-player', id),
+    getAllCustomPlayers: () =>
+      ipcRenderer.invoke('database:get-all-custom-players'),
+    deleteCustomPlayer: (id: number) =>
+      ipcRenderer.invoke('database:delete-custom-player', id),
+    searchCustomPlayers: (query: string, limit?: number) =>
+      ipcRenderer.invoke('database:search-custom-players', query, limit),
+
+    // Custom player season operations
+    saveCustomPlayerSeason: (customPlayerId: number, year: number, season: any) =>
+      ipcRenderer.invoke('database:save-custom-player-season', customPlayerId, year, season),
+    getCustomPlayerSeason: (customPlayerId: number, year: number) =>
+      ipcRenderer.invoke('database:get-custom-player-season', customPlayerId, year),
+    getCustomPlayerSeasons: (customPlayerId: number) =>
+      ipcRenderer.invoke('database:get-custom-player-seasons', customPlayerId),
+
+    // Reset operations
+    resetAllEdits: () => ipcRenderer.invoke('database:reset-all-edits'),
+    resetAllCustomPlayers: () => ipcRenderer.invoke('database:reset-all-custom-players'),
+    resetAll: () => ipcRenderer.invoke('database:reset-all'),
+
+    // Backup & restore
+    createBackup: () => ipcRenderer.invoke('database:create-backup'),
+    restoreBackup: (backupPath: string) =>
+      ipcRenderer.invoke('database:restore-backup', backupPath),
+    getBackupList: () => ipcRenderer.invoke('database:get-backup-list'),
+
+    // Statistics
+    getStats: () => ipcRenderer.invoke('database:get-stats'),
+    getEditedPlayerIds: () => ipcRenderer.invoke('database:get-edited-player-ids'),
+
+    // Merged data access (original + user edits)
+    getMergedPlayer: (internalId: number) =>
+      ipcRenderer.invoke('database:get-merged-player', internalId),
+    getMergedPlayerSeason: (internalId: number, year: number) =>
+      ipcRenderer.invoke('database:get-merged-player-season', internalId, year),
+
+    // Search operations
+    searchPlayers: (query: string, options?: { limit?: number; position?: string; draftYearFrom?: number; draftYearTo?: number }) =>
+      ipcRenderer.invoke('database:search-players', query, options),
+    getAllPlayers: (options?: { offset?: number; limit?: number }) =>
+      ipcRenderer.invoke('database:get-all-players', options),
+
+    // Transfer operations (roster/draft)
+    getPlayerForRoster: (internalId: number, year: number) =>
+      ipcRenderer.invoke('database:get-player-for-roster', internalId, year),
+    getPlayerForDraft: (internalId: number, year: number) =>
+      ipcRenderer.invoke('database:get-player-for-draft', internalId, year),
+    getPlayerAvailableYears: (internalId: number) =>
+      ipcRenderer.invoke('database:get-player-available-years', internalId),
+    getPlayerSeasonYears: (internalId: number) =>
+      ipcRenderer.invoke('database:get-player-season-years', internalId),
+    getPlayersForFill: (options: {
+      target: 'roster' | 'draft';
+      yearFrom: number;
+      yearTo: number;
+      excludeKeys: string[];
+      positionNeeds: Record<string, number>;
+    }) => ipcRenderer.invoke('database:get-players-for-fill', options),
+
+    // CSV Import operations
+    selectCsvFile: () => ipcRenderer.invoke('database:select-csv-file'),
+    validateCsv: (csvContent: string) => ipcRenderer.invoke('database:validate-csv', csvContent),
+    importCsv: (csvContent: string) => ipcRenderer.invoke('database:import-csv', csvContent)
+  },
+
+  // Window APIs (focus restoration after native dialogs)
+  window: {
+    focus: () => ipcRenderer.invoke('window:focus')
+  },
+
+  // Editor Tracking APIs (duplicate prevention for roster/draft building)
+  editorTracking: {
+    trackPlayer: (player: { firstName: string; lastName: string; position: string; internalId: number; year: number; povr: number }, target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:track-player', player, target),
+    isTracked: (firstName: string, lastName: string, position: string, target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:is-tracked', firstName, lastName, position, target),
+    getTracked: (target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:get-tracked', target),
+    getTrackedKeys: (target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:get-tracked-keys', target),
+    getCount: (target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:get-count', target),
+    clear: (target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:clear', target),
+    clearAll: () =>
+      ipcRenderer.invoke('editor-tracking:clear-all'),
+    remove: (firstName: string, lastName: string, position: string, target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:remove', firstName, lastName, position, target),
+    getPositionCounts: (target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:get-position-counts', target),
+    importExisting: (players: Array<{ firstName: string; lastName: string; position: string; povr?: number }>, target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('editor-tracking:import-existing', players, target)
   }
 });

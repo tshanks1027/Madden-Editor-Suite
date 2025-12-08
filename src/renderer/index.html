@@ -353,6 +353,10 @@
                             <span class="btn-icon">📁</span>
                             OPEN ROSTER
                         </button>
+                        <button id="newRosterBtn" class="btn btn-secondary" onclick="window.app && window.app.createNewRoster()">
+                            <span class="btn-icon">✨</span>
+                            NEW ROSTER
+                        </button>
                         <input type="file" id="fileInput" accept="*" style="display: none;">
 
                         <div id="currentFile" class="current-file" style="display: none;">
@@ -368,6 +372,11 @@
                         <button id="importCsvBtn" class="btn btn-secondary" style="display: none;">
                             <span class="btn-icon">📥</span>
                             IMPORT CSV
+                        </button>
+
+                        <button id="fillFromDbRosterBtn" class="btn btn-secondary" style="display: none;" onclick="window.openFillModal && window.openFillModal()">
+                            <span class="btn-icon">🗃️</span>
+                            FILL FROM DATABASE
                         </button>
 
                         <button id="saveRosterBtn" class="btn btn-success" style="display: none;">
@@ -410,6 +419,10 @@
                             <span class="btn-icon">📂</span>
                             Open Draft Class
                         </button>
+                        <button id="new-draft-btn" class="btn btn-secondary" onclick="window.app && window.app.createNewDraftClass()">
+                            <span class="btn-icon">✨</span>
+                            New Draft Class
+                        </button>
                         <button id="save-draft-btn" class="btn btn-success" disabled>
                             <span class="btn-icon">💾</span>
                             Save Draft Class
@@ -417,6 +430,14 @@
                         <button id="export-draft-json-btn" class="btn btn-secondary" disabled>
                             <span class="btn-icon">📤</span>
                             Export CSV
+                        </button>
+                        <button id="import-draft-csv-btn" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">📥</span>
+                            Import CSV
+                        </button>
+                        <button id="fillFromDbDraftBtn" class="btn btn-secondary" disabled onclick="window.openFillModal && window.openFillModal()">
+                            <span class="btn-icon">🗃️</span>
+                            Fill from Database
                         </button>
                     </div>
                 </div>
@@ -1810,6 +1831,7 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
             <div class="db-player-card-footer">
                 <div class="db-footer-left">
                     <button class="db-btn db-btn-danger" id="resetDbPlayerBtn">Reset to Original</button>
+                    <button class="db-btn db-btn-warning" id="clearSeasonsBtn" title="Fix wrongly-assigned seasons by clearing all season data for this player">Clear Seasons</button>
                 </div>
                 <div class="db-footer-right">
                     <button class="db-btn db-btn-secondary" id="addDbPlayerToRoster">Add to Roster</button>
@@ -1851,6 +1873,20 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                         </select>
                     </div>
                     <div class="player-browser-filter-group">
+                        <label>Team:</label>
+                        <select id="playerBrowserTeamFilter" style="width: 120px;">
+                            <option value="">All Teams</option>
+                        </select>
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>HOF:</label>
+                        <select id="playerBrowserHofFilter">
+                            <option value="">All Players</option>
+                            <option value="hof">HOF Only</option>
+                            <option value="non-hof">Non-HOF Only</option>
+                        </select>
+                    </div>
+                    <div class="player-browser-filter-group">
                         <label>Empty:</label>
                         <select id="playerBrowserEmptyFilter">
                             <option value="">Show All</option>
@@ -1880,6 +1916,7 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div style="display: flex; gap: 8px;">
                         <button id="addNewPlayerBtn" class="db-btn db-btn-primary" style="padding: 6px 12px;">+ Add Player</button>
+                        <button id="fillRemainingBtn" class="db-btn db-btn-success" style="padding: 6px 12px; background: #2e7d32; border-color: #2e7d32;">Fill Remaining</button>
                         <button id="openCsvImport" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Import Created Players</button>
                         <button id="openDbManagement" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Manage</button>
                     </div>
@@ -1984,6 +2021,185 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
         </div>
     </div>
 
+    <!-- Fill Remaining Modal -->
+    <div id="fillRemainingModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Fill Remaining Slots</h2>
+                <button class="modal-close" id="closeFillRemaining">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Target Selection -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #ccc;">Fill Target:</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="radio" name="fillTarget" value="roster" checked id="fillTargetRoster">
+                            <span>Roster</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="radio" name="fillTarget" value="draft" id="fillTargetDraft">
+                            <span>Draft Class</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Year Range -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #ccc;">Draft Year Range:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="number" id="fillYearFrom" placeholder="From" min="1936" max="2030" value="2000" style="width: 90px; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: #eee;">
+                        <span style="color: #666;">to</span>
+                        <input type="number" id="fillYearTo" placeholder="To" min="1936" max="2030" value="2024" style="width: 90px; padding: 8px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: #eee;">
+                    </div>
+                    <p style="font-size: 11px; color: #888; margin-top: 6px;">
+                        Players will be selected from their draft year within this range.
+                    </p>
+                </div>
+
+                <!-- Position Needs Preview -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #ccc;">Position Needs:</label>
+                    <div id="fillPositionNeeds" style="background: #2a2a2a; border-radius: 6px; padding: 15px; max-height: 200px; overflow-y: auto;">
+                        <p style="color: #888; text-align: center;">Click "Preview" to see position needs</p>
+                    </div>
+                </div>
+
+                <!-- Info Section -->
+                <div style="background: #1a2a1a; border: 1px solid #2e7d32; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+                    <div style="display: flex; gap: 8px; align-items: flex-start;">
+                        <span style="color: #4caf50; font-size: 16px;">&#9432;</span>
+                        <div style="font-size: 12px; color: #8bc34a;">
+                            <strong>How it works:</strong>
+                            <ul style="margin: 5px 0 0 15px; padding: 0;">
+                                <li>Finds players from the database within your year range</li>
+                                <li>Removes duplicates (keeps highest OVR version)</li>
+                                <li>Fills each position up to the limit</li>
+                                <li>Places drafted players at their historical draft slot</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; gap: 10px; padding: 15px; border-top: 1px solid #333;">
+                <div id="fillPreviewSummary" style="font-size: 12px; color: #888;">
+                    <!-- Preview summary will appear here -->
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="fillPreviewBtn" class="db-btn db-btn-secondary">Preview</button>
+                    <button id="fillCancelBtn" class="db-btn db-btn-secondary">Cancel</button>
+                    <button id="fillExecuteBtn" class="db-btn db-btn-primary" style="background: #2e7d32; border-color: #2e7d32;">Fill Now</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Roster Modal (Team & Year Selection) -->
+    <div id="addToRosterModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="addToRosterTitle">Add Player to Roster</h2>
+                <button class="modal-close" id="closeAddToRoster">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Player Info -->
+                <div style="margin-bottom: 20px; padding: 12px; background: #2a2a2a; border-radius: 6px;">
+                    <div id="addToRosterPlayerName" style="font-size: 18px; font-weight: 600; color: #fff;"></div>
+                    <div id="addToRosterPlayerInfo" style="font-size: 13px; color: #888; margin-top: 4px;"></div>
+                </div>
+
+                <!-- Team Selection -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #ccc;">Select Team:</label>
+                    <select id="addToRosterTeam" style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 14px;">
+                        <option value="1009">Free Agent</option>
+                        <option value="7">Arizona Cardinals</option>
+                        <option value="14">Atlanta Falcons</option>
+                        <option value="25">Baltimore Ravens</option>
+                        <option value="3">Buffalo Bills</option>
+                        <option value="21">Carolina Panthers</option>
+                        <option value="1">Chicago Bears</option>
+                        <option value="2">Cincinnati Bengals</option>
+                        <option value="5">Cleveland Browns</option>
+                        <option value="11">Dallas Cowboys</option>
+                        <option value="4">Denver Broncos</option>
+                        <option value="19">Detroit Lions</option>
+                        <option value="20">Green Bay Packers</option>
+                        <option value="32">Houston Texans</option>
+                        <option value="10">Indianapolis Colts</option>
+                        <option value="17">Jacksonville Jaguars</option>
+                        <option value="9">Kansas City Chiefs</option>
+                        <option value="23">Las Vegas Raiders</option>
+                        <option value="8">Los Angeles Chargers</option>
+                        <option value="24">Los Angeles Rams</option>
+                        <option value="12">Miami Dolphins</option>
+                        <option value="31">Minnesota Vikings</option>
+                        <option value="22">New England Patriots</option>
+                        <option value="27">New Orleans Saints</option>
+                        <option value="16">New York Giants</option>
+                        <option value="18">New York Jets</option>
+                        <option value="13">Philadelphia Eagles</option>
+                        <option value="29">Pittsburgh Steelers</option>
+                        <option value="15">San Francisco 49ers</option>
+                        <option value="28">Seattle Seahawks</option>
+                        <option value="6">Tampa Bay Buccaneers</option>
+                        <option value="30">Tennessee Titans</option>
+                        <option value="26">Washington Commanders</option>
+                    </select>
+                </div>
+
+                <!-- Year Selection -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #ccc;">Select Year for Ratings:</label>
+                    <select id="addToRosterYear" style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 14px;">
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 15px; border-top: 1px solid #333;">
+                <button id="addToRosterCancelBtn" class="db-btn db-btn-secondary">Cancel</button>
+                <button id="addToRosterConfirmBtn" class="db-btn db-btn-primary">Add to Roster</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Draft Modal (Year Selection) -->
+    <div id="addToDraftModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="addToDraftTitle">Add Player to Draft Class</h2>
+                <button class="modal-close" id="closeAddToDraft">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Player Info -->
+                <div style="margin-bottom: 20px; padding: 12px; background: #2a2a2a; border-radius: 6px;">
+                    <div id="addToDraftPlayerName" style="font-size: 18px; font-weight: 600; color: #fff;"></div>
+                    <div id="addToDraftPlayerInfo" style="font-size: 13px; color: #888; margin-top: 4px;"></div>
+                </div>
+
+                <!-- Year Selection -->
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #ccc;">Select Year for Ratings:</label>
+                    <select id="addToDraftYear" style="width: 100%; padding: 10px; background: #2a2a2a; border: 1px solid #444; border-radius: 4px; color: #eee; font-size: 14px;">
+                        <!-- Options populated dynamically -->
+                    </select>
+                    <p style="font-size: 11px; color: #888; margin-top: 6px;">
+                        Typically use the player's rookie year for draft class ratings.
+                    </p>
+                </div>
+
+                <!-- Draft Position Info -->
+                <div id="addToDraftPositionInfo" style="padding: 10px; background: #1a2a1a; border: 1px solid #2e7d32; border-radius: 4px; font-size: 12px; color: #8bc34a;">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 15px; border-top: 1px solid #333;">
+                <button id="addToDraftCancelBtn" class="db-btn db-btn-secondary">Cancel</button>
+                <button id="addToDraftConfirmBtn" class="db-btn db-btn-primary">Add to Draft Class</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Database Management Modal -->
     <div id="dbManagementModal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 500px;">
@@ -2067,6 +2283,7 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
     <script src="js/database-player-card.js"></script>
     <script src="js/player-browser.js"></script>
     <script src="js/csv-import.js"></script>
+    <script src="js/fill-remaining.js"></script>
     <script src="js/db-management.js"></script>
     <script type="module" src="js/app.js"></script>
 </body>

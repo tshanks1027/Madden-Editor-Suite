@@ -230,6 +230,38 @@ body {
     font-size: 16px;
 }
 
+/* Browse Players Button */
+.btn-browse-db {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(135deg, #2c5282 0%, #1a365d 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(44, 82, 130, 0.4);
+}
+
+.btn-browse-db:hover {
+    background: linear-gradient(135deg, #3d6ba3 0%, #2a4a7a 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(44, 82, 130, 0.6);
+}
+
+.btn-browse-db:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(44, 82, 130, 0.4);
+}
+
+.browse-icon {
+    font-size: 16px;
+}
+
 /* Buttons - 3D Beveled Glass Design */
 .btn {
     display: inline-flex;
@@ -545,6 +577,37 @@ body {
     box-shadow: 0 0 16px rgba(255, 140, 0, 0.25);
 }
 
+/* Native select - for dropdowns that need native behavior (team filter) */
+.native-select {
+    background: #1a1a1a;
+    border: 1.5px solid rgba(255, 140, 0, 0.3);
+    border-radius: 20px;
+    color: var(--gray-text);
+    font-size: 0.875rem;
+    padding: 10px 16px;
+    min-width: 150px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.native-select option {
+    background: #1a1a1a;
+    color: var(--gray-text);
+    padding: 10px;
+}
+
+.native-select:hover {
+    background: #252525;
+    border-color: rgba(255, 140, 0, 0.6);
+}
+
+.native-select:focus {
+    outline: none;
+    border-color: #ff8c00;
+    background: #252525;
+    box-shadow: 0 0 16px rgba(255, 140, 0, 0.25);
+}
+
 /* Custom Dropdown - Replaces slow native select rendering in Electron/Chromium */
 .custom-dropdown {
     position: relative;
@@ -772,8 +835,23 @@ body {
     border-bottom: 1px solid var(--border-color);
     padding: 0.75rem 1rem;
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.info-tips-left {
+    display: flex;
     gap: 2rem;
     flex-wrap: wrap;
+    align-items: center;
+}
+
+.info-tips-right {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
 }
 
 .info-tip {

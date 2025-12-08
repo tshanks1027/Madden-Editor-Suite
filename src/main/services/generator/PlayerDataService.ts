@@ -201,20 +201,9 @@ export class PlayerDataService {
    * Resolve file path for packaged vs dev environment
    */
   private resolveDataPath(...segments: string[]): string {
-    let resolvedPath: string;
-
-    if (app.isPackaged) {
-      // In packaged app, __dirname is .vite/build
-      resolvedPath = path.join(__dirname, 'data', 'lookups', ...segments);
-    } else {
-      // In development, we need to find the project root
-      // __dirname is .vite/build/services/generator/
-      // Go up to .vite/build/, then up to project root, then into data/lookups/
-      const appPath = app.getAppPath(); // This gives us the project root in dev mode
-      resolvedPath = path.join(appPath, 'data', 'lookups', ...segments);
-    }
-
-    console.log(`[PlayerDataService] Resolved path: ${resolvedPath} (packaged: ${app.isPackaged}, __dirname: ${__dirname})`);
+    // Use app.getAppPath() for both dev and packaged builds
+    const resolvedPath = path.join(app.getAppPath(), 'data', 'lookups', ...segments);
+    console.log(`[PlayerDataService] Resolved path: ${resolvedPath}`);
     return resolvedPath;
   }
 

@@ -198,6 +198,7 @@ export class RosterGeneratorService {
   private realFirstNames: string[] = [];
   private realLastNames: string[] = [];
   private pamRaceMapping: { white: string[]; hispanic: string[]; black: string[] } | null = null;
+  private hofLookup: Map<string, boolean> = new Map(); // firstName|lastName -> isHOF
 
   /**
    * Initialize service: Load roster data from database and template
@@ -402,12 +403,25 @@ export class RosterGeneratorService {
       const firstNameSet = new Set<string>();
       const lastNameSet = new Set<string>();
 
+      let hofCount = 0;
       allPlayerParsed.data.forEach((row: any) => {
         if (row['First Name'] && typeof row['First Name'] === 'string' && row['First Name'].trim()) {
           firstNameSet.add(row['First Name'].trim());
         }
         if (row['Last Name'] && typeof row['Last Name'] === 'string' && row['Last Name'].trim()) {
           lastNameSet.add(row['Last Name'].trim());
+        }
+        // Extract HOF status - map by firstName|lastName key
+        const firstName = row['First Name']?.trim() || '';
+        const lastName = row['Last Name']?.trim() || '';
+        if (firstName && lastName) {
+          const key = `${firstName}|${lastName}`;
+          // isHOF column is "TRUE" or "FALSE" string
+          const isHOF = row['isHOF'] === 'TRUE' || row['isHOF'] === true;
+          if (isHOF) {
+            this.hofLookup.set(key, true);
+            hofCount++;
+          }
         }
       });
 
@@ -416,6 +430,7 @@ export class RosterGeneratorService {
 
       console.log('[RosterGeneratorService] Loaded', this.realFirstNames.length, 'unique first names');
       console.log('[RosterGeneratorService] Loaded', this.realLastNames.length, 'unique last names');
+      console.log('[RosterGeneratorService] Loaded', hofCount, 'Hall of Fame players');
     } else {
       console.warn('[RosterGeneratorService] ALL_PLAYER_LOOKUP.csv not found, using fallback names');
       // Fallback to basic names if file not found
@@ -968,10 +983,18 @@ export class RosterGeneratorService {
     const usedPIDs = new Set<number>();
 
     // Step 1: Fill position limits (47 total)
+    // HOF players get priority over non-HOF players at same position
     Object.entries(POSITION_LIMITS).forEach(([position, limit]) => {
       const posPlayers = teamPlayers
         .filter(p => (p as any)._position === position && !usedPIDs.has(p.PSXP))
-        .sort((a, b) => b.POVR - a.POVR)
+        .sort((a, b) => {
+          // HOF players get priority
+          const aHOF = (a as any)._isHOF ? 1 : 0;
+          const bHOF = (b as any)._isHOF ? 1 : 0;
+          if (bHOF !== aHOF) return bHOF - aHOF;
+          // Then sort by OVR
+          return b.POVR - a.POVR;
+        })
         .slice(0, limit);
 
       posPlayers.forEach(p => {
@@ -980,13 +1003,26 @@ export class RosterGeneratorService {
       });
     });
 
+    // Log HOF players placed on this team
+    const hofOnTeam = roster.filter(p => (p as any)._isHOF);
+    if (hofOnTeam.length > 0) {
+      console.log(`[Team ${teamId}] HOF players on roster: ${hofOnTeam.map(p => `${p.PFNA} ${p.PLNA} (${(p as any)._position}, OVR ${p.POVR})`).join(', ')}`);
+    }
     console.log(`[Team ${teamId}] Position limits filled: ${roster.length} players`);
 
     // Step 2: Add depth players to reach 57-60
+    // HOF players still get priority for depth spots
     const targetSize = 60; // Aim for 60 per team
     const remaining = teamPlayers
       .filter(p => !usedPIDs.has(p.PSXP))
-      .sort((a, b) => b.POVR - a.POVR);
+      .sort((a, b) => {
+        // HOF players get priority
+        const aHOF = (a as any)._isHOF ? 1 : 0;
+        const bHOF = (b as any)._isHOF ? 1 : 0;
+        if (bHOF !== aHOF) return bHOF - aHOF;
+        // Then sort by OVR
+        return b.POVR - a.POVR;
+      });
 
     const neededDepth = targetSize - roster.length;
     const depthPlayers = remaining.slice(0, neededDepth);
@@ -1438,6 +1474,11 @@ export class RosterGeneratorService {
     // Map team string to team code
     const teamCode = await this.lookupTeamCode(csvRow.Season_Team);
 
+    // DEBUG: Log team lookup for key players
+    if (csvRow.Last_Name === 'Montana' || csvRow.Last_Name === 'Unitas') {
+      console.log(`[TEAM DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Season_Team="${csvRow.Season_Team}" -> teamCode=${teamCode} (year=${csvRow.Season || 'unknown'})`);
+    }
+
     // Fill missing ratings from CSV
     const ratings = this.fillMissingRatings(csvRow);
 
@@ -1645,7 +1686,8 @@ export class RosterGeneratorService {
       _year: year,
       _sourceTeam: csvRow.Season_Team || '',
       _position: csvRow.Position || '',  // Store position string for filtering
-      _race: csvRace  // Race value (1-7) for BLBM GENR/SKNT assignment
+      _race: csvRace,  // Race value (1-7) for BLBM GENR/SKNT assignment
+      _isHOF: this.hofLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`) || false  // Hall of Fame status
     };
   }
 
@@ -2431,8 +2473,8 @@ export class RosterGeneratorService {
       'OAK': 'Raiders',
       'MIA': 'Dolphins',
       'MIN': 'Vikings',
-      'NE': 'Patriots',
-      'NWE': 'Patriots',
+      'NE': 'Pats',
+      'NWE': 'Pats',
       'NO': 'Saints',
       'NOR': 'Saints',
       'NYG': 'Giants',
@@ -2481,7 +2523,7 @@ export class RosterGeneratorService {
       'Los Angeles Rams': 'Rams',
       'Miami Dolphins': 'Dolphins',
       'Minnesota Vikings': 'Vikings',
-      'New England Patriots': 'Patriots',
+      'New England Patriots': 'Pats',
       'New Orleans Saints': 'Saints',
       'New York Giants': 'Giants',
       'New York Jets': 'Jets',
@@ -2520,7 +2562,7 @@ export class RosterGeneratorService {
       'Rams': 'Rams',
       'Dolphins': 'Dolphins',
       'Vikings': 'Vikings',
-      'Patriots': 'Patriots',
+      'Patriots': 'Pats',
       'Saints': 'Saints',
       'Giants': 'Giants',
       'Jets': 'Jets',
@@ -2538,10 +2580,23 @@ export class RosterGeneratorService {
     try {
       const cleanName = teamName.trim();
 
+      // DEBUG: Log 49ers lookups
+      const is49ers = cleanName === '49ers' || cleanName.includes('49');
+      if (is49ers) {
+        console.log(`[TEAM LOOKUP DEBUG] Looking up "${cleanName}"...`);
+      }
+
       // Try mapping first (handles all variations)
       const mappedName = TEAM_NAME_MAP[cleanName] || TEAM_NAME_MAP[cleanName.toUpperCase()];
+      if (is49ers) {
+        console.log(`[TEAM LOOKUP DEBUG] mappedName = "${mappedName}"`);
+      }
+
       if (mappedName) {
         const teamId = lookupService.getNumericId('team_lookup.csv', mappedName);
+        if (is49ers) {
+          console.log(`[TEAM LOOKUP DEBUG] lookupService.getNumericId('team_lookup.csv', '${mappedName}') = ${teamId}`);
+        }
         // getNumericId returns 0 when not found, but valid team IDs are 1-32 and 1009
         if (teamId > 0) {
           return teamId;
@@ -2550,6 +2605,9 @@ export class RosterGeneratorService {
 
       // Try direct lookup as fallback
       const teamId = lookupService.getNumericId('team_lookup.csv', cleanName);
+      if (is49ers) {
+        console.log(`[TEAM LOOKUP DEBUG] Direct lookup: getNumericId('team_lookup.csv', '${cleanName}') = ${teamId}`);
+      }
       // getNumericId returns 0 when not found, but valid team IDs are 1-32 and 1009
       if (teamId > 0) {
         return teamId;
@@ -2558,7 +2616,7 @@ export class RosterGeneratorService {
       console.warn('[RosterGeneratorService] Team lookup failed for:', teamName, error);
     }
 
-    console.warn(`[RosterGeneratorService] Unknown team name: "${teamName}" - defaulting to Free Agents`);
+    console.warn(`[RosterGeneratorService] Unknown team name: "${teamName}" - defaulting to Free Agents (mapped="${TEAM_NAME_MAP[teamName.trim()] || TEAM_NAME_MAP[teamName.trim().toUpperCase()]}")`);
     return 1009; // Free Agents (ID 1009, not 32 which is Texans!)
   }
 

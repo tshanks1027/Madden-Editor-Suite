@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+import Database from 'better-sqlite3';
 
 export interface LookupEntry {
   id: number;
@@ -8,18 +9,31 @@ export interface LookupEntry {
 }
 
 export interface FullDataEntry {
-  pid: number;           // PhotoID
+  internalId: number;    // Internal database ID (unique per player)
+  pid: number;           // PhotoID (may be shared across same-name players - needs cleanup)
   lastName: string;
   firstName: string;
   college: string;
   round: string;
   pick: string;
   draftClass: string;
+  careerFrom?: number;   // Year career started
+  careerTo?: number;     // Year career ended
   position: string;
+  jersey?: number;       // Most recent jersey number
   pam: string;           // Player Assets ID
   commID: string;
   presID: string;
   plpo: string;          // PLPO portrait key
+  race?: number;         // Race field from database
+  isHOF?: boolean;       // Hall of Fame status
+  height?: number;       // Height in inches
+  weight?: number;       // Weight in pounds
+  homeState?: string;    // Home state name
+  wav?: number;          // Weighted Approximate Value
+  ap1?: number;          // All-Pro 1st team selections
+  pb?: number;           // Pro Bowl selections
+  starts?: number;       // Career starts
 }
 
 export interface PAMEntry {
@@ -44,48 +58,244 @@ export interface LookupCache {
   [fileName: string]: Map<number, string>;
 }
 
+export interface PlayerSeasonEntry {
+  playerId: number;
+  year: number;
+  team: string;
+  jersey: number;
+  age: number;
+  position: string;
+  archetype: string;
+  games: number;
+  gamesStarted: number;
+  av: number;
+  devTrait: string;
+  ratings: { [key: string]: number };
+}
+
 export class LookupService {
+  private db: Database.Database | null = null;
   private cache: LookupCache = {};
   private reverseCache: { [fileName: string]: Map<string, number> } = {};
   private pamCache: Map<string, PAMEntry> = new Map(); // PAM name → PAMEntry
   private pamByPIDCache: Map<number, PAMEntry[]> = new Map(); // PID → PAMEntry[]
-  private fullDataCache: Map<number, FullDataEntry> = new Map(); // PID → FullDataEntry
+  private fullDataCache: Map<number, FullDataEntry> = new Map(); // internalId → FullDataEntry
+  private pidToInternalIdMap: Map<number, number[]> = new Map(); // PID → array of internalIds (handles duplicates)
   private coachCache: Map<number, CoachLookupEntry> = new Map(); // PID → CoachLookupEntry
   private coachByPAMCache: Map<string, CoachLookupEntry> = new Map(); // PAM → CoachLookupEntry
+  private initPromise: Promise<void>;
+  private initialized: boolean = false;
 
   constructor() {
-    this.initializeLookups();
+    this.initPromise = this.initializeLookups();
+  }
+
+  // Wait for the service to be fully initialized (database loaded)
+  public async waitForReady(): Promise<void> {
+    await this.initPromise;
   }
 
   private resolveDataPath(...segments: string[]): string {
-    if (app.isPackaged) {
-      // In packaged app, __dirname is already .vite/build
-      // lookup files are at .vite/build/data/lookups
-      return path.join(__dirname, 'data', 'lookups', ...segments);
-    }
-    // In development, lookup files are in data/lookups (relative to project root)
-    return path.join(__dirname, '..', '..', 'data', 'lookups', ...segments);
+    // Use app.getAppPath() for both dev and packaged builds
+    return path.join(app.getAppPath(), 'data', ...segments);
   }
 
   private async initializeLookups(): Promise<void> {
     try {
-      // ONLY load Madden code lookups + ALL_PLAYER_LOOKUP for ALL player data + Coach lookup
-      const lookupFiles = [
-        'position_lookup.csv',        // Madden position codes
-        'team_lookup.csv',            // Madden team codes
-        'college_lookup.csv',         // Madden college codes
-        'state_lookup.csv',           // Madden state codes
-        'ALL_PLAYER_LOOKUP.csv',      // ALL PLAYER DATA - 27,680 players with EVERYTHING
-        'Coach_lookup.csv'            // Coach portraits and PAM mappings
-      ];
+      // Initialize SQLite database
+      const dbPath = this.resolveDataPath('players.db');
 
-      for (const fileName of lookupFiles) {
-        await this.loadLookupFile(fileName);
+      if (fs.existsSync(dbPath)) {
+        this.db = new Database(dbPath, { readonly: true });
+        console.log(`[lookup-service] SQLite database opened: ${dbPath}`);
+
+        // Load lookup tables from database
+        this.loadLookupsFromDatabase();
+
+        // Load archetypes from CSV (not in database)
+        await this.loadLookupFile('archetype_lookup.csv');
+
+        // Load player data from database into cache for fast access
+        this.loadPlayersFromDatabase();
+      } else {
+        console.warn(`[lookup-service] Database not found at ${dbPath}, falling back to CSV`);
+        // Fallback to CSV loading
+        await this.loadLookupsFromCSV();
       }
 
+      // Load coach data (still from CSV for now)
+      await this.loadCoachLookupFile('Coach_lookup.csv');
+
+      this.initialized = true;
       console.log('Lookup service initialized successfully');
     } catch (error) {
       console.error('Failed to initialize lookup service:', error);
+      // Fallback to CSV on error
+      await this.loadLookupsFromCSV();
+      this.initialized = true;
+    }
+  }
+
+  private loadLookupsFromDatabase(): void {
+    if (!this.db) return;
+
+    // Load positions
+    const positions = this.db.prepare('SELECT madden_id, name FROM positions').all() as { madden_id: number; name: string }[];
+    this.cache['position_lookup.csv'] = new Map();
+    this.reverseCache['position_lookup.csv'] = new Map();
+    for (const row of positions) {
+      this.cache['position_lookup.csv'].set(row.madden_id, row.name);
+      this.reverseCache['position_lookup.csv'].set(row.name, row.madden_id);
+    }
+    console.log(`[lookup-service] Loaded ${positions.length} positions from database`);
+
+    // Load teams
+    const teams = this.db.prepare('SELECT madden_id, name FROM teams').all() as { madden_id: number; name: string }[];
+    this.cache['team_lookup.csv'] = new Map();
+    this.reverseCache['team_lookup.csv'] = new Map();
+    for (const row of teams) {
+      this.cache['team_lookup.csv'].set(row.madden_id, row.name);
+      this.reverseCache['team_lookup.csv'].set(row.name, row.madden_id);
+    }
+    console.log(`[lookup-service] Loaded ${teams.length} teams from database`);
+
+    // Load colleges
+    const colleges = this.db.prepare('SELECT madden_id, name FROM colleges').all() as { madden_id: number; name: string }[];
+    this.cache['college_lookup.csv'] = new Map();
+    this.reverseCache['college_lookup.csv'] = new Map();
+    for (const row of colleges) {
+      this.cache['college_lookup.csv'].set(row.madden_id, row.name);
+      this.reverseCache['college_lookup.csv'].set(row.name, row.madden_id);
+    }
+    console.log(`[lookup-service] Loaded ${colleges.length} colleges from database`);
+
+    // Load states
+    const states = this.db.prepare('SELECT madden_id, name FROM states').all() as { madden_id: number; name: string }[];
+    this.cache['state_lookup.csv'] = new Map();
+    this.reverseCache['state_lookup.csv'] = new Map();
+    for (const row of states) {
+      this.cache['state_lookup.csv'].set(row.madden_id, row.name);
+      this.reverseCache['state_lookup.csv'].set(row.name, row.madden_id);
+    }
+    console.log(`[lookup-service] Loaded ${states.length} states from database`);
+  }
+
+  private loadPlayersFromDatabase(): void {
+    if (!this.db) return;
+
+    // Load ALL players with their appearance data, career years, and position
+    // IMPORTANT: Use p.position (from original CSV data) to avoid cross-player data pollution
+    // The create-database.js script has a bug where seasons can get assigned to wrong players
+    // with the same name if draft year doesn't match. Using p.position ensures each player
+    // displays their correct position from the source data.
+    const players = this.db.prepare(`
+      SELECT
+        p.id, p.first_name, p.last_name, p.race, p.draft_class, p.draft_round, p.draft_pick,
+        p.career_from, p.career_to, p.is_hof,
+        p.height, p.weight, p.wav, p.ap1, p.pb, p.starts,
+        c.name as college_name,
+        s.name as state_name,
+        pa.madden_pid, pa.madden_pam, pa.madden_plpo, pa.madden_commid,
+        p.position as position,
+        (SELECT ps.jersey FROM player_seasons ps WHERE ps.player_id = p.id ORDER BY ps.year DESC LIMIT 1) as jersey
+      FROM players p
+      LEFT JOIN colleges c ON c.id = p.college_id
+      LEFT JOIN states s ON s.id = p.home_state_id
+      LEFT JOIN player_appearance pa ON pa.player_id = p.id
+    `).all() as Array<{
+      id: number;
+      first_name: string;
+      last_name: string;
+      race: number | null;
+      draft_class: number | null;
+      draft_round: string | null;
+      draft_pick: number | null;
+      career_from: number | null;
+      career_to: number | null;
+      is_hof: number | null;
+      height: number | null;
+      weight: number | null;
+      wav: number | null;
+      ap1: number | null;
+      pb: number | null;
+      starts: number | null;
+      college_name: string | null;
+      state_name: string | null;
+      madden_pid: number | null;
+      madden_pam: string | null;
+      madden_plpo: string | null;
+      madden_commid: string | null;
+      position: string | null;
+      jersey: number | null;
+    }>;
+
+    this.fullDataCache.clear();
+    this.pidToInternalIdMap.clear();
+    let entriesWithPID = 0;
+    let entriesWithPLPO = 0;
+    let entriesWithPosition = 0;
+
+    for (const row of players) {
+      // Use internal database ID as the key - each player is unique
+      const entry: FullDataEntry = {
+        internalId: row.id,
+        pid: row.madden_pid ?? 0, // 0 if no PID assigned
+        firstName: row.first_name,
+        lastName: row.last_name,
+        college: row.college_name || '',
+        round: row.draft_round || '',
+        pick: row.draft_pick?.toString() || '',
+        draftClass: row.draft_class?.toString() || '',
+        careerFrom: row.career_from || undefined,
+        careerTo: row.career_to || undefined,
+        position: row.position || '', // Position from most recent season
+        jersey: row.jersey || undefined, // Jersey from most recent season
+        pam: row.madden_pam || '',
+        commID: row.madden_commid || '',
+        presID: row.madden_commid || '',
+        plpo: row.madden_plpo || '',
+        race: row.race || undefined,
+        isHOF: row.is_hof === 1,
+        height: row.height || undefined,
+        weight: row.weight || undefined,
+        homeState: row.state_name || undefined,
+        wav: row.wav || undefined,
+        ap1: row.ap1 || undefined,
+        pb: row.pb || undefined,
+        starts: row.starts || undefined
+      };
+
+      if (row.madden_pid) {
+        entriesWithPID++;
+        // Build PID -> internalIds lookup (handles duplicates)
+        if (!this.pidToInternalIdMap.has(row.madden_pid)) {
+          this.pidToInternalIdMap.set(row.madden_pid, []);
+        }
+        this.pidToInternalIdMap.get(row.madden_pid)!.push(row.id);
+      }
+      if (entry.plpo) entriesWithPLPO++;
+      if (entry.position) entriesWithPosition++;
+
+      // Key by internal ID - every player gets their own entry
+      this.fullDataCache.set(row.id, entry);
+    }
+
+    console.log(`[lookup-service] Loaded ${this.fullDataCache.size} players from database (${entriesWithPID} with PID, ${entriesWithPLPO} with PLPO, ${entriesWithPosition} with position)`);
+  }
+
+  // Fallback CSV loading methods
+  private async loadLookupsFromCSV(): Promise<void> {
+    const lookupFiles = [
+      'position_lookup.csv',
+      'team_lookup.csv',
+      'college_lookup.csv',
+      'state_lookup.csv',
+      'archetype_lookup.csv',
+      'ALL_PLAYER_LOOKUP.csv'
+    ];
+
+    for (const fileName of lookupFiles) {
+      await this.loadLookupFile(fileName);
     }
   }
 
@@ -109,7 +319,7 @@ export class LookupService {
         return;
       }
 
-      const filePath = this.resolveDataPath(fileName);
+      const filePath = this.resolveDataPath('lookups', fileName);
 
       if (!fs.existsSync(filePath)) {
         console.warn(`Lookup file not found: ${filePath}`);
@@ -124,11 +334,6 @@ export class LookupService {
         return;
       }
 
-      // Parse header to determine column names
-      const header = lines[0].split(',');
-      const idColumn = header[0]; // e.g., 'PPOS', 'TGID', 'PCOL'
-      const nameColumn = header[1]; // e.g., 'PositionName', 'TeamName', 'CollegeName'
-
       // Initialize maps
       this.cache[fileName] = new Map<number, string>();
       this.reverseCache[fileName] = new Map<string, number>();
@@ -142,10 +347,7 @@ export class LookupService {
         const id = parseInt(idStr);
 
         if (!isNaN(id) && name) {
-          // Remove quotes if present
           const cleanName = name.replace(/^"(.*)"$/, '$1');
-
-          // Store both forward and reverse mappings
           this.cache[fileName].set(id, cleanName);
           this.reverseCache[fileName].set(cleanName, id);
         }
@@ -159,7 +361,7 @@ export class LookupService {
 
   private async loadPAMLookupFile(fileName: string): Promise<void> {
     try {
-      const filePath = this.resolveDataPath(fileName);
+      const filePath = this.resolveDataPath('lookups', fileName);
 
       if (!fs.existsSync(filePath)) {
         console.warn(`PAM lookup file not found: ${filePath}`);
@@ -174,16 +376,13 @@ export class LookupService {
         return;
       }
 
-      // Clear existing PAM caches
       this.pamCache.clear();
       this.pamByPIDCache.clear();
 
-      // Parse PAM data (skip header)
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        // Format: PAM,PID,Type,Ethnicity,Generation,FaceShape,Description
         const parts = line.split(',');
         if (parts.length < 3) continue;
 
@@ -197,10 +396,8 @@ export class LookupService {
           description: parts[6]?.trim()
         };
 
-        // Store in PAM cache (by PAM name)
         this.pamCache.set(pamEntry.pam, pamEntry);
 
-        // Store in PID cache (for reverse lookup)
         if (!this.pamByPIDCache.has(pamEntry.pid)) {
           this.pamByPIDCache.set(pamEntry.pid, []);
         }
@@ -215,7 +412,7 @@ export class LookupService {
 
   private async loadCoachLookupFile(fileName: string): Promise<void> {
     try {
-      const filePath = this.resolveDataPath(fileName);
+      const filePath = this.resolveDataPath('lookups', fileName);
 
       if (!fs.existsSync(filePath)) {
         console.warn(`Coach lookup file not found: ${filePath}`);
@@ -230,11 +427,9 @@ export class LookupService {
         return;
       }
 
-      // Clear existing coach caches
       this.coachCache.clear();
       this.coachByPAMCache.clear();
 
-      // Parse coach data (format: LastName,FirstName,PAM,PID)
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -259,18 +454,13 @@ export class LookupService {
           displayName
         };
 
-        // Store in PID cache
         this.coachCache.set(pid, coachEntry);
-
-        // Store in PAM cache (if PAM is present)
         if (pam) {
           this.coachByPAMCache.set(pam, coachEntry);
         }
       }
 
       console.log(`Loaded ${this.coachCache.size} coach entries from ${fileName}`);
-
-      // Also load PAM names from coach portrait files in "Coach and Owners" directory
       await this.loadCoachPortraitPAMs();
 
     } catch (error) {
@@ -280,9 +470,6 @@ export class LookupService {
 
   private async loadCoachPortraitPAMs(): Promise<void> {
     try {
-      const path = await import('path');
-
-      // Path to coach portraits directory
       const portraitsDir = app.isPackaged
         ? path.join(process.resourcesPath, 'app', 'data', 'Coach info', 'Coach and Owners')
         : path.join(__dirname, '../../data/Coach info/Coach and Owners');
@@ -292,19 +479,14 @@ export class LookupService {
         return;
       }
 
-      // Read all portrait files
       const files = fs.readdirSync(portraitsDir);
       let addedCount = 0;
 
       for (const file of files) {
-        // Match pattern: mapo_coachportraits_LastNameFirstName.png
         const match = file.match(/^mapo_coachportraits_(.+)\.png$/);
         if (!match) continue;
 
-        const namePart = match[1]; // e.g., "BowlesTodd", "CampbellDan"
-
-        // Parse name - find where last name ends and first name begins
-        // Most names follow pattern: uppercase letter for last name, then uppercase for first name
+        const namePart = match[1];
         const nameMatch = namePart.match(/^([A-Z][a-z]+)([A-Z][a-z]+)$/);
         if (!nameMatch) continue;
 
@@ -313,9 +495,7 @@ export class LookupService {
         const displayName = `${firstName} ${lastName}`;
         const pamValue = `mapo_coachportraits_${namePart}`;
 
-        // Check if we already have this PAM in the cache
         if (!this.coachByPAMCache.has(pamValue)) {
-          // Add as a new entry with a high PID (to avoid conflicts with real PIDs)
           const pseudoPID = 1000000 + addedCount;
 
           const coachEntry: CoachLookupEntry = {
@@ -340,7 +520,7 @@ export class LookupService {
 
   private async loadFullDataLookupFile(fileName: string): Promise<void> {
     try {
-      const filePath = this.resolveDataPath(fileName);
+      const filePath = this.resolveDataPath('lookups', fileName);
 
       if (!fs.existsSync(filePath)) {
         console.warn(`FullData lookup file not found: ${filePath}`);
@@ -355,60 +535,70 @@ export class LookupService {
         return;
       }
 
-      // Clear existing cache
       this.fullDataCache.clear();
-
-      // Parse FullData entries (skip header)
-      // Format: Last Name,First Name,College/Univ,Round,Pick,Draft Class,Position,Jersey,PhotoID,Player Assets ID,CommID,PLPO,...
+      this.pidToInternalIdMap.clear();
       console.log(`[lookup-service] Parsing ${lines.length - 1} lines from ${fileName}`);
 
       let entriesWithPLPO = 0;
+      let entriesWithPID = 0;
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
-        // Proper CSV parsing that handles quoted fields with commas
         const parts = this.parseCSVLine(line);
         if (parts.length < 12) {
           if (i < 5) console.log(`[lookup-service] Line ${i}: Only ${parts.length} parts, skipping`);
-          continue; // Need at least 12 columns including PLPO
+          continue;
         }
 
+        // Use line number as internal ID for CSV fallback
+        const internalId = i;
+        const pid = parseInt(parts[8].trim()) || 0;
+        const careerFrom = parts.length > 14 ? parseInt(parts[14].trim()) || undefined : undefined;
+        const careerTo = parts.length > 15 ? parseInt(parts[15].trim()) || undefined : undefined;
+
         const entry: FullDataEntry = {
+          internalId: internalId,
           lastName: parts[0].trim(),
           firstName: parts[1].trim(),
           college: parts[2].trim(),
           round: parts[3].trim(),
           pick: parts[4].trim(),
           draftClass: parts[5].trim(),
+          careerFrom: careerFrom,
+          careerTo: careerTo,
           position: parts[6].trim(),
-          pid: parseInt(parts[8].trim()),  // PhotoID is column 8 (after Jersey column 7)
-          pam: parts[9].trim(),            // Player Assets ID
+          pid: pid,
+          pam: parts[9].trim(),
           commID: parts[10].trim(),
-          presID: parts[10].trim(),        // Use same as CommID since PresID not in this file
+          presID: parts[10].trim(),
           plpo: parts[11].trim()
         };
 
-        // Debug first 3 entries
         if (i <= 3) {
           console.log(`[lookup-service] Line ${i}: PID=${entry.pid}, Name=${entry.firstName} ${entry.lastName}, PLPO="${entry.plpo}", Parts=${parts.length}`);
         }
 
         if (entry.plpo) entriesWithPLPO++;
-
-        // Store by PID
-        if (!isNaN(entry.pid)) {
-          this.fullDataCache.set(entry.pid, entry);
+        if (pid > 0) {
+          entriesWithPID++;
+          // Build PID -> internalIds lookup
+          if (!this.pidToInternalIdMap.has(pid)) {
+            this.pidToInternalIdMap.set(pid, []);
+          }
+          this.pidToInternalIdMap.get(pid)!.push(internalId);
         }
+
+        // Key by internal ID (line number) - every player gets their own entry
+        this.fullDataCache.set(internalId, entry);
       }
 
-      console.log(`[lookup-service] Loaded ${this.fullDataCache.size} FullData entries from ${fileName}, ${entriesWithPLPO} have PLPO`);
+      console.log(`[lookup-service] Loaded ${this.fullDataCache.size} FullData entries from ${fileName} (${entriesWithPID} with PID, ${entriesWithPLPO} with PLPO)`);
     } catch (error) {
       console.error(`Error loading FullData lookup file ${fileName}:`, error);
     }
   }
 
-  // Parse a CSV line properly handling quoted fields with commas
   private parseCSVLine(line: string): string[] {
     const result: string[] = [];
     let current = '';
@@ -420,15 +610,12 @@ export class LookupService {
 
       if (char === '"') {
         if (inQuotes && nextChar === '"') {
-          // Escaped quote
           current += '"';
-          i++; // Skip next quote
+          i++;
         } else {
-          // Toggle quote state
           inQuotes = !inQuotes;
         }
       } else if (char === ',' && !inQuotes) {
-        // Field separator
         result.push(current);
         current = '';
       } else {
@@ -436,10 +623,143 @@ export class LookupService {
       }
     }
 
-    // Add last field
     result.push(current);
-
     return result;
+  }
+
+  // ========== NEW DATABASE QUERY METHODS ==========
+
+  // Get player seasons/ratings from database
+  public getPlayerSeasons(playerId: number): PlayerSeasonEntry[] {
+    if (!this.db) return [];
+
+    const seasons = this.db.prepare(`
+      SELECT * FROM player_seasons WHERE player_id = ? ORDER BY year
+    `).all(playerId) as any[];
+
+    return seasons.map(row => ({
+      playerId: row.player_id,
+      year: row.year,
+      team: row.team || '',
+      jersey: row.jersey || 0,
+      age: row.age || 0,
+      position: row.position || '',
+      archetype: row.archetype || '',
+      games: row.games || 0,
+      gamesStarted: row.games_started || 0,
+      av: row.av || 0,
+      devTrait: row.dev_trait || '',
+      ratings: {
+        POVR: row.POVR, PSPD: row.PSPD, PACC: row.PACC, PSTR: row.PSTR, PAGI: row.PAGI,
+        PAWR: row.PAWR, PCTH: row.PCTH, PCAR: row.PCAR, PTHP: row.PTHP, PKPW: row.PKPW,
+        PKAC: row.PKAC, PRBK: row.PRBK, PPBK: row.PPBK, PTAK: row.PTAK, PBTK: row.PBTK,
+        PJMP: row.PJMP, PINJ: row.PINJ, PSTA: row.PSTA, PTGH: row.PTGH, PTRK: row.PTRK,
+        PCOD: row.PCOD, PBCV: row.PBCV, PSTF: row.PSTF, PSPM: row.PSPM, PJUM: row.PJUM,
+        PIBL: row.PIBL, PRBP: row.PRBP, PRBF: row.PRBF, PPBP: row.PPBP, PPBF: row.PPBF,
+        PLDB: row.PLDB, PBRS: row.PBRS, PTUP: row.PTUP, PPWM: row.PPWM, PFNM: row.PFNM,
+        PBSH: row.PBSH, PPUR: row.PPUR, PPRC: row.PPRC, PMCV: row.PMCV, PZCV: row.PZCV,
+        PSPC: row.PSPC, PCIT: row.PCIT, PSRR: row.PSRR, PMRR: row.PMRR, PDRR: row.PDRR,
+        PHTP: row.PHTP, PPRS: row.PPRS, PREL: row.PREL, PTAS: row.PTAS, PTAM: row.PTAM,
+        PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT, PLTR: row.PLTR,
+        PELU: row.PELU
+      }
+    }));
+  }
+
+  // Get player ratings for a specific year
+  public getPlayerRatingsForYear(maddenPid: number, year: number): PlayerSeasonEntry | null {
+    if (!this.db) return null;
+
+    // First find the internal player_id from madden_pid
+    const appearance = this.db.prepare(`
+      SELECT player_id FROM player_appearance WHERE madden_pid = ?
+    `).get(maddenPid) as { player_id: number } | undefined;
+
+    if (!appearance) return null;
+
+    const row = this.db.prepare(`
+      SELECT * FROM player_seasons WHERE player_id = ? AND year = ?
+    `).get(appearance.player_id, year) as any;
+
+    if (!row) return null;
+
+    return {
+      playerId: row.player_id,
+      year: row.year,
+      team: row.team || '',
+      jersey: row.jersey || 0,
+      age: row.age || 0,
+      position: row.position || '',
+      archetype: row.archetype || '',
+      games: row.games || 0,
+      gamesStarted: row.games_started || 0,
+      av: row.av || 0,
+      devTrait: row.dev_trait || '',
+      ratings: {
+        POVR: row.POVR, PSPD: row.PSPD, PACC: row.PACC, PSTR: row.PSTR, PAGI: row.PAGI,
+        PAWR: row.PAWR, PCTH: row.PCTH, PCAR: row.PCAR, PTHP: row.PTHP, PKPW: row.PKPW,
+        PKAC: row.PKAC, PRBK: row.PRBK, PPBK: row.PPBK, PTAK: row.PTAK, PBTK: row.PBTK,
+        PJMP: row.PJMP, PINJ: row.PINJ, PSTA: row.PSTA, PTGH: row.PTGH, PTRK: row.PTRK,
+        PCOD: row.PCOD, PBCV: row.PBCV, PSTF: row.PSTF, PSPM: row.PSPM, PJUM: row.PJUM,
+        PIBL: row.PIBL, PRBP: row.PRBP, PRBF: row.PRBF, PPBP: row.PPBP, PPBF: row.PPBF,
+        PLDB: row.PLDB, PBRS: row.PBRS, PTUP: row.PTUP, PPWM: row.PPWM, PFNM: row.PFNM,
+        PBSH: row.PBSH, PPUR: row.PPUR, PPRC: row.PPRC, PMCV: row.PMCV, PZCV: row.PZCV,
+        PSPC: row.PSPC, PCIT: row.PCIT, PSRR: row.PSRR, PMRR: row.PMRR, PDRR: row.PDRR,
+        PHTP: row.PHTP, PPRS: row.PPRS, PREL: row.PREL, PTAS: row.PTAS, PTAM: row.PTAM,
+        PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT, PLTR: row.PLTR,
+        PELU: row.PELU
+      }
+    };
+  }
+
+  // Get years where player has season data in the database
+  public getPlayerSeasonYears(internalId: number): number[] {
+    if (!this.db) return [];
+
+    const rows = this.db.prepare(`
+      SELECT DISTINCT ps.year
+      FROM player_seasons ps
+      WHERE ps.player_id = ?
+      ORDER BY ps.year ASC
+    `).all(internalId) as { year: number }[];
+
+    return rows.map(r => r.year);
+  }
+
+  // Search players by name - returns all players matching query
+  public searchPlayers(query: string, limit: number = 50): FullDataEntry[] {
+    // Always use cache for search - it has all players loaded with all fields
+    const results: FullDataEntry[] = [];
+    const lowerQuery = query.toLowerCase();
+    for (const entry of this.fullDataCache.values()) {
+      if (entry.firstName.toLowerCase().includes(lowerQuery) ||
+          entry.lastName.toLowerCase().includes(lowerQuery)) {
+        results.push(entry);
+        if (results.length >= limit) break;
+      }
+    }
+    return results;
+  }
+
+  // Get players by draft class - returns all players from that draft year
+  public getPlayersByDraftClass(draftYear: number): FullDataEntry[] {
+    // Always use cache - it has all players with all fields
+    return Array.from(this.fullDataCache.values())
+      .filter(e => e.draftClass === draftYear.toString())
+      .sort((a, b) => {
+        // Sort by round then pick
+        const roundA = parseInt(a.round) || 99;
+        const roundB = parseInt(b.round) || 99;
+        if (roundA !== roundB) return roundA - roundB;
+        const pickA = parseInt(a.pick) || 999;
+        const pickB = parseInt(b.pick) || 999;
+        return pickA - pickB;
+      });
+  }
+
+  // Check if using database
+  public isUsingDatabase(): boolean {
+    return this.db !== null;
   }
 
   // Convert numeric ID to display name
@@ -461,7 +781,16 @@ export class LookupService {
       return 0;
     }
 
-    return lookup.get(displayName) || 0;
+    const result = lookup.get(displayName) || 0;
+
+    // DEBUG: Log team lookups for 49ers
+    if (fileName === 'team_lookup.csv' && (displayName === '49ers' || displayName.includes('49'))) {
+      console.log(`[lookup-service DEBUG] getNumericId('${fileName}', '${displayName}') = ${result}`);
+      console.log(`[lookup-service DEBUG] reverseCache has ${lookup.size} entries`);
+      console.log(`[lookup-service DEBUG] Sample keys: ${Array.from(lookup.keys()).slice(0, 10).join(', ')}`);
+    }
+
+    return result;
   }
 
   // Get all options for a dropdown
@@ -485,33 +814,109 @@ export class LookupService {
     return options.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  // Get MASTER_PLAYER_LOOKUP.csv options with all fields including PLPO
+  // Get all player options with all fields including PLPO
   public getFullDataOptions(): Array<{id: number, name: string, plpo: string, entry: FullDataEntry}> {
     const options: Array<{id: number, name: string, plpo: string, entry: FullDataEntry}> = [];
 
-    this.fullDataCache.forEach((entry, pid) => {
+    this.fullDataCache.forEach((entry, internalId) => {
       const displayName = `${entry.firstName} ${entry.lastName}`;
       options.push({
-        id: pid,
+        id: internalId, // Use internal ID as the unique identifier
         name: displayName,
         plpo: entry.plpo,
         entry: entry
       });
     });
 
-    return options.sort((a, b) => a.id - b.id);
+    return options.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  // Get PID options from MASTER_PLAYER_LOOKUP.csv (no longer separate PID_lookup.csv)
+  // Get PID options - only players with actual PIDs
   public getPIDOptions(): LookupEntry[] {
     const options: LookupEntry[] = [];
 
-    this.fullDataCache.forEach((entry, pid) => {
-      const displayName = `${entry.firstName} ${entry.lastName}`;
-      options.push({ id: pid, name: displayName });
+    this.fullDataCache.forEach((entry, internalId) => {
+      if (entry.pid > 0) { // Only include players with actual PIDs
+        const displayName = `${entry.firstName} ${entry.lastName}`;
+        options.push({ id: entry.pid, name: displayName });
+      }
     });
 
     return options.sort((a, b) => a.id - b.id);
+  }
+
+  // Get player by internal ID
+  public getPlayerByInternalId(internalId: number): FullDataEntry | undefined {
+    return this.fullDataCache.get(internalId);
+  }
+
+  // Get all players from the cache
+  public getAllPlayers(): FullDataEntry[] {
+    return Array.from(this.fullDataCache.values());
+  }
+
+  // Get player(s) by PID - returns array since PIDs may be duplicated
+  public getPlayersByPID(pid: number): FullDataEntry[] {
+    const internalIds = this.pidToInternalIdMap.get(pid);
+    if (!internalIds) return [];
+    return internalIds.map(id => this.fullDataCache.get(id)).filter(e => e !== undefined) as FullDataEntry[];
+  }
+
+  // Get race for a PID (returns race from pid_race table, or undefined if not found)
+  // This works for ALL PIDs including generic face PIDs
+  public getRaceByPID(pid: number): number | undefined {
+    console.log(`[LookupService] getRaceByPID called for PID ${pid}, db available: ${!!this.db}`);
+
+    // First try the dedicated pid_race table (has ALL PIDs including generics)
+    if (this.db) {
+      try {
+        // Check if pid_race table exists
+        const tableCheck = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='pid_race'").get();
+        console.log(`[LookupService] pid_race table exists: ${!!tableCheck}`);
+
+        if (tableCheck) {
+          const row = this.db.prepare('SELECT race FROM pid_race WHERE pid = ?').get(pid) as { race: number } | undefined;
+          console.log(`[LookupService] pid_race query result for PID ${pid}:`, row);
+          if (row && row.race) {
+            console.log(`[LookupService] Returning race ${row.race} for PID ${pid}`);
+            return row.race;
+          }
+        }
+      } catch (e: any) {
+        console.error(`[LookupService] Error querying pid_race:`, e.message);
+      }
+    } else {
+      console.log('[LookupService] Database not available!');
+    }
+
+    // Fallback to player data (for real players not in pid_race table)
+    console.log(`[LookupService] Falling back to player data for PID ${pid}`);
+    const players = this.getPlayersByPID(pid);
+    if (players.length === 0) {
+      console.log(`[LookupService] No player found for PID ${pid}, returning undefined`);
+      return undefined;
+    }
+    console.log(`[LookupService] Found player with race ${players[0].race}`);
+    return players[0].race;
+  }
+
+  // Get the best matching player by PID for a given year (uses career dates)
+  public getPlayerByPIDForYear(pid: number, year: number): FullDataEntry | undefined {
+    const players = this.getPlayersByPID(pid);
+    if (players.length === 0) return undefined;
+    if (players.length === 1) return players[0];
+
+    // Find the player whose career spans the given year
+    for (const player of players) {
+      const from = player.careerFrom || 0;
+      const to = player.careerTo || 9999;
+      if (year >= from && year <= to) {
+        return player;
+      }
+    }
+
+    // Fallback to first match if no career match
+    return players[0];
   }
 
   // Check if lookup service is ready
@@ -606,6 +1011,133 @@ export class LookupService {
 
   public getCoachPAMFromPID(pid: number): string | undefined {
     return this.coachCache.get(pid)?.pam;
+  }
+
+  // ========== ROSTER GENERATOR METHODS ==========
+
+  // Get all player seasons for a specific year (replaces ROSTER_lookup.csv loading)
+  public getAllPlayerSeasonsForYear(year: number): Array<{
+    playerId: number;
+    firstName: string;
+    lastName: string;
+    team: string;
+    jersey: number;
+    age: number;
+    position: string;
+    archetype: string;
+    games: number;
+    gamesStarted: number;
+    av: number;
+    devTrait: string;
+    maddenPid: number;
+    maddenPam: string;
+    college: string;
+    race: number | null;
+    ratings: { [key: string]: number };
+  }> {
+    if (!this.db) return [];
+
+    const rows = this.db.prepare(`
+      SELECT
+        ps.*,
+        p.first_name, p.last_name, p.race,
+        c.name as college_name,
+        pa.madden_pid, pa.madden_pam
+      FROM player_seasons ps
+      JOIN players p ON p.id = ps.player_id
+      LEFT JOIN colleges c ON c.id = p.college_id
+      LEFT JOIN player_appearance pa ON pa.player_id = p.id
+      WHERE ps.year = ?
+    `).all(year) as any[];
+
+    return rows.map(row => ({
+      playerId: row.player_id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      team: row.team || '',
+      jersey: row.jersey || 0,
+      age: row.age || 0,
+      position: row.position || '',
+      archetype: row.archetype || '',
+      games: row.games || 0,
+      gamesStarted: row.games_started || 0,
+      av: row.av || 0,
+      devTrait: row.dev_trait || '',
+      maddenPid: row.madden_pid || 0,
+      maddenPam: row.madden_pam || '',
+      college: row.college_name || '',
+      race: row.race,
+      ratings: {
+        POVR: row.POVR, PSPD: row.PSPD, PACC: row.PACC, PSTR: row.PSTR, PAGI: row.PAGI,
+        PAWR: row.PAWR, PCTH: row.PCTH, PCAR: row.PCAR, PTHP: row.PTHP, PKPW: row.PKPW,
+        PKAC: row.PKAC, PRBK: row.PRBK, PPBK: row.PPBK, PTAK: row.PTAK, PBTK: row.PBTK,
+        PJMP: row.PJMP, PINJ: row.PINJ, PSTA: row.PSTA, PTGH: row.PTGH, PTRK: row.PTRK,
+        PCOD: row.PCOD, PBCV: row.PBCV, PSTF: row.PSTF, PSPM: row.PSPM, PJUM: row.PJUM,
+        PIBL: row.PIBL, PRBP: row.PRBP, PRBF: row.PRBF, PPBP: row.PPBP, PPBF: row.PPBF,
+        PLDB: row.PLDB, PBRS: row.PBRS, PTUP: row.PTUP, PPWM: row.PPWM, PFNM: row.PFNM,
+        PBSH: row.PBSH, PPUR: row.PPUR, PPRC: row.PPRC, PMCV: row.PMCV, PZCV: row.PZCV,
+        PSPC: row.PSPC, PCIT: row.PCIT, PSRR: row.PSRR, PMRR: row.PMRR, PDRR: row.PDRR,
+        PHTP: row.PHTP, PPRS: row.PPRS, PREL: row.PREL, PTAS: row.PTAS, PTAM: row.PTAM,
+        PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT
+      }
+    }));
+  }
+
+  // Get available years that have roster data
+  public getAvailableRosterYears(): number[] {
+    if (!this.db) return [];
+
+    const rows = this.db.prepare(`
+      SELECT DISTINCT year FROM player_seasons ORDER BY year
+    `).all() as { year: number }[];
+
+    return rows.map(r => r.year);
+  }
+
+  // Get unique first names from all players
+  public getUniqueFirstNames(): string[] {
+    if (!this.db) {
+      const names = new Set<string>();
+      this.fullDataCache.forEach(entry => {
+        if (entry.firstName) names.add(entry.firstName);
+      });
+      return Array.from(names).sort();
+    }
+
+    const rows = this.db.prepare(`
+      SELECT DISTINCT first_name FROM players WHERE first_name IS NOT NULL AND first_name != '' ORDER BY first_name
+    `).all() as { first_name: string }[];
+
+    return rows.map(r => r.first_name);
+  }
+
+  // Get unique last names from all players
+  public getUniqueLastNames(): string[] {
+    if (!this.db) {
+      const names = new Set<string>();
+      this.fullDataCache.forEach(entry => {
+        if (entry.lastName) names.add(entry.lastName);
+      });
+      return Array.from(names).sort();
+    }
+
+    const rows = this.db.prepare(`
+      SELECT DISTINCT last_name FROM players WHERE last_name IS NOT NULL AND last_name != '' ORDER BY last_name
+    `).all() as { last_name: string }[];
+
+    return rows.map(r => r.last_name);
+  }
+
+  // Get the year range available in the database
+  public getRosterYearRange(): { minYear: number; maxYear: number } | null {
+    if (!this.db) return null;
+
+    const row = this.db.prepare(`
+      SELECT MIN(year) as minYear, MAX(year) as maxYear FROM player_seasons
+    `).get() as { minYear: number; maxYear: number } | undefined;
+
+    if (!row || !row.minYear || !row.maxYear) return null;
+    return { minYear: row.minYear, maxYear: row.maxYear };
   }
 }
 

@@ -556,6 +556,7 @@ async function loadIntoEditor() {
     // Enable buttons
     document.getElementById('save-draft-btn').disabled = false;
     document.getElementById('export-draft-json-btn').disabled = false;
+    document.getElementById('import-draft-csv-btn').disabled = false;
 
     // Create grid
     window.app.createDraftGrid(prospects);

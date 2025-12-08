@@ -9,6 +9,7 @@ export default defineConfig({
       external: [
         'electron',
         'sqlite3',
+        'better-sqlite3', // Native SQLite module for lookup service
         'sharp',
         'puppeteer',
         'papaparse',
@@ -56,6 +57,14 @@ export default defineConfig({
                 console.log(`Copied ${file} to build output`);
               }
             });
+          }
+
+          // Copy players.db SQLite database
+          const srcDbFile = path.join(srcDataDir, 'players.db');
+          if (existsSync(srcDbFile)) {
+            const destDbFile = path.join(destDataDir, 'players.db');
+            copyFileSync(srcDbFile, destDbFile);
+            console.log('Copied players.db to build output');
           }
 
           // Copy portrait atlas JSON

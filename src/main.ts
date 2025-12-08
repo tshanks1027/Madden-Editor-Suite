@@ -33,6 +33,7 @@ import './main/ipc/shell-handlers';
 import './main/ipc/presentation-id-fix-handlers';
 import './main/ipc/retro-editor-handlers';
 import './main/ipc/database-handlers';
+import './main/ipc/editor-tracking-handlers';
 import { registerCreatorHandlers } from './main/ipc/creator-handlers';
 import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';

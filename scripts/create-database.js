@@ -89,6 +89,7 @@ db.exec(`
     draft_pick INTEGER,
     career_from INTEGER,
     career_to INTEGER,
+    position TEXT,
     wav REAL,
     ap1 INTEGER,
     pb INTEGER,
@@ -248,8 +249,8 @@ const insertPlayer = db.prepare(`
   INSERT INTO players (
     first_name, last_name, college_id, race, height, weight,
     draft_class, draft_round, draft_pick, career_from, career_to,
-    wav, ap1, pb, starts, is_hof, league
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    position, wav, ap1, pb, starts, is_hof, league
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const insertAppearance = db.prepare(`
@@ -286,12 +287,13 @@ const insertMany = db.transaction(() => {
     const isHof = row['isHOF'] === 'TRUE' ? 1 : 0;
     const league = row['League'] || null;
     const race = parseInt(row['Race']) || null;
+    const position = row['Position'] || null;
 
     // Insert player
     const result = insertPlayer.run(
       firstName, lastName, collegeId, race, height, weight,
       draftClass, draftRound, draftPick, careerFrom, careerTo,
-      wav, ap1, pb, starts, isHof, league
+      position, wav, ap1, pb, starts, isHof, league
     );
 
     const playerId = result.lastInsertRowid;
