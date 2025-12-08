@@ -217,6 +217,16 @@
       });
     }
 
+    // Career date change listeners - refresh year selector when career dates change
+    var careerFromInput = document.getElementById('dbPlayerCareerFrom');
+    var careerToInput = document.getElementById('dbPlayerCareerTo');
+    if (careerFromInput) {
+      careerFromInput.addEventListener('change', refreshYearSelectorFromForm);
+    }
+    if (careerToInput) {
+      careerToInput.addEventListener('change', refreshYearSelectorFromForm);
+    }
+
     // Escape key to close - stop propagation to prevent player browser from also closing
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
@@ -247,23 +257,29 @@
       }
 
       // College dropdown - API returns {value: id, label: name}
+      // Store mapping for later use when populating form
       var collegeSelect = document.getElementById('dbPlayerCollege');
       if (collegeSelect) {
         var colleges = await window.electronAPI.lookup.getDropdownOptions('college_lookup.csv');
         if (colleges && colleges.length > 0) {
           collegeSelect.innerHTML = '<option value="">Select College</option>';
+          // Store the name->id mapping globally for use in populatePlayerForm
+          window._collegeNameToId = {};
           colleges.forEach(function(c) {
             var collegeName = c.label || c.name;
+            var collegeId = c.value || c.id;
             // Skip empty or "Blank" entries
             if (!collegeName || collegeName.trim() === '' || collegeName === 'Blank') {
               return;
             }
             var opt = document.createElement('option');
-            opt.value = collegeName.trim();
+            opt.value = collegeId;  // Use ID as value for getIntValue to work
             opt.textContent = collegeName.trim();
             collegeSelect.appendChild(opt);
+            // Store mapping for name lookup
+            window._collegeNameToId[collegeName.trim().toLowerCase()] = collegeId;
           });
-          console.log('[DatabasePlayerCard] College options loaded');
+          console.log('[DatabasePlayerCard] College options loaded with ID values');
         } else {
           console.warn('[DatabasePlayerCard] No colleges loaded from lookup');
         }
@@ -323,6 +339,24 @@
           seasonPositionSelect.appendChild(opt);
         });
         console.log('[DatabasePlayerCard] Season Position options loaded:', MADDEN_POSITIONS.length);
+      }
+
+      // Season Team dropdown - load from team_lookup.csv
+      var seasonTeamSelect = document.getElementById('dbPlayerSeasonTeam');
+      if (seasonTeamSelect) {
+        var teams = await window.electronAPI.lookup.getDropdownOptions('team_lookup.csv');
+        if (teams && teams.length > 0) {
+          seasonTeamSelect.innerHTML = '<option value="">Select Team</option>';
+          teams.forEach(function(t) {
+            var teamName = t.label || t.name;
+            if (!teamName || teamName.trim() === '') return;
+            var opt = document.createElement('option');
+            opt.value = teamName.trim();
+            opt.textContent = teamName.trim();
+            seasonTeamSelect.appendChild(opt);
+          });
+          console.log('[DatabasePlayerCard] Season Team options loaded');
+        }
       }
 
       // Add position change listener to update archetype dropdown
@@ -528,7 +562,22 @@
     // Basic info - use actual API field names
     setValue('dbPlayerFirstName', player.firstName || '');
     setValue('dbPlayerLastName', player.lastName || '');
-    setValue('dbPlayerCollege', player.college || '');  // API returns 'college' as string (college name)
+    // College: convert name to ID using the stored mapping
+    var collegeId = '';
+    if (player.college) {
+      // Try to find the ID from the name->id mapping
+      var collegeName = String(player.college).toLowerCase().trim();
+      if (window._collegeNameToId && window._collegeNameToId[collegeName]) {
+        collegeId = window._collegeNameToId[collegeName];
+      } else {
+        // If it's already a number (ID), use it directly
+        var numVal = parseInt(player.college, 10);
+        if (!isNaN(numVal)) {
+          collegeId = numVal;
+        }
+      }
+    }
+    setValue('dbPlayerCollege', collegeId);
     setValue('dbPlayerPosition', player.position || '');
     setValue('dbPlayerHometown', player.hometown || '');  // Replaced jersey with hometown
     setValue('dbPlayerHeight', player.height || '');
@@ -702,6 +751,32 @@
     selectedYear = null;
     originalSeasonData = null;
     clearRatingsForm();
+  }
+
+  /**
+   * Refresh year selector based on current form values
+   * Called when careerFrom or careerTo inputs change
+   */
+  async function refreshYearSelectorFromForm() {
+    if (!currentDbPlayer) return;
+
+    // Read current form values
+    var draftYear = parseInt(getValue('dbPlayerDraftClass'));
+    var careerFrom = parseInt(getValue('dbPlayerCareerFrom'));
+    var careerTo = parseInt(getValue('dbPlayerCareerTo'));
+
+    console.log('[DbPlayerCard] Refreshing year selector with form values:',
+      'draftYear:', draftYear, 'from:', careerFrom, 'to:', careerTo);
+
+    // Create a temporary player object with the updated values
+    var updatedPlayer = Object.assign({}, currentDbPlayer, {
+      draftClass: isNaN(draftYear) ? currentDbPlayer.draftClass : draftYear,
+      careerFrom: isNaN(careerFrom) ? currentDbPlayer.careerFrom : careerFrom,
+      careerTo: isNaN(careerTo) ? currentDbPlayer.careerTo : careerTo
+    });
+
+    // Rebuild the year selector with updated dates
+    await setupYearSelector(updatedPlayer);
   }
 
   /**
@@ -1007,6 +1082,7 @@
         careerFrom: getIntValue('dbPlayerCareerFrom'),
         careerTo: getIntValue('dbPlayerCareerTo')
       };
+      console.log('[DatabasePlayerCard] Saving playerEdits:', playerEdits);
 
       // Collect appearance edits
       var appearanceEdits = {

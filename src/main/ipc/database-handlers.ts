@@ -551,6 +551,8 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       ...(playerEdit?.race !== undefined && { race: playerEdit.race }),
       ...(playerEdit?.height !== undefined && { height: playerEdit.height }),
       ...(playerEdit?.weight !== undefined && { weight: playerEdit.weight }),
+      ...(playerEdit?.hometown && { hometown: playerEdit.hometown }),
+      ...(playerEdit?.homeState && { homeState: playerEdit.homeState }),
       ...(playerEdit?.draftClass !== undefined && { draftClass: String(playerEdit.draftClass) }),
       ...(playerEdit?.draftRound && { round: playerEdit.draftRound }),
       ...(playerEdit?.draftPick !== undefined && { pick: String(playerEdit.draftPick) }),
@@ -1012,14 +1014,16 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     const careerStart = player.careerFrom || parseInt(player.draftClass) || year;
     const yearsPro = Math.max(0, year - careerStart);
 
-    // Calculate age: if season has age use it, otherwise estimate from draft/career
+    // Calculate age: if season has valid age use it, otherwise estimate from draft/career
+    // IMPORTANT: Must validate age is a number within Madden's valid range (18-45)
+    // The roster field PAGE has min:18, max:45 validation
     let age = seasonData?.age;
-    if (!age) {
+    if (!age || typeof age !== 'number' || isNaN(age) || age < 18 || age > 45) {
       // Assume 22 at draft/career start
       age = 22 + yearsPro;
-      // Clamp to reasonable range
-      age = Math.max(21, Math.min(45, age));
     }
+    // Always clamp to valid range for Madden roster validation
+    age = Math.max(18, Math.min(45, age));
 
     // Determine PID and PAM - ALWAYS assign values, never leave blank
     let pid: number;
@@ -1267,13 +1271,15 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     }
 
     // Calculate age - for draft prospects, typically 21-23
+    // IMPORTANT: Must validate age is a number within valid range
     const careerStart = player.careerFrom || parseInt(player.draftClass) || year;
     const yearsPro = Math.max(0, year - careerStart);
     let age = seasonData?.age;
-    if (!age) {
+    if (!age || typeof age !== 'number' || isNaN(age) || age < 18 || age > 45) {
       age = 22 + yearsPro;
-      age = Math.max(21, Math.min(45, age));
     }
+    // Always clamp to valid range
+    age = Math.max(18, Math.min(45, age));
 
     // Determine PID and PAM - ALWAYS assign values, never leave blank
     let pid: number;

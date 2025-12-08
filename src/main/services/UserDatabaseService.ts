@@ -33,6 +33,8 @@ export interface PlayerEdit {
   race?: number;
   height?: number;
   weight?: number;
+  hometown?: string;
+  homeState?: string;
   draftClass?: number;
   draftRound?: string;
   draftPick?: number;
@@ -71,6 +73,9 @@ export interface CustomPlayer {
   race?: number;
   height?: number;
   weight?: number;
+  hometown?: string;
+  homeState?: string;
+  position?: string;
   draftClass?: number;
   draftRound?: string;
   draftPick?: number;
@@ -179,6 +184,8 @@ class UserDatabaseService {
         race INTEGER,
         height INTEGER,
         weight INTEGER,
+        hometown TEXT,
+        home_state TEXT,
         draft_class INTEGER,
         draft_round TEXT,
         draft_pick INTEGER,
@@ -187,6 +194,18 @@ class UserDatabaseService {
         edited_at TEXT DEFAULT (datetime('now'))
       )
     `);
+
+    // Migration: add hometown and home_state columns if they don't exist
+    try {
+      this.editsDb.exec(`ALTER TABLE player_edits ADD COLUMN hometown TEXT`);
+    } catch {
+      // Column already exists
+    }
+    try {
+      this.editsDb.exec(`ALTER TABLE player_edits ADD COLUMN home_state TEXT`);
+    } catch {
+      // Column already exists
+    }
 
     this.editsDb.exec(`
       CREATE TABLE IF NOT EXISTS appearance_edits (
@@ -244,6 +263,9 @@ class UserDatabaseService {
         race INTEGER,
         height INTEGER,
         weight INTEGER,
+        hometown TEXT,
+        home_state TEXT,
+        position TEXT,
         draft_class INTEGER,
         draft_round TEXT,
         draft_pick INTEGER,
@@ -257,6 +279,17 @@ class UserDatabaseService {
         edited_at TEXT DEFAULT (datetime('now'))
       )
     `);
+
+    // Migration: add hometown, home_state, and position columns if they don't exist
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN hometown TEXT`);
+    } catch { /* Column already exists */ }
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN home_state TEXT`);
+    } catch { /* Column already exists */ }
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN position TEXT`);
+    } catch { /* Column already exists */ }
 
     // Build custom_player_seasons table with all rating fields
     const ratingColumns = RATING_FIELDS.map(f => `${f} INTEGER`).join(', ');
@@ -292,6 +325,8 @@ class UserDatabaseService {
   public savePlayerEdit(originalId: number, edits: Partial<PlayerEdit>): void {
     if (!this.editsDb) throw new Error('Edits database not initialized');
 
+    console.log('[UserDatabaseService] savePlayerEdit called:', { originalId, edits });
+
     const existing = this.getPlayerEdit(originalId);
 
     if (existing) {
@@ -305,6 +340,8 @@ class UserDatabaseService {
       if (edits.race !== undefined) { updates.push('race = ?'); values.push(edits.race); }
       if (edits.height !== undefined) { updates.push('height = ?'); values.push(edits.height); }
       if (edits.weight !== undefined) { updates.push('weight = ?'); values.push(edits.weight); }
+      if (edits.hometown !== undefined) { updates.push('hometown = ?'); values.push(edits.hometown); }
+      if (edits.homeState !== undefined) { updates.push('home_state = ?'); values.push(edits.homeState); }
       if (edits.draftClass !== undefined) { updates.push('draft_class = ?'); values.push(edits.draftClass); }
       if (edits.draftRound !== undefined) { updates.push('draft_round = ?'); values.push(edits.draftRound); }
       if (edits.draftPick !== undefined) { updates.push('draft_pick = ?'); values.push(edits.draftPick); }
@@ -320,8 +357,8 @@ class UserDatabaseService {
       // Insert new edit
       this.editsDb.prepare(`
         INSERT INTO player_edits (original_id, first_name, last_name, college_id, race, height, weight,
-                                   draft_class, draft_round, draft_pick, career_from, career_to)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   hometown, home_state, draft_class, draft_round, draft_pick, career_from, career_to)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         originalId,
         edits.firstName ?? null,
@@ -330,6 +367,8 @@ class UserDatabaseService {
         edits.race ?? null,
         edits.height ?? null,
         edits.weight ?? null,
+        edits.hometown ?? null,
+        edits.homeState ?? null,
         edits.draftClass ?? null,
         edits.draftRound ?? null,
         edits.draftPick ?? null,
@@ -355,6 +394,8 @@ class UserDatabaseService {
       race: row.race as number | undefined,
       height: row.height as number | undefined,
       weight: row.weight as number | undefined,
+      hometown: row.hometown as string | undefined,
+      homeState: row.home_state as string | undefined,
       draftClass: row.draft_class as number | undefined,
       draftRound: row.draft_round as string | undefined,
       draftPick: row.draft_pick as number | undefined,
@@ -539,11 +580,14 @@ class UserDatabaseService {
   public createCustomPlayer(player: CustomPlayer): number {
     if (!this.customDb) throw new Error('Custom database not initialized');
 
+    console.log('[UserDatabaseService] createCustomPlayer:', player);
+
     const result = this.customDb.prepare(`
       INSERT INTO custom_players (first_name, last_name, college_id, race, height, weight,
+                                   hometown, home_state, position,
                                    draft_class, draft_round, draft_pick, career_from, career_to,
                                    madden_pid, madden_pam, madden_plpo, madden_commid)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       player.firstName,
       player.lastName,
@@ -551,6 +595,9 @@ class UserDatabaseService {
       player.race ?? null,
       player.height ?? null,
       player.weight ?? null,
+      player.hometown ?? null,
+      player.homeState ?? null,
+      player.position ?? null,
       player.draftClass ?? null,
       player.draftRound ?? null,
       player.draftPick ?? null,
@@ -578,6 +625,9 @@ class UserDatabaseService {
     if (updates.race !== undefined) { updateFields.push('race = ?'); values.push(updates.race); }
     if (updates.height !== undefined) { updateFields.push('height = ?'); values.push(updates.height); }
     if (updates.weight !== undefined) { updateFields.push('weight = ?'); values.push(updates.weight); }
+    if (updates.hometown !== undefined) { updateFields.push('hometown = ?'); values.push(updates.hometown); }
+    if (updates.homeState !== undefined) { updateFields.push('home_state = ?'); values.push(updates.homeState); }
+    if (updates.position !== undefined) { updateFields.push('position = ?'); values.push(updates.position); }
     if (updates.draftClass !== undefined) { updateFields.push('draft_class = ?'); values.push(updates.draftClass); }
     if (updates.draftRound !== undefined) { updateFields.push('draft_round = ?'); values.push(updates.draftRound); }
     if (updates.draftPick !== undefined) { updateFields.push('draft_pick = ?'); values.push(updates.draftPick); }
@@ -610,6 +660,9 @@ class UserDatabaseService {
       race: row.race as number | undefined,
       height: row.height as number | undefined,
       weight: row.weight as number | undefined,
+      hometown: row.hometown as string | undefined,
+      homeState: row.home_state as string | undefined,
+      position: row.position as string | undefined,
       draftClass: row.draft_class as number | undefined,
       draftRound: row.draft_round as string | undefined,
       draftPick: row.draft_pick as number | undefined,
@@ -637,6 +690,9 @@ class UserDatabaseService {
       race: row.race as number | undefined,
       height: row.height as number | undefined,
       weight: row.weight as number | undefined,
+      hometown: row.hometown as string | undefined,
+      homeState: row.home_state as string | undefined,
+      position: row.position as string | undefined,
       draftClass: row.draft_class as number | undefined,
       draftRound: row.draft_round as string | undefined,
       draftPick: row.draft_pick as number | undefined,
@@ -891,6 +947,9 @@ class UserDatabaseService {
       race: row.race as number | undefined,
       height: row.height as number | undefined,
       weight: row.weight as number | undefined,
+      hometown: row.hometown as string | undefined,
+      homeState: row.home_state as string | undefined,
+      position: row.position as string | undefined,
       draftClass: row.draft_class as number | undefined,
       draftRound: row.draft_round as string | undefined,
       draftPick: row.draft_pick as number | undefined,
