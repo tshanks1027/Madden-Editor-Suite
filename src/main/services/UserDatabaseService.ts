@@ -131,10 +131,12 @@ class UserDatabaseService {
   }
 
   private resolveUserDataPath(): string {
-    // In dev mode, use data/user-database in the project
-    // In packaged mode, use the same location relative to app
-    const basePath = app.getAppPath();
-    return path.join(basePath, 'data', 'user-database');
+    // Use app.getPath('userData') which is the proper writable location:
+    // - Windows: C:\Users\<username>\AppData\Roaming\<app-name>
+    // - macOS: ~/Library/Application Support/<app-name>
+    // - Linux: ~/.config/<app-name>
+    // This location persists across app updates and is always writable
+    return path.join(app.getPath('userData'), 'user-database');
   }
 
   public async waitForReady(): Promise<void> {
