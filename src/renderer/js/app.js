@@ -3694,13 +3694,30 @@ class MaddenEditorApp {
         console.log(`[GenericFacePicker] FINAL PID column index: ${pidColumnIndex}, Player Pic: ${playerPicColumnIndex}`);
 
         // Update player PID - handle both roster (PSXP) and draft class (PID) fields
+        // Also look up and update race based on the generic face's race
+        let newRace = null;
+        try {
+            newRace = await window.electronAPI.lookup.getRaceByPID(pid);
+            console.log(`[GenericFacePicker] Looked up race for PID ${pid}: ${newRace}`);
+        } catch (err) {
+            console.warn(`[GenericFacePicker] Could not get race for PID ${pid}:`, err);
+        }
+
         if (isRoster) {
             // Roster player - update the actual player object in filteredPlayers
             const oldPID = player.PSXP;
+            const oldRace = player.PLRC;
             player.PSXP = pid;
             player.PLAYERPIC = 'Generic Face'; // Update Player Pic field
+            if (newRace !== null) {
+                player.PLRC = newRace;
+                player._race = newRace; // Also update _race for BLBM GENR/SKNT assignment
+            }
             console.log(`[GenericFacePicker] Updated player.PSXP from ${oldPID} to ${pid}`);
             console.log(`[GenericFacePicker] Updated player.PLAYERPIC to "Generic Face"`);
+            if (newRace !== null) {
+                console.log(`[GenericFacePicker] Updated player.PLRC from ${oldRace} to ${newRace}`);
+            }
         } else if (isDraft) {
             // Draft class prospect - update the actual prospect object in draftProspects
             const oldPID = player.PID;
@@ -3752,7 +3769,10 @@ class MaddenEditorApp {
                 // Update via AG-Grid API - this triggers proper cell refresh
                 rowNode.setDataValue('PSXP', pid);
                 rowNode.setDataValue('PLAYERPIC', 'Generic Face');
-                console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid}, PLAYERPIC=Generic Face`);
+                if (newRace !== null) {
+                    rowNode.setDataValue('PLRC', newRace);
+                }
+                console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid}, PLAYERPIC=Generic Face, PLRC=${newRace}`);
 
                 // Force refresh the portrait column specifically
                 this.agGrid.refreshCells({
