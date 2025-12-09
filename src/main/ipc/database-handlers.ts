@@ -1341,61 +1341,64 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     };
 
     // Add ratings from season data if available, otherwise use position-appropriate defaults
+    // NOTE: The database stores ratings using Madden field codes (PSPD, PACC, etc.)
+    // NOT human-readable names (speed, acceleration, etc.)
     if (seasonData && seasonData.ratings) {
-      rosterPlayer.POVR = seasonData.overall || seasonData.ratings.overall || 70;
-      rosterPlayer.PSPD = seasonData.ratings.speed || seasonData.speed || 70;
-      rosterPlayer.PACC = seasonData.ratings.acceleration || seasonData.acceleration || 70;
-      rosterPlayer.PSTR = seasonData.ratings.strength || seasonData.strength || 70;
-      rosterPlayer.PAGI = seasonData.ratings.agility || seasonData.agility || 70;
-      rosterPlayer.PAWR = seasonData.ratings.awareness || seasonData.awareness || 70;
-      rosterPlayer.PCTH = seasonData.ratings.catching || 70;
-      rosterPlayer.PCAR = seasonData.ratings.carrying || 70;
-      rosterPlayer.PTHP = seasonData.ratings.throwPower || 70;
-      rosterPlayer.PKPR = seasonData.ratings.kickPower || 70;
-      rosterPlayer.PKAC = seasonData.ratings.kickAccuracy || 70;
-      rosterPlayer.PRBK = seasonData.ratings.runBlock || 70;
-      rosterPlayer.PPBK = seasonData.ratings.passBlock || 70;
-      rosterPlayer.PTAK = seasonData.ratings.tackle || 70;
-      rosterPlayer.PBKT = seasonData.ratings.breakTackle || 70;
-      rosterPlayer.PJMP = seasonData.ratings.jumping || 70;
-      rosterPlayer.PSTA = seasonData.ratings.stamina || 85;
-      rosterPlayer.PINJ = seasonData.ratings.injury || 85;
-      rosterPlayer.PTGH = seasonData.ratings.toughness || 70;
-      rosterPlayer.PLPU = seasonData.ratings.pursuit || 70;
-      rosterPlayer.PLPR = seasonData.ratings.playRecognition || 70;
-      rosterPlayer.PLMC = seasonData.ratings.manCoverage || 70;
-      rosterPlayer.PLZC = seasonData.ratings.zoneCoverage || 70;
-      rosterPlayer.PLPE = seasonData.ratings.press || 70;
-      rosterPlayer.PLHT = seasonData.ratings.hitPower || 70;
-      rosterPlayer.PBSG = seasonData.ratings.blockShed || seasonData.ratings.blockShedding || 70;
-      rosterPlayer.PLPM = seasonData.ratings.powerMoves || 70;
-      rosterPlayer.PFMS = seasonData.ratings.finesseMoves || 70;
-      rosterPlayer.PTAS = seasonData.ratings.throwAccuracyShort || 70;
-      rosterPlayer.PTAM = seasonData.ratings.throwAccuracyMid || 70;
-      rosterPlayer.PTAD = seasonData.ratings.throwAccuracyDeep || 70;
-      rosterPlayer.PPLA = seasonData.ratings.playAction || 70;
-      rosterPlayer.PTOR = seasonData.ratings.throwOnTheRun || 70;
-      rosterPlayer.PTUP = seasonData.ratings.throwUnderPressure || 70;
-      rosterPlayer.PBCV = seasonData.ratings.ballCarrierVision || 70;
-      rosterPlayer.PLJM = seasonData.ratings.jukeMove || 70;
-      rosterPlayer.PLSM = seasonData.ratings.spinMove || 70;
-      rosterPlayer.PLSA = seasonData.ratings.stiffArm || 70;
-      rosterPlayer.PLTR = seasonData.ratings.trucking || 70;
-      rosterPlayer.PELU = seasonData.ratings.changeOfDirection || 70;
-      rosterPlayer.PLRL = seasonData.ratings.release || 70;
-      rosterPlayer.SRRN = seasonData.ratings.shortRouteRunning || 70;
-      rosterPlayer.PMRR = seasonData.ratings.mediumRouteRunning || 70;
-      rosterPlayer.PDRR = seasonData.ratings.deepRouteRunning || 70;
-      rosterPlayer.PLCI = seasonData.ratings.catchInTraffic || 70;
-      rosterPlayer.PLSC = seasonData.ratings.spectacularCatch || 70;
-      rosterPlayer.PLIB = seasonData.ratings.impactBlocking || 70;
-      rosterPlayer.PLBK = seasonData.ratings.leadBlock || 70;
-      rosterPlayer.PPBF = seasonData.ratings.passBlockFinesse || 70;
-      rosterPlayer.PPBS = seasonData.ratings.passBlockStrength || seasonData.ratings.passBlockPower || 70;
-      rosterPlayer.PRBF = seasonData.ratings.runBlockFinesse || 70;
-      rosterPlayer.PRBS = seasonData.ratings.runBlockStrength || seasonData.ratings.runBlockPower || 70;
-      rosterPlayer.PBSK = seasonData.ratings.breakSack || 70;
-      rosterPlayer.PKRT = seasonData.ratings.kickReturn || 70;
+      const r = seasonData.ratings;
+      rosterPlayer.POVR = r.POVR || seasonData.overall || 70;
+      rosterPlayer.PSPD = r.PSPD || 70;
+      rosterPlayer.PACC = r.PACC || 70;
+      rosterPlayer.PSTR = r.PSTR || 70;
+      rosterPlayer.PAGI = r.PAGI || 70;
+      rosterPlayer.PAWR = r.PAWR || 70;
+      rosterPlayer.PCTH = r.PCTH || 70;
+      rosterPlayer.PCAR = r.PCAR || 70;
+      rosterPlayer.PTHP = r.PTHP || 70;
+      rosterPlayer.PKPR = r.PKPW || 70; // PKPW in db = PKPR in roster (kick power)
+      rosterPlayer.PKAC = r.PKAC || 70;
+      rosterPlayer.PRBK = r.PRBK || 70;
+      rosterPlayer.PPBK = r.PPBK || 70;
+      rosterPlayer.PTAK = r.PTAK || 70;
+      rosterPlayer.PBKT = r.PBTK || 70; // PBTK in db = PBKT in roster (break tackle)
+      rosterPlayer.PJMP = r.PJMP || r.PJUM || 70; // PJUM or PJMP
+      rosterPlayer.PSTA = r.PSTA || 85;
+      rosterPlayer.PINJ = r.PINJ || 85;
+      rosterPlayer.PTGH = r.PTGH || 70;
+      rosterPlayer.PLPU = r.PPUR || 70; // PPUR in db = PLPU (pursuit)
+      rosterPlayer.PLPR = r.PPRC || 70; // PPRC in db = PLPR (play recognition)
+      rosterPlayer.PLMC = r.PMCV || 70; // PMCV in db = PLMC (man coverage)
+      rosterPlayer.PLZC = r.PZCV || 70; // PZCV in db = PLZC (zone coverage)
+      rosterPlayer.PLPE = r.PPRS || 70; // PPRS in db = PLPE (press)
+      rosterPlayer.PLHT = r.PHTP || 70; // PHTP in db = PLHT (hit power)
+      rosterPlayer.PBSG = r.PBSH || 70; // PBSH in db = PBSG (block shedding)
+      rosterPlayer.PLPM = r.PPWM || 70; // PPWM in db = PLPM (power moves)
+      rosterPlayer.PFMS = r.PFNM || 70; // PFNM in db = PFMS (finesse moves)
+      rosterPlayer.PTAS = r.PTAS || 70;
+      rosterPlayer.PTAM = r.PTAM || 70;
+      rosterPlayer.PTAD = r.PTAD || 70;
+      rosterPlayer.PPLA = r.PPLA || 70;
+      rosterPlayer.PTOR = r.PTOR || 70;
+      rosterPlayer.PTUP = r.PTUP || 70;
+      rosterPlayer.PBCV = r.PBCV || 70;
+      rosterPlayer.PLJM = r.PJUM || 70; // PJUM in db = PLJM (juke move)
+      rosterPlayer.PLSM = r.PSPM || 70; // PSPM in db = PLSM (spin move)
+      rosterPlayer.PLSA = r.PSTF || 70; // PSTF in db = PLSA (stiff arm)
+      rosterPlayer.PLTR = r.PLTR || r.PTRK || 70; // PTRK or PLTR (trucking)
+      rosterPlayer.PELU = r.PCOD || 70; // PCOD in db = PELU (change of direction)
+      rosterPlayer.PLRL = r.PREL || 70; // PREL in db = PLRL (release)
+      rosterPlayer.SRRN = r.PSRR || 70; // PSRR in db = SRRN (short route running)
+      rosterPlayer.PMRR = r.PMRR || 70;
+      rosterPlayer.PDRR = r.PDRR || 70;
+      rosterPlayer.PLCI = r.PCIT || 70; // PCIT in db = PLCI (catch in traffic)
+      rosterPlayer.PLSC = r.PSPC || 70; // PSPC in db = PLSC (spectacular catch)
+      rosterPlayer.PLIB = r.PIBL || 70; // PIBL in db = PLIB (impact blocking)
+      rosterPlayer.PLBK = r.PLDB || 70; // PLDB in db = PLBK (lead block)
+      rosterPlayer.PPBF = r.PPBF || 70;
+      rosterPlayer.PPBS = r.PPBP || 70; // PPBP in db = PPBS (pass block power/strength)
+      rosterPlayer.PRBF = r.PRBF || 70;
+      rosterPlayer.PRBS = r.PRBP || 70; // PRBP in db = PRBS (run block power/strength)
+      rosterPlayer.PBSK = r.PBRS || 70; // PBRS in db = PBSK (break sack)
+      rosterPlayer.PKRT = r.PKRT || 70;
 
       // Parse archetype - it may be stored as string or number
       let archetypeId = defaultArchetype;
