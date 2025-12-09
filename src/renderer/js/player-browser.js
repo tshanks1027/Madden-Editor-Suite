@@ -1096,12 +1096,13 @@
       }
 
       // Check roster limit and offer replacement if full
-      const allRows = [];
-      window.app.agGrid.forEachNode(function(node) { allRows.push(node.data); });
+      // IMPORTANT: Use app.players.length, NOT grid.forEachNode because the grid is paginated
+      // and only contains the visible page (50-100 rows), not all 3000 players
       const MAX_ROSTER_SIZE = 3000;
-      if (allRows.length >= MAX_ROSTER_SIZE) {
-        // Find lowest OVR player on Free Agent team (TGID = 1009)
-        const freeAgents = allRows.filter(p => p.TGID === 1009);
+      const allPlayers = window.app.players || [];
+      if (allPlayers.length >= MAX_ROSTER_SIZE) {
+        // Find lowest OVR player on Free Agent team (TGID = 1009) from FULL player list
+        const freeAgents = allPlayers.filter(p => p.TGID === 1009);
         if (freeAgents.length === 0) {
           alert('Roster is at maximum capacity (' + MAX_ROSTER_SIZE + ' players) and no Free Agents to replace. Remove players before adding new ones.');
           restoreFocusToSearch();
@@ -1124,16 +1125,17 @@
           return;
         }
 
-        // Remove the lowest player
-        window.app.agGrid.applyTransaction({ remove: [lowestPlayer] });
+        // Remove from app.players array first (this is the source of truth)
+        const idx = allPlayers.indexOf(lowestPlayer);
+        if (idx !== -1) {
+          allPlayers.splice(idx, 1);
+          window.app.filteredPlayers = allPlayers.slice();
+        }
 
-        // Also remove from app.players array
-        if (window.app.players) {
-          const idx = window.app.players.indexOf(lowestPlayer);
-          if (idx !== -1) {
-            window.app.players.splice(idx, 1);
-            window.app.filteredPlayers = window.app.players.slice();
-          }
+        // Try to remove from grid if it's on the current visible page
+        // This is a no-op if the player isn't on the current page
+        if (window.app.agGrid) {
+          window.app.agGrid.applyTransaction({ remove: [lowestPlayer] });
         }
 
         console.log('[PlayerBrowser] Removed lowest FA to make room:', lowestName.trim(), 'OVR:', lowestOVR);

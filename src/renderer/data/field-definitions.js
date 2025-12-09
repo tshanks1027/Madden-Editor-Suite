@@ -74,6 +74,7 @@ export const MADDEN_FIELDS = {
     'PHGT': { display: 'Height', shortDisplay: 'HGT', type: 'numeric', editable: true, width: 70, min: 65, max: 85 },
     'PWGT': { display: 'Weight', shortDisplay: 'WGT', type: 'numeric', editable: true, width: 70, min: 160, max: 380, transform: { display: v => v + 160, save: v => v - 160 } },
     'PCBT': { display: 'Body Type', shortDisplay: 'Body', type: 'lookup', editable: true, width: 90, lookup: 'bodytypes' },
+    'PHAN': { display: 'Handedness', shortDisplay: 'Hand', type: 'lookup', editable: true, width: 80, lookup: 'handedness' },
 
     // Contract fields (stored in hundreds of thousands, displayed in millions - divide by 100 for display, multiply by 100 when saving)
     'PCON': { display: 'Contract Years', shortDisplay: 'CON', type: 'numeric', editable: true, width: 80, min: 0, max: 7 },
@@ -135,7 +136,7 @@ export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"],
     ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["ARCHETYPE", "Archetype"], ["PHTN", "Hometown"], ["PHSN", "State"],
-    ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PYRP", "Years Pro"],
+    ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PHAN", "Handedness"], ["PYRP", "Years Pro"],
     ["POVR", "Overall"],
     ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBCV", "Vision"],
     ["PBSG", "Block Shed"], ["PBSK", "Break Sack"], ["PCAR", "Carrying"], ["PLCI", "Catch in Traffic"],
@@ -248,6 +249,10 @@ export let LOOKUP_DATA = {
         [2, 'Muscular'],
         [3, 'Heavy'],
         [4, 'Extra Heavy']
+    ]),
+    handedness: new Map([
+        [0, 'Right'],
+        [1, 'Left']
     ])
 };
 
@@ -551,6 +556,8 @@ export function getLookupOptions(lookupType) {
             return Array.from(LOOKUP_DATA.devtraits.entries()).map(([value, label]) => ({ value, label }));
         case 'bodytypes':
             return Array.from(LOOKUP_DATA.bodytypes.entries()).map(([value, label]) => ({ value, label }));
+        case 'handedness':
+            return Array.from(LOOKUP_DATA.handedness.entries()).map(([value, label]) => ({ value, label }));
         default:
             return [];
     }
@@ -576,6 +583,8 @@ export function getLookupValue(lookupType, value) {
             return LOOKUP_DATA.pids.get(value) || 'Generic Name';
         case 'bodytypes':
             return LOOKUP_DATA.bodytypes.get(value) || 'Unknown';
+        case 'handedness':
+            return LOOKUP_DATA.handedness.get(value) || 'Right';
         default:
             return 'Unknown';
     }

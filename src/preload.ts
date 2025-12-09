@@ -255,8 +255,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSeasonEditsForPlayer: (originalPlayerId: number) =>
       ipcRenderer.invoke('database:get-season-edits-for-player', originalPlayerId),
     // Apply edits to ALL seasons (for change-all-years feature)
-    saveSeasonEditAllYears: (originalPlayerId: number, edits: any) =>
-      ipcRenderer.invoke('database:save-season-edit-all-years', originalPlayerId, edits),
+    saveSeasonEditAllYears: (originalPlayerId: number, edits: any, options?: { incrementAge?: boolean }) =>
+      ipcRenderer.invoke('database:save-season-edit-all-years', originalPlayerId, edits, options),
 
     // Custom player operations
     createCustomPlayer: (player: any) =>

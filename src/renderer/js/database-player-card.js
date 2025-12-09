@@ -971,8 +971,9 @@
       archetypeSelect.innerHTML = '<option value="">Select Position First</option>';
     }
 
-    // Reset "Apply to all years" checkbox
+    // Reset "Apply to all years" checkboxes
     setChecked('dbApplyToAllYears', false);
+    setChecked('dbIncrementAgeEachYear', false);
 
     RATING_FIELDS.forEach(function(item) {
       setValue('dbRating_' + item.field, '');
@@ -1112,37 +1113,47 @@
         // User checked "Apply to all years" - collect ONLY CHANGED fields
         var seasonEdits = collectSeasonEdits(true); // true = only changed fields
         var changedFieldCount = Object.keys(seasonEdits).length;
+        var incrementAgeEachYear = getChecked('dbIncrementAgeEachYear');
 
         if (changedFieldCount === 0) {
           alert('No changes detected. Edit some fields first, then try again.');
           return;
         }
 
-        // Show confirmation with list of changed fields
+        // Build confirmation message
         var changedFieldNames = Object.keys(seasonEdits).join(', ');
-        var confirmed = confirm(
-          'Apply changes to ALL years for this player?\n\n' +
-          'Changed fields (' + changedFieldCount + '): ' + changedFieldNames + '\n\n' +
-          'Only these fields will be updated. Other ratings will remain unchanged in each year.\n\n' +
-          'Continue?'
-        );
+        var confirmMsg = 'Apply changes to ALL years for this player?\n\n' +
+          'Changed fields (' + changedFieldCount + '): ' + changedFieldNames + '\n\n';
+
+        if (incrementAgeEachYear && seasonEdits.age !== undefined) {
+          confirmMsg += 'Age will INCREMENT by 1 for each subsequent year (starting at ' + seasonEdits.age + ').\n\n';
+        }
+
+        confirmMsg += 'Only these fields will be updated. Other ratings will remain unchanged in each year.\n\nContinue?';
+
+        var confirmed = confirm(confirmMsg);
         if (!confirmed) {
           return; // User cancelled
         }
 
-        // Apply to all years
-        console.log('[DatabasePlayerCard] Applying edits to ALL years. Changed fields:', seasonEdits);
+        // Apply to all years with options
+        var options = {
+          incrementAge: incrementAgeEachYear && seasonEdits.age !== undefined
+        };
+        console.log('[DatabasePlayerCard] Applying edits to ALL years. Changed fields:', seasonEdits, 'Options:', options);
         var allYearsResult = await window.electronAPI.database.saveSeasonEditAllYears(
           currentDbPlayerId,
-          seasonEdits
+          seasonEdits,
+          options
         );
         if (!allYearsResult.success) {
           throw new Error(allYearsResult.error || 'Failed to save to all years');
         }
         console.log('[DatabasePlayerCard] Updated', allYearsResult.updatedYears?.length || 0, 'seasons');
 
-        // Uncheck the checkbox after save
+        // Uncheck the checkboxes after save
         setChecked('dbApplyToAllYears', false);
+        setChecked('dbIncrementAgeEachYear', false);
       } else if (selectedYear) {
         // Save to specific year only - save ALL form values (not just changed)
         var seasonEdits = collectSeasonEdits(false); // false = all fields

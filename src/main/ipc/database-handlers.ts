@@ -178,8 +178,9 @@ ipcMain.handle('database:get-season-edits-for-player', async (event, originalPla
  * Handle: database:save-season-edit-all-years
  * Apply partial edits to ALL years in the player's career span.
  * Uses career span (draftClass/careerFrom to careerTo) not just years with existing data.
+ * Supports options.incrementAge to increment age by 1 for each successive year.
  */
-ipcMain.handle('database:save-season-edit-all-years', async (event, originalPlayerId: number, edits: Partial<SeasonEdit>) => {
+ipcMain.handle('database:save-season-edit-all-years', async (event, originalPlayerId: number, edits: Partial<SeasonEdit>, options?: { incrementAge?: boolean }) => {
   try {
     await userDatabaseService.waitForReady();
     await lookupService.waitForReady();
@@ -230,11 +231,28 @@ ipcMain.handle('database:save-season-edit-all-years', async (event, originalPlay
       return { success: true, updatedYears: [] };
     }
 
+    // Check if we need to increment age each year
+    const shouldIncrementAge = options?.incrementAge && edits.age !== undefined;
+    const baseAge = edits.age as number;
+
     console.log(`[database-handlers] Applying edits to ${years.length} seasons (${years[0]}-${years[years.length - 1]}) for player ${originalPlayerId}:`, edits);
+    if (shouldIncrementAge) {
+      console.log(`[database-handlers] Age will increment each year starting from ${baseAge}`);
+    }
 
     // Apply the edits to each year
-    for (const year of years) {
-      userDatabaseService.saveSeasonEdit(originalPlayerId, year, edits);
+    for (let i = 0; i < years.length; i++) {
+      const year = years[i];
+
+      // Create a copy of edits for this year
+      const yearEdits = { ...edits };
+
+      // Increment age if option is enabled
+      if (shouldIncrementAge) {
+        yearEdits.age = baseAge + i;
+      }
+
+      userDatabaseService.saveSeasonEdit(originalPlayerId, year, yearEdits);
     }
 
     return { success: true, updatedYears: years };
@@ -1304,6 +1322,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PHSN: 0, // Home state
       PLBD: 0, // Birthday (will calculate if needed)
       PCMT: parseInt(player.commID) || 0, // Commentary ID - used for in-game announcer names
+      PHAN: 0, // Handedness (0=Right, 1=Left)
 
       // Contract defaults
       PCON: 4, // 4 year contract
