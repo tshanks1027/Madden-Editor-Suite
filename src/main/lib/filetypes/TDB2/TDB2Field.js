@@ -76,7 +76,8 @@ class TDB2Field {
                 this._raw = utilService.writeModifiedLebCompressedInteger(value);
                 break;
             case FIELD_TYPE_STRING:
-                let strHexArray = value.split('').map((char) => {
+                // Handle null/undefined/empty values - allows clearing PEPS field
+                let strHexArray = (value || '').split('').map((char) => {
                     return char.charCodeAt(0);
                 });
 

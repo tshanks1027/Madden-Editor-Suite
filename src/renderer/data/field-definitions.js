@@ -105,19 +105,16 @@ export const MADDEN_FIELDS = {
     'PDPI': { display: 'Draft Position', shortDisplay: 'Draft Pos', type: 'numeric', editable: true, width: 90, min: 0, max: 500 },
     'PDRO': { display: 'Draft Rank', shortDisplay: 'Rank', type: 'numeric', editable: false, width: 80, min: 0, max: 500 },
 
-    // Archetype (calculated field - converts archetype ID to name using IPC)
-    // Uses PLTY (Player Type) field from roster files
-    'ARCHETYPE': { display: 'Archetype', shortDisplay: 'Archetype', type: 'calculated', editable: false, width: 140, calculate: async (player) => {
-        if (player.PLTY !== undefined && player.PLTY !== null && player.PPOS !== undefined) {
-            try {
-                const position = POSITION_MAPPINGS[player.PPOS] || player.PPOS;
-                return await window.electronAPI.rating.getArchetypeName(player.PLTY, position);
-            } catch (e) {
-                return `Archetype #${player.PLTY}`;
-            }
-        }
-        return '';
-    }},
+    // Archetype (editable lookup field - converts between archetype ID and name)
+    // Uses PLTY (Player Type) field from roster files, options depend on player position
+    'ARCHETYPE': {
+        display: 'Archetype',
+        shortDisplay: 'Archetype',
+        type: 'archetype',  // Special type for position-dependent archetype dropdown
+        editable: true,
+        width: 200,
+        underlyingField: 'PLTY'  // The actual field that stores the archetype ID
+    },
 
     // Birthday (calculated field - converts birthdate integer to MM/DD/YYYY format)
     // Uses PLBD (Birthday) field from roster files

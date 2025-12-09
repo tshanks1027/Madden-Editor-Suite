@@ -314,22 +314,18 @@ class CustomDropdown {
 
 // Initialize all control-select dropdowns
 function initCustomDropdowns() {
-    console.log('[CustomDropdown] initCustomDropdowns called');
     const selects = document.querySelectorAll('.control-select');
-    console.log('[CustomDropdown] Found selects:', selects.length);
     const dropdowns = new Map();
 
     selects.forEach(select => {
-        console.log('[CustomDropdown] Processing select:', select.id, 'already converted:', select.dataset.customDropdown);
+        // Skip if already converted or explicitly marked to skip
         if (!select.dataset.customDropdown) {
             select.dataset.customDropdown = 'true';
             const dropdown = new CustomDropdown(select);
             dropdowns.set(select.id, dropdown);
-            console.log('[CustomDropdown] Created dropdown for:', select.id);
         }
     });
 
-    console.log('[CustomDropdown] Total dropdowns created:', dropdowns.size);
     return dropdowns;
 }
 

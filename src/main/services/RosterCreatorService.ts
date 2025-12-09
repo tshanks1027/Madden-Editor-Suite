@@ -692,26 +692,31 @@ export class RosterCreatorService {
         }
 
         // Convert GeneratedPlayer to RosterPlayer format
+        // CRITICAL: Ensure all required fields have valid fallback values
+        // Age 0 causes players to show as 0 years old in-game (major bug)
+        const playerAge = player.age || (22 + (player.yearsPro || 0)); // Default to 22 + years pro
+        const validAge = Math.max(21, Math.min(45, playerAge)); // Clamp to valid range
+
         const rosterPlayer: RosterPlayer = {
           PFNA: player.PFNA || player.firstName,
           PLNA: player.PLNA || player.lastName,
           PPOS: player.positionCode, // Use numeric position code for lookups
           TGID: teamId,
-          PAGE: player.age,
-          PJEN: player.jerseyNum,
-          PHGT: player.heightInches,
-          PWGT: player.weight,
+          PAGE: validAge, // NEVER allow 0 or undefined age
+          PJEN: player.jerseyNum || Math.floor(Math.random() * 99) + 1,
+          PHGT: player.heightInches || 72, // Default to 6'0"
+          PWGT: player.weight || 40, // Default to 200 lbs (200-160=40)
           PCOL: player.college, // College ID (already numeric from CreatorService)
           PHSN: player.homeState, // Home state ID (already numeric from CreatorService)
 
-          // Dev trait (0-3)
-          PDEV: player.devTrait,
+          // Dev trait (0-3) - 0=Normal is the safe default
+          PDEV: typeof player.devTrait === 'number' ? player.devTrait : 0,
 
           // PID (Player Picture ID), PAM, and Years Pro
           // Use rosterGeneratorService to get valid PIDs and PAMs for generic faces
           PSXP: player.PID, // Player Picture ID for face/headshot (will be updated below if needed)
           PEPS: player.PEPS || '', // Player Asset Model (PAM) - will be updated below if needed
-          PYRP: player.yearsPro, // Years in league
+          PYRP: player.yearsPro || 0, // Years in league
           PBOD: player.bodyType,
 
           // Face type fields - will be set after checking if PID is valid

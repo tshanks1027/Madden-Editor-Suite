@@ -94,7 +94,8 @@ class TDBField {
     set value(value) {
         switch (this.definition.type) {
             case FIELD_TYPE_STRING:
-                let strHexArray = value.split('').map((char) => {
+                // Handle null/undefined/empty values
+                let strHexArray = (value || '').split('').map((char) => {
                     return char.charCodeAt(0);
                 });
 

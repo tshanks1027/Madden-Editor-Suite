@@ -15,6 +15,7 @@ import {
   CustomPlayerSeason
 } from '../services/UserDatabaseService';
 import { lookupService } from '../services/lookup-service';
+import { ArchetypeService } from '../services/utils/archetypeService';
 
 // =============================================
 // PLAYER EDIT OPERATIONS
@@ -922,6 +923,14 @@ const GENERIC_PAM_BY_RACE: Record<number, string[]> = {
   7: ['gen_6_B_N_01', 'gen_6_B_N_02', 'gen_7_B_N_019', 'gen_7_B_N_011', 'gen_7_B_N_07']  // Black
 };
 
+// Race-appropriate generic PIDs that have actual portraits in PID_Portrait_Mapping.csv
+// These PIDs show actual generic faces instead of blank silhouettes
+const GENERIC_PID_BY_RACE: Record<number, number[]> = {
+  1: [731, 2547, 2583, 2586, 2587, 2589, 2591, 2717],  // White
+  5: [961, 2131, 2270],  // Mixed
+  7: [719, 721, 725, 727, 730, 2271, 2325, 2373, 2546]  // Black
+};
+
 /**
  * Get a race-appropriate generic PAM for a player
  */
@@ -929,6 +938,16 @@ function getGenericPAM(race: number | undefined): string {
   // Default to mixed race (5) if unknown
   const effectiveRace = race === 1 ? 1 : race === 7 ? 7 : 5;
   const pool = GENERIC_PAM_BY_RACE[effectiveRace] || GENERIC_PAM_BY_RACE[5];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/**
+ * Get a race-appropriate generic PID that has an actual portrait
+ */
+function getGenericPID(race: number | undefined): number {
+  // Default to mixed race (5) if unknown
+  const effectiveRace = race === 1 ? 1 : race === 7 ? 7 : 5;
+  const pool = GENERIC_PID_BY_RACE[effectiveRace] || GENERIC_PID_BY_RACE[5];
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -1097,7 +1116,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       pam = player.pam;
       pid = hasValidPID ? player.pid : 0;
     } else {
-      // Player needs generic face - determine race if unknown, then assign matching PAM
+      // Player needs generic face - determine race if unknown
       if (effectiveRace === undefined || effectiveRace === null) {
         // Try to look up race by PID
         if (player.pid && player.pid > 0) {
@@ -1110,11 +1129,13 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
         }
         console.log(`[database-handlers] Assigned race ${effectiveRace} for ${player.firstName} ${player.lastName}`);
       }
-      pam = getGenericPAM(effectiveRace);
-      pid = 0; // PID 0 tells Madden to use generic face from BLBM table
+      // ROSTER RULES: Blank PAM, use a generic PID that has an actual portrait
+      // This shows a real generic face instead of a blank silhouette
+      pam = '';
+      pid = getGenericPID(effectiveRace);
     }
 
-    console.log(`[database-handlers] PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, race=${effectiveRace}`);
+    console.log(`[database-handlers] PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}', race=${effectiveRace}`);
 
     // Get default archetype for position if not in season data
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
@@ -1247,6 +1268,9 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       rosterPlayer.PLTY = defaultArchetype;
     }
 
+    // Set ARCHETYPE display name from PLTY ID
+    rosterPlayer.ARCHETYPE = ArchetypeService.getArchetypeName(rosterPlayer.PLTY, positionName);
+
     // Store race for BLBM face generation
     rosterPlayer._race = effectiveRace || 5; // Use effective race for BLBM GENR/SKNT assignment
 
@@ -1367,7 +1391,8 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       pam = player.pam;
       pid = hasValidPID ? player.pid : 0;
     } else {
-      // Player needs generic face - determine race if unknown, then assign matching PAM
+      // Player needs generic face - determine race if unknown
+      // DRAFT RULES: Blank PAM with PID=0, race determines generic face via skinTone
       if (effectiveRace === undefined || effectiveRace === null) {
         // Try to look up race by PID
         if (player.pid && player.pid > 0) {
@@ -1380,11 +1405,12 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
         }
         console.log(`[database-handlers] Assigned race ${effectiveRace} for draft prospect ${player.firstName} ${player.lastName}`);
       }
-      pam = getGenericPAM(effectiveRace);
-      pid = 0; // PID 0 tells Madden to use generic face from BLBM table
+      // DRAFT RULES: Blank PAM, use a generic PID that has an actual portrait
+      pam = '';
+      pid = getGenericPID(effectiveRace);
     }
 
-    console.log(`[database-handlers] Draft PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, race=${effectiveRace}`);
+    console.log(`[database-handlers] Draft PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}', race=${effectiveRace}`);
 
     // Get default archetype for position
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
@@ -1436,6 +1462,7 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       // Position and role
       position: positionId,
       archetype: archetypeId,
+      archetypeName: ArchetypeService.getArchetypeName(archetypeId, positionName),
       jerseyNum: seasonData?.jersey || player.jersey || Math.floor(Math.random() * 99) + 1,
 
       // Draft info (from historical data)

@@ -15,10 +15,12 @@ class TDBUncompressedField extends TDBExtraDataField {
     };
 
     set value(value) {
+        // Handle null/undefined/empty values
+        const safeValue = value || '';
         const offsetBuffer = Buffer.alloc(this.offsetLength);
-        offsetBuffer.writeIntBE(value.length, 0, this.offsetLength);
+        offsetBuffer.writeIntBE(safeValue.length, 0, this.offsetLength);
 
-        let strHexArray = value.split('').map((char) => {
+        let strHexArray = safeValue.split('').map((char) => {
             return char.charCodeAt(0);
         });
 

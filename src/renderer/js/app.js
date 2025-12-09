@@ -4437,9 +4437,34 @@ class MaddenEditorApp {
             {
                 data: 'archetype',
                 title: 'Archetype',
-                width: 120,
-                type: 'text',  // Changed from 'dropdown' to 'text' to prevent Handsontable from messing with values during sort
-                readOnly: true,  // Make read-only for now (dropdown editing causes the sort bug)
+                width: 200,
+                type: 'dropdown',
+                source: async function(query, process) {
+                    // Get position from current row data
+                    const row = this.row;
+                    const instance = this.instance;
+                    const positionColIndex = instance.propToCol('position');
+                    let positionValue = instance.getDataAtCell(row, positionColIndex);
+
+                    // Convert position ID to name if numeric
+                    if (typeof positionValue === 'number' || !isNaN(Number(positionValue))) {
+                        positionValue = POSITION_MAPPINGS[positionValue] || 'QB';
+                    }
+
+                    const posName = positionValue || 'QB';
+
+                    // Fetch archetypes for this position
+                    try {
+                        const archetypes = await window.electronAPI.rating.getArchetypes(posName);
+                        const options = archetypes.map(a => a.name);
+                        process(options);
+                    } catch (e) {
+                        console.error('[Draft Archetype] Error loading archetypes:', e);
+                        process(['Loading failed...']);
+                    }
+                },
+                strict: true,
+                allowInvalid: false,
                 renderer: archetypeRenderer
             },
             { data: 'jerseyNum', title: 'Jersey #', width: 80, type: 'numeric' },

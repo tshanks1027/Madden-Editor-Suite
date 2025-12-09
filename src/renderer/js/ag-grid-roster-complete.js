@@ -332,6 +332,98 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
 
             colDef.editable = true;
             console.log('[AG-Grid] PLAYERPIC column configured with', playerNames.length, 'player names');
+        } else if (fieldDef.type === 'archetype') {
+            console.log('[AG-Grid] Configuring ARCHETYPE column with position-dependent dropdown');
+
+            // Archetype is position-dependent - options vary by player position
+            // Store archetypes by position for quick lookup
+            const archetypesByPosition = {};
+            const archetypeIdToName = {};
+            const archetypeNameToId = {};
+
+            // Pre-load archetypes for all positions
+            const positions = ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT',
+                'LEDG', 'REDG', 'DT', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS', 'K', 'P', 'LS'];
+
+            // Load archetypes async during grid setup
+            (async () => {
+                for (const pos of positions) {
+                    try {
+                        const archetypes = await window.electronAPI.rating.getArchetypes(pos);
+                        archetypesByPosition[pos] = archetypes;
+                        // Build ID<->Name mappings
+                        archetypes.forEach(arch => {
+                            archetypeIdToName[arch.id] = arch.name;
+                            archetypeNameToId[arch.name] = arch.id;
+                        });
+                    } catch (e) {
+                        console.error(`[AG-Grid] Failed to load archetypes for ${pos}:`, e);
+                    }
+                }
+                console.log('[AG-Grid] Archetypes loaded for all positions');
+            })();
+
+            // Position ID to name mapping for lookup
+            const posIdToName = {
+                0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C', 8: 'RG', 9: 'RT',
+                10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike', 15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS',
+                19: 'K', 20: 'P', 21: 'LS'
+            };
+
+            // Value getter: display archetype name from ARCHETYPE field or look up from PLTY
+            colDef.valueGetter = (params) => {
+                if (!params.data) return '';
+                // Prefer pre-calculated ARCHETYPE display name
+                if (params.data.ARCHETYPE) return params.data.ARCHETYPE;
+                // Fall back to looking up from PLTY
+                const archetypeId = params.data.PLTY;
+                if (archetypeId !== undefined && archetypeId !== null) {
+                    return archetypeIdToName[archetypeId] || `Archetype #${archetypeId}`;
+                }
+                return '';
+            };
+
+            // Value setter: convert archetype name back to ID and store in PLTY
+            colDef.valueSetter = (params) => {
+                const archetypeName = params.newValue;
+                const archetypeId = archetypeNameToId[archetypeName];
+                console.log(`[AG-Grid ARCHETYPE] valueSetter: "${archetypeName}" -> ID ${archetypeId}`);
+                if (archetypeId !== undefined) {
+                    params.data.PLTY = archetypeId;
+                    params.data.ARCHETYPE = archetypeName; // Update display field too
+                    return true;
+                }
+                return false;
+            };
+
+            // Custom cell editor that gets options based on player position
+            colDef.cellEditorSelector = (params) => {
+                const posId = params.data.PPOS;
+                const posName = posIdToName[posId] || 'QB';
+                const archetypes = archetypesByPosition[posName] || [];
+                const values = archetypes.map(a => a.name);
+
+                console.log(`[AG-Grid ARCHETYPE] Opening editor for position ${posName}, ${values.length} options`);
+
+                return {
+                    component: FastSelectEditor,
+                    params: { values }
+                };
+            };
+
+            colDef.editable = true;
+            colDef.singleClickEdit = true;
+
+            // Add dropdown visual indicator
+            colDef.cellRenderer = (params) => {
+                const value = params.value || '';
+                return `<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; padding: 0 8px;">
+                    <span>${value}</span>
+                    <span style="color: #999; font-size: 12px;">▼</span>
+                </div>`;
+            };
+
+            console.log('[AG-Grid] ARCHETYPE column configured with position-dependent dropdown');
         } else if (fieldDef.type === 'lookup' && fieldDef.lookup) {
             console.log(`[AG-Grid] Configuring lookup column ${fieldName}:`, {
                 type: fieldDef.type,
@@ -527,6 +619,44 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                 const playerIndex = app.players.findIndex(p => p === actualPlayer);
                 if (playerIndex !== -1) {
                     app.players[playerIndex][fieldName] = event.newValue;
+                }
+
+                // If PLAYERPIC or PSXP changed, refresh the portrait column
+                if (fieldName === 'PLAYERPIC' || fieldName === 'PSXP') {
+                    const pid = actualPlayer.PSXP;
+                    console.log('[AG-Grid] PID changed, refreshing portrait for PID:', pid);
+
+                    // Load new portrait into cache
+                    if (pid && window.electronAPI && window.electronAPI.portrait) {
+                        const cacheKey = `pid_${pid}`;
+                        window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                            if (imageData && imageData.length > 0) {
+                                app.portraitCache.set(cacheKey, imageData);
+                                console.log('[AG-Grid] Portrait cached for PID:', pid);
+                            }
+                            // Refresh portrait cell for this row
+                            event.api.refreshCells({
+                                rowNodes: [event.node],
+                                columns: ['_portrait'],
+                                force: true
+                            });
+                        }).catch(err => {
+                            console.error('[AG-Grid] Error loading portrait:', err);
+                            // Still refresh to show placeholder
+                            event.api.refreshCells({
+                                rowNodes: [event.node],
+                                columns: ['_portrait'],
+                                force: true
+                            });
+                        });
+                    } else {
+                        // No PID, refresh to clear portrait
+                        event.api.refreshCells({
+                            rowNodes: [event.node],
+                            columns: ['_portrait'],
+                            force: true
+                        });
+                    }
                 }
             }
         },

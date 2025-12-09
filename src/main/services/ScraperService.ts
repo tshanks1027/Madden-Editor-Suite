@@ -365,8 +365,9 @@ export class ScraperService {
     this.hofLookup = new Map();
 
     try {
-      // Path to HOF lookup CSV
-      const csvPath = path.join(__dirname, '../../data/lookups/hof_lookup.csv');
+      // Path to HOF lookup CSV - use app.getAppPath() for correct resolution
+      const { app } = require('electron');
+      const csvPath = path.join(app.getAppPath(), 'data', 'lookups', 'hof_lookup.csv');
 
       if (!fs.existsSync(csvPath)) {
         console.warn(`[ScraperService] HOF lookup file not found at ${csvPath}`);
@@ -2042,6 +2043,61 @@ export class ScraperService {
     }
 
     return year >= foundingYear;
+  }
+
+  /**
+   * Get all teams that existed in a given year
+   * Uses the same founding year data as teamExistedInYear
+   * @param year - The year to check
+   * @returns Array of team abbreviations (lowercase)
+   */
+  getTeamsForYear(year: number): string[] {
+    // Franchise founding years (same as teamExistedInYear)
+    const franchiseFoundingYears: { [key: string]: number } = {
+      'crd': 1920, // Arizona Cardinals
+      'atl': 1966, // Atlanta Falcons
+      'rav': 1996, // Baltimore Ravens
+      'buf': 1960, // Buffalo Bills
+      'car': 1995, // Carolina Panthers
+      'chi': 1920, // Chicago Bears
+      'cin': 1968, // Cincinnati Bengals
+      'cle': 1999, // Cleveland Browns (reactivated)
+      'dal': 1960, // Dallas Cowboys
+      'den': 1960, // Denver Broncos
+      'det': 1930, // Detroit Lions
+      'gnb': 1921, // Green Bay Packers
+      'htx': 2002, // Houston Texans
+      'clt': 1953, // Indianapolis Colts
+      'jax': 1995, // Jacksonville Jaguars
+      'kan': 1960, // Kansas City Chiefs
+      'sdg': 1960, // Los Angeles Chargers
+      'ram': 1937, // Los Angeles Rams
+      'rai': 1960, // Las Vegas Raiders
+      'mia': 1966, // Miami Dolphins
+      'min': 1961, // Minnesota Vikings
+      'nwe': 1960, // New England Patriots
+      'nor': 1967, // New Orleans Saints
+      'nyg': 1925, // New York Giants
+      'nyj': 1960, // New York Jets
+      'phi': 1933, // Philadelphia Eagles
+      'pit': 1933, // Pittsburgh Steelers
+      'sea': 1976, // Seattle Seahawks
+      'sfo': 1950, // San Francisco 49ers
+      'tam': 1976, // Tampa Bay Buccaneers
+      'oti': 1960, // Tennessee Titans
+      'was': 1932  // Washington Commanders
+    };
+
+    // Return all teams that existed in the given year
+    const existingTeams: string[] = [];
+    for (const [abbr, foundingYear] of Object.entries(franchiseFoundingYears)) {
+      if (year >= foundingYear) {
+        existingTeams.push(abbr);
+      }
+    }
+
+    console.log(`[ScraperService] getTeamsForYear(${year}): Found ${existingTeams.length} teams`);
+    return existingTeams;
   }
 
   /**

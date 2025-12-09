@@ -1656,6 +1656,20 @@ export class CreatorService {
         console.log(`[CreatorService] Filtered ${leagueFilter.toUpperCase()} players: ${beforeFilter} -> ${draftedProspects.length} (removed ${beforeFilter - draftedProspects.length})`);
       }
 
+      // CRITICAL: Ensure draft order is correct (round, then pick)
+      // M26 file uses BLOCK POSITION as draft order - block 0 = pick 1
+      // CSV should already be ordered but sorting ensures correctness
+      draftedProspects.sort((a, b) => {
+        const roundA = a.round ?? 99;
+        const roundB = b.round ?? 99;
+        if (roundA !== roundB) return roundA - roundB;
+
+        const pickA = a.pick ?? 999;
+        const pickB = b.pick ?? 999;
+        return pickA - pickB;
+      });
+      console.log(`[CreatorService] ✓ Sorted ${draftedProspects.length} prospects by draft order`);
+
       // Step 1.3: Scrape Hall of Fame status from CSV lookup (fast and accurate!)
       const hofMap = await scraperService.scrapeHOFFromWikipedia(year);
       if (hofMap.size > 0) {
@@ -2138,7 +2152,22 @@ export class CreatorService {
         }
       });
 
+      // CRITICAL: Sort prospects by draft order (round, then pick)
+      // M26 file uses BLOCK POSITION as draft order - block 0 = pick 1
+      // Without this sort, prospects would be in Map iteration order (random)
+      draftProspects.sort((a, b) => {
+        // Drafted players (with round/pick) come before undrafted
+        const roundA = a.round ?? 99;
+        const roundB = b.round ?? 99;
+        if (roundA !== roundB) return roundA - roundB;
+
+        const pickA = a.pick ?? 999;
+        const pickB = b.pick ?? 999;
+        return pickA - pickB;
+      });
+
       console.log(`[CreatorService] ✓ Loaded ${draftProspects.length} players from MASTER_LOOKUP in ${Date.now() - startTime}ms`);
+      console.log(`[CreatorService] ✓ Sorted by draft order - first: ${draftProspects[0]?.name} (R${draftProspects[0]?.round} P${draftProspects[0]?.pick}), last: ${draftProspects[draftProspects.length-1]?.name}`);
 
       // Testing mode: limit to first 40 players
       if (testingMode && draftProspects.length > 40) {
@@ -2642,17 +2671,30 @@ export class CreatorService {
         players = players.slice(0, 40);
       }
 
-      // Step 4: Randomize order for random mode
+      // Step 4: Handle draft order based on mode
       if (options.ratingMode === 'random') {
         console.log(`[CreatorService V2] Random mode: shuffling draft order`);
         console.log(`[CreatorService V2]   Players BEFORE shuffle: ${players.slice(0, 5).map(p => p.firstName + ' ' + p.lastName).join(', ')}...`);
         this.shuffleArray(players);
         console.log(`[CreatorService V2]   Players AFTER shuffle: ${players.slice(0, 5).map(p => p.firstName + ' ' + p.lastName).join(', ')}...`);
+      } else if (options.decade) {
+        // Decade classes: keep wAV-based order (best players first for BPA simulation)
+        console.log(`[CreatorService V2] ${options.ratingMode.toUpperCase()} mode: preserving wAV/position order for decade class`);
+        console.log(`[CreatorService V2]   First 10 players: ${players.slice(0, 10).map(p => `${p.firstName} ${p.lastName} (wAV:${p.wAV || 0})`).join(', ')}...`);
       } else {
-        // Log order for non-random modes to verify it's correct
-        const orderType = options.decade ? 'wAV/position order' : 'CSV draft order';
-        console.log(`[CreatorService V2] ${options.ratingMode.toUpperCase()} mode: preserving ${orderType}`);
-        console.log(`[CreatorService V2]   First 10 players: ${players.slice(0, 10).map(p => `${p.firstName} ${p.lastName} (${p.pick || 'wAV:' + (p.wAV || 0)})`).join(', ')}...`);
+        // CRITICAL: Single-year historical drafts - sort by round/pick
+        // M26 file uses BLOCK POSITION as draft order - block 0 = pick 1
+        console.log(`[CreatorService V2] ${options.ratingMode.toUpperCase()} mode: sorting by actual draft order (round/pick)`);
+        players.sort((a, b) => {
+          const roundA = a.round ?? 99;
+          const roundB = b.round ?? 99;
+          if (roundA !== roundB) return roundA - roundB;
+
+          const pickA = a.pick ?? 999;
+          const pickB = b.pick ?? 999;
+          return pickA - pickB;
+        });
+        console.log(`[CreatorService V2]   First 10 players after sort: ${players.slice(0, 10).map(p => `${p.firstName} ${p.lastName} (R${p.round} P${p.pick})`).join(', ')}...`);
       }
 
       // Step 5: Assign archetypes if missing
