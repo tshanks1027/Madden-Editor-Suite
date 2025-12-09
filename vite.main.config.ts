@@ -170,6 +170,24 @@ export default defineConfig({
               }
             });
           }
+
+          // Copy tools directory (external exe tools like presentationIdFix)
+          const srcToolsDir = path.join(srcDataDir, 'tools');
+          const destToolsDir = path.join(destDataDir, 'tools');
+          if (existsSync(srcToolsDir)) {
+            if (!existsSync(destToolsDir)) {
+              mkdirSync(destToolsDir, { recursive: true });
+            }
+            const toolFiles = fs.readdirSync(srcToolsDir);
+            toolFiles.forEach(file => {
+              if (file.endsWith('.exe')) {
+                const srcFile = path.join(srcToolsDir, file);
+                const destFile = path.join(destToolsDir, file);
+                copyFileSync(srcFile, destFile);
+                console.log(`Copied tool: ${file}`);
+              }
+            });
+          }
         }
 
         // Copy parsers directory to build output

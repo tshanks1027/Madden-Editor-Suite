@@ -933,6 +933,64 @@ function getGenericPAM(race: number | undefined): string {
 }
 
 /**
+ * Get skin tone (1-7) from race for draft class visuals
+ * Race mapping: 1=White, 5=Mixed, 7=Black
+ * SkinTone: 1-2=light, 3-5=medium, 6-7=dark
+ */
+function getSkinToneFromRace(race: number | undefined): number {
+  if (race === 1) {
+    // White -> light skin (1-2)
+    return Math.random() < 0.5 ? 1 : 2;
+  } else if (race === 7) {
+    // Black -> dark skin (6-7)
+    return Math.random() < 0.5 ? 6 : 7;
+  } else {
+    // Mixed/other -> medium skin (3-5)
+    return 3 + Math.floor(Math.random() * 3);
+  }
+}
+
+/**
+ * Determine body type for draft class based on position and weight/height
+ * Returns Madden body type STRING: "Thin", "Muscular", "Heavy"
+ */
+function getDraftBodyType(position: string, weight: number, height: number): string {
+  const pos = position.toUpperCase();
+  const w = weight || 200;
+  const h = height || 73;
+
+  // Calculate BMI
+  const bmi = (w / (h * h)) * 703;
+
+  // HB and QB should ALWAYS be Muscular - never Heavy
+  if (['HB', 'QB'].includes(pos)) {
+    return 'Muscular';
+  } else if (['WR', 'CB', 'FS'].includes(pos)) {
+    return bmi < 24 ? 'Thin' : 'Muscular';
+  } else if (['FB', 'SAM', 'MIKE', 'WILL', 'SS', 'TE'].includes(pos)) {
+    return bmi < 28 ? 'Muscular' : 'Heavy';
+  } else if (['LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT'].includes(pos)) {
+    return 'Heavy';
+  } else {
+    return 'Muscular';
+  }
+}
+
+/**
+ * Get body type code for roster (PCBT field)
+ * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy
+ */
+function getRosterBodyType(position: string, weight: number, height: number): number {
+  const bodyType = getDraftBodyType(position, weight, height);
+  switch (bodyType) {
+    case 'Thin': return 1;
+    case 'Muscular': return 2;
+    case 'Heavy': return 3;
+    default: return 0; // Standard
+  }
+}
+
+/**
  * Check if a PAM value is empty/invalid and needs a generic assigned
  */
 function isEmptyPAM(pam: any): boolean {
@@ -1028,6 +1086,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     // Determine PID and PAM - ALWAYS assign values, never leave blank
     let pid: number;
     let pam: string;
+    let effectiveRace = player.race;
 
     // Check if player has valid PID and PAM
     const hasValidPID = !isEmptyPID(player.pid);
@@ -1038,12 +1097,24 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       pam = player.pam;
       pid = hasValidPID ? player.pid : 0;
     } else {
-      // Player needs generic face - assign race-appropriate PAM
-      pam = getGenericPAM(player.race);
+      // Player needs generic face - determine race if unknown, then assign matching PAM
+      if (effectiveRace === undefined || effectiveRace === null) {
+        // Try to look up race by PID
+        if (player.pid && player.pid > 0) {
+          effectiveRace = lookupService.getRaceByPID(player.pid);
+        }
+        // If still unknown, pick a random race based on NFL demographics
+        if (effectiveRace === undefined || effectiveRace === null) {
+          const rand = Math.random();
+          effectiveRace = rand < 0.70 ? 7 : (rand < 0.95 ? 1 : 5); // 70% Black, 25% White, 5% Mixed
+        }
+        console.log(`[database-handlers] Assigned race ${effectiveRace} for ${player.firstName} ${player.lastName}`);
+      }
+      pam = getGenericPAM(effectiveRace);
       pid = 0; // PID 0 tells Madden to use generic face from BLBM table
     }
 
-    console.log(`[database-handlers] PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, race=${player.race}`);
+    console.log(`[database-handlers] PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, race=${effectiveRace}`);
 
     // Get default archetype for position if not in season data
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
@@ -1067,11 +1138,12 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PLTY: 0, // Will be set below
 
       // Additional required fields
-      PCBT: 0, // Body type (0=default)
+      PCBT: getRosterBodyType(positionName, weight, heightInches), // Body type based on position/size
       PHLM: 0, // Helmet style
       PVSL: 0, // Visor style
       PHSN: 0, // Home state
       PLBD: 0, // Birthday (will calculate if needed)
+      PCMT: parseInt(player.commID) || 0, // Commentary ID - used for in-game announcer names
 
       // Contract defaults
       PCON: 4, // 4 year contract
@@ -1176,7 +1248,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     }
 
     // Store race for BLBM face generation
-    rosterPlayer._race = player.race || 5; // Mixed race default
+    rosterPlayer._race = effectiveRace || 5; // Use effective race for BLBM GENR/SKNT assignment
 
     // Get available years for this player
     let availableYears = seasons.map(s => s.year).sort((a, b) => b - a);
@@ -1284,6 +1356,7 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     // Determine PID and PAM - ALWAYS assign values, never leave blank
     let pid: number;
     let pam: string;
+    let effectiveRace = player.race;
 
     // Check if player has valid PID and PAM
     const hasValidPID = !isEmptyPID(player.pid);
@@ -1294,12 +1367,24 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       pam = player.pam;
       pid = hasValidPID ? player.pid : 0;
     } else {
-      // Player needs generic face - assign race-appropriate PAM
-      pam = getGenericPAM(player.race);
+      // Player needs generic face - determine race if unknown, then assign matching PAM
+      if (effectiveRace === undefined || effectiveRace === null) {
+        // Try to look up race by PID
+        if (player.pid && player.pid > 0) {
+          effectiveRace = lookupService.getRaceByPID(player.pid);
+        }
+        // If still unknown, pick a random race based on NFL demographics
+        if (effectiveRace === undefined || effectiveRace === null) {
+          const rand = Math.random();
+          effectiveRace = rand < 0.70 ? 7 : (rand < 0.95 ? 1 : 5); // 70% Black, 25% White, 5% Mixed
+        }
+        console.log(`[database-handlers] Assigned race ${effectiveRace} for draft prospect ${player.firstName} ${player.lastName}`);
+      }
+      pam = getGenericPAM(effectiveRace);
       pid = 0; // PID 0 tells Madden to use generic face from BLBM table
     }
 
-    console.log(`[database-handlers] Draft PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, race=${player.race}`);
+    console.log(`[database-handlers] Draft PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, race=${effectiveRace}`);
 
     // Get default archetype for position
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
@@ -1361,11 +1446,15 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       // Development (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
       devTrait: 0,
 
+      // Commentary ID for in-game announcer names
+      commentaryId: parseInt(player.commID) || 0,
+
       // Visuals structure for M26
       visuals: {
-        bodyType: 'Standard',
+        bodyType: getDraftBodyType(positionName, weight, heightInches),
         assetName: pam && !pam.startsWith('gen_') ? pam : null,
-        genericHeadName: pam.startsWith('gen_') ? pam : null
+        genericHeadName: pam.startsWith('gen_') ? pam : null,
+        skinTone: getSkinToneFromRace(effectiveRace)
       }
     };
 

@@ -798,12 +798,14 @@
       // Set the selected team
       playerData.TGID = selectedTeamId;
 
-      // Add player to the roster grid
-      window.app.agGrid.applyTransaction({
-        add: [playerData]
-      });
+      // Add to AG-Grid using applyTransaction (the correct way for AG-Grid)
+      if (window.app.agGrid) {
+        window.app.agGrid.applyTransaction({
+          add: [playerData]
+        });
+      }
 
-      // Also add to app.players array for consistency
+      // Also add to app.players array for consistency with save operations
       if (window.app.players) {
         window.app.players.push(playerData);
         window.app.filteredPlayers = window.app.players.slice();
@@ -817,12 +819,12 @@
       // Track the player to prevent duplicates
       if (window.electronAPI.editorTracking) {
         await window.electronAPI.editorTracking.trackPlayer({
-          firstName: playerData.firstName || firstName,
-          lastName: playerData.lastName || lastName,
+          firstName: playerData.PFNA || firstName,
+          lastName: playerData.PLNA || lastName,
           position: playerData.position || position,
           internalId: internalId,
           year: selectedYear,
-          povr: playerData.pOVR || 0
+          povr: playerData.POVR || 0
         }, 'roster');
       }
 

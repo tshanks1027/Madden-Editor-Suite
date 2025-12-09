@@ -8,14 +8,45 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { app } from 'electron';
 
 export class PresentationIdFixService {
   private exePath: string;
   private enabled: boolean = true;
 
   constructor() {
-    // Default path - can be configured
-    this.exePath = path.join(process.env.USERPROFILE || '', 'Downloads', 'presentationIdFixV3.0.exe');
+    // Look for bundled exe first, then fall back to common locations
+    this.exePath = this.findExePath();
+  }
+
+  /**
+   * Search for the presentationIdFix exe - bundled first, then common locations
+   */
+  private findExePath(): string {
+    const appPath = app.getAppPath();
+    const userProfile = process.env.USERPROFILE || '';
+
+    const possiblePaths = [
+      // Bundled with the app (preferred)
+      path.join(appPath, 'data', 'tools', 'presentationIdFixV3.0.exe'),
+      path.join(appPath, '..', '..', 'data', 'tools', 'presentationIdFixV3.0.exe'), // For unpacked
+      // User's known locations
+      path.join(userProfile, 'OneDrive', 'Documents', 'Madden Files', 'Tools', 'presentationIdFixV3.0 (1).exe'),
+      path.join(userProfile, 'OneDrive', 'Documents', 'Madden Files', 'Tools', 'presentationIdFixV3.0.exe'),
+      path.join(userProfile, 'Documents', 'Madden Files', 'Tools', 'presentationIdFixV3.0.exe'),
+      path.join(userProfile, 'Downloads', 'presentationIdFixV3.0.exe'),
+    ];
+
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        console.log(`[PresentationIdFix] Found exe at: ${p}`);
+        return p;
+      }
+    }
+
+    // Default to bundled path even if not found (will log warning when used)
+    console.log('[PresentationIdFix] Exe not found in any location');
+    return path.join(appPath, 'data', 'tools', 'presentationIdFixV3.0.exe');
   }
 
   /**

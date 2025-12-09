@@ -140,6 +140,7 @@ $RECYCLE.BIN/
 # Build artifacts
 build/
 *.exe
+!data/tools/*.exe
 *.msi
 *.dmg
 *.pkg
