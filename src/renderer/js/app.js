@@ -3630,25 +3630,37 @@ class MaddenEditorApp {
             return;
         }
 
-        // CRITICAL: Map grid row to actual data index (for pagination)
-        // Grid shows 100 rows per page, so gridRow 0 on page 2 is actually filteredPlayers[100]
-        let actualDataIndex = gridRowIndex;
-        if (isRoster && this.paginatedPlayerIndices) {
-            actualDataIndex = this.paginatedPlayerIndices[gridRowIndex];
-            console.log(`[GenericFacePicker] Mapped grid row ${gridRowIndex} to data index ${actualDataIndex} via paginatedPlayerIndices`);
+        // CRITICAL: Get the player data from AG-Grid's row node directly
+        // This works for both paginated players AND newly added players (via applyTransaction)
+        let player;
+        if (isRoster && this.agGrid) {
+            // Get the row node from AG-Grid by display index
+            const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
+            if (rowNode && rowNode.data) {
+                player = rowNode.data;
+                console.log(`[GenericFacePicker] Got player from AG-Grid rowNode at index ${gridRowIndex}:`, player.PFNA, player.PLNA);
+            } else {
+                // Fallback to pagination mapping if rowNode not found
+                let actualDataIndex = gridRowIndex;
+                if (this.paginatedPlayerIndices && this.paginatedPlayerIndices[gridRowIndex] !== undefined) {
+                    actualDataIndex = this.paginatedPlayerIndices[gridRowIndex];
+                    console.log(`[GenericFacePicker] Mapped grid row ${gridRowIndex} to data index ${actualDataIndex} via paginatedPlayerIndices`);
+                }
+                player = dataArray[actualDataIndex];
+            }
+        } else {
+            // Non-roster (draft class) - use direct index
+            player = dataArray[gridRowIndex];
         }
 
-        // Get the actual player object from the data array
-        const player = dataArray[actualDataIndex];
         if (!player) {
-            console.error(`[GenericFacePicker] No player found at data index ${actualDataIndex}`);
-            console.error(`  - gridRowIndex: ${gridRowIndex}`);
+            console.error(`[GenericFacePicker] No player found at grid index ${gridRowIndex}`);
             console.error(`  - dataArray.length: ${dataArray.length}`);
             console.error(`  - paginatedPlayerIndices: ${this.paginatedPlayerIndices}`);
             return;
         }
 
-        console.log(`[GenericFacePicker] Found player in dataArray[${actualDataIndex}]:`, player.PFNA, player.PLNA);
+        console.log(`[GenericFacePicker] Found player:`, player.PFNA || player.firstName, player.PLNA || player.lastName);
 
         // Find the PID and Player Pic column indices using field mapping
         let pidColumnIndex = -1;
@@ -3733,9 +3745,25 @@ class MaddenEditorApp {
         console.log(`[GenericFacePicker] Updating grid display...`);
 
         if (isRoster && this.agGrid) {
-            // AG-Grid: Data already updated in filteredPlayers array, just refresh the display
-            this.agGrid.refreshCells({ force: true });
-            console.log(`[GenericFacePicker] AG-Grid refreshed - portrait and PID updated`);
+            // AG-Grid: Get the row node and update data through API (not direct modification)
+            // This ensures AG-Grid detects the change and properly refreshes
+            const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
+            if (rowNode) {
+                // Update via AG-Grid API - this triggers proper cell refresh
+                rowNode.setDataValue('PSXP', pid);
+                rowNode.setDataValue('PLAYERPIC', 'Generic Face');
+                console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid}, PLAYERPIC=Generic Face`);
+
+                // Force refresh the portrait column specifically
+                this.agGrid.refreshCells({
+                    rowNodes: [rowNode],
+                    columns: ['_portrait'],
+                    force: true
+                });
+                console.log(`[GenericFacePicker] Portrait cell refreshed for row ${gridRowIndex}`);
+            } else {
+                console.error(`[GenericFacePicker] Could not find row node at index ${gridRowIndex}`);
+            }
         } else if (isDraft) {
             // Handsontable: Use setDataAtCell to update the grid
             const changes = [];

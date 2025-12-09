@@ -750,8 +750,26 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
     // Combine results - custom players first
     const allPlayers = [...customMapped, ...players];
 
-    console.log(`[database-handlers] searchPlayers - Found ${players.length} database + ${customMapped.length} custom matching "${query}"`);
-    return { success: true, players: allPlayers };
+    // Deduplicate players by name + draftClass (handles AFL/NFL duplicate drafts from 1960s)
+    // Keep the first occurrence (custom players take priority, then order by internalId)
+    const seenPlayers = new Map<string, typeof allPlayers[0]>();
+    const deduplicatedPlayers = allPlayers.filter(p => {
+      // Create unique key: lowercase lastName + firstName + draftClass
+      const key = `${(p.lastName || '').toLowerCase()}_${(p.firstName || '').toLowerCase()}_${p.draftClass || ''}`;
+
+      if (seenPlayers.has(key)) {
+        // Already seen - skip this duplicate
+        const existing = seenPlayers.get(key)!;
+        console.log(`[database-handlers] Skipping duplicate: ${p.firstName} ${p.lastName} (${p.position}) - keeping ${existing.position}`);
+        return false;
+      }
+
+      seenPlayers.set(key, p);
+      return true;
+    });
+
+    console.log(`[database-handlers] searchPlayers - Found ${players.length} database + ${customMapped.length} custom, ${allPlayers.length - deduplicatedPlayers.length} duplicates removed, returning ${deduplicatedPlayers.length} matching "${query}"`);
+    return { success: true, players: deduplicatedPlayers };
   } catch (error) {
     console.error('[database-handlers] Error searching players:', error);
     return { success: false, error: String(error) };
@@ -865,13 +883,26 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     // Combine: custom players first, then database players
     const combined = [...customMapped, ...dbMapped];
 
-    // Get total AFTER filtering but BEFORE pagination
-    const total = combined.length;
+    // Deduplicate players by name + draftClass (handles AFL/NFL duplicate drafts from 1960s)
+    // Keep the first occurrence (custom players take priority)
+    const seenPlayers = new Map<string, typeof combined[0]>();
+    const deduplicated = combined.filter(p => {
+      const key = `${(p.lastName || '').toLowerCase()}_${(p.firstName || '').toLowerCase()}_${p.draftClass || ''}`;
+      if (seenPlayers.has(key)) {
+        return false;
+      }
+      seenPlayers.set(key, p);
+      return true;
+    });
+
+    // Get total AFTER filtering and deduplication but BEFORE pagination
+    const duplicatesRemoved = combined.length - deduplicated.length;
+    const total = deduplicated.length;
 
     // Apply pagination
-    const paginated = combined.slice(offset, offset + limit);
+    const paginated = deduplicated.slice(offset, offset + limit);
 
-    console.log(`[database-handlers] getAllPlayers - Returning ${paginated.length} players (filtered total: ${total})`);
+    console.log(`[database-handlers] getAllPlayers - Returning ${paginated.length} players (filtered total: ${total}, ${duplicatesRemoved} duplicates removed)`);
 
     return {
       success: true,
@@ -889,6 +920,104 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
 // =============================================
 // PLAYER TRANSFER OPERATIONS (ROSTER/DRAFT)
 // =============================================
+
+/**
+ * Map generic/historical positions to Madden positions
+ * Distributes linebackers between SAM, Mike, WILL based on their specific type
+ */
+function mapToMaddenPosition(genericPosition: string): { name: string; code: number } {
+  const pos = genericPosition.toUpperCase().trim();
+
+  // Direct Madden position matches
+  const directMap: Record<string, { name: string; code: number }> = {
+    'QB': { name: 'QB', code: 0 },
+    'HB': { name: 'HB', code: 1 },
+    'RB': { name: 'HB', code: 1 },
+    'FB': { name: 'FB', code: 2 },
+    'WR': { name: 'WR', code: 3 },
+    'TE': { name: 'TE', code: 4 },
+    'LT': { name: 'LT', code: 5 },
+    'LG': { name: 'LG', code: 6 },
+    'C': { name: 'C', code: 7 },
+    'RG': { name: 'RG', code: 8 },
+    'RT': { name: 'RT', code: 9 },
+    'LEDG': { name: 'LEDG', code: 10 },
+    'REDG': { name: 'REDG', code: 11 },
+    'LE': { name: 'LEDG', code: 10 },
+    'RE': { name: 'REDG', code: 11 },
+    'DE': { name: 'LEDG', code: 10 },
+    'DT': { name: 'DT', code: 12 },
+    'NT': { name: 'DT', code: 12 },
+    'SAM': { name: 'SAM', code: 13 },
+    'MIKE': { name: 'Mike', code: 14 },
+    'WILL': { name: 'WILL', code: 15 },
+    'CB': { name: 'CB', code: 16 },
+    'FS': { name: 'FS', code: 17 },
+    'SS': { name: 'SS', code: 18 },
+    'S': { name: 'SS', code: 18 },
+    'K': { name: 'K', code: 19 },
+    'P': { name: 'P', code: 20 },
+    'LS': { name: 'LS', code: 21 },
+  };
+
+  if (directMap[pos]) {
+    return directMap[pos];
+  }
+
+  // Linebacker position mapping - distribute to SAM, Mike, WILL
+  // LOLB = Left Outside LB -> SAM (strong side in 4-3)
+  // ROLB = Right Outside LB -> WILL (weak side in 4-3)
+  // OLB = Outside LB -> SAM (default outside)
+  // MLB/ILB = Middle/Inside LB -> Mike
+  // Generic LB -> Random distribution
+  if (pos === 'LOLB') {
+    return { name: 'SAM', code: 13 };
+  }
+  if (pos === 'ROLB') {
+    return { name: 'WILL', code: 15 };
+  }
+  if (pos === 'OLB') {
+    // Randomly assign to SAM or WILL
+    return Math.random() < 0.5 ? { name: 'SAM', code: 13 } : { name: 'WILL', code: 15 };
+  }
+  if (pos === 'MLB' || pos === 'ILB' || pos === 'LILB' || pos === 'RILB') {
+    return { name: 'Mike', code: 14 };
+  }
+  if (pos === 'LB') {
+    // Generic LB - distribute evenly between SAM, Mike, WILL
+    const rand = Math.random();
+    if (rand < 0.33) return { name: 'SAM', code: 13 };
+    if (rand < 0.66) return { name: 'Mike', code: 14 };
+    return { name: 'WILL', code: 15 };
+  }
+
+  // Handle compound positions (C/LB, FB/LB, HB/LB)
+  if (pos.includes('/LB')) {
+    const primary = pos.split('/')[0];
+    if (directMap[primary]) {
+      return directMap[primary];
+    }
+    return { name: 'Mike', code: 14 }; // Default hybrid to Mike
+  }
+
+  // Offensive/Defensive line generic
+  if (pos === 'OL' || pos === 'OT' || pos === 'T') {
+    return { name: 'LT', code: 5 };
+  }
+  if (pos === 'OG' || pos === 'G') {
+    return { name: 'LG', code: 6 };
+  }
+  if (pos === 'DL') {
+    return { name: 'DT', code: 12 };
+  }
+  if (pos === 'DB') {
+    return { name: 'CB', code: 16 };
+  }
+
+  // Default fallback
+  console.warn(`[database-handlers] Unknown position "${genericPosition}", defaulting to QB`);
+  return { name: 'QB', code: 0 };
+}
 
 // Default archetypes by position (first/primary archetype for each position)
 const DEFAULT_ARCHETYPES: Record<string, number> = {
@@ -1056,10 +1185,12 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     }
 
     // Get position - use database position or season position
-    const positionName = seasonData?.position || player.position || 'QB';
-    const positions = lookupService.getDropdownOptions('position_lookup.csv');
-    const posEntry = positions.find(p => p.name === positionName);
-    const positionId = posEntry ? posEntry.id : 0;
+    // Use mapToMaddenPosition to convert generic positions (LB, MLB, OLB, etc.) to Madden positions
+    const rawPosition = seasonData?.position || player.position || 'QB';
+    const mappedPosition = mapToMaddenPosition(rawPosition);
+    const positionName = mappedPosition.name;
+    const positionId = mappedPosition.code;
+    console.log(`[database-handlers] Position mapped: "${rawPosition}" -> "${positionName}" (code ${positionId})`);
 
     // Calculate height in inches - default to position-appropriate height
     let heightInches = player.height || 72;
@@ -1068,7 +1199,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       const defaultHeights: Record<string, number> = {
         'QB': 75, 'HB': 71, 'FB': 72, 'WR': 73, 'TE': 77,
         'LT': 78, 'LG': 76, 'C': 75, 'RG': 76, 'RT': 78,
-        'LEDG': 76, 'REDG': 76, 'DT': 75, 'SAM': 74, 'MIKE': 74, 'WILL': 74,
+        'LEDG': 76, 'REDG': 76, 'DT': 75, 'SAM': 74, 'Mike': 74, 'WILL': 74,
         'CB': 71, 'FS': 72, 'SS': 72, 'K': 72, 'P': 74
       };
       heightInches = defaultHeights[positionName] || 72;
@@ -1088,7 +1219,13 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     const weightOffset = weight - 160;
 
     // Calculate years pro based on career start
-    const careerStart = player.careerFrom || parseInt(player.draftClass) || year;
+    // FIX: Ensure we get a valid number - careerFrom may be string or number,
+    // draftClass may be string or empty - handle all cases
+    const careerFromNum = typeof player.careerFrom === 'number' ? player.careerFrom :
+                          (typeof player.careerFrom === 'string' ? parseInt(player.careerFrom, 10) : NaN);
+    const draftClassNum = player.draftClass ? parseInt(String(player.draftClass), 10) : NaN;
+    const careerStart = (!isNaN(careerFromNum) && careerFromNum > 1900) ? careerFromNum :
+                        (!isNaN(draftClassNum) && draftClassNum > 1900) ? draftClassNum : year;
     const yearsPro = Math.max(0, year - careerStart);
 
     // Calculate age: if season has valid age use it, otherwise estimate from draft/career
@@ -1096,11 +1233,13 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     // The roster field PAGE has min:18, max:45 validation
     let age = seasonData?.age;
     if (!age || typeof age !== 'number' || isNaN(age) || age < 18 || age > 45) {
-      // Assume 22 at draft/career start
+      // Assume 22 at draft/career start (average draft age)
       age = 22 + yearsPro;
     }
     // Always clamp to valid range for Madden roster validation
     age = Math.max(18, Math.min(45, age));
+
+    console.log(`[database-handlers] Age calc for ${player.firstName} ${player.lastName}: year=${year}, careerFrom=${player.careerFrom}(${careerFromNum}), draftClass=${player.draftClass}(${draftClassNum}), careerStart=${careerStart}, yearsPro=${yearsPro}, age=${age}`);
 
     // Determine PID and PAM - ALWAYS assign values, never leave blank
     let pid: number;
@@ -1329,10 +1468,11 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     }
 
     // Get position - use database position or season position
-    const positionName = seasonData?.position || player.position || 'QB';
-    const positions = await lookupService.getDropdownOptions('position_lookup.csv');
-    const posEntry = positions.find(p => p.name === positionName);
-    const positionId = posEntry ? posEntry.id : 0;
+    // Map to Madden position (handles linebacker variations like LB, LOLB, MLB, etc.)
+    const rawPosition = seasonData?.position || player.position || 'QB';
+    const mappedPosition = mapToMaddenPosition(rawPosition);
+    const positionName = mappedPosition.name;
+    const positionId = mappedPosition.code;
 
     // Get state ID from lookup
     const states = await lookupService.getDropdownOptions('state_lookup.csv');
@@ -1368,14 +1508,22 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
 
     // Calculate age - for draft prospects, typically 21-23
     // IMPORTANT: Must validate age is a number within valid range
-    const careerStart = player.careerFrom || parseInt(player.draftClass) || year;
-    const yearsPro = Math.max(0, year - careerStart);
+    // FIX: Ensure we get a valid number - careerFrom may be string or number,
+    // draftClass may be string or empty - handle all cases
+    const draftCareerFromNum = typeof player.careerFrom === 'number' ? player.careerFrom :
+                          (typeof player.careerFrom === 'string' ? parseInt(player.careerFrom, 10) : NaN);
+    const draftDraftClassNum = player.draftClass ? parseInt(String(player.draftClass), 10) : NaN;
+    const draftCareerStart = (!isNaN(draftCareerFromNum) && draftCareerFromNum > 1900) ? draftCareerFromNum :
+                        (!isNaN(draftDraftClassNum) && draftDraftClassNum > 1900) ? draftDraftClassNum : year;
+    const yearsPro = Math.max(0, year - draftCareerStart);
     let age = seasonData?.age;
     if (!age || typeof age !== 'number' || isNaN(age) || age < 18 || age > 45) {
       age = 22 + yearsPro;
     }
     // Always clamp to valid range
     age = Math.max(18, Math.min(45, age));
+
+    console.log(`[database-handlers] Draft age calc for ${player.firstName} ${player.lastName}: year=${year}, careerFrom=${player.careerFrom}(${draftCareerFromNum}), draftClass=${player.draftClass}(${draftDraftClassNum}), careerStart=${draftCareerStart}, yearsPro=${yearsPro}, age=${age}`);
 
     // Determine PID and PAM - ALWAYS assign values, never leave blank
     let pid: number;
@@ -1818,16 +1966,49 @@ ipcMain.handle('database:get-player-available-years', async (event, internalId: 
     const availableYears = seasons.map(s => s.year).sort((a, b) => b - a);
 
     // If no seasons in database, use career range
-    if (availableYears.length === 0 && player.careerFrom && player.careerTo) {
-      for (let y = player.careerTo; y >= player.careerFrom; y--) {
-        availableYears.push(y);
+    // FIX: Handle pre-1970 players that may have careerFrom/careerTo or draftClass
+    if (availableYears.length === 0) {
+      // Try to get career span
+      const careerFromNum = typeof player.careerFrom === 'number' ? player.careerFrom :
+                            (typeof player.careerFrom === 'string' ? parseInt(player.careerFrom, 10) : NaN);
+      const careerToNum = typeof player.careerTo === 'number' ? player.careerTo :
+                          (typeof player.careerTo === 'string' ? parseInt(player.careerTo, 10) : NaN);
+      const draftClassNum = player.draftClass ? parseInt(String(player.draftClass), 10) : NaN;
+
+      if (!isNaN(careerFromNum) && careerFromNum > 1900 && !isNaN(careerToNum) && careerToNum > 1900) {
+        // Have full career span
+        for (let y = careerToNum; y >= careerFromNum; y--) {
+          availableYears.push(y);
+        }
+      } else if (!isNaN(draftClassNum) && draftClassNum > 1900) {
+        // Only have draft year - assume 10-year career starting at draft
+        const startYear = draftClassNum;
+        const endYear = startYear + 10;
+        for (let y = endYear; y >= startYear; y--) {
+          availableYears.push(y);
+        }
+        console.log(`[database-handlers] Created years from draftClass ${draftClassNum}: ${availableYears.length} years`);
+      } else if (!isNaN(careerFromNum) && careerFromNum > 1900) {
+        // Only have career start - assume 10-year career
+        const startYear = careerFromNum;
+        const endYear = startYear + 10;
+        for (let y = endYear; y >= startYear; y--) {
+          availableYears.push(y);
+        }
+        console.log(`[database-handlers] Created years from careerFrom ${careerFromNum}: ${availableYears.length} years`);
       }
+    }
+
+    // Final fallback - use current year if still empty
+    if (availableYears.length === 0) {
+      console.warn(`[database-handlers] No years found for ${player.firstName} ${player.lastName}, using current year`);
+      availableYears.push(new Date().getFullYear());
     }
 
     return {
       success: true,
       years: availableYears,
-      defaultYear: availableYears[0] || new Date().getFullYear(),
+      defaultYear: availableYears[0],
       playerName: `${player.firstName} ${player.lastName}`
     };
   } catch (error) {
