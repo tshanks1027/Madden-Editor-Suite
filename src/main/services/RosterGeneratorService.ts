@@ -36,6 +36,7 @@ export interface RosterPlayer {
   PID: number;
   PAM: string;
   PEPS: string;
+  POID: number;  // Presentation ID for in-game commentary
 
   // College & Home
   college: number;
@@ -199,6 +200,7 @@ export class RosterGeneratorService {
   private realLastNames: string[] = [];
   private pamRaceMapping: { white: string[]; hispanic: string[]; black: string[] } | null = null;
   private hofLookup: Map<string, boolean> = new Map(); // firstName|lastName -> isHOF
+  private pidToCommID: Map<number, number> = new Map(); // PID → CommID (POID) mapping from ALL_PLAYER_LOOKUP.csv
 
   /**
    * Initialize service: Load roster data from database and template
@@ -423,6 +425,13 @@ export class RosterGeneratorService {
             hofCount++;
           }
         }
+
+        // Extract CommID (POID) mapping by PhotoID
+        const photoID = parseInt(row['PhotoID']);
+        const commID = parseInt(row['CommID']);
+        if (!isNaN(photoID) && photoID > 0 && !isNaN(commID) && commID > 0) {
+          this.pidToCommID.set(photoID, commID);
+        }
       });
 
       this.realFirstNames = Array.from(firstNameSet).sort();
@@ -431,6 +440,7 @@ export class RosterGeneratorService {
       console.log('[RosterGeneratorService] Loaded', this.realFirstNames.length, 'unique first names');
       console.log('[RosterGeneratorService] Loaded', this.realLastNames.length, 'unique last names');
       console.log('[RosterGeneratorService] Loaded', hofCount, 'Hall of Fame players');
+      console.log('[RosterGeneratorService] Loaded', this.pidToCommID.size, 'PID → CommID mappings');
     } else {
       console.warn('[RosterGeneratorService] ALL_PLAYER_LOOKUP.csv not found, using fallback names');
       // Fallback to basic names if file not found
@@ -893,6 +903,7 @@ export class RosterGeneratorService {
           PSXP: genericFace.pid,
           PLPL: 0, // Generic face marker
           PEPS: '', // EMPTY - BLBM GENR/SKNT controls the face
+          POID: 0, // Filler players have no commentary ID
           // DON'T SET PSKI - BLBM handles it
           PGHE: genericFace.pghe,
           _race: fillerRace, // Race for BLBM GENR/SKNT assignment
@@ -1327,6 +1338,7 @@ export class RosterGeneratorService {
       PID: genericFace.pid,
       PAM: 0,  // Generic faces use 0 (number) for PLPL
       PEPS: '',  // EMPTY - BLBM GENR/SKNT controls the face
+      POID: 0,  // Filler players have no commentary ID
 
       // College & Home - Skip ID 0 (Blank), use 1-264 (real colleges)
       college: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
@@ -1608,6 +1620,7 @@ export class RosterGeneratorService {
       PSXP: playerPID,       // Player ID (PID) - Generic face if CSV had 0
       PLPL: plplValue,        // Player Asset (PAM) - 0 for generic, 100 for real face
       PEPS: pepsValue,        // Equipment string - "LastNameFirstName_XXXX"
+      POID: this.pidToCommID.get(playerPID) || 0, // Presentation ID for in-game commentary
 
       // College & Home - LOOKUP from CSV strings
       PCOL: await this.lookupCollege(csvRow.College), // College is string, needs lookup

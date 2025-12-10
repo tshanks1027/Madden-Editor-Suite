@@ -4116,6 +4116,7 @@ class MaddenEditorApp {
                 // IDs and Assets
                 PID: prospect.PID,
                 PEPS: peps,
+                commentaryId: prospect.commentaryId || prospect.commID || 0, // Presentation ID for in-game commentary
                 // Body type is now a string from backend ("Thin", "Muscular", "Heavy", or null/undefined for "Standard")
                 bodyType: bodyType === null || bodyType === undefined ? 'Standard'
                     : typeof bodyType === 'number' ? ['Standard', 'Thin', 'Muscular', 'Heavy'][bodyType] || 'Standard'
@@ -4522,6 +4523,7 @@ class MaddenEditorApp {
             { data: 'PID', title: 'PID', width: 70, type: 'numeric' },
             { data: 'playerPic', title: 'Player Pic', width: 150, type: 'autocomplete', source: playerPicOptions, strict: false, allowInvalid: true },
             { data: 'PEPS', title: 'Asset ID (PEPS)', width: 200, type: 'text' },
+            { data: 'commentaryId', title: 'Pres ID', width: 80, type: 'numeric' },
             { data: 'bodyType', title: 'Body Type', width: 110, type: 'dropdown', source: bodyTypeOptions, allowInvalid: true, renderer: dropdownRenderer },
 
             // Overall (calculated field using position-specific formulas) - FIRST STAT

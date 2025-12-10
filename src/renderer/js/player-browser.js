@@ -742,6 +742,7 @@
   // Pending add data (used by modals)
   let pendingRosterAdd = null;
   let pendingDraftAdd = null;
+  let pendingReplaceInfo = null; // Info about player being replaced (for in-place replacement)
 
   // Initialize Add to Roster modal handlers
   function initAddToRosterModal() {
@@ -770,6 +771,7 @@
     const modal = document.getElementById('addToRosterModal');
     if (modal) modal.style.display = 'none';
     pendingRosterAdd = null;
+    pendingReplaceInfo = null; // Clear replacement info too
     restoreFocusToSearch();
   }
 
@@ -798,17 +800,60 @@
       // Set the selected team
       playerData.TGID = selectedTeamId;
 
-      // Add to AG-Grid using applyTransaction (the correct way for AG-Grid)
-      if (window.app.agGrid) {
-        window.app.agGrid.applyTransaction({
-          add: [playerData]
-        });
-      }
+      // CRITICAL: Handle replacement vs normal add differently
+      // If we're replacing a player (roster was full), do IN-PLACE replacement
+      // to avoid index shifting which causes wrong data to be written to wrong slots
+      if (pendingReplaceInfo) {
+        const { index, oldPlayer } = pendingReplaceInfo;
 
-      // Also add to app.players array for consistency with save operations
-      if (window.app.players) {
-        window.app.players.push(playerData);
-        window.app.filteredPlayers = window.app.players.slice();
+        // CRITICAL: Copy PGID from old player - this identifies the slot to Madden
+        // Without this, the new player gets the old player's portrait/data
+        if (oldPlayer.PGID !== undefined) {
+          playerData.PGID = oldPlayer.PGID;
+          console.log('[PlayerBrowser] Copied PGID from replaced player:', oldPlayer.PGID);
+        }
+        if (oldPlayer.POID !== undefined) {
+          playerData.POID = oldPlayer.POID;
+        }
+
+        // Replace in app.players array AT THE SAME INDEX (no splice, no push)
+        if (window.app.players && index >= 0 && index < window.app.players.length) {
+          window.app.players[index] = playerData;
+          window.app.filteredPlayers = window.app.players.slice();
+          console.log('[PlayerBrowser] Replaced player at index', index);
+        }
+
+        // Update grid - remove old player and add new one
+        if (window.app.agGrid) {
+          window.app.agGrid.applyTransaction({
+            remove: [oldPlayer],
+            add: [playerData]
+          });
+        }
+
+        // Clear replacement info
+        pendingReplaceInfo = null;
+      } else {
+        // Normal add (roster wasn't full) - just push to the end
+        if (window.app.agGrid) {
+          window.app.agGrid.applyTransaction({
+            add: [playerData]
+          });
+        }
+
+        if (window.app.players) {
+          // Generate a unique PGID for the new player
+          const maxPGID = window.app.players.reduce((max, p) => Math.max(max, p.PGID || 0), 0);
+          playerData.PGID = maxPGID + 1;
+          // Only set POID if not already provided from database lookup
+          if (!playerData.POID) {
+            playerData.POID = playerData.PGID; // Fallback: POID matches PGID if not in database
+          }
+          console.log('[PlayerBrowser] Assigned new PGID:', playerData.PGID, 'POID:', playerData.POID);
+
+          window.app.players.push(playerData);
+          window.app.filteredPlayers = window.app.players.slice();
+        }
       }
 
       // Mark roster as modified
@@ -1125,20 +1170,24 @@
           return;
         }
 
-        // Remove from app.players array first (this is the source of truth)
+        // CRITICAL FIX: Instead of splice+push which shifts indices and breaks save,
+        // we store the replacement info and do an in-place replace in confirmAddToRoster
         const idx = allPlayers.indexOf(lowestPlayer);
-        if (idx !== -1) {
-          allPlayers.splice(idx, 1);
-          window.app.filteredPlayers = allPlayers.slice();
+        if (idx === -1) {
+          alert('Failed to find player to replace');
+          restoreFocusToSearch();
+          return;
         }
 
-        // Try to remove from grid if it's on the current visible page
-        // This is a no-op if the player isn't on the current page
-        if (window.app.agGrid) {
-          window.app.agGrid.applyTransaction({ remove: [lowestPlayer] });
-        }
+        // Store replacement info for use in confirmAddToRoster
+        pendingReplaceInfo = {
+          index: idx,
+          oldPlayer: lowestPlayer,
+          oldName: lowestName.trim(),
+          oldOVR: lowestOVR
+        };
 
-        console.log('[PlayerBrowser] Removed lowest FA to make room:', lowestName.trim(), 'OVR:', lowestOVR);
+        console.log('[PlayerBrowser] Will replace player at index', idx, ':', lowestName.trim(), 'OVR:', lowestOVR);
       }
 
       // Store pending data

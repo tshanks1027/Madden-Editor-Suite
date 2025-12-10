@@ -63,6 +63,7 @@ export interface GeneratedPlayer {
   yearsPro: number; // Years in the league (0 for rookies)
   archetype: string; // Player archetype (e.g., "Field General", "Scrambler")
   race?: number; // Race code from MASTER_LOOKUP (1=White, 5=Hispanic, 7=Black)
+  commID?: number; // Commentary/Presentation ID for in-game announcer names
 
   // Source data (for reference)
   _sourceStats?: PlayerStats;
@@ -1999,6 +2000,9 @@ export class CreatorService {
           console.log(`[CreatorService] Player ${i+1} "${prospect.name}": scraped="${prospect.homeState}", generated="${generatedState}", finalID=${homeStateId}, wAV=${wAV || 'N/A'}`);
         }
 
+        // Get CommID from MASTER_LOOKUP for in-game commentary
+        const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+
         // Generate player
         const player: GeneratedPlayer = {
           firstName,
@@ -2017,6 +2021,7 @@ export class CreatorService {
           PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
           bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
           yearsPro: 0,
+          commID: commID || undefined,
           _sourceStats: stats || undefined
         };
 
@@ -2434,6 +2439,9 @@ export class CreatorService {
         // Determine dev trait using wAV
         const devTrait = this.determineDevTrait(prospect.round, prospect.pick, ratings.overall, prospect.isHallOfFamer, wAV);
 
+        // Get CommID from MASTER_LOOKUP for in-game commentary
+        const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+
         // Generate player
         const player: GeneratedPlayer = {
           firstName,
@@ -2452,6 +2460,7 @@ export class CreatorService {
           PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
           bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
           yearsPro: 0,
+          commID: commID || undefined,
           _sourceStats: stats || undefined
         };
 
@@ -2531,6 +2540,9 @@ export class CreatorService {
           const finalWeight = weight || this.getDefaultWeight(mappedPosition.name);
           const bodyType = this.determineBodyType(mappedPosition.name, finalWeight, finalHeight);
 
+          // Get CommID from ufaEntry for in-game commentary
+          const ufaCommID = parseInt(ufaEntry['CommID']) || 0;
+
           const ufaPlayer: GeneratedPlayer = {
             firstName,
             lastName,
@@ -2546,7 +2558,8 @@ export class CreatorService {
             devTrait: 0, // Normal dev trait for UFAs
             PID: matchedPID,
             PEPS: playerAssetId,
-            ratings
+            ratings,
+            commID: ufaCommID || undefined
           };
 
           generatedPlayers.push(ufaPlayer);
@@ -3000,6 +3013,9 @@ export class CreatorService {
         // Apply minimum rating floor to prevent 0 ratings
         this.applyMinimumRatingFloor(maddenRatings);
 
+        // Get CommID from player entry for in-game commentary
+        const commID = player.commID ? parseInt(String(player.commID)) || 0 : 0;
+
         // Create generated player
         const generatedPlayer: GeneratedPlayer = {
           firstName,
@@ -3019,7 +3035,8 @@ export class CreatorService {
           PEPS: pam,
           bodyType,
           yearsPro: 0,
-          archetype: archetypeId  // NUMERIC archetype ID, not string
+          archetype: archetypeId,  // NUMERIC archetype ID, not string
+          commID: commID || undefined
         };
 
         // DEBUG: Log final generated player object for specific players
@@ -3139,6 +3156,9 @@ export class CreatorService {
       // Age (calculate from draft class year)
       const age = 21; // Default age for rookies
 
+      // Get CommID if available
+      const commID = prospect.commID ? parseInt(String(prospect.commID)) || 0 : 0;
+
       generatedPlayers.push({
         firstName,
         lastName,
@@ -3157,7 +3177,8 @@ export class CreatorService {
         PEPS: pam,
         bodyType,
         yearsPro: 0,
-        archetype: archetypeId  // NUMERIC archetype ID, not string
+        archetype: archetypeId,  // NUMERIC archetype ID, not string
+        commID: commID || undefined
       });
     }
 
@@ -3692,6 +3713,9 @@ export class CreatorService {
             proRatedWAV  // Use pro-rated wAV for dev trait calculation
           );
 
+          // Get CommID from MASTER_LOOKUP for in-game commentary
+          const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+
           const player: GeneratedPlayer = {
             firstName,
             lastName,
@@ -3711,6 +3735,7 @@ export class CreatorService {
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             yearsPro,
             race: raceData ? parseInt(raceData) || undefined : undefined, // Race from MASTER_LOOKUP for skin tone matching
+            commID: commID || undefined,
             _sourceStats: playerStats
           };
 
@@ -3935,6 +3960,9 @@ export class CreatorService {
           // Dev trait from wAV
           const devTrait = this.determineDevTrait(undefined, undefined, ratings.overall, false, proRatedWAV);
 
+          // Get CommID from ufaEntry for in-game commentary
+          const ufaCommID = parseInt(ufaEntry['CommID']) || 0;
+
           const freeAgent: GeneratedPlayer = {
             firstName,
             lastName,
@@ -3953,6 +3981,7 @@ export class CreatorService {
             PID: matchedPID,
             PEPS: ufaAsset,
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
+            commID: ufaCommID || undefined,
             _sourceStats: null
           };
 

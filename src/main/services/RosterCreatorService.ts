@@ -718,6 +718,7 @@ export class RosterCreatorService {
           PEPS: player.PEPS || '', // Player Asset Model (PAM) - will be updated below if needed
           PYRP: player.yearsPro || 0, // Years in league
           PBOD: player.bodyType,
+          POID: player.commID || 0, // Presentation ID for in-game commentary
 
           // Face type fields - will be set after checking if PID is valid
           PLPL: 100, // Default to real face, updated below if generic
@@ -1152,6 +1153,7 @@ export class RosterCreatorService {
           PEPS: csvRow.PEPS || csvRow.PAM || '',
           PYRP: csvRow.PYRP || csvRow.yearsPro || 0,
           PBOD: csvRow.PBOD || csvRow.bodyType || 0,
+          POID: csvRow.POID || csvRow.commID || 0, // Presentation ID for in-game commentary
 
           // All ratings - use CSV values directly
           PSPD: csvRow.PSPD || 50,

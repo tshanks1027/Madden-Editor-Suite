@@ -1322,6 +1322,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PHSN: 0, // Home state
       PLBD: 0, // Birthday (will calculate if needed)
       PCMT: parseInt(player.commID) || 0, // Commentary ID - used for in-game announcer names
+      POID: parseInt(player.commID) || 0, // Presentation ID - for in-game commentary (same as PCMT)
       PHAN: 0, // Handedness (0=Right, 1=Left)
 
       // Contract defaults
