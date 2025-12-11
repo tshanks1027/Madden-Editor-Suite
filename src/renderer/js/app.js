@@ -3753,12 +3753,18 @@ class MaddenEditorApp {
                     grid.appendChild(faceItem);
 
                     // Load portrait asynchronously without blocking UI
+                    // Hide faces that don't have portraits in the atlas
                     window.electronAPI.portrait.getByPID(face.pid).then(imageData => {
                         if (imageData && imageData.length > 0) {
                             img.src = imageData;
+                        } else {
+                            // No portrait available - hide this face from picker
+                            faceItem.style.display = 'none';
                         }
                     }).catch(error => {
                         console.error(`Failed to load portrait for PID ${face.pid}:`, error);
+                        // Hide on error too
+                        faceItem.style.display = 'none';
                     });
                 }
 
@@ -3784,12 +3790,31 @@ class MaddenEditorApp {
             // Get PID_Portrait_Mapping.csv data
             const mapping = await window.electronAPI.lookup.getPIDPortraitMapping();
 
-            // Filter to only type='generic' entries (lowercase 'type' because IPC handler returns lowercase properties)
-            const genericFaces = mapping.filter(entry => entry.type === 'generic');
+            // Filter to only type='generic' entries
+            const allGenericFaces = mapping.filter(entry => entry.type === 'generic');
 
-            console.log(`Loaded ${genericFaces.length} generic faces`);
+            // Deduplicate by portrait - keep only first PID for each unique face appearance
+            // This ensures each face shows once even if multiple PIDs share the same portrait
+            const seenPortraits = new Set();
+            const uniqueFaces = [];
 
-            return genericFaces;
+            for (const face of allGenericFaces) {
+                if (!seenPortraits.has(face.portrait)) {
+                    seenPortraits.add(face.portrait);
+                    uniqueFaces.push(face);
+                }
+            }
+
+            // Sort by skin tone category (1-7) for better organization
+            uniqueFaces.sort((a, b) => {
+                const toneA = parseInt(a.portrait.match(/plpo_generic_(\d+)_/)?.[1] || '0');
+                const toneB = parseInt(b.portrait.match(/plpo_generic_(\d+)_/)?.[1] || '0');
+                return toneA - toneB;
+            });
+
+            console.log(`Loaded ${allGenericFaces.length} total generic entries, filtered to ${uniqueFaces.length} unique faces`);
+
+            return uniqueFaces;
         } catch (error) {
             console.error('Error loading generic faces from CSV:', error);
             return [];
