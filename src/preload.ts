@@ -155,7 +155,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     birthdayToEncoded: (display: string) =>
       ipcRenderer.invoke('rating:birthday-to-encoded', display),
     calculateAge: (encoded: number, asOfYear?: number) =>
-      ipcRenderer.invoke('rating:calculate-age', encoded, asOfYear)
+      ipcRenderer.invoke('rating:calculate-age', encoded, asOfYear),
+    calculateOVRAdjustments: (currentAttributes: any, targetOVR: number, position: string, archetype?: string) =>
+      ipcRenderer.invoke('rating:calculate-ovr-adjustments', currentAttributes, targetOVR, position, archetype),
+    getArchetypeWeights: (archetypeName: string) =>
+      ipcRenderer.invoke('rating:get-archetype-weights', archetypeName)
   },
 
   // Update APIs

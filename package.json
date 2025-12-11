@@ -23,7 +23,8 @@
     "typecheck": "tsc --noEmit",
     "dev": "npm run start",
     "build": "npm run typecheck && npm run lint && npm run test && npm run dist",
-    "clean": "rimraf dist out coverage .vite"
+    "clean": "rimraf dist out coverage .vite",
+    "postinstall": "electron-rebuild -f -w better-sqlite3"
   },
   "keywords": [],
   "author": {

@@ -1223,6 +1223,235 @@ body {
     margin: 0;
 }
 
+/* OVR Adjustment Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.ovr-adjustment-modal {
+    min-width: 500px;
+    max-width: 600px;
+    max-height: 80vh;
+    background: var(--gray-medium);
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.ovr-adjustment-modal .modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--gray-dark);
+}
+
+.ovr-adjustment-modal .modal-header h2 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--primary-orange);
+    margin: 0;
+}
+
+.ovr-adjustment-modal .close-btn {
+    background: none;
+    border: none;
+    color: var(--gray-text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.ovr-adjustment-modal .close-btn:hover {
+    color: var(--gray-text);
+}
+
+.ovr-adjustment-modal .modal-body {
+    padding: 1.5rem;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.ovr-adjustment-modal .player-info {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    color: var(--white);
+}
+
+.ovr-adjustment-modal .ovr-change {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.ovr-adjustment-modal .old-ovr {
+    color: var(--gray-text-secondary);
+}
+
+.ovr-adjustment-modal .new-ovr {
+    color: var(--primary-orange);
+    font-weight: bold;
+}
+
+.ovr-adjustment-modal .arrow {
+    color: var(--gray-text-secondary);
+    margin: 0 0.5rem;
+}
+
+.ovr-adjustment-modal .achieved-ovr {
+    font-size: 0.9rem;
+    color: var(--gray-text-secondary);
+    margin-bottom: 1rem;
+}
+
+.ovr-adjustment-modal .positive-change {
+    color: var(--success-green);
+    font-weight: bold;
+}
+
+.ovr-adjustment-modal .negative-change {
+    color: var(--danger-red);
+    font-weight: bold;
+}
+
+.adjustment-table-container {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.adjustment-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.adjustment-table th {
+    background: var(--gray-dark);
+    color: var(--gray-text);
+    font-weight: 500;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.adjustment-table td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.adjustment-table tr:hover {
+    background: var(--gray-light);
+}
+
+.adjustment-table .current-value {
+    color: var(--gray-text-secondary);
+}
+
+.adjustment-table .suggested-value {
+    color: var(--primary-orange);
+    font-weight: bold;
+}
+
+.ovr-adjustment-modal .modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    background: var(--gray-dark);
+}
+
+.ovr-adjustment-modal .btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+.ovr-adjustment-modal .btn-primary {
+    background: var(--primary-orange);
+    color: var(--white);
+}
+
+.ovr-adjustment-modal .btn-primary:hover {
+    background: var(--orange-hover);
+}
+
+.ovr-adjustment-modal .btn-secondary {
+    background: var(--gray-light);
+    color: var(--gray-text);
+}
+
+.ovr-adjustment-modal .btn-secondary:hover {
+    background: var(--gray-lighter);
+}
+
+.ovr-adjustment-modal .btn-cancel {
+    background: transparent;
+    color: var(--gray-text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.ovr-adjustment-modal .btn-cancel:hover {
+    background: var(--gray-light);
+    color: var(--gray-text);
+}
+
+/* OVR Dialog Buttons - using unique class names to avoid conflicts */
+.ovr-dialog-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+.ovr-dialog-btn-apply {
+    background: var(--primary-orange);
+    color: var(--white);
+}
+
+.ovr-dialog-btn-apply:hover {
+    background: var(--orange-hover);
+}
+
+.ovr-dialog-btn-keep {
+    background: var(--gray-light);
+    color: var(--gray-text);
+}
+
+.ovr-dialog-btn-keep:hover {
+    background: var(--gray-lighter);
+}
+
+.ovr-dialog-btn-cancel {
+    background: transparent;
+    color: var(--gray-text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.ovr-dialog-btn-cancel:hover {
+    background: var(--gray-light);
+    color: var(--gray-text);
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .header-center {

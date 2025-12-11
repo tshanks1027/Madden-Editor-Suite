@@ -217,6 +217,38 @@
       });
     }
 
+    // OVR change listener - prompt to adjust ratings
+    var ovrInput = document.getElementById('dbRating_POVR');
+    if (ovrInput) {
+      console.log('[DbPlayerCard] OVR input found, setting up listeners');
+      // Store previous value to detect actual changes - capture on multiple events
+      var captureOldValue = function() {
+        if (!ovrInput.dataset.previousValue) {
+          ovrInput.dataset.previousValue = ovrInput.value;
+          console.log('[DbPlayerCard] Captured previous OVR:', ovrInput.value);
+        }
+      };
+      ovrInput.addEventListener('focus', captureOldValue);
+      ovrInput.addEventListener('mousedown', captureOldValue);
+      ovrInput.addEventListener('keydown', captureOldValue);
+
+      ovrInput.addEventListener('change', function() {
+        var oldOVR = parseInt(ovrInput.dataset.previousValue, 10);
+        var newOVR = parseInt(ovrInput.value, 10);
+        console.log('[DbPlayerCard] OVR change detected:', oldOVR, '->', newOVR);
+
+        // Clear the captured value for next change
+        ovrInput.dataset.previousValue = '';
+
+        if (!isNaN(oldOVR) && !isNaN(newOVR) && oldOVR !== newOVR && newOVR >= 0 && newOVR <= 99) {
+          console.log('[DbPlayerCard] Calling handleDbOVRChange');
+          handleDbOVRChange(oldOVR, newOVR);
+        }
+      });
+    } else {
+      console.warn('[DbPlayerCard] OVR input NOT found during setup');
+    }
+
     // Career date change listeners - refresh year selector when career dates change
     var careerFromInput = document.getElementById('dbPlayerCareerFrom');
     var careerToInput = document.getElementById('dbPlayerCareerTo');
@@ -1423,6 +1455,203 @@
     if (saveBtn) {
       saveBtn.disabled = !hasUnsavedChanges;
     }
+  }
+
+  /**
+   * Handle OVR change in database player card - prompt to adjust ratings
+   * @param {number} oldOVR - Previous OVR value
+   * @param {number} newOVR - New target OVR
+   */
+  async function handleDbOVRChange(oldOVR, newOVR) {
+    console.log('[DbPlayerCard] handleDbOVRChange called:', oldOVR, '->', newOVR);
+
+    // Get current position
+    var positionSelect = document.getElementById('dbPlayerSeasonPosition');
+    var position = positionSelect ? positionSelect.value : '';
+    if (!position) {
+      // Try main position if season position not set
+      var mainPositionSelect = document.getElementById('dbPlayerPosition');
+      position = mainPositionSelect ? mainPositionSelect.value : 'QB';
+    }
+    console.log('[DbPlayerCard] Position:', position);
+
+    // Get player name
+    var firstName = getValue('dbPlayerFirstName') || '';
+    var lastName = getValue('dbPlayerLastName') || '';
+    var playerName = (firstName + ' ' + lastName).trim() || 'Unknown Player';
+    console.log('[DbPlayerCard] Player:', playerName);
+
+    // Build attributes object from the rating inputs
+    var attributes = {};
+    RATING_FIELDS.forEach(function(item) {
+      var val = getIntValue('dbRating_' + item.field);
+      if (val !== null) {
+        attributes[item.field] = val;
+      }
+    });
+    console.log('[DbPlayerCard] Attributes count:', Object.keys(attributes).length);
+
+    // Get archetype if available
+    var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
+    var archetype = archetypeSelect ? archetypeSelect.value : undefined;
+    console.log('[DbPlayerCard] Archetype:', archetype);
+
+    try {
+      // Call the backend to calculate adjustments
+      console.log('[DbPlayerCard] Calling calculateOVRAdjustments...');
+      var result = await window.electronAPI.rating.calculateOVRAdjustments(
+        attributes, newOVR, position, archetype
+      );
+      console.log('[DbPlayerCard] Result:', result);
+
+      if (!result || Object.keys(result.adjustments).length === 0) {
+        console.log('[DbPlayerCard] No adjustments calculated');
+        return;
+      }
+
+      // Show the adjustment dialog
+      showDbOVRAdjustmentDialog(playerName, oldOVR, newOVR, result);
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error calculating adjustments:', error);
+    }
+  }
+
+  /**
+   * Show dialog asking user if they want to apply rating adjustments in database player card
+   */
+  function showDbOVRAdjustmentDialog(playerName, oldOVR, newOVR, result) {
+    var adjustments = result.adjustments;
+    var achievedOVR = result.newOVR;
+    var archetype = result.archetype;
+    var delta = newOVR - oldOVR;
+    var direction = delta > 0 ? 'increase' : 'decrease';
+
+    // Build the adjustment list HTML
+    var adjustmentHTML = '';
+    var sortedAdjustments = Object.entries(adjustments)
+      .sort(function(a, b) { return b[1].weight - a[1].weight; }); // Sort by weight
+
+    sortedAdjustments.forEach(function(entry) {
+      var fieldCode = entry[0];
+      var adj = entry[1];
+      var change = adj.suggested - adj.current;
+      var changeStr = change > 0 ? '+' + change : '' + change;
+      var changeClass = change > 0 ? 'positive-change' : 'negative-change';
+      adjustmentHTML +=
+        '<tr>' +
+          '<td>' + adj.name + '</td>' +
+          '<td class="current-value">' + adj.current + '</td>' +
+          '<td class="arrow">→</td>' +
+          '<td class="suggested-value">' + adj.suggested + '</td>' +
+          '<td class="' + changeClass + '">' + changeStr + '</td>' +
+        '</tr>';
+    });
+
+    // Create modal HTML - use z-index 100001 to be above player browser (which is 10000)
+    var modalHTML =
+      '<div id="db-ovr-adjustment-modal" class="modal-overlay" style="z-index: 100001;">' +
+        '<div class="modal-content ovr-adjustment-modal">' +
+          '<div class="modal-header">' +
+            '<h2>Adjust Ratings for OVR Change?</h2>' +
+            '<button class="close-btn" onclick="document.getElementById(\'db-ovr-adjustment-modal\').remove()">×</button>' +
+          '</div>' +
+          '<div class="modal-body">' +
+            '<p class="player-info">' +
+              '<strong>' + playerName + '</strong> - ' + (archetype || 'Default Archetype') +
+            '</p>' +
+            '<p class="ovr-change">' +
+              'OVR: <span class="old-ovr">' + oldOVR + '</span>' +
+              '<span class="arrow">→</span>' +
+              '<span class="new-ovr">' + newOVR + '</span>' +
+              '<span class="' + (direction === 'increase' ? 'positive-change' : 'negative-change') + '">' +
+                '(' + (delta > 0 ? '+' : '') + delta + ')' +
+              '</span>' +
+            '</p>' +
+            '<p class="achieved-ovr">Achieved OVR with these adjustments: <strong>' + achievedOVR + '</strong></p>' +
+            '<div class="adjustment-table-container">' +
+              '<table class="adjustment-table">' +
+                '<thead>' +
+                  '<tr>' +
+                    '<th>Attribute</th>' +
+                    '<th>Current</th>' +
+                    '<th></th>' +
+                    '<th>New</th>' +
+                    '<th>Change</th>' +
+                  '</tr>' +
+                '</thead>' +
+                '<tbody>' +
+                  adjustmentHTML +
+                '</tbody>' +
+              '</table>' +
+            '</div>' +
+          '</div>' +
+          '<div class="modal-footer">' +
+            '<button id="db-apply-adjustments-btn" class="ovr-dialog-btn ovr-dialog-btn-apply">Apply Adjustments</button>' +
+            '<button id="db-keep-ovr-only-btn" class="ovr-dialog-btn ovr-dialog-btn-keep">Keep OVR Only</button>' +
+            '<button id="db-cancel-ovr-btn" class="ovr-dialog-btn ovr-dialog-btn-cancel">Cancel</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    var modal = document.getElementById('db-ovr-adjustment-modal');
+
+    // Apply adjustments handler
+    document.getElementById('db-apply-adjustments-btn').addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      applyDbOVRAdjustments(adjustments);
+      modal.remove();
+      // Note: ratings are now set in the form, user needs to click Save to persist
+    });
+
+    // Keep OVR only handler (just close - OVR already changed)
+    document.getElementById('db-keep-ovr-only-btn').addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      modal.remove();
+    });
+
+    // Cancel handler - revert OVR to old value
+    document.getElementById('db-cancel-ovr-btn').addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      setValue('dbRating_POVR', oldOVR);
+      modal.remove();
+    });
+
+    // Close on overlay click
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        modal.remove();
+      }
+    });
+  }
+
+  /**
+   * Apply the calculated rating adjustments to the database player card inputs
+   */
+  function applyDbOVRAdjustments(adjustments) {
+    var changes = [];
+
+    Object.entries(adjustments).forEach(function(entry) {
+      var fieldCode = entry[0];
+      var adj = entry[1];
+
+      // Update the input field
+      setValue('dbRating_' + fieldCode, adj.suggested);
+
+      changes.push(adj.name + ': ' + adj.current + ' → ' + adj.suggested);
+    });
+
+    console.log('[DbPlayerCard] Applied ' + changes.length + ' rating changes:', changes);
+
+    // Mark as having unsaved changes
+    hasUnsavedChanges = true;
+    updateSaveButtonState();
   }
 
   // Helper functions

@@ -656,6 +656,154 @@ export class OVRWeightsCalculator {
       archetypeId
     };
   }
+
+  /**
+   * Calculate rating adjustments needed to achieve a target OVR
+   * @param currentAttributes - Current player attributes
+   * @param targetOVR - Desired OVR
+   * @param position - Player position
+   * @param archetype - Optional archetype override
+   * @returns Object with suggested attribute changes and new OVR
+   */
+  calculateAdjustmentsForTargetOVR(
+    currentAttributes: PlayerAttributes,
+    targetOVR: number,
+    position: string | number,
+    archetype?: string
+  ): { adjustments: { [fieldCode: string]: { current: number; suggested: number; weight: number; name: string } }; newOVR: number; archetype: string | null } | null {
+    if (!this.initialized) {
+      console.warn('[OVRWeightsCalculator] Weights not loaded');
+      return null;
+    }
+
+    // Normalize position
+    const normalizedPos = this.normalizePosition(position);
+    if (!normalizedPos) {
+      console.log('[OVRWeightsCalculator] Could not normalize position:', position);
+      return null;
+    }
+
+    // Map to JSON position name
+    const jsonPos = POSITION_TO_JSON_POS[normalizedPos];
+    if (!jsonPos) {
+      console.log('[OVRWeightsCalculator] No JSON position mapping for:', normalizedPos);
+      return null;
+    }
+
+    // Find archetype
+    let archetypeName: string | null;
+    if (archetype && this.weights.has(archetype)) {
+      archetypeName = archetype;
+    } else if (archetype) {
+      const prefixed = `${jsonPos}_${archetype}`;
+      archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(currentAttributes, jsonPos);
+    } else {
+      archetypeName = this.findArchetype(currentAttributes, jsonPos);
+    }
+
+    if (!archetypeName) {
+      console.log('[OVRWeightsCalculator] Could not find archetype for position:', jsonPos);
+      return null;
+    }
+
+    const weights = this.weights.get(archetypeName);
+    if (!weights) {
+      return null;
+    }
+
+    // Get breakdown to understand current state
+    const breakdown = this.calculateOVRWithBreakdown(currentAttributes, position, archetypeName, false);
+    const currentOVR = breakdown.ovr;
+    const ovrDelta = targetOVR - currentOVR;
+
+    if (ovrDelta === 0) {
+      return { adjustments: {}, newOVR: currentOVR, archetype: archetypeName };
+    }
+
+    // Calculate total weight of attributes that can be adjusted
+    let totalWeight = 0;
+    const adjustableAttrs: { fieldCode: string; weight: number; current: number; name: string }[] = [];
+
+    for (const [attrName, fieldCode] of Object.entries(ATTR_NAME_TO_FIELD)) {
+      const weight = Number(weights[attrName]) || 0;
+      if (weight > 0) {
+        const currentValue = this.getAttr(currentAttributes, fieldCode);
+        adjustableAttrs.push({
+          fieldCode,
+          weight,
+          current: currentValue,
+          name: attrName.replace('Rating', '')
+        });
+        totalWeight += weight;
+      }
+    }
+
+    if (totalWeight === 0 || adjustableAttrs.length === 0) {
+      return null;
+    }
+
+    // Distribute the OVR delta proportionally across weighted attributes
+    // OVR formula: Sum(attr * weight) / 10
+    // So to change OVR by X, we need to change weighted sum by X * 10
+    const weightedSumDelta = ovrDelta * ROSTER_DIVISOR;
+
+    const adjustments: { [fieldCode: string]: { current: number; suggested: number; weight: number; name: string } } = {};
+
+    for (const attr of adjustableAttrs) {
+      // Each attribute contributes (attr.weight / totalWeight) of the total change
+      // The attribute change needed is: (weightedSumDelta * (weight / totalWeight)) / weight
+      // Simplifies to: weightedSumDelta / totalWeight
+      const attrChange = weightedSumDelta / totalWeight;
+
+      // Clamp suggested value to 0-99
+      const suggested = Math.max(0, Math.min(99, Math.round(attr.current + attrChange)));
+
+      // Only include if there's an actual change
+      if (suggested !== attr.current) {
+        adjustments[attr.fieldCode] = {
+          current: attr.current,
+          suggested,
+          weight: attr.weight,
+          name: attr.name
+        };
+      }
+    }
+
+    // Calculate what the new OVR would be with these adjustments
+    const newAttributes = { ...currentAttributes };
+    for (const [fieldCode, adj] of Object.entries(adjustments)) {
+      newAttributes[fieldCode] = adj.suggested;
+    }
+    const newOVR = this.calculateOVR(newAttributes, position, archetypeName, false);
+
+    console.log(`[OVRWeightsCalculator] Target OVR: ${targetOVR}, Current: ${currentOVR}, Achieved: ${newOVR}`);
+
+    return {
+      adjustments,
+      newOVR,
+      archetype: archetypeName
+    };
+  }
+
+  /**
+   * Get the weights map for a given archetype (for UI display)
+   */
+  getArchetypeWeights(archetypeName: string): { [fieldCode: string]: { name: string; weight: number } } | null {
+    const weights = this.weights.get(archetypeName);
+    if (!weights) return null;
+
+    const result: { [fieldCode: string]: { name: string; weight: number } } = {};
+    for (const [attrName, fieldCode] of Object.entries(ATTR_NAME_TO_FIELD)) {
+      const weight = Number(weights[attrName]) || 0;
+      if (weight > 0) {
+        result[fieldCode] = {
+          name: attrName.replace('Rating', ''),
+          weight
+        };
+      }
+    }
+    return result;
+  }
 }
 
 // Export singleton instance

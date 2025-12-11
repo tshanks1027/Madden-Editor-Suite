@@ -184,5 +184,49 @@ export function registerRatingHandlers(): void {
     }
   );
 
+  /**
+   * Calculate rating adjustments needed to achieve a target OVR
+   * @param currentAttributes - Player's current attributes (field codes like PSPD, PAWR, etc.)
+   * @param targetOVR - Desired OVR to achieve
+   * @param position - Player position
+   * @param archetype - Optional archetype name
+   * @returns Object with suggested adjustments and achieved OVR
+   */
+  ipcMain.handle(
+    'rating:calculate-ovr-adjustments',
+    async (
+      _event,
+      currentAttributes: any,
+      targetOVR: number,
+      position: string,
+      archetype?: string
+    ): Promise<{ adjustments: { [fieldCode: string]: { current: number; suggested: number; weight: number; name: string } }; newOVR: number; archetype: string | null } | null> => {
+      try {
+        console.log(`[RatingHandlers] Calculating OVR adjustments for ${position} to target ${targetOVR}`);
+        return ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(currentAttributes, targetOVR, position, archetype);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error calculating OVR adjustments:', error);
+        return null;
+      }
+    }
+  );
+
+  /**
+   * Get archetype weights for UI display
+   * @param archetypeName - Full archetype name (e.g., "QB_FieldGeneral")
+   * @returns Object with field codes and their weights
+   */
+  ipcMain.handle(
+    'rating:get-archetype-weights',
+    async (_event, archetypeName: string): Promise<{ [fieldCode: string]: { name: string; weight: number } } | null> => {
+      try {
+        return ovrWeightsCalculator.getArchetypeWeights(archetypeName);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error getting archetype weights:', error);
+        return null;
+      }
+    }
+  );
+
   console.log('[RatingHandlers] Rating handlers registered successfully');
 }

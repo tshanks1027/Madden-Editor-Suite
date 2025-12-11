@@ -598,8 +598,16 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
         stopEditingWhenCellsLoseFocus: true,
 
         // Events
+        onCellEditingStarted: (event) => {
+            // Capture OVR before editing so we can detect changes
+            if (event.colDef.field === 'POVR') {
+                event.node.data._previousOVR = event.value;
+                console.log('[AG-Grid] Started editing OVR, captured previous:', event.value);
+            }
+        },
+
         onCellValueChanged: (event) => {
-            console.log('[AG-Grid] Cell value changed:', event.colDef.field, '=', event.newValue);
+            console.log('[AG-Grid] Cell value changed:', event.colDef.field, '=', event.newValue, ', old=', event.oldValue);
 
             // Mark file as modified
             app.hasUnsavedChanges = true;
@@ -619,6 +627,25 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                 const playerIndex = app.players.findIndex(p => p === actualPlayer);
                 if (playerIndex !== -1) {
                     app.players[playerIndex][fieldName] = event.newValue;
+                }
+
+                // Handle OVR changes - prompt to adjust ratings
+                if (fieldName === 'POVR') {
+                    console.log('[AG-Grid] POVR field changed, processing...');
+                    const newOVR = parseInt(event.newValue);
+                    // Get old value - try event.oldValue first, fallback to stored value
+                    let oldOVR = parseInt(event.oldValue);
+                    if (isNaN(oldOVR) && event.node.data._previousOVR !== undefined) {
+                        oldOVR = event.node.data._previousOVR;
+                        console.log('[AG-Grid] Using _previousOVR fallback:', oldOVR);
+                    }
+                    console.log('[AG-Grid] OVR change - old:', oldOVR, 'new:', newOVR);
+                    if (!isNaN(newOVR) && newOVR >= 0 && newOVR <= 99) {
+                        if (isNaN(oldOVR) || oldOVR !== newOVR) {
+                            console.log('[AG-Grid] Calling handleAGGridOVRChange');
+                            handleAGGridOVRChange(event.node, actualPlayer, oldOVR || 0, newOVR, app, event.api);
+                        }
+                    }
                 }
 
                 // If PLAYERPIC or PSXP changed, refresh the portrait column
@@ -1013,5 +1040,209 @@ export function destroyAGGrid(app) {
         app.agGrid.destroy();
         app.agGrid = null;
         app.agGridOptions = null;
+    }
+}
+
+/**
+ * Handle OVR change in AG-Grid - prompt user to adjust ratings
+ */
+async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app, gridApi) {
+    console.log('[AG-Grid OVR] handleAGGridOVRChange called:', oldOVR, '->', newOVR);
+
+    // Get position name from position ID
+    const positionMap = {
+        0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
+        8: 'RG', 9: 'RT', 10: 'LE', 11: 'RE', 12: 'DT', 13: 'LOLB', 14: 'MLB',
+        15: 'ROLB', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+    };
+    const position = positionMap[player.PPOS] || 'QB';
+    const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'Unknown Player';
+
+    console.log('[AG-Grid OVR] Position:', position, 'Player:', playerName);
+
+    // Build attributes object from the player
+    const attributes = {};
+    const ratingFields = ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
+        'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
+        'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
+        'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
+        'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
+        'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
+        'PSTA', 'PINJ', 'PTGH'];
+
+    for (const field of ratingFields) {
+        if (player[field] !== undefined) {
+            attributes[field] = parseInt(player[field]) || 50;
+        }
+    }
+
+    // Get archetype if available
+    const archetype = player.PLTY !== undefined ? player.PLTY : undefined;
+
+    try {
+        // Call the backend to calculate adjustments
+        console.log('[AG-Grid OVR] Calling calculateOVRAdjustments...');
+        const result = await window.electronAPI.rating.calculateOVRAdjustments(
+            attributes, newOVR, position, archetype
+        );
+        console.log('[AG-Grid OVR] Result:', result);
+
+        if (!result || Object.keys(result.adjustments).length === 0) {
+            console.log('[AG-Grid OVR] No adjustments calculated');
+            return;
+        }
+
+        // Show the adjustment dialog
+        showAGGridOVRAdjustmentDialog(node, player, playerName, oldOVR, newOVR, result, app, gridApi);
+
+    } catch (error) {
+        console.error('[AG-Grid OVR] Error calculating adjustments:', error);
+    }
+}
+
+/**
+ * Show dialog asking user if they want to apply rating adjustments
+ */
+function showAGGridOVRAdjustmentDialog(node, player, playerName, oldOVR, newOVR, result, app, gridApi) {
+    const { adjustments, newOVR: achievedOVR, archetype } = result;
+    const delta = newOVR - oldOVR;
+    const direction = delta > 0 ? 'increase' : 'decrease';
+
+    // Build the adjustment list HTML
+    let adjustmentHTML = '';
+    const sortedAdjustments = Object.entries(adjustments)
+        .sort((a, b) => b[1].weight - a[1].weight);
+
+    for (const [fieldCode, adj] of sortedAdjustments) {
+        const change = adj.suggested - adj.current;
+        const changeStr = change > 0 ? `+${change}` : `${change}`;
+        const changeClass = change > 0 ? 'positive-change' : 'negative-change';
+        adjustmentHTML += `
+            <tr>
+                <td>${adj.name}</td>
+                <td class="current-value">${adj.current}</td>
+                <td class="arrow">→</td>
+                <td class="suggested-value">${adj.suggested}</td>
+                <td class="${changeClass}">${changeStr}</td>
+            </tr>
+        `;
+    }
+
+    // Create modal HTML
+    const modalHTML = `
+        <div id="ag-ovr-adjustment-modal" class="modal-overlay" style="z-index: 100001;">
+            <div class="modal-content ovr-adjustment-modal">
+                <div class="modal-header">
+                    <h2>Adjust Ratings for OVR Change?</h2>
+                    <button class="close-btn" onclick="document.getElementById('ag-ovr-adjustment-modal').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <p class="player-info">
+                        <strong>${playerName}</strong> - ${archetype || 'Default Archetype'}
+                    </p>
+                    <p class="ovr-change">
+                        OVR: <span class="old-ovr">${oldOVR}</span>
+                        <span class="arrow">→</span>
+                        <span class="new-ovr">${newOVR}</span>
+                        <span class="${direction === 'increase' ? 'positive-change' : 'negative-change'}">
+                            (${delta > 0 ? '+' : ''}${delta})
+                        </span>
+                    </p>
+                    <p class="achieved-ovr">Achieved OVR with these adjustments: <strong>${achievedOVR}</strong></p>
+                    <div class="adjustment-table-container">
+                        <table class="adjustment-table">
+                            <thead>
+                                <tr>
+                                    <th>Attribute</th>
+                                    <th>Current</th>
+                                    <th></th>
+                                    <th>New</th>
+                                    <th>Change</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${adjustmentHTML}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="ag-apply-adjustments-btn" class="ovr-dialog-btn ovr-dialog-btn-apply">Apply Adjustments</button>
+                    <button id="ag-keep-ovr-only-btn" class="ovr-dialog-btn ovr-dialog-btn-keep">Keep OVR Only</button>
+                    <button id="ag-cancel-ovr-btn" class="ovr-dialog-btn ovr-dialog-btn-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    const modal = document.getElementById('ag-ovr-adjustment-modal');
+
+    // Apply adjustments handler
+    document.getElementById('ag-apply-adjustments-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        applyAGGridOVRAdjustments(node, player, adjustments, app, gridApi);
+        modal.remove();
+    });
+
+    // Keep OVR only handler (just close - OVR already changed)
+    document.getElementById('ag-keep-ovr-only-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        modal.remove();
+    });
+
+    // Cancel handler - revert OVR to old value
+    document.getElementById('ag-cancel-ovr-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        player.POVR = oldOVR;
+        node.setDataValue('POVR', oldOVR);
+        // Also update in app.players
+        const playerIndex = app.players.findIndex(p => p === player);
+        if (playerIndex !== -1) {
+            app.players[playerIndex].POVR = oldOVR;
+        }
+        modal.remove();
+    });
+
+    // Close on overlay click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+
+/**
+ * Apply the calculated rating adjustments to the player in AG-Grid
+ */
+function applyAGGridOVRAdjustments(node, player, adjustments, app, gridApi) {
+    const changes = [];
+
+    for (const [fieldCode, adj] of Object.entries(adjustments)) {
+        // Update player data
+        player[fieldCode] = adj.suggested;
+
+        // Update grid cell
+        node.setDataValue(fieldCode, adj.suggested);
+
+        // Update in app.players
+        const playerIndex = app.players.findIndex(p => p === player);
+        if (playerIndex !== -1) {
+            app.players[playerIndex][fieldCode] = adj.suggested;
+        }
+
+        changes.push(`${adj.name}: ${adj.current} → ${adj.suggested}`);
+    }
+
+    console.log(`[AG-Grid OVR] Applied ${changes.length} rating changes:`, changes);
+
+    // Refresh the affected cells
+    if (gridApi) {
+        gridApi.refreshCells({ rowNodes: [node], force: true });
     }
 }

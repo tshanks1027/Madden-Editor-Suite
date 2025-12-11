@@ -1147,14 +1147,14 @@ class MaddenEditorApp {
                     readOnly: false  // Make it editable
                 };
             } else if (fieldName === 'POVR') {
-                // Special handling for POVR (Overall Rating) - calculated dynamically
+                // Special handling for POVR (Overall Rating) - editable with adjustment prompt
                 columnConfig = {
                     ...columnConfig,
                     type: 'numeric',
                     format: '0',
                     width: 70,
-                    readOnly: true,  // Overall is calculated, not editable
-                    renderer: this.ovrRenderer.bind(this)  // Custom renderer that calculates OVR
+                    readOnly: false,  // Allow editing OVR
+                    renderer: this.ovrRenderer.bind(this)  // Custom renderer for OVR display
                 };
             } else if (fieldDef.type === 'lookup' && fieldDef.lookup) {
                 // Dropdown for lookup fields - let autoColumnSize handle width
@@ -1342,8 +1342,22 @@ class MaddenEditorApp {
                 // Hook for validation if needed
             },
             afterChange: (changes, source) => {
-                if (source !== 'loadData' && source !== 'GenericFacePicker' && changes) {
+                if (source !== 'loadData' && source !== 'GenericFacePicker' && source !== 'ovrAdjustment' && changes) {
                     this.handlePlayerDataChange(changes);
+
+                    // Handle OVR changes - prompt to adjust ratings
+                    changes.forEach(([row, col, oldValue, newValue]) => {
+                        const fieldName = this.currentFieldMapping[col];
+                        console.log('[OVR Check] Field:', fieldName, 'Old:', oldValue, 'New:', newValue);
+                        if (fieldName === 'POVR' && newValue !== oldValue && oldValue !== null) {
+                            const targetOVR = parseInt(newValue);
+                            console.log('[OVR Change] Detected OVR change:', oldValue, '->', targetOVR);
+                            if (!isNaN(targetOVR) && targetOVR >= 0 && targetOVR <= 99) {
+                                console.log('[OVR Change] Calling handleOVRChange');
+                                this.handleOVRChange(row, oldValue, targetOVR);
+                            }
+                        }
+                    });
 
                     // Re-render portrait when PID (PSXP) changes
                     changes.forEach(([row, col, oldValue, newValue]) => {
@@ -1712,6 +1726,210 @@ class MaddenEditorApp {
                 }
             }
         });
+    }
+
+    /**
+     * Handle OVR change - prompt user to adjust ratings based on new OVR
+     * @param {number} row - Grid row index
+     * @param {number} oldOVR - Previous OVR value
+     * @param {number} targetOVR - New target OVR
+     */
+    async handleOVRChange(row, oldOVR, targetOVR) {
+        // Get the actual player
+        const filteredIndex = this.paginatedPlayerIndices[row];
+        const actualPlayer = this.filteredPlayers[filteredIndex];
+        const actualPlayerIndex = this.players.indexOf(actualPlayer);
+
+        if (actualPlayerIndex === -1 || !this.players[actualPlayerIndex]) {
+            console.warn('[OVR Change] Could not find player for row', row);
+            return;
+        }
+
+        const player = this.players[actualPlayerIndex];
+        const position = player['PPOS'] !== undefined ?
+            this.getPositionNameFromId(player['PPOS']) :
+            (player['position'] || 'QB');
+        const playerName = `${player['PFNA'] || player['firstName'] || ''} ${player['PLNA'] || player['lastName'] || ''}`.trim();
+
+        // Build attributes object for the calculator
+        const attributes = {};
+        const ratingFields = ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
+            'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
+            'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
+            'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
+            'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
+            'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
+            'PSTA', 'PINJ', 'PTGH'];
+
+        for (const field of ratingFields) {
+            if (player[field] !== undefined) {
+                attributes[field] = parseInt(player[field]) || 50;
+            }
+        }
+
+        // Get archetype if available
+        const archetype = player['PLTY'] !== undefined ? player['PLTY'] : undefined;
+
+        try {
+            // Call the backend to calculate adjustments
+            const result = await window.electronAPI.rating.calculateOVRAdjustments(
+                attributes, targetOVR, position, archetype
+            );
+
+            if (!result || Object.keys(result.adjustments).length === 0) {
+                // No adjustments needed or couldn't calculate
+                console.log('[OVR Change] No adjustments calculated');
+                return;
+            }
+
+            // Show the adjustment dialog
+            this.showOVRAdjustmentDialog(row, actualPlayerIndex, playerName, oldOVR, targetOVR, result);
+
+        } catch (error) {
+            console.error('[OVR Change] Error calculating adjustments:', error);
+        }
+    }
+
+    /**
+     * Show dialog asking user if they want to apply rating adjustments
+     */
+    showOVRAdjustmentDialog(row, playerIndex, playerName, oldOVR, targetOVR, result) {
+        const { adjustments, newOVR, archetype } = result;
+        const delta = targetOVR - oldOVR;
+        const direction = delta > 0 ? 'increase' : 'decrease';
+
+        // Build the adjustment list HTML
+        let adjustmentHTML = '';
+        const sortedAdjustments = Object.entries(adjustments)
+            .sort((a, b) => b[1].weight - a[1].weight); // Sort by weight (most important first)
+
+        for (const [fieldCode, adj] of sortedAdjustments) {
+            const change = adj.suggested - adj.current;
+            const changeStr = change > 0 ? `+${change}` : `${change}`;
+            const changeClass = change > 0 ? 'positive-change' : 'negative-change';
+            adjustmentHTML += `
+                <tr>
+                    <td>${adj.name}</td>
+                    <td class="current-value">${adj.current}</td>
+                    <td class="arrow">→</td>
+                    <td class="suggested-value">${adj.suggested}</td>
+                    <td class="${changeClass}">${changeStr}</td>
+                </tr>
+            `;
+        }
+
+        // Create modal HTML
+        const modalHTML = `
+            <div id="ovr-adjustment-modal" class="modal-overlay">
+                <div class="modal-content ovr-adjustment-modal">
+                    <div class="modal-header">
+                        <h2>Adjust Ratings for OVR Change?</h2>
+                        <button class="close-btn" onclick="document.getElementById('ovr-adjustment-modal').remove()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="player-info">
+                            <strong>${playerName}</strong> - ${archetype || 'Default Archetype'}
+                        </p>
+                        <p class="ovr-change">
+                            OVR: <span class="old-ovr">${oldOVR}</span>
+                            <span class="arrow">→</span>
+                            <span class="new-ovr">${targetOVR}</span>
+                            <span class="${direction === 'increase' ? 'positive-change' : 'negative-change'}">
+                                (${delta > 0 ? '+' : ''}${delta})
+                            </span>
+                        </p>
+                        <p class="achieved-ovr">Achieved OVR with these adjustments: <strong>${newOVR}</strong></p>
+                        <div class="adjustment-table-container">
+                            <table class="adjustment-table">
+                                <thead>
+                                    <tr>
+                                        <th>Attribute</th>
+                                        <th>Current</th>
+                                        <th></th>
+                                        <th>New</th>
+                                        <th>Change</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${adjustmentHTML}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="apply-adjustments-btn" class="btn btn-primary">Apply Adjustments</button>
+                        <button id="keep-ovr-only-btn" class="btn btn-secondary">Keep OVR Only</button>
+                        <button id="cancel-ovr-btn" class="btn btn-cancel">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        const modal = document.getElementById('ovr-adjustment-modal');
+
+        // Apply adjustments handler
+        document.getElementById('apply-adjustments-btn').addEventListener('click', () => {
+            this.applyOVRAdjustments(row, playerIndex, adjustments);
+            modal.remove();
+        });
+
+        // Keep OVR only handler (just close - OVR already changed)
+        document.getElementById('keep-ovr-only-btn').addEventListener('click', () => {
+            modal.remove();
+        });
+
+        // Cancel handler - revert OVR to old value
+        document.getElementById('cancel-ovr-btn').addEventListener('click', () => {
+            this.players[playerIndex]['POVR'] = oldOVR;
+            this.updateGridCell(row, 'POVR', oldOVR);
+            modal.remove();
+        });
+
+        // Close on overlay click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    /**
+     * Apply the calculated rating adjustments to the player
+     */
+    applyOVRAdjustments(row, playerIndex, adjustments) {
+        const changes = [];
+
+        for (const [fieldCode, adj] of Object.entries(adjustments)) {
+            // Update player data
+            this.players[playerIndex][fieldCode] = adj.suggested;
+
+            // Update grid cell
+            this.updateGridCell(row, fieldCode, adj.suggested);
+
+            changes.push(`${adj.name}: ${adj.current} → ${adj.suggested}`);
+        }
+
+        console.log(`[OVR Adjustment] Applied ${changes.length} rating changes:`, changes);
+
+        // Re-render the grid to show updated values
+        if (this.hotTable && !this.hotTable.isDestroyed) {
+            this.hotTable.render();
+        }
+    }
+
+    /**
+     * Get position name from position ID
+     */
+    getPositionNameFromId(posId) {
+        const posMap = {
+            0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
+            8: 'RG', 9: 'RT', 10: 'LE', 11: 'RE', 12: 'DT', 13: 'LOLB', 14: 'MLB',
+            15: 'ROLB', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+        };
+        return posMap[posId] || 'QB';
     }
 
     /**
