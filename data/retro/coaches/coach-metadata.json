@@ -1,0 +1,58 @@
+{
+  "description": "Historical NFL coaching staff data - HC, OC, DC per team per year. Records represent stats UP TO that year only (not career totals). For example, Belichick's 1991 record only includes his Cleveland years, not future Patriots success.",
+  "dataSource": "pro-football-reference.com",
+  "fields": {
+    "headCoach": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "birthYear": "Birth year for age calculation",
+      "yearsAsHC": "Total years as NFL head coach UP TO this season",
+      "yearsWithTeam": "Consecutive years with current team as HC",
+      "careerWins": "Career HC wins UP TO this season",
+      "careerLosses": "Career HC losses UP TO this season",
+      "careerTies": "Career HC ties UP TO this season",
+      "playoffWins": "Career playoff wins as HC UP TO this season",
+      "playoffLosses": "Career playoff losses as HC UP TO this season",
+      "superBowlWins": "Super Bowl wins as HC UP TO this season",
+      "coachRef": "Optional pro-football-reference coach ID for linking"
+    },
+    "offensiveCoordinator": {
+      "firstName": "First name",
+      "lastName": "Last name (may be 'N/A' for early years)",
+      "coachRef": "Optional pro-football-reference coach ID"
+    },
+    "defensiveCoordinator": {
+      "firstName": "First name",
+      "lastName": "Last name (may be 'N/A' for early years)",
+      "coachRef": "Optional pro-football-reference coach ID"
+    }
+  },
+  "notes": {
+    "earlyYears": "OC/DC positions weren't standardized before 1970s. Many teams didn't have formal coordinators.",
+    "interimCoaches": "Some years may have multiple head coaches due to mid-season changes.",
+    "recordCalculation": "All win/loss records are calculated UP TO the start of that season, not cumulative career totals."
+  },
+  "teamAbbreviations": {
+    "ARI": 6, "ATL": 13, "BAL": 24, "BUF": 2, "CAR": 20, "CHI": 0, "CIN": 1, "CLE": 4,
+    "DAL": 10, "DEN": 3, "DET": 18, "GB": 19, "HOU": 31, "IND": 9, "JAX": 16, "KC": 8,
+    "LAC": 7, "LAR": 23, "LV": 22, "MIA": 11, "MIN": 30, "NE": 21, "NO": 26, "NYG": 15,
+    "NYJ": 17, "PHI": 12, "PIT": 28, "SEA": 27, "SF": 14, "TB": 5, "TEN": 29, "WAS": 25
+  },
+  "playbookMapping": {
+    "description": "Maps coaching philosophy/scheme to Madden playbook indices. Leave as team default if no clear match.",
+    "offensiveStyles": {
+      "westCoast": "Spread/West Coast offense - indices 0-16 (team specific)",
+      "airRaid": "Pass-heavy air raid - higher indices",
+      "proStyle": "Traditional pro-style - team specific",
+      "spread": "Modern spread concepts",
+      "runHeavy": "Ground and pound offense"
+    },
+    "defensiveStyles": {
+      "tampa2": "Tampa 2 cover scheme",
+      "4-3": "Traditional 4-3 defense",
+      "3-4": "3-4 base defense",
+      "aggressive": "Blitz-heavy scheme",
+      "zone": "Zone coverage based"
+    }
+  }
+}

@@ -726,6 +726,68 @@
                                     </div>
                                 </div>
 
+                                <!-- Schedule Preview -->
+                                <div class="retro-preview-section" id="retro-schedule-section">
+                                    <h4 class="retro-section-title">&#128197; Season Schedule</h4>
+                                    <div id="retro-schedule-info" class="retro-changes-list">
+                                        <!-- Era info -->
+                                        <div id="retro-era-info" style="margin-bottom: 12px;">
+                                            <div class="retro-change-item">
+                                                <span class="change-label">Season Length:</span>
+                                                <span id="preview-season-length" class="change-value">--</span>
+                                            </div>
+                                            <div class="retro-change-item">
+                                                <span class="change-label">Bye Weeks:</span>
+                                                <span id="preview-bye-weeks" class="change-value">--</span>
+                                            </div>
+                                            <div class="retro-change-item">
+                                                <span class="change-label">Playoff Teams:</span>
+                                                <span id="preview-playoff-teams" class="change-value">--</span>
+                                            </div>
+                                        </div>
+                                        <!-- Schedule availability status -->
+                                        <div id="retro-schedule-status" class="schedule-status">
+                                            <p class="no-changes">Checking schedule data...</p>
+                                        </div>
+                                        <!-- Week-by-week preview (collapsible) -->
+                                        <details id="retro-schedule-details" style="display: none; margin-top: 12px;">
+                                            <summary style="cursor: pointer; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                View Week-by-Week Schedule
+                                            </summary>
+                                            <div id="retro-schedule-weeks" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
+                                                <!-- Schedule weeks will be populated here -->
+                                            </div>
+                                        </details>
+                                    </div>
+                                </div>
+
+                                <!-- Coach Preview -->
+                                <div class="retro-preview-section" id="retro-coach-section">
+                                    <h4 class="retro-section-title">&#127941; Coaching Staff</h4>
+                                    <div id="retro-coach-info" class="retro-changes-list">
+                                        <!-- Coach availability status -->
+                                        <div id="retro-coach-status" class="coach-status">
+                                            <p class="no-changes">Checking coach data...</p>
+                                        </div>
+                                        <!-- Team-by-team coach preview (collapsible) -->
+                                        <details id="retro-coach-details" style="display: none; margin-top: 12px;">
+                                            <summary style="cursor: pointer; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                View Team-by-Team Coaches
+                                            </summary>
+                                            <div id="retro-coach-list" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
+                                                <!-- Coach list will be populated here -->
+                                            </div>
+                                        </details>
+                                    </div>
+                                </div>
+
+                                <!-- Validation Warnings -->
+                                <div id="retro-validation-section" class="retro-preview-section" style="display: none;">
+                                    <h4 class="retro-section-title" style="color: var(--warning-color);">&#9888; Warnings</h4>
+                                    <div id="retro-validation-warnings" class="retro-changes-list">
+                                    </div>
+                                </div>
+
                                 <div class="wizard-nav">
                                     <button class="btn btn-secondary retro-wizard-back">Back</button>
                                     <button class="btn btn-primary retro-wizard-next">Apply Changes</button>

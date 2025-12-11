@@ -1,0 +1,91 @@
+{
+  "description": "NFL expansion team history - used to determine which teams should be inactive for a given season year",
+  "note": "This only tracks TRUE expansion teams. Relocated teams (like Browns→Ravens) are handled separately in historical-teams.json",
+  "expansions": [
+    {
+      "team": "Cowboys",
+      "teamIndex": 11,
+      "year": 1960,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Vikings",
+      "teamIndex": 31,
+      "year": 1961,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Falcons",
+      "teamIndex": 14,
+      "year": 1966,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Dolphins",
+      "teamIndex": 12,
+      "year": 1966,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Saints",
+      "teamIndex": 26,
+      "year": 1967,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Bengals",
+      "teamIndex": 1,
+      "year": 1968,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Seahawks",
+      "teamIndex": 27,
+      "year": 1976,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Buccaneers",
+      "teamIndex": 5,
+      "year": 1976,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Panthers",
+      "teamIndex": 21,
+      "year": 1995,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Jaguars",
+      "teamIndex": 17,
+      "year": 1995,
+      "note": "Joined as expansion team"
+    },
+    {
+      "team": "Ravens",
+      "teamIndex": 25,
+      "year": 1996,
+      "note": "Former Cleveland Browns relocated - the Browns name/history stayed in Cleveland"
+    },
+    {
+      "team": "Texans",
+      "teamIndex": 29,
+      "year": 2002,
+      "note": "Joined as expansion team in Houston"
+    }
+  ],
+  "specialCases": {
+    "description": "Teams with complex history that need special handling",
+    "browns": {
+      "note": "Original Browns (1946-1995) -> relocated to become Ravens (1996). New expansion Browns (1999-present). For years 1996-1998, Browns teamIndex 4 should be inactive.",
+      "inactiveYears": [1996, 1997, 1998],
+      "teamIndex": 4
+    }
+  },
+  "draftPickReordering": {
+    "description": "For retro seasons, teams that don't exist yet should have their draft picks deprioritized",
+    "defaultRoundForInactiveTeams": 7,
+    "note": "The goal is to prevent non-existent teams from drafting top talent"
+  }
+}

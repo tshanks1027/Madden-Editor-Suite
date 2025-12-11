@@ -169,6 +169,46 @@ export default defineConfig({
                 console.log(`Copied retro data file: ${file}`);
               }
             });
+
+            // Copy retro/schedules subdirectory (historical NFL schedules)
+            const srcSchedulesDir = path.join(srcRetroDir, 'schedules');
+            const destSchedulesDir = path.join(destRetroDir, 'schedules');
+            if (existsSync(srcSchedulesDir)) {
+              if (!existsSync(destSchedulesDir)) {
+                mkdirSync(destSchedulesDir, { recursive: true });
+              }
+              const scheduleFiles = fs.readdirSync(srcSchedulesDir);
+              let scheduleCount = 0;
+              scheduleFiles.forEach(file => {
+                if (file.endsWith('.json')) {
+                  const srcFile = path.join(srcSchedulesDir, file);
+                  const destFile = path.join(destSchedulesDir, file);
+                  copyFileSync(srcFile, destFile);
+                  scheduleCount++;
+                }
+              });
+              console.log(`Copied ${scheduleCount} schedule JSON files`);
+            }
+
+            // Copy retro/coaches subdirectory (historical coaching staff data)
+            const srcCoachesDir = path.join(srcRetroDir, 'coaches');
+            const destCoachesDir = path.join(destRetroDir, 'coaches');
+            if (existsSync(srcCoachesDir)) {
+              if (!existsSync(destCoachesDir)) {
+                mkdirSync(destCoachesDir, { recursive: true });
+              }
+              const coachFiles = fs.readdirSync(srcCoachesDir);
+              let coachCount = 0;
+              coachFiles.forEach(file => {
+                if (file.endsWith('.json')) {
+                  const srcFile = path.join(srcCoachesDir, file);
+                  const destFile = path.join(destCoachesDir, file);
+                  copyFileSync(srcFile, destFile);
+                  coachCount++;
+                }
+              });
+              console.log(`Copied ${coachCount} coach JSON files`);
+            }
           }
 
           // Copy tools directory (external exe tools like presentationIdFix)

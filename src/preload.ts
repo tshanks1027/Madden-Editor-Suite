@@ -225,7 +225,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     dumpTables: (filePath: string) =>
       ipcRenderer.invoke('retro:dump-tables', filePath),
     debugTeamTable: (filePath: string) =>
-      ipcRenderer.invoke('retro:debug-team-table', filePath)
+      ipcRenderer.invoke('retro:debug-team-table', filePath),
+
+    // Schedule APIs
+    getSeasonInfo: (year: number) =>
+      ipcRenderer.invoke('retro:get-season-info', year),
+    hasScheduleData: (year: number) =>
+      ipcRenderer.invoke('retro:has-schedule-data', year),
+    getAvailableScheduleYears: () =>
+      ipcRenderer.invoke('retro:get-available-schedule-years'),
+    getSchedulePreview: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:get-schedule-preview', filePath, year),
+    applySchedule: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-schedule', filePath, year),
+
+    // Coach APIs
+    hasCoachData: (year: number) =>
+      ipcRenderer.invoke('retro:has-coach-data', year),
+    getCoachPreview: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:get-coach-preview', filePath, year),
+    applyCoaches: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-coaches', filePath, year)
   },
 
   // User Database APIs (Edit player database, custom players, CSV import)

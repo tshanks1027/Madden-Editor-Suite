@@ -1,0 +1,308 @@
+{
+  "description": "NFL team name changes by year - used to update teamTable based on selected season year. TeamIndex values match Madden 26 franchise file Team.TeamIndex field.",
+  "teams": [
+    {
+      "teamIndex": 0,
+      "currentName": "Bears",
+      "currentCity": "Chicago",
+      "currentAbbreviation": "CHI",
+      "changes": [
+        { "yearRange": [1922, 2099], "city": "Chicago", "name": "Bears", "abbreviation": "CHI" }
+      ]
+    },
+    {
+      "teamIndex": 1,
+      "currentName": "Bengals",
+      "currentCity": "Cincinnati",
+      "currentAbbreviation": "CIN",
+      "changes": [
+        { "yearRange": [1968, 2099], "city": "Cincinnati", "name": "Bengals", "abbreviation": "CIN" }
+      ],
+      "expansionYear": 1968
+    },
+    {
+      "teamIndex": 2,
+      "currentName": "Bills",
+      "currentCity": "Buffalo",
+      "currentAbbreviation": "BUF",
+      "changes": [
+        { "yearRange": [1960, 2099], "city": "Buffalo", "name": "Bills", "abbreviation": "BUF" }
+      ]
+    },
+    {
+      "teamIndex": 3,
+      "currentName": "Broncos",
+      "currentCity": "Denver",
+      "currentAbbreviation": "DEN",
+      "changes": [
+        { "yearRange": [1960, 2099], "city": "Denver", "name": "Broncos", "abbreviation": "DEN" }
+      ]
+    },
+    {
+      "teamIndex": 4,
+      "currentName": "Browns",
+      "currentCity": "Cleveland",
+      "currentAbbreviation": "CLE",
+      "changes": [
+        { "yearRange": [1946, 1995], "city": "Cleveland", "name": "Browns", "abbreviation": "CLE" },
+        { "yearRange": [1996, 1998], "city": null, "name": null, "abbreviation": null, "inactive": true, "note": "Team moved to Baltimore, became Ravens" },
+        { "yearRange": [1999, 2099], "city": "Cleveland", "name": "Browns", "abbreviation": "CLE", "note": "Expansion team" }
+      ]
+    },
+    {
+      "teamIndex": 5,
+      "currentName": "Buccaneers",
+      "currentCity": "Tampa Bay",
+      "changes": [
+        { "yearRange": [1976, 2099], "city": "Tampa Bay", "name": "Buccaneers", "abbreviation": "TB" }
+      ],
+      "expansionYear": 1976
+    },
+    {
+      "teamIndex": 6,
+      "currentName": "Cardinals",
+      "currentCity": "Arizona",
+      "changes": [
+        { "yearRange": [1920, 1959], "city": "Chicago", "name": "Cardinals", "abbreviation": "CHI" },
+        { "yearRange": [1960, 1987], "city": "St. Louis", "name": "Cardinals", "abbreviation": "STL" },
+        { "yearRange": [1988, 1993], "city": "Phoenix", "name": "Cardinals", "abbreviation": "PHX" },
+        { "yearRange": [1994, 2099], "city": "Arizona", "name": "Cardinals", "abbreviation": "ARI" }
+      ]
+    },
+    {
+      "teamIndex": 7,
+      "currentName": "Chargers",
+      "currentCity": "Los Angeles",
+      "changes": [
+        { "yearRange": [1960, 1960], "city": "Los Angeles", "name": "Chargers", "abbreviation": "LA" },
+        { "yearRange": [1961, 2016], "city": "San Diego", "name": "Chargers", "abbreviation": "SD" },
+        { "yearRange": [2017, 2099], "city": "Los Angeles", "name": "Chargers", "abbreviation": "LAC" }
+      ]
+    },
+    {
+      "teamIndex": 8,
+      "currentName": "Chiefs",
+      "currentCity": "Kansas City",
+      "changes": [
+        { "yearRange": [1960, 1962], "city": "Dallas", "name": "Texans", "abbreviation": "DAL" },
+        { "yearRange": [1963, 2099], "city": "Kansas City", "name": "Chiefs", "abbreviation": "KC" }
+      ]
+    },
+    {
+      "teamIndex": 9,
+      "currentName": "Colts",
+      "currentCity": "Indianapolis",
+      "changes": [
+        { "yearRange": [1953, 1983], "city": "Baltimore", "name": "Colts", "abbreviation": "BAL" },
+        { "yearRange": [1984, 2099], "city": "Indianapolis", "name": "Colts", "abbreviation": "IND" }
+      ]
+    },
+    {
+      "teamIndex": 10,
+      "currentName": "Cowboys",
+      "currentCity": "Dallas",
+      "changes": [
+        { "yearRange": [1960, 2099], "city": "Dallas", "name": "Cowboys", "abbreviation": "DAL" }
+      ],
+      "expansionYear": 1960
+    },
+    {
+      "teamIndex": 11,
+      "currentName": "Dolphins",
+      "currentCity": "Miami",
+      "changes": [
+        { "yearRange": [1966, 2099], "city": "Miami", "name": "Dolphins", "abbreviation": "MIA" }
+      ],
+      "expansionYear": 1966
+    },
+    {
+      "teamIndex": 12,
+      "currentName": "Eagles",
+      "currentCity": "Philadelphia",
+      "currentAbbreviation": "PHI",
+      "changes": [
+        { "yearRange": [1933, 2099], "city": "Philadelphia", "name": "Eagles", "abbreviation": "PHI" }
+      ]
+    },
+    {
+      "teamIndex": 13,
+      "currentName": "Falcons",
+      "currentCity": "Atlanta",
+      "changes": [
+        { "yearRange": [1966, 2099], "city": "Atlanta", "name": "Falcons", "abbreviation": "ATL" }
+      ],
+      "expansionYear": 1966
+    },
+    {
+      "teamIndex": 14,
+      "currentName": "49ers",
+      "currentCity": "San Francisco",
+      "currentAbbreviation": "SF",
+      "changes": [
+        { "yearRange": [1946, 2099], "city": "San Francisco", "name": "49ers", "abbreviation": "SF" }
+      ]
+    },
+    {
+      "teamIndex": 15,
+      "currentName": "Giants",
+      "currentCity": "New York",
+      "currentAbbreviation": "NYG",
+      "changes": [
+        { "yearRange": [1925, 2099], "city": "New York", "name": "Giants", "abbreviation": "NYG" }
+      ]
+    },
+    {
+      "teamIndex": 16,
+      "currentName": "Jaguars",
+      "currentCity": "Jacksonville",
+      "changes": [
+        { "yearRange": [1995, 2099], "city": "Jacksonville", "name": "Jaguars", "abbreviation": "JAX" }
+      ],
+      "expansionYear": 1995
+    },
+    {
+      "teamIndex": 17,
+      "currentName": "Jets",
+      "currentCity": "New York",
+      "changes": [
+        { "yearRange": [1960, 1962], "city": "New York", "name": "Titans", "abbreviation": "NYT" },
+        { "yearRange": [1963, 2099], "city": "New York", "name": "Jets", "abbreviation": "NYJ" }
+      ]
+    },
+    {
+      "teamIndex": 18,
+      "currentName": "Lions",
+      "currentCity": "Detroit",
+      "changes": [
+        { "yearRange": [1930, 1933], "city": "Portsmouth", "name": "Spartans", "abbreviation": "POR" },
+        { "yearRange": [1934, 2099], "city": "Detroit", "name": "Lions", "abbreviation": "DET" }
+      ]
+    },
+    {
+      "teamIndex": 19,
+      "currentName": "Packers",
+      "currentCity": "Green Bay",
+      "currentAbbreviation": "GB",
+      "changes": [
+        { "yearRange": [1921, 2099], "city": "Green Bay", "name": "Packers", "abbreviation": "GB" }
+      ]
+    },
+    {
+      "teamIndex": 20,
+      "currentName": "Panthers",
+      "currentCity": "Carolina",
+      "changes": [
+        { "yearRange": [1995, 2099], "city": "Carolina", "name": "Panthers", "abbreviation": "CAR" }
+      ],
+      "expansionYear": 1995
+    },
+    {
+      "teamIndex": 21,
+      "currentName": "Patriots",
+      "currentCity": "New England",
+      "changes": [
+        { "yearRange": [1960, 1970], "city": "Boston", "name": "Patriots", "abbreviation": "BOS" },
+        { "yearRange": [1971, 2099], "city": "New England", "name": "Patriots", "abbreviation": "NE" }
+      ]
+    },
+    {
+      "teamIndex": 22,
+      "currentName": "Raiders",
+      "currentCity": "Las Vegas",
+      "changes": [
+        { "yearRange": [1960, 1981], "city": "Oakland", "name": "Raiders", "abbreviation": "OAK" },
+        { "yearRange": [1982, 1994], "city": "Los Angeles", "name": "Raiders", "abbreviation": "LA" },
+        { "yearRange": [1995, 2019], "city": "Oakland", "name": "Raiders", "abbreviation": "OAK" },
+        { "yearRange": [2020, 2099], "city": "Las Vegas", "name": "Raiders", "abbreviation": "LV" }
+      ]
+    },
+    {
+      "teamIndex": 23,
+      "currentName": "Rams",
+      "currentCity": "Los Angeles",
+      "currentAbbreviation": "LAR",
+      "changes": [
+        { "yearRange": [1936, 1945], "city": "Cleveland", "name": "Rams", "abbreviation": "CLE" },
+        { "yearRange": [1946, 1994], "city": "Los Angeles", "name": "Rams", "abbreviation": "LA" },
+        { "yearRange": [1995, 2015], "city": "St. Louis", "name": "Rams", "abbreviation": "STL" },
+        { "yearRange": [2016, 2099], "city": "Los Angeles", "name": "Rams", "abbreviation": "LAR" }
+      ]
+    },
+    {
+      "teamIndex": 24,
+      "currentName": "Ravens",
+      "currentCity": "Baltimore",
+      "changes": [
+        { "yearRange": [1996, 2099], "city": "Baltimore", "name": "Ravens", "abbreviation": "BAL" }
+      ],
+      "expansionYear": 1996,
+      "note": "Formed from Cleveland Browns relocation"
+    },
+    {
+      "teamIndex": 25,
+      "currentName": "Commanders",
+      "currentCity": "Washington",
+      "changes": [
+        { "yearRange": [1932, 1936], "city": "Boston", "name": "Redskins", "abbreviation": "BOS" },
+        { "yearRange": [1937, 2019], "city": "Washington", "name": "Redskins", "abbreviation": "WAS" },
+        { "yearRange": [2020, 2021], "city": "Washington", "name": "Football Team", "abbreviation": "WAS" },
+        { "yearRange": [2022, 2099], "city": "Washington", "name": "Commanders", "abbreviation": "WAS" }
+      ]
+    },
+    {
+      "teamIndex": 26,
+      "currentName": "Saints",
+      "currentCity": "New Orleans",
+      "changes": [
+        { "yearRange": [1967, 2099], "city": "New Orleans", "name": "Saints", "abbreviation": "NO" }
+      ],
+      "expansionYear": 1967
+    },
+    {
+      "teamIndex": 27,
+      "currentName": "Seahawks",
+      "currentCity": "Seattle",
+      "changes": [
+        { "yearRange": [1976, 2099], "city": "Seattle", "name": "Seahawks", "abbreviation": "SEA" }
+      ],
+      "expansionYear": 1976
+    },
+    {
+      "teamIndex": 28,
+      "currentName": "Steelers",
+      "currentCity": "Pittsburgh",
+      "changes": [
+        { "yearRange": [1933, 1939], "city": "Pittsburgh", "name": "Pirates", "abbreviation": "PIT" },
+        { "yearRange": [1940, 2099], "city": "Pittsburgh", "name": "Steelers", "abbreviation": "PIT" }
+      ]
+    },
+    {
+      "teamIndex": 29,
+      "currentName": "Titans",
+      "currentCity": "Tennessee",
+      "changes": [
+        { "yearRange": [1960, 1996], "city": "Houston", "name": "Oilers", "abbreviation": "HOU" },
+        { "yearRange": [1997, 1998], "city": "Tennessee", "name": "Oilers", "abbreviation": "TEN" },
+        { "yearRange": [1999, 2099], "city": "Tennessee", "name": "Titans", "abbreviation": "TEN" }
+      ]
+    },
+    {
+      "teamIndex": 30,
+      "currentName": "Vikings",
+      "currentCity": "Minnesota",
+      "changes": [
+        { "yearRange": [1961, 2099], "city": "Minnesota", "name": "Vikings", "abbreviation": "MIN" }
+      ],
+      "expansionYear": 1961
+    },
+    {
+      "teamIndex": 31,
+      "currentName": "Texans",
+      "currentCity": "Houston",
+      "changes": [
+        { "yearRange": [2002, 2099], "city": "Houston", "name": "Texans", "abbreviation": "HOU" }
+      ],
+      "expansionYear": 2002
+    }
+  ]
+}

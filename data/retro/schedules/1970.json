@@ -1,0 +1,1465 @@
+{
+  "year": 1970,
+  "seasonLength": 14,
+  "byeWeeksEnabled": false,
+  "regularSeasonWeeks": 14,
+  "games": [
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Los Angeles Rams",
+      "awayTeam": "St. Louis Cardinals",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "New York Giants",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Boston Patriots",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "Houston Oilers",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "Baltimore Colts",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 1,
+      "weekType": "regular",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "Los Angeles Rams",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Boston Patriots",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "St. Louis Cardinals",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Houston Oilers",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 2,
+      "weekType": "regular",
+      "homeTeam": "Baltimore Colts",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 14
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "Houston Oilers",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Boston Patriots",
+      "awayTeam": "Baltimore Colts",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "St. Louis Cardinals",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Los Angeles Rams",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 3,
+      "weekType": "regular",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "New York Jets",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "New York Giants",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "St. Louis Cardinals",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Houston Oilers",
+      "awayTeam": "Baltimore Colts",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "Boston Patriots",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "Los Angeles Rams",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 14
+    },
+    {
+      "week": 4,
+      "weekType": "regular",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "New York Jets",
+      "awayTeam": "Baltimore Colts",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "St. Louis Cardinals",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Boston Patriots",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Los Angeles Rams",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Houston Oilers",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 5,
+      "weekType": "regular",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "New York Jets",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "New York Giants",
+      "awayTeam": "St. Louis Cardinals",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Baltimore Colts",
+      "awayTeam": "Boston Patriots",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "Houston Oilers",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 6,
+      "weekType": "regular",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "Los Angeles Rams",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Boston Patriots",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "New York Jets",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Baltimore Colts",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "St. Louis Cardinals",
+      "awayTeam": "Houston Oilers",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "Los Angeles Rams",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 7,
+      "weekType": "regular",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "New York Giants",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 14
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "St. Louis Cardinals",
+      "awayTeam": "Boston Patriots",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "Houston Oilers",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Los Angeles Rams",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 8,
+      "weekType": "regular",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Baltimore Colts",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Boston Patriots",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "New York Giants",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Baltimore Colts",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Houston Oilers",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 14
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Los Angeles Rams",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 9,
+      "weekType": "regular",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "St. Louis Cardinals",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "Los Angeles Rams",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "Houston Oilers",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "Baltimore Colts",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 14
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "New York Jets",
+      "awayTeam": "Boston Patriots",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "St. Louis Cardinals",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 10,
+      "weekType": "regular",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "Boston Patriots",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "New York Jets",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Baltimore Colts",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "St. Louis Cardinals",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Houston Oilers",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "Los Angeles Rams",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 11,
+      "weekType": "regular",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "New York Giants",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "St. Louis Cardinals",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "Boston Patriots",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "New York Jets",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Baltimore Colts",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Los Angeles Rams",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 12,
+      "weekType": "regular",
+      "homeTeam": "Houston Oilers",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Boston Patriots",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "Baltimore Colts",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Houston Oilers",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "St. Louis Cardinals",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 14
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 13,
+      "weekType": "regular",
+      "homeTeam": "Los Angeles Rams",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Baltimore Colts",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "Boston Patriots",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "St. Louis Cardinals",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "New York Giants",
+      "awayTeam": "Los Angeles Rams",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "Houston Oilers",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 14,
+      "weekType": "regular",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 14
+    }
+  ],
+  "playoffs": []
+}

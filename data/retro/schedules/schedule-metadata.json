@@ -1,0 +1,228 @@
+{
+  "description": "NFL schedule metadata - era definitions and team name mappings for historical schedule resolution. TeamIndex values match Madden 26 franchise file Team.TeamIndex field.",
+  "eras": [
+    {
+      "startYear": 1966,
+      "endYear": 1969,
+      "seasonLength": 14,
+      "byeWeeks": false,
+      "playoffTeams": 4,
+      "playoffFormat": "Conference championship games only",
+      "note": "Pre-merger NFL, 14-game season"
+    },
+    {
+      "startYear": 1970,
+      "endYear": 1977,
+      "seasonLength": 14,
+      "byeWeeks": false,
+      "playoffTeams": 8,
+      "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
+      "note": "AFL-NFL merger, 14-game season"
+    },
+    {
+      "startYear": 1978,
+      "endYear": 1981,
+      "seasonLength": 16,
+      "byeWeeks": false,
+      "playoffTeams": 10,
+      "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
+      "note": "Expanded to 16 games, no bye weeks"
+    },
+    {
+      "startYear": 1982,
+      "endYear": 1982,
+      "seasonLength": 9,
+      "byeWeeks": false,
+      "playoffTeams": 16,
+      "playoffFormat": "Special tournament format",
+      "note": "Strike-shortened season"
+    },
+    {
+      "startYear": 1983,
+      "endYear": 1989,
+      "seasonLength": 16,
+      "byeWeeks": false,
+      "playoffTeams": 10,
+      "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
+      "note": "16-game season, no bye weeks"
+    },
+    {
+      "startYear": 1990,
+      "endYear": 1992,
+      "seasonLength": 16,
+      "byeWeeks": true,
+      "regularSeasonWeeks": 17,
+      "playoffTeams": 12,
+      "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
+      "note": "Bye weeks introduced"
+    },
+    {
+      "startYear": 1993,
+      "endYear": 2001,
+      "seasonLength": 16,
+      "byeWeeks": true,
+      "regularSeasonWeeks": 17,
+      "playoffTeams": 12,
+      "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
+      "note": "Expansion era: Panthers/Jaguars (1995), Ravens (1996), Browns return (1999)"
+    },
+    {
+      "startYear": 2002,
+      "endYear": 2019,
+      "seasonLength": 16,
+      "byeWeeks": true,
+      "regularSeasonWeeks": 17,
+      "playoffTeams": 12,
+      "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
+      "note": "Realignment era, Texans added (2002)"
+    },
+    {
+      "startYear": 2020,
+      "endYear": 2020,
+      "seasonLength": 16,
+      "byeWeeks": true,
+      "regularSeasonWeeks": 17,
+      "playoffTeams": 14,
+      "playoffFormat": "Wild Card (6 games) + Divisional + Conference + Super Bowl",
+      "note": "COVID season, expanded playoffs to 14 teams"
+    },
+    {
+      "startYear": 2021,
+      "endYear": 2025,
+      "seasonLength": 17,
+      "byeWeeks": true,
+      "regularSeasonWeeks": 18,
+      "playoffTeams": 14,
+      "playoffFormat": "Wild Card (6 games) + Divisional + Conference + Super Bowl",
+      "note": "17-game season, 18 weeks"
+    }
+  ],
+  "teamNameMappings": {
+    "Arizona Cardinals": { "teamIndex": 6, "years": [1994, 2099] },
+    "Phoenix Cardinals": { "teamIndex": 6, "years": [1988, 1993] },
+    "St. Louis Cardinals": { "teamIndex": 6, "years": [1960, 1987] },
+    "Chicago Cardinals": { "teamIndex": 6, "years": [1920, 1959] },
+
+    "Atlanta Falcons": { "teamIndex": 13, "years": [1966, 2099] },
+
+    "Baltimore Colts": { "teamIndex": 9, "years": [1953, 1983] },
+    "Indianapolis Colts": { "teamIndex": 9, "years": [1984, 2099] },
+
+    "Baltimore Ravens": { "teamIndex": 24, "years": [1996, 2099] },
+
+    "Boston Patriots": { "teamIndex": 21, "years": [1960, 1970] },
+    "New England Patriots": { "teamIndex": 21, "years": [1971, 2099] },
+
+    "Buffalo Bills": { "teamIndex": 2, "years": [1960, 2099] },
+
+    "Carolina Panthers": { "teamIndex": 20, "years": [1995, 2099] },
+
+    "Chicago Bears": { "teamIndex": 0, "years": [1922, 2099] },
+
+    "Cincinnati Bengals": { "teamIndex": 1, "years": [1968, 2099] },
+
+    "Cleveland Browns": { "teamIndex": 4, "years": [1946, 2099], "excludeYears": [1996, 1997, 1998] },
+
+    "Dallas Cowboys": { "teamIndex": 10, "years": [1960, 2099] },
+    "Dallas Texans": { "teamIndex": 8, "years": [1960, 1962] },
+
+    "Denver Broncos": { "teamIndex": 3, "years": [1960, 2099] },
+
+    "Detroit Lions": { "teamIndex": 18, "years": [1934, 2099] },
+
+    "Green Bay Packers": { "teamIndex": 19, "years": [1921, 2099] },
+
+    "Houston Oilers": { "teamIndex": 29, "years": [1960, 1996] },
+    "Tennessee Oilers": { "teamIndex": 29, "years": [1997, 1998] },
+    "Tennessee Titans": { "teamIndex": 29, "years": [1999, 2099] },
+
+    "Houston Texans": { "teamIndex": 31, "years": [2002, 2099] },
+
+    "Jacksonville Jaguars": { "teamIndex": 16, "years": [1995, 2099] },
+
+    "Kansas City Chiefs": { "teamIndex": 8, "years": [1963, 2099] },
+
+    "Los Angeles Chargers": { "teamIndex": 7, "years": [2017, 2099] },
+    "San Diego Chargers": { "teamIndex": 7, "years": [1961, 2016] },
+    "LA Chargers": { "teamIndex": 7, "years": [1960, 1960] },
+
+    "Los Angeles Raiders": { "teamIndex": 22, "years": [1982, 1994] },
+    "Oakland Raiders": { "teamIndex": 22, "years": [1960, 2099], "excludeYears": [1982, 1983, 1984, 1985, 1986, 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994] },
+    "Las Vegas Raiders": { "teamIndex": 22, "years": [2020, 2099] },
+
+    "Los Angeles Rams": { "teamIndex": 23, "years": [2016, 2099] },
+    "St. Louis Rams": { "teamIndex": 23, "years": [1995, 2015] },
+    "LA Rams": { "teamIndex": 23, "years": [1946, 1994] },
+
+    "Miami Dolphins": { "teamIndex": 11, "years": [1966, 2099] },
+
+    "Minnesota Vikings": { "teamIndex": 30, "years": [1961, 2099] },
+
+    "New Orleans Saints": { "teamIndex": 26, "years": [1967, 2099] },
+
+    "New York Giants": { "teamIndex": 15, "years": [1925, 2099] },
+
+    "New York Jets": { "teamIndex": 17, "years": [1963, 2099] },
+    "New York Titans": { "teamIndex": 17, "years": [1960, 1962] },
+
+    "Philadelphia Eagles": { "teamIndex": 12, "years": [1933, 2099] },
+
+    "Pittsburgh Steelers": { "teamIndex": 28, "years": [1940, 2099] },
+
+    "San Francisco 49ers": { "teamIndex": 14, "years": [1946, 2099] },
+
+    "Seattle Seahawks": { "teamIndex": 27, "years": [1976, 2099] },
+
+    "Tampa Bay Buccaneers": { "teamIndex": 5, "years": [1976, 2099] },
+
+    "Washington Redskins": { "teamIndex": 25, "years": [1937, 2019] },
+    "Washington Football Team": { "teamIndex": 25, "years": [2020, 2021] },
+    "Washington Commanders": { "teamIndex": 25, "years": [2022, 2099] }
+  },
+  "abbreviationMappings": {
+    "ARI": 6, "PHX": 6, "STL": 6, "CRDL": 6,
+    "ATL": 13,
+    "BAL": 24,
+    "BUF": 2,
+    "CAR": 20,
+    "CHI": 0,
+    "CIN": 1,
+    "CLE": 4,
+    "DAL": 10,
+    "DEN": 3,
+    "DET": 18,
+    "GB": 19, "GNB": 19,
+    "HOU": 31,
+    "IND": 9,
+    "JAC": 16, "JAX": 16,
+    "KC": 8, "KAN": 8,
+    "LAC": 7, "SDG": 7, "SD": 7,
+    "LAR": 23, "RAM": 23,
+    "LV": 22, "LVR": 22, "OAK": 22, "RAI": 22,
+    "MIA": 11,
+    "MIN": 30,
+    "NE": 21, "NWE": 21,
+    "NO": 26, "NOR": 26,
+    "NYG": 15,
+    "NYJ": 17,
+    "PHI": 12,
+    "PIT": 28,
+    "SEA": 27,
+    "SF": 14, "SFO": 14,
+    "TB": 5, "TAM": 5,
+    "TEN": 29, "OTI": 29,
+    "WAS": 25, "WSH": 25
+  },
+  "specialCases": {
+    "1982Strike": {
+      "year": 1982,
+      "note": "57-day players' strike, season reduced to 9 games per team",
+      "playoffFormat": "Super Bowl Tournament - 16 teams, no divisional standings"
+    },
+    "1987Strike": {
+      "year": 1987,
+      "note": "24-day players' strike, 3 games played with replacement players",
+      "gamesAffected": "Weeks 3-5"
+    }
+  }
+}

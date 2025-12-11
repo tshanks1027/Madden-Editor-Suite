@@ -493,4 +493,172 @@ ipcMain.handle('retro:dump-tables', async (event, filePath: string) => {
   }
 });
 
+// ========================================
+// SCHEDULE HANDLERS
+// ========================================
+
+/**
+ * Handle: retro:get-season-info
+ * Get era information for a specific year (season length, bye weeks, playoffs)
+ */
+ipcMain.handle('retro:get-season-info', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET SEASON INFO =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const info = await retroEditorService.getSeasonInfo(year);
+    console.log('[retro-editor-handlers] Season info:', info);
+    return { success: true, data: info };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting season info:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:has-schedule-data
+ * Check if schedule data is available for a year
+ */
+ipcMain.handle('retro:has-schedule-data', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== HAS SCHEDULE DATA =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const hasData = await retroEditorService.hasScheduleData(year);
+    console.log('[retro-editor-handlers] Has schedule data:', hasData);
+    return { success: true, hasData };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error checking schedule data:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:get-available-schedule-years
+ * Get list of years with schedule data available
+ */
+ipcMain.handle('retro:get-available-schedule-years', async () => {
+  console.log('[retro-editor-handlers] ===== GET AVAILABLE SCHEDULE YEARS =====');
+
+  try {
+    const years = await retroEditorService.getAvailableScheduleYears();
+    console.log('[retro-editor-handlers] Available schedule years:', years.length);
+    return { success: true, years };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting available schedule years:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:get-schedule-preview
+ * Get preview of schedule changes for a year
+ */
+ipcMain.handle('retro:get-schedule-preview', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET SCHEDULE PREVIEW =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const preview = await retroEditorService.getSchedulePreview(filePath, year);
+    console.log('[retro-editor-handlers] Schedule preview generated');
+    console.log('[retro-editor-handlers] Total games:', preview.totalGames);
+    console.log('[retro-editor-handlers] Validation:', preview.validation);
+    return { success: true, data: preview };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting schedule preview:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-schedule
+ * Apply historical schedule to franchise file
+ */
+ipcMain.handle('retro:apply-schedule', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY SCHEDULE =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyHistoricalSchedule(filePath, year);
+    console.log('[retro-editor-handlers] Schedule applied');
+    console.log('[retro-editor-handlers] Games modified:', result.gamesUpdated);
+    return { success: true, data: result };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying schedule:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ========================================
+// COACH HANDLERS
+// ========================================
+
+/**
+ * Handle: retro:has-coach-data
+ * Check if coach data is available for a year
+ */
+ipcMain.handle('retro:has-coach-data', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== HAS COACH DATA =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const hasData = await retroEditorService.hasCoachData(year);
+    console.log('[retro-editor-handlers] Has coach data:', hasData);
+    return { success: true, hasData };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error checking coach data:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:get-coach-preview
+ * Get preview of coach changes for a year
+ */
+ipcMain.handle('retro:get-coach-preview', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET COACH PREVIEW =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const preview = await retroEditorService.getCoachPreview(filePath, year);
+    console.log('[retro-editor-handlers] Coach preview generated');
+    console.log('[retro-editor-handlers] Team count:', preview.teamCount);
+    return { success: true, data: preview };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting coach preview:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-coaches
+ * Apply historical coaches to franchise file
+ */
+ipcMain.handle('retro:apply-coaches', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY COACHES =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyHistoricalCoaches(filePath, year);
+    console.log('[retro-editor-handlers] Coaches applied');
+    console.log('[retro-editor-handlers] Coaches updated:', result.coachesUpdated);
+    return { success: true, data: result };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying coaches:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 console.log('[retro-editor-handlers] Retro Editor IPC handlers registered');

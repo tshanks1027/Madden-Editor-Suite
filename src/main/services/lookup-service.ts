@@ -1013,6 +1013,21 @@ export class LookupService {
     return this.coachCache.get(pid)?.pam;
   }
 
+  // Look up a coach by name (for retro editor - check if coach has a portrait in game)
+  public getCoachByName(lastName: string, firstName: string): CoachLookupEntry | undefined {
+    const lastNameLower = lastName.toLowerCase();
+    const firstNameLower = firstName.toLowerCase();
+
+    // Search through all coaches for a match
+    for (const coach of this.coachCache.values()) {
+      if (coach.lastName.toLowerCase() === lastNameLower &&
+          coach.firstName.toLowerCase() === firstNameLower) {
+        return coach;
+      }
+    }
+    return undefined;
+  }
+
   // ========== ROSTER GENERATOR METHODS ==========
 
   // Get all player seasons for a specific year (replaces ROSTER_lookup.csv loading)

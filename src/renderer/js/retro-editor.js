@@ -16,6 +16,8 @@ let retroState = {
   fileMetadata: null,
   targetYear: null,
   previewData: null,
+  schedulePreview: null,
+  coachPreview: null,
   applyResult: null
 };
 
@@ -327,11 +329,210 @@ async function loadPreview() {
       draftChangesContainer.innerHTML = '<p class="no-changes">No draft pick reordering needed (all 32 teams active)</p>';
     }
 
+    // Load schedule preview
+    await loadSchedulePreview();
+
+    // Load coach preview
+    await loadCoachPreview();
+
     hideRetroMessage();
 
   } catch (error) {
     console.error('[RetroEditor] Error loading preview:', error);
     showRetroMessage('Error: ' + error.message, 'error');
+  }
+}
+
+/**
+ * Load schedule preview for the selected year
+ */
+async function loadSchedulePreview() {
+  try {
+    // Get season era info
+    const seasonInfoResult = await window.electronAPI.retro.getSeasonInfo(retroState.targetYear);
+
+    if (seasonInfoResult.success && seasonInfoResult.data) {
+      const eraInfo = seasonInfoResult.data;
+      document.getElementById('preview-season-length').textContent = `${eraInfo.seasonLength} games`;
+      document.getElementById('preview-bye-weeks').textContent = eraInfo.byeWeeks ? 'Yes' : 'No';
+      document.getElementById('preview-playoff-teams').textContent = `${eraInfo.playoffTeams} teams`;
+
+      // Show era note if available
+      if (eraInfo.note) {
+        const eraInfoDiv = document.getElementById('retro-era-info');
+        const noteDiv = eraInfoDiv.querySelector('.era-note') || document.createElement('div');
+        noteDiv.className = 'era-note';
+        noteDiv.style.cssText = 'font-size: 0.85em; color: var(--text-secondary); margin-top: 8px; font-style: italic;';
+        noteDiv.textContent = eraInfo.note;
+        if (!eraInfoDiv.querySelector('.era-note')) {
+          eraInfoDiv.appendChild(noteDiv);
+        }
+      }
+    } else {
+      document.getElementById('preview-season-length').textContent = '--';
+      document.getElementById('preview-bye-weeks').textContent = '--';
+      document.getElementById('preview-playoff-teams').textContent = '--';
+    }
+
+    // Check if schedule data is available
+    const hasScheduleResult = await window.electronAPI.retro.hasScheduleData(retroState.targetYear);
+    const scheduleStatusDiv = document.getElementById('retro-schedule-status');
+    const scheduleDetailsDiv = document.getElementById('retro-schedule-details');
+    const validationSection = document.getElementById('retro-validation-section');
+    const validationWarnings = document.getElementById('retro-validation-warnings');
+
+    if (hasScheduleResult.success && hasScheduleResult.hasData) {
+      // Schedule data available - load preview
+      const schedulePreview = await window.electronAPI.retro.getSchedulePreview(retroState.filePath, retroState.targetYear);
+
+      if (schedulePreview.success && schedulePreview.data) {
+        const preview = schedulePreview.data;
+
+        scheduleStatusDiv.innerHTML = `
+          <div class="schedule-available" style="color: var(--success-color);">
+            <strong>Schedule data available</strong><br>
+            <span style="font-size: 0.9em;">${preview.totalGames} games will be applied to your franchise</span>
+          </div>
+        `;
+
+        // Show week-by-week preview if games are available
+        if (preview.gamesByWeek && Object.keys(preview.gamesByWeek).length > 0) {
+          scheduleDetailsDiv.style.display = 'block';
+          const weeksContainer = document.getElementById('retro-schedule-weeks');
+          weeksContainer.innerHTML = Object.entries(preview.gamesByWeek)
+            .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+            .map(([week, games]) => `
+              <div class="schedule-week" style="margin-bottom: 12px; padding: 8px; background: var(--bg-secondary); border-radius: 4px;">
+                <strong style="color: var(--text-primary);">Week ${week}</strong>
+                <div style="margin-top: 4px; font-size: 0.85em;">
+                  ${games.map(g => `
+                    <div style="padding: 2px 0;">${g.awayTeam} @ ${g.homeTeam}</div>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('');
+        }
+
+        // Show validation warnings if any
+        if (preview.validation && (preview.validation.warnings.length > 0 || preview.validation.errors.length > 0)) {
+          validationSection.style.display = 'block';
+          validationWarnings.innerHTML = [
+            ...preview.validation.errors.map(e => `<div class="validation-error" style="color: var(--error-color);">${e}</div>`),
+            ...preview.validation.warnings.map(w => `<div class="validation-warning" style="color: var(--warning-color);">${w}</div>`)
+          ].join('');
+        } else {
+          validationSection.style.display = 'none';
+        }
+
+        // Store schedule preview for application
+        retroState.schedulePreview = preview;
+      }
+    } else {
+      // No schedule data
+      scheduleStatusDiv.innerHTML = `
+        <p class="no-changes">No schedule data available for ${retroState.targetYear}</p>
+        <p style="font-size: 0.85em; color: var(--text-secondary);">Season settings will be applied but game schedule won't be modified.</p>
+      `;
+      scheduleDetailsDiv.style.display = 'none';
+      validationSection.style.display = 'none';
+      retroState.schedulePreview = null;
+    }
+
+  } catch (error) {
+    console.error('[RetroEditor] Error loading schedule preview:', error);
+    document.getElementById('retro-schedule-status').innerHTML = `
+      <p class="no-changes" style="color: var(--error-color);">Error loading schedule: ${error.message}</p>
+    `;
+  }
+}
+
+/**
+ * Load coach preview for the selected year
+ */
+async function loadCoachPreview() {
+  try {
+    const coachStatusDiv = document.getElementById('retro-coach-status');
+    const coachDetailsDiv = document.getElementById('retro-coach-details');
+
+    // Check if coach data is available
+    const hasCoachResult = await window.electronAPI.retro.hasCoachData(retroState.targetYear);
+
+    if (hasCoachResult.success && hasCoachResult.hasData) {
+      // Coach data available - load preview
+      const coachPreview = await window.electronAPI.retro.getCoachPreview(retroState.filePath, retroState.targetYear);
+
+      if (coachPreview.success && coachPreview.data && coachPreview.data.available) {
+        const preview = coachPreview.data;
+        const coachChanges = preview.coachChanges || [];
+
+        // Count coaches that will be updated (skip "(Keep Default)" entries)
+        let coachCount = 0;
+        coachChanges.forEach(team => {
+          if (team.headCoach && team.headCoach !== 'N/A') coachCount++;
+          if (team.offensiveCoordinator && team.offensiveCoordinator !== '(Keep Default)') coachCount++;
+          if (team.defensiveCoordinator && team.defensiveCoordinator !== '(Keep Default)') coachCount++;
+        });
+
+        coachStatusDiv.innerHTML = `
+          <div class="coach-available" style="color: var(--success-color);">
+            <strong>Coach data available</strong><br>
+            <span style="font-size: 0.9em;">${coachCount} coaching positions will be updated across ${coachChanges.length} teams</span>
+          </div>
+        `;
+
+        // Show team-by-team preview
+        if (coachChanges.length > 0) {
+          coachDetailsDiv.style.display = 'block';
+          const coachListContainer = document.getElementById('retro-coach-list');
+          coachListContainer.innerHTML = coachChanges
+            .sort((a, b) => a.teamAbbr.localeCompare(b.teamAbbr))
+            .map(team => {
+              const hasOC = team.offensiveCoordinator && team.offensiveCoordinator !== '(Keep Default)';
+              const hasDC = team.defensiveCoordinator && team.defensiveCoordinator !== '(Keep Default)';
+
+              return `
+                <div class="coach-team" style="margin-bottom: 12px; padding: 8px; background: var(--bg-secondary); border-radius: 4px;">
+                  <strong style="color: var(--text-primary);">${team.teamAbbr}</strong>
+                  <div style="margin-top: 4px; font-size: 0.85em;">
+                    <div style="padding: 2px 0;"><span style="color: var(--text-secondary);">HC:</span> ${team.headCoach}</div>
+                    ${hasOC
+                      ? `<div style="padding: 2px 0;"><span style="color: var(--text-secondary);">OC:</span> ${team.offensiveCoordinator}</div>`
+                      : '<div style="padding: 2px 0; color: var(--text-secondary); opacity: 0.7;">OC: (game default)</div>'}
+                    ${hasDC
+                      ? `<div style="padding: 2px 0;"><span style="color: var(--text-secondary);">DC:</span> ${team.defensiveCoordinator}</div>`
+                      : '<div style="padding: 2px 0; color: var(--text-secondary); opacity: 0.7;">DC: (game default)</div>'}
+                  </div>
+                </div>
+              `;
+            }).join('');
+        }
+
+        // Store coach preview for application
+        retroState.coachPreview = preview;
+      } else {
+        // No data available from preview (shouldn't happen if hasData is true)
+        coachStatusDiv.innerHTML = `
+          <p class="no-changes">No coach data available for ${retroState.targetYear}</p>
+          <p style="font-size: 0.85em; color: var(--text-secondary);">Coaching staff will not be modified.</p>
+        `;
+        coachDetailsDiv.style.display = 'none';
+        retroState.coachPreview = null;
+      }
+    } else {
+      // No coach data
+      coachStatusDiv.innerHTML = `
+        <p class="no-changes">No coach data available for ${retroState.targetYear}</p>
+        <p style="font-size: 0.85em; color: var(--text-secondary);">Coaching staff will not be modified.</p>
+      `;
+      coachDetailsDiv.style.display = 'none';
+      retroState.coachPreview = null;
+    }
+
+  } catch (error) {
+    console.error('[RetroEditor] Error loading coach preview:', error);
+    document.getElementById('retro-coach-status').innerHTML = `
+      <p class="no-changes" style="color: var(--error-color);">Error loading coach data: ${error.message}</p>
+    `;
   }
 }
 
@@ -352,46 +553,107 @@ async function applyChanges() {
     resultsSection.style.display = 'none';
     errorSection.style.display = 'none';
 
+    // Determine total steps based on what's available
+    const hasSchedule = retroState.schedulePreview !== null;
+    const hasCoaches = retroState.coachPreview !== null;
+    let totalSteps = 3; // Base: season, teams, draft
+    if (hasSchedule) totalSteps++;
+    if (hasCoaches) totalSteps++;
+
+    let currentStep = 0;
+
     // Animate progress
-    progressBar.style.width = '20%';
+    currentStep++;
+    progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
     progressText.textContent = 'Applying season settings...';
     await sleep(500);
 
-    progressBar.style.width = '50%';
+    currentStep++;
+    progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
     progressText.textContent = 'Updating team names...';
     await sleep(500);
 
-    progressBar.style.width = '80%';
+    currentStep++;
+    progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
     progressText.textContent = 'Reordering draft picks...';
 
     // Apply all changes
     const result = await window.electronAPI.retro.applyAllChanges(retroState.filePath, retroState.targetYear);
 
-    progressBar.style.width = '100%';
-    await sleep(300);
-
-    if (result.success) {
-      retroState.applyResult = result.data;
-      progressText.textContent = 'Changes applied successfully!';
-
-      // Show results
-      const resultsSummary = document.getElementById('retro-results-summary');
-      resultsSummary.innerHTML = `
-        <ul>
-          <li>Season year set to ${retroState.targetYear}</li>
-          <li>Super Bowl number updated</li>
-          <li>${result.data.teamChanges || 0} team name(s) updated</li>
-          <li>${result.data.draftPicksReordered || 0} draft pick(s) reordered</li>
-        </ul>
-      `;
-
-      resultsSection.style.display = 'block';
-
-    } else {
+    if (!result.success) {
       progressText.textContent = 'Error applying changes';
       document.getElementById('retro-error-message').textContent = result.error;
       errorSection.style.display = 'block';
+      return;
     }
+
+    // Apply schedule if available
+    let scheduleResult = null;
+    if (hasSchedule) {
+      currentStep++;
+      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
+      progressText.textContent = 'Applying historical schedule...';
+      await sleep(300);
+
+      try {
+        scheduleResult = await window.electronAPI.retro.applySchedule(retroState.filePath, retroState.targetYear);
+      } catch (scheduleError) {
+        console.warn('[RetroEditor] Schedule application failed:', scheduleError);
+        // Continue - schedule is optional
+      }
+    }
+
+    // Apply coaches if available
+    let coachResult = null;
+    if (hasCoaches) {
+      currentStep++;
+      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
+      progressText.textContent = 'Assigning historical coaches...';
+      await sleep(300);
+
+      try {
+        coachResult = await window.electronAPI.retro.applyCoaches(retroState.filePath, retroState.targetYear);
+      } catch (coachError) {
+        console.warn('[RetroEditor] Coach assignment failed:', coachError);
+        // Continue - coaches are optional
+      }
+    }
+
+    progressBar.style.width = '100%';
+    await sleep(300);
+
+    retroState.applyResult = result.data;
+    progressText.textContent = 'Changes applied successfully!';
+
+    // Show results
+    const resultsSummary = document.getElementById('retro-results-summary');
+    let resultItems = [
+      `<li>Season year set to ${retroState.targetYear}</li>`,
+      `<li>Super Bowl number updated</li>`,
+      `<li>${result.data.teamChanges || 0} team name(s) updated</li>`,
+      `<li>${result.data.draftPicksReordered || 0} draft pick(s) reordered</li>`
+    ];
+
+    // Add schedule result if attempted
+    if (scheduleResult && scheduleResult.success) {
+      resultItems.push(`<li>${scheduleResult.data.gamesModified || 0} schedule game(s) set</li>`);
+    } else if (hasSchedule && (!scheduleResult || !scheduleResult.success)) {
+      resultItems.push(`<li style="color: var(--warning-color);">Schedule could not be applied (optional)</li>`);
+    }
+
+    // Add coach result if attempted
+    if (coachResult && coachResult.success) {
+      resultItems.push(`<li>${coachResult.data.coachesUpdated || 0} coach(es) assigned</li>`);
+      // Show warnings if any
+      if (coachResult.data.warnings && coachResult.data.warnings.length > 0) {
+        resultItems.push(`<li style="color: var(--warning-color);">${coachResult.data.warnings.length} coach warning(s)</li>`);
+      }
+    } else if (hasCoaches && (!coachResult || !coachResult.success)) {
+      resultItems.push(`<li style="color: var(--warning-color);">Coaches could not be assigned (optional)</li>`);
+    }
+
+    resultsSummary.innerHTML = `<ul>${resultItems.join('')}</ul>`;
+    resultsSection.style.display = 'block';
 
   } catch (error) {
     console.error('[RetroEditor] Error applying changes:', error);
@@ -512,6 +774,8 @@ async function restartRetroWizard() {
     fileMetadata: null,
     targetYear: null,
     previewData: null,
+    schedulePreview: null,
+    coachPreview: null,
     applyResult: null
   };
 
@@ -524,6 +788,21 @@ async function restartRetroWizard() {
   document.getElementById('retro-progress-text').textContent = 'Ready to apply changes...';
   document.getElementById('retro-results-section').style.display = 'none';
   document.getElementById('retro-error-section').style.display = 'none';
+
+  // Reset schedule preview UI
+  document.getElementById('preview-season-length').textContent = '--';
+  document.getElementById('preview-bye-weeks').textContent = '--';
+  document.getElementById('preview-playoff-teams').textContent = '--';
+  document.getElementById('retro-schedule-status').innerHTML = '<p class="no-changes">Checking schedule data...</p>';
+  document.getElementById('retro-schedule-details').style.display = 'none';
+  document.getElementById('retro-validation-section').style.display = 'none';
+  // Remove era note if it was added
+  const eraNote = document.querySelector('#retro-era-info .era-note');
+  if (eraNote) eraNote.remove();
+
+  // Reset coach preview UI
+  document.getElementById('retro-coach-status').innerHTML = '<p class="no-changes">Checking coach data...</p>';
+  document.getElementById('retro-coach-details').style.display = 'none';
 
   const saveBtn = document.getElementById('retro-save-file');
   saveBtn.disabled = false;
