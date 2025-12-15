@@ -582,6 +582,13 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       ...(appearanceEdit?.maddenPam && { pam: appearanceEdit.maddenPam }),
       ...(appearanceEdit?.maddenPlpo && { plpo: appearanceEdit.maddenPlpo }),
       ...(appearanceEdit?.maddenCommid && { commID: appearanceEdit.maddenCommid }),
+      // Apply PGHE matched set for generic faces
+      ...(appearanceEdit?.maddenPghe !== undefined && { pghe: appearanceEdit.maddenPghe }),
+      ...(appearanceEdit?.maddenPfcg && { pfcg: appearanceEdit.maddenPfcg }),
+      ...(appearanceEdit?.maddenGpan && { gpan: appearanceEdit.maddenGpan }),
+      ...(appearanceEdit?.maddenGslp !== undefined && { gslp: appearanceEdit.maddenGslp }),
+      ...(appearanceEdit?.maddenCpvf !== undefined && { cpvf: appearanceEdit.maddenCpvf }),
+      ...(appearanceEdit?.maddenSkinTone !== undefined && { skinTone: appearanceEdit.maddenSkinTone }),
       // Mark as edited
       hasEdits: !!(playerEdit || appearanceEdit)
     };
@@ -1259,10 +1266,40 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
 
     console.log(`[database-handlers] Age calc for ${player.firstName} ${player.lastName}: year=${year}, careerFrom=${player.careerFrom}(${careerFromNum}), draftClass=${player.draftClass}(${draftClassNum}), careerStart=${careerStart}, yearsPro=${yearsPro}, age=${age}`);
 
+    // Check for stored PGHE data from database appearance edits
+    // This allows users to assign specific generic faces in the database player card
+    let rosterStoredPgheData: { pghe: number; pfcg: string; psxp: number; skinTone: number; genr: string } | null = null;
+
+    try {
+      const rosterAppearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
+
+      // Check if appearance edit has generic face data (either PGHE index or PAM starting with gen_)
+      const hasStoredGenericFace = rosterAppearanceEdit && (
+        rosterAppearanceEdit.maddenPghe !== undefined ||
+        rosterAppearanceEdit.maddenPfcg ||
+        (rosterAppearanceEdit.maddenPam && rosterAppearanceEdit.maddenPam.startsWith('gen_'))
+      );
+
+      if (hasStoredGenericFace) {
+        rosterStoredPgheData = {
+          pghe: rosterAppearanceEdit.maddenPghe ?? 0,
+          pfcg: rosterAppearanceEdit.maddenPfcg || '',
+          psxp: rosterAppearanceEdit.maddenPid || 0,
+          skinTone: rosterAppearanceEdit.maddenSkinTone || (rosterAppearanceEdit.maddenPfcg ? parseInt(rosterAppearanceEdit.maddenPfcg.charAt(0)) : 4) || 4,
+          genr: rosterAppearanceEdit.maddenPam || (rosterAppearanceEdit.maddenPfcg ? `gen_${rosterAppearanceEdit.maddenPfcg}` : '')
+        };
+        console.log(`[database-handlers] Found stored PGHE data for roster ${player.firstName} ${player.lastName}: PGHE=${rosterStoredPgheData.pghe}, PID=${rosterStoredPgheData.psxp}, skinTone=${rosterStoredPgheData.skinTone}, genr=${rosterStoredPgheData.genr}`);
+      }
+    } catch (pgheError) {
+      console.warn(`[database-handlers] Could not get PGHE data for ${player.firstName} ${player.lastName}:`, pgheError);
+      // Continue without PGHE data - player will get random generic face
+    }
+
     // Determine PID and PAM - ALWAYS assign values, never leave blank
     let pid: number;
     let pam: string;
     let effectiveRace = player.race;
+    let rosterPgheIndex: number | undefined; // Track PGHE index for roster player
 
     // Check if player has valid PID and PAM
     const hasValidPID = !isEmptyPID(player.pid);
@@ -1272,6 +1309,13 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       // Player has a real face scan PAM
       pam = player.pam;
       pid = hasValidPID ? player.pid : 0;
+    } else if (rosterStoredPgheData) {
+      // Player has stored PGHE data from database - use it instead of random
+      pid = rosterStoredPgheData.psxp;
+      pam = rosterStoredPgheData.genr; // Roster uses PEPS=GENR for generic faces
+      effectiveRace = rosterStoredPgheData.skinTone;
+      rosterPgheIndex = rosterStoredPgheData.pghe;
+      console.log(`[database-handlers] Using stored PGHE face for roster ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, PGHE=${rosterPgheIndex}, skinTone=${effectiveRace}`);
     } else {
       // Player needs generic face - determine race if unknown
       if (effectiveRace === undefined || effectiveRace === null) {
@@ -1292,7 +1336,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       pid = getGenericPID(effectiveRace);
     }
 
-    console.log(`[database-handlers] PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}', race=${effectiveRace}`);
+    console.log(`[database-handlers] PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}', race=${effectiveRace}, pgheIndex=${rosterPgheIndex ?? 'N/A'}`);
 
     // Get default archetype for position if not in season data
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
@@ -1314,6 +1358,9 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       TGID: 1009, // Free Agent team by default
       PLPL: pid > 0 && pam && !pam.startsWith('gen_') ? 100 : 0, // 100=real face, 0=generic
       PLTY: 0, // Will be set below
+
+      // PGHE face picker index (if user assigned specific generic face in database)
+      ...(rosterPgheIndex !== undefined && { PGHE: rosterPgheIndex }),
 
       // Additional required fields
       PCBT: getRosterBodyType(positionName, weight, heightInches), // Body type based on position/size
@@ -1548,10 +1595,40 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
 
     console.log(`[database-handlers] Draft age calc for ${player.firstName} ${player.lastName}: year=${year}, careerFrom=${player.careerFrom}(${draftCareerFromNum}), draftClass=${player.draftClass}(${draftDraftClassNum}), careerStart=${draftCareerStart}, yearsPro=${yearsPro}, age=${age}`);
 
+    // Check for stored PGHE data from database appearance edits
+    // This allows users to assign specific generic faces in the database player card
+    let storedPgheData: { pghe: number; pfcg: string; psxp: number; skinTone: number; genr: string } | null = null;
+
+    try {
+      const appearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
+
+      // Check if appearance edit has generic face data (either PGHE index or PAM starting with gen_)
+      const hasDraftStoredGenericFace = appearanceEdit && (
+        appearanceEdit.maddenPghe !== undefined ||
+        appearanceEdit.maddenPfcg ||
+        (appearanceEdit.maddenPam && appearanceEdit.maddenPam.startsWith('gen_'))
+      );
+
+      if (hasDraftStoredGenericFace) {
+        storedPgheData = {
+          pghe: appearanceEdit.maddenPghe ?? 0,
+          pfcg: appearanceEdit.maddenPfcg || '',
+          psxp: appearanceEdit.maddenPid || 0,
+          skinTone: appearanceEdit.maddenSkinTone || (appearanceEdit.maddenPfcg ? parseInt(appearanceEdit.maddenPfcg.charAt(0)) : 4) || 4,
+          genr: appearanceEdit.maddenPam || (appearanceEdit.maddenPfcg ? `gen_${appearanceEdit.maddenPfcg}` : '')
+        };
+        console.log(`[database-handlers] Found stored PGHE data for draft ${player.firstName} ${player.lastName}: PGHE=${storedPgheData.pghe}, PID=${storedPgheData.psxp}, skinTone=${storedPgheData.skinTone}, genr=${storedPgheData.genr}`);
+      }
+    } catch (pgheError) {
+      console.warn(`[database-handlers] Could not get PGHE data for draft ${player.firstName} ${player.lastName}:`, pgheError);
+      // Continue without PGHE data - player will get random generic face
+    }
+
     // Determine PID and PAM - ALWAYS assign values, never leave blank
     let pid: number;
     let pam: string;
     let effectiveRace = player.race;
+    let pgheIndex: number | undefined; // Track PGHE index for prospect
 
     // Check if player has valid PID and PAM
     const hasValidPID = !isEmptyPID(player.pid);
@@ -1561,6 +1638,13 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       // Player has a real face scan PAM
       pam = player.pam;
       pid = hasValidPID ? player.pid : 0;
+    } else if (storedPgheData) {
+      // Player has stored PGHE data from database - use it instead of random
+      pid = storedPgheData.psxp;
+      pam = ''; // Draft class uses blank PAM, face determined by PGHE/skinTone
+      effectiveRace = storedPgheData.skinTone;
+      pgheIndex = storedPgheData.pghe;
+      console.log(`[database-handlers] Using stored PGHE face for ${player.firstName} ${player.lastName}: PID=${pid}, PGHE=${pgheIndex}, skinTone=${effectiveRace}`);
     } else {
       // Player needs generic face - determine race if unknown
       // DRAFT RULES: Blank PAM with PID=0, race determines generic face via skinTone
@@ -1581,7 +1665,7 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       pid = getGenericPID(effectiveRace);
     }
 
-    console.log(`[database-handlers] Draft PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}', race=${effectiveRace}`);
+    console.log(`[database-handlers] Draft PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}', race=${effectiveRace}, pgheIndex=${pgheIndex ?? 'N/A'}`);
 
     // Get default archetype for position
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
@@ -1647,12 +1731,15 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       // Commentary ID for in-game announcer names
       commentaryId: parseInt(player.commID) || 0,
 
+      // PGHE face picker index (if user assigned specific generic face in database)
+      ...(pgheIndex !== undefined && { PGHE: pgheIndex }),
+
       // Visuals structure for M26
       visuals: {
         bodyType: getDraftBodyType(positionName, weight, heightInches),
         assetName: pam && !pam.startsWith('gen_') ? pam : null,
-        genericHeadName: pam.startsWith('gen_') ? pam : null,
-        skinTone: getSkinToneFromRace(effectiveRace)
+        genericHeadName: storedPgheData ? storedPgheData.genr : (pam.startsWith('gen_') ? pam : null),
+        skinTone: storedPgheData ? storedPgheData.skinTone : getSkinToneFromRace(effectiveRace)
       }
     };
 

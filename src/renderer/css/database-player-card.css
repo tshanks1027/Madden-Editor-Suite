@@ -14,6 +14,15 @@
   pointer-events: auto;
 }
 
+/* Generic Face Picker Modal - Must appear above database player card */
+#genericFacePickerModal {
+  z-index: 12000 !important;
+}
+
+#genericFacePickerModal .modal-content {
+  z-index: 12001;
+}
+
 /* Modal Content */
 .db-player-card-modal {
   width: 90%;

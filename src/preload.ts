@@ -45,7 +45,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCoachPAMFromPID: (pid: number) => ipcRenderer.invoke('lookup:get-coach-pam-from-pid', pid),
     getCoachLookup: () => ipcRenderer.invoke('lookup:get-coach-lookup'),
     // Race lookup for BLBM GENR/SKNT assignment
-    getRaceByPID: (pid: number) => ipcRenderer.invoke('lookup:get-race-by-pid', pid)
+    getRaceByPID: (pid: number) => ipcRenderer.invoke('lookup:get-race-by-pid', pid),
+    // GENR catalog for validating face picker selections
+    getValidGenrSet: () => ipcRenderer.invoke('lookup:get-valid-genr-set'),
+    // Verified portrait->GENR mapping (268 faces that work correctly in-game)
+    getVerifiedPortraitGenrMapping: () => ipcRenderer.invoke('lookup:get-verified-portrait-genr-mapping'),
+    // Face picker # -> GENR/SKNT mapping (264 definitive faces from ROSTER-GENHEADTEST)
+    getFacePickerMapping: () => ipcRenderer.invoke('lookup:get-face-picker-mapping')
   },
 
   // Draft Class APIs
@@ -188,6 +194,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid)
   },
 
+  // PGHE Generic Face APIs
+  pghe: {
+    initialize: () => ipcRenderer.invoke('pghe:initialize'),
+    getRandomByRace: (race: number) => ipcRenderer.invoke('pghe:getRandomByRace', race),
+    getAllBySkinTone: (skinTone: number) => ipcRenderer.invoke('pghe:getAllBySkinTone', skinTone),
+    getByPGHE: (pghe: number) => ipcRenderer.invoke('pghe:getByPGHE', pghe),
+    getByPID: (pid: number) => ipcRenderer.invoke('pghe:getByPID', pid),
+    isGenericPID: (pid: number) => ipcRenderer.invoke('pghe:isGenericPID', pid),
+    getAll: () => ipcRenderer.invoke('pghe:getAll'),
+    raceToSkinTone: (race: number) => ipcRenderer.invoke('pghe:raceToSkinTone', race)
+  },
+
   // Shell APIs
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:open-external', url)
@@ -245,7 +263,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCoachPreview: (filePath: string, year: number) =>
       ipcRenderer.invoke('retro:get-coach-preview', filePath, year),
     applyCoaches: (filePath: string, year: number) =>
-      ipcRenderer.invoke('retro:apply-coaches', filePath, year)
+      ipcRenderer.invoke('retro:apply-coaches', filePath, year),
+
+    // Salary Cap APIs
+    getSalaryCap: (year: number) =>
+      ipcRenderer.invoke('retro:get-salary-cap', year),
+    applySalaryCap: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-salary-cap', filePath, year),
+
+    // Stadium APIs
+    getStadiumPreview: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:get-stadium-preview', filePath, year),
+    applyStadiumNames: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-stadium-names', filePath, year),
+
+    // Team Schemes APIs
+    getSchemePreview: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:get-scheme-preview', filePath, year),
+    applyTeamSchemes: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-team-schemes', filePath, year)
   },
 
   // User Database APIs (Edit player database, custom players, CSV import)

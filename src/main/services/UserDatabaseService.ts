@@ -49,6 +49,13 @@ export interface AppearanceEdit {
   maddenPam?: string;
   maddenPlpo?: string;
   maddenCommid?: string;
+  // PGHE matched set fields for generic faces
+  maddenPghe?: number;       // PGHE index (face picker index, 1-294)
+  maddenPfcg?: string;       // PFCG code (e.g., "1_B_B_005")
+  maddenGpan?: string;       // GPAN portrait asset name
+  maddenGslp?: number;       // GSLP skin tone value from file
+  maddenCpvf?: number;       // CPVF flag (0 or 1)
+  maddenSkinTone?: number;   // Derived skin tone (1-7)
   editedAt?: string;
 }
 
@@ -216,9 +223,23 @@ class UserDatabaseService {
         madden_pam TEXT,
         madden_plpo TEXT,
         madden_commid TEXT,
+        madden_pghe INTEGER,
+        madden_pfcg TEXT,
+        madden_gpan TEXT,
+        madden_gslp INTEGER,
+        madden_cpvf INTEGER,
+        madden_skin_tone INTEGER,
         edited_at TEXT DEFAULT (datetime('now'))
       )
     `);
+
+    // Migration: add PGHE columns for generic face support
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_pghe INTEGER`); } catch { /* Column already exists */ }
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_pfcg TEXT`); } catch { /* Column already exists */ }
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_gpan TEXT`); } catch { /* Column already exists */ }
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_gslp INTEGER`); } catch { /* Column already exists */ }
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_cpvf INTEGER`); } catch { /* Column already exists */ }
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_skin_tone INTEGER`); } catch { /* Column already exists */ }
 
     // Build season_edits table with all rating fields
     const ratingColumns = RATING_FIELDS.map(f => `${f} INTEGER`).join(', ');
@@ -460,17 +481,26 @@ class UserDatabaseService {
     if (!this.editsDb) throw new Error('Edits database not initialized');
 
     this.editsDb.prepare(`
-      INSERT OR REPLACE INTO appearance_edits (original_player_id, madden_pid, madden_pam, madden_plpo, madden_commid)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO appearance_edits (
+        original_player_id, madden_pid, madden_pam, madden_plpo, madden_commid,
+        madden_pghe, madden_pfcg, madden_gpan, madden_gslp, madden_cpvf, madden_skin_tone
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       originalPlayerId,
       edits.maddenPid ?? null,
       edits.maddenPam ?? null,
       edits.maddenPlpo ?? null,
-      edits.maddenCommid ?? null
+      edits.maddenCommid ?? null,
+      edits.maddenPghe ?? null,
+      edits.maddenPfcg ?? null,
+      edits.maddenGpan ?? null,
+      edits.maddenGslp ?? null,
+      edits.maddenCpvf ?? null,
+      edits.maddenSkinTone ?? null
     );
 
-    console.log(`[UserDatabaseService] Saved appearance edit for player_id=${originalPlayerId}`);
+    console.log(`[UserDatabaseService] Saved appearance edit for player_id=${originalPlayerId} (PGHE=${edits.maddenPghe ?? 'null'})`);
   }
 
   public getAppearanceEdit(originalPlayerId: number): AppearanceEdit | null {
@@ -485,6 +515,12 @@ class UserDatabaseService {
       maddenPam: row.madden_pam as string | undefined,
       maddenPlpo: row.madden_plpo as string | undefined,
       maddenCommid: row.madden_commid as string | undefined,
+      maddenPghe: row.madden_pghe as number | undefined,
+      maddenPfcg: row.madden_pfcg as string | undefined,
+      maddenGpan: row.madden_gpan as string | undefined,
+      maddenGslp: row.madden_gslp as number | undefined,
+      maddenCpvf: row.madden_cpvf as number | undefined,
+      maddenSkinTone: row.madden_skin_tone as number | undefined,
       editedAt: row.edited_at as string | undefined
     };
   }

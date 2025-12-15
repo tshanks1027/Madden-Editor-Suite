@@ -217,6 +217,15 @@
       });
     }
 
+    // Assign Generic Face button - opens the face picker modal
+    var assignFaceBtn = document.getElementById('assignGenericFaceBtn');
+    if (assignFaceBtn) {
+      assignFaceBtn.addEventListener('click', function() {
+        console.log('[DbPlayerCard] Assign Generic Face clicked - opening face picker');
+        openGenericFacePickerForDbCard();
+      });
+    }
+
     // OVR change listener - prompt to adjust ratings
     var ovrInput = document.getElementById('dbRating_POVR');
     if (ovrInput) {
@@ -441,6 +450,21 @@
       currentDbPlayer = result.player;
       console.log('[DatabasePlayerCard] Player data received:', currentDbPlayer);
       console.log('[DatabasePlayerCard] Position value:', currentDbPlayer.position);
+
+      // Restore PGHE data if player has generic face settings
+      if (currentDbPlayer.pghe !== undefined || currentDbPlayer.pfcg) {
+        currentDbPlayer._pgheData = {
+          pghe: currentDbPlayer.pghe,
+          pfcg: currentDbPlayer.pfcg,
+          gpan: currentDbPlayer.gpan,
+          gslp: currentDbPlayer.gslp,
+          psxp: currentDbPlayer.pid,
+          cpvf: currentDbPlayer.cpvf,
+          genr: currentDbPlayer.pam,
+          skinTone: currentDbPlayer.skinTone
+        };
+        console.log('[DatabasePlayerCard] Restored PGHE data:', currentDbPlayer._pgheData);
+      }
 
       // Populate the form
       populatePlayerForm(currentDbPlayer);
@@ -1048,6 +1072,18 @@
           maddenCommid: getValue('dbPlayerCommID')
         };
 
+        // Include PGHE matched set data if a generic face was assigned
+        if (currentDbPlayer && currentDbPlayer._pgheData) {
+          var pghe = currentDbPlayer._pgheData;
+          playerData.maddenPghe = pghe.pghe;
+          playerData.maddenPfcg = pghe.pfcg;
+          playerData.maddenGpan = pghe.gpan;
+          playerData.maddenGslp = pghe.gslp;
+          playerData.maddenCpvf = pghe.cpvf;
+          playerData.maddenSkinTone = pghe.skinTone;
+          console.log('[DatabasePlayerCard] Including PGHE data in custom player:', pghe);
+        }
+
         console.log('[DatabasePlayerCard] Creating new custom player:', playerData);
         var result = await window.electronAPI.database.createCustomPlayer(playerData);
 
@@ -1117,13 +1153,25 @@
       };
       console.log('[DatabasePlayerCard] Saving playerEdits:', playerEdits);
 
-      // Collect appearance edits
+      // Collect appearance edits (including PGHE matched set if assigned)
       var appearanceEdits = {
         maddenPid: getIntValue('dbPlayerPID'),
         maddenPam: getValue('dbPlayerPAM'),
         maddenPlpo: getValue('dbPlayerPLPO'),
         maddenCommid: getValue('dbPlayerCommID')
       };
+
+      // Include PGHE matched set data if a generic face was assigned
+      if (currentDbPlayer && currentDbPlayer._pgheData) {
+        var pghe = currentDbPlayer._pgheData;
+        appearanceEdits.maddenPghe = pghe.pghe;
+        appearanceEdits.maddenPfcg = pghe.pfcg;
+        appearanceEdits.maddenGpan = pghe.gpan;
+        appearanceEdits.maddenGslp = pghe.gslp;
+        appearanceEdits.maddenCpvf = pghe.cpvf;
+        appearanceEdits.maddenSkinTone = pghe.skinTone;
+        console.log('[DatabasePlayerCard] Including PGHE data in appearance save:', pghe);
+      }
 
       // Save player edits
       var playerResult = await window.electronAPI.database.savePlayerEdit(currentDbPlayerId, playerEdits);
@@ -1679,6 +1727,293 @@
   function getChecked(id) {
     var el = document.getElementById(id);
     return el ? el.checked : false;
+  }
+
+  // ========================================
+  // Generic Face Picker for Database Card
+  // ========================================
+
+  // Cache for generic faces
+  var cachedGenericFaces = null;
+  var facePickerInitialized = false;
+
+  /**
+   * Open the generic face picker modal for database player card
+   */
+  async function openGenericFacePickerForDbCard() {
+    var modal = document.getElementById('genericFacePickerModal');
+    var grid = document.getElementById('genericFaceGrid');
+
+    if (!modal || !grid) {
+      console.error('[DbPlayerCard] Generic face picker modal or grid not found');
+      alert('Face picker not available');
+      return;
+    }
+
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Show loading state
+    grid.innerHTML = '<div class="loading-spinner">Loading generic faces...</div>';
+
+    // Initialize close button handler for database mode
+    if (!facePickerInitialized) {
+      var closeBtn = document.getElementById('closeGenericFacePicker');
+      if (closeBtn) {
+        // Remove any existing listeners by cloning
+        var newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        newCloseBtn.addEventListener('click', function() {
+          modal.style.display = 'none';
+        });
+      }
+
+      // Close on background click
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          modal.style.display = 'none';
+        }
+      });
+
+      facePickerInitialized = true;
+    }
+
+    try {
+      // Load generic faces (use cache if available)
+      var genericFaces = await loadGenericFacesForDbCard();
+
+      if (genericFaces.length === 0) {
+        grid.innerHTML = '<div class="loading-spinner">No generic faces found</div>';
+        return;
+      }
+
+      // Clear grid and populate with faces
+      grid.innerHTML = '';
+
+      // Create placeholder image for loading state
+      var placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4uLi48L3RleHQ+PC9zdmc+';
+
+      // Load faces in batches to prevent UI freeze
+      var BATCH_SIZE = 10;
+      var currentIndex = 0;
+
+      var loadBatch = function() {
+        var endIndex = Math.min(currentIndex + BATCH_SIZE, genericFaces.length);
+
+        for (var i = currentIndex; i < endIndex; i++) {
+          var face = genericFaces[i];
+          var faceItem = document.createElement('div');
+          faceItem.className = 'generic-face-item';
+          faceItem.dataset.pid = face.pid;
+
+          // Create image with placeholder
+          var img = document.createElement('img');
+          img.alt = 'Generic Face ' + face.pid;
+          img.src = placeholderSvg;
+
+          var pidLabel = document.createElement('div');
+          pidLabel.className = 'generic-face-pid';
+          pidLabel.textContent = 'PID ' + face.pid;
+
+          faceItem.appendChild(img);
+          faceItem.appendChild(pidLabel);
+
+          // Click handler to select this face for database card
+          (function(f) {
+            faceItem.addEventListener('click', function() {
+              selectGenericFaceForDbCard(f.pid, f.portrait, f._verifiedGenr, f._verifiedSknt);
+            });
+          })(face);
+
+          grid.appendChild(faceItem);
+
+          // Load portrait asynchronously without blocking UI
+          (function(f, imgEl, itemEl) {
+            window.electronAPI.portrait.getByPID(f.pid).then(function(imageData) {
+              if (imageData && imageData.length > 0) {
+                imgEl.src = imageData;
+              } else {
+                // No portrait available - hide this face from picker
+                itemEl.style.display = 'none';
+              }
+            }).catch(function(error) {
+              console.error('[DbPlayerCard] Failed to load portrait for PID ' + f.pid + ':', error);
+              itemEl.style.display = 'none';
+            });
+          })(face, img, faceItem);
+        }
+
+        currentIndex = endIndex;
+
+        // Schedule next batch if there are more faces
+        if (currentIndex < genericFaces.length) {
+          requestAnimationFrame(loadBatch);
+        }
+      };
+
+      // Start loading batches
+      loadBatch();
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error loading generic faces:', error);
+      grid.innerHTML = '<div class="loading-spinner">Error loading generic faces</div>';
+    }
+  }
+
+  /**
+   * Load generic faces from the verified mapping
+   */
+  async function loadGenericFacesForDbCard() {
+    // Use cache if available
+    if (cachedGenericFaces) {
+      return cachedGenericFaces;
+    }
+
+    try {
+      // Get the VERIFIED portrait->GENR mapping
+      var verifiedMapping = {};
+      try {
+        verifiedMapping = await window.electronAPI.lookup.getVerifiedPortraitGenrMapping();
+        console.log('[DbPlayerCard] Loaded ' + Object.keys(verifiedMapping).length + ' verified portrait->GENR mappings');
+      } catch (e) {
+        console.error('[DbPlayerCard] Could not load verified mapping:', e);
+      }
+
+      // Get PID_Portrait_Mapping.csv data for portrait images
+      var mapping = await window.electronAPI.lookup.getPIDPortraitMapping();
+
+      // Filter to only type='generic' entries
+      var allGenericFaces = mapping.filter(function(entry) {
+        return entry.type === 'generic';
+      });
+
+      // Only include portraits that exist in our verified mapping
+      var verifiedPortraits = new Set(Object.keys(verifiedMapping));
+      var validGenericFaces = allGenericFaces.filter(function(face) {
+        return verifiedPortraits.has(face.portrait);
+      });
+
+      console.log('[DbPlayerCard] Filtered from ' + allGenericFaces.length + ' to ' + validGenericFaces.length + ' faces with verified GENR mappings');
+
+      // Deduplicate by portrait
+      var seenPortraits = new Set();
+      var uniqueFaces = [];
+
+      for (var i = 0; i < validGenericFaces.length; i++) {
+        var face = validGenericFaces[i];
+        if (!seenPortraits.has(face.portrait)) {
+          seenPortraits.add(face.portrait);
+          // Attach the verified GENR/SKNT directly to the face object
+          var verifiedData = verifiedMapping[face.portrait];
+          face._verifiedGenr = verifiedData ? verifiedData.genr : null;
+          face._verifiedSknt = verifiedData ? verifiedData.sknt : null;
+          uniqueFaces.push(face);
+        }
+      }
+
+      // Sort by skin tone category (1-7) for better organization
+      uniqueFaces.sort(function(a, b) {
+        var matchA = a.portrait.match(/plpo_generic_(\d+)_/);
+        var matchB = b.portrait.match(/plpo_generic_(\d+)_/);
+        var toneA = matchA ? parseInt(matchA[1]) : 0;
+        var toneB = matchB ? parseInt(matchB[1]) : 0;
+        return toneA - toneB;
+      });
+
+      console.log('[DbPlayerCard] Loaded ' + uniqueFaces.length + ' unique verified faces');
+
+      // Cache for future use
+      cachedGenericFaces = uniqueFaces;
+
+      return uniqueFaces;
+    } catch (error) {
+      console.error('[DbPlayerCard] Error loading generic faces from CSV:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Select a generic face and apply it to the database player card
+   */
+  async function selectGenericFaceForDbCard(pid, portrait, verifiedGenr, verifiedSknt) {
+    console.log('[DbPlayerCard] Selected face: PID=' + pid + ', portrait=' + portrait + ', genr=' + verifiedGenr + ', sknt=' + verifiedSknt);
+
+    try {
+      // Get PGHE entry for this face to get full matched set
+      var pgheEntry = null;
+      try {
+        pgheEntry = await window.electronAPI.pghe.getByPID(pid);
+      } catch (e) {
+        console.log('[DbPlayerCard] Could not get PGHE by PID, will use verified data:', e);
+      }
+
+      // Set PID
+      var pidInput = document.getElementById('dbPlayerPID');
+      if (pidInput) {
+        pidInput.value = pid;
+      }
+
+      // Set PAM/PEPS (use verified GENR if available, else derive from portrait)
+      var pamInput = document.getElementById('dbPlayerPAM');
+      if (pamInput) {
+        var genrValue = verifiedGenr || (pgheEntry ? pgheEntry.genr : '');
+        if (!genrValue && portrait) {
+          // Derive from portrait name: plpo_generic_1_B_B_005 -> gen_1_B_B_005
+          var match = portrait.match(/plpo_generic_(.+)/);
+          if (match) {
+            genrValue = 'gen_' + match[1];
+          }
+        }
+        pamInput.value = genrValue;
+      }
+
+      // Set PLPO (portrait key)
+      var plpoInput = document.getElementById('dbPlayerPLPO');
+      if (plpoInput) {
+        plpoInput.value = portrait || ('plpo_generic_' + (verifiedGenr ? verifiedGenr.replace('gen_', '') : ''));
+      }
+
+      // Store the FULL PGHE matched set in currentDbPlayer for saving
+      // Prioritize verified data from the face picker over PGHE lookup
+      if (currentDbPlayer) {
+        // Derive PFCG from GENR (gen_1_B_B_005 -> 1_B_B_005)
+        var pfcgValue = verifiedGenr ? verifiedGenr.replace(/^gen_/, '') : '';
+        if (!pfcgValue && pgheEntry && pgheEntry.pfcg) {
+          pfcgValue = pgheEntry.pfcg;
+        }
+
+        currentDbPlayer._pgheData = {
+          pghe: pgheEntry ? pgheEntry.pghe : 0,
+          pfcg: pfcgValue,
+          gpan: portrait || (pgheEntry ? pgheEntry.gpan : ''),
+          gslp: pgheEntry ? pgheEntry.gslp : 0,
+          psxp: pid,
+          cpvf: pgheEntry ? pgheEntry.cpvf : 0,
+          genr: verifiedGenr || (pgheEntry ? pgheEntry.genr : ''),
+          skinTone: verifiedSknt || (pgheEntry ? pgheEntry.skinTone : 4)
+        };
+        console.log('[DbPlayerCard] Stored PGHE data:', currentDbPlayer._pgheData);
+      }
+
+      // Mark as changed
+      hasUnsavedChanges = true;
+      updateSaveButtonState();
+
+      // Load portrait for the new PID
+      loadPlayerPortrait(pid);
+
+      console.log('[DbPlayerCard] Applied face: PID=' + pid + ', GENR=' + (verifiedGenr || (pgheEntry ? pgheEntry.genr : 'N/A')));
+
+      // Close the modal
+      var modal = document.getElementById('genericFacePickerModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error selecting generic face:', error);
+      alert('Failed to apply face: ' + error.message);
+    }
   }
 
   // Make functions available globally

@@ -1038,6 +1038,8 @@
         weight: prospectData.weight || 200,
         toughness: prospectData.toughness || 70,
 
+        // Face data from database
+        PGHE: prospectData.PGHE,
         visuals: prospectData.visuals
       };
 

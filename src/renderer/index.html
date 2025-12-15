@@ -271,6 +271,10 @@
                             <span class="browse-icon">📚</span>
                             Browse Players
                         </button>
+                        <button id="fixGenericFacesBtn" class="btn-fix-faces" title="Fix generic faces to use verified GENR values" style="display: none;">
+                            <span class="fix-icon">🎭</span>
+                            Fix Faces
+                        </button>
                         <button id="reportBugBtn" class="btn-report" title="Report a bug or request a feature">
                             <span class="report-icon">🐛</span>
                             Report Bug / Request Feature
@@ -776,6 +780,54 @@
                                             </summary>
                                             <div id="retro-coach-list" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
                                                 <!-- Coach list will be populated here -->
+                                            </div>
+                                        </details>
+                                    </div>
+                                </div>
+
+                                <!-- Salary Cap Preview -->
+                                <div class="retro-preview-section" id="retro-salary-cap-section">
+                                    <h4 class="retro-section-title">&#128176; Salary Cap</h4>
+                                    <div id="retro-salary-cap-info" class="retro-changes-list">
+                                        <div id="retro-salary-cap-status" class="salary-cap-status">
+                                            <p class="no-changes">Checking salary cap data...</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Stadium Names Preview -->
+                                <div class="retro-preview-section" id="retro-stadium-section">
+                                    <h4 class="retro-section-title">&#127967; Stadium Names</h4>
+                                    <div id="retro-stadium-info" class="retro-changes-list">
+                                        <div id="retro-stadium-status" class="stadium-status">
+                                            <p class="no-changes">Checking stadium data...</p>
+                                        </div>
+                                        <!-- Team-by-team stadium preview (collapsible) -->
+                                        <details id="retro-stadium-details" style="display: none; margin-top: 12px;">
+                                            <summary style="cursor: pointer; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                View Stadium Changes
+                                            </summary>
+                                            <div id="retro-stadium-list" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
+                                                <!-- Stadium list will be populated here -->
+                                            </div>
+                                        </details>
+                                    </div>
+                                </div>
+
+                                <!-- Team Schemes Preview -->
+                                <div class="retro-preview-section" id="retro-scheme-section">
+                                    <h4 class="retro-section-title">&#128218; Team Playbooks/Schemes</h4>
+                                    <div id="retro-scheme-info" class="retro-changes-list">
+                                        <div id="retro-scheme-status" class="scheme-status">
+                                            <p class="no-changes">Checking scheme data...</p>
+                                        </div>
+                                        <!-- Team-by-team scheme preview (collapsible) -->
+                                        <details id="retro-scheme-details" style="display: none; margin-top: 12px;">
+                                            <summary style="cursor: pointer; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                View Scheme Changes
+                                            </summary>
+                                            <div id="retro-scheme-list" style="max-height: 300px; overflow-y: auto; margin-top: 8px;">
+                                                <!-- Scheme list will be populated here -->
                                             </div>
                                         </details>
                                     </div>
@@ -1545,8 +1597,22 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                                 <input type="text" class="db-form-input" id="dbPlayerCommID" placeholder="Commentary ID">
                             </div>
                         </div>
+                        <div class="db-form-section-actions" style="margin-top: 12px;">
+                            <button type="button" class="db-btn db-btn-secondary" id="assignGenericFaceBtn" title="Choose a generic face from the face picker">
+                                Choose Generic Face
+                            </button>
+                            <select id="genericFaceSkinTone" class="db-form-input" style="width: auto; margin-left: 8px;">
+                                <option value="1">Skin Tone 1 (Lightest)</option>
+                                <option value="2">Skin Tone 2</option>
+                                <option value="3">Skin Tone 3</option>
+                                <option value="4" selected>Skin Tone 4 (Medium)</option>
+                                <option value="5">Skin Tone 5</option>
+                                <option value="6">Skin Tone 6</option>
+                                <option value="7">Skin Tone 7 (Darkest)</option>
+                            </select>
+                        </div>
                         <p style="color: #a0a0a0; font-size: 12px; margin-top: 12px;">
-                            These IDs link the player to Madden assets like portraits and commentary.
+                            These IDs link the player to Madden assets like portraits and commentary. Use "Assign Generic Face" to assign a random generic face PID for players without portraits.
                         </p>
                     </div>
                 </div>
@@ -2349,6 +2415,56 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
     <script src="js/custom-dropdown.js"></script>
     <script src="js/retro-editor.js"></script>
     <script src="js/database-player-card.js"></script>
+    <!-- Custom Context Menu for Grid Editors -->
+    <div id="grid-context-menu" class="grid-context-menu" style="display: none;">
+        <div class="context-menu-item" data-action="delete-player">
+            <span class="context-menu-icon">🗑️</span>
+            Delete Player
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="view-player-card">
+            <span class="context-menu-icon">📋</span>
+            View Player Card
+        </div>
+    </div>
+
+    <style>
+        .grid-context-menu {
+            position: fixed;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            padding: 4px 0;
+            min-width: 160px;
+            z-index: 10000;
+            font-size: 13px;
+        }
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .context-menu-item:hover {
+            background: #3a3a3a;
+        }
+        .context-menu-item[data-action="delete-player"]:hover {
+            background: #5a2a2a;
+            color: #ff6b6b;
+        }
+        .context-menu-icon {
+            font-size: 14px;
+        }
+        .context-menu-separator {
+            height: 1px;
+            background: #444;
+            margin: 4px 0;
+        }
+    </style>
+
     <script src="js/player-browser.js"></script>
     <script src="js/csv-import.js"></script>
     <script src="js/fill-remaining.js"></script>
