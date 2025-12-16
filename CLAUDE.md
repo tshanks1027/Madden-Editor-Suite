@@ -15,6 +15,76 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Coach portrait management
 - Retro Franchise mode for historical season setup
 
+## MANDATORY Development Workflow
+
+**CRITICAL: This workflow MUST be followed for ALL development tasks. Do not skip phases.**
+
+### Workflow Phases (In Order)
+
+1. **Research** - Investigate requirements, existing solutions, technical constraints
+   - Check KNOWN_ISSUES.md first for solved problems
+   - Review ARCHITECTURE.md for system understanding
+   - Search codebase for existing implementations
+
+2. **Plan** - Create detailed implementation plan with milestones
+   - Document in plan file before writing code
+   - Identify files to modify
+   - Define success criteria
+
+3. **Implement** - Execute plan with regular checkpoints
+   - Follow the plan exactly
+   - Log progress to .project-memory/session_log.json
+
+4. **Test (Loop)** - Systematic testing
+   - Check test_history.db BEFORE suggesting tests
+   - NEVER repeat a failed test without changing something
+   - Log all test results automatically
+
+5. **Debug (Loop)** - Root cause analysis
+   - Check failure_patterns.json for similar errors
+   - Check KNOWN_ISSUES.md for solutions
+   - Only suggest NEW debugging approaches
+
+6. **User Test** - Validation with user
+   - Present working feature for user verification
+   - Gather feedback before finalizing
+
+7. **Commit** - Version control with verified working state
+   - Only commit after tests pass
+   - Clear commit messages
+
+8. **Package Test** - Final validation before distribution
+   - Test packaged build, not just dev mode
+   - Verify in extracted ZIP location
+
+### Test Deduplication Rules
+
+**BEFORE suggesting any test:**
+1. Check .project-memory/test_history.db - "Have we tested this exact condition?"
+2. If yes: SKIP IT
+3. Check .project-memory/failure_patterns.json - "What type of error?"
+4. Match against TESTING_STRATEGY.md - "What test targets this?"
+5. Only suggest tests that are:
+   - Novel (not run before)
+   - Targeting a different stack layer
+   - Based on a new hypothesis
+
+### Project Memory Location
+
+All session data stored in `.project-memory/` (gitignored):
+- `test_history.db` - SQLite tracking all test runs
+- `build_log.json` - Build attempts with output
+- `failure_patterns.json` - Grouped errors and solutions
+- `session_log.json` - Current session progress
+
+### Required Documentation Files
+
+Before starting work, ensure these exist:
+- `PROJECT_SETUP.md` - Build and run instructions
+- `TESTING_STRATEGY.md` - What tests matter
+- `KNOWN_ISSUES.md` - Solutions to solved problems
+- `ARCHITECTURE.md` - System design
+
 ## Architecture
 
 ### Electron Process Structure

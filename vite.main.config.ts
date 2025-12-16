@@ -5,6 +5,8 @@ import { copyFileSync, existsSync, mkdirSync } from 'fs';
 // https://vitejs.dev/config
 export default defineConfig({
   build: {
+    // Don't empty out dir - avoids EBUSY errors when SQLite db is locked
+    emptyOutDir: false,
     rollupOptions: {
       external: [
         'electron',
@@ -59,12 +61,20 @@ export default defineConfig({
             });
           }
 
-          // Copy players.db SQLite database
+          // Copy players.db SQLite database (skip if locked by another process)
           const srcDbFile = path.join(srcDataDir, 'players.db');
           if (existsSync(srcDbFile)) {
             const destDbFile = path.join(destDataDir, 'players.db');
-            copyFileSync(srcDbFile, destDbFile);
-            console.log('Copied players.db to build output');
+            try {
+              copyFileSync(srcDbFile, destDbFile);
+              console.log('Copied players.db to build output');
+            } catch (dbError) {
+              if (dbError.code === 'EBUSY') {
+                console.log('players.db is locked, using existing copy if available');
+              } else {
+                throw dbError;
+              }
+            }
           }
 
           // Copy portrait atlas JSON

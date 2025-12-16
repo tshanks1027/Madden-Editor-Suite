@@ -1385,7 +1385,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PSBO: 0, // No signing bonus
 
       // Development trait (0=normal, 1=star, 2=superstar, 3=x-factor)
-      PDEV: 0,
+      PROL: 0,
     };
 
     // Add ratings from season data if available, otherwise use position-appropriate defaults
@@ -1459,6 +1459,18 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
         }
       }
       rosterPlayer.PLTY = archetypeId;
+
+      // Parse dev trait from season data
+      if (seasonData.devTrait !== undefined && seasonData.devTrait !== null) {
+        if (typeof seasonData.devTrait === 'number') {
+          rosterPlayer.PROL = seasonData.devTrait;
+        } else if (typeof seasonData.devTrait === 'string') {
+          const devMap: Record<string, number> = {
+            'normal': 0, 'star': 1, 'superstar': 2, 'x-factor': 3, 'xfactor': 3
+          };
+          rosterPlayer.PROL = devMap[seasonData.devTrait.toLowerCase()] ?? 0;
+        }
+      }
     } else {
       // Default ratings if no season data - all 70 except stamina/injury at 85
       const defaultRating = 70;

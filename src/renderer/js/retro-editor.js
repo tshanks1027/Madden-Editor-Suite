@@ -18,6 +18,9 @@ let retroState = {
   previewData: null,
   schedulePreview: null,
   coachPreview: null,
+  salaryCapData: null,
+  stadiumPreview: null,
+  schemePreview: null,
   applyResult: null
 };
 
@@ -335,6 +338,15 @@ async function loadPreview() {
     // Load coach preview
     await loadCoachPreview();
 
+    // Load salary cap preview
+    await loadSalaryCapPreview();
+
+    // Load stadium preview
+    await loadStadiumPreview();
+
+    // Load scheme preview
+    await loadSchemePreview();
+
     hideRetroMessage();
 
   } catch (error) {
@@ -537,6 +549,209 @@ async function loadCoachPreview() {
 }
 
 /**
+ * Load salary cap preview for the selected year
+ */
+async function loadSalaryCapPreview() {
+  try {
+    const salaryCapStatusDiv = document.getElementById('retro-salary-cap-status');
+    if (!salaryCapStatusDiv) {
+      console.log('[RetroEditor] Salary cap status div not found, skipping');
+      return;
+    }
+
+    const salaryCapResult = await window.electronAPI.retro.getSalaryCap(retroState.targetYear);
+
+    if (salaryCapResult.success) {
+      const capData = salaryCapResult.data;
+      const formattedCap = capData.value > 0
+        ? '$' + capData.value.toLocaleString()
+        : 'No salary cap (pre-1994 era)';
+
+      salaryCapStatusDiv.innerHTML = `
+        <div class="salary-cap-available" style="color: var(--success-color);">
+          <strong>Salary Cap: ${formattedCap}</strong>
+          ${capData.note ? `<br><span style="font-size: 0.85em; color: var(--text-secondary);">${capData.note}</span>` : ''}
+        </div>
+      `;
+
+      retroState.salaryCapData = capData;
+    } else {
+      salaryCapStatusDiv.innerHTML = `
+        <p class="no-changes">Unable to load salary cap data</p>
+      `;
+      retroState.salaryCapData = null;
+    }
+
+  } catch (error) {
+    console.error('[RetroEditor] Error loading salary cap preview:', error);
+    const salaryCapStatusDiv = document.getElementById('retro-salary-cap-status');
+    if (salaryCapStatusDiv) {
+      salaryCapStatusDiv.innerHTML = `
+        <p class="no-changes" style="color: var(--error-color);">Error loading salary cap: ${error.message}</p>
+      `;
+    }
+  }
+}
+
+/**
+ * Load stadium preview for the selected year
+ */
+async function loadStadiumPreview() {
+  try {
+    const stadiumStatusDiv = document.getElementById('retro-stadium-status');
+    const stadiumDetailsDiv = document.getElementById('retro-stadium-details');
+
+    if (!stadiumStatusDiv) {
+      console.log('[RetroEditor] Stadium status div not found, skipping');
+      return;
+    }
+
+    const stadiumResult = await window.electronAPI.retro.getStadiumPreview(retroState.filePath, retroState.targetYear);
+
+    if (stadiumResult.success && stadiumResult.data && stadiumResult.data.available) {
+      const preview = stadiumResult.data;
+      const changes = preview.stadiumChanges || [];
+      const changesCount = changes.filter(c => c.newName !== c.currentName).length;
+
+      stadiumStatusDiv.innerHTML = `
+        <div class="stadium-available" style="color: var(--success-color);">
+          <strong>Stadium data available</strong><br>
+          <span style="font-size: 0.9em;">${changesCount} stadium name(s) will be updated</span>
+        </div>
+      `;
+
+      // Show stadium changes if any
+      if (stadiumDetailsDiv && changes.length > 0) {
+        stadiumDetailsDiv.style.display = 'block';
+        const stadiumListContainer = document.getElementById('retro-stadium-list');
+        if (stadiumListContainer) {
+          stadiumListContainer.innerHTML = changes
+            .sort((a, b) => a.teamName.localeCompare(b.teamName))
+            .map(stadium => {
+              const isChange = stadium.newName !== stadium.currentName;
+              return `
+                <div class="stadium-item" style="margin-bottom: 8px; padding: 6px; background: var(--bg-secondary); border-radius: 4px; ${isChange ? '' : 'opacity: 0.7;'}">
+                  <strong style="color: var(--text-primary);">${stadium.teamName}</strong>
+                  <div style="font-size: 0.85em; margin-top: 2px;">
+                    ${isChange
+                      ? `<span style="color: var(--text-secondary);">${stadium.currentName}</span> → <span style="color: var(--success-color);">${stadium.newName}</span>`
+                      : `<span style="color: var(--text-secondary);">${stadium.currentName} (no change)</span>`}
+                  </div>
+                </div>
+              `;
+            }).join('');
+        }
+      }
+
+      // Show warnings if any
+      if (preview.warnings && preview.warnings.length > 0) {
+        const warningsHtml = preview.warnings.map(w => `<div style="color: var(--warning-color); font-size: 0.85em;">${w}</div>`).join('');
+        stadiumStatusDiv.innerHTML += warningsHtml;
+      }
+
+      retroState.stadiumPreview = preview;
+    } else {
+      stadiumStatusDiv.innerHTML = `
+        <p class="no-changes">Stadium data not available for ${retroState.targetYear}</p>
+      `;
+      if (stadiumDetailsDiv) stadiumDetailsDiv.style.display = 'none';
+      retroState.stadiumPreview = null;
+    }
+
+  } catch (error) {
+    console.error('[RetroEditor] Error loading stadium preview:', error);
+    const stadiumStatusDiv = document.getElementById('retro-stadium-status');
+    if (stadiumStatusDiv) {
+      stadiumStatusDiv.innerHTML = `
+        <p class="no-changes" style="color: var(--error-color);">Error loading stadium data: ${error.message}</p>
+      `;
+    }
+  }
+}
+
+/**
+ * Load team scheme preview for the selected year
+ */
+async function loadSchemePreview() {
+  try {
+    const schemeStatusDiv = document.getElementById('retro-scheme-status');
+    const schemeDetailsDiv = document.getElementById('retro-scheme-details');
+
+    if (!schemeStatusDiv) {
+      console.log('[RetroEditor] Scheme status div not found, skipping');
+      return;
+    }
+
+    const schemeResult = await window.electronAPI.retro.getSchemePreview(retroState.filePath, retroState.targetYear);
+
+    if (schemeResult.success && schemeResult.data && schemeResult.data.available) {
+      const preview = schemeResult.data;
+      const changes = preview.schemeChanges || [];
+      const changesCount = changes.filter(c => c.newOffense !== c.currentOffense || c.newDefense !== c.currentDefense).length;
+
+      schemeStatusDiv.innerHTML = `
+        <div class="scheme-available" style="color: var(--success-color);">
+          <strong>Team scheme data available</strong><br>
+          <span style="font-size: 0.9em;">${changesCount} team scheme(s) will be updated to era-appropriate playbooks</span>
+        </div>
+      `;
+
+      // Show scheme changes if any
+      if (schemeDetailsDiv && changes.length > 0) {
+        schemeDetailsDiv.style.display = 'block';
+        const schemeListContainer = document.getElementById('retro-scheme-list');
+        if (schemeListContainer) {
+          schemeListContainer.innerHTML = changes
+            .sort((a, b) => a.teamName.localeCompare(b.teamName))
+            .map(scheme => {
+              const offenseChange = scheme.newOffense !== scheme.currentOffense;
+              const defenseChange = scheme.newDefense !== scheme.currentDefense;
+              const hasChange = offenseChange || defenseChange;
+              return `
+                <div class="scheme-item" style="margin-bottom: 8px; padding: 6px; background: var(--bg-secondary); border-radius: 4px; ${hasChange ? '' : 'opacity: 0.7;'}">
+                  <strong style="color: var(--text-primary);">${scheme.teamName}</strong>
+                  ${scheme.note ? `<span style="font-size: 0.75em; color: var(--text-secondary); margin-left: 8px;">(${scheme.note})</span>` : ''}
+                  <div style="font-size: 0.85em; margin-top: 2px;">
+                    <div>OFF: ${offenseChange
+                      ? `<span style="color: var(--text-secondary);">${scheme.currentOffense}</span> → <span style="color: var(--success-color);">${scheme.newOffense}</span>`
+                      : `<span style="color: var(--text-secondary);">${scheme.currentOffense} (no change)</span>`}</div>
+                    <div>DEF: ${defenseChange
+                      ? `<span style="color: var(--text-secondary);">${scheme.currentDefense}</span> → <span style="color: var(--success-color);">${scheme.newDefense}</span>`
+                      : `<span style="color: var(--text-secondary);">${scheme.currentDefense} (no change)</span>`}</div>
+                  </div>
+                </div>
+              `;
+            }).join('');
+        }
+      }
+
+      // Show warnings if any
+      if (preview.warnings && preview.warnings.length > 0) {
+        const warningsHtml = preview.warnings.map(w => `<div style="color: var(--warning-color); font-size: 0.85em;">${w}</div>`).join('');
+        schemeStatusDiv.innerHTML += warningsHtml;
+      }
+
+      retroState.schemePreview = preview;
+    } else {
+      schemeStatusDiv.innerHTML = `
+        <p class="no-changes">Team scheme data not available for ${retroState.targetYear}</p>
+      `;
+      if (schemeDetailsDiv) schemeDetailsDiv.style.display = 'none';
+      retroState.schemePreview = null;
+    }
+
+  } catch (error) {
+    console.error('[RetroEditor] Error loading scheme preview:', error);
+    const schemeStatusDiv = document.getElementById('retro-scheme-status');
+    if (schemeStatusDiv) {
+      schemeStatusDiv.innerHTML = `
+        <p class="no-changes" style="color: var(--error-color);">Error loading scheme data: ${error.message}</p>
+      `;
+    }
+  }
+}
+
+/**
  * Apply changes to franchise file
  */
 async function applyChanges() {
@@ -556,9 +771,15 @@ async function applyChanges() {
     // Determine total steps based on what's available
     const hasSchedule = retroState.schedulePreview !== null;
     const hasCoaches = retroState.coachPreview !== null;
+    const hasSalaryCap = retroState.salaryCapData !== null;
+    const hasStadiums = retroState.stadiumPreview !== null;
+    const hasSchemes = retroState.schemePreview !== null;
     let totalSteps = 3; // Base: season, teams, draft
     if (hasSchedule) totalSteps++;
     if (hasCoaches) totalSteps++;
+    if (hasSalaryCap) totalSteps++;
+    if (hasStadiums) totalSteps++;
+    if (hasSchemes) totalSteps++;
 
     let currentStep = 0;
 
@@ -619,6 +840,54 @@ async function applyChanges() {
       }
     }
 
+    // Apply salary cap if available
+    let salaryCapResult = null;
+    if (hasSalaryCap) {
+      currentStep++;
+      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
+      progressText.textContent = 'Setting salary cap...';
+      await sleep(300);
+
+      try {
+        salaryCapResult = await window.electronAPI.retro.applySalaryCap(retroState.filePath, retroState.targetYear);
+      } catch (salaryCapError) {
+        console.warn('[RetroEditor] Salary cap application failed:', salaryCapError);
+        // Continue - salary cap is optional
+      }
+    }
+
+    // Apply stadium names if available
+    let stadiumResult = null;
+    if (hasStadiums) {
+      currentStep++;
+      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
+      progressText.textContent = 'Setting historical stadium names...';
+      await sleep(300);
+
+      try {
+        stadiumResult = await window.electronAPI.retro.applyStadiumNames(retroState.filePath, retroState.targetYear);
+      } catch (stadiumError) {
+        console.warn('[RetroEditor] Stadium names application failed:', stadiumError);
+        // Continue - stadiums are optional
+      }
+    }
+
+    // Apply team schemes if available
+    let schemeResult = null;
+    if (hasSchemes) {
+      currentStep++;
+      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
+      progressText.textContent = 'Setting era-appropriate team schemes...';
+      await sleep(300);
+
+      try {
+        schemeResult = await window.electronAPI.retro.applyTeamSchemes(retroState.filePath, retroState.targetYear);
+      } catch (schemeError) {
+        console.warn('[RetroEditor] Team schemes application failed:', schemeError);
+        // Continue - schemes are optional
+      }
+    }
+
     progressBar.style.width = '100%';
     await sleep(300);
 
@@ -650,6 +919,29 @@ async function applyChanges() {
       }
     } else if (hasCoaches && (!coachResult || !coachResult.success)) {
       resultItems.push(`<li style="color: var(--warning-color);">Coaches could not be assigned (optional)</li>`);
+    }
+
+    // Add salary cap result if attempted
+    if (salaryCapResult && salaryCapResult.success) {
+      const capValue = salaryCapResult.data.newCap;
+      const formattedCap = capValue > 0 ? '$' + capValue.toLocaleString() : 'No cap (pre-1994)';
+      resultItems.push(`<li>Salary cap set to ${formattedCap}</li>`);
+    } else if (hasSalaryCap && (!salaryCapResult || !salaryCapResult.success)) {
+      resultItems.push(`<li style="color: var(--warning-color);">Salary cap could not be set (optional)</li>`);
+    }
+
+    // Add stadium result if attempted
+    if (stadiumResult && stadiumResult.success) {
+      resultItems.push(`<li>${stadiumResult.data.stadiumsUpdated || 0} stadium name(s) updated</li>`);
+    } else if (hasStadiums && (!stadiumResult || !stadiumResult.success)) {
+      resultItems.push(`<li style="color: var(--warning-color);">Stadium names could not be updated (optional)</li>`);
+    }
+
+    // Add scheme result if attempted
+    if (schemeResult && schemeResult.success) {
+      resultItems.push(`<li>${schemeResult.data.schemesUpdated || 0} team scheme(s) updated</li>`);
+    } else if (hasSchemes && (!schemeResult || !schemeResult.success)) {
+      resultItems.push(`<li style="color: var(--warning-color);">Team schemes could not be updated (optional)</li>`);
     }
 
     resultsSummary.innerHTML = `<ul>${resultItems.join('')}</ul>`;
@@ -776,6 +1068,9 @@ async function restartRetroWizard() {
     previewData: null,
     schedulePreview: null,
     coachPreview: null,
+    salaryCapData: null,
+    stadiumPreview: null,
+    schemePreview: null,
     applyResult: null
   };
 
@@ -803,6 +1098,22 @@ async function restartRetroWizard() {
   // Reset coach preview UI
   document.getElementById('retro-coach-status').innerHTML = '<p class="no-changes">Checking coach data...</p>';
   document.getElementById('retro-coach-details').style.display = 'none';
+
+  // Reset salary cap preview UI
+  const salaryCapStatusDiv = document.getElementById('retro-salary-cap-status');
+  if (salaryCapStatusDiv) salaryCapStatusDiv.innerHTML = '<p class="no-changes">Checking salary cap data...</p>';
+
+  // Reset stadium preview UI
+  const stadiumStatusDiv = document.getElementById('retro-stadium-status');
+  if (stadiumStatusDiv) stadiumStatusDiv.innerHTML = '<p class="no-changes">Checking stadium data...</p>';
+  const stadiumDetailsDiv = document.getElementById('retro-stadium-details');
+  if (stadiumDetailsDiv) stadiumDetailsDiv.style.display = 'none';
+
+  // Reset scheme preview UI
+  const schemeStatusDiv = document.getElementById('retro-scheme-status');
+  if (schemeStatusDiv) schemeStatusDiv.innerHTML = '<p class="no-changes">Checking scheme data...</p>';
+  const schemeDetailsDiv = document.getElementById('retro-scheme-details');
+  if (schemeDetailsDiv) schemeDetailsDiv.style.display = 'none';
 
   const saveBtn = document.getElementById('retro-save-file');
   saveBtn.disabled = false;

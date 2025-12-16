@@ -1,0 +1,266 @@
+{
+  "description": "Historical NFL stadium names by team and year. TeamIndex matches Madden franchise file.",
+  "stadiums": {
+    "0": {
+      "teamName": "Bears",
+      "ranges": [
+        { "start": 1966, "end": 1970, "name": "Wrigley Field" },
+        { "start": 1971, "end": 2001, "name": "Soldier Field" },
+        { "start": 2002, "end": 2002, "name": "Memorial Stadium (Champaign)" },
+        { "start": 2003, "end": 2024, "name": "Soldier Field" }
+      ]
+    },
+    "1": {
+      "teamName": "Bengals",
+      "ranges": [
+        { "start": 1968, "end": 1969, "name": "Nippert Stadium" },
+        { "start": 1970, "end": 1999, "name": "Riverfront Stadium" },
+        { "start": 2000, "end": 2024, "name": "Paul Brown Stadium" }
+      ]
+    },
+    "2": {
+      "teamName": "Bills",
+      "ranges": [
+        { "start": 1960, "end": 1972, "name": "War Memorial Stadium" },
+        { "start": 1973, "end": 1997, "name": "Rich Stadium" },
+        { "start": 1998, "end": 2015, "name": "Ralph Wilson Stadium" },
+        { "start": 2016, "end": 2024, "name": "Highmark Stadium" }
+      ]
+    },
+    "3": {
+      "teamName": "Broncos",
+      "ranges": [
+        { "start": 1960, "end": 2000, "name": "Mile High Stadium" },
+        { "start": 2001, "end": 2010, "name": "Invesco Field" },
+        { "start": 2011, "end": 2024, "name": "Empower Field at Mile High" }
+      ]
+    },
+    "4": {
+      "teamName": "Browns",
+      "ranges": [
+        { "start": 1946, "end": 1995, "name": "Cleveland Stadium" },
+        { "start": 1999, "end": 2024, "name": "Cleveland Browns Stadium" }
+      ]
+    },
+    "5": {
+      "teamName": "Buccaneers",
+      "ranges": [
+        { "start": 1976, "end": 1997, "name": "Tampa Stadium" },
+        { "start": 1998, "end": 2024, "name": "Raymond James Stadium" }
+      ]
+    },
+    "6": {
+      "teamName": "Cardinals",
+      "ranges": [
+        { "start": 1960, "end": 1965, "name": "Sportsman's Park" },
+        { "start": 1966, "end": 1987, "name": "Busch Memorial Stadium" },
+        { "start": 1988, "end": 2005, "name": "Sun Devil Stadium" },
+        { "start": 2006, "end": 2024, "name": "State Farm Stadium" }
+      ]
+    },
+    "7": {
+      "teamName": "Chargers",
+      "ranges": [
+        { "start": 1961, "end": 1966, "name": "Balboa Stadium" },
+        { "start": 1967, "end": 2016, "name": "San Diego Stadium" },
+        { "start": 2017, "end": 2019, "name": "Dignity Health Sports Park" },
+        { "start": 2020, "end": 2024, "name": "SoFi Stadium" }
+      ]
+    },
+    "8": {
+      "teamName": "Chiefs",
+      "ranges": [
+        { "start": 1963, "end": 1971, "name": "Municipal Stadium" },
+        { "start": 1972, "end": 2024, "name": "Arrowhead Stadium" }
+      ]
+    },
+    "9": {
+      "teamName": "Colts",
+      "ranges": [
+        { "start": 1953, "end": 1983, "name": "Memorial Stadium (Baltimore)" },
+        { "start": 1984, "end": 2007, "name": "RCA Dome" },
+        { "start": 2008, "end": 2024, "name": "Lucas Oil Stadium" }
+      ]
+    },
+    "10": {
+      "teamName": "Cowboys",
+      "ranges": [
+        { "start": 1960, "end": 1970, "name": "Cotton Bowl" },
+        { "start": 1971, "end": 2008, "name": "Texas Stadium" },
+        { "start": 2009, "end": 2024, "name": "AT&T Stadium" }
+      ]
+    },
+    "11": {
+      "teamName": "Dolphins",
+      "ranges": [
+        { "start": 1966, "end": 1986, "name": "Orange Bowl" },
+        { "start": 1987, "end": 1996, "name": "Joe Robbie Stadium" },
+        { "start": 1997, "end": 2004, "name": "Pro Player Stadium" },
+        { "start": 2005, "end": 2009, "name": "Dolphin Stadium" },
+        { "start": 2010, "end": 2015, "name": "Sun Life Stadium" },
+        { "start": 2016, "end": 2024, "name": "Hard Rock Stadium" }
+      ]
+    },
+    "12": {
+      "teamName": "Eagles",
+      "ranges": [
+        { "start": 1958, "end": 1970, "name": "Franklin Field" },
+        { "start": 1971, "end": 2002, "name": "Veterans Stadium" },
+        { "start": 2003, "end": 2024, "name": "Lincoln Financial Field" }
+      ]
+    },
+    "13": {
+      "teamName": "Falcons",
+      "ranges": [
+        { "start": 1966, "end": 1991, "name": "Atlanta-Fulton County Stadium" },
+        { "start": 1992, "end": 2016, "name": "Georgia Dome" },
+        { "start": 2017, "end": 2024, "name": "Mercedes-Benz Stadium" }
+      ]
+    },
+    "14": {
+      "teamName": "49ers",
+      "ranges": [
+        { "start": 1946, "end": 1970, "name": "Kezar Stadium" },
+        { "start": 1971, "end": 2013, "name": "Candlestick Park" },
+        { "start": 2014, "end": 2024, "name": "Levi's Stadium" }
+      ]
+    },
+    "15": {
+      "teamName": "Giants",
+      "ranges": [
+        { "start": 1956, "end": 1973, "name": "Yankee Stadium" },
+        { "start": 1974, "end": 1975, "name": "Yale Bowl" },
+        { "start": 1976, "end": 2009, "name": "Giants Stadium" },
+        { "start": 2010, "end": 2024, "name": "MetLife Stadium" }
+      ]
+    },
+    "16": {
+      "teamName": "Jaguars",
+      "ranges": [
+        { "start": 1995, "end": 2024, "name": "TIAA Bank Field" }
+      ]
+    },
+    "17": {
+      "teamName": "Jets",
+      "ranges": [
+        { "start": 1960, "end": 1963, "name": "Polo Grounds" },
+        { "start": 1964, "end": 1983, "name": "Shea Stadium" },
+        { "start": 1984, "end": 2009, "name": "Giants Stadium" },
+        { "start": 2010, "end": 2024, "name": "MetLife Stadium" }
+      ]
+    },
+    "18": {
+      "teamName": "Lions",
+      "ranges": [
+        { "start": 1938, "end": 1974, "name": "Briggs Stadium" },
+        { "start": 1975, "end": 2001, "name": "Pontiac Silverdome" },
+        { "start": 2002, "end": 2024, "name": "Ford Field" }
+      ]
+    },
+    "19": {
+      "teamName": "Packers",
+      "ranges": [
+        { "start": 1957, "end": 2024, "name": "Lambeau Field" }
+      ]
+    },
+    "20": {
+      "teamName": "Panthers",
+      "ranges": [
+        { "start": 1995, "end": 1995, "name": "Clemson Memorial Stadium" },
+        { "start": 1996, "end": 2024, "name": "Bank of America Stadium" }
+      ]
+    },
+    "21": {
+      "teamName": "Patriots",
+      "ranges": [
+        { "start": 1960, "end": 1962, "name": "Nickerson Field" },
+        { "start": 1963, "end": 1968, "name": "Fenway Park" },
+        { "start": 1969, "end": 1970, "name": "Alumni Stadium" },
+        { "start": 1971, "end": 2001, "name": "Foxboro Stadium" },
+        { "start": 2002, "end": 2024, "name": "Gillette Stadium" }
+      ]
+    },
+    "22": {
+      "teamName": "Raiders",
+      "ranges": [
+        { "start": 1960, "end": 1965, "name": "Frank Youell Field" },
+        { "start": 1966, "end": 1981, "name": "Oakland-Alameda County Coliseum" },
+        { "start": 1982, "end": 1994, "name": "Los Angeles Memorial Coliseum" },
+        { "start": 1995, "end": 2019, "name": "Oakland-Alameda County Coliseum" },
+        { "start": 2020, "end": 2024, "name": "Allegiant Stadium" }
+      ]
+    },
+    "23": {
+      "teamName": "Rams",
+      "ranges": [
+        { "start": 1946, "end": 1979, "name": "Los Angeles Memorial Coliseum" },
+        { "start": 1980, "end": 1994, "name": "Anaheim Stadium" },
+        { "start": 1995, "end": 2015, "name": "Edward Jones Dome" },
+        { "start": 2016, "end": 2019, "name": "Los Angeles Memorial Coliseum" },
+        { "start": 2020, "end": 2024, "name": "SoFi Stadium" }
+      ]
+    },
+    "24": {
+      "teamName": "Ravens",
+      "ranges": [
+        { "start": 1996, "end": 1997, "name": "Memorial Stadium (Baltimore)" },
+        { "start": 1998, "end": 2024, "name": "M&T Bank Stadium" }
+      ]
+    },
+    "25": {
+      "teamName": "Commanders",
+      "ranges": [
+        { "start": 1937, "end": 1960, "name": "Griffith Stadium" },
+        { "start": 1961, "end": 1996, "name": "RFK Stadium" },
+        { "start": 1997, "end": 2024, "name": "FedExField" }
+      ]
+    },
+    "26": {
+      "teamName": "Saints",
+      "ranges": [
+        { "start": 1967, "end": 1974, "name": "Tulane Stadium" },
+        { "start": 1975, "end": 2024, "name": "Superdome" }
+      ]
+    },
+    "27": {
+      "teamName": "Seahawks",
+      "ranges": [
+        { "start": 1976, "end": 1999, "name": "Kingdome" },
+        { "start": 2000, "end": 2001, "name": "Husky Stadium" },
+        { "start": 2002, "end": 2024, "name": "Lumen Field" }
+      ]
+    },
+    "28": {
+      "teamName": "Steelers",
+      "ranges": [
+        { "start": 1958, "end": 1963, "name": "Forbes Field" },
+        { "start": 1964, "end": 2000, "name": "Three Rivers Stadium" },
+        { "start": 2001, "end": 2024, "name": "Acrisure Stadium" }
+      ]
+    },
+    "29": {
+      "teamName": "Titans",
+      "ranges": [
+        { "start": 1960, "end": 1964, "name": "Jeppesen Stadium" },
+        { "start": 1965, "end": 1996, "name": "Astrodome" },
+        { "start": 1997, "end": 1998, "name": "Liberty Bowl" },
+        { "start": 1999, "end": 2024, "name": "Nissan Stadium" }
+      ]
+    },
+    "30": {
+      "teamName": "Vikings",
+      "ranges": [
+        { "start": 1961, "end": 1981, "name": "Metropolitan Stadium" },
+        { "start": 1982, "end": 2013, "name": "Metrodome" },
+        { "start": 2014, "end": 2015, "name": "TCF Bank Stadium" },
+        { "start": 2016, "end": 2024, "name": "U.S. Bank Stadium" }
+      ]
+    },
+    "31": {
+      "teamName": "Texans",
+      "ranges": [
+        { "start": 2002, "end": 2024, "name": "NRG Stadium" }
+      ]
+    }
+  }
+}

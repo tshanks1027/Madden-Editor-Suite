@@ -55,6 +55,9 @@ export class FastSelectEditor {
             font-size: 14px;
             box-sizing: border-box;
             outline: none;
+            z-index: 1;
+            position: relative;
+            pointer-events: auto;
         `;
 
         // Create dropdown panel
@@ -82,11 +85,29 @@ export class FastSelectEditor {
 
         // Bind events
         this.eInput.addEventListener('input', this.onInput.bind(this));
-        this.eInput.addEventListener('keydown', this.onKeyDown.bind(this));
+        this.eInput.addEventListener('keydown', (e) => {
+            console.log('[FastSelectEditor] keydown event:', e.key, 'target:', e.target.tagName);
+            this.onKeyDown(e);
+        });
+        this.eInput.addEventListener('keypress', (e) => {
+            console.log('[FastSelectEditor] keypress event:', e.key);
+        });
         this.eInput.addEventListener('focus', this.openDropdown.bind(this));
         this.eInput.addEventListener('click', this.openDropdown.bind(this));
+
+        // Ensure input can receive events
+        this.eInput.setAttribute('tabindex', '0');
+        this.eInput.setAttribute('autocomplete', 'off');
         this.eDropdown.addEventListener('scroll', this.onScroll.bind(this));
         this.eDropdown.addEventListener('click', this.onOptionClick.bind(this));
+
+        // CRITICAL: Prevent mousedown from bubbling to AG-Grid AND prevent focus loss
+        // Without this, AG-Grid's stopEditingWhenCellsLoseFocus destroys the editor
+        // before the click event fires on dropdown options
+        this.eDropdown.addEventListener('mousedown', (e) => {
+            e.preventDefault();  // Prevents focus from leaving the input
+            e.stopPropagation();
+        });
 
         // Close on outside click
         this.outsideClickHandler = (e) => {
@@ -105,10 +126,13 @@ export class FastSelectEditor {
     }
 
     afterGuiAttached() {
+        console.log('[FastSelectEditor] afterGuiAttached called, focusing input');
         this.eInput.focus();
         this.eInput.select();
         this.positionDropdown();
         this.openDropdown();
+        console.log('[FastSelectEditor] Input focused:', document.activeElement === this.eInput);
+        console.log('[FastSelectEditor] Values count:', this.values.length);
     }
 
     getValue() {
@@ -127,10 +151,12 @@ export class FastSelectEditor {
     }
 
     onInput(e) {
+        console.log('[FastSelectEditor] onInput called, value:', e.target.value);
         const searchTerm = e.target.value.toLowerCase();
         this.filteredValues = this.values.filter(v =>
             String(v).toLowerCase().includes(searchTerm)
         );
+        console.log('[FastSelectEditor] Filtered to', this.filteredValues.length, 'values');
         this.highlightedIndex = this.filteredValues.length > 0 ? 0 : -1;
         this.renderOptions();
         this.openDropdown();
@@ -188,13 +214,19 @@ export class FastSelectEditor {
     }
 
     onOptionClick(e) {
+        console.log('[FastSelectEditor] onOptionClick fired, target:', e.target);
         const optionEl = e.target.closest('.fast-select-editor__option');
+        console.log('[FastSelectEditor] optionEl:', optionEl);
         if (optionEl) {
             const index = parseInt(optionEl.dataset.index, 10);
+            console.log('[FastSelectEditor] index:', index, 'filteredValues[index]:', this.filteredValues[index]);
             if (this.filteredValues[index] !== undefined) {
                 this.selectValue(this.filteredValues[index]);
+                console.log('[FastSelectEditor] selectedValue is now:', this.selectedValue);
                 this.params.stopEditing();
             }
+        } else {
+            console.log('[FastSelectEditor] No optionEl found!');
         }
     }
 

@@ -20,6 +20,7 @@ import { app } from 'electron';
 import Papa from 'papaparse';
 import { lookupService } from './lookup-service';
 import { draftClassService } from './DraftClassService';
+import { pgheLookupService } from './PGHELookupService';
 
 export interface RosterPlayer {
   // Basic Info
@@ -257,6 +258,14 @@ export class RosterGeneratorService {
     this.templateData = await draftClassService.loadDraftClass(templatePath);
     console.log('[RosterGeneratorService] Template loaded, version:', this.templateData.data._version);
     console.log('[RosterGeneratorService] Template buffer size:', this.templateData.data._originalBuffer?.length || 0);
+
+    // Initialize PGHE lookup service for generic face assignment
+    try {
+      await pgheLookupService.initialize();
+      console.log('[RosterGeneratorService] PGHE lookup service initialized');
+    } catch (err) {
+      console.warn('[RosterGeneratorService] PGHE lookup service initialization failed:', err);
+    }
 
     // Load generic PIDs from PID_Portrait_Mapping.csv
     const pidMappingPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
@@ -902,7 +911,7 @@ export class RosterGeneratorService {
           TGID: teamId,
           PSXP: genericFace.pid,
           PLPL: 0, // Generic face marker
-          PEPS: '', // EMPTY - BLBM GENR/SKNT controls the face
+          PEPS: genericFace.pam, // GENR from PGHE lookup - matched set with PSXP and PGHE
           POID: 0, // Filler players have no commentary ID
           // DON'T SET PSKI - BLBM handles it
           PGHE: genericFace.pghe,
@@ -963,9 +972,9 @@ export class RosterGeneratorService {
           PPLA: baseRating + Math.floor(Math.random() * variance),
           PTOR: 50,
           PKRT: baseRating + Math.floor(Math.random() * variance),
-          PHAN: 1, // Right-handed
+          PHAN: 0, // Right-handed (0=Right, 1=Left)
           PPTI: this.getDefaultArchetype(position),
-          PDEV: 0, // Normal
+          PROL: 0, // Dev trait: Normal (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
           PBTY: 'Athletic',
           PYRS: 0,
           PFHO: 0,
@@ -1334,10 +1343,10 @@ export class RosterGeneratorService {
       weight: 180 + Math.floor(Math.random() * 80), // 180-259 lbs
       team: 'FA',
 
-      // IDs - For generic faces: PLPL=0 (number), PEPS stays EMPTY
+      // IDs - For generic faces: PLPL=0 (number), use GENR from PGHE lookup
       PID: genericFace.pid,
       PAM: 0,  // Generic faces use 0 (number) for PLPL
-      PEPS: '',  // EMPTY - BLBM GENR/SKNT controls the face
+      PEPS: genericFace.pam,  // GENR from PGHE lookup - matched set with pid and pghe
       POID: 0,  // Filler players have no commentary ID
 
       // College & Home - Skip ID 0 (Blank), use 1-264 (real colleges)
@@ -1407,7 +1416,7 @@ export class RosterGeneratorService {
       PPOS: positionCode,
       PAGE: 23 + Math.floor(Math.random() * 5),
       PSXP: genericFace.pid, // PID from race-matched generic face
-      PEPS: '', // EMPTY - BLBM GENR/SKNT controls the face
+      PEPS: genericFace.pam, // GENR from PGHE lookup - matched set with pid and pghe
       PHGT: 70 + Math.floor(Math.random() * 10),
       PWGT: 180 + Math.floor(Math.random() * 80),
       PCOL: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
@@ -1530,15 +1539,15 @@ export class RosterGeneratorService {
 
     if (playerPID === 0) {
       // Assign generic face for players without valid portraits
-      // Use the new selectGenericFaceByRace which returns matching PID, PAM, and PGHE
+      // Use the new selectGenericFaceByRace which returns matching PID, PAM (GENR), and PGHE
       isGenericFace = true;
       const genericFace = this.selectGenericFaceByRace(csvRace);
       playerPID = genericFace.pid;
       plplValue = 0; // Generic face flag
-      pepsValue = ''; // EMPTY - BLBM GENR/SKNT controls the face, not PEPS
+      pepsValue = genericFace.pam; // GENR from PGHE lookup - matched set with pid and pghe
       pgheValue = genericFace.pghe;
       // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
-      console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic face - PID=${playerPID}, PEPS="" (empty), PGHE=${pgheValue}, race=${csvRace}`);
+      console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic face - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, race=${csvRace}`);
     } else {
       // Player has valid PID - check if they have a real portrait
       const mappedPAM = this.pidToPAM.get(playerPID);
@@ -1563,14 +1572,15 @@ export class RosterGeneratorService {
         pepsValue = mappedPAM || '';
         console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Real face PID ${playerPID}, Portrait="${mappedPortrait}", PEPS="${pepsValue}"`);
       } else if (isGenericPortrait) {
-        // Generic face portrait - keep PID but set PLPL=0
-        // PEPS stays EMPTY - BLBM GENR/SKNT controls the face appearance
+        // Generic face portrait - select matched PGHE set for this player
         isGenericFace = true;
         plplValue = 0;
-        pepsValue = ''; // EMPTY - BLBM handles face via GENR/SKNT
-        pgheValue = this.pidToPGHE.get(playerPID) || this.assignGenericPGHE(csvRace);
+        const genericFace = this.selectGenericFaceByRace(csvRace);
+        playerPID = genericFace.pid;  // Use matched PID from PGHE lookup
+        pepsValue = genericFace.pam;  // GENR from PGHE lookup - matched set
+        pgheValue = genericFace.pghe;
         // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
-        console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic portrait PID ${playerPID}, PEPS="" (empty), PGHE=${pgheValue}, race=${csvRace}`);
+        console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic portrait - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, race=${csvRace}`);
       } else {
         // No portrait at all - need to assign generic face
         // BUT FIRST check if player has valid PID in validPIDs - if so, keep it!
@@ -1585,10 +1595,10 @@ export class RosterGeneratorService {
           plplValue = 0;
           const genericFace = this.selectGenericFaceByRace(csvRace);
           playerPID = genericFace.pid;
-          pepsValue = ''; // EMPTY - BLBM GENR/SKNT controls the face, not PEPS
+          pepsValue = genericFace.pam; // GENR from PGHE lookup - matched set with pid and pghe
           pgheValue = genericFace.pghe;
           // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
-          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: No portrait, generic face - PID=${playerPID}, PEPS="" (empty), PGHE=${pgheValue}, race=${csvRace}`);
+          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: No portrait, generic face - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, race=${csvRace}`);
         }
       }
     }
@@ -1690,7 +1700,7 @@ export class RosterGeneratorService {
       PLTY: parseInt(archetype) || 0,  // Archetype ID (PLTY, not PTAR!)
       PTAR: this.determineBodyType(csvRow),  // Body type (PTAR is actually body type, not archetype!)
       PYRP: yearsPro,  // Years pro - calculated from draft year
-      PDEV: this.determineDevTrait(parseInt(ratings.POVR) || 50),  // Dev trait
+      PROL: this.determineDevTrait(parseInt(ratings.POVR) || 50),  // Dev trait (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
       // DON'T SET PSKI for generic faces - BLBM GENR/SKNT controls face appearance
       // Only set PGHE for generic faces
       PGHE: pgheValue,  // Generic head ID (only used for generic faces, 1-290)
@@ -2056,23 +2066,32 @@ export class RosterGeneratorService {
 
   /**
    * Select a random generic face that matches the player's race
-   * Returns PID, PAM, and PGHE as a complete set that will have matching skin tones
-   * PAM is selected from pam-race-mapping.json based on body code (B/H/M/T), NOT skin tone
+   * Uses PGHE lookup from game's streameddata.DB for proper face assignments.
+   * Each generic face has its own unique PID (PSXP) that the game uses to look up the face.
+   * Returns PID, GENR (PAM), and PGHE index.
    */
   private selectGenericFaceByRace(race: number): { pid: number; pam: string; pghe: number } {
-    // Get the correct PAM from pamRaceMapping based on race (uses body code B/H/M/T)
-    // PAM determines the actual skin tone display in-game
+    // Use PGHE service to get a random face for this race
+    // Race 1-7 maps directly to skin tone 1-7
+    const skinTone = pgheLookupService.raceToSkinTone(race);
+    const pgheEntry = pgheLookupService.getRandomBySkinTone(skinTone);
+
+    if (pgheEntry) {
+      console.log(`[RosterGeneratorService] Selected PGHE face for race ${race}: PID=${pgheEntry.psxp}, GENR=${pgheEntry.genr}, PGHE=${pgheEntry.pghe}`);
+      return {
+        pid: pgheEntry.psxp,  // The unique PID for this generic face
+        pam: pgheEntry.genr,  // The GENR value (e.g., "gen_7_B_N_019")
+        pghe: pgheEntry.pghe  // The face picker index
+      };
+    }
+
+    // Fallback if PGHE service not available
+    console.warn(`[RosterGeneratorService] PGHE lookup failed for race ${race}, using fallback`);
     const pam = this.generateGenericHeadName(race);
-
-    // Get matching PGHE (head mesh) for this race
     const pghe = this.assignGenericPGHE(race);
-
-    // Get a random generic PID (for portraits) - use any from our list
     const pid = this.genericPIDs.length > 0
       ? this.genericPIDs[Math.floor(Math.random() * this.genericPIDs.length)]
-      : 719; // Fallback PID
-
-    console.log(`[RosterGeneratorService] Selected generic face for race ${race}: PID=${pid}, PAM=${pam} (from pamRaceMapping), PGHE=${pghe}`);
+      : 719;
 
     return { pid, pam, pghe };
   }

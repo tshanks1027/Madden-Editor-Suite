@@ -1,0 +1,842 @@
+{
+  "year": 2000,
+  "teams": [
+    {
+      "teamIndex": 6,
+      "teamAbbr": "ARI",
+      "headCoach": {
+        "firstName": "Vince",
+        "lastName": "Tobin",
+        "coachRef": "TobiVi0",
+        "yearsAsHC": 4,
+        "yearsWithTeam": 5,
+        "careerWins": 26,
+        "careerLosses": 38,
+        "careerTies": 0,
+        "playoffWins": 1,
+        "playoffLosses": 1,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Marc",
+        "lastName": "Trestman",
+        "coachRef": "TresMa0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Larry",
+        "lastName": "Marmie, Dave McGinnis",
+        "coachRef": "MarmLa0"
+      }
+    },
+    {
+      "teamIndex": 13,
+      "teamAbbr": "ATL",
+      "headCoach": {
+        "firstName": "Dan",
+        "lastName": "Reeves",
+        "coachRef": "ReevDa0",
+        "yearsAsHC": 19,
+        "yearsWithTeam": 4,
+        "careerWins": 167,
+        "careerLosses": 128,
+        "careerTies": 1,
+        "playoffWins": 10,
+        "playoffLosses": 8,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "George",
+        "lastName": "Sefcik",
+        "coachRef": "SefcGe0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Rich",
+        "lastName": "Brooks",
+        "coachRef": "BrooRi0"
+      }
+    },
+    {
+      "teamIndex": 24,
+      "teamAbbr": "BAL",
+      "headCoach": {
+        "firstName": "Brian",
+        "lastName": "Billick",
+        "coachRef": "BillBr0",
+        "yearsAsHC": 1,
+        "yearsWithTeam": 2,
+        "careerWins": 8,
+        "careerLosses": 8,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Matt",
+        "lastName": "Cavanaugh",
+        "coachRef": "CavaMa0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Marvin",
+        "lastName": "Lewis",
+        "coachRef": "LewiMa0"
+      }
+    },
+    {
+      "teamIndex": 2,
+      "teamAbbr": "BUF",
+      "headCoach": {
+        "firstName": "Wade",
+        "lastName": "Phillips",
+        "coachRef": "PhilWa0",
+        "yearsAsHC": 5,
+        "yearsWithTeam": 3,
+        "careerWins": 38,
+        "careerLosses": 30,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 3,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Joe",
+        "lastName": "Pendry",
+        "coachRef": "PendJo0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Ted",
+        "lastName": "Cottrell",
+        "coachRef": "CottTe0"
+      }
+    },
+    {
+      "teamIndex": 20,
+      "teamAbbr": "CAR",
+      "headCoach": {
+        "firstName": "George",
+        "lastName": "Seifert",
+        "coachRef": "SeifGe0",
+        "yearsAsHC": 9,
+        "yearsWithTeam": 2,
+        "careerWins": 106,
+        "careerLosses": 38,
+        "careerTies": 0,
+        "playoffWins": 10,
+        "playoffLosses": 5,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Bill",
+        "lastName": "Musgrave, Richard Williamson",
+        "coachRef": "MusgBi0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "John",
+        "lastName": "Marshall",
+        "coachRef": "MarsJo0"
+      }
+    },
+    {
+      "teamIndex": 0,
+      "teamAbbr": "CHI",
+      "headCoach": {
+        "firstName": "Dick",
+        "lastName": "Jauron",
+        "coachRef": "JaurDi0",
+        "yearsAsHC": 1,
+        "yearsWithTeam": 2,
+        "careerWins": 6,
+        "careerLosses": 10,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Gary",
+        "lastName": "Crowton",
+        "coachRef": "CrowGa0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Greg",
+        "lastName": "Blache",
+        "coachRef": "BlacGr0"
+      }
+    },
+    {
+      "teamIndex": 1,
+      "teamAbbr": "CIN",
+      "headCoach": {
+        "firstName": "Dick",
+        "lastName": "LeBeau",
+        "coachRef": "LeBeDi0",
+        "yearsAsHC": 0,
+        "yearsWithTeam": 1,
+        "careerWins": 0,
+        "careerLosses": 0,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Ken",
+        "lastName": "Anderson",
+        "coachRef": "AndeKe0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "",
+        "lastName": "",
+        "coachRef": null
+      }
+    },
+    {
+      "teamIndex": 4,
+      "teamAbbr": "CLE",
+      "headCoach": {
+        "firstName": "Chris",
+        "lastName": "Palmer",
+        "coachRef": "PalmCh0",
+        "yearsAsHC": 1,
+        "yearsWithTeam": 2,
+        "careerWins": 2,
+        "careerLosses": 14,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Pete",
+        "lastName": "Carmichael",
+        "coachRef": "CarmPe1"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Romeo",
+        "lastName": "Crennel",
+        "coachRef": "CrenRo0"
+      }
+    },
+    {
+      "teamIndex": 10,
+      "teamAbbr": "DAL",
+      "headCoach": {
+        "firstName": "Dave",
+        "lastName": "Campo",
+        "coachRef": "CampDa0",
+        "yearsAsHC": 0,
+        "yearsWithTeam": 1,
+        "careerWins": 0,
+        "careerLosses": 0,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Jack",
+        "lastName": "Reilly",
+        "coachRef": "ReilJa0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Mike",
+        "lastName": "Zimmer",
+        "coachRef": "ZimmMi0"
+      }
+    },
+    {
+      "teamIndex": 3,
+      "teamAbbr": "DEN",
+      "headCoach": {
+        "firstName": "Mike",
+        "lastName": "Shanahan",
+        "coachRef": "ShanMi0",
+        "yearsAsHC": 6,
+        "yearsWithTeam": 6,
+        "careerWins": 60,
+        "careerLosses": 36,
+        "careerTies": 0,
+        "playoffWins": 7,
+        "playoffLosses": 1,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Gary",
+        "lastName": "Kubiak",
+        "coachRef": "KubiGa0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Greg",
+        "lastName": "Robinson",
+        "coachRef": "RobiGr0"
+      }
+    },
+    {
+      "teamIndex": 18,
+      "teamAbbr": "DET",
+      "headCoach": {
+        "firstName": "Gary",
+        "lastName": "Moeller",
+        "coachRef": "MoelGa0",
+        "yearsAsHC": 0,
+        "yearsWithTeam": 1,
+        "careerWins": 0,
+        "careerLosses": 0,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Sylvester",
+        "lastName": "Croom",
+        "coachRef": "CrooSy0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Larry",
+        "lastName": "Peccatiello",
+        "coachRef": "PeccLa0"
+      }
+    },
+    {
+      "teamIndex": 19,
+      "teamAbbr": "GB",
+      "headCoach": {
+        "firstName": "Mike",
+        "lastName": "Sherman",
+        "coachRef": "SherMi0",
+        "yearsAsHC": 0,
+        "yearsWithTeam": 1,
+        "careerWins": 0,
+        "careerLosses": 0,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Tom",
+        "lastName": "Rossley",
+        "coachRef": "RossTo0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Ed",
+        "lastName": "Donatell",
+        "coachRef": "DonaEd0"
+      }
+    },
+    {
+      "teamIndex": 9,
+      "teamAbbr": "IND",
+      "headCoach": {
+        "firstName": "Jim",
+        "lastName": "Mora",
+        "coachRef": "MoraJi0",
+        "yearsAsHC": 12,
+        "yearsWithTeam": 3,
+        "careerWins": 107,
+        "careerLosses": 84,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 5,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Tom",
+        "lastName": "Moore",
+        "coachRef": "MoorTo0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Vic",
+        "lastName": "Fangio",
+        "coachRef": "FangVi0"
+      }
+    },
+    {
+      "teamIndex": 16,
+      "teamAbbr": "JAX",
+      "headCoach": {
+        "firstName": "Tom",
+        "lastName": "Coughlin",
+        "coachRef": "CougTo0",
+        "yearsAsHC": 5,
+        "yearsWithTeam": 6,
+        "careerWins": 49,
+        "careerLosses": 31,
+        "careerTies": 0,
+        "playoffWins": 4,
+        "playoffLosses": 4,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "",
+        "lastName": "",
+        "coachRef": null
+      },
+      "defensiveCoordinator": {
+        "firstName": "Dom",
+        "lastName": "Capers",
+        "coachRef": "CapeDo0"
+      }
+    },
+    {
+      "teamIndex": 8,
+      "teamAbbr": "KC",
+      "headCoach": {
+        "firstName": "Gunther",
+        "lastName": "Cunningham",
+        "coachRef": "CunnGu0",
+        "yearsAsHC": 1,
+        "yearsWithTeam": 2,
+        "careerWins": 9,
+        "careerLosses": 7,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Jimmy",
+        "lastName": "Raye",
+        "coachRef": "RayeJi0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Kurt",
+        "lastName": "Schottenheimer",
+        "coachRef": "SchoKu0"
+      }
+    },
+    {
+      "teamIndex": 7,
+      "teamAbbr": "LAC",
+      "headCoach": {
+        "firstName": "Mike",
+        "lastName": "Riley",
+        "coachRef": "RileMi0",
+        "yearsAsHC": 1,
+        "yearsWithTeam": 2,
+        "careerWins": 8,
+        "careerLosses": 8,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Geep",
+        "lastName": "Chryst",
+        "coachRef": "ChryGe0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Joe",
+        "lastName": "Pascale",
+        "coachRef": "PascJo0"
+      }
+    },
+    {
+      "teamIndex": 23,
+      "teamAbbr": "LAR",
+      "headCoach": {
+        "firstName": "Mike",
+        "lastName": "Martz",
+        "coachRef": "MartMi0",
+        "yearsAsHC": 0,
+        "yearsWithTeam": 1,
+        "careerWins": 0,
+        "careerLosses": 0,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Bobby",
+        "lastName": "Jackson",
+        "coachRef": "JackBo0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Peter",
+        "lastName": "Giunta",
+        "coachRef": "GiunPe0"
+      }
+    },
+    {
+      "teamIndex": 22,
+      "teamAbbr": "LV",
+      "headCoach": {
+        "firstName": "Jon",
+        "lastName": "Gruden",
+        "coachRef": "GrudJo0",
+        "yearsAsHC": 2,
+        "yearsWithTeam": 3,
+        "careerWins": 16,
+        "careerLosses": 16,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Bill",
+        "lastName": "Callahan",
+        "coachRef": "CallBi0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Chuck",
+        "lastName": "Bresnahan",
+        "coachRef": "BresCh0"
+      }
+    },
+    {
+      "teamIndex": 11,
+      "teamAbbr": "MIA",
+      "headCoach": {
+        "firstName": "Dave",
+        "lastName": "Wannstedt",
+        "coachRef": "WannDa0",
+        "yearsAsHC": 6,
+        "yearsWithTeam": 1,
+        "careerWins": 40,
+        "careerLosses": 56,
+        "careerTies": 0,
+        "playoffWins": 1,
+        "playoffLosses": 1,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Chan",
+        "lastName": "Gailey",
+        "coachRef": "GailCh0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Jim",
+        "lastName": "Bates",
+        "coachRef": "BateJi0"
+      }
+    },
+    {
+      "teamIndex": 30,
+      "teamAbbr": "MIN",
+      "headCoach": {
+        "firstName": "Dennis",
+        "lastName": "Green",
+        "coachRef": "GreeDe0",
+        "yearsAsHC": 8,
+        "yearsWithTeam": 9,
+        "careerWins": 81,
+        "careerLosses": 47,
+        "careerTies": 0,
+        "playoffWins": 3,
+        "playoffLosses": 7,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Sherman",
+        "lastName": "Lewis",
+        "coachRef": "LewiSh0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Emmitt",
+        "lastName": "Thomas",
+        "coachRef": "ThomEm0"
+      }
+    },
+    {
+      "teamIndex": 21,
+      "teamAbbr": "NE",
+      "headCoach": {
+        "firstName": "Bill",
+        "lastName": "Belichick",
+        "coachRef": "BeliBi0",
+        "yearsAsHC": 5,
+        "yearsWithTeam": 1,
+        "careerWins": 36,
+        "careerLosses": 44,
+        "careerTies": 0,
+        "playoffWins": 1,
+        "playoffLosses": 1,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Charlie",
+        "lastName": "Weis",
+        "coachRef": "WeisCh0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "",
+        "lastName": "",
+        "coachRef": null
+      }
+    },
+    {
+      "teamIndex": 26,
+      "teamAbbr": "NO",
+      "headCoach": {
+        "firstName": "Jim",
+        "lastName": "Haslett",
+        "coachRef": "HaslJi0",
+        "yearsAsHC": 0,
+        "yearsWithTeam": 1,
+        "careerWins": 0,
+        "careerLosses": 0,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Mike",
+        "lastName": "McCarthy",
+        "coachRef": "McCaMi0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Ron",
+        "lastName": "Zook",
+        "coachRef": "ZookRo0"
+      }
+    },
+    {
+      "teamIndex": 15,
+      "teamAbbr": "NYG",
+      "headCoach": {
+        "firstName": "Jim",
+        "lastName": "Fassel",
+        "coachRef": "FassJi0",
+        "yearsAsHC": 3,
+        "yearsWithTeam": 4,
+        "careerWins": 25,
+        "careerLosses": 22,
+        "careerTies": 1,
+        "playoffWins": 0,
+        "playoffLosses": 1,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Sean",
+        "lastName": "Payton",
+        "coachRef": "PaytSe0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "John",
+        "lastName": "Fox",
+        "coachRef": "FoxxJo0"
+      }
+    },
+    {
+      "teamIndex": 17,
+      "teamAbbr": "NYJ",
+      "headCoach": {
+        "firstName": "Al",
+        "lastName": "Groh",
+        "coachRef": "GrohAl0",
+        "yearsAsHC": 0,
+        "yearsWithTeam": 1,
+        "careerWins": 0,
+        "careerLosses": 0,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Dan",
+        "lastName": "Henning",
+        "coachRef": "HennDa0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Mike",
+        "lastName": "Nolan",
+        "coachRef": "NolaMi0"
+      }
+    },
+    {
+      "teamIndex": 12,
+      "teamAbbr": "PHI",
+      "headCoach": {
+        "firstName": "Andy",
+        "lastName": "Reid",
+        "coachRef": "ReidAn0",
+        "yearsAsHC": 1,
+        "yearsWithTeam": 2,
+        "careerWins": 5,
+        "careerLosses": 11,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Rod",
+        "lastName": "Dowhower",
+        "coachRef": "DowhRo0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Jim",
+        "lastName": "Johnson",
+        "coachRef": "JohnJi1"
+      }
+    },
+    {
+      "teamIndex": 28,
+      "teamAbbr": "PIT",
+      "headCoach": {
+        "firstName": "Bill",
+        "lastName": "Cowher",
+        "coachRef": "CowhBi0",
+        "yearsAsHC": 8,
+        "yearsWithTeam": 9,
+        "careerWins": 77,
+        "careerLosses": 51,
+        "careerTies": 0,
+        "playoffWins": 5,
+        "playoffLosses": 6,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Kevin",
+        "lastName": "Gilbride",
+        "coachRef": "GilbKe0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Tim",
+        "lastName": "Lewis",
+        "coachRef": "LewiTi0"
+      }
+    },
+    {
+      "teamIndex": 14,
+      "teamAbbr": "SF",
+      "headCoach": {
+        "firstName": "Steve",
+        "lastName": "Mariucci",
+        "coachRef": "MariSt0",
+        "yearsAsHC": 3,
+        "yearsWithTeam": 4,
+        "careerWins": 29,
+        "careerLosses": 19,
+        "careerTies": 0,
+        "playoffWins": 2,
+        "playoffLosses": 2,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Marty",
+        "lastName": "Mornhinweg",
+        "coachRef": "MornMa0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Jim",
+        "lastName": "Mora",
+        "coachRef": "MoraJi1"
+      }
+    },
+    {
+      "teamIndex": 27,
+      "teamAbbr": "SEA",
+      "headCoach": {
+        "firstName": "Mike",
+        "lastName": "Holmgren",
+        "coachRef": "HolmMi0",
+        "yearsAsHC": 8,
+        "yearsWithTeam": 2,
+        "careerWins": 84,
+        "careerLosses": 44,
+        "careerTies": 0,
+        "playoffWins": 9,
+        "playoffLosses": 6,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Gil",
+        "lastName": "Haskell",
+        "coachRef": "HaskGi0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Steve",
+        "lastName": "Sidwell",
+        "coachRef": "SidwSt0"
+      }
+    },
+    {
+      "teamIndex": 5,
+      "teamAbbr": "TB",
+      "headCoach": {
+        "firstName": "Tony",
+        "lastName": "Dungy",
+        "coachRef": "DungTo0",
+        "yearsAsHC": 4,
+        "yearsWithTeam": 5,
+        "careerWins": 35,
+        "careerLosses": 29,
+        "careerTies": 0,
+        "playoffWins": 2,
+        "playoffLosses": 2,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Les",
+        "lastName": "Steckel",
+        "coachRef": "StecLe0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Monte",
+        "lastName": "Kiffin",
+        "coachRef": "KiffMo0"
+      }
+    },
+    {
+      "teamIndex": 29,
+      "teamAbbr": "TEN",
+      "headCoach": {
+        "firstName": "Jeff",
+        "lastName": "Fisher",
+        "coachRef": "FishJe0",
+        "yearsAsHC": 6,
+        "yearsWithTeam": 7,
+        "careerWins": 45,
+        "careerLosses": 41,
+        "careerTies": 0,
+        "playoffWins": 3,
+        "playoffLosses": 1,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "Mike",
+        "lastName": "Heimerdinger",
+        "coachRef": "HeimMi0"
+      },
+      "defensiveCoordinator": {
+        "firstName": "Gregg",
+        "lastName": "Williams",
+        "coachRef": "WillGr0"
+      }
+    },
+    {
+      "teamIndex": 25,
+      "teamAbbr": "WAS",
+      "headCoach": {
+        "firstName": "Terry",
+        "lastName": "Robiskie",
+        "coachRef": "RobiTe0",
+        "yearsAsHC": 0,
+        "yearsWithTeam": 1,
+        "careerWins": 0,
+        "careerLosses": 0,
+        "careerTies": 0,
+        "playoffWins": 0,
+        "playoffLosses": 0,
+        "superBowlWins": 0
+      },
+      "offensiveCoordinator": {
+        "firstName": "",
+        "lastName": "",
+        "coachRef": null
+      },
+      "defensiveCoordinator": {
+        "firstName": "Ray",
+        "lastName": "Rhodes",
+        "coachRef": "RhodRa0"
+      }
+    }
+  ]
+}

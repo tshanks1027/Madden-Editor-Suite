@@ -1,64 +1,29 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm view:*)",
-      "Bash(dir:*)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/Madden 26/Tools/**)",
-      "Bash(npm install)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(node:*)",
-      "Bash(echo $env:APPDATA)",
-      "Bash(npm run dist:*)",
-      "Bash(timeout /t 10)",
-      "Bash(powershell -Command:*)",
-      "Bash(npm install:*)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/MyFranchise_extracted/**)",
-      "Bash(set ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES=true:*)",
-      "Bash(npx electron-builder:*)",
-      "Bash(npm run package:*)",
-      "Read(//c/Users/tshan/AppData/Roaming/madden-editor-suite/**)",
-      "Bash(npx asar:*)",
-      "Read(//c/Users/tshan/AppData/Local/Programs/madden-franchise-editor/resources/**)",
-      "WebFetch(domain:github.com)",
-      "Bash(npm start)",
-      "Read(//c/Users/tshan/OneDrive/Documents/Madden Files/**)",
-      "Bash(npm run clean:*)",
       "Bash(tasklist:*)",
-      "Bash(findstr:*)",
-      "Bash(timeout /t 2)",
-      "Bash(taskkill:*)",
-      "Read(//c/Program Files/MyFranchise/resources/**)",
-      "Bash(sqlite3:*)",
-      "Bash(npx playwright test:*)",
-      "Bash(timeout /t 30)",
-      "Skill(superpowers:systematic-debugging)",
-      "WebSearch",
-      "WebFetch(domain:api.collegefootballdata.com)",
-      "mcp__ide__getDiagnostics",
-      "Bash(git restore:*)",
-      "Bash(git stash:*)",
-      "Skill(superpowers:brainstorming)",
-      "Bash(tee:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Skill(superpowers:executing-plans)",
-      "Bash(git checkout:*)",
-      "Bash(git log:*)",
-      "Read(//c/Users/tshan/OneDrive/Pictures/Screenshots/**)",
-      "Bash(sed:*)",
-      "Bash(git branch:*)",
-      "Bash(git push:*)",
-      "Bash(cat:*)",
-      "Bash(python:*)",
-      "Bash(nul)",
-      "Bash(pip install:*)",
-      "Bash(timeout /t 5)",
-      "Bash(awk:*)",
-      "Bash(/tmp/restart-signal.txt)",
-      "Bash(npm run typecheck:*)",
-      "Bash(start \"\" \"madden-editor-suite.exe\")"
+      "Bash(node -e:*)",
+      "Bash(xcopy:*)",
+      "Bash(node:*)",
+      "Bash(dir \"C:\\Users\\tshan\\Downloads\\PAM\\Gamemode\")",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "powershell -ExecutionPolicy Bypass -File .claude/hooks/load-workflow.ps1"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "type": "command",
+        "command": "powershell -ExecutionPolicy Bypass -File .claude/hooks/require-plan.ps1 -ToolName $TOOL_NAME"
+      }
+    ]
   }
 }

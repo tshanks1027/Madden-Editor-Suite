@@ -710,7 +710,7 @@ export class RosterCreatorService {
           PHSN: player.homeState, // Home state ID (already numeric from CreatorService)
 
           // Dev trait (0-3) - 0=Normal is the safe default
-          PDEV: typeof player.devTrait === 'number' ? player.devTrait : 0,
+          PROL: typeof player.devTrait === 'number' ? player.devTrait : 0,
 
           // PID (Player Picture ID), PAM, and Years Pro
           // Use rosterGeneratorService to get valid PIDs and PAMs for generic faces
@@ -1143,8 +1143,8 @@ export class RosterCreatorService {
           PCOL: csvRow.PCOL || csvRow.college || 0,
           PHSN: csvRow.PHSN || csvRow.homeState || 0,
 
-          // Dev trait
-          PDEV: csvRow.PDEV || csvRow.devTrait || 0,
+          // Dev trait (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
+          PROL: csvRow.PROL || csvRow.devTrait || 0,
 
           // PID, PAM, Years Pro
           PSXP: csvRow.PSXP || csvRow.PID || 0,
@@ -1419,7 +1419,7 @@ export class RosterCreatorService {
       PWGT: 200 + Math.floor(Math.random() * 80), // 200-279 lbs
       PCOL: 0,
       PHSN: 0,
-      PDEV: 0,
+      PROL: 0, // Dev trait: Normal
       PSXP: genericFace.pid, // Generic PID from race-matched face
       PEPS: '', // EMPTY - BLBM GENR/SKNT controls the face
       PYRP: 0,

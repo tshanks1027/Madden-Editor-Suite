@@ -7,7 +7,11 @@ import { createGrid, ModuleRegistry, AllCommunityModule } from 'ag-grid-communit
 import {
     getFieldDefinition,
     getLookupValue,
-    TEAM_MAPPINGS
+    TEAM_MAPPINGS,
+    onBodyTypeChange,
+    onWeightChange,
+    storedWeightToActual,
+    BODY_TYPE_NAMES
 } from '../data/field-definitions.js';
 import { FastSelectEditor } from './FastSelectEditor.js';
 
@@ -70,21 +74,23 @@ class PortraitCellRenderer {
 
         const player = data;
         const pid = player ? player.PSXP : null;
+        const pam = player ? player.PEPS : null;
 
-        if (pid !== null && pid !== undefined) {
-            const cacheKey = `pid_${pid}`;
+        // Check if this is a generic face based on PAM
+        const isGenericPam = pam && typeof pam === 'string' &&
+            (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
 
-            if (app.portraitCache.has(cacheKey)) {
-                const imageData = app.portraitCache.get(cacheKey);
-                if (imageData && imageData !== 'loading') {
-                    const img = document.createElement('img');
-                    img.src = imageData;
-                    img.style.cssText = 'width: 64px; height: 64px; object-fit: cover; cursor: context-menu;';
-                    img.alt = 'Player Portrait';
-                    this.eGui.appendChild(img);
-                } else {
-                    this.eGui.innerHTML = '<div style="width:64px;height:64px;background:#333;display:flex;align-items:center;justify-content:center;font-size:32px;">👤</div>';
-                }
+        // Use PAM-based cache key for generic faces, PID-based for real faces
+        const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
+
+        if (app.portraitCache.has(cacheKey)) {
+            const imageData = app.portraitCache.get(cacheKey);
+            if (imageData && imageData !== 'loading') {
+                const img = document.createElement('img');
+                img.src = imageData;
+                img.style.cssText = 'width: 64px; height: 64px; object-fit: cover; cursor: context-menu;';
+                img.alt = 'Player Portrait';
+                this.eGui.appendChild(img);
             } else {
                 this.eGui.innerHTML = '<div style="width:64px;height:64px;background:#333;display:flex;align-items:center;justify-content:center;font-size:32px;">👤</div>';
             }
@@ -331,6 +337,7 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             };
 
             colDef.editable = true;
+            colDef.singleClickEdit = true; // Allow single click to edit
             console.log('[AG-Grid] PLAYERPIC column configured with', playerNames.length, 'player names');
         } else if (fieldDef.type === 'archetype') {
             console.log('[AG-Grid] Configuring ARCHETYPE column with position-dependent dropdown');
@@ -425,6 +432,10 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
 
             console.log('[AG-Grid] ARCHETYPE column configured with position-dependent dropdown');
         } else if (fieldDef.type === 'lookup' && fieldDef.lookup) {
+            // Extra debug for key fields
+            if (['PROL', 'PCBT', 'PHAN'].includes(fieldName)) {
+                console.log(`[AG-Grid] *** KEY LOOKUP COLUMN: ${fieldName} ***`);
+            }
             console.log(`[AG-Grid] Configuring lookup column ${fieldName}:`, {
                 type: fieldDef.type,
                 lookup: fieldDef.lookup,
@@ -513,18 +524,37 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
                 max: fieldDef.max,
                 precision: 0
             };
-            // Validation
+
+            // Apply display transform (e.g., PWGT: stored + 160 = displayed)
+            if (fieldDef.transform && fieldDef.transform.display) {
+                colDef.valueGetter = (params) => {
+                    const rawValue = params.data[fieldName];
+                    if (rawValue === undefined || rawValue === null) return rawValue;
+                    return fieldDef.transform.display(rawValue);
+                };
+            }
+
+            // Validation and save transform
             colDef.valueSetter = (params) => {
                 let newValue = parseInt(params.newValue);
                 if (isNaN(newValue)) return false;
                 if (fieldDef.min !== undefined && newValue < fieldDef.min) newValue = fieldDef.min;
                 if (fieldDef.max !== undefined && newValue > fieldDef.max) newValue = fieldDef.max;
+
+                // Apply save transform (e.g., PWGT: displayed - 160 = stored)
+                if (fieldDef.transform && fieldDef.transform.save) {
+                    newValue = fieldDef.transform.save(newValue);
+                }
+
                 params.data[fieldName] = newValue;
                 return true;
             };
         } else if (fieldDef.type === 'text') {
             colDef.filter = 'agTextColumnFilter';
             colDef.cellEditor = 'agTextCellEditor';
+            colDef.editable = true;
+            colDef.singleClickEdit = true; // Allow single click to edit text fields
+            console.log(`[AG-Grid] Text column ${fieldName} configured with agTextCellEditor`);
         }
 
         columnDefs.push(colDef);
@@ -599,6 +629,12 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
         // Events
         onCellEditingStarted: (event) => {
+            console.log('[AG-Grid] onCellEditingStarted:', {
+                field: event.colDef.field,
+                value: event.value,
+                editable: event.colDef.editable,
+                cellEditor: event.colDef.cellEditor
+            });
             // Capture OVR before editing so we can detect changes
             if (event.colDef.field === 'POVR') {
                 event.node.data._previousOVR = event.value;
@@ -608,6 +644,15 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
         onCellValueChanged: (event) => {
             console.log('[AG-Grid] Cell value changed:', event.colDef.field, '=', event.newValue, ', old=', event.oldValue);
+
+            // Debug logging for key lookup fields
+            const fieldName = event.colDef.field;
+            if (['PHAN', 'PROL', 'PCBT'].includes(fieldName)) {
+                console.log(`[AG-Grid DEBUG] ${fieldName} changed:`);
+                console.log(`  event.newValue (display): ${event.newValue}`);
+                console.log(`  event.data[${fieldName}] (stored ID): ${event.data[fieldName]}`);
+                console.log(`  Player: ${event.data.PFNA} ${event.data.PLNA}`);
+            }
 
             // Mark file as modified
             app.hasUnsavedChanges = true;
@@ -621,13 +666,97 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
             if (actualPlayer) {
                 const fieldName = event.colDef.field;
-                actualPlayer[fieldName] = event.newValue;
+                const fieldDef = getFieldDefinition(fieldName);
+
+                // IMPORTANT: For fields with transforms (like PWGT), we need to get the stored value
+                // BEFORE updating actualPlayer, because event.data may be the same reference
+                let storedWeightForLinking = null;
+                if (fieldName === 'PWGT' && fieldDef.transform && fieldDef.transform.save) {
+                    // Get the stored value by applying the save transform to the displayed value
+                    storedWeightForLinking = fieldDef.transform.save(parseInt(event.newValue));
+                    console.log(`[AG-Grid] PWGT: displayed=${event.newValue}, stored=${storedWeightForLinking}`);
+                }
+
+                // Determine what value to store in player data
+                // For lookup fields: use the ID from event.data (set by valueSetter)
+                // For numeric fields with transforms: use the transformed (stored) value
+                // For other fields: use event.newValue
+                let valueToStore;
+                if (fieldDef.type === 'lookup' || fieldDef.type === 'archetype') {
+                    valueToStore = event.data[fieldName];
+                } else if (fieldDef.transform && fieldDef.transform.save) {
+                    // Numeric fields with transforms - store the transformed value
+                    valueToStore = fieldDef.transform.save(parseInt(event.newValue));
+                } else {
+                    valueToStore = event.newValue;
+                }
+
+                actualPlayer[fieldName] = valueToStore;
 
                 // Find in main players array and update
                 const playerIndex = app.players.findIndex(p => p === actualPlayer);
                 if (playerIndex !== -1) {
-                    app.players[playerIndex][fieldName] = event.newValue;
+                    app.players[playerIndex][fieldName] = valueToStore;
+                    // Debug logging for key fields
+                    if (['PHAN', 'PROL', 'PCBT', 'PWGT'].includes(fieldName)) {
+                        console.log(`[AG-Grid DEBUG] Updated app.players[${playerIndex}].${fieldName} = ${valueToStore}`);
+                    }
                 }
+
+                // ========== BODY TYPE / WEIGHT LINKING ==========
+                // When body type changes, update weight to match
+                if (fieldName === 'PCBT') {
+                    const newBodyType = valueToStore; // Numeric ID (0-4)
+                    const position = actualPlayer.PPOS;
+                    const newStoredWeight = onBodyTypeChange(newBodyType, position);
+                    const newActualWeight = storedWeightToActual(newStoredWeight);
+
+                    console.log(`[AG-Grid] Body type changed to ${BODY_TYPE_NAMES[newBodyType]} (${newBodyType}), auto-updating weight to ${newActualWeight} lbs (stored: ${newStoredWeight})`);
+
+                    // Update weight in player data (stored value)
+                    actualPlayer.PWGT = newStoredWeight;
+                    event.data.PWGT = newStoredWeight;
+                    if (playerIndex !== -1) {
+                        app.players[playerIndex].PWGT = newStoredWeight;
+                    }
+
+                    // Refresh the weight cell to show updated value
+                    event.api.refreshCells({
+                        rowNodes: [event.node],
+                        columns: ['PWGT'],
+                        force: true
+                    });
+                }
+
+                // When weight changes, update body type to match
+                if (fieldName === 'PWGT' && storedWeightForLinking !== null) {
+                    const position = actualPlayer.PPOS;
+                    const newBodyType = onWeightChange(storedWeightForLinking, position);
+                    const oldBodyType = actualPlayer.PCBT;
+                    const actualWeight = storedWeightToActual(storedWeightForLinking);
+
+                    console.log(`[AG-Grid] Weight changed: actual=${actualWeight}, stored=${storedWeightForLinking}, position=${position}, newBodyType=${newBodyType}, oldBodyType=${oldBodyType}`);
+
+                    // Only update body type if it actually changed
+                    if (newBodyType !== oldBodyType) {
+                        console.log(`[AG-Grid] Auto-updating body type from ${BODY_TYPE_NAMES[oldBodyType] || oldBodyType} to ${BODY_TYPE_NAMES[newBodyType]}`);
+
+                        // Update body type in player data
+                        actualPlayer.PCBT = newBodyType;
+                        event.data.PCBT = newBodyType;
+                        if (playerIndex !== -1) {
+                            app.players[playerIndex].PCBT = newBodyType;
+                        }
+
+                        // Refresh the body type cell to show updated value
+                        event.api.refreshCells({
+                            rowNodes: [event.node],
+                            columns: ['PCBT'],
+                            force: true
+                        });
+                    }
+                }
+                // ========== END BODY TYPE / WEIGHT LINKING ==========
 
                 // Handle OVR changes - prompt to adjust ratings
                 if (fieldName === 'POVR') {
@@ -648,10 +777,27 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     }
                 }
 
-                // If PLAYERPIC or PSXP changed, refresh the portrait column
+                // If PLAYERPIC or PSXP changed, refresh the portrait column AND update race
                 if (fieldName === 'PLAYERPIC' || fieldName === 'PSXP') {
                     const pid = actualPlayer.PSXP;
                     console.log('[AG-Grid] PID changed, refreshing portrait for PID:', pid);
+
+                    // Update race for BLBM GENR/SKNT assignment when PID changes
+                    if (pid && window.electronAPI && window.electronAPI.lookup && window.electronAPI.lookup.getRaceByPID) {
+                        window.electronAPI.lookup.getRaceByPID(pid).then(race => {
+                            if (race !== null) {
+                                // Update the player's _race field for BLBM update on save
+                                actualPlayer._race = race;
+                                const playerIndex = app.players.findIndex(p => p === actualPlayer);
+                                if (playerIndex !== -1) {
+                                    app.players[playerIndex]._race = race;
+                                }
+                                console.log(`[AG-Grid] Updated _race to ${race} for PID ${pid}`);
+                            }
+                        }).catch(err => {
+                            console.warn(`[AG-Grid] Could not get race for PID ${pid}:`, err);
+                        });
+                    }
 
                     // Load new portrait into cache
                     if (pid && window.electronAPI && window.electronAPI.portrait) {
@@ -690,6 +836,81 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
         onRowClicked: (event) => {
             // Row number clicks handled separately via custom row header renderer
+        },
+
+        // Context menu handler for right-click
+        onCellContextMenu: (event) => {
+            event.event.preventDefault();
+
+            const contextMenu = document.getElementById('grid-context-menu');
+            if (!contextMenu) return;
+
+            // Store the row data for later use
+            contextMenu.dataset.rowIndex = event.rowIndex;
+            contextMenu.dataset.editorType = 'roster';
+
+            // Position the menu at the mouse location
+            const mouseEvent = event.event;
+            contextMenu.style.left = `${mouseEvent.clientX}px`;
+            contextMenu.style.top = `${mouseEvent.clientY}px`;
+            contextMenu.style.display = 'block';
+
+            // Handle menu item clicks
+            const handleMenuClick = (e) => {
+                const action = e.target.closest('.context-menu-item')?.dataset.action;
+                if (!action) return;
+
+                const rowIndex = parseInt(contextMenu.dataset.rowIndex);
+
+                if (action === 'delete-player') {
+                    // Confirm deletion
+                    const player = event.data;
+                    const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'this player';
+
+                    if (confirm(`Are you sure you want to delete ${playerName}?`)) {
+                        // Remove from app.players
+                        const filteredIndex = app.paginatedPlayerIndices ? app.paginatedPlayerIndices[rowIndex] : rowIndex;
+                        const actualPlayer = app.filteredPlayers[filteredIndex];
+
+                        if (actualPlayer) {
+                            const playerIndex = app.players.findIndex(p => p === actualPlayer);
+                            if (playerIndex !== -1) {
+                                app.players.splice(playerIndex, 1);
+                                console.log('[AG-Grid] Deleted player at index:', playerIndex);
+                            }
+                        }
+
+                        // Re-filter and refresh grid
+                        app.filteredPlayers = app.filteredPlayers.filter(p => p !== actualPlayer);
+                        app.agGrid.setGridOption('rowData', app.filteredPlayers);
+
+                        // Mark as modified
+                        app.hasUnsavedChanges = true;
+                        const saveBtn = document.getElementById('saveRosterBtn');
+                        if (saveBtn) saveBtn.style.display = 'inline-block';
+
+                        console.log('[AG-Grid] Player deleted, remaining:', app.players.length);
+                    }
+                } else if (action === 'view-player-card') {
+                    app.showPlayerCard(rowIndex);
+                }
+
+                // Hide menu
+                contextMenu.style.display = 'none';
+                contextMenu.removeEventListener('click', handleMenuClick);
+            };
+
+            contextMenu.addEventListener('click', handleMenuClick);
+
+            // Hide menu when clicking elsewhere
+            const hideMenu = (e) => {
+                if (!contextMenu.contains(e.target)) {
+                    contextMenu.style.display = 'none';
+                    document.removeEventListener('click', hideMenu);
+                    contextMenu.removeEventListener('click', handleMenuClick);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', hideMenu), 0);
         },
 
         // Selection is handled purely by CSS using .ag-row-selected class

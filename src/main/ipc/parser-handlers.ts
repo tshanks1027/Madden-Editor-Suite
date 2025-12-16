@@ -54,13 +54,26 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
     console.log('[parser-handlers] Saving roster file:', filePath);
     console.log('[parser-handlers] Player count:', players.length);
 
-    // Save the file
-    await saveRosterFile(filePath, players, originalData);
+    // DEBUG: Check if assignedGenr and assignedSknt are being passed through IPC
+    // NOTE: Using non-underscore property names because IPC strips underscore-prefixed properties!
+    const playersWithGenr = players.filter(p => p.assignedGenr);
+    const playersWithSknt = players.filter(p => p.assignedSknt !== undefined);
+    console.log(`[parser-handlers] DEBUG: ${playersWithGenr.length} players have assignedGenr, ${playersWithSknt.length} have assignedSknt`);
+    if (playersWithGenr.length > 0) {
+      const sample = playersWithGenr[0];
+      console.log(`[parser-handlers] DEBUG: Sample player with assignedGenr: ${sample.PFNA} ${sample.PLNA}, assignedGenr="${sample.assignedGenr}", assignedSknt=${sample.assignedSknt}`);
+    }
 
-    console.log('[parser-handlers] Save successful');
+    // Save the file - this also runs GenericFaceService.updateBLBMForGenericFaces
+    const result = await saveRosterFile(filePath, players, originalData);
+
+    console.log('[parser-handlers] Save successful, result:', result);
 
     return {
-      success: true
+      success: true,
+      genericFaceServiceLoaded: result?.genericFaceServiceLoaded ?? false,
+      blbmUpdated: result?.blbmUpdated ?? 0,
+      blbmError: result?.blbmError ?? null
     };
 
   } catch (error: any) {

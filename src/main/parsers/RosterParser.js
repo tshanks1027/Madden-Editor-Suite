@@ -18,11 +18,14 @@ const MaddenRosterHelper = require(path.join(__dirname, '..', 'lib', 'helpers', 
 // Generic Face Service for updating BLBM with race-appropriate faces
 let genericFaceService = null;
 try {
+  console.log('[RosterParser] Attempting to load GenericFaceService from:', path.join(__dirname, 'GenericFaceService'));
   const serviceModule = require(path.join(__dirname, 'GenericFaceService'));
+  console.log('[RosterParser] Module loaded, serviceModule keys:', Object.keys(serviceModule));
   genericFaceService = serviceModule.genericFaceService;
-  console.log('[RosterParser] GenericFaceService loaded');
+  console.log('[RosterParser] GenericFaceService loaded:', genericFaceService ? 'SUCCESS' : 'NULL (service object missing)');
 } catch (e) {
-  console.log('[RosterParser] GenericFaceService not available:', e.message);
+  console.error('[RosterParser] GenericFaceService FAILED to load:', e.message);
+  console.error('[RosterParser] Stack:', e.stack);
 }
 
 /**
@@ -73,6 +76,54 @@ async function parseRosterFile(filePath) {
 
     console.log('[RosterParser] Successfully extracted', players.length, 'players');
 
+    // CRITICAL: Read BTYP from BLBM and update PCBT to show actual in-game body type
+    // The game reads body type from BTYP in BLBM, not PCBT in PLAY!
+    try {
+      const blob = file.BLOB?.records?.[0];
+      const blbm = blob?.fields?.['BLBM']?.value;
+
+      if (blbm && blbm._records) {
+        console.log('[RosterParser] Syncing PCBT from BTYP (BLBM) - showing actual in-game values');
+        console.log(`[RosterParser] BLBM has ${blbm._records.length} records`);
+        let syncedCount = 0;
+        let skippedNoBTYP = 0;
+        let skippedNoChange = 0;
+        const BODY_NAMES = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+
+        for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+          const blbmRec = blbm._records[i];
+          const fields = blbmRec.fields || blbmRec._fields;
+
+          if (!fields || !fields['BTYP']) {
+            skippedNoBTYP++;
+            continue;
+          }
+
+          const btyp = fields['BTYP'].value ?? fields['BTYP']._value;
+          const pcbt = players[i].PCBT;
+
+          // Log first 5 players for debugging
+          if (i < 5) {
+            console.log(`[RosterParser] Player ${i} (${players[i].PFNA} ${players[i].PLNA}): PCBT=${pcbt}(${BODY_NAMES[pcbt] || '?'}), BTYP=${btyp}(${BODY_NAMES[btyp] || '?'})`);
+          }
+
+          if (btyp !== undefined && btyp !== null && pcbt !== btyp) {
+            players[i].PCBT = btyp;
+            syncedCount++;
+          } else {
+            skippedNoChange++;
+          }
+        }
+
+        console.log(`[RosterParser] BTYP sync results: ${syncedCount} synced, ${skippedNoBTYP} missing BTYP, ${skippedNoChange} already matched`);
+      } else {
+        console.log('[RosterParser] WARNING: No BLBM table found for BTYP sync');
+      }
+    } catch (btypErr) {
+      console.warn('[RosterParser] Failed to sync PCBT from BTYP:', btypErr.message);
+      // Non-fatal - continue with PCBT values as-is
+    }
+
     // Log sample player with ALL field names
     if (players.length > 0) {
       const sample = players[0];
@@ -86,8 +137,28 @@ async function parseRosterFile(filePath) {
         age: sample.PAGE,
         birthday: sample.PLBD,
         archetype: sample.PLTY,
-        PEPS: sample.PEPS
+        PEPS: sample.PEPS,
+        PCBT: sample.PCBT  // Body type
       });
+
+      // Debug: Log PCBT values for first 10 players
+      console.log('[RosterParser] *** PCBT LOAD DEBUG - First 10 players ***');
+      for (let i = 0; i < Math.min(10, players.length); i++) {
+        const p = players[i];
+        console.log(`  Player ${i}: ${p.PFNA} ${p.PLNA} - PCBT=${p.PCBT} (${['Standard','Thin','Muscular','Heavy','Lean'][p.PCBT] || 'Unknown'})`);
+      }
+
+      // Debug: Check for body-type related fields
+      const bodyFields = allFields.filter(f =>
+        f.includes('PCB') || f.includes('BOD') || f.includes('BTY') ||
+        f.includes('WLBS') || f.includes('body') || f.includes('Body')
+      );
+      console.log('[RosterParser] Body-related fields found:', bodyFields.join(', ') || 'NONE');
+      if (bodyFields.length > 0) {
+        bodyFields.forEach(f => {
+          console.log(`  ${f} = ${sample[f]}`);
+        });
+      }
 
       // Extra debug for name fields
       console.log('[RosterParser] 🔍 NAME FIELD DEBUG:');
@@ -200,6 +271,13 @@ async function saveRosterFile(filePath, players, originalData) {
     console.log('[RosterParser] Will update MIN(', players.length, ',', playerTable.records.length, ') records');
     let fieldsUpdated = 0;
 
+    // Lookup maps to convert string display names back to numeric IDs
+    const LOOKUP_STRING_TO_ID = {
+      PCBT: { 'Standard': 0, 'Thin': 1, 'Muscular': 2, 'Heavy': 3, 'Lean': 4 },
+      PHAN: { 'Right': 0, 'Left': 1 },
+      PROL: { 'Normal': 0, 'Star': 1, 'Superstar': 2, 'X-Factor': 3 }
+    };
+
     for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
       const record = playerTable.records[i];
       const playerData = players[i];
@@ -211,17 +289,47 @@ async function saveRosterFile(filePath, players, originalData) {
         }
         if (record.fields[fieldName]) {
           const oldValue = record.fields[fieldName].value;
-          const newValue = playerData[fieldName];
+          let newValue = playerData[fieldName];
+
+          // CRITICAL: Convert string display names back to numeric IDs for lookup fields
+          if (LOOKUP_STRING_TO_ID[fieldName] && typeof newValue === 'string') {
+            const numericId = LOOKUP_STRING_TO_ID[fieldName][newValue];
+            if (numericId !== undefined) {
+              console.log(`[RosterParser] Converting ${fieldName}: "${newValue}" -> ${numericId}`);
+              newValue = numericId;
+            } else {
+              console.warn(`[RosterParser] WARNING: Unknown ${fieldName} value "${newValue}", keeping as-is`);
+            }
+          }
+
           record.fields[fieldName].value = newValue;
 
           // Log PEPS changes
           if (fieldName === 'PEPS' && oldValue !== newValue) {
             console.log(`[RosterParser] Player ${i}: PEPS changed from "${oldValue}" to "${newValue}"`);
           }
+          // Log PGHE changes (face model)
+          if (fieldName === 'PGHE' && oldValue !== newValue) {
+            console.log(`[RosterParser] Player ${i}: PGHE changed from ${oldValue} to ${newValue}`);
+          }
+          // Log PHAN changes (handedness) - DEBUG for save issue
+          if (fieldName === 'PHAN' && oldValue !== newValue) {
+            console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PHAN changed from ${oldValue} to ${newValue}`);
+          }
+          // Log PROL changes (dev trait) - DEBUG
+          if (fieldName === 'PROL' && oldValue !== newValue) {
+            console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PROL changed from ${oldValue} to ${newValue}`);
+          }
+          // Log PCBT changes (body type) - DEBUG
+          if (fieldName === 'PCBT') {
+            console.log(`[RosterParser] *** PCBT SAVE DEBUG *** Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PCBT file=${oldValue}, incoming=${newValue}, changed=${oldValue !== newValue}`);
+          }
 
           fieldsUpdated++;
         } else if (fieldName === 'PEPS') {
           console.log(`[RosterParser] WARNING: Player ${i} has no PEPS field in record!`);
+        } else if (fieldName === 'PHAN') {
+          console.log(`[RosterParser] WARNING: Player ${i} has no PHAN field in record! Value would be: ${playerData[fieldName]}`);
         }
       }
     }
@@ -229,16 +337,47 @@ async function saveRosterFile(filePath, players, originalData) {
     console.log('[RosterParser] Updated', fieldsUpdated, 'field values');
     console.log('[RosterParser] Original record has', Object.keys(playerTable.records[0].fields).length, 'fields - all preserved');
 
+    // Track results for debugging
+    let blbmUpdated = 0;
+    let btypSynced = 0;
+    let genericFaceServiceLoaded = !!genericFaceService;
+    let blbmError = null;
+
     // Update BLBM with race-appropriate generic faces for players without PAM
+    console.log('[RosterParser] genericFaceService loaded:', genericFaceService ? 'YES' : 'NULL');
     if (genericFaceService) {
       try {
         console.log('[RosterParser] Updating BLBM generic faces...');
-        const blbmUpdated = await genericFaceService.updateBLBMForGenericFaces(file, players);
+
+        // DEBUG: Check if assignedGenr values survived IPC
+        const playersWithAssignedGenr = players.filter(p => p.assignedGenr);
+        const playersWithAssignedSknt = players.filter(p => p.assignedSknt !== undefined);
+        console.log(`[RosterParser] DEBUG: ${playersWithAssignedGenr.length} players have assignedGenr, ${playersWithAssignedSknt.length} have assignedSknt`);
+        if (playersWithAssignedGenr.length > 0) {
+          const sample = playersWithAssignedGenr[0];
+          console.log(`[RosterParser] DEBUG Sample: ${sample.PFNA} ${sample.PLNA}, assignedGenr="${sample.assignedGenr}", assignedSknt=${sample.assignedSknt}`);
+        } else if (players.length > 0) {
+          // Debug: What properties DOES the first player have?
+          const first = players[0];
+          const props = Object.keys(first).filter(k => k.includes('assigned') || k.includes('genr') || k.includes('sknt') || k.startsWith('_'));
+          console.log(`[RosterParser] DEBUG: First player special props: ${JSON.stringify(props)}`);
+          console.log(`[RosterParser] DEBUG: First player._genr=${first._genr}, _sknt=${first._sknt}`);
+        }
+
+        blbmUpdated = await genericFaceService.updateBLBMForGenericFaces(file, players);
         console.log('[RosterParser] BLBM updates complete:', blbmUpdated, 'players updated');
-      } catch (blbmError) {
-        console.warn('[RosterParser] BLBM update failed (non-fatal):', blbmError.message);
+
+        // CRITICAL: Sync BTYP (body type) in BLBM for ALL players
+        // The game reads body type from BTYP in BLBM, not PCBT in PLAY!
+        btypSynced = await genericFaceService.syncBodyTypeForAllPlayers(file, players);
+        console.log('[RosterParser] BTYP sync complete:', btypSynced, 'players synced');
+      } catch (err) {
+        blbmError = err.message;
+        console.warn('[RosterParser] BLBM update failed (non-fatal):', err.message);
         // Continue - this is non-fatal
       }
+    } else {
+      console.error('[RosterParser] *** CRITICAL: GenericFaceService is NULL - BLBM will NOT be updated! ***');
     }
 
     // Save using MaddenRosterHelper
@@ -257,6 +396,14 @@ async function saveRosterFile(filePath, players, originalData) {
     }
 
     console.log('[RosterParser] ===========================');
+
+    // Return save results for debugging
+    return {
+      genericFaceServiceLoaded,
+      blbmUpdated,
+      btypSynced,
+      blbmError
+    };
 
   } catch (error) {
     console.error('[RosterParser] ===== ERROR IN SAVE =====');

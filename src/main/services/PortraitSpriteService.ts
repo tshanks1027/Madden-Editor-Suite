@@ -192,6 +192,9 @@ export class PortraitSpriteService {
       // Load PID Portrait Mapping CSV
       await this.loadPIDMapping();
 
+      // Load PGHE generic face PIDs
+      await this.loadPGHEMapping();
+
       this.initialized = true;
       console.log('[PortraitSpriteService] Portrait map initialized with', this.portraitMap.size, 'keys');
       console.log('[PortraitSpriteService] PID map initialized with', this.pidMap.size, 'entries');
@@ -260,6 +263,77 @@ export class PortraitSpriteService {
       console.log(`[PortraitSpriteService] Mapped ${mappedCount} PIDs to portraits, skipped ${skippedCount}`);
     } catch (err) {
       console.error('[PortraitSpriteService] Error loading PID mapping:', err);
+    }
+  }
+
+  /**
+   * Load PGHE generic face PIDs from PGHE_lookup.csv
+   * Maps each generic face's PID (PSXP) to its portrait
+   */
+  private async loadPGHEMapping(): Promise<void> {
+    // Find PGHE_lookup.csv
+    const possiblePaths = [
+      path.join(process.cwd(), 'data', 'lookups', 'PGHE_lookup.csv'),
+      path.join(app.getAppPath(), 'data', 'lookups', 'PGHE_lookup.csv'),
+      path.join(app.getAppPath(), '..', '..', 'data', 'lookups', 'PGHE_lookup.csv'),
+      path.join(__dirname, '..', '..', 'data', 'lookups', 'PGHE_lookup.csv'),
+    ];
+
+    const pghePath = possiblePaths.find(p => fs.existsSync(p));
+    if (!pghePath) {
+      console.log('[PortraitSpriteService] PGHE_lookup.csv not found, skipping generic face PID mapping');
+      return;
+    }
+
+    try {
+      const csvContent = fs.readFileSync(pghePath, 'utf8');
+      const lines = csvContent.split('\n');
+
+      console.log(`[PortraitSpriteService] Loading PGHE mappings from ${pghePath}`);
+
+      let mappedCount = 0;
+      let skippedCount = 0;
+
+      // Skip header: PGHE,PFCG,GPAN,GSLP,PSXP,CPVF
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',');
+        if (parts.length < 5) continue;
+
+        // PGHE,PFCG,GPAN,GSLP,PSXP,CPVF
+        const pfcg = parts[1].replace(/"/g, ''); // Face config code e.g., "1_B_B_005"
+        const psxp = parseInt(parts[4]); // PID
+
+        if (isNaN(psxp) || psxp <= 0) {
+          skippedCount++;
+          continue;
+        }
+
+        // Convert PFCG to portrait key: "1_B_B_005" -> "plpo_generic_1_B_B_005"
+        const portraitKey = `plpo_generic_${pfcg}`.toLowerCase();
+
+        // Look up in portrait map
+        let entry = this.portraitMap.get(portraitKey);
+
+        // Try with _morphed suffix
+        if (!entry) {
+          entry = this.portraitMap.get(portraitKey + '_morphed');
+        }
+
+        if (entry) {
+          this.pidMap.set(psxp, entry);
+          mappedCount++;
+        } else {
+          // Not all generic faces may be in the atlas - this is fine
+          skippedCount++;
+        }
+      }
+
+      console.log(`[PortraitSpriteService] Mapped ${mappedCount} PGHE PIDs to portraits, skipped ${skippedCount}`);
+    } catch (err) {
+      console.error('[PortraitSpriteService] Error loading PGHE mapping:', err);
     }
   }
 

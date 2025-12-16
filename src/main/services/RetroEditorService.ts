@@ -1470,6 +1470,580 @@ export class RetroEditorService {
       warnings
     };
   }
+
+  // ============================================
+  // SALARY CAP METHODS
+  // ============================================
+
+  /**
+   * Load salary cap data
+   */
+  private loadSalaryCapData(): any | null {
+    try {
+      const appPath = app.getAppPath();
+      const dataPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
+        : path.join(appPath, 'data', 'retro');
+
+      const salaryCapPath = path.join(dataPath, 'salary-caps.json');
+      if (!fs.existsSync(salaryCapPath)) {
+        console.log('[RetroEditorService] No salary cap data file found');
+        return null;
+      }
+
+      const salaryCapData = JSON.parse(fs.readFileSync(salaryCapPath, 'utf-8'));
+      console.log('[RetroEditorService] Loaded salary cap data');
+      return salaryCapData;
+    } catch (error) {
+      console.error('[RetroEditorService] Error loading salary cap data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get salary cap for a specific year
+   */
+  getSalaryCapForYear(year: number): { value: number; note?: string } {
+    const data = this.loadSalaryCapData();
+    if (!data) {
+      return { value: 0, note: 'No salary cap data available' };
+    }
+
+    // Check if pre-cap era (before 1994)
+    if (data.preCap && year >= data.preCap.startYear && year <= data.preCap.endYear) {
+      return { value: 0, note: data.preCap.note || 'No salary cap in this era' };
+    }
+
+    // Get specific year cap
+    const yearStr = year.toString();
+    if (data.caps && data.caps[yearStr]) {
+      const note = data.notes && data.notes[yearStr] ? data.notes[yearStr] : undefined;
+      return { value: data.caps[yearStr], note };
+    }
+
+    return { value: 0, note: `No salary cap data for ${year}` };
+  }
+
+  /**
+   * Apply salary cap to franchise file
+   */
+  async applySalaryCap(filePath: string, year: number): Promise<{
+    success: boolean;
+    previousCap: number;
+    newCap: number;
+    note?: string;
+    error?: string;
+  }> {
+    const franchise = this.franchiseInstances.get(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        previousCap: 0,
+        newCap: 0,
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    const capInfo = this.getSalaryCapForYear(year);
+    console.log(`[RetroEditorService] Setting salary cap for ${year}: $${capInfo.value.toLocaleString()}`);
+
+    // Get the League table
+    let leagueTable = franchise.getTableByUniqueId(TABLE_IDS.leagueTable);
+    if (!leagueTable) {
+      leagueTable = franchise.getTableByName('League');
+    }
+    if (!leagueTable) {
+      console.error('[RetroEditorService] Could not find League table!');
+      return {
+        success: false,
+        previousCap: 0,
+        newCap: capInfo.value,
+        error: 'Could not find League table in franchise file'
+      };
+    }
+
+    await leagueTable.readRecords();
+    console.log(`[RetroEditorService] Found ${leagueTable.records.length} league records`);
+
+    // Find the active league record
+    const leagueRecord = leagueTable.records.find((r: any) => !r.isEmpty);
+    if (!leagueRecord) {
+      return {
+        success: false,
+        previousCap: 0,
+        newCap: capInfo.value,
+        error: 'No active league record found'
+      };
+    }
+
+    // Log available fields
+    const fieldNames = Object.keys(leagueRecord).filter(k => !k.startsWith('_') && typeof leagueRecord[k] !== 'function');
+    console.log('[RetroEditorService] League table fields:', fieldNames.slice(0, 20));
+
+    // Get previous cap value
+    const previousCap = leagueRecord.SalaryCap || leagueRecord.SalaryCapTotal || 0;
+
+    // Set salary cap - try various field names
+    if ('SalaryCap' in leagueRecord) {
+      leagueRecord.SalaryCap = capInfo.value;
+      console.log(`[RetroEditorService] Set SalaryCap = ${capInfo.value}`);
+    }
+    if ('SalaryCapTotal' in leagueRecord) {
+      leagueRecord.SalaryCapTotal = capInfo.value;
+      console.log(`[RetroEditorService] Set SalaryCapTotal = ${capInfo.value}`);
+    }
+    if ('TeamSalaryCap' in leagueRecord) {
+      leagueRecord.TeamSalaryCap = capInfo.value;
+      console.log(`[RetroEditorService] Set TeamSalaryCap = ${capInfo.value}`);
+    }
+
+    return {
+      success: true,
+      previousCap,
+      newCap: capInfo.value,
+      note: capInfo.note
+    };
+  }
+
+  // ============================================
+  // STADIUM NAME METHODS
+  // ============================================
+
+  /**
+   * Load stadium data
+   */
+  private loadStadiumData(): any | null {
+    try {
+      const appPath = app.getAppPath();
+      const dataPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
+        : path.join(appPath, 'data', 'retro');
+
+      const stadiumPath = path.join(dataPath, 'stadiums.json');
+      if (!fs.existsSync(stadiumPath)) {
+        console.log('[RetroEditorService] No stadium data file found');
+        return null;
+      }
+
+      const stadiumData = JSON.parse(fs.readFileSync(stadiumPath, 'utf-8'));
+      console.log('[RetroEditorService] Loaded stadium data');
+      return stadiumData;
+    } catch (error) {
+      console.error('[RetroEditorService] Error loading stadium data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get stadium name for a team in a specific year
+   */
+  getStadiumNameForYear(teamIndex: number, year: number): string | null {
+    const data = this.loadStadiumData();
+    if (!data || !data.stadiums) return null;
+
+    const teamStadiums = data.stadiums[teamIndex.toString()];
+    if (!teamStadiums || !teamStadiums.ranges) return null;
+
+    for (const range of teamStadiums.ranges) {
+      if (year >= range.start && year <= range.end) {
+        return range.name;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get stadium preview for a year
+   */
+  async getStadiumPreview(filePath: string, year: number): Promise<{
+    available: boolean;
+    stadiumChanges: Array<{
+      teamIndex: number;
+      teamName: string;
+      oldName: string;
+      newName: string;
+    }>;
+    warnings: string[];
+  }> {
+    const data = this.loadStadiumData();
+    if (!data) {
+      return {
+        available: false,
+        stadiumChanges: [],
+        warnings: ['No stadium data available']
+      };
+    }
+
+    const stadiumChanges: Array<{
+      teamIndex: number;
+      teamName: string;
+      oldName: string;
+      newName: string;
+    }> = [];
+
+    for (const [teamIndexStr, teamData] of Object.entries(data.stadiums)) {
+      const teamIndex = parseInt(teamIndexStr);
+      const stadiumInfo = teamData as any;
+      const newName = this.getStadiumNameForYear(teamIndex, year);
+
+      if (newName && stadiumInfo.teamName) {
+        stadiumChanges.push({
+          teamIndex,
+          teamName: stadiumInfo.teamName,
+          oldName: '(Current)',
+          newName
+        });
+      }
+    }
+
+    return {
+      available: true,
+      stadiumChanges,
+      warnings: []
+    };
+  }
+
+  /**
+   * Apply historical stadium names to franchise file
+   */
+  async applyStadiumNames(filePath: string, year: number): Promise<{
+    success: boolean;
+    stadiumsUpdated: number;
+    warnings: string[];
+    error?: string;
+  }> {
+    const franchise = this.franchiseInstances.get(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        stadiumsUpdated: 0,
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    const stadiumData = this.loadStadiumData();
+    if (!stadiumData) {
+      return {
+        success: false,
+        stadiumsUpdated: 0,
+        warnings: [],
+        error: 'No stadium data available'
+      };
+    }
+
+    console.log(`[RetroEditorService] Applying stadium names for year ${year}`);
+
+    // Get the Stadium table
+    let stadiumTable = franchise.getTableByUniqueId(TABLE_IDS.stadiumTable);
+    if (!stadiumTable) {
+      stadiumTable = franchise.getTableByName('Stadium');
+    }
+    if (!stadiumTable) {
+      console.error('[RetroEditorService] Could not find Stadium table!');
+      return {
+        success: false,
+        stadiumsUpdated: 0,
+        warnings: [],
+        error: 'Could not find Stadium table in franchise file'
+      };
+    }
+
+    await stadiumTable.readRecords();
+    console.log(`[RetroEditorService] Found ${stadiumTable.records.length} stadium records`);
+
+    // Log first record fields
+    if (stadiumTable.records.length > 0) {
+      const firstRecord = stadiumTable.records[0];
+      const fieldNames = Object.keys(firstRecord).filter(k => !k.startsWith('_') && typeof firstRecord[k] !== 'function');
+      console.log('[RetroEditorService] Stadium table fields:', fieldNames.slice(0, 20));
+    }
+
+    const warnings: string[] = [];
+    let stadiumsUpdated = 0;
+
+    // We need to match stadiums to teams
+    // Stadium table typically has TeamIndex field or we need to match by team association
+    for (const stadiumRecord of stadiumTable.records) {
+      if (stadiumRecord.isEmpty) continue;
+
+      // Try to get team index from stadium record
+      const teamIndex = stadiumRecord.TeamIndex;
+      if (teamIndex === undefined || teamIndex >= 32) continue;
+
+      const newName = this.getStadiumNameForYear(teamIndex, year);
+      if (!newName) continue;
+
+      const oldName = stadiumRecord.Name || stadiumRecord.StadiumName || '(unknown)';
+
+      // Update stadium name
+      if ('Name' in stadiumRecord) {
+        stadiumRecord.Name = newName;
+        stadiumsUpdated++;
+        console.log(`[RetroEditorService] Stadium for team ${teamIndex}: "${oldName}" -> "${newName}"`);
+      } else if ('StadiumName' in stadiumRecord) {
+        stadiumRecord.StadiumName = newName;
+        stadiumsUpdated++;
+        console.log(`[RetroEditorService] Stadium for team ${teamIndex}: "${oldName}" -> "${newName}"`);
+      } else {
+        warnings.push(`Stadium record for team ${teamIndex} has no Name field`);
+      }
+    }
+
+    console.log(`[RetroEditorService] Updated ${stadiumsUpdated} stadium names`);
+
+    return {
+      success: true,
+      stadiumsUpdated,
+      warnings
+    };
+  }
+
+  // ============================================
+  // TEAM SCHEME METHODS
+  // ============================================
+
+  /**
+   * Load team schemes data
+   */
+  private loadTeamSchemesData(): any | null {
+    try {
+      const appPath = app.getAppPath();
+      const dataPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
+        : path.join(appPath, 'data', 'retro');
+
+      const schemesPath = path.join(dataPath, 'team-schemes.json');
+      if (!fs.existsSync(schemesPath)) {
+        console.log('[RetroEditorService] No team schemes data file found');
+        return null;
+      }
+
+      const schemesData = JSON.parse(fs.readFileSync(schemesPath, 'utf-8'));
+      console.log('[RetroEditorService] Loaded team schemes data');
+      return schemesData;
+    } catch (error) {
+      console.error('[RetroEditorService] Error loading team schemes data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get scheme for a team in a specific year
+   */
+  getSchemeForTeam(teamName: string, year: number): { offense: string; defense: string; note?: string } | null {
+    const data = this.loadTeamSchemesData();
+    if (!data) return null;
+
+    // Check for team-specific override first
+    const yearStr = year.toString();
+    if (data.teamOverrides && data.teamOverrides[yearStr]) {
+      const teamOverride = data.teamOverrides[yearStr][teamName];
+      if (teamOverride) {
+        return {
+          offense: teamOverride.offense,
+          defense: teamOverride.defense,
+          note: teamOverride.note
+        };
+      }
+    }
+
+    // Fall back to era default
+    if (data.defaultByEra) {
+      for (const [eraRange, eraScheme] of Object.entries(data.defaultByEra)) {
+        const [startYear, endYear] = eraRange.split('-').map(Number);
+        if (year >= startYear && year <= endYear) {
+          const scheme = eraScheme as any;
+          return {
+            offense: scheme.offense,
+            defense: scheme.defense,
+            note: scheme.note
+          };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get scheme preview for a year
+   */
+  async getSchemePreview(filePath: string, year: number): Promise<{
+    available: boolean;
+    schemeChanges: Array<{
+      teamIndex: number;
+      teamName: string;
+      offenseScheme: string;
+      defenseScheme: string;
+      note?: string;
+    }>;
+    warnings: string[];
+  }> {
+    const data = this.loadTeamSchemesData();
+    if (!data) {
+      return {
+        available: false,
+        schemeChanges: [],
+        warnings: ['No team schemes data available']
+      };
+    }
+
+    const schemeChanges: Array<{
+      teamIndex: number;
+      teamName: string;
+      offenseScheme: string;
+      defenseScheme: string;
+      note?: string;
+    }> = [];
+
+    // Get all teams and their schemes
+    for (const team of this.historicalTeams) {
+      const teamName = team.currentName;
+      const scheme = this.getSchemeForTeam(teamName, year);
+
+      if (scheme) {
+        schemeChanges.push({
+          teamIndex: team.teamIndex,
+          teamName,
+          offenseScheme: scheme.offense,
+          defenseScheme: scheme.defense,
+          note: scheme.note
+        });
+      }
+    }
+
+    return {
+      available: true,
+      schemeChanges,
+      warnings: []
+    };
+  }
+
+  /**
+   * Apply historical team schemes to franchise file
+   * Updates the Coach table's OffensiveScheme and DefensiveScheme fields on the HC
+   */
+  async applyTeamSchemes(filePath: string, year: number): Promise<{
+    success: boolean;
+    schemesUpdated: number;
+    warnings: string[];
+    error?: string;
+  }> {
+    const franchise = this.franchiseInstances.get(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        schemesUpdated: 0,
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    const schemesData = this.loadTeamSchemesData();
+    if (!schemesData) {
+      return {
+        success: false,
+        schemesUpdated: 0,
+        warnings: [],
+        error: 'No team schemes data available'
+      };
+    }
+
+    console.log(`[RetroEditorService] Applying team schemes for year ${year}`);
+
+    // Get the Coach table (schemes are on the HC record)
+    let coachTable = franchise.getTableByUniqueId(TABLE_IDS.coachTable);
+    if (!coachTable) {
+      coachTable = franchise.getTableByName('Coach');
+    }
+    if (!coachTable) {
+      console.error('[RetroEditorService] Could not find Coach table!');
+      return {
+        success: false,
+        schemesUpdated: 0,
+        warnings: [],
+        error: 'Could not find Coach table in franchise file'
+      };
+    }
+
+    await coachTable.readRecords();
+
+    const warnings: string[] = [];
+    let schemesUpdated = 0;
+
+    // Group coaches by TeamIndex, find HC for each team
+    const hcByTeam = new Map<number, any>();
+    for (const record of coachTable.records) {
+      if (record.isEmpty) continue;
+
+      const teamIndex = record.TeamIndex;
+      if (teamIndex === undefined || teamIndex >= 32) continue;
+
+      const position = record.Position;
+      const isHC = position === 0 || position === 'HeadCoach' || position === 'CoachPosition:HeadCoach';
+
+      // For teams with multiple HCs, prefer signed one
+      if (isHC) {
+        const contractStatus = record.ContractStatus;
+        const isSigned = contractStatus === 'Signed' || contractStatus === 'ContractStatus:Signed';
+        const existing = hcByTeam.get(teamIndex);
+
+        if (!existing || (isSigned && existing.ContractStatus !== 'Signed')) {
+          hcByTeam.set(teamIndex, record);
+        }
+      }
+    }
+
+    // Apply schemes to each team's HC
+    for (const team of this.historicalTeams) {
+      const hcRecord = hcByTeam.get(team.teamIndex);
+      if (!hcRecord) {
+        warnings.push(`No HC found for ${team.currentName}`);
+        continue;
+      }
+
+      const scheme = this.getSchemeForTeam(team.currentName, year);
+      if (!scheme) {
+        continue;
+      }
+
+      // Get scheme enum values
+      const offenseEnum = schemesData.schemeEnums?.offense?.[scheme.offense];
+      const defenseEnum = schemesData.schemeEnums?.defense?.[scheme.defense];
+
+      let updated = false;
+
+      // Set offensive scheme
+      if (offenseEnum !== undefined && 'OffensiveScheme' in hcRecord) {
+        const oldScheme = hcRecord.OffensiveScheme;
+        hcRecord.OffensiveScheme = offenseEnum;
+        console.log(`[RetroEditorService] ${team.currentName} offense: ${oldScheme} -> ${scheme.offense} (${offenseEnum})`);
+        updated = true;
+      }
+
+      // Set defensive scheme
+      if (defenseEnum !== undefined && 'DefensiveScheme' in hcRecord) {
+        const oldScheme = hcRecord.DefensiveScheme;
+        hcRecord.DefensiveScheme = defenseEnum;
+        console.log(`[RetroEditorService] ${team.currentName} defense: ${oldScheme} -> ${scheme.defense} (${defenseEnum})`);
+        updated = true;
+      }
+
+      if (updated) {
+        schemesUpdated++;
+      }
+    }
+
+    console.log(`[RetroEditorService] Updated ${schemesUpdated} team schemes`);
+
+    return {
+      success: true,
+      schemesUpdated,
+      warnings
+    };
+  }
 }
 
 // Export singleton instance

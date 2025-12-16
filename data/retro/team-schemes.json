@@ -1,0 +1,152 @@
+{
+  "description": "Historical offensive and defensive scheme assignments by era and team. Madden scheme enum values in parentheses.",
+  "schemeEnums": {
+    "offense": {
+      "West Coast": 0,
+      "Vertical": 1,
+      "Power Run": 2,
+      "Zone Run": 3,
+      "Spread": 4,
+      "Air Raid": 5,
+      "Pistol": 6,
+      "Option": 7,
+      "Multiple": 8
+    },
+    "defense": {
+      "4-3": 0,
+      "3-4": 1,
+      "Multiple": 2,
+      "4-3 Even": 3,
+      "4-3 Under": 4,
+      "3-4 Odd": 5,
+      "3-4 Over": 6
+    }
+  },
+  "defaultByEra": {
+    "1966-1977": {
+      "offense": "Power Run",
+      "defense": "4-3",
+      "note": "Ground-and-pound era, 4-3 defense dominant"
+    },
+    "1978-1989": {
+      "offense": "Power Run",
+      "defense": "3-4",
+      "note": "3-4 defense rises (Steelers, Bears), still run-heavy offenses"
+    },
+    "1990-1999": {
+      "offense": "West Coast",
+      "defense": "4-3",
+      "note": "West Coast offense spreads (49ers, Packers), Tampa 2 emerges"
+    },
+    "2000-2009": {
+      "offense": "West Coast",
+      "defense": "Multiple",
+      "note": "Mixed schemes, spread concepts enter NFL"
+    },
+    "2010-2017": {
+      "offense": "Spread",
+      "defense": "Multiple",
+      "note": "Spread offense dominates, multiple defensive looks"
+    },
+    "2018-2024": {
+      "offense": "Spread",
+      "defense": "Multiple",
+      "note": "RPO era, defensive diversity"
+    }
+  },
+  "teamOverrides": {
+    "1970": {
+      "Chiefs": { "offense": "Multiple", "defense": "Multiple" },
+      "Cowboys": { "offense": "Multiple", "defense": "4-3" },
+      "Vikings": { "offense": "Power Run", "defense": "4-3" }
+    },
+    "1972": {
+      "Dolphins": { "offense": "Power Run", "defense": "4-3", "note": "Perfect season" }
+    },
+    "1979": {
+      "Steelers": { "offense": "Power Run", "defense": "3-4" },
+      "Cowboys": { "offense": "Multiple", "defense": "4-3" }
+    },
+    "1985": {
+      "Bears": { "offense": "Power Run", "defense": "4-3", "note": "46 Defense" },
+      "49ers": { "offense": "West Coast", "defense": "4-3" }
+    },
+    "1988": {
+      "49ers": { "offense": "West Coast", "defense": "4-3" },
+      "Bengals": { "offense": "West Coast", "defense": "4-3" }
+    },
+    "1994": {
+      "49ers": { "offense": "West Coast", "defense": "4-3" },
+      "Cowboys": { "offense": "Power Run", "defense": "4-3" }
+    },
+    "1999": {
+      "Rams": { "offense": "Vertical", "defense": "4-3", "note": "Greatest Show on Turf" },
+      "Buccaneers": { "offense": "West Coast", "defense": "4-3", "note": "Tampa 2 defense" }
+    },
+    "2001": {
+      "Rams": { "offense": "Vertical", "defense": "4-3" },
+      "Patriots": { "offense": "Multiple", "defense": "3-4" }
+    },
+    "2004": {
+      "Patriots": { "offense": "Multiple", "defense": "3-4" },
+      "Colts": { "offense": "West Coast", "defense": "4-3" }
+    },
+    "2007": {
+      "Patriots": { "offense": "Spread", "defense": "3-4", "note": "16-0 regular season" },
+      "Giants": { "offense": "Power Run", "defense": "4-3" }
+    },
+    "2010": {
+      "Packers": { "offense": "West Coast", "defense": "3-4" },
+      "Jets": { "offense": "Power Run", "defense": "3-4" }
+    },
+    "2012": {
+      "49ers": { "offense": "Pistol", "defense": "3-4", "note": "Read option era" },
+      "Seahawks": { "offense": "Zone Run", "defense": "4-3", "note": "Legion of Boom" },
+      "Ravens": { "offense": "Power Run", "defense": "3-4" }
+    },
+    "2015": {
+      "Broncos": { "offense": "West Coast", "defense": "3-4" },
+      "Panthers": { "offense": "Spread", "defense": "4-3" },
+      "Cardinals": { "offense": "Air Raid", "defense": "3-4" }
+    },
+    "2018": {
+      "Chiefs": { "offense": "Spread", "defense": "4-3" },
+      "Rams": { "offense": "Spread", "defense": "4-3" },
+      "Saints": { "offense": "West Coast", "defense": "4-3" }
+    },
+    "2019": {
+      "Chiefs": { "offense": "Spread", "defense": "4-3" },
+      "49ers": { "offense": "Zone Run", "defense": "4-3" },
+      "Ravens": { "offense": "Option", "defense": "3-4", "note": "Lamar MVP season" }
+    },
+    "2020": {
+      "Chiefs": { "offense": "Spread", "defense": "4-3" },
+      "Buccaneers": { "offense": "Vertical", "defense": "3-4" },
+      "Packers": { "offense": "West Coast", "defense": "3-4" },
+      "Bills": { "offense": "Spread", "defense": "4-3" },
+      "Ravens": { "offense": "Option", "defense": "3-4" }
+    },
+    "2021": {
+      "Rams": { "offense": "Spread", "defense": "3-4" },
+      "Bengals": { "offense": "West Coast", "defense": "4-3" },
+      "Chiefs": { "offense": "Spread", "defense": "4-3" }
+    },
+    "2022": {
+      "Chiefs": { "offense": "Spread", "defense": "4-3" },
+      "Eagles": { "offense": "Spread", "defense": "4-3" },
+      "49ers": { "offense": "Zone Run", "defense": "4-3" }
+    },
+    "2023": {
+      "Chiefs": { "offense": "Spread", "defense": "4-3" },
+      "49ers": { "offense": "Zone Run", "defense": "4-3" },
+      "Ravens": { "offense": "Option", "defense": "3-4" },
+      "Cowboys": { "offense": "Spread", "defense": "4-3" }
+    },
+    "2024": {
+      "Chiefs": { "offense": "Spread", "defense": "4-3" },
+      "Lions": { "offense": "Spread", "defense": "4-3" },
+      "Bills": { "offense": "Spread", "defense": "4-3" },
+      "Eagles": { "offense": "Spread", "defense": "4-3" }
+    }
+  }
+}

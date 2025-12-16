@@ -38,6 +38,7 @@ import { registerCreatorHandlers } from './main/ipc/creator-handlers';
 import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';
 import { registerUpdateHandlers } from './main/ipc/update-handlers';
+import { registerPGHEHandlers } from './main/ipc/pghe-handlers';
 import { updateChecker } from './main/services/UpdateChecker';
 import { portraitSpriteService } from './main/services/PortraitSpriteService';
 import { coachPortraitService } from './main/services/CoachPortraitService';
@@ -48,6 +49,7 @@ registerCreatorHandlers();
 registerDebugHandlers();
 registerRatingHandlers();
 registerUpdateHandlers();
+registerPGHEHandlers();
 
 // Register window focus handler - used to restore OS-level focus after native dialogs
 // Windows has focus theft prevention that can leave webContents without keyboard input

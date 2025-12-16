@@ -292,28 +292,15 @@ ipcMain.handle('portrait:get-image-data-by-pid', async (event, pid: number) => {
  */
 ipcMain.handle('portrait:get-image-data-by-pam', async (event, pamCode: string) => {
   try {
-    // Convert PAM/PEPS code to PLPO format
-    // Format: gen_5_M_M_005 → plpo_generic_5_005_morphed
-    let plpoName = pamCode;
+    // Direct conversion: gen_X_Y_Z_NNN → plpo_generic_X_Y_Z_NNN
+    const plpoName = pamCode.startsWith('gen_')
+      ? pamCode.replace('gen_', 'plpo_generic_')
+      : pamCode;
 
-    if (pamCode.startsWith('gen_')) {
-      const parts = pamCode.split('_');
-      if (parts.length >= 5) {
-        // Extract: gen_5_M_M_005 → ethnicity=5, faceNum=005
-        const ethnicity = parts[1];
-        // Parse as int then format to exactly 3 digits (handles 01, 003, 0011)
-        const faceNum = String(parseInt(parts[4], 10)).padStart(3, '0');
-        plpoName = `plpo_generic_${ethnicity}_${faceNum}_morphed`;
-      } else {
-        // Fallback for simpler format
-        plpoName = pamCode.replace('gen_', 'plpo_generic_');
-      }
-    }
-
-    console.log(`[Portrait PAM] Converting ${pamCode} → ${plpoName}`);
     const spriteInfo = portraitSpriteService.getPortraitByPLPO(plpoName);
 
     if (!spriteInfo) {
+      console.warn(`[Portrait PAM] No atlas entry for ${plpoName} (from ${pamCode})`);
       return null;
     }
 

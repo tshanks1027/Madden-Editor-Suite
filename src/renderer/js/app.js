@@ -37,7 +37,10 @@ import {
     getPIDFromName,
     getPIDFromPLPO,
     getPlayerNameFromPID,
-    searchPIDNames
+    searchPIDNames,
+    getBodyTypeFromWeight,
+    storedWeightToActual,
+    BODY_TYPE_NAMES
 } from '../data/field-definitions.js';
 import { NFL_TEAMS, getAllTeams, getTeamById } from '../data/team-data.js';
 
@@ -334,6 +337,14 @@ class MaddenEditorApp {
                 this.closeGenericFacePicker();
             }
         });
+
+        // Fix Faces button - assigns verified GENR values to generic face players
+        const fixFacesBtn = document.getElementById('fixGenericFacesBtn');
+        if (fixFacesBtn) {
+            fixFacesBtn.addEventListener('click', () => {
+                this.fixGenericFaces();
+            });
+        }
 
         // Pagination controls
         document.getElementById('firstPageBtn').addEventListener('click', () => {
@@ -673,12 +684,22 @@ class MaddenEditorApp {
                         return player;
                     }));
 
+                    // Normalize body types based on weights on load
+                    this.updateLoadingProgress('Normalizing body types...', 85);
+                    this.normalizeBodyTypes();
+
                     // Reset pagination
                     this.currentPage = 1;
 
                     this.updateLoadingProgress('Rendering grid...', 90);
                     this.renderRoster();
                     this.setStatus(`Loaded ${this.players.length} players from ${fileName}`);
+
+                    // Enable Fix Faces button when roster is loaded
+                    const fixFacesBtn = document.getElementById('fixGenericFacesBtn');
+                    if (fixFacesBtn) {
+                        fixFacesBtn.style.display = 'inline-flex';
+                    }
                 } else {
                     throw new Error(result.error || 'Unknown parsing error');
                 }
@@ -885,6 +906,42 @@ class MaddenEditorApp {
         this.updateStats();
     }
 
+    /**
+     * Normalize body types based on weights for all players
+     * This ensures body types match weights when a roster is loaded
+     */
+    normalizeBodyTypes() {
+        let updatedCount = 0;
+
+        for (const player of this.players) {
+            if (player.PWGT === undefined || player.PWGT === null) continue;
+
+            // PWGT is stored as (actual - 160), so convert to actual weight
+            const actualWeight = storedWeightToActual(player.PWGT);
+            const position = player.PPOS;
+            const correctBodyType = getBodyTypeFromWeight(actualWeight, position);
+            const currentBodyType = player.PCBT;
+
+            if (correctBodyType !== currentBodyType) {
+                const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
+                if (updatedCount < 10) {
+                    console.log(`[normalizeBodyTypes] ${playerName}: weight=${actualWeight}lbs, pos=${position}, body ${BODY_TYPE_NAMES[currentBodyType] || currentBodyType} -> ${BODY_TYPE_NAMES[correctBodyType]}`);
+                }
+                player.PCBT = correctBodyType;
+                updatedCount++;
+            }
+        }
+
+        if (updatedCount > 0) {
+            console.log(`[normalizeBodyTypes] Fixed ${updatedCount} players with incorrect body types`);
+            this.hasUnsavedChanges = true;
+            const saveBtn = document.getElementById('saveRosterBtn');
+            if (saveBtn) saveBtn.style.display = 'inline-block';
+        } else {
+            console.log('[normalizeBodyTypes] All body types already correct');
+        }
+    }
+
     renderRoster(scrollLeft = 0) {
         console.log('[renderRoster] START - sortColumns:', JSON.stringify(this.sortColumns));
         const container = document.getElementById('rosterGrid');
@@ -965,58 +1022,82 @@ class MaddenEditorApp {
         if (psxpIndex !== -1) {
             paginatedPlayers.forEach((player) => {
                 const pid = this.getPlayerFieldValue(player, 'PSXP');
-                const pam = this.getPlayerFieldValue(player, 'PEPS'); // PAM/PEPS for generic face fallback
+                const pam = this.getPlayerFieldValue(player, 'PEPS'); // PAM/PEPS for generic face
+                const plpl = this.getPlayerFieldValue(player, 'PLPL'); // 0=generic, 100=real
+
+                // Check if this is a generic face based on PAM
+                const isGenericPam = pam && typeof pam === 'string' &&
+                    (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
+
                 // Allow PID 0 (blank silhouette)
                 if (pid !== null && pid !== undefined) {
-                    // Use PID as cache key directly
-                    const cacheKey = `pid_${pid}`;
+                    // Use PAM as cache key for generic faces, PID for real faces
+                    // This ensures we show the correct generic portrait when PAM is updated
+                    const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
 
                     if (!this.portraitCache.has(cacheKey)) {
                         // Mark as loading and fetch
                         this.portraitCache.set(cacheKey, 'loading');
                         portraitsToLoad++;
 
-                        window.electronAPI.portrait.getByPID(pid).then(async (imageData) => {
-                            if (imageData && imageData.length > 0) {
-                                this.portraitCache.set(cacheKey, imageData);
-                            } else {
-                                // PID portrait not found - try PAM fallback for generic faces
-                                if (pam && typeof pam === 'string' && pam.startsWith('gen_')) {
-                                    try {
-                                        const pamImageData = await window.electronAPI.portrait.getImageDataByPam(pam);
-                                        if (pamImageData && pamImageData.length > 0) {
-                                            this.portraitCache.set(cacheKey, pamImageData);
-                                        } else {
-                                            this.portraitCache.set(cacheKey, null);
-                                        }
-                                    } catch (pamError) {
-                                        console.error(`Error loading PAM portrait for ${pam}:`, pamError);
-                                        this.portraitCache.set(cacheKey, null);
-                                    }
+                        // For generic faces, load by PAM directly
+                        if (isGenericPam) {
+                            // PAM is already in gen_ format
+                            window.electronAPI.portrait.getImageDataByPam(pam).then((pamImageData) => {
+                                if (pamImageData && pamImageData.length > 0) {
+                                    this.portraitCache.set(cacheKey, pamImageData);
                                 } else {
                                     this.portraitCache.set(cacheKey, null);
                                 }
-                            }
-                            portraitsLoaded++;
-                            if (portraitsLoaded === portraitsToLoad) {
-                                if (this.agGrid) {
-                                    this.agGrid.refreshCells({ force: true });
-                                } else if (this.hotTable) {
-                                    this.hotTable.render();
+                                portraitsLoaded++;
+                                if (portraitsLoaded === portraitsToLoad) {
+                                    if (this.agGrid) {
+                                        this.agGrid.refreshCells({ force: true });
+                                    } else if (this.hotTable) {
+                                        this.hotTable.render();
+                                    }
                                 }
-                            }
-                        }).catch((error) => {
-                            console.error(`Error loading portrait for PID ${pid}:`, error);
-                            this.portraitCache.set(cacheKey, null);
-                            portraitsLoaded++;
-                            if (portraitsLoaded === portraitsToLoad) {
-                                if (this.agGrid) {
-                                    this.agGrid.refreshCells({ force: true });
-                                } else if (this.hotTable) {
-                                    this.hotTable.render();
+                            }).catch((error) => {
+                                console.error(`Error loading PAM portrait for ${pam}:`, error);
+                                this.portraitCache.set(cacheKey, null);
+                                portraitsLoaded++;
+                                if (portraitsLoaded === portraitsToLoad) {
+                                    if (this.agGrid) {
+                                        this.agGrid.refreshCells({ force: true });
+                                    } else if (this.hotTable) {
+                                        this.hotTable.render();
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        } else {
+                            // For real faces, load by PID
+                            window.electronAPI.portrait.getByPID(pid).then(async (imageData) => {
+                                if (imageData && imageData.length > 0) {
+                                    this.portraitCache.set(cacheKey, imageData);
+                                } else {
+                                    this.portraitCache.set(cacheKey, null);
+                                }
+                                portraitsLoaded++;
+                                if (portraitsLoaded === portraitsToLoad) {
+                                    if (this.agGrid) {
+                                        this.agGrid.refreshCells({ force: true });
+                                    } else if (this.hotTable) {
+                                        this.hotTable.render();
+                                    }
+                                }
+                            }).catch((error) => {
+                                console.error(`Error loading portrait for PID ${pid}:`, error);
+                                this.portraitCache.set(cacheKey, null);
+                                portraitsLoaded++;
+                                if (portraitsLoaded === portraitsToLoad) {
+                                    if (this.agGrid) {
+                                        this.agGrid.refreshCells({ force: true });
+                                    } else if (this.hotTable) {
+                                        this.hotTable.render();
+                                    }
+                                }
+                            });
+                        }
                     }
                 }
             });
@@ -1073,19 +1154,24 @@ class MaddenEditorApp {
             td.style.verticalAlign = 'middle';
             td.style.backgroundColor = '#1a1a1a';
 
-            // Get PID from the actual player object (not grid data which is a copy)
+            // Get player data from the actual player object (not grid data which is a copy)
             // Use pagination mapping: grid row -> actual filteredPlayers index
             const playerIndex = this.paginatedPlayerIndices ? this.paginatedPlayerIndices[row] : row;
             const player = this.filteredPlayers[playerIndex];
             const pid = player ? player.PSXP : null;
+            const pam = player ? player.PEPS : null;
 
             // Check for null/undefined, but allow PID 0 (blank silhouette)
             if (pid === null || pid === undefined) {
                 return td;
             }
 
-            // Use PID as cache key
-            const cacheKey = `pid_${pid}`;
+            // Check if this is a generic face based on PAM
+            const isGenericPam = pam && typeof pam === 'string' &&
+                (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
+
+            // Use PAM as cache key for generic faces, PID for real faces
+            const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
 
             // ONLY use cache - never trigger new loads during render
             if (this.portraitCache.has(cacheKey)) {
@@ -3240,6 +3326,35 @@ class MaddenEditorApp {
                 // Save the roster file directly to user's chosen location
                 // NO backup creation - we only write to the chosen file
                 console.log('[app.js] Calling saveRosterFile with chosen path...');
+
+                // PRE-SAVE SYNC: Ensure all assignedGenr/assignedSknt/assignedRace values from filteredPlayers are in this.players
+                // This handles cases where AG-Grid updates might not be on the same object references
+                // NOTE: Using non-underscore property names because IPC strips underscore-prefixed properties!
+                let syncedCount = 0;
+                for (const filteredPlayer of this.filteredPlayers) {
+                    if (filteredPlayer.assignedGenr || filteredPlayer.assignedSknt !== undefined || filteredPlayer.assignedRace !== undefined) {
+                        // Find matching player in this.players by PGID (unique identifier)
+                        const mainPlayer = this.players.find(p => p.PGID === filteredPlayer.PGID);
+                        if (mainPlayer && mainPlayer !== filteredPlayer) {
+                            if (filteredPlayer.assignedGenr) mainPlayer.assignedGenr = filteredPlayer.assignedGenr;
+                            if (filteredPlayer.assignedSknt !== undefined) mainPlayer.assignedSknt = filteredPlayer.assignedSknt;
+                            if (filteredPlayer.assignedRace !== undefined) mainPlayer.assignedRace = filteredPlayer.assignedRace;
+                            syncedCount++;
+                        }
+                    }
+                }
+                if (syncedCount > 0) {
+                    console.log(`[app.js] PRE-SAVE SYNC: Synced ${syncedCount} players' assignedGenr/assignedSknt/assignedRace from filteredPlayers`);
+                }
+
+                // DEBUG: Check if assignedGenr and assignedSknt are present before sending
+                const playersWithGenr = this.players.filter(p => p.assignedGenr);
+                const playersWithSknt = this.players.filter(p => p.assignedSknt !== undefined);
+                console.log(`[app.js] DEBUG: Before save - ${playersWithGenr.length} players have assignedGenr, ${playersWithSknt.length} have assignedSknt`);
+                if (playersWithGenr.length > 0) {
+                    console.log('[app.js] DEBUG: Sample:', playersWithGenr[0].PFNA, playersWithGenr[0].PLNA, 'assignedGenr=', playersWithGenr[0].assignedGenr, 'assignedSknt=', playersWithGenr[0].assignedSknt);
+                }
+
                 const saveResult = await window.electronAPI.parser.saveRosterFile(
                     saveFilePath,
                     this.players,
@@ -3251,6 +3366,16 @@ class MaddenEditorApp {
                     const fileName = saveFilePath.substring(lastSlash + 1);
                     this.setStatus('Roster saved successfully to ' + fileName);
                     console.log('Roster saved successfully');
+                    // Debug info from GenericFaceService
+                    console.log('[SAVE DEBUG] GenericFaceService loaded:', saveResult.genericFaceServiceLoaded);
+                    console.log('[SAVE DEBUG] BLBM players updated:', saveResult.blbmUpdated);
+                    console.log('[SAVE DEBUG] BTYP synced:', saveResult.btypSynced);
+                    if (saveResult.blbmError) {
+                        console.error('[SAVE DEBUG] BLBM error:', saveResult.blbmError);
+                    }
+                    if (!saveResult.genericFaceServiceLoaded) {
+                        console.error('[SAVE DEBUG] *** WARNING: GenericFaceService failed to load! Generic faces NOT fixed! ***');
+                    }
                 } else {
                     throw new Error(saveResult.error || 'Unknown save error');
                 }
@@ -3746,8 +3871,9 @@ class MaddenEditorApp {
                     faceItem.appendChild(pidLabel);
 
                     // Click handler to select this face
+                    // Pass verified GENR/SKNT values directly for exact face matching
                     faceItem.addEventListener('click', () => {
-                        this.selectGenericFace(face.pid);
+                        this.selectGenericFace(face.pid, face.portrait, face._verifiedGenr, face._verifiedSknt);
                     });
 
                     grid.appendChild(faceItem);
@@ -3787,20 +3913,41 @@ class MaddenEditorApp {
 
     async loadGenericFaces() {
         try {
-            // Get PID_Portrait_Mapping.csv data
+            // Get the VERIFIED portrait->GENR mapping (268 faces that work correctly in-game)
+            // This mapping was extracted by comparing working roster files
+            let verifiedMapping = {};
+            try {
+                verifiedMapping = await window.electronAPI.lookup.getVerifiedPortraitGenrMapping();
+                console.log(`[loadGenericFaces] Loaded ${Object.keys(verifiedMapping).length} verified portrait->GENR mappings`);
+            } catch (e) {
+                console.error('[loadGenericFaces] Could not load verified mapping:', e);
+            }
+
+            // Get PID_Portrait_Mapping.csv data for portrait images
             const mapping = await window.electronAPI.lookup.getPIDPortraitMapping();
 
             // Filter to only type='generic' entries
             const allGenericFaces = mapping.filter(entry => entry.type === 'generic');
+
+            // CRITICAL: Only include portraits that exist in our verified mapping
+            // These are the 268 faces that have correct GENR values and work in-game
+            const verifiedPortraits = new Set(Object.keys(verifiedMapping));
+            const validGenericFaces = allGenericFaces.filter(face => verifiedPortraits.has(face.portrait));
+
+            console.log(`[loadGenericFaces] Filtered from ${allGenericFaces.length} to ${validGenericFaces.length} faces with verified GENR mappings`);
 
             // Deduplicate by portrait - keep only first PID for each unique face appearance
             // This ensures each face shows once even if multiple PIDs share the same portrait
             const seenPortraits = new Set();
             const uniqueFaces = [];
 
-            for (const face of allGenericFaces) {
+            for (const face of validGenericFaces) {
                 if (!seenPortraits.has(face.portrait)) {
                     seenPortraits.add(face.portrait);
+                    // Attach the verified GENR/SKNT directly to the face object
+                    const verifiedData = verifiedMapping[face.portrait];
+                    face._verifiedGenr = verifiedData?.genr;
+                    face._verifiedSknt = verifiedData?.sknt;
                     uniqueFaces.push(face);
                 }
             }
@@ -3812,7 +3959,7 @@ class MaddenEditorApp {
                 return toneA - toneB;
             });
 
-            console.log(`Loaded ${allGenericFaces.length} total generic entries, filtered to ${uniqueFaces.length} unique faces`);
+            console.log(`Loaded ${allGenericFaces.length} total generic entries, filtered to ${uniqueFaces.length} unique verified faces`);
 
             return uniqueFaces;
         } catch (error) {
@@ -3821,8 +3968,8 @@ class MaddenEditorApp {
         }
     }
 
-    async selectGenericFace(pid) {
-        console.log(`[GenericFacePicker] ===== START selectGenericFace(${pid}) =====`);
+    async selectGenericFace(pid, portrait = null, verifiedGenr = null, verifiedSknt = null) {
+        console.log(`[GenericFacePicker] ===== START selectGenericFace(${pid}, portrait=${portrait}, verifiedGenr=${verifiedGenr}, verifiedSknt=${verifiedSknt}) =====`);
 
         // Prevent double-execution if already processing
         if (this.isSelectingGenericFace) {
@@ -3952,10 +4099,104 @@ class MaddenEditorApp {
             const oldRace = player.PLRC;
             player.PSXP = pid;
             player.PLAYERPIC = 'Generic Face'; // Update Player Pic field
+
+            // CRITICAL: Set PEPS (PAM) to GENR format for in-game face assignment
+            // Use verifiedGenr if available, otherwise convert portrait key to GENR format
+            const pepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+            if (pepsValue) {
+                player.PEPS = pepsValue;
+                console.log(`[GenericFacePicker] Set player.PEPS to "${pepsValue}"`);
+            }
+
+            // CRITICAL: Use VERIFIED GENR/SKNT values for exact face matching
+            // These are the 268 faces that work correctly in-game
+            // NOTE: Using non-underscore property names because IPC strips underscore-prefixed properties!
+            let genrValue = null;
+            if (verifiedGenr && verifiedSknt !== null) {
+                // Use the verified values directly - these are guaranteed to work in-game
+                player.assignedGenr = verifiedGenr;
+                player.assignedSknt = verifiedSknt;
+                genrValue = verifiedGenr;
+                console.log(`[GenericFacePicker] Set VERIFIED assignedGenr="${verifiedGenr}", assignedSknt=${verifiedSknt}`);
+            } else if (portrait && portrait.includes('generic_')) {
+                // Fallback: Convert portrait name to GENR format (for non-verified faces)
+                genrValue = portrait.replace('plpo_generic_', 'gen_');
+                player.assignedGenr = genrValue;
+
+                // Extract SKNT from the first number in the portrait name
+                const skntMatch = portrait.match(/generic_(\d+)/);
+                if (skntMatch) {
+                    player.assignedSknt = parseInt(skntMatch[1]);
+                }
+
+                console.log(`[GenericFacePicker] Set FALLBACK assignedGenr="${genrValue}", assignedSknt=${player.assignedSknt} from portrait "${portrait}"`);
+            }
+
+            // CRITICAL: Sync assignedGenr/assignedSknt/PEPS to this.players array to ensure persistence
+            if (genrValue) {
+                const playerIndex = this.players.indexOf(player);
+                if (playerIndex >= 0) {
+                    this.players[playerIndex].assignedGenr = player.assignedGenr;
+                    this.players[playerIndex].assignedSknt = player.assignedSknt;
+                    this.players[playerIndex].PEPS = player.PEPS;
+                    this.players[playerIndex].PSXP = player.PSXP;
+                    console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
+                } else {
+                    // Fallback: search by unique identifier (PSXP + name combination)
+                    const originalPlayer = this.players.find(p =>
+                        p.PFNA === player.PFNA && p.PLNA === player.PLNA &&
+                        (p.PSXP === player.PSXP || p.PSXP === oldPID)
+                    );
+                    if (originalPlayer) {
+                        originalPlayer.assignedGenr = player.assignedGenr;
+                        originalPlayer.assignedSknt = player.assignedSknt;
+                        originalPlayer.PEPS = player.PEPS;
+                        originalPlayer.PSXP = player.PSXP;
+                        console.log(`[GenericFacePicker] Synced to this.players via name/PID search - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
+                    } else {
+                        console.warn(`[GenericFacePicker] Could not find player in this.players to sync assignedGenr/assignedSknt/PEPS!`);
+                    }
+                }
+            }
+
             if (newRace !== null) {
                 player.PLRC = newRace;
-                player._race = newRace; // Also update _race for BLBM GENR/SKNT assignment
+                player.assignedRace = newRace; // Also update assignedRace for BLBM GENR/SKNT assignment
             }
+
+            // CRITICAL: Set PGHE (Player Generic Head) for the face model
+            // PGHE controls which face MODEL appears in-game (values 1-290)
+            const blackPGHEs = [6, 42, 57, 64, 79, 89, 101, 102, 108, 114, 131, 138, 143, 148, 160, 161, 164, 190, 209, 210, 211, 224, 230, 255, 257, 267, 274, 280];
+            const whitePGHEs = [11, 12, 18, 24, 50, 54, 55, 56, 85, 90, 146, 154, 155, 158, 176, 202, 212, 227, 239, 243, 245, 253, 256, 264, 290];
+            const sharedPGHEs = [1, 7, 21, 25, 27, 34, 36, 53, 59, 62, 67, 77, 84, 93, 99, 100, 109, 119, 120, 128, 132, 139, 142, 147, 157, 162, 183, 188, 200, 232, 246, 247, 261, 271, 273, 278, 282, 286, 287, 288];
+
+            const raceForPGHE = newRace !== null ? newRace : (player.PLRC ?? 7);
+            let pghePool;
+            if (raceForPGHE === 7) {
+                pghePool = [...blackPGHEs, ...sharedPGHEs];
+            } else if (raceForPGHE === 1) {
+                pghePool = [...whitePGHEs, ...sharedPGHEs];
+            } else {
+                pghePool = sharedPGHEs;
+            }
+
+            const oldPGHE = player.PGHE;
+            player.PGHE = pghePool[Math.floor(Math.random() * pghePool.length)];
+            console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to ${player.PGHE} (race=${raceForPGHE})`);
+
+            // Sync PGHE to this.players array
+            const pghePlayerIndex = this.players.indexOf(player);
+            if (pghePlayerIndex >= 0) {
+                this.players[pghePlayerIndex].PGHE = player.PGHE;
+            } else {
+                const originalPlayer = this.players.find(p =>
+                    p.PFNA === player.PFNA && p.PLNA === player.PLNA
+                );
+                if (originalPlayer) {
+                    originalPlayer.PGHE = player.PGHE;
+                }
+            }
+
             console.log(`[GenericFacePicker] Updated player.PSXP from ${oldPID} to ${pid}`);
             console.log(`[GenericFacePicker] Updated player.PLAYERPIC to "Generic Face"`);
             if (newRace !== null) {
@@ -3972,13 +4213,21 @@ class MaddenEditorApp {
 
         // PERFORMANCE FIX: Don't await portrait loading - update grid immediately
         // Load portrait in background, cell will show "loading..." then auto-update when ready
-        const cacheKey = `pid_${pid}`;
+        // CRITICAL: For generic faces, use PAM-based cache key (matches grid renderer logic)
+        const pepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+        const cacheKey = pepsValue ? `pam_${pepsValue}` : `pid_${pid}`;
+
         if (!this.portraitCache.has(cacheKey)) {
             console.log(`[GenericFacePicker] Starting portrait load in background: ${cacheKey}`);
             this.portraitCache.set(cacheKey, 'loading');
 
             // Load in background (no await)
-            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+            // For generic faces, load by PAM; for real faces, load by PID
+            const loadPromise = pepsValue
+                ? window.electronAPI.portrait.getImageDataByPam(pepsValue)
+                : window.electronAPI.portrait.getByPID(pid);
+
+            loadPromise.then(imageData => {
                 if (imageData && imageData.length > 0) {
                     this.portraitCache.set(cacheKey, imageData);
                     console.log(`[GenericFacePicker] Portrait loaded in background, length: ${imageData.length}`);
@@ -3992,7 +4241,7 @@ class MaddenEditorApp {
                     }
                 } else {
                     this.portraitCache.set(cacheKey, null);
-                    console.warn(`[GenericFacePicker] No portrait data for PID ${pid}`);
+                    console.warn(`[GenericFacePicker] No portrait data for ${cacheKey}`);
                 }
             }).catch(error => {
                 console.error(`[GenericFacePicker] Error loading portrait:`, error);
@@ -4012,10 +4261,15 @@ class MaddenEditorApp {
                 // Update via AG-Grid API - this triggers proper cell refresh
                 rowNode.setDataValue('PSXP', pid);
                 rowNode.setDataValue('PLAYERPIC', 'Generic Face');
+                // CRITICAL: Use GENR format for PEPS (PAM), not portrait key format
+                const gridPepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+                if (gridPepsValue) {
+                    rowNode.setDataValue('PEPS', gridPepsValue);
+                }
                 if (newRace !== null) {
                     rowNode.setDataValue('PLRC', newRace);
                 }
-                console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid}, PLAYERPIC=Generic Face, PLRC=${newRace}`);
+                console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid}, PLAYERPIC=Generic Face, PEPS=${gridPepsValue}, PLRC=${newRace}`);
 
                 // Force refresh the portrait column specifically
                 this.agGrid.refreshCells({
@@ -4070,6 +4324,282 @@ class MaddenEditorApp {
         document.getElementById('genericFacePickerModal').style.display = 'none';
         this.currentFacePickerPlayer = null;
         this.currentFacePickerRowIndex = null;
+    }
+
+    /**
+     * Fix generic faces - looks up correct race from database and assigns proper GENR/SKNT
+     * Uses PGHE lookup from game's streameddata.DB to assign proper generic faces.
+     * Each generic face has its own PID (PSXP) - we assign that PID to the player.
+     * Sets: PSXP (PID), PEPS (GENR), assignedGenr, assignedSknt, assignedRace
+     * GenericFaceService.updateBLBMForGenericFaces() applies BLBM changes on save.
+     * Works on both ROSTER files and DRAFT CLASS files.
+     */
+    async fixGenericFaces() {
+        // Determine data source: roster (this.players) or draft class (this.currentDraftClass)
+        const isDraftClass = this.currentDraftClass && this.currentDraftClass.prospects && this.currentDraftClass.prospects.length > 0;
+        const isRoster = this.players && this.players.length > 0;
+
+        if (!isDraftClass && !isRoster) {
+            this.showError('No roster or draft class loaded. Please load a file first.');
+            return;
+        }
+
+        const dataSource = isDraftClass ? this.currentDraftClass.prospects : this.players;
+        const dataType = isDraftClass ? 'draft class' : 'roster';
+
+        console.log(`[FixFaces] Starting PGHE-based face assignment on ${dataType}...`);
+        console.log(`[FixFaces] Processing ${dataSource.length} ${isDraftClass ? 'prospects' : 'players'}`);
+
+        // Initialize PGHE service
+        try {
+            await window.electronAPI.pghe.initialize();
+            console.log('[FixFaces] PGHE service initialized');
+        } catch (e) {
+            console.error('[FixFaces] Failed to initialize PGHE service:', e);
+            this.showError('Failed to initialize generic face service');
+            return;
+        }
+
+        let fixedCount = 0;
+        let skippedReal = 0;
+        let noRaceFound = 0;
+        let failedAssignment = 0;
+
+        // DEBUG: Log first 5 entries BEFORE fix
+        console.log(`[FixFaces] BEFORE - First 5 ${isDraftClass ? 'prospects' : 'players'}:`);
+        for (let i = 0; i < Math.min(5, dataSource.length); i++) {
+            const p = dataSource[i];
+            if (isDraftClass) {
+                console.log(`  ${i}: ${p.firstName} ${p.lastName} - PID=${p.PID}, PEPS="${p.PEPS}"`);
+            } else {
+                console.log(`  ${i}: ${p.PFNA} ${p.PLNA} - PID=${p.PSXP}, PLPL=${p.PLPL}, PEPS="${p.PEPS}", PLRC=${p.PLRC}`);
+            }
+        }
+
+        for (const entry of dataSource) {
+            // Get field values based on data type (roster vs draft class)
+            const plpl = isDraftClass ? 0 : (entry.PLPL ?? 0); // Draft class = all generic by default
+            const peps = entry.PEPS ?? '';
+            const existingPid = isDraftClass ? entry.PID : entry.PSXP;
+            const playerName = isDraftClass
+                ? `${entry.firstName || ''} ${entry.lastName || ''}`.trim()
+                : `${entry.PFNA || ''} ${entry.PLNA || ''}`.trim();
+
+            // Determine if this is a generic face player
+            // For roster: PLPL=0 means generic face, PLPL=100 means real face scan
+            // For draft class: check if PAM is a real player PAM or generic
+            const isGenericFace = isDraftClass
+                ? (!peps || peps.startsWith('gen_') || peps.includes('generic') || existingPid === 0)
+                : (plpl === 0 || plpl === '0');
+
+            // Check if PAM is for a real player (not generic)
+            const hasRealPAM = peps && typeof peps === 'string' && peps.length > 0 &&
+                               !peps.startsWith('gen_') && !peps.includes('generic');
+
+            // Skip players with REAL faces (has real PAM or PLPL != 0) - don't touch their PID
+            if (!isGenericFace || hasRealPAM) {
+                skippedReal++;
+                continue;
+            }
+
+            // Get race from player's data
+            let race = isDraftClass ? (entry.race || entry.skinTone) : entry.PLRC;
+
+            // If no race on player, try to look up from database using existing PID
+            if (!race || race === 0) {
+                if (existingPid) {
+                    try {
+                        race = await window.electronAPI.lookup.getRaceByPID(existingPid);
+                    } catch (e) {
+                        // Silent fail
+                    }
+                }
+            }
+
+            if (!race || race === 0) {
+                noRaceFound++;
+                // Default to middle skin tone (4) if nothing found
+                race = 4;
+            }
+
+            // Use PGHE service to get a random face for this race
+            // Race 1-7 maps directly to skin tone 1-7
+            let pgheEntry = null;
+            try {
+                pgheEntry = await window.electronAPI.pghe.getRandomByRace(race);
+            } catch (e) {
+                console.error(`[FixFaces] Failed to get PGHE for race ${race}:`, e);
+            }
+
+            if (!pgheEntry) {
+                failedAssignment++;
+                console.warn(`[FixFaces] No PGHE entry found for ${playerName}, race=${race}`);
+                continue;
+            }
+
+            // Assign the PGHE face to this player/prospect
+            // Set ALL fields from PGHE lookup (PGHE, PFCG, GPAN, GSLP, PSXP, CPVF)
+
+            if (isDraftClass) {
+                // Draft class uses different field names
+                entry.PID = pgheEntry.psxp;      // CRITICAL: Set PID to PGHE entry's PID
+                entry.PEPS = pgheEntry.genr;     // Set PEPS (PAM) to the GENR value
+
+                // Update visuals.genericHeadName if visuals object exists
+                if (entry.visuals) {
+                    entry.visuals.genericHeadName = pgheEntry.genr;
+                    entry.visuals.skinTone = pgheEntry.skinTone;
+                }
+
+                // Store PGHE matched set for saving
+                entry.assignedPghe = pgheEntry.pghe;
+                entry.assignedPfcg = pgheEntry.pfcg;
+                entry.assignedGpan = pgheEntry.gpan;
+                entry.assignedGslp = pgheEntry.gslp;
+                entry.assignedPghePid = pgheEntry.psxp;
+                entry.assignedCpvf = pgheEntry.cpvf;
+                entry.assignedGenr = pgheEntry.genr;
+                entry.assignedSknt = pgheEntry.skinTone;
+                entry.race = race;
+                entry.skinTone = pgheEntry.skinTone;
+
+                // Update playerPic for grid display
+                entry.playerPic = 'Generic Face';
+            } else {
+                // Roster uses PSXP, PLPL, PLRC field names
+                entry.PSXP = pgheEntry.psxp;     // CRITICAL: Set PSXP to PGHE entry's PID
+                entry.PEPS = pgheEntry.genr;     // Set PEPS (PAM) to the GENR value
+                entry.PGHE = pgheEntry.pghe;     // Set PGHE (face picker index)
+
+                // Store ALL PGHE data for GenericFaceService
+                entry.assignedPghe = pgheEntry.pghe;
+                entry.assignedPfcg = pgheEntry.pfcg;
+                entry.assignedGpan = pgheEntry.gpan;
+                entry.assignedGslp = pgheEntry.gslp;
+                entry.assignedPghePid = pgheEntry.psxp;
+                entry.assignedCpvf = pgheEntry.cpvf;
+                entry.assignedGenr = pgheEntry.genr;
+                entry.assignedSknt = pgheEntry.skinTone;
+                entry.assignedRace = race;
+
+                // Update PLRC to match the assigned skin tone
+                entry.PLRC = race;
+
+                // Update PLAYERPIC to show it's a generic face
+                entry.PLAYERPIC = 'Generic Face';
+            }
+
+            fixedCount++;
+
+            if (fixedCount <= 10) {
+                console.log(`[FixFaces] ${playerName}: race=${race} -> PGHE=${pgheEntry.pghe}, PFCG="${pgheEntry.pfcg}", PSXP=${pgheEntry.psxp}, GENR="${pgheEntry.genr}", SKNT=${pgheEntry.skinTone}`);
+            }
+        }
+
+        // DEBUG: Log first 5 entries AFTER fix
+        console.log(`[FixFaces] AFTER - First 5 ${isDraftClass ? 'prospects' : 'players'}:`);
+        for (let i = 0; i < Math.min(5, dataSource.length); i++) {
+            const p = dataSource[i];
+            if (isDraftClass) {
+                console.log(`  ${i}: ${p.firstName} ${p.lastName} - PID=${p.PID}, PEPS="${p.PEPS}"`);
+            } else {
+                console.log(`  ${i}: ${p.PFNA} ${p.PLNA} - PID=${p.PSXP}, PLPL=${p.PLPL}, PEPS="${p.PEPS}", PLRC=${p.PLRC}`);
+            }
+        }
+
+        console.log(`[FixFaces] Clearing portrait cache and reloading...`);
+
+        // Clear ALL portrait cache to force reload with new PID values
+        if (this.portraitCache) {
+            this.portraitCache.clear();
+        }
+
+        // Force reload portraits for current page
+        await this.reloadCurrentPagePortraits();
+
+        // Refresh the appropriate grid
+        if (isDraftClass && this.draftGrid) {
+            this.draftGrid.render();
+        } else if (this.hot) {
+            this.hot.render();
+        } else if (this.agGrid) {
+            this.agGrid.refreshCells({ force: true });
+        }
+
+        const saveTarget = isDraftClass ? 'draft class' : 'roster';
+        const msg = `Fixed ${fixedCount} ${isDraftClass ? 'prospects' : 'players'} with PGHE generic faces.\n\n` +
+                    `Skipped ${skippedReal} with real PAM.\n` +
+                    `${noRaceFound} had no race data (used default).\n` +
+                    `${failedAssignment} failed to find matching face.\n\n` +
+                    `SAVE the ${saveTarget} to apply changes!`;
+
+        console.log('[FixFaces]', msg);
+        alert(msg);
+    }
+
+    /**
+     * Reload portraits for the current page of players
+     * Used after Fix Faces to show updated generic faces
+     */
+    async reloadCurrentPagePortraits() {
+        // Use filteredPlayers if available, otherwise use players
+        const playersToLoad = this.filteredPlayers && this.filteredPlayers.length > 0
+            ? this.filteredPlayers
+            : this.players;
+
+        if (!playersToLoad || playersToLoad.length === 0) return;
+
+        // Load first 100 players (visible on screen typically)
+        const paginatedPlayers = playersToLoad.slice(0, 100);
+
+        console.log(`[reloadCurrentPagePortraits] Loading portraits for ${paginatedPlayers.length} players (from ${playersToLoad.length} total)`);
+
+        const loadPromises = [];
+
+        for (const player of paginatedPlayers) {
+            const pid = player.PSXP;
+            const pam = player.PEPS;
+
+            // Check if this is a generic face based on PAM
+            const isGenericPam = pam && typeof pam === 'string' &&
+                (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
+
+            // Use PAM as cache key for generic faces, PID for real faces
+            const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
+
+            // Skip if already in cache
+            if (this.portraitCache.has(cacheKey)) continue;
+
+            this.portraitCache.set(cacheKey, 'loading');
+
+            if (isGenericPam) {
+                // Load by PAM for generic faces (PAM is already in gen_ format)
+                const promise = window.electronAPI.portrait.getImageDataByPam(pam)
+                    .then((imageData) => {
+                        this.portraitCache.set(cacheKey, imageData || null);
+                    })
+                    .catch((err) => {
+                        console.error(`Error loading PAM portrait ${pam}:`, err);
+                        this.portraitCache.set(cacheKey, null);
+                    });
+                loadPromises.push(promise);
+            } else if (pid !== null && pid !== undefined) {
+                // Load by PID for real faces
+                const promise = window.electronAPI.portrait.getByPID(pid)
+                    .then((imageData) => {
+                        this.portraitCache.set(cacheKey, imageData || null);
+                    })
+                    .catch((err) => {
+                        console.error(`Error loading PID portrait ${pid}:`, err);
+                        this.portraitCache.set(cacheKey, null);
+                    });
+                loadPromises.push(promise);
+            }
+        }
+
+        // Wait for all portraits to load
+        await Promise.all(loadPromises);
+        console.log(`[reloadCurrentPagePortraits] Loaded ${loadPromises.length} portraits`);
     }
 
     // ========================================
@@ -4520,16 +5050,21 @@ class MaddenEditorApp {
             // Get the physical (source) row index to account for sorting/filtering
             const physicalRow = instance.toPhysicalRow(row);
 
-            // Get PID from the row data using physical row
+            // Get PID and PAM from the row data using physical row
             const rowData = instance.getSourceDataAtRow(physicalRow);
             const pid = rowData ? rowData.PID : null;
+            const pam = rowData ? rowData.PEPS : null;
 
             if (!pid || pid === 0) {
                 return td;
             }
 
-            // Use PID as cache key
-            const cacheKey = `pid_${pid}`;
+            // Check if this is a generic face based on PAM
+            const isGenericPam = pam && typeof pam === 'string' &&
+                (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
+
+            // Use PAM-based cache key for generic faces, PID-based for real faces
+            const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
 
             // ONLY use cache - never trigger new loads during render
             if (this.portraitCache.has(cacheKey)) {
@@ -4860,7 +5395,42 @@ class MaddenEditorApp {
             manualRowResize: true,
             filters: false,  // Disable filters (they require dropdownMenu)
             dropdownMenu: false,  // Disable dropdown menu (removes filter arrows)
-            contextMenu: true,
+            contextMenu: {
+                items: {
+                    'delete_player': {
+                        name: '🗑️ Delete Player',
+                        callback: (key, selection) => {
+                            const row = selection[0].start.row;
+                            const data = this.draftGrid.getSourceData();
+                            const player = data[row];
+                            const playerName = `${player.firstName || ''} ${player.lastName || ''}`.trim() || 'this player';
+
+                            if (confirm(`Are you sure you want to delete ${playerName}?`)) {
+                                // Remove the row
+                                this.draftGrid.alter('remove_row', row, 1);
+
+                                // Update draft positions for remaining players
+                                const updatedData = this.draftGrid.getSourceData();
+                                updatedData.forEach((p, idx) => {
+                                    p.draftPosition = idx + 1;
+                                    p.round = Math.floor(idx / 32) + 1;
+                                });
+
+                                this.draftGrid.render();
+                                this.hasUnsavedChanges = true;
+                                this.updateSaveButton();
+                                console.log('[Draft Editor] Player deleted, remaining:', updatedData.length);
+                            }
+                        }
+                    },
+                    'separator1': '---------',
+                    'copy': { name: 'Copy' },
+                    'cut': { name: 'Cut' },
+                    'separator2': '---------',
+                    'undo': { name: 'Undo' },
+                    'redo': { name: 'Redo' }
+                }
+            },
             selectionMode: 'multiple',
             fixedColumnsStart: 6,  // Freeze first 6 columns (Draft Pos, Round, Portrait, Last Name, First Name, Position)
             preventOverflow: false,  // Changed from 'horizontal' - allow natural scrolling to prevent snap-left
@@ -5142,32 +5712,47 @@ class MaddenEditorApp {
             }
 
             const pid = parseInt(prospect.PID);
-            const cacheKey = `pid_${pid}`;
+            const pam = prospect.PEPS;
+
+            // Check if this is a generic face based on PAM
+            const isGenericPam = pam && typeof pam === 'string' &&
+                (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
+
+            const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
 
             if (!this.portraitCache.has(cacheKey)) {
-                draftPortraitsToLoad.push(pid);
+                draftPortraitsToLoad.push({ pid, pam, isGenericPam, cacheKey });
             }
         });
 
-        // Load portraits in batches by PID
-        draftPortraitsToLoad.forEach(pid => {
-            const cacheKey = `pid_${pid}`;
+        // Load portraits in parallel - by PAM for generic faces, by PID for real faces
+        const loadPromises = draftPortraitsToLoad.map(({ pid, pam, isGenericPam, cacheKey }) => {
             this.portraitCache.set(cacheKey, 'loading');
 
-            window.electronAPI.portrait.getByPID(pid).then((imageData) => {
-                if (imageData) {
-                    this.portraitCache.set(cacheKey, imageData);
-                    // Re-render grid to show newly loaded portrait
-                    if (this.draftGrid && !this.draftGrid.isDestroyed) {
-                        this.draftGrid.render();
-                    }
-                } else {
-                    this.portraitCache.set(cacheKey, null);
-                }
-            }).catch((error) => {
-                console.error(`Error loading draft class portrait for PID ${pid}:`, error);
-                this.portraitCache.set(cacheKey, null);
-            });
+            if (isGenericPam) {
+                return window.electronAPI.portrait.getImageDataByPam(pam)
+                    .then((imageData) => {
+                        this.portraitCache.set(cacheKey, imageData || null);
+                    })
+                    .catch(() => {
+                        this.portraitCache.set(cacheKey, null);
+                    });
+            } else {
+                return window.electronAPI.portrait.getByPID(pid)
+                    .then((imageData) => {
+                        this.portraitCache.set(cacheKey, imageData || null);
+                    })
+                    .catch(() => {
+                        this.portraitCache.set(cacheKey, null);
+                    });
+            }
+        });
+
+        // Wait for all portraits to load, then render once
+        Promise.all(loadPromises).then(() => {
+            if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                this.draftGrid.render();
+            }
         });
     }
 
@@ -6467,7 +7052,40 @@ class MaddenEditorApp {
                 manualColumnResize: true,
                 filters: true,
                 dropdownMenu: true,
-                contextMenu: true,
+                contextMenu: {
+                    items: {
+                        'delete_player': {
+                            name: '🗑️ Delete Player',
+                            callback: (key, selection) => {
+                                const row = selection[0].start.row;
+                                const data = this.draftCreatorGrid.getSourceData();
+                                const player = data[row];
+                                const playerName = `${player.firstName || ''} ${player.lastName || ''}`.trim() || 'this player';
+
+                                if (confirm(`Are you sure you want to delete ${playerName}?`)) {
+                                    // Remove the row
+                                    this.draftCreatorGrid.alter('remove_row', row, 1);
+
+                                    // Update draft positions for remaining players
+                                    const updatedData = this.draftCreatorGrid.getSourceData();
+                                    updatedData.forEach((p, idx) => {
+                                        p.draftPosition = idx + 1;
+                                        p.round = Math.floor(idx / 32) + 1;
+                                    });
+
+                                    this.draftCreatorGrid.render();
+                                    console.log('[Draft Creator] Player deleted, remaining:', updatedData.length);
+                                }
+                            }
+                        },
+                        'separator1': '---------',
+                        'copy': { name: 'Copy' },
+                        'cut': { name: 'Cut' },
+                        'separator2': '---------',
+                        'undo': { name: 'Undo' },
+                        'redo': { name: 'Redo' }
+                    }
+                },
                 selectionMode: 'multiple',
                 stretchH: 'none', // Don't stretch columns, use defined widths
                 width: '100%', // Ensure full width
@@ -6770,7 +7388,32 @@ class MaddenEditorApp {
                 manualColumnResize: true,
                 filters: true,
                 dropdownMenu: true,
-                contextMenu: true,
+                contextMenu: {
+                    items: {
+                        'delete_player': {
+                            name: '🗑️ Delete Player',
+                            callback: (key, selection) => {
+                                const row = selection[0].start.row;
+                                const data = this.rosterCreatorGrid.getSourceData();
+                                const player = data[row];
+                                const playerName = `${player.firstName || ''} ${player.lastName || ''}`.trim() || 'this player';
+
+                                if (confirm(`Are you sure you want to delete ${playerName}?`)) {
+                                    // Remove the row
+                                    this.rosterCreatorGrid.alter('remove_row', row, 1);
+                                    this.rosterCreatorGrid.render();
+                                    console.log('[Roster Creator] Player deleted, remaining:', this.rosterCreatorGrid.getSourceData().length);
+                                }
+                            }
+                        },
+                        'separator1': '---------',
+                        'copy': { name: 'Copy' },
+                        'cut': { name: 'Cut' },
+                        'separator2': '---------',
+                        'undo': { name: 'Undo' },
+                        'redo': { name: 'Redo' }
+                    }
+                },
                 selectionMode: 'multiple',
                 stretchH: 'none', // Don't stretch columns, use defined widths
                 renderAllRows: false, // Use virtual scrolling

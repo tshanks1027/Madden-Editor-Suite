@@ -661,4 +661,140 @@ ipcMain.handle('retro:apply-coaches', async (event, filePath: string, year: numb
   }
 });
 
+// ========================================
+// SALARY CAP HANDLERS
+// ========================================
+
+/**
+ * Handle: retro:get-salary-cap
+ * Get salary cap for a specific year
+ */
+ipcMain.handle('retro:get-salary-cap', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET SALARY CAP =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const capInfo = retroEditorService.getSalaryCapForYear(year);
+    console.log('[retro-editor-handlers] Salary cap:', capInfo.value, capInfo.note || '');
+    return { success: true, data: capInfo };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting salary cap:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-salary-cap
+ * Apply historical salary cap to franchise file
+ */
+ipcMain.handle('retro:apply-salary-cap', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY SALARY CAP =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applySalaryCap(filePath, year);
+    console.log('[retro-editor-handlers] Salary cap applied');
+    console.log('[retro-editor-handlers] Previous:', result.previousCap, 'New:', result.newCap);
+    return { success: true, data: result };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying salary cap:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ========================================
+// STADIUM HANDLERS
+// ========================================
+
+/**
+ * Handle: retro:get-stadium-preview
+ * Get preview of stadium name changes for a year
+ */
+ipcMain.handle('retro:get-stadium-preview', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET STADIUM PREVIEW =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const preview = await retroEditorService.getStadiumPreview(filePath, year);
+    console.log('[retro-editor-handlers] Stadium preview generated');
+    console.log('[retro-editor-handlers] Stadium changes:', preview.stadiumChanges.length);
+    return { success: true, data: preview };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting stadium preview:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-stadium-names
+ * Apply historical stadium names to franchise file
+ */
+ipcMain.handle('retro:apply-stadium-names', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY STADIUM NAMES =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyStadiumNames(filePath, year);
+    console.log('[retro-editor-handlers] Stadium names applied');
+    console.log('[retro-editor-handlers] Stadiums updated:', result.stadiumsUpdated);
+    return { success: true, data: result };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying stadium names:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ========================================
+// TEAM SCHEMES HANDLERS
+// ========================================
+
+/**
+ * Handle: retro:get-scheme-preview
+ * Get preview of team scheme changes for a year
+ */
+ipcMain.handle('retro:get-scheme-preview', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET SCHEME PREVIEW =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const preview = await retroEditorService.getSchemePreview(filePath, year);
+    console.log('[retro-editor-handlers] Scheme preview generated');
+    console.log('[retro-editor-handlers] Scheme changes:', preview.schemeChanges.length);
+    return { success: true, data: preview };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting scheme preview:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-team-schemes
+ * Apply historical team schemes to franchise file
+ */
+ipcMain.handle('retro:apply-team-schemes', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY TEAM SCHEMES =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyTeamSchemes(filePath, year);
+    console.log('[retro-editor-handlers] Team schemes applied');
+    console.log('[retro-editor-handlers] Schemes updated:', result.schemesUpdated);
+    return { success: true, data: result };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying team schemes:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 console.log('[retro-editor-handlers] Retro Editor IPC handlers registered');

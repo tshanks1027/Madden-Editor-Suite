@@ -362,4 +362,117 @@ ipcMain.handle('lookup:get-race-by-pid', async (event, pid: number) => {
   }
 });
 
+/**
+ * Handle: lookup:get-valid-genr-set
+ * Get set of valid GENR values from the GENR catalog
+ * Used by face picker to filter faces that actually exist in the game
+ */
+ipcMain.handle('lookup:get-valid-genr-set', async () => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+
+    const possiblePaths = [
+      path.join(__dirname, '..', 'data', 'lookups', 'GENR_catalog.json'),
+      path.join(__dirname, '..', '..', 'data', 'lookups', 'GENR_catalog.json'),
+      path.join(process.cwd(), 'data', 'lookups', 'GENR_catalog.json'),
+      path.join(process.cwd(), '.vite', 'build', 'data', 'lookups', 'GENR_catalog.json')
+    ];
+
+    for (const catalogPath of possiblePaths) {
+      if (fs.existsSync(catalogPath)) {
+        const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+        const validGenrList: string[] = [];
+
+        // Collect all GENR values from catalog (lowercase for case-insensitive matching)
+        for (let i = 1; i <= 7; i++) {
+          const key = `gen_${i}`;
+          if (catalog[key]) {
+            catalog[key].forEach((g: string) => validGenrList.push(g.toLowerCase()));
+          }
+        }
+
+        console.log(`[lookup-handlers] Loaded ${validGenrList.length} valid GENR values from catalog`);
+        return validGenrList;
+      }
+    }
+
+    console.warn('[lookup-handlers] GENR catalog not found');
+    return [];
+  } catch (error) {
+    console.error('Error loading GENR catalog:', error);
+    return [];
+  }
+});
+
+/**
+ * Handle: lookup:get-verified-portrait-genr-mapping
+ * Get the verified portrait->GENR mapping (268 faces that work correctly in-game)
+ * Returns map of portrait name -> { genr, sknt }
+ */
+ipcMain.handle('lookup:get-verified-portrait-genr-mapping', async () => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const { app } = require('electron');
+
+    const possiblePaths = [
+      path.join(app.getAppPath(), 'data', 'lookups', 'verified-portrait-genr.json'),
+      path.join(__dirname, '..', 'data', 'lookups', 'verified-portrait-genr.json'),
+      path.join(__dirname, '..', '..', 'data', 'lookups', 'verified-portrait-genr.json'),
+      path.join(process.cwd(), 'data', 'lookups', 'verified-portrait-genr.json'),
+      path.join(process.cwd(), '.vite', 'build', 'data', 'lookups', 'verified-portrait-genr.json')
+    ];
+
+    for (const mappingPath of possiblePaths) {
+      if (fs.existsSync(mappingPath)) {
+        const mapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
+        console.log(`[lookup-handlers] Loaded ${Object.keys(mapping).length} verified portrait->GENR mappings`);
+        return mapping;
+      }
+    }
+
+    console.warn('[lookup-handlers] Verified portrait-genr mapping not found');
+    return {};
+  } catch (error) {
+    console.error('Error loading verified portrait-genr mapping:', error);
+    return {};
+  }
+});
+
+/**
+ * Handle: lookup:get-face-picker-mapping
+ * Get the face picker # -> GENR/SKNT mapping (264 faces from ROSTER-GENHEADTEST)
+ * Returns map of face picker number -> { genr, sknt }
+ */
+ipcMain.handle('lookup:get-face-picker-mapping', async () => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const { app } = require('electron');
+
+    const possiblePaths = [
+      path.join(app.getAppPath(), 'data', 'lookups', 'face-picker-to-genr.json'),
+      path.join(__dirname, '..', 'data', 'lookups', 'face-picker-to-genr.json'),
+      path.join(__dirname, '..', '..', 'data', 'lookups', 'face-picker-to-genr.json'),
+      path.join(process.cwd(), 'data', 'lookups', 'face-picker-to-genr.json'),
+      path.join(process.cwd(), '.vite', 'build', 'data', 'lookups', 'face-picker-to-genr.json')
+    ];
+
+    for (const mappingPath of possiblePaths) {
+      if (fs.existsSync(mappingPath)) {
+        const mapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
+        console.log(`[lookup-handlers] Loaded ${Object.keys(mapping).length} face picker->GENR mappings`);
+        return mapping;
+      }
+    }
+
+    console.warn('[lookup-handlers] Face picker mapping not found');
+    return {};
+  } catch (error) {
+    console.error('Error loading face picker mapping:', error);
+    return {};
+  }
+});
+
 console.log('[lookup-handlers] Lookup IPC handlers registered');

@@ -75,6 +75,7 @@ export const MADDEN_FIELDS = {
     'PWGT': { display: 'Weight', shortDisplay: 'WGT', type: 'numeric', editable: true, width: 70, min: 160, max: 380, transform: { display: v => v + 160, save: v => v - 160 } },
     'PCBT': { display: 'Body Type', shortDisplay: 'Body', type: 'lookup', editable: true, width: 90, lookup: 'bodytypes' },
     'PHAN': { display: 'Handedness', shortDisplay: 'Hand', type: 'lookup', editable: true, width: 80, lookup: 'handedness' },
+    'PROL': { display: 'Dev Trait', shortDisplay: 'Dev', type: 'lookup', editable: true, width: 100, lookup: 'devtraits' },
 
     // Contract fields (stored in hundreds of thousands, displayed in millions - divide by 100 for display, multiply by 100 when saving)
     'PCON': { display: 'Contract Years', shortDisplay: 'CON', type: 'numeric', editable: true, width: 80, min: 0, max: 7 },
@@ -137,7 +138,7 @@ export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"], ["POID", "Pres ID"],
     ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["ARCHETYPE", "Archetype"], ["PHTN", "Hometown"], ["PHSN", "State"],
-    ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PHAN", "Handedness"], ["PYRP", "Years Pro"],
+    ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PHAN", "Handedness"], ["PYRP", "Years Pro"], ["PROL", "Dev Trait"],
     ["POVR", "Overall"],
     ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBCV", "Vision"],
     ["PBSG", "Block Shed"], ["PBSK", "Break Sack"], ["PCAR", "Carrying"], ["PLCI", "Catch in Traffic"],
@@ -249,7 +250,7 @@ export let LOOKUP_DATA = {
         [1, 'Thin'],
         [2, 'Muscular'],
         [3, 'Heavy'],
-        [4, 'Extra Heavy']
+        [4, 'Lean']
     ]),
     handedness: new Map([
         [0, 'Right'],
@@ -586,6 +587,8 @@ export function getLookupValue(lookupType, value) {
             return LOOKUP_DATA.bodytypes.get(value) || 'Unknown';
         case 'handedness':
             return LOOKUP_DATA.handedness.get(value) || 'Right';
+        case 'devtraits':
+            return LOOKUP_DATA.devtraits.get(value) || 'Normal';
         default:
             return 'Unknown';
     }
@@ -777,4 +780,134 @@ export function searchPIDNames(query, limit = 10) {
     }
 
     return matches.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Body Type / Weight Linking Utility
+ *
+ * Body Type Codes:
+ *   0 = Standard (default for skill positions)
+ *   1 = Thin (K, P)
+ *   2 = Muscular (TE, FB, EDGE)
+ *   3 = Heavy (OL, DT)
+ *   4 = Lean (slim athletic players)
+ *
+ * PWGT is stored as: actualWeight - 160
+ * So stored 38 = actual 198 lbs
+ */
+
+// Body type to default ACTUAL weight mapping (in lbs)
+export const BODY_TYPE_WEIGHTS = {
+    0: 220,   // Standard: 220 lbs (QB, WR, HB, CB, FS, SS, LB default)
+    1: 200,   // Thin: 200 lbs (K, P default)
+    2: 250,   // Muscular: 250 lbs (TE, FB, EDGE default)
+    3: 300,   // Heavy: 300 lbs (OL, DT default)
+    4: 195    // Lean: 195 lbs (slim athletic players)
+};
+
+// Body type names for logging
+export const BODY_TYPE_NAMES = {
+    0: 'Standard',
+    1: 'Thin',
+    2: 'Muscular',
+    3: 'Heavy',
+    4: 'Lean'
+};
+
+/**
+ * Determine body type from actual weight (in pounds)
+ * @param {number} actualWeight - Player weight in pounds
+ * @param {number|string} position - Position code or name (optional, for context)
+ * @returns {number} Body type code (0-4)
+ */
+export function getBodyTypeFromWeight(actualWeight, position = null) {
+    // Position names that should always be Thin
+    const thinPositions = ['K', 'P', 19, 20];
+    // Position names that should always be Heavy
+    const heavyPositions = ['LT', 'LG', 'C', 'RG', 'RT', 'DT', 5, 6, 7, 8, 9, 12];
+    // Position names that tend to be Muscular
+    const muscularPositions = ['TE', 'FB', 'LEDG', 'REDG', 'LE', 'RE', 4, 2, 10, 11];
+
+    // If position is provided and is a specialty position, use position-based logic
+    if (position !== null) {
+        if (thinPositions.includes(position)) {
+            return 1; // Thin for K/P
+        }
+        if (heavyPositions.includes(position)) {
+            return actualWeight >= 330 ? 3 : 3; // Always Heavy for OL/DT
+        }
+        if (muscularPositions.includes(position)) {
+            return actualWeight >= 280 ? 3 : 2; // Heavy if really big, else Muscular
+        }
+    }
+
+    // Weight-based body type determination (for skill positions and general use)
+    if (actualWeight < 190) {
+        return 4; // Lean for very light players
+    } else if (actualWeight < 215) {
+        return 0; // Standard for average skill position weight
+    } else if (actualWeight < 250) {
+        return 0; // Standard for typical QB/LB weight
+    } else if (actualWeight < 280) {
+        return 2; // Muscular for bigger players
+    } else {
+        return 3; // Heavy for 280+ lbs
+    }
+}
+
+/**
+ * Get the default actual weight for a body type
+ * @param {number} bodyType - Body type code (0-4)
+ * @param {number|string} position - Position code or name (optional, for position-specific defaults)
+ * @returns {number} Default actual weight in pounds
+ */
+export function getWeightFromBodyType(bodyType, position = null) {
+    // Position-specific heavy weights
+    const olDtPositions = ['LT', 'LG', 'C', 'RG', 'RT', 'DT', 5, 6, 7, 8, 9, 12];
+
+    if (bodyType === 3 && position !== null && olDtPositions.includes(position)) {
+        return 310; // OL/DT default for Heavy
+    }
+
+    return BODY_TYPE_WEIGHTS[bodyType] || 220; // Default to Standard weight
+}
+
+/**
+ * Convert actual weight to stored PWGT value
+ * @param {number} actualWeight - Weight in pounds
+ * @returns {number} Stored weight value (actualWeight - 160)
+ */
+export function actualWeightToStored(actualWeight) {
+    return actualWeight - 160;
+}
+
+/**
+ * Convert stored PWGT value to actual weight
+ * @param {number} storedWeight - Stored weight value
+ * @returns {number} Actual weight in pounds
+ */
+export function storedWeightToActual(storedWeight) {
+    return storedWeight + 160;
+}
+
+/**
+ * Handle body type change - returns new stored weight value
+ * @param {number} newBodyType - New body type code (0-4)
+ * @param {number|string} position - Position code or name (optional)
+ * @returns {number} New stored weight value
+ */
+export function onBodyTypeChange(newBodyType, position = null) {
+    const actualWeight = getWeightFromBodyType(newBodyType, position);
+    return actualWeightToStored(actualWeight);
+}
+
+/**
+ * Handle weight change - returns new body type code
+ * @param {number} newStoredWeight - New stored weight value
+ * @param {number|string} position - Position code or name (optional)
+ * @returns {number} New body type code (0-4)
+ */
+export function onWeightChange(newStoredWeight, position = null) {
+    const actualWeight = storedWeightToActual(newStoredWeight);
+    return getBodyTypeFromWeight(actualWeight, position);
 }

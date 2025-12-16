@@ -25,6 +25,8 @@ import { archetypeAssigner } from './generator/ArchetypeAssigner';
 import { futureDraftService, EnrichedProspect } from './generator/FutureDraftService';
 import { IRatingGenerator, RatingContext } from './rating-modes';
 import { archetypeService } from './utils/archetypeService';
+import { pgheLookupService } from './PGHELookupService';
+import { userDatabaseService, AppearanceEdit } from './UserDatabaseService';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -59,6 +61,7 @@ export interface GeneratedPlayer {
   PID: number; // Portrait ID (0 for generic)
   PAM: string | null; // Player Asset Manager ID (same as PEPS)
   PEPS: string | null; // Player Equipment Preset (null for generic)
+  PGHE?: number; // Generic Head ID from PGHE lookup (face picker index, 1-294)
   bodyType: string; // Madden body type string: "Thin", "Muscular", "Heavy"
   yearsPro: number; // Years in the league (0 for rookies)
   archetype: string; // Player archetype (e.g., "Field General", "Scrambler")
@@ -334,37 +337,75 @@ export class CreatorService {
     return pid;
   }
 
+  // Cache the last assigned PGHE entry for callers that need the full data
+  private lastAssignedPgheEntry: any = null;
+
+  /**
+   * Get the last assigned PGHE entry (call after assignGenericFace)
+   * Returns { pghe, pfcg, gpan, psxp, skinTone, genr } or null
+   */
+  private getLastAssignedPgheEntry() {
+    return this.lastAssignedPgheEntry;
+  }
+
+  /**
+   * Check if player has database PGHE data stored (from user edits)
+   * @param internalId - Player's internal ID from ALL_PLAYER_LOOKUP
+   * @returns PGHE data object or null if not found
+   */
+  private getDbPgheData(internalId: number): {
+    pghe: number;
+    pfcg: string;
+    gpan: string;
+    gslp: number;
+    psxp: number;
+    cpvf: number;
+    genr: string;
+    skinTone: number;
+  } | null {
+    try {
+      const appearance = userDatabaseService.getAppearanceEdit(internalId);
+      if (appearance && appearance.maddenPghe !== undefined && appearance.maddenPfcg) {
+        console.log(`[CreatorService] Found database PGHE data for player ${internalId}: PGHE=${appearance.maddenPghe}, PID=${appearance.maddenPid}`);
+        return {
+          pghe: appearance.maddenPghe,
+          pfcg: appearance.maddenPfcg,
+          gpan: appearance.maddenGpan || '',
+          gslp: appearance.maddenGslp || 0,
+          psxp: appearance.maddenPid || 0,
+          cpvf: appearance.maddenCpvf || 0,
+          genr: appearance.maddenPam || `gen_${appearance.maddenPfcg}`,
+          skinTone: appearance.maddenSkinTone || parseInt(appearance.maddenPfcg?.charAt(0)) || 4
+        };
+      }
+    } catch (e) {
+      // Database may not be initialized yet - silent fail
+    }
+    return null;
+  }
+
   /**
    * Assign appropriate generic face PID based on player characteristics
-   * Uses race data from MASTER_LOOKUP if available, otherwise falls back to position-based probability
-   *
-   * Generic face categories:
-   * - Category 1 (41 faces): Caucasian/White
-   * - Category 2 (63 faces): African American/Black - Light
-   * - Category 3 (38 faces): African American/Black - Dark
-   * - Category 5 (94 faces): Hispanic/Latino
-   * - Category 6 (98 faces): Mixed/Multi-Racial
-   * - Category 7 (164 faces): African American/Black - Medium (default for most positions)
+   * Uses PGHE lookup from game's streameddata.DB for proper face assignments.
+   * Each generic face has its own unique PID that the game uses to look up the face.
+   * After calling, use getLastAssignedPgheEntry() to get full PGHE data (pghe, genr, skinTone).
    *
    * @param firstName Player first name
    * @param lastName Player last name
-   * @param position Player position
+   * @param position Player position (for position-based race fallback)
    * @param raceData Race string from MASTER_LOOKUP (if available)
-   * @returns Generic face PID from PID_Portrait_Mapping.csv
+   * @returns Generic face PID from PGHE lookup
    */
   private assignGenericFace(firstName: string, lastName: string, position?: string, raceData?: string): number {
-    // Load PID portrait mapping - use app.getAppPath() for both dev and packaged
-    const { app } = require('electron');
-    const pidPortraitPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
-
-    let targetCategory = 7; // Default to Black-Medium (largest pool)
+    this.lastAssignedPgheEntry = null; // Reset cache
+    let targetRace = 7; // Default to darkest skin tone
 
     // Priority 1: Use race data from MASTER_LOOKUP if available
     if (raceData && raceData.trim()) {
       const mappedCategory = this.mapRaceToCategory(raceData);
       if (mappedCategory > 0) {
-        targetCategory = mappedCategory;
-        console.log(`[CreatorService] Using MASTER_LOOKUP race for "${firstName} ${lastName}": "${raceData}" -> Category ${targetCategory}`);
+        targetRace = mappedCategory;
+        console.log(`[CreatorService] Using MASTER_LOOKUP race for "${firstName} ${lastName}": "${raceData}" -> Race ${targetRace}`);
       }
     }
     // Priority 2: Look up race from ROSTER_lookup.csv
@@ -373,128 +414,82 @@ export class CreatorService {
       if (rosterRace) {
         const mappedCategory = this.mapRaceToCategory(rosterRace);
         if (mappedCategory > 0) {
-          targetCategory = mappedCategory;
-          console.log(`[CreatorService] Using ROSTER_lookup race for "${firstName} ${lastName}": "${rosterRace}" -> Category ${targetCategory}`);
+          targetRace = mappedCategory;
+          console.log(`[CreatorService] Using ROSTER_lookup race for "${firstName} ${lastName}": "${rosterRace}" -> Race ${targetRace}`);
         }
       }
     }
 
     // Priority 3: Fall back to position-based probability (if no race data found)
-    if (targetCategory === 7 && !raceData && !this.lookupPlayerRace(firstName, lastName)) {
-      // Simple heuristic: NFL is ~70% Black, ~25% White, ~5% other
-      // Position-based distribution (rough NFL demographics):
-      // - QB, K, P: More likely to be white (50%+ white)
-      // - OL, TE: Mixed distribution
-      // - Skill positions (WR, RB, CB, S): Predominantly Black (80%+)
-
-      // Adjust based on position
+    if (targetRace === 7 && !raceData && !this.lookupPlayerRace(firstName, lastName)) {
       if (position) {
         const pos = position.toUpperCase();
 
         // Positions with higher white representation
         if (['QB', 'K', 'P', 'LS'].includes(pos)) {
-          // 50/50 split between categories
-          targetCategory = Math.random() < 0.5 ? 1 : 7;
+          targetRace = Math.random() < 0.5 ? 1 : 7;
         }
         // OL and TE - more mixed
         else if (['LT', 'LG', 'C', 'RG', 'RT', 'TE'].includes(pos)) {
           const rand = Math.random();
-          if (rand < 0.4) targetCategory = 1; // 40% white
-          else targetCategory = 7; // 60% black/mixed
+          if (rand < 0.4) targetRace = 1; // 40% white
+          else targetRace = 7; // 60% black/mixed
         }
         // Skill positions - predominantly Black
         else if (['WR', 'HB', 'FB', 'CB', 'FS', 'SS', 'LOLB', 'MLB', 'ROLB', 'LE', 'RE', 'DT'].includes(pos)) {
           const rand = Math.random();
-          if (rand < 0.7) targetCategory = 7; // 70% Black-Medium
-          else if (rand < 0.85) targetCategory = 2; // 15% Black-Light
-          else if (rand < 0.95) targetCategory = 3; // 10% Black-Dark
-          else targetCategory = 6; // 5% Mixed
+          if (rand < 0.7) targetRace = 7;       // 70% dark
+          else if (rand < 0.85) targetRace = 5; // 15% medium
+          else if (rand < 0.95) targetRace = 4; // 10% medium-light
+          else targetRace = 3;                   // 5% light
         }
       }
     }
 
-    // Get random face from target category
-    const categoryRanges: {[key: number]: {min: number, max: number, count: number}} = {
-      1: {min: 1, max: 41, count: 41},
-      2: {min: 1, max: 63, count: 63},
-      3: {min: 1, max: 38, count: 38},
-      5: {min: 1, max: 94, count: 94},
-      6: {min: 2, max: 98, count: 98},
-      7: {min: 1, max: 164, count: 164}
-    };
+    // Use PGHE service to get a random face for this race
+    const skinTone = pgheLookupService.raceToSkinTone(targetRace);
+    const pgheEntry = pgheLookupService.getRandomBySkinTone(skinTone);
 
-    const range = categoryRanges[targetCategory];
-    const faceNum = Math.floor(Math.random() * range.count) + range.min;
-
-    // Now find a PID that maps to this generic face
-    try {
-      const csvContent = fs.readFileSync(pidPortraitPath, 'utf-8');
-      const lines = csvContent.split('\n');
-
-      const targetPortrait = `plpo_generic_${targetCategory}_${String(faceNum).padStart(3, '0')}`;
-
-      // Find all PIDs that map to this portrait
-      // CSV Format: PID,Player Name,Type,Portrait,PAM
-      const matchingPIDs: number[] = [];
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const parts = line.split(',');
-        if (parts.length < 4) continue;
-
-        const pidStr = parts[0].trim();
-        const portrait = parts[3].trim();  // Portrait is column 4 (index 3)
-
-        if (portrait === targetPortrait) {
-          const pid = parseInt(pidStr);
-          if (!isNaN(pid)) {
-            matchingPIDs.push(pid);
-          }
-        }
-      }
-
-      if (matchingPIDs.length > 0) {
-        // Return random PID from matching ones
-        const randomPID = matchingPIDs[Math.floor(Math.random() * matchingPIDs.length)];
-        console.log(`[CreatorService] Assigned generic face: "${firstName} ${lastName}" (${position || 'unknown'}) -> PID ${randomPID} (${targetPortrait})`);
-        return randomPID;
-      }
-    } catch (error) {
-      console.error(`[CreatorService] Error loading generic face mapping:`, error);
-      console.error(`[CreatorService]   Path attempted: ${pidPortraitPath}`);
+    if (pgheEntry) {
+      // Cache the full entry for callers that need PGHE index, GENR, etc.
+      this.lastAssignedPgheEntry = pgheEntry;
+      console.log(`[CreatorService] Assigned PGHE face: "${firstName} ${lastName}" (${position || 'unknown'}) -> PID ${pgheEntry.psxp}, GENR=${pgheEntry.genr}, PGHE=${pgheEntry.pghe}`);
+      return pgheEntry.psxp;
     }
 
-    // FALLBACK: Use hardcoded generic PIDs to ensure NEVER returns 0
-    // These are known valid generic face PIDs from PID_Portrait_Mapping.csv
+    // FALLBACK: Use hardcoded generic PIDs if PGHE service unavailable
+    console.warn(`[CreatorService] PGHE lookup failed for "${firstName} ${lastName}", using fallback`);
     const fallbackPIDs = {
-      1: [2547, 2583, 2761, 2798, 2821], // White (Category 1) - actual generic faces
-      7: [719, 721, 725, 2758, 2769, 2789]  // Black-Medium (Category 7) - actual generic faces
+      1: [2547, 2583, 2761, 2798, 2821], // White skin tones
+      7: [719, 721, 725, 2758, 2769, 2789]  // Dark skin tones
     };
 
-    const fallbackCategory = targetCategory === 1 ? 1 : 7;
+    const fallbackCategory = targetRace <= 2 ? 1 : 7;
     const fallbackArray = fallbackPIDs[fallbackCategory];
     const fallbackPID = fallbackArray[Math.floor(Math.random() * fallbackArray.length)];
 
-    console.warn(`[CreatorService] ⚠️ Failed to load PID mapping, using hardcoded fallback for "${firstName} ${lastName}" -> PID ${fallbackPID}`);
     return fallbackPID;
   }
 
   /**
    * Assign PAM/PEPS based on player's PID
    *
-   * RESEARCH CONCLUSION: Generic face players should have BLANK PAM
-   * The game uses the PID to look up the correct face automatically.
-   * Only players with REAL face scans (player-format PAM) need explicit PAM values.
+   * For generic faces: Returns GENR from PGHE lookup (matched set with PID)
+   * For real faces: Returns player-format PAM from portrait mapping
    *
    * @param pid Player Portrait ID
    * @param raceData Race string (unused - kept for API compatibility)
-   * @returns Player-format PAM for real faces, NULL for generic faces
+   * @returns GENR for generic faces, player-format PAM for real faces, or null
    */
   private assignGenericAsset(pid: number, raceData?: string): string | null {
-    // For generic faces, return null - game uses PID lookup
-    // Only return PAM for players with real face scans (player-format PAM in portrait mapping)
+    // FIRST: If we just assigned a generic face, use the GENR from that PGHE entry
+    // This ensures PSXP, PGHE, and PEPS are a matched set from the PGHE lookup
+    if (this.lastAssignedPgheEntry && this.lastAssignedPgheEntry.psxp === pid) {
+      console.log(`[CreatorService] Using PGHE GENR for PID ${pid}: "${this.lastAssignedPgheEntry.genr}"`);
+      return this.lastAssignedPgheEntry.genr;
+    }
 
+    // For players with real face scans, look up PAM from portrait mapping
     try {
       const { app } = require('electron');
       const pidPortraitPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
@@ -2003,6 +1998,11 @@ export class CreatorService {
         // Get CommID from MASTER_LOOKUP for in-game commentary
         const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
 
+        // Get PGHE index from last assigned generic face (if applicable)
+        const pgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
+          ? this.lastAssignedPgheEntry.pghe
+          : undefined;
+
         // Generate player
         const player: GeneratedPlayer = {
           firstName,
@@ -2018,7 +2018,8 @@ export class CreatorService {
           devTrait: this.determineDevTrait(prospect.round, prospect.pick, ratings.overall, prospect.isHallOfFamer, wAV),
           ratings,
           PID: matchedPID,
-          PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
+          PEPS: playerAssetId || null, // GENR from PGHE lookup for generic faces
+          PGHE: pgheValue, // Face picker index from PGHE lookup
           bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
           yearsPro: 0,
           commID: commID || undefined,
@@ -2442,6 +2443,11 @@ export class CreatorService {
         // Get CommID from MASTER_LOOKUP for in-game commentary
         const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
 
+        // Get PGHE value if we assigned a generic face (ensures matched set)
+        const pgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
+          ? this.lastAssignedPgheEntry.pghe
+          : undefined;
+
         // Generate player
         const player: GeneratedPlayer = {
           firstName,
@@ -2458,6 +2464,7 @@ export class CreatorService {
           ratings,
           PID: matchedPID,
           PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
+          PGHE: pgheValue, // Face picker index from PGHE lookup (matched set)
           bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
           yearsPro: 0,
           commID: commID || undefined,
@@ -2543,6 +2550,11 @@ export class CreatorService {
           // Get CommID from ufaEntry for in-game commentary
           const ufaCommID = parseInt(ufaEntry['CommID']) || 0;
 
+          // Get PGHE value if we assigned a generic face (ensures matched set)
+          const ufaPgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
+            ? this.lastAssignedPgheEntry.pghe
+            : undefined;
+
           const ufaPlayer: GeneratedPlayer = {
             firstName,
             lastName,
@@ -2558,6 +2570,7 @@ export class CreatorService {
             devTrait: 0, // Normal dev trait for UFAs
             PID: matchedPID,
             PEPS: playerAssetId,
+            PGHE: ufaPgheValue, // Face picker index from PGHE lookup (matched set)
             ratings,
             commID: ufaCommID || undefined
           };
@@ -3016,6 +3029,11 @@ export class CreatorService {
         // Get CommID from player entry for in-game commentary
         const commID = player.commID ? parseInt(String(player.commID)) || 0 : 0;
 
+        // Get PGHE value if we assigned a generic face (ensures matched set)
+        const pgheValue = this.lastAssignedPgheEntry?.psxp === pid
+          ? this.lastAssignedPgheEntry.pghe
+          : undefined;
+
         // Create generated player
         const generatedPlayer: GeneratedPlayer = {
           firstName,
@@ -3033,6 +3051,7 @@ export class CreatorService {
           PID: pid,
           PAM: pam,
           PEPS: pam,
+          PGHE: pgheValue, // Face picker index from PGHE lookup (matched set)
           bodyType,
           yearsPro: 0,
           archetype: archetypeId,  // NUMERIC archetype ID, not string
@@ -3159,6 +3178,11 @@ export class CreatorService {
       // Get CommID if available
       const commID = prospect.commID ? parseInt(String(prospect.commID)) || 0 : 0;
 
+      // Get PGHE value from the assigned generic face (ensures matched set)
+      const pgheValue = this.lastAssignedPgheEntry?.psxp === pid
+        ? this.lastAssignedPgheEntry.pghe
+        : undefined;
+
       generatedPlayers.push({
         firstName,
         lastName,
@@ -3175,6 +3199,7 @@ export class CreatorService {
         PID: pid,
         PAM: pam,
         PEPS: pam,
+        PGHE: pgheValue, // Face picker index from PGHE lookup (matched set)
         bodyType,
         yearsPro: 0,
         archetype: archetypeId,  // NUMERIC archetype ID, not string
@@ -3716,6 +3741,11 @@ export class CreatorService {
           // Get CommID from MASTER_LOOKUP for in-game commentary
           const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
 
+          // Get PGHE value if we assigned a generic face (ensures matched set)
+          const pgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
+            ? this.lastAssignedPgheEntry.pghe
+            : undefined;
+
           const player: GeneratedPlayer = {
             firstName,
             lastName,
@@ -3732,6 +3762,7 @@ export class CreatorService {
             ratings,
             PID: matchedPID,
             PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
+            PGHE: pgheValue, // Face picker index from PGHE lookup (matched set)
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             yearsPro,
             race: raceData ? parseInt(raceData) || undefined : undefined, // Race from MASTER_LOOKUP for skin tone matching
@@ -3814,6 +3845,11 @@ export class CreatorService {
             // Assign generic asset matching the generic face
             const genericAsset = this.assignGenericAsset(genericPID, undefined);
 
+            // Get PGHE value from the assigned generic face (ensures matched set)
+            const fillerPgheValue = this.lastAssignedPgheEntry?.psxp === genericPID
+              ? this.lastAssignedPgheEntry.pghe
+              : undefined;
+
             const fillerPlayer: GeneratedPlayer = {
               firstName,
               lastName,
@@ -3831,6 +3867,7 @@ export class CreatorService {
               ratings,
               PID: genericPID, // Use generic face for fictional players
               PEPS: genericAsset,
+              PGHE: fillerPgheValue, // Face picker index from PGHE lookup (matched set)
               bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
               _sourceStats: fillerStats
             };
@@ -3963,6 +4000,11 @@ export class CreatorService {
           // Get CommID from ufaEntry for in-game commentary
           const ufaCommID = parseInt(ufaEntry['CommID']) || 0;
 
+          // Get PGHE value if we assigned a generic face (ensures matched set)
+          const ufaPgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
+            ? this.lastAssignedPgheEntry.pghe
+            : undefined;
+
           const freeAgent: GeneratedPlayer = {
             firstName,
             lastName,
@@ -3980,6 +4022,7 @@ export class CreatorService {
             ratings,
             PID: matchedPID,
             PEPS: ufaAsset,
+            PGHE: ufaPgheValue, // Face picker index from PGHE lookup (matched set)
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             commID: ufaCommID || undefined,
             _sourceStats: null
@@ -4019,6 +4062,11 @@ export class CreatorService {
           // Assign generic asset matching the generic face
           const faAsset = this.assignGenericAsset(genericPID, undefined);
 
+          // Get PGHE value from the assigned generic face (ensures matched set)
+          const faPgheValue = this.lastAssignedPgheEntry?.psxp === genericPID
+            ? this.lastAssignedPgheEntry.pghe
+            : undefined;
+
           const freeAgent: GeneratedPlayer = {
             firstName,
             lastName,
@@ -4036,6 +4084,7 @@ export class CreatorService {
             ratings,
             PID: genericPID, // Use generic face for fictional FAs
             PEPS: faAsset,
+            PGHE: faPgheValue, // Face picker index from PGHE lookup (matched set)
             bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
             _sourceStats: faStats
           };
