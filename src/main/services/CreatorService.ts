@@ -1444,18 +1444,20 @@ export class CreatorService {
       'RDT': { name: 'DT', code: 12 },
       'NT': { name: 'DT', code: 12 }, // Nose tackles as DT
 
-      // Linebackers
-      'LB': { name: 'SAM', code: 13 }, // Default LBs to SAM
-      'OLB': { name: 'SAM', code: 13 },
-      'LOLB': { name: 'SAM', code: 13 },
-      'ROLB': { name: 'SAM', code: 13 },
-      'SAM': { name: 'SAM', code: 13 },
-      'MLB': { name: 'Mike', code: 14 },
-      'ILB': { name: 'Mike', code: 14 },
+      // Linebackers - match Madden positions (SAM=strong/right, WILL=weak/left, Mike=middle)
+      'SAM': { name: 'SAM', code: 13 },     // Strongside (right)
+      'ROLB': { name: 'SAM', code: 13 },    // Right Outside = Strongside
+      'RLB': { name: 'SAM', code: 13 },     // Right LB = Strongside
+      'MLB': { name: 'Mike', code: 14 },    // Middle
+      'ILB': { name: 'Mike', code: 14 },    // Inside LB = Middle
       'LILB': { name: 'Mike', code: 14 },
       'RILB': { name: 'Mike', code: 14 },
       'Mike': { name: 'Mike', code: 14 },
-      'WILL': { name: 'WILL', code: 15 },
+      'LB': { name: 'Mike', code: 14 },     // Generic LB = Middle
+      'WILL': { name: 'WILL', code: 15 },   // Weakside (left)
+      'LOLB': { name: 'WILL', code: 15 },   // Left Outside = Weakside
+      'LLB': { name: 'WILL', code: 15 },    // Left LB = Weakside
+      'OLB': { name: 'WILL', code: 15 },    // Generic Outside = Weakside
 
       // Secondary
       'CB': { name: 'CB', code: 16 },

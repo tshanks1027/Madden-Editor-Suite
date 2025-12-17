@@ -410,6 +410,21 @@
   background: rgba(245, 158, 11, 0.1);
 }
 
+.db-btn-info {
+  background: transparent;
+  color: #3b82f6;
+  border: 1px solid #3b82f6;
+}
+
+.db-btn-info:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.db-btn-info:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .db-btn-success {
   background: #10b981;
   color: #fff;

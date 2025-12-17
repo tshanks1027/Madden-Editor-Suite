@@ -34,6 +34,8 @@ import './main/ipc/presentation-id-fix-handlers';
 import './main/ipc/retro-editor-handlers';
 import './main/ipc/database-handlers';
 import './main/ipc/editor-tracking-handlers';
+import './main/ipc/player-data-fill-handlers';
+import { setMainWindowForFill } from './main/ipc/player-data-fill-handlers';
 import { registerCreatorHandlers } from './main/ipc/creator-handlers';
 import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';
@@ -156,6 +158,11 @@ app.whenReady().then(async () => {
   console.log('[main] Session debug log cleared and ready');
 
   createWindow();
+
+  // Set main window reference for player data fill progress events
+  if (mainWindow) {
+    setMainWindowForFill(mainWindow);
+  }
 
   // Initialize portrait sprite service
   try {

@@ -417,5 +417,68 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('editor-tracking:get-position-counts', target),
     importExisting: (players: Array<{ firstName: string; lastName: string; position: string; povr?: number }>, target: 'roster' | 'draft') =>
       ipcRenderer.invoke('editor-tracking:import-existing', players, target)
+  },
+
+  // Player Data Fill APIs (PFR scraping for missing bio data)
+  playerFill: {
+    // Preview what data would be filled for a player
+    preview: (playerId: number, playerInfo?: {
+      firstName: string;
+      lastName: string;
+      hometown?: string;
+      homeState?: string;
+      height?: number;
+      weight?: number;
+      college?: string;
+      draftYear?: number;
+      draftRound?: string;
+      draftPick?: number;
+      careerFrom?: number;
+      careerTo?: number;
+    }) =>
+      ipcRenderer.invoke('player-fill:preview', playerId, playerInfo),
+
+    // Fill missing data for a single player
+    fillSingle: (playerId: number, playerInfo?: {
+      firstName: string;
+      lastName: string;
+      hometown?: string;
+      homeState?: string;
+      height?: number;
+      weight?: number;
+      college?: string;
+      draftYear?: number;
+      draftRound?: string;
+      draftPick?: number;
+      careerFrom?: number;
+      careerTo?: number;
+    }) =>
+      ipcRenderer.invoke('player-fill:fill-single', playerId, playerInfo),
+
+    // Scan database for players with missing data
+    scanMissing: (limit?: number) =>
+      ipcRenderer.invoke('player-fill:scan-missing', limit),
+
+    // Batch fill missing data for multiple players
+    batchFill: (options: { missingField?: string; limit?: number; playerIds?: number[] }) =>
+      ipcRenderer.invoke('player-fill:batch-fill', options),
+
+    // Cancel ongoing batch operation
+    cancelBatch: () =>
+      ipcRenderer.invoke('player-fill:cancel-batch'),
+
+    // Listen for progress events
+    onProgress: (callback: (data: {
+      current: number;
+      total: number;
+      playerName: string;
+      status: 'searching' | 'filling' | 'complete' | 'error' | 'cancelled';
+      message?: string;
+    }) => void) => {
+      const listener = (_event: any, data: any) => callback(data);
+      ipcRenderer.on('player-fill:progress', listener);
+      // Return cleanup function
+      return () => ipcRenderer.removeListener('player-fill:progress', listener);
+    }
   }
 });

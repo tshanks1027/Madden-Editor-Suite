@@ -691,7 +691,11 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
 
     // Apply additional filters
     if (options?.position) {
-      results = results.filter(p => p.position === options.position);
+      // Map raw positions (LB, LOLB, MLB, etc.) to Madden positions (SAM, Mike, WILL, etc.) before comparing
+      results = results.filter(p => {
+        const mappedPos = mapToMaddenPosition(p.position || '');
+        return mappedPos.name === options.position;
+      });
     }
 
     if (options?.draftYearFrom) {
@@ -717,22 +721,38 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
       });
     }
 
-    // Map to a simpler format for the browser
-    const players = results.map(p => ({
-      internalId: p.internalId,
-      pid: p.pid,
-      firstName: p.firstName,
-      lastName: p.lastName,
-      position: p.position,
-      college: p.college,
-      draftClass: p.draftClass,
-      draftRound: p.round,
-      draftPick: p.pick,
-      careerFrom: p.careerFrom,
-      careerTo: p.careerTo,
-      isHof: p.isHOF || false,
-      isCustom: false
-    }));
+    // Map to a simpler format for the browser, applying user edit overlays
+    const players = results.map(p => {
+      // Check for user edits (overlay) that should override base data
+      const playerEdit = userDatabaseService.getPlayerEdit(p.internalId);
+
+      // Get college name - either from edit overlay or original data
+      let college = p.college;
+      if (playerEdit?.collegeId !== undefined && playerEdit.collegeId !== null) {
+        // Convert college ID to name using lookup
+        const collegeName = lookupService.getDisplayName('college_lookup.csv', playerEdit.collegeId);
+        if (collegeName && collegeName !== String(playerEdit.collegeId)) {
+          college = collegeName;
+        }
+      }
+
+      return {
+        internalId: p.internalId,
+        pid: p.pid,
+        firstName: playerEdit?.firstName ?? p.firstName,
+        lastName: playerEdit?.lastName ?? p.lastName,
+        position: playerEdit?.position ?? p.position,
+        college: college,
+        draftClass: playerEdit?.draftClass !== undefined ? String(playerEdit.draftClass) : p.draftClass,
+        draftRound: playerEdit?.draftRound ?? p.round,
+        draftPick: playerEdit?.draftPick ?? p.pick,
+        careerFrom: playerEdit?.careerFrom ?? p.careerFrom,
+        careerTo: playerEdit?.careerTo ?? p.careerTo,
+        isHof: p.isHOF || false,
+        isCustom: false,
+        hasEdits: !!playerEdit // Flag to show player has been edited
+      };
+    });
 
     // Also search custom players
     const customPlayers = userDatabaseService.searchCustomPlayers(query, options?.limit || 100);
@@ -740,7 +760,11 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
 
     // Apply filters to custom players
     if (options?.position) {
-      filteredCustom = filteredCustom.filter(p => p.position === options.position);
+      // Map raw positions to Madden positions before comparing
+      filteredCustom = filteredCustom.filter(p => {
+        const mappedPos = mapToMaddenPosition(p.position || '');
+        return mappedPos.name === options.position;
+      });
     }
     if (options?.draftYearFrom) {
       filteredCustom = filteredCustom.filter(p => {
@@ -824,7 +848,10 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
 
     // Apply filters to custom players
     if (options?.position) {
-      customPlayers = customPlayers.filter(p => p.position === options.position);
+      customPlayers = customPlayers.filter(p => {
+        const mappedPos = mapToMaddenPosition(p.position || '');
+        return mappedPos.name === options.position;
+      });
     }
     if (options?.draftYearFrom) {
       customPlayers = customPlayers.filter(p => {
@@ -862,7 +889,11 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
 
     // Apply server-side filters BEFORE pagination
     if (options?.position) {
-      allPlayers = allPlayers.filter(p => p.position === options.position);
+      // Map raw positions (LB, LOLB, MLB, etc.) to Madden positions (SAM, Mike, WILL, etc.) before comparing
+      allPlayers = allPlayers.filter(p => {
+        const mappedPos = mapToMaddenPosition(p.position || '');
+        return mappedPos.name === options.position;
+      });
     }
 
     if (options?.draftYearFrom) {
@@ -888,22 +919,38 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
       });
     }
 
-    // Map database players to common format
-    const dbMapped = allPlayers.map(p => ({
-      internalId: p.internalId,
-      pid: p.pid,
-      firstName: p.firstName,
-      lastName: p.lastName,
-      position: p.position,
-      college: p.college,
-      draftClass: p.draftClass,
-      draftRound: p.round,
-      draftPick: p.pick,
-      careerFrom: p.careerFrom,
-      careerTo: p.careerTo,
-      isHof: p.isHOF || false,
-      isCustom: false
-    }));
+    // Map database players to common format, applying user edit overlays
+    const dbMapped = allPlayers.map(p => {
+      // Check for user edits (overlay) that should override base data
+      const playerEdit = userDatabaseService.getPlayerEdit(p.internalId);
+
+      // Get college name - either from edit overlay or original data
+      let college = p.college;
+      if (playerEdit?.collegeId !== undefined && playerEdit.collegeId !== null) {
+        // Convert college ID to name using lookup
+        const collegeName = lookupService.getDisplayName('college_lookup.csv', playerEdit.collegeId);
+        if (collegeName && collegeName !== String(playerEdit.collegeId)) {
+          college = collegeName;
+        }
+      }
+
+      return {
+        internalId: p.internalId,
+        pid: p.pid,
+        firstName: playerEdit?.firstName ?? p.firstName,
+        lastName: playerEdit?.lastName ?? p.lastName,
+        position: playerEdit?.position ?? p.position,
+        college: college,
+        draftClass: playerEdit?.draftClass !== undefined ? String(playerEdit.draftClass) : p.draftClass,
+        draftRound: playerEdit?.draftRound ?? p.round,
+        draftPick: playerEdit?.draftPick ?? p.pick,
+        careerFrom: playerEdit?.careerFrom ?? p.careerFrom,
+        careerTo: playerEdit?.careerTo ?? p.careerTo,
+        isHof: p.isHOF || false,
+        isCustom: false,
+        hasEdits: !!playerEdit
+      };
+    });
 
     // Combine: custom players first, then database players
     const combined = [...customMapped, ...dbMapped];
@@ -990,30 +1037,26 @@ function mapToMaddenPosition(genericPosition: string): { name: string; code: num
   }
 
   // Linebacker position mapping - distribute to SAM, Mike, WILL
-  // LOLB = Left Outside LB -> SAM (strong side in 4-3)
-  // ROLB = Right Outside LB -> WILL (weak side in 4-3)
-  // OLB = Outside LB -> SAM (default outside)
+  // Standard NFL alignment: SAM = Strongside (right), WILL = Weakside (left), Mike = Middle
+  // LOLB = Left Outside LB -> WILL (weak side)
+  // ROLB = Right Outside LB -> SAM (strong side)
+  // OLB = Outside LB -> WILL (default outside)
   // MLB/ILB = Middle/Inside LB -> Mike
-  // Generic LB -> Random distribution
-  if (pos === 'LOLB') {
-    return { name: 'SAM', code: 13 };
+  // Generic LB -> Mike (most common)
+  if (pos === 'LOLB' || pos === 'LLB') {
+    return { name: 'WILL', code: 15 };  // Left = Weakside
   }
-  if (pos === 'ROLB') {
-    return { name: 'WILL', code: 15 };
+  if (pos === 'ROLB' || pos === 'RLB') {
+    return { name: 'SAM', code: 13 };   // Right = Strongside
   }
   if (pos === 'OLB') {
-    // Randomly assign to SAM or WILL
-    return Math.random() < 0.5 ? { name: 'SAM', code: 13 } : { name: 'WILL', code: 15 };
+    return { name: 'WILL', code: 15 };  // Default outside to weakside
   }
   if (pos === 'MLB' || pos === 'ILB' || pos === 'LILB' || pos === 'RILB') {
     return { name: 'Mike', code: 14 };
   }
   if (pos === 'LB') {
-    // Generic LB - distribute evenly between SAM, Mike, WILL
-    const rand = Math.random();
-    if (rand < 0.33) return { name: 'SAM', code: 13 };
-    if (rand < 0.66) return { name: 'Mike', code: 14 };
-    return { name: 'WILL', code: 15 };
+    return { name: 'Mike', code: 14 };  // Generic LB -> Middle
   }
 
   // Handle compound positions (C/LB, FB/LB, HB/LB)

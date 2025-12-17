@@ -173,6 +173,12 @@
       clearSeasonsBtn.addEventListener('click', clearPlayerSeasons);
     }
 
+    // Fill from PFR button
+    var fillFromPFRBtn = document.getElementById('fillFromPFRBtn');
+    if (fillFromPFRBtn) {
+      fillFromPFRBtn.addEventListener('click', fillFromPFR);
+    }
+
     // Add to Roster button
     var addToRosterBtn = document.getElementById('addDbPlayerToRoster');
     if (addToRosterBtn) {
@@ -562,12 +568,70 @@
       modal.style.display = 'flex';
     }
 
-    // Focus on first name field
+    // Focus on first name field using aggressive focus (fixes Windows issue)
     var firstNameInput = document.getElementById('dbPlayerFirstName');
     if (firstNameInput) {
+      // Use IPC to restore OS-level window focus first
+      var doFocus = function() {
+        setTimeout(function() {
+          if (window.app && window.app.aggressiveFocus) {
+            window.app.aggressiveFocus(firstNameInput);
+          } else {
+            firstNameInput.focus();
+          }
+        }, 100);
+      };
+
+      if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
+        window.electronAPI.window.focus().then(doFocus).catch(doFocus);
+      } else {
+        doFocus();
+      }
+    }
+  }
+
+  /**
+   * Restore focus after save operation using aggressive focus techniques.
+   * Fixes Windows issue where keyboard input stops working after IPC calls.
+   */
+  function restoreFocusAfterSave() {
+    // Find a focusable input in the modal
+    var modal = document.getElementById('dbPlayerCardModal');
+    if (!modal) return;
+
+    // Use the global aggressiveFocus if available, otherwise simple focus
+    var doAggressiveFocus = function(element) {
+      if (window.app && window.app.aggressiveFocus) {
+        window.app.aggressiveFocus(element);
+      } else {
+        // Fallback: blur current, dispatch events, focus
+        if (document.activeElement && document.activeElement !== element) {
+          document.activeElement.blur();
+        }
+        element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+        element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+        element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        element.focus();
+      }
+    };
+
+    // Restore OS-level window focus first, then focus an input
+    var doFocus = function() {
       setTimeout(function() {
-        firstNameInput.focus();
+        // Find the first visible, enabled input in the modal
+        var focusTarget = modal.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
+        if (focusTarget) {
+          doAggressiveFocus(focusTarget);
+          console.log('[DatabasePlayerCard] Focus restored after save');
+        }
       }, 100);
+    };
+
+    // Use IPC to restore OS-level window focus if available
+    if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
+      window.electronAPI.window.focus().then(doFocus).catch(doFocus);
+    } else {
+      doFocus();
     }
   }
 
@@ -1277,6 +1341,15 @@
         }, 1500);
       }
 
+      // Restore focus to an input field after save (fixes Windows focus loss issue)
+      restoreFocusAfterSave();
+
+      // Refresh player browser search results to reflect changes (e.g., college updates)
+      if (typeof window.refreshPlayerBrowser === 'function') {
+        console.log('[DatabasePlayerCard] Refreshing player browser to show updated data');
+        window.refreshPlayerBrowser();
+      }
+
     } catch (error) {
       console.error('[DatabasePlayerCard] Failed to save changes:', error);
       alert('Failed to save changes: ' + error.message);
@@ -1290,14 +1363,26 @@
   function collectSeasonEdits(onlyChangedFields) {
     var edits = {};
 
+    console.log('[collectSeasonEdits] onlyChangedFields:', onlyChangedFields);
+    console.log('[collectSeasonEdits] originalSeasonData:', originalSeasonData);
+    console.log('[collectSeasonEdits] originalSeasonData.ratings:', originalSeasonData ? originalSeasonData.ratings : null);
+
     // Helper to check if value changed from original
     function hasChanged(field, currentValue) {
       if (!onlyChangedFields || !originalSeasonData) {
         return true; // Include all fields if not filtering or no original data
       }
+      // Check both flat and nested (ratings) structures
       var originalValue = originalSeasonData[field];
+      if (originalValue === undefined && originalSeasonData.ratings) {
+        originalValue = originalSeasonData.ratings[field];
+      }
       // Compare as strings to handle type differences (e.g., "85" vs 85)
-      return String(currentValue) !== String(originalValue);
+      var changed = String(currentValue) !== String(originalValue);
+      if (changed && field.startsWith('P')) {
+        console.log('[collectSeasonEdits] Rating changed:', field, 'from', originalValue, 'to', currentValue);
+      }
+      return changed;
     }
 
     // Season info fields
@@ -1334,6 +1419,8 @@
       }
     });
 
+    console.log('[collectSeasonEdits] Final edits object:', edits);
+    console.log('[collectSeasonEdits] Edits keys:', Object.keys(edits));
     return edits;
   }
 
@@ -1408,6 +1495,308 @@
     } catch (error) {
       console.error('[DatabasePlayerCard] Failed to clear seasons:', error);
       alert('Failed to clear seasons: ' + error.message);
+    }
+  }
+
+  /**
+   * Fill missing player data from Pro-Football-Reference
+   * Scrapes hometown, state, height, weight, college, and team/jersey per year
+   */
+  async function fillFromPFR() {
+    if (!currentDbPlayerId) return;
+
+    // Get player info from the form (works for any player, including custom ones)
+    var firstName = getValue('dbPlayerFirstName') || '';
+    var lastName = getValue('dbPlayerLastName') || '';
+    var playerName = (firstName + ' ' + lastName).trim() || 'Unknown';
+
+    var btn = document.getElementById('fillFromPFRBtn');
+    var btnText = document.getElementById('fillFromPFRBtnText');
+    var spinner = document.getElementById('fillFromPFRSpinner');
+
+    // Show loading state
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.style.display = 'none';
+    if (spinner) spinner.style.display = 'inline';
+
+    try {
+      console.log('[DatabasePlayerCard] Previewing PFR fill for:', playerName);
+
+      // Build player info from current form values to pass to backend
+      var playerInfo = {
+        firstName: firstName,
+        lastName: lastName,
+        hometown: getValue('dbPlayerHometown') || undefined,
+        homeState: getValue('dbPlayerHomeState') || undefined,
+        height: getIntValue('dbPlayerHeight') || undefined,
+        weight: getIntValue('dbPlayerWeight') || undefined,
+        college: getValue('dbPlayerCollege') || undefined,
+        draftYear: getIntValue('dbPlayerDraftClass') || undefined,
+        draftRound: getValue('dbPlayerDraftRound') || undefined,
+        draftPick: getIntValue('dbPlayerDraftPick') || undefined,
+        careerFrom: getIntValue('dbPlayerCareerFrom') || undefined,
+        careerTo: getIntValue('dbPlayerCareerTo') || undefined
+      };
+
+      // First preview what data we'll find
+      var preview = await window.electronAPI.playerFill.preview(currentDbPlayerId, playerInfo);
+
+      // Debug: log what we received
+      console.log('[DatabasePlayerCard] Preview result:', JSON.stringify(preview, null, 2));
+
+      if (!preview.found) {
+        alert('Could not find "' + playerName + '" on Pro-Football-Reference.\n\n' +
+              (preview.error || 'Try searching with a different name spelling.'));
+        return;
+      }
+
+      // Build preview message
+      var changes = [];
+      var currentData = preview.currentData || {};
+      var scrapedData = preview.scrapedData || {};
+
+      console.log('[DatabasePlayerCard] Scraped data:', scrapedData);
+      console.log('[DatabasePlayerCard] homeState value:', scrapedData.homeState, 'type:', typeof scrapedData.homeState);
+
+      if (!currentData.hometown && scrapedData.hometown) {
+        changes.push('Hometown: ' + scrapedData.hometown);
+      }
+      if (!currentData.homeState && scrapedData.homeState) {
+        changes.push('Home State: ' + scrapedData.homeState);
+      }
+      if (!currentData.height && scrapedData.height) {
+        changes.push('Height: ' + scrapedData.height);
+      }
+      if (!currentData.weight && scrapedData.weight) {
+        changes.push('Weight: ' + scrapedData.weight + ' lbs');
+      }
+      if (!currentData.college && scrapedData.college) {
+        changes.push('College: ' + scrapedData.college);
+      }
+
+      // Draft info
+      if (scrapedData.draftYear && !currentData.draftYear) {
+        changes.push('Draft: Round ' + scrapedData.draftRound + ', Pick ' + scrapedData.draftPick + ' (' + scrapedData.draftYear + ')');
+      } else if (scrapedData.draftRound === 'UDFA' && !currentData.draftRound) {
+        changes.push('Draft: Undrafted Free Agent');
+      }
+
+      // Career span
+      if (scrapedData.careerFrom && !currentData.careerFrom) {
+        changes.push('Career: ' + scrapedData.careerFrom + '-' + scrapedData.careerTo);
+      }
+
+      // Career history (teams by year)
+      var careerYears = preview.careerData ? preview.careerData.length : 0;
+      if (careerYears > 0) {
+        changes.push('Career History: ' + careerYears + ' seasons (team/jersey data)');
+      }
+
+      if (changes.length === 0) {
+        alert('No missing data to fill for ' + playerName + '.\n\n' +
+              'All bio fields already have values.');
+        return;
+      }
+
+      // Ask user to confirm
+      var message = 'Found data for ' + playerName + ':\n\n' +
+                    changes.join('\n') +
+                    '\n\nFill this data?';
+      if (!confirm(message)) {
+        return;
+      }
+
+      // Now do the actual fill (pass playerInfo so backend doesn't need database lookup)
+      var result = await window.electronAPI.playerFill.fillSingle(currentDbPlayerId, playerInfo);
+
+      if (!result.success) {
+        alert('Failed to fill data: ' + (result.error || 'Unknown error'));
+        return;
+      }
+
+      // Update the form with new data - ONLY if field is currently empty
+      console.log('[DatabasePlayerCard] Updating form with scraped data:', scrapedData);
+
+      if (scrapedData.hometown) {
+        var hometownInput = document.getElementById('dbPlayerHometown');
+        if (hometownInput && !hometownInput.value) {
+          hometownInput.value = scrapedData.hometown;
+          console.log('[DatabasePlayerCard] Set hometown to:', scrapedData.hometown);
+        }
+      }
+      if (scrapedData.homeState) {
+        var stateSelect = document.getElementById('dbPlayerHomeState');
+        console.log('[DatabasePlayerCard] Trying to set state. homeState=', scrapedData.homeState, 'current select value=', stateSelect ? stateSelect.value : 'N/A');
+        if (stateSelect && !stateSelect.value) {
+          var stateToFind = scrapedData.homeState.toLowerCase();
+          var foundMatch = false;
+          // Find option with EXACT matching text (case-insensitive)
+          // Don't use includes() because "arkansas".includes("kansas") = true!
+          for (var i = 0; i < stateSelect.options.length; i++) {
+            var optionText = stateSelect.options[i].text.toLowerCase();
+            if (optionText === stateToFind) {
+              stateSelect.selectedIndex = i;
+              // Dispatch change event to update custom dropdown display
+              stateSelect.dispatchEvent(new Event('change', { bubbles: true }));
+              console.log('[DatabasePlayerCard] State matched and set to:', stateSelect.options[i].text);
+              foundMatch = true;
+              break;
+            }
+          }
+          if (!foundMatch) {
+            console.log('[DatabasePlayerCard] No exact state match found for:', scrapedData.homeState);
+          }
+        } else if (stateSelect && stateSelect.value) {
+          console.log('[DatabasePlayerCard] State already has value, not overwriting:', stateSelect.value);
+        }
+      } else {
+        console.log('[DatabasePlayerCard] No homeState in scraped data');
+      }
+      if (scrapedData.height) {
+        var heightInput = document.getElementById('dbPlayerHeight');
+        if (heightInput && !heightInput.value) {
+          // Convert "6-2" to inches (74)
+          var heightMatch = scrapedData.height.match(/(\d+)-(\d+)/);
+          if (heightMatch) {
+            var heightInches = parseInt(heightMatch[1]) * 12 + parseInt(heightMatch[2]);
+            heightInput.value = heightInches;
+            console.log('[DatabasePlayerCard] Set height to:', heightInches, 'from', scrapedData.height);
+          }
+        } else if (heightInput && heightInput.value) {
+          console.log('[DatabasePlayerCard] Height already has value, not overwriting:', heightInput.value);
+        }
+      }
+      if (scrapedData.weight) {
+        var weightInput = document.getElementById('dbPlayerWeight');
+        if (weightInput && !weightInput.value) {
+          weightInput.value = scrapedData.weight;
+          console.log('[DatabasePlayerCard] Set weight to:', scrapedData.weight);
+        }
+      }
+      if (scrapedData.college) {
+        var collegeSelect = document.getElementById('dbPlayerCollege');
+        if (collegeSelect && !collegeSelect.value) {
+          // Normalize college name for matching (handle "St." vs "State" differences)
+          var normalizeCollege = function(name) {
+            return name.toLowerCase()
+              .replace(/\bst\.?\b/g, 'state')  // "St." or "St" -> "state"
+              .replace(/\s+/g, ' ')             // normalize whitespace
+              .trim();
+          };
+
+          var scrapedNorm = normalizeCollege(scrapedData.college);
+          var foundMatch = false;
+          var bestMatchIndex = -1;
+          var bestMatchType = 0; // 0=none, 1=partial, 2=exact
+          console.log('[DatabasePlayerCard] Looking for college:', scrapedData.college, '-> normalized:', scrapedNorm);
+
+          // Find best matching option - prefer exact matches over partial
+          for (var j = 0; j < collegeSelect.options.length; j++) {
+            var optionText = collegeSelect.options[j].text;
+            var optionNorm = normalizeCollege(optionText);
+
+            // Exact normalized match is best
+            if (optionNorm === scrapedNorm) {
+              bestMatchIndex = j;
+              bestMatchType = 2;
+              break; // Can't do better than exact
+            }
+            // Partial match (only if no exact match found yet)
+            if (bestMatchType < 1 && (optionNorm.includes(scrapedNorm) || scrapedNorm.includes(optionNorm))) {
+              bestMatchIndex = j;
+              bestMatchType = 1;
+              // Don't break - keep looking for exact match
+            }
+          }
+
+          if (bestMatchIndex >= 0) {
+            collegeSelect.selectedIndex = bestMatchIndex;
+            collegeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log('[DatabasePlayerCard] College matched:', scrapedData.college, '->', collegeSelect.options[bestMatchIndex].text, '(type:', bestMatchType === 2 ? 'exact' : 'partial', ')');
+            foundMatch = true;
+          }
+          if (!foundMatch) {
+            console.log('[DatabasePlayerCard] No college match found for:', scrapedData.college);
+          }
+        } else if (collegeSelect && collegeSelect.value) {
+          console.log('[DatabasePlayerCard] College already has value, not overwriting:', collegeSelect.value);
+        }
+      }
+
+      // Fill draft info
+      if (scrapedData.draftYear) {
+        var draftClassInput = document.getElementById('dbPlayerDraftClass');
+        if (draftClassInput && !draftClassInput.value) {
+          draftClassInput.value = scrapedData.draftYear;
+          console.log('[DatabasePlayerCard] Set draft year to:', scrapedData.draftYear);
+        }
+        var draftRoundInput = document.getElementById('dbPlayerDraftRound');
+        if (draftRoundInput && !draftRoundInput.value) {
+          draftRoundInput.value = scrapedData.draftRound;
+          console.log('[DatabasePlayerCard] Set draft round to:', scrapedData.draftRound);
+        }
+        var draftPickInput = document.getElementById('dbPlayerDraftPick');
+        if (draftPickInput && !draftPickInput.value) {
+          draftPickInput.value = scrapedData.draftPick;
+          console.log('[DatabasePlayerCard] Set draft pick to:', scrapedData.draftPick);
+        }
+      } else if (scrapedData.draftRound === 'UDFA') {
+        var draftRoundInput = document.getElementById('dbPlayerDraftRound');
+        if (draftRoundInput && !draftRoundInput.value) {
+          draftRoundInput.value = 'UDFA';
+          console.log('[DatabasePlayerCard] Set draft round to: UDFA');
+        }
+      }
+
+      // Fill career span
+      console.log('[DatabasePlayerCard] Career span data - careerFrom:', scrapedData.careerFrom, 'careerTo:', scrapedData.careerTo);
+      console.log('[DatabasePlayerCard] careerHistory length:', scrapedData.careerHistory ? scrapedData.careerHistory.length : 'undefined');
+      if (scrapedData.careerFrom) {
+        var careerFromInput = document.getElementById('dbPlayerCareerFrom');
+        console.log('[DatabasePlayerCard] careerFromInput element:', careerFromInput, 'current value:', careerFromInput ? careerFromInput.value : 'N/A');
+        if (careerFromInput && !careerFromInput.value) {
+          careerFromInput.value = scrapedData.careerFrom;
+          console.log('[DatabasePlayerCard] Set career from to:', scrapedData.careerFrom);
+        }
+      } else {
+        console.log('[DatabasePlayerCard] No careerFrom in scraped data');
+      }
+      if (scrapedData.careerTo) {
+        var careerToInput = document.getElementById('dbPlayerCareerTo');
+        console.log('[DatabasePlayerCard] careerToInput element:', careerToInput, 'current value:', careerToInput ? careerToInput.value : 'N/A');
+        if (careerToInput && !careerToInput.value) {
+          careerToInput.value = scrapedData.careerTo;
+          console.log('[DatabasePlayerCard] Set career to:', scrapedData.careerTo);
+        }
+      } else {
+        console.log('[DatabasePlayerCard] No careerTo in scraped data');
+      }
+
+      // Mark as having changes
+      hasUnsavedChanges = true;
+      updateSaveButtonState();
+
+      // Show success
+      var successMsg = 'Updated ' + result.fieldsUpdated.length + ' field(s)';
+      if (result.seasonsUpdated > 0) {
+        successMsg += ' and ' + result.seasonsUpdated + ' season(s)';
+      }
+      successMsg += ' for ' + playerName + '.';
+      alert(successMsg);
+
+      // Reload year selector if seasons were updated
+      if (result.seasonsUpdated > 0) {
+        await loadSeasonYearOptions();
+      }
+
+    } catch (error) {
+      console.error('[DatabasePlayerCard] PFR fill error:', error);
+      alert('Error filling from PFR: ' + error.message);
+    } finally {
+      // Reset button state
+      if (btn) btn.disabled = false;
+      if (btnText) btnText.style.display = 'inline';
+      if (spinner) spinner.style.display = 'none';
     }
   }
 

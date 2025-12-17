@@ -661,10 +661,12 @@ export class RosterGeneratorService {
       allPlayers.map(p => this.enrichPlayer(p, p._year))
     );
 
-    // Deduplicate by firstName + lastName + position - keep BEST year (highest POVR)
+    // Deduplicate by firstName + lastName ONLY - keep BEST year (highest POVR)
+    // This prevents same player from appearing multiple times due to position changes
     const deduplicatedPlayers = new Map<string, RosterPlayer>();
     enrichedAll.forEach(p => {
-      const key = `${p.PFNA}|${p.PLNA}|${p.PPOS}`;
+      // Use name only for deduplication - position changes across years shouldn't create duplicates
+      const key = `${p.PFNA}|${p.PLNA}`;
       const existing = deduplicatedPlayers.get(key);
       // Keep player with highest POVR - their best season goes to their best team
       const pPOVR = p.POVR || 0;
@@ -732,12 +734,12 @@ export class RosterGeneratorService {
     // PHASE 3: Free Agent Pool - players from year range who didn't make team rosters
     console.log('\n[Phase 3] Collecting free agents from leftover players in year range...');
 
-    // Get names of players who made team rosters
-    const teamRosterNames = new Set(teamRosters.map(p => `${p.PFNA}|${p.PLNA}|${p.PPOS}`));
+    // Get names of players who made team rosters (name only - position changes shouldn't matter)
+    const teamRosterNames = new Set(teamRosters.map(p => `${p.PFNA}|${p.PLNA}`));
 
     // Leftover players are those in deduplicatedPlayers but not on team rosters
     const leftoverPlayers = Array.from(deduplicatedPlayers.values())
-      .filter(p => !teamRosterNames.has(`${p.PFNA}|${p.PLNA}|${p.PPOS}`));
+      .filter(p => !teamRosterNames.has(`${p.PFNA}|${p.PLNA}`));
 
     console.log('[Phase 3] Leftover players from year range:', leftoverPlayers.length);
 
@@ -1125,12 +1127,13 @@ export class RosterGeneratorService {
    * NOTE: Duplicates are logged as warnings but do NOT fail the roster
    */
   private validateNoDuplicates(roster: RosterPlayer[]): void {
-    // Check for duplicate real players (same firstName + lastName + position)
+    // Check for duplicate real players (same firstName + lastName - position changes don't matter)
     // Generic face PIDs can repeat - that's normal
     const playerKeys = new Map<string, RosterPlayer[]>();
 
     roster.forEach(player => {
-      const key = `${player.PFNA}|${player.PLNA}|${player.PPOS}`;
+      // Use name only - same player with different positions is still a duplicate
+      const key = `${player.PFNA}|${player.PLNA}`;
       const existing = playerKeys.get(key) || [];
       existing.push(player);
       playerKeys.set(key, existing);
@@ -1142,9 +1145,9 @@ export class RosterGeneratorService {
     if (duplicates.length > 0) {
       console.warn('[validateNoDuplicates] ⚠️  DUPLICATE PLAYERS FOUND (for debugging):');
       duplicates.forEach(([key, players]) => {
-        console.warn(`  "${players[0].PFNA} ${players[0].PLNA}" (Position ${players[0].PPOS}): appears ${players.length} times`);
+        console.warn(`  "${players[0].PFNA} ${players[0].PLNA}": appears ${players.length} times at positions: ${players.map(p => p.PPOS).join(', ')}`);
         players.forEach((p, i) => {
-          console.warn(`    ${i + 1}. Team ${p.TGID}, OVR ${p.POVR}, PID ${p.PSXP}`);
+          console.warn(`    ${i + 1}. Team ${p.TGID}, Position ${p.PPOS}, OVR ${p.POVR}, PID ${p.PSXP}`);
         });
       });
       console.warn(`[validateNoDuplicates] Total duplicates: ${duplicates.length} (these should have been deduplicated earlier)`);

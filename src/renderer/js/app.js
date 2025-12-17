@@ -553,6 +553,30 @@ class MaddenEditorApp {
             console.log('[App] Resetting draft wizard state on tool switch');
             window.draftWizard.restart();
         }
+
+        // Restore focus to the new panel after switching
+        // Uses IPC window focus first (critical for Windows), then aggressive focus
+        const doFocus = () => {
+            setTimeout(() => {
+                const activePanel = document.getElementById(`${toolName}-tool`);
+                if (activePanel) {
+                    // Try to find a grid, input, or button to focus
+                    const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled]), button:not(.modal-close):not([disabled])');
+                    if (focusTarget) {
+                        this.aggressiveFocus(focusTarget);
+                    } else if (activePanel.hasAttribute('tabindex')) {
+                        this.aggressiveFocus(activePanel);
+                    }
+                }
+            }, 100);
+        };
+
+        // Use IPC to restore OS-level window focus if available
+        if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
+            window.electronAPI.window.focus().then(doFocus).catch(doFocus);
+        } else {
+            doFocus();
+        }
     }
 
     async openFileDialog() {
@@ -3381,11 +3405,13 @@ class MaddenEditorApp {
                 }
 
                 this.showLoading(false);
+                this.restoreFocusToGrid();
             } else {
                 // Simulate save for testing
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 this.setStatus('Roster saved (simulation)');
                 console.log('Roster saved (simulation - no Electron API)');
+                this.restoreFocusToGrid();
             }
         } catch (error) {
             console.error('Error saving roster:', error);
@@ -3810,6 +3836,66 @@ class MaddenEditorApp {
 
     closeErrorModal() {
         document.getElementById('errorModal').style.display = 'none';
+        this.restoreFocusToGrid();
+    }
+
+    /**
+     * Aggressively focus an element using techniques that work on Windows
+     * Windows has a known issue where document.activeElement reports correct focus
+     * but keyboard input doesn't work. This uses mouse event simulation to fix it.
+     */
+    aggressiveFocus(element) {
+        if (!element) return;
+
+        // 1. Blur any currently focused element
+        if (document.activeElement && document.activeElement !== element) {
+            document.activeElement.blur();
+        }
+
+        // 2. Dispatch real mouse events (more effective than .click())
+        element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+        element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+        element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+
+        // 3. Focus the element
+        element.focus();
+
+        // 4. For inputs, use select() to activate the text cursor
+        if (typeof element.select === 'function' && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA')) {
+            element.select();
+        }
+
+        console.log('[Focus] Aggressive focus applied to:', element.tagName, element.id || element.className);
+    }
+
+    /**
+     * Restore focus to the active grid after modals/loading/tab switches
+     * Fixes typing issues where focus is lost after save, error, or navigation
+     * Uses IPC to restore OS-level window focus first (required on Windows)
+     */
+    restoreFocusToGrid() {
+        // First, restore OS-level window focus via IPC (critical for Windows)
+        const doFocus = () => {
+            setTimeout(() => {
+                const activePanel = document.querySelector('.tool-panel.active');
+                if (!activePanel) return;
+
+                // Find the first focusable element in the active panel
+                const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), button:not([disabled]):not(.modal-close)');
+                if (focusTarget) {
+                    this.aggressiveFocus(focusTarget);
+                } else if (activePanel.hasAttribute('tabindex')) {
+                    this.aggressiveFocus(activePanel);
+                }
+            }, 50);
+        };
+
+        // Use IPC to restore OS-level window focus if available
+        if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
+            window.electronAPI.window.focus().then(doFocus).catch(doFocus);
+        } else {
+            doFocus();
+        }
     }
 
     // ========================================

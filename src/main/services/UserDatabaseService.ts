@@ -14,15 +14,27 @@ import { app } from 'electron';
 import Database from 'better-sqlite3';
 
 // All rating fields from the database schema
+// Rating fields must match exactly what the frontend sends (database-player-card.js)
+// These are the Madden 26 field codes
 const RATING_FIELDS = [
-  'POVR', 'PSPD', 'PACC', 'PSTR', 'PAGI', 'PAWR', 'PCTH', 'PCAR', 'PTHP', 'PKPW',
-  'PKAC', 'PRBK', 'PPBK', 'PTAK', 'PBTK', 'PJMP', 'PINJ', 'PSTA', 'PTGH', 'PTRK',
-  'PCOD', 'PBCV', 'PSTF', 'PSPM', 'PJUM', 'PIBL', 'PRBP', 'PRBF', 'PPBP', 'PPBF',
-  'PLDB', 'PBRS', 'PTUP', 'PPWM', 'PFNM', 'PBSH', 'PPUR', 'PPRC', 'PMCV', 'PZCV',
-  'PSPC', 'PCIT', 'PSRR', 'PMRR', 'PDRR', 'PHTP', 'PPRS', 'PREL', 'PTAS', 'PTAM',
-  'PTAD', 'PPLA', 'PTOR', 'PKRT', 'PLTR', 'PELU', 'PLSA', 'PLSM', 'PLJM', 'PLIB',
-  'PLBK', 'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PLPR', 'PLMC', 'PLZC', 'PLSC', 'PLCI',
-  'SRRN', 'PLHT', 'PLPE', 'PLRL', 'PBSK', 'PPBS', 'PRBS'
+  // Core ratings
+  'POVR',  // Overall
+  // Physical
+  'PSPD', 'PACC', 'PSTR', 'PAGI', 'PJMP', 'PSTM', 'PINJ', 'PTGH', 'PAWR', 'PCOD',
+  // Running
+  'PBCV', 'PBTK', 'PTRK', 'PELU', 'PSFA', 'PSPN', 'PJKM', 'PCAR',
+  // Passing
+  'PTHA', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPWR', 'PPLA',
+  // Receiving
+  'PCTH', 'PSPC', 'PCIT', 'PSRR', 'PMRR', 'PDRR', 'PREL',
+  // Blocking
+  'PRBK', 'PPBK', 'PIBK', 'PLBK', 'PFMS', 'PRNS', 'PPBS', 'PPBP',
+  // Defense
+  'PTAK', 'PHIT', 'PPRS', 'PFMV', 'PPWM', 'PBSH', 'PPRC',
+  // Coverage
+  'PMCV', 'PZCV',
+  // Kicking
+  'PKAC', 'PKPR', 'PKRT'
 ];
 
 export interface PlayerEdit {
@@ -259,6 +271,16 @@ class UserDatabaseService {
       )
     `);
 
+    // Migration: add any missing rating columns to season_edits
+    // This handles the case where the table was created with old field names
+    for (const field of RATING_FIELDS) {
+      try {
+        this.editsDb.exec(`ALTER TABLE season_edits ADD COLUMN ${field} INTEGER`);
+      } catch {
+        /* Column already exists - that's fine */
+      }
+    }
+
     // Table to track players whose original seasons have been cleared
     // Used to fix wrongly-assigned seasons from name collisions
     this.editsDb.exec(`
@@ -331,6 +353,15 @@ class UserDatabaseService {
         UNIQUE(custom_player_id, year)
       )
     `);
+
+    // Migration: add any missing rating columns to custom_player_seasons
+    for (const field of RATING_FIELDS) {
+      try {
+        this.customDb.exec(`ALTER TABLE custom_player_seasons ADD COLUMN ${field} INTEGER`);
+      } catch {
+        /* Column already exists - that's fine */
+      }
+    }
 
     // Create indexes
     this.customDb.exec(`
@@ -532,26 +563,84 @@ class UserDatabaseService {
   public saveSeasonEdit(originalPlayerId: number, year: number, edits: Partial<SeasonEdit>): void {
     if (!this.editsDb) throw new Error('Edits database not initialized');
 
-    // Build dynamic insert/update
-    const columns = ['original_player_id', 'year', 'team', 'jersey', 'age', 'position', 'archetype'];
-    const values: unknown[] = [originalPlayerId, year, edits.team ?? null, edits.jersey ?? null,
-                                edits.age ?? null, edits.position ?? null, edits.archetype ?? null];
+    console.log(`[UserDatabaseService] saveSeasonEdit called: player=${originalPlayerId}, year=${year}`);
+    console.log(`[UserDatabaseService] Incoming edits keys:`, Object.keys(edits));
+    console.log(`[UserDatabaseService] Incoming edits.ratings:`, edits.ratings);
 
-    // Add rating fields - check both edits.ratings.FIELD and edits.FIELD (frontend sends flat)
+    // Log flat rating fields (how frontend sends them)
+    const flatRatings: Record<string, unknown> = {};
     for (const field of RATING_FIELDS) {
-      columns.push(field);
-      // Frontend sends ratings as flat properties (edits.POVR), but type expects nested (edits.ratings.POVR)
-      values.push(edits.ratings?.[field] ?? (edits as Record<string, unknown>)[field] ?? null);
+      const val = (edits as Record<string, unknown>)[field];
+      if (val !== undefined) {
+        flatRatings[field] = val;
+      }
     }
+    console.log(`[UserDatabaseService] Flat rating fields found:`, flatRatings);
 
-    const placeholders = columns.map(() => '?').join(', ');
+    // Check if a record already exists for this player/year
+    const existingRow = this.editsDb.prepare('SELECT id FROM season_edits WHERE original_player_id = ? AND year = ?')
+      .get(originalPlayerId, year);
 
-    this.editsDb.prepare(`
-      INSERT OR REPLACE INTO season_edits (${columns.join(', ')})
-      VALUES (${placeholders})
-    `).run(...values);
+    if (existingRow) {
+      // UPDATE only the fields that are provided in edits (don't overwrite other fields with null)
+      const setClauses: string[] = [];
+      const values: unknown[] = [];
 
-    console.log(`[UserDatabaseService] Saved season edit for player_id=${originalPlayerId}, year=${year}`);
+      // Check each base field
+      if (edits.team !== undefined) { setClauses.push('team = ?'); values.push(edits.team); }
+      if (edits.jersey !== undefined) { setClauses.push('jersey = ?'); values.push(edits.jersey); }
+      if (edits.age !== undefined) { setClauses.push('age = ?'); values.push(edits.age); }
+      if (edits.position !== undefined) { setClauses.push('position = ?'); values.push(edits.position); }
+      if (edits.archetype !== undefined) { setClauses.push('archetype = ?'); values.push(edits.archetype); }
+
+      // Check rating fields - frontend sends as flat properties (edits.POVR)
+      for (const field of RATING_FIELDS) {
+        const val = edits.ratings?.[field] ?? (edits as Record<string, unknown>)[field];
+        if (val !== undefined) {
+          setClauses.push(`${field} = ?`);
+          values.push(val);
+        }
+      }
+
+      console.log(`[UserDatabaseService] UPDATE - setClauses:`, setClauses);
+      if (setClauses.length > 0) {
+        values.push(originalPlayerId, year);
+        this.editsDb.prepare(`
+          UPDATE season_edits SET ${setClauses.join(', ')}
+          WHERE original_player_id = ? AND year = ?
+        `).run(...values);
+        console.log(`[UserDatabaseService] Updated ${setClauses.length} fields for player_id=${originalPlayerId}, year=${year}`);
+      } else {
+        console.log(`[UserDatabaseService] No fields to update!`);
+      }
+    } else {
+      // INSERT new record - include all provided fields
+      const columns = ['original_player_id', 'year'];
+      const values: unknown[] = [originalPlayerId, year];
+
+      // Add base fields if provided
+      if (edits.team !== undefined) { columns.push('team'); values.push(edits.team); }
+      if (edits.jersey !== undefined) { columns.push('jersey'); values.push(edits.jersey); }
+      if (edits.age !== undefined) { columns.push('age'); values.push(edits.age); }
+      if (edits.position !== undefined) { columns.push('position'); values.push(edits.position); }
+      if (edits.archetype !== undefined) { columns.push('archetype'); values.push(edits.archetype); }
+
+      // Add rating fields if provided
+      for (const field of RATING_FIELDS) {
+        const val = edits.ratings?.[field] ?? (edits as Record<string, unknown>)[field];
+        if (val !== undefined) {
+          columns.push(field);
+          values.push(val);
+        }
+      }
+
+      const placeholders = columns.map(() => '?').join(', ');
+      this.editsDb.prepare(`
+        INSERT INTO season_edits (${columns.join(', ')})
+        VALUES (${placeholders})
+      `).run(...values);
+      console.log(`[UserDatabaseService] Inserted season edit for player_id=${originalPlayerId}, year=${year}`);
+    }
   }
 
   public getSeasonEdit(originalPlayerId: number, year: number): SeasonEdit | null {
@@ -559,7 +648,12 @@ class UserDatabaseService {
 
     const row = this.editsDb.prepare('SELECT * FROM season_edits WHERE original_player_id = ? AND year = ?')
       .get(originalPlayerId, year) as Record<string, unknown> | undefined;
+
+    console.log(`[UserDatabaseService] getSeasonEdit: player=${originalPlayerId}, year=${year}, found=${!!row}`);
     if (!row) return null;
+
+    // Log all columns in the row
+    console.log(`[UserDatabaseService] Row columns:`, Object.keys(row));
 
     const ratings: { [key: string]: number } = {};
     for (const field of RATING_FIELDS) {
@@ -567,6 +661,8 @@ class UserDatabaseService {
         ratings[field] = row[field] as number;
       }
     }
+
+    console.log(`[UserDatabaseService] Ratings loaded from row:`, ratings);
 
     return {
       id: row.id as number,

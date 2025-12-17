@@ -253,7 +253,7 @@
         <!-- Main Content Area -->
         <main class="app-main">
             <!-- Roster Editor Tool -->
-            <div id="roster-tool" class="tool-panel active">
+            <div id="roster-tool" class="tool-panel active" tabindex="-1">
                 <!-- Info Tooltips and Action Buttons -->
                 <div class="info-tooltips">
                     <div class="info-tips-left">
@@ -412,7 +412,7 @@
             </div>
 
             <!-- Draft Class Tool -->
-            <div id="draft-tool" class="tool-panel">
+            <div id="draft-tool" class="tool-panel" tabindex="-1">
                 <div class="tool-header">
                     <div class="file-info">
                         <span id="draft-file-name" class="file-name">No file loaded</span>
@@ -501,7 +501,7 @@
             </div>
 
             <!-- M25→M26 Converter Tool -->
-            <div id="converter-tool" class="tool-panel">
+            <div id="converter-tool" class="tool-panel" tabindex="-1">
                 <div class="creator-container">
                     <div class="creator-header">
                         <h2 class="creator-title">🔄 M25→M26 Draft Class Converter</h2>
@@ -607,7 +607,7 @@
             </div>
 
             <!-- Retro Editor Tool -->
-            <div id="retro-tool" class="tool-panel">
+            <div id="retro-tool" class="tool-panel" tabindex="-1">
                 <div class="creator-container">
                     <div class="creator-header">
                         <h2 class="creator-title">Retro Franchise Editor</h2>
@@ -902,7 +902,7 @@
             </div>
 
             <!-- Create Roster Tool -->
-            <div id="create-roster-tool" class="tool-panel">
+            <div id="create-roster-tool" class="tool-panel" tabindex="-1">
                 <div class="creator-container">
                     <div class="creator-header">
                         <h2 class="creator-title">⚡ Roster Generator</h2>
@@ -1060,7 +1060,7 @@
             </div>
 
             <!-- Create Draft Class Tool (V2.0 Wizard) -->
-            <div id="create-draft-tool" class="tool-panel">
+            <div id="create-draft-tool" class="tool-panel" tabindex="-1">
                 <div class="creator-container">
                     <div class="creator-header">
                         <h2 class="creator-title">✨ Draft Class Generator V2.0</h2>
@@ -1966,6 +1966,10 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                 <div class="db-footer-left">
                     <button class="db-btn db-btn-danger" id="resetDbPlayerBtn">Reset to Original</button>
                     <button class="db-btn db-btn-warning" id="clearSeasonsBtn" title="Fix wrongly-assigned seasons by clearing all season data for this player">Clear Seasons</button>
+                    <button class="db-btn db-btn-info" id="fillFromPFRBtn" title="Fill missing data from Pro-Football-Reference (hometown, height, weight, college, team/jersey per year)">
+                        <span id="fillFromPFRBtnText">Fill from PFR</span>
+                        <span id="fillFromPFRSpinner" style="display: none;">Searching...</span>
+                    </button>
                 </div>
                 <div class="db-footer-right">
                     <button class="db-btn db-btn-secondary" id="addDbPlayerToRoster">Add to Roster</button>
@@ -2377,7 +2381,7 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                 </div>
 
                 <!-- Backup Section -->
-                <div>
+                <div style="margin-bottom: 20px;">
                     <h4 style="margin: 0 0 12px 0; color: #ccc;">Backup & Restore</h4>
                     <div style="display: flex; gap: 8px;">
                         <button id="createDbBackup" class="db-btn db-btn-primary" style="flex: 1;">Create Backup</button>
@@ -2388,6 +2392,38 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                         <select id="backupList" style="width: 100%; margin-top: 4px; padding: 6px; background: #1e1e1e; border: 1px solid #444; color: #ccc; border-radius: 4px;">
                         </select>
                         <button id="confirmRestoreBackup" class="db-btn db-btn-primary" style="width: 100%; margin-top: 8px;">Confirm Restore</button>
+                    </div>
+                </div>
+
+                <!-- Auto-Fill Missing Data Section -->
+                <div>
+                    <h4 style="margin: 0 0 12px 0; color: #ccc;">Auto-Fill Missing Data</h4>
+                    <p style="color: #888; font-size: 11px; margin-bottom: 12px;">
+                        Scrape Pro-Football-Reference to fill missing player data (hometown, height, weight, college, team/jersey per year).
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button id="scanMissingDataBtn" class="db-btn db-btn-info" style="width: 100%;">
+                            <span id="scanMissingBtnText">Scan for Missing Data</span>
+                            <span id="scanMissingSpinner" style="display: none;">Scanning...</span>
+                        </button>
+                        <div id="missingDataResults" style="display: none; padding: 10px; background: #1e1e1e; border-radius: 4px; max-height: 150px; overflow-y: auto;">
+                            <div id="missingDataCount" style="color: #4caf50; margin-bottom: 8px;"></div>
+                            <div id="missingDataList" style="font-size: 11px; color: #888;"></div>
+                        </div>
+                        <button id="batchFillDataBtn" class="db-btn db-btn-primary" style="width: 100%; display: none;">
+                            <span id="batchFillBtnText">Fill Missing Data</span>
+                            <span id="batchFillSpinner" style="display: none;">Filling...</span>
+                        </button>
+                        <div id="batchFillProgress" style="display: none; padding: 10px; background: #1e1e1e; border-radius: 4px;">
+                            <div style="margin-bottom: 8px; display: flex; justify-content: space-between;">
+                                <span id="batchFillStatus" style="color: #ccc; font-size: 12px;">Starting...</span>
+                                <span id="batchFillCounter" style="color: #888; font-size: 12px;">0/0</span>
+                            </div>
+                            <div style="height: 6px; background: #333; border-radius: 3px; overflow: hidden;">
+                                <div id="batchFillProgressBar" style="height: 100%; background: #4caf50; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <button id="cancelBatchFillBtn" class="db-btn db-btn-danger" style="width: 100%; margin-top: 8px;">Cancel</button>
+                        </div>
                     </div>
                 </div>
             </div>

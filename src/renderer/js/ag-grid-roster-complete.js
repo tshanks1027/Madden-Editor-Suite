@@ -863,33 +863,53 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                 const rowIndex = parseInt(contextMenu.dataset.rowIndex);
 
                 if (action === 'delete-player') {
-                    // Confirm deletion
+                    // Get the player from the event data (captured in closure)
                     const player = event.data;
+                    console.log('[AG-Grid] Delete requested for player:', player);
+
+                    if (!player) {
+                        console.error('[AG-Grid] No player data found for deletion');
+                        return;
+                    }
+
                     const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'this player';
 
                     if (confirm(`Are you sure you want to delete ${playerName}?`)) {
-                        // Remove from app.players
-                        const filteredIndex = app.paginatedPlayerIndices ? app.paginatedPlayerIndices[rowIndex] : rowIndex;
-                        const actualPlayer = app.filteredPlayers[filteredIndex];
+                        // Find and remove from app.players array using a unique identifier
+                        // Use multiple fields to ensure we find the right player
+                        const playerIndex = app.players.findIndex(p =>
+                            p === player ||
+                            (p.PFNA === player.PFNA && p.PLNA === player.PLNA && p.TGID === player.TGID && p.PPOS === player.PPOS)
+                        );
 
-                        if (actualPlayer) {
-                            const playerIndex = app.players.findIndex(p => p === actualPlayer);
-                            if (playerIndex !== -1) {
-                                app.players.splice(playerIndex, 1);
-                                console.log('[AG-Grid] Deleted player at index:', playerIndex);
+                        console.log('[AG-Grid] Found player at index:', playerIndex, 'of', app.players.length);
+
+                        if (playerIndex !== -1) {
+                            // Remove from main array
+                            app.players.splice(playerIndex, 1);
+                            console.log('[AG-Grid] Spliced player, remaining:', app.players.length);
+
+                            // Also remove from filtered array
+                            const filteredIndex = app.filteredPlayers.findIndex(p =>
+                                p === player ||
+                                (p.PFNA === player.PFNA && p.PLNA === player.PLNA && p.TGID === player.TGID && p.PPOS === player.PPOS)
+                            );
+                            if (filteredIndex !== -1) {
+                                app.filteredPlayers.splice(filteredIndex, 1);
                             }
+
+                            // Refresh the grid with updated data
+                            app.agGrid.setGridOption('rowData', [...app.filteredPlayers]);
+
+                            // Mark as modified
+                            app.hasUnsavedChanges = true;
+                            const saveBtn = document.getElementById('saveRosterBtn');
+                            if (saveBtn) saveBtn.style.display = 'inline-block';
+
+                            console.log('[AG-Grid] Player deleted successfully, remaining:', app.players.length);
+                        } else {
+                            console.error('[AG-Grid] Could not find player in array to delete');
                         }
-
-                        // Re-filter and refresh grid
-                        app.filteredPlayers = app.filteredPlayers.filter(p => p !== actualPlayer);
-                        app.agGrid.setGridOption('rowData', app.filteredPlayers);
-
-                        // Mark as modified
-                        app.hasUnsavedChanges = true;
-                        const saveBtn = document.getElementById('saveRosterBtn');
-                        if (saveBtn) saveBtn.style.display = 'inline-block';
-
-                        console.log('[AG-Grid] Player deleted, remaining:', app.players.length);
                     }
                 } else if (action === 'view-player-card') {
                     app.showPlayerCard(rowIndex);

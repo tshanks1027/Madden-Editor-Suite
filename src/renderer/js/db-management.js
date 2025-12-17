@@ -82,6 +82,27 @@
         }
       });
     }
+
+    // Auto-fill missing data buttons
+    var scanMissingBtn = document.getElementById('scanMissingDataBtn');
+    if (scanMissingBtn) {
+      scanMissingBtn.addEventListener('click', scanMissingData);
+    }
+
+    var batchFillBtn = document.getElementById('batchFillDataBtn');
+    if (batchFillBtn) {
+      batchFillBtn.addEventListener('click', startBatchFill);
+    }
+
+    var cancelBatchBtn = document.getElementById('cancelBatchFillBtn');
+    if (cancelBatchBtn) {
+      cancelBatchBtn.addEventListener('click', cancelBatchFill);
+    }
+
+    // Set up progress listener for batch fill
+    if (window.electronAPI && window.electronAPI.playerFill) {
+      window.electronAPI.playerFill.onProgress(handleBatchFillProgress);
+    }
   }
 
   /**
@@ -412,6 +433,221 @@
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  // ==================== Auto-Fill Missing Data Functions ====================
+
+  // Store scanned players for batch fill
+  var missingDataPlayers = [];
+  var isBatchFillRunning = false;
+
+  /**
+   * Scan database for players with missing data
+   */
+  async function scanMissingData() {
+    console.log('[DbManagement] Scanning for missing data...');
+
+    var btn = document.getElementById('scanMissingDataBtn');
+    var btnText = document.getElementById('scanMissingBtnText');
+    var spinner = document.getElementById('scanMissingSpinner');
+    var resultsDiv = document.getElementById('missingDataResults');
+    var countDiv = document.getElementById('missingDataCount');
+    var listDiv = document.getElementById('missingDataList');
+    var batchFillBtn = document.getElementById('batchFillDataBtn');
+
+    // Show loading state
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.style.display = 'none';
+    if (spinner) spinner.style.display = 'inline';
+    if (resultsDiv) resultsDiv.style.display = 'none';
+    if (batchFillBtn) batchFillBtn.style.display = 'none';
+
+    try {
+      if (!window.electronAPI || !window.electronAPI.playerFill) {
+        throw new Error('Player fill API not available');
+      }
+
+      // Scan for players with missing data (limit to 100 for now)
+      console.log('[DbManagement] Calling scanMissing...');
+      missingDataPlayers = await window.electronAPI.playerFill.scanMissing(100);
+      console.log('[DbManagement] Scan returned:', missingDataPlayers.length, 'players');
+      if (missingDataPlayers.length > 0) {
+        console.log('[DbManagement] First player:', JSON.stringify(missingDataPlayers[0]));
+      }
+
+      if (missingDataPlayers.length === 0) {
+        if (countDiv) countDiv.innerHTML = '<span style="color: #4caf50;">No players with missing data found!</span>';
+        if (listDiv) listDiv.textContent = '';
+        if (resultsDiv) resultsDiv.style.display = 'block';
+        return;
+      }
+
+      // Show results
+      if (countDiv) {
+        countDiv.innerHTML = '<span style="color: #f59e0b;">Found ' + missingDataPlayers.length + ' players with missing data</span>';
+      }
+
+      // Build list of first few players
+      if (listDiv) {
+        var listHtml = '';
+        var maxShow = Math.min(5, missingDataPlayers.length);
+        for (var i = 0; i < maxShow; i++) {
+          var p = missingDataPlayers[i];
+          listHtml += p.firstName + ' ' + p.lastName + ' (missing: ' + p.missingFields.join(', ') + ')<br>';
+        }
+        if (missingDataPlayers.length > maxShow) {
+          listHtml += '... and ' + (missingDataPlayers.length - maxShow) + ' more';
+        }
+        listDiv.innerHTML = listHtml;
+      }
+
+      if (resultsDiv) resultsDiv.style.display = 'block';
+      if (batchFillBtn) batchFillBtn.style.display = 'block';
+
+    } catch (error) {
+      console.error('[DbManagement] Scan error:', error);
+      if (countDiv) countDiv.innerHTML = '<span style="color: #e94560;">Error: ' + error.message + '</span>';
+      if (resultsDiv) resultsDiv.style.display = 'block';
+    } finally {
+      // Reset button state
+      if (btn) btn.disabled = false;
+      if (btnText) btnText.style.display = 'inline';
+      if (spinner) spinner.style.display = 'none';
+    }
+  }
+
+  /**
+   * Start batch fill operation
+   */
+  async function startBatchFill() {
+    if (missingDataPlayers.length === 0) {
+      alert('No players to fill. Run scan first.');
+      await forceWindowFocus();
+      return;
+    }
+
+    var confirmed = confirm(
+      'This will scrape Pro-Football-Reference to fill missing data for ' + missingDataPlayers.length + ' players.\n\n' +
+      'This may take a while (about 1.5 seconds per player due to rate limiting).\n\n' +
+      'Continue?'
+    );
+    await forceWindowFocus();
+
+    if (!confirmed) return;
+
+    console.log('[DbManagement] Starting batch fill for', missingDataPlayers.length, 'players');
+
+    isBatchFillRunning = true;
+
+    // Show progress UI
+    var batchFillBtn = document.getElementById('batchFillDataBtn');
+    var progressDiv = document.getElementById('batchFillProgress');
+    var statusEl = document.getElementById('batchFillStatus');
+    var counterEl = document.getElementById('batchFillCounter');
+    var progressBar = document.getElementById('batchFillProgressBar');
+
+    if (batchFillBtn) batchFillBtn.style.display = 'none';
+    if (progressDiv) progressDiv.style.display = 'block';
+    if (statusEl) statusEl.textContent = 'Starting...';
+    if (counterEl) counterEl.textContent = '0/' + missingDataPlayers.length;
+    if (progressBar) progressBar.style.width = '0%';
+
+    try {
+      // Get player IDs to fill
+      var playerIds = missingDataPlayers.map(function(p) { return p.id; });
+
+      // Start batch fill
+      var result = await window.electronAPI.playerFill.batchFill({
+        playerIds: playerIds
+      });
+
+      console.log('[DbManagement] Batch fill complete:', JSON.stringify(result, null, 2));
+      console.log('[DbManagement] Success:', result.success, 'Failed:', result.failed, 'Skipped:', result.skipped);
+
+      // Log individual results for debugging
+      if (result.results && result.results.length > 0) {
+        console.log('[DbManagement] First 5 results:', result.results.slice(0, 5).map(function(r) {
+          return r.playerName + ': ' + (r.success ? 'filled ' + r.fieldsUpdated.join(',') : 'FAILED - ' + r.error);
+        }));
+      }
+
+      // Show final results
+      alert(
+        'Batch fill complete!\n\n' +
+        'Successfully filled: ' + result.success + '\n' +
+        'Failed: ' + result.failed + '\n' +
+        'Skipped (no data): ' + result.skipped
+      );
+      await forceWindowFocus();
+
+      // Refresh player browser if open
+      if (typeof window.refreshPlayerBrowser === 'function') {
+        window.refreshPlayerBrowser();
+      }
+
+    } catch (error) {
+      console.error('[DbManagement] Batch fill error:', error);
+      alert('Batch fill error: ' + error.message);
+      await forceWindowFocus();
+    } finally {
+      isBatchFillRunning = false;
+
+      // Reset UI
+      if (progressDiv) progressDiv.style.display = 'none';
+      if (batchFillBtn) batchFillBtn.style.display = 'block';
+
+      // Re-scan to update list
+      await scanMissingData();
+    }
+  }
+
+  /**
+   * Cancel batch fill operation
+   */
+  async function cancelBatchFill() {
+    if (!isBatchFillRunning) return;
+
+    console.log('[DbManagement] Cancelling batch fill...');
+
+    try {
+      await window.electronAPI.playerFill.cancelBatch();
+    } catch (error) {
+      console.error('[DbManagement] Cancel error:', error);
+    }
+  }
+
+  /**
+   * Handle batch fill progress events
+   */
+  function handleBatchFillProgress(data) {
+    if (!isBatchFillRunning) return;
+
+    var statusEl = document.getElementById('batchFillStatus');
+    var counterEl = document.getElementById('batchFillCounter');
+    var progressBar = document.getElementById('batchFillProgressBar');
+
+    if (statusEl) {
+      var statusText = data.playerName ? (data.status === 'searching' ? 'Searching: ' : 'Filling: ') + data.playerName : data.message || data.status;
+      statusEl.textContent = statusText;
+    }
+
+    if (counterEl) {
+      counterEl.textContent = data.current + '/' + data.total;
+    }
+
+    if (progressBar && data.total > 0) {
+      var percent = (data.current / data.total) * 100;
+      progressBar.style.width = percent + '%';
+
+      // Change color based on status
+      if (data.status === 'error') {
+        progressBar.style.background = '#e94560';
+      } else if (data.status === 'complete') {
+        progressBar.style.background = '#4caf50';
+      } else {
+        progressBar.style.background = '#3b82f6';
+      }
+    }
   }
 
   // Expose public functions

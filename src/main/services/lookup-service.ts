@@ -696,6 +696,7 @@ export class LookupService {
       av: row.av || 0,
       devTrait: row.dev_trait || '',
       ratings: {
+        // Original field names from database
         POVR: row.POVR, PSPD: row.PSPD, PACC: row.PACC, PSTR: row.PSTR, PAGI: row.PAGI,
         PAWR: row.PAWR, PCTH: row.PCTH, PCAR: row.PCAR, PTHP: row.PTHP, PKPW: row.PKPW,
         PKAC: row.PKAC, PRBK: row.PRBK, PPBK: row.PPBK, PTAK: row.PTAK, PBTK: row.PBTK,
@@ -707,7 +708,18 @@ export class LookupService {
         PSPC: row.PSPC, PCIT: row.PCIT, PSRR: row.PSRR, PMRR: row.PMRR, PDRR: row.PDRR,
         PHTP: row.PHTP, PPRS: row.PPRS, PREL: row.PREL, PTAS: row.PTAS, PTAM: row.PTAM,
         PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT, PLTR: row.PLTR,
-        PELU: row.PELU
+        PELU: row.PELU,
+        // M26 field name aliases (frontend uses these)
+        PPWR: row.PTHP,   // Throw Power (M26) = PTHP (old)
+        PSTM: row.PSTA,   // Stamina (M26) = PSTA (old)
+        PSFA: row.PSTF,   // Stiff Arm (M26) = PSTF (old)
+        PSPN: row.PSPM,   // Spin Move (M26) = PSPM (old)
+        PJKM: row.PJUM,   // Juke Move (M26) = PJUM (old)
+        PIBK: row.PIBL,   // Impact Blocking (M26) = PIBL (old)
+        PHIT: row.PHTP,   // Hit Power (M26) = PHTP (old)
+        PFMV: row.PFNM,   // Finesse Moves (M26) = PFNM (old)
+        PRNS: row.PRBP,   // Run Block Power (M26) = PRBP (old)
+        PKPR: row.PKPW    // Kick Power (M26) = PKPW (old)
       }
     };
   }

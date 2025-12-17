@@ -98,6 +98,47 @@ export interface DraftProspect {
 }
 
 /**
+ * Extended biographical data from PFR player page
+ */
+export interface ExtendedBioData {
+  // Basic bio
+  hometown?: string;      // City name
+  homeState?: string;     // Two-letter state code
+  height?: string;        // "6-2" format
+  weight?: number;        // In pounds
+  college?: string;       // College name
+
+  // Birth info
+  birthDate?: string;     // "Month DD, YYYY"
+  birthPlace?: string;    // Full "City, State" string
+
+  // Draft info
+  draftYear?: number;     // Year drafted
+  draftRound?: string;    // Round (1, 2, ... or "UDFA")
+  draftPick?: number;     // Overall pick number
+  draftTeam?: string;     // Team that drafted player
+
+  // Career span
+  careerFrom?: number;    // First year in NFL
+  careerTo?: number;      // Last year in NFL
+
+  // Career history by year
+  careerHistory?: CareerYearData[];
+}
+
+/**
+ * Per-year career data from PFR
+ */
+export interface CareerYearData {
+  year: number;
+  team: string;           // Full team name
+  jersey?: number;        // Jersey number
+  gamesPlayed?: number;
+  gamesStarted?: number;
+  position?: string;
+}
+
+/**
  * Scraper Service Class
  */
 export class ScraperService {
@@ -992,6 +1033,379 @@ export class ScraperService {
 
     } catch (error) {
       console.warn(`[ScraperService] Could not scrape bio for ${playerName}:`, error);
+      await page.close();
+      return null;
+    }
+  }
+
+  /**
+   * Scrape extended player biographical data from pro-football-reference.com
+   * Gets hometown, state, height, weight, college, and career history (team/jersey per year)
+   * @param playerName - Player's full name
+   * @returns Extended bio data including career history, or null if not found
+   */
+  async scrapePlayerBioExtended(playerName: string): Promise<ExtendedBioData | null> {
+    await this.initBrowser();
+
+    if (!this.browser) {
+      return null;
+    }
+
+    const page = await this.browser.newPage();
+
+    try {
+      console.log(`[ScraperService] Scraping extended bio for ${playerName}`);
+
+      // Search for player
+      const searchUrl = `https://www.pro-football-reference.com/search/search.fcgi?search=${encodeURIComponent(playerName)}`;
+      await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+      // Wait for stats table to load (PFR may load it dynamically)
+      try {
+        await page.waitForSelector('table.stats_table', { timeout: 5000 });
+      } catch (e) {
+        console.log(`[ScraperService] No stats_table found after waiting, continuing...`);
+      }
+
+      // Extract extended bio data from meta section and career tables
+      const bioData = await page.evaluate(() => {
+        const data: {
+          hometown?: string;
+          homeState?: string;
+          height?: string;
+          weight?: number;
+          college?: string;
+          birthDate?: string;
+          birthPlace?: string;
+          careerHistory?: Array<{
+            year: number;
+            team: string;
+            jersey?: number;
+            gamesPlayed?: number;
+            gamesStarted?: number;
+            position?: string;
+          }>;
+          _debug?: string[];
+        } = { _debug: [] };
+
+        // ===== Extract Bio from JSON-LD schema.org data (most reliable) =====
+        var jsonLdScript = document.querySelector('script[type="application/ld+json"]');
+        if (jsonLdScript) {
+          try {
+            var jsonLd = JSON.parse(jsonLdScript.textContent || '{}');
+            data._debug?.push('Found JSON-LD data');
+
+            // Extract height from schema.org
+            if (jsonLd.height && jsonLd.height.value) {
+              data.height = jsonLd.height.value;
+              data._debug?.push('JSON-LD height: ' + data.height);
+            }
+
+            // Extract weight from schema.org
+            if (jsonLd.weight && jsonLd.weight.value) {
+              var weightStr = jsonLd.weight.value.toString().replace(/[^\d]/g, '');
+              data.weight = parseInt(weightStr) || undefined;
+              data._debug?.push('JSON-LD weight: ' + data.weight);
+            }
+
+            // Extract birthPlace from schema.org
+            // birthPlace can be a string like "Shelbyville, IN, USA" or an object with .name
+            var birthPlaceValue = null;
+            if (typeof jsonLd.birthPlace === 'string') {
+              birthPlaceValue = jsonLd.birthPlace;
+            } else if (jsonLd.birthPlace && jsonLd.birthPlace.name) {
+              birthPlaceValue = jsonLd.birthPlace.name;
+            }
+
+            if (birthPlaceValue) {
+              data.birthPlace = birthPlaceValue;
+              data._debug?.push('JSON-LD birthPlace: ' + data.birthPlace);
+
+              // Parse "City, ST" or "City, ST, USA" format into hometown and state
+              // Look for: City name, then 2-letter state code, then optional ", USA" or end
+              var placeMatch = data.birthPlace.match(/^([^,]+),\s*([A-Z]{2})(?:,|$)/i);
+              if (placeMatch) {
+                data.hometown = placeMatch[1].trim();
+                var stAbbr = placeMatch[2].toUpperCase();
+                // Map state abbreviation to full name
+                var stateMap = {
+                  'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
+                  'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',
+                  'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho',
+                  'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
+                  'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+                  'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+                  'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada',
+                  'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York',
+                  'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
+                  'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+                  'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
+                  'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
+                  'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia'
+                };
+                data.homeState = stateMap[stAbbr] || stAbbr;
+                data._debug?.push('Parsed hometown: ' + data.hometown + ', state: ' + data.homeState);
+              } else {
+                data._debug?.push('Could not parse birthPlace: ' + data.birthPlace);
+              }
+            }
+          } catch (e) {
+            data._debug?.push('JSON-LD parse error');
+          }
+        }
+
+        // ===== Extract Bio from #meta section (fallback/additional data) =====
+        // Try multiple selectors - PFR uses different structures
+        const metaDiv = document.querySelector('#meta');
+        if (!metaDiv) {
+          data._debug?.push('No #meta div found');
+        } else {
+          // Get all text content from meta section
+          const metaText = metaDiv.textContent || '';
+          data._debug?.push('Meta text length: ' + metaText.length);
+
+          // Extract Born info from full meta text
+          // Format: "Born: November 19, 1947 in Shelbyville, IN"
+          // Try to find date and location separately for robustness
+
+          // First, get the birth date
+          const dateMatch = metaText.match(/Born:\s*([A-Za-z]+\s+\d+,\s+\d{4})/i);
+          if (dateMatch) {
+            data.birthDate = dateMatch[1].trim();
+            data._debug?.push('Birth date: ' + data.birthDate);
+          }
+
+          // Then, find "in City, ST" pattern - look for text after "in" before a parenthesis or newline
+          // First find the born line to narrow down the search
+          const bornLineMatch = metaText.match(/Born:[^6-9]*/i); // Stop before height numbers
+          const bornLine = bornLineMatch ? bornLineMatch[0] : '';
+          data._debug?.push('Born line: ' + bornLine.substring(0, 150));
+
+          // State abbreviation to full name mapping (plain JS object, no TypeScript)
+          var stateAbbrevToName = {
+            'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
+            'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',
+            'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho',
+            'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
+            'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+            'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+            'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada',
+            'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York',
+            'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
+            'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+            'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
+            'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
+            'WI': 'Wisconsin', 'WY': 'Wyoming', 'DC': 'District of Columbia'
+          };
+
+          // Only try text parsing for location if JSON-LD didn't provide it
+          if (!data.hometown || !data.homeState) {
+            // Look for "in City, ST" pattern - try multiple formats
+            // Format 1: "in Shelbyville, IN" with comma
+            // Format 2: "in Shelbyville IN" without comma
+            // Use case-insensitive matching
+            var locationMatch = bornLine.match(/\bin\s+([A-Za-z][A-Za-z\s\.'-]*),?\s*([A-Za-z]{2})(?:\s|$|[^a-zA-Z])/i);
+            if (locationMatch) {
+              data.hometown = locationMatch[1].trim().replace(/,\s*$/, '');
+              var stateAbbrev = locationMatch[2].toUpperCase();
+              data.homeState = stateAbbrevToName[stateAbbrev] || stateAbbrev;
+              data.birthPlace = data.hometown + ', ' + data.homeState;
+              data._debug?.push('Text location match: [' + locationMatch[1] + '] [' + stateAbbrev + '] -> ' + data.homeState);
+            } else {
+              // Try alternate: look for two-letter state code after comma anywhere in born line
+              var stateMatch = bornLine.match(/,\s*([A-Za-z]{2})(?:\s|$|[^a-zA-Z])/i);
+              if (stateMatch) {
+                var stAbbrev = stateMatch[1].toUpperCase();
+                data.homeState = stateAbbrevToName[stAbbrev] || stAbbrev;
+                data._debug?.push('Text state-only match: ' + stAbbrev + ' -> ' + data.homeState);
+
+                // Try to extract city before the state
+                var cityMatch = bornLine.match(/in\s+([A-Za-z][A-Za-z\s\.'-]*?)(?:,|\s+[A-Za-z]{2})/i);
+                if (cityMatch) {
+                  data.hometown = cityMatch[1].trim();
+                  data.birthPlace = data.hometown + ', ' + data.homeState;
+                }
+              } else {
+                data._debug?.push('No text location match. Born line: ' + bornLine.substring(0, 200));
+              }
+            }
+          }
+
+          // Only try text parsing for height/weight if JSON-LD didn't provide it
+          if (!data.height || !data.weight) {
+            // Extract height/weight - format: "6-3, 208lb" or "6-3 208lb"
+            // Look for pattern: digit, hyphen, digit(s), optional comma/space, digits, "lb"
+            var hwMatch = metaText.match(/([4-8])-(\d{1,2}),?\s*(\d{2,3})\s*lb/i);
+            if (hwMatch) {
+              var feet = parseInt(hwMatch[1]);
+              var inches = parseInt(hwMatch[2]);
+              // Validate inches is reasonable (0-11)
+              if (inches >= 0 && inches <= 11) {
+                if (!data.height) data.height = feet + '-' + inches;
+                if (!data.weight) data.weight = parseInt(hwMatch[3]);
+                data._debug?.push('Text height/weight: ' + hwMatch[0] + ' -> ' + data.height + ', ' + data.weight + 'lb');
+              } else {
+                data._debug?.push('Invalid inches (' + inches + '): ' + hwMatch[0]);
+              }
+            } else {
+              data._debug?.push('No text height/weight match');
+            }
+          }
+
+          // Extract college from link
+          const collegeLink = metaDiv.querySelector('a[href*="/schools/"]');
+          if (collegeLink) {
+            data.college = collegeLink.textContent?.trim() || '';
+            data._debug?.push('College: ' + data.college);
+          }
+
+          // Extract draft info from meta section (metaText already declared above)
+          // Format: "Draft: Detroit Lions in the 1st round (3rd overall) of the 1989 NFL Draft."
+          const draftMatch = metaText.match(/Draft:\s*(.+?)\s+in\s+the\s+(\d+)(?:st|nd|rd|th)\s+round\s*\((\d+)(?:st|nd|rd|th)\s+overall\)\s+of\s+the\s+(\d{4})\s+NFL\s+Draft/i);
+          if (draftMatch) {
+            data.draftTeam = draftMatch[1].trim();
+            data.draftRound = draftMatch[2];
+            data.draftPick = parseInt(draftMatch[3]);
+            data.draftYear = parseInt(draftMatch[4]);
+            data._debug?.push('Draft: Round ' + data.draftRound + ', Pick ' + data.draftPick + ', Year ' + data.draftYear);
+          } else if (metaText.toLowerCase().includes('undrafted')) {
+            data.draftRound = 'UDFA';
+            data._debug?.push('Draft: Undrafted');
+          }
+        }
+
+        // ===== Extract Career History =====
+        data.careerHistory = [];
+
+        // PFR tables: look for first table with stats_table class that has year data
+        // Tables may be wrapped in divs like #all_rushing_and_receiving
+        const allStatsTables = document.querySelectorAll('table.stats_table');
+        let statsTable: Element | null = null;
+        let foundTableId = '';
+
+        for (const table of Array.from(allStatsTables)) {
+          // Check if this table has year data (Season column)
+          const firstDataRow = table.querySelector('tbody tr:not(.thead)');
+          if (firstDataRow) {
+            // Look for year in first th or td
+            const firstCell = firstDataRow.querySelector('th, td');
+            const cellText = firstCell?.textContent?.trim() || '';
+            if (cellText.match(/^\d{4}/)) {
+              statsTable = table;
+              foundTableId = table.id || 'stats_table';
+              break;
+            }
+          }
+        }
+
+        data._debug?.push('Career table search: found=' + (statsTable ? foundTableId : 'none') + ', total stats_tables=' + allStatsTables.length);
+
+        if (statsTable) {
+          const rows = statsTable.querySelectorAll('tbody tr');
+          data._debug?.push('Career table rows found: ' + rows.length);
+
+          let processedRows = 0;
+          for (const row of Array.from(rows)) {
+            // Skip header/section rows
+            if (row.classList.contains('thead') || row.classList.contains('partial_table')) continue;
+            // Skip summary rows (Career, avg rows)
+            const rowText = row.textContent || '';
+            if (rowText.includes('Career') || rowText.includes('Yrs') || rowText.includes('Game Avg')) continue;
+
+            // Get year from first cell (th or td)
+            const yearCell = row.querySelector('th[data-stat="year_id"], td[data-stat="year_id"], th:first-child, td:first-child');
+            const yearText = yearCell?.textContent?.trim() || '';
+            // Extract just the year number (PFR may have links like "1989*" or "1989")
+            const yearMatch = yearText.match(/^(\d{4})/);
+            const year = yearMatch ? parseInt(yearMatch[1]) : NaN;
+
+            if (isNaN(year) || year < 1920 || year > 2100) {
+              continue;
+            }
+
+            // Get team - try data-stat="team_id" first, then look for team link
+            const teamCell = row.querySelector('td[data-stat="team_id"], td[data-stat="team"]');
+            let team = '';
+            if (teamCell) {
+              const teamLink = teamCell.querySelector('a');
+              team = (teamLink?.textContent || teamCell.textContent)?.trim() || '';
+            }
+
+            // Get games played/started
+            const gamesCell = row.querySelector('td[data-stat="g"]');
+            const startsCell = row.querySelector('td[data-stat="gs"]');
+            const gamesPlayed = gamesCell ? parseInt(gamesCell.textContent?.trim() || '') : undefined;
+            const gamesStarted = startsCell ? parseInt(startsCell.textContent?.trim() || '') : undefined;
+
+            // Get position
+            const posCell = row.querySelector('td[data-stat="pos"]');
+            const position = posCell?.textContent?.trim();
+
+            data.careerHistory.push({
+              year,
+              team: team || 'Unknown',
+              gamesPlayed: !isNaN(gamesPlayed!) ? gamesPlayed : undefined,
+              gamesStarted: !isNaN(gamesStarted!) ? gamesStarted : undefined,
+              position
+            });
+            processedRows++;
+          }
+          data._debug?.push('Career history entries added: ' + data.careerHistory.length);
+        } else {
+          // Debug: list all tables on page
+          const allTables = document.querySelectorAll('table');
+          const tableIds = Array.from(allTables).slice(0, 10).map(t => t.id || t.className || 'unnamed').join(', ');
+          data._debug?.push('No stats table found. Tables: ' + tableIds);
+        }
+
+        // Calculate career span from career history
+        data._debug?.push('careerHistory length: ' + (data.careerHistory ? data.careerHistory.length : 0));
+        if (data.careerHistory && data.careerHistory.length > 0) {
+          const years = data.careerHistory.map(ch => ch.year).filter(y => y > 1900);
+          data._debug?.push('Filtered years array: ' + JSON.stringify(years));
+          if (years.length > 0) {
+            data.careerFrom = Math.min(...years);
+            data.careerTo = Math.max(...years);
+            data._debug?.push('Career span calculated: ' + data.careerFrom + '-' + data.careerTo);
+          } else {
+            data._debug?.push('No valid years found in careerHistory');
+          }
+        } else {
+          data._debug?.push('No careerHistory to calculate span from');
+        }
+
+        // Fallback: use draft year as careerFrom if we have it and no career span yet
+        if (!data.careerFrom && data.draftYear) {
+          data.careerFrom = data.draftYear;
+          data._debug?.push('Using draft year as careerFrom fallback: ' + data.careerFrom);
+        }
+
+        return data;
+      });
+
+      console.log(`[ScraperService] Scraped extended bio for ${playerName}:`);
+      console.log(`  hometown=${bioData.hometown}`);
+      console.log(`  homeState=${bioData.homeState}`);
+      console.log(`  height=${bioData.height}`);
+      console.log(`  weight=${bioData.weight}`);
+      console.log(`  college=${bioData.college}`);
+      console.log(`  draft=${bioData.draftYear ? `Round ${bioData.draftRound}, Pick ${bioData.draftPick}, ${bioData.draftYear}` : bioData.draftRound || 'N/A'}`);
+      console.log(`  career=${bioData.careerFrom}-${bioData.careerTo} (${bioData.careerHistory?.length || 0} seasons)`);
+
+      // Log debug info
+      if ((bioData as any)._debug && (bioData as any)._debug.length > 0) {
+        console.log(`[ScraperService] Debug info:`);
+        (bioData as any)._debug.forEach((msg: string) => console.log(`  ${msg}`));
+      }
+
+      // Remove debug info before returning
+      delete (bioData as any)._debug;
+
+      await page.close();
+      return bioData as ExtendedBioData;
+
+    } catch (error) {
+      console.warn(`[ScraperService] Could not scrape extended bio for ${playerName}:`, error);
       await page.close();
       return null;
     }

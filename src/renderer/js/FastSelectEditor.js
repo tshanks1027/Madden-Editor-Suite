@@ -126,13 +126,19 @@ export class FastSelectEditor {
     }
 
     afterGuiAttached() {
-        console.log('[FastSelectEditor] afterGuiAttached called, focusing input');
-        this.eInput.focus();
-        this.eInput.select();
-        this.positionDropdown();
-        this.openDropdown();
-        console.log('[FastSelectEditor] Input focused:', document.activeElement === this.eInput);
-        console.log('[FastSelectEditor] Values count:', this.values.length);
+        console.log('[FastSelectEditor] afterGuiAttached called');
+        // Use requestAnimationFrame to ensure DOM is ready before focusing
+        // This prevents timing issues where focus() fails silently
+        requestAnimationFrame(() => {
+            if (this.eInput) {
+                this.eInput.focus();
+                this.eInput.select();
+                console.log('[FastSelectEditor] Input focused:', document.activeElement === this.eInput);
+            }
+            this.positionDropdown();
+            this.openDropdown();
+            console.log('[FastSelectEditor] Values count:', this.values.length);
+        });
     }
 
     getValue() {
