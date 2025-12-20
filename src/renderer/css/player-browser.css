@@ -145,7 +145,7 @@
 
 .player-browser-results-header {
   display: grid;
-  grid-template-columns: 2fr 80px 1.2fr 100px 90px 180px;
+  grid-template-columns: 3fr 1fr 2fr 1fr 1fr 1fr;
   gap: 8px;
   padding: 10px 20px;
   background: #2a2a2a;
@@ -165,7 +165,7 @@
 /* Result Rows */
 .player-browser-row {
   display: grid;
-  grid-template-columns: 2fr 80px 1.2fr 100px 90px 180px;
+  grid-template-columns: 3fr 1fr 2fr 1fr 1fr 1fr;
   gap: 8px;
   padding: 12px 20px;
   border-bottom: 1px solid #2a2a2a;

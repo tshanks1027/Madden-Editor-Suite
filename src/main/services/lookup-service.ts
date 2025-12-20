@@ -104,19 +104,33 @@ export class LookupService {
     try {
       // Initialize SQLite database
       const dbPath = this.resolveDataPath('players.db');
+      console.log(`[lookup-service] Attempting to open database at: ${dbPath}`);
+      console.log(`[lookup-service] app.getAppPath(): ${app.getAppPath()}`);
+      console.log(`[lookup-service] Database file exists: ${fs.existsSync(dbPath)}`);
 
       if (fs.existsSync(dbPath)) {
         this.db = new Database(dbPath, { readonly: true });
-        console.log(`[lookup-service] SQLite database opened: ${dbPath}`);
+        console.log(`[lookup-service] SQLite database opened successfully: ${dbPath}`);
 
         // Load lookup tables from database
         this.loadLookupsFromDatabase();
+
+        // Fallback to CSV for any lookup tables that are empty in database
+        console.log(`[lookup-service] College cache check - exists: ${!!this.cache['college_lookup.csv']}, size: ${this.cache['college_lookup.csv']?.size || 0}`);
+        if (!this.cache['college_lookup.csv'] || this.cache['college_lookup.csv'].size === 0) {
+          console.log('[lookup-service] Loading colleges from CSV fallback...');
+          await this.loadLookupFile('college_lookup.csv');
+          console.log(`[lookup-service] After CSV load - college cache size: ${this.cache['college_lookup.csv']?.size || 0}`);
+        }
 
         // Load archetypes from CSV (not in database)
         await this.loadLookupFile('archetype_lookup.csv');
 
         // Load player data from database into cache for fast access
         this.loadPlayersFromDatabase();
+
+        // Merge in PIDs from PID_lookup.csv (fills in missing PIDs)
+        await this.mergePIDLookupData();
       } else {
         console.warn(`[lookup-service] Database not found at ${dbPath}, falling back to CSV`);
         // Fallback to CSV loading
@@ -160,14 +174,33 @@ export class LookupService {
     console.log(`[lookup-service] Loaded ${teams.length} teams from database`);
 
     // Load colleges
-    const colleges = this.db.prepare('SELECT madden_id, name FROM colleges').all() as { madden_id: number; name: string }[];
-    this.cache['college_lookup.csv'] = new Map();
-    this.reverseCache['college_lookup.csv'] = new Map();
-    for (const row of colleges) {
-      this.cache['college_lookup.csv'].set(row.madden_id, row.name);
-      this.reverseCache['college_lookup.csv'].set(row.name, row.madden_id);
+    try {
+      const colleges = this.db.prepare('SELECT madden_id, name FROM colleges').all() as { madden_id: number; name: string }[];
+      console.log(`[lookup-service] Raw college query returned ${colleges.length} rows`);
+      if (colleges.length > 0) {
+        console.log(`[lookup-service] First 3 college rows:`, colleges.slice(0, 3));
+      }
+      this.cache['college_lookup.csv'] = new Map();
+      this.reverseCache['college_lookup.csv'] = new Map();
+      if (colleges.length > 0) {
+        for (const row of colleges) {
+          this.cache['college_lookup.csv'].set(row.madden_id, row.name);
+          this.reverseCache['college_lookup.csv'].set(row.name, row.madden_id);
+        }
+        console.log(`[lookup-service] Loaded ${colleges.length} colleges from database`);
+        // Verify cache contents
+        const cacheEntries = Array.from(this.cache['college_lookup.csv'].entries()).slice(0, 3);
+        console.log(`[lookup-service] College cache sample:`, cacheEntries);
+      } else {
+        console.log(`[lookup-service] No colleges in database (0 rows), will load from CSV`);
+      }
+    } catch (dbError: any) {
+      console.error(`[lookup-service] Error loading colleges from database:`, dbError.message);
+      console.log(`[lookup-service] Will load colleges from CSV fallback`);
+      // Ensure cache exists for fallback check
+      this.cache['college_lookup.csv'] = new Map();
+      this.reverseCache['college_lookup.csv'] = new Map();
     }
-    console.log(`[lookup-service] Loaded ${colleges.length} colleges from database`);
 
     // Load states
     const states = this.db.prepare('SELECT madden_id, name FROM states').all() as { madden_id: number; name: string }[];
@@ -297,6 +330,118 @@ export class LookupService {
     for (const fileName of lookupFiles) {
       await this.loadLookupFile(fileName);
     }
+
+    // After loading ALL_PLAYER_LOOKUP, merge in PIDs from PID_lookup.csv
+    await this.mergePIDLookupData();
+  }
+
+  // Merge PID data from PID_lookup.csv into fullDataCache
+  private async mergePIDLookupData(): Promise<void> {
+    try {
+      const filePath = this.resolveDataPath('lookups', 'PID_lookup.csv');
+
+      if (!fs.existsSync(filePath)) {
+        console.warn('[lookup-service] PID_lookup.csv not found, skipping merge');
+        return;
+      }
+
+      const csvContent = fs.readFileSync(filePath, 'utf-8');
+      const lines = csvContent.trim().split('\n');
+
+      if (lines.length < 2) {
+        console.warn('[lookup-service] PID_lookup.csv is empty');
+        return;
+      }
+
+      console.log(`[lookup-service] Merging PIDs from PID_lookup.csv (${lines.length - 1} entries)`);
+
+      let addedCount = 0;
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      // Build a map of existing names (lowercase) to their entries for matching
+      const nameToEntryMap = new Map<string, FullDataEntry>();
+      this.fullDataCache.forEach((entry) => {
+        const fullName = `${entry.firstName} ${entry.lastName}`.toLowerCase().trim();
+        const lastFirst = `${entry.lastName}, ${entry.firstName}`.toLowerCase().trim();
+        if (!nameToEntryMap.has(fullName)) {
+          nameToEntryMap.set(fullName, entry);
+        }
+        if (!nameToEntryMap.has(lastFirst)) {
+          nameToEntryMap.set(lastFirst, entry);
+        }
+      });
+
+      // Parse PID_lookup.csv (format: PSXP,Player Pic)
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(',');
+        if (parts.length < 2) continue;
+
+        const pid = parseInt(parts[0].trim());
+        const playerName = parts[1].trim();
+
+        if (!pid || pid <= 0 || !playerName) continue;
+
+        // Try to find existing entry by name
+        const nameLower = playerName.toLowerCase();
+        const existingEntry = nameToEntryMap.get(nameLower);
+
+        if (existingEntry) {
+          // Update existing entry with PID if it doesn't have one
+          if (!existingEntry.pid || existingEntry.pid === 0) {
+            existingEntry.pid = pid;
+            // Update the pidToInternalIdMap
+            if (!this.pidToInternalIdMap.has(pid)) {
+              this.pidToInternalIdMap.set(pid, []);
+            }
+            this.pidToInternalIdMap.get(pid)!.push(existingEntry.internalId);
+            updatedCount++;
+          } else {
+            skippedCount++;
+          }
+        } else {
+          // Add new entry for player only in PID_lookup
+          const newInternalId = 100000 + i; // Use high IDs to avoid conflicts
+
+          // Parse name - could be "First Last" or "First Last (R)" for rookies
+          const cleanName = playerName.replace(/\s*\(R\)\s*$/, '').trim();
+          const nameParts = cleanName.split(' ');
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+
+          const newEntry: FullDataEntry = {
+            internalId: newInternalId,
+            lastName: lastName,
+            firstName: firstName,
+            college: '',
+            round: '',
+            pick: '',
+            draftClass: '',
+            position: '',
+            pid: pid,
+            pam: '',
+            commID: '',
+            presID: '',
+            plpo: ''
+          };
+
+          this.fullDataCache.set(newInternalId, newEntry);
+          if (!this.pidToInternalIdMap.has(pid)) {
+            this.pidToInternalIdMap.set(pid, []);
+          }
+          this.pidToInternalIdMap.get(pid)!.push(newInternalId);
+          addedCount++;
+        }
+      }
+
+      console.log(`[lookup-service] PID merge complete: ${updatedCount} updated, ${addedCount} added, ${skippedCount} already had PID`);
+      console.log(`[lookup-service] Total entries in fullDataCache: ${this.fullDataCache.size}`);
+    } catch (error) {
+      console.error('[lookup-service] Error merging PID_lookup.csv:', error);
+    }
   }
 
   private async loadLookupFile(fileName: string): Promise<void> {
@@ -320,17 +465,19 @@ export class LookupService {
       }
 
       const filePath = this.resolveDataPath('lookups', fileName);
+      console.log(`[lookup-service] Loading CSV file: ${filePath}`);
 
       if (!fs.existsSync(filePath)) {
-        console.warn(`Lookup file not found: ${filePath}`);
+        console.warn(`[lookup-service] Lookup file not found: ${filePath}`);
         return;
       }
 
       const csvContent = fs.readFileSync(filePath, 'utf-8');
       const lines = csvContent.trim().split('\n');
+      console.log(`[lookup-service] CSV ${fileName} has ${lines.length} lines`);
 
       if (lines.length < 2) {
-        console.warn(`Invalid lookup file format: ${fileName}`);
+        console.warn(`[lookup-service] Invalid lookup file format: ${fileName}`);
         return;
       }
 
@@ -339,6 +486,7 @@ export class LookupService {
       this.reverseCache[fileName] = new Map<string, number>();
 
       // Parse data rows
+      let parsedCount = 0;
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
@@ -350,10 +498,11 @@ export class LookupService {
           const cleanName = name.replace(/^"(.*)"$/, '$1');
           this.cache[fileName].set(id, cleanName);
           this.reverseCache[fileName].set(cleanName, id);
+          parsedCount++;
         }
       }
 
-      console.log(`Loaded ${this.cache[fileName].size} entries from ${fileName}`);
+      console.log(`[lookup-service] Loaded ${this.cache[fileName].size} entries from ${fileName} (parsed ${parsedCount} valid rows)`);
     } catch (error) {
       console.error(`Error loading lookup file ${fileName}:`, error);
     }
@@ -814,13 +963,21 @@ export class LookupService {
 
     const lookup = this.cache[fileName];
     if (!lookup) {
+      console.log(`[lookup-service] getDropdownOptions('${fileName}') - cache not found`);
       return [];
     }
 
+    console.log(`[lookup-service] getDropdownOptions('${fileName}') - cache size: ${lookup.size}`);
+
     const options: LookupEntry[] = [];
     lookup.forEach((name, id) => {
-      options.push({ id, name });
+      // Filter out entries with empty names (some college IDs have no name in the lookup)
+      if (name && name.trim()) {
+        options.push({ id, name: name.trim() });
+      }
     });
+
+    console.log(`[lookup-service] getDropdownOptions('${fileName}') - valid options: ${options.length}`);
 
     // Sort by name for better UX
     return options.sort((a, b) => a.name.localeCompare(b.name));

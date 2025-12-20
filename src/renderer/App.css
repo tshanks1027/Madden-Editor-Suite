@@ -321,11 +321,17 @@ body {
 }
 
 /* All header cells - pinned and scrollable */
+/* Embossed/3D effect - raised text with light/dark edges */
 .team-view-active .ag-theme-alpine .ag-header-cell {
   background: transparent !important;
-  color: #ffffff !important;
-  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+  color: var(--team-secondary) !important;
+  text-shadow:
+    -1px -1px 1px rgba(255, 255, 255, 0.4),
+    1px 1px 1px rgba(0, 0, 0, 0.6),
+    2px 2px 3px rgba(0, 0, 0, 0.3) !important;
   border-right: 1px solid rgba(255, 255, 255, 0.2) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
 }
 
 .team-view-active .ag-theme-alpine .ag-header-cell:hover {
@@ -340,7 +346,7 @@ body {
 
 /* Header cell label text color */
 .team-view-active .ag-theme-alpine .ag-header-cell-label {
-  color: #ffffff !important;
+  color: var(--team-secondary) !important;
 }
 
 /* Ensure header group cells are also transparent */
@@ -354,13 +360,13 @@ body {
   color: #ffffff !important;
 }
 
-/* Team row selection - use team colors */
+/* Team row selection - use team colors (secondary bg, primary text) */
 .team-view-active .ag-theme-alpine .ag-row-selected,
 .team-view-active .ag-theme-alpine .ag-row-selected .ag-cell,
 .team-view-active .ag-theme-alpine .ag-row-selected .ag-cell[style] {
-  background-color: var(--team-primary) !important;
-  background: var(--team-primary) !important;
-  color: #ffffff !important;
+  background-color: var(--team-secondary) !important;
+  background: var(--team-secondary) !important;
+  color: var(--team-primary) !important;
 }
 
 /* Team selection for pinned columns */
@@ -369,9 +375,9 @@ body {
 .team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell[style],
 .team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .portrait-cell,
 .team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .row-number-cell {
-  background-color: var(--team-primary) !important;
-  background: var(--team-primary) !important;
-  color: #ffffff !important;
+  background-color: var(--team-secondary) !important;
+  background: var(--team-secondary) !important;
+  color: var(--team-primary) !important;
 }
 
 /* Team pinned column border */

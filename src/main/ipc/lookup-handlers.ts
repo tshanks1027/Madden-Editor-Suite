@@ -49,19 +49,30 @@ ipcMain.handle('lookup:get-dropdown-options', async (event, fileName: string) =>
       options = lookupService.getDropdownOptions('ALL_PLAYER_LOOKUP.csv');
       // Transform to include all fields
       // IMPORTANT: Use entry.pid (actual PhotoID) instead of id (internal row ID)
-      // Only include entries with valid PIDs (not 0) for the PID lookup
+      // Include ALL players for name lookup (even without PIDs)
+      // Players without PIDs will have value: 0, allowing name search but indicating no PID
       return options
-        .filter(opt => opt.entry && opt.entry.pid > 0)
+        .filter(opt => opt.entry)
         .map(opt => ({
-          value: opt.entry.pid,  // Use actual PID, not internal row ID
+          value: opt.entry.pid || 0,  // Use actual PID, or 0 if not assigned
           label: `${opt.entry.lastName}, ${opt.entry.firstName}`,  // "LastName, FirstName" format
-          plpo: opt.plpo || ''
+          plpo: opt.plpo || '',
+          hasPid: opt.entry.pid > 0  // Flag to indicate if player has a valid PID
         }));
     } else {
       // All other lookups (position, team, college, state) remain the same
       options = lookupService.getDropdownOptions(fileName);
+      console.log(`[lookup-handlers] getDropdownOptions('${fileName}') returned ${options?.length || 0} items`);
+      if (fileName === 'college_lookup.csv' && options?.length > 0) {
+        console.log(`[lookup-handlers] Sample college raw data:`, JSON.stringify(options.slice(0, 3)));
+        console.log(`[lookup-handlers] First college keys:`, Object.keys(options[0] || {}));
+      }
       // Transform {id, name} to {value, label} for renderer
-      return options.map(opt => ({ value: opt.id, label: opt.name }));
+      const result = options.map(opt => ({ value: opt.id, label: opt.name }));
+      if (fileName === 'college_lookup.csv' && result?.length > 0) {
+        console.log(`[lookup-handlers] Transformed college data:`, JSON.stringify(result.slice(0, 3)));
+      }
+      return result;
     }
   } catch (error) {
     console.error('Error getting dropdown options:', error);
@@ -145,14 +156,36 @@ ipcMain.handle('lookup:get-pid-portrait-mapping', async (event) => {
  */
 ipcMain.handle('lookup:get-status', async (event) => {
   try {
+    const stats = lookupService.getCacheStats();
+    console.log('[lookup-handlers] Cache stats:', stats);
     return {
       ready: lookupService.isReady(),
       loadedFiles: lookupService.getLoadedFiles(),
-      cacheStats: lookupService.getCacheStats()
+      cacheStats: stats
     };
   } catch (error: any) {
     console.error('Error getting lookup status:', error);
     return { ready: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: lookup:debug-colleges
+ * Debug endpoint to check college data specifically
+ */
+ipcMain.handle('lookup:debug-colleges', async () => {
+  try {
+    await lookupService.waitForReady();
+    const options = lookupService.getDropdownOptions('college_lookup.csv');
+    console.log('[lookup-handlers] DEBUG colleges - count:', options?.length || 0);
+    console.log('[lookup-handlers] DEBUG colleges - first 5:', options?.slice(0, 5));
+    return {
+      count: options?.length || 0,
+      sample: options?.slice(0, 10) || []
+    };
+  } catch (error: any) {
+    console.error('[lookup-handlers] DEBUG colleges error:', error);
+    return { error: error.message };
   }
 });
 

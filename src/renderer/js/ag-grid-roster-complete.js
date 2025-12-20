@@ -18,15 +18,15 @@ import { FastSelectEditor } from './FastSelectEditor.js';
 // Team colors for row styling
 const TEAM_COLORS = {
     'ARI': { primary: '#97233F', secondary: '#FFB612' },  // Cardinals: Cardinal red / Gold
-    'ATL': { primary: '#A71930', secondary: '#000000' },  // Falcons: Red / Black
-    'BAL': { primary: '#241773', secondary: '#000000' },  // Ravens: Purple / Black
+    'ATL': { primary: '#A71930', secondary: '#000000', headerText: '#FFFFFF' },  // Falcons: Red / Black, white header text
+    'BAL': { primary: '#241773', secondary: '#9E7C0C', headerText: '#9E7C0C' },  // Ravens: Purple / Gold header, purple selection text
     'BUF': { primary: '#00338D', secondary: '#C60C30' },  // Bills: Royal blue / Red
-    'CAR': { primary: '#0085CA', secondary: '#101820' },  // Panthers: Process blue / Black
+    'CAR': { primary: '#0085CA', secondary: '#101820', headerText: '#FFFFFF' },  // Panthers: Process blue / Black, white header text
     'CHI': { primary: '#C83803', secondary: '#0B162A' },  // Bears: Orange / Navy
-    'CIN': { primary: '#FB4F14', secondary: '#000000' },  // Bengals: Orange / Black
+    'CIN': { primary: '#FB4F14', secondary: '#000000', headerText: '#FFFFFF' },  // Bengals: Orange / Black, white header text
     'CLE': { primary: '#311D00', secondary: '#FF3C00' },  // Browns: Brown / Orange
     'DAL': { primary: '#003594', secondary: '#869397' },  // Cowboys: Navy blue / Silver
-    'DEN': { primary: '#FB4F14', secondary: '#002244' },  // Broncos: Orange / Navy
+    'DEN': { primary: '#FB4F14', secondary: '#002244', headerText: '#FFFFFF' },  // Broncos: Orange / Navy, white header text
     'DET': { primary: '#0076B6', secondary: '#B0B7BC' },  // Lions: Honolulu blue / Silver
     'GB': { primary: '#203731', secondary: '#FFB612' },   // Packers: Dark green / Gold
     'HOU': { primary: '#03202F', secondary: '#A71930' },  // Texans: Deep steel blue / Red
@@ -39,16 +39,17 @@ const TEAM_COLORS = {
     'MIA': { primary: '#008E97', secondary: '#FC4C02' },  // Dolphins: Aqua / Orange
     'MIN': { primary: '#4F2683', secondary: '#FFC62F' },  // Vikings: Purple / Gold
     'NE': { primary: '#002244', secondary: '#C60C30' },   // Patriots: Navy / Red
-    'NO': { primary: '#D3BC8D', secondary: '#101820' },   // Saints: Old gold / Black
+    'NO': { primary: '#D3BC8D', secondary: '#101820', headerText: '#FFFFFF' },   // Saints: Old gold / Black, white header text
     'NYG': { primary: '#0B2265', secondary: '#A71930' },  // Giants: Blue / Red
     'NYJ': { primary: '#125740', secondary: '#FFFFFF' },  // Jets: Gotham green / White
     'PHI': { primary: '#004C54', secondary: '#A5ACAF' },  // Eagles: Midnight green / Silver
-    'PIT': { primary: '#FFB612', secondary: '#101820' },  // Steelers: Gold / Black
+    'PIT': { primary: '#FFB612', secondary: '#101820', headerText: '#FFFFFF' },  // Steelers: Gold / Black, white header text
     'SF': { primary: '#AA0000', secondary: '#B3995D' },   // 49ers: Red / Gold
     'SEA': { primary: '#002244', secondary: '#69BE28' },  // Seahawks: College navy / Action green
     'TB': { primary: '#D50A0A', secondary: '#FF7900' },   // Buccaneers: Red / Pewter orange
-    'TEN': { primary: '#00295B', secondary: '#0C2340' },  // Titans: Navy blue / Titans blue
-    'WAS': { primary: '#5A1438', secondary: '#FFB612' }   // Commanders: Burgundy / Gold
+    'TEN': { primary: '#00295B', secondary: '#4B92DB', headerText: '#4B92DB', selectionText: '#C8102E' },  // Titans: Navy / Baby blue header, red selection text
+    'WAS': { primary: '#5A1438', secondary: '#FFB612' },  // Commanders: Burgundy / Gold
+    'FA': { primary: '#002244', secondary: '#C60C30', headerText: '#C60C30' }   // Free Agents: Blue bg / Red header, blue selection text
 };
 
 // Register AG-Grid modules
@@ -76,12 +77,18 @@ class PortraitCellRenderer {
         const pid = player ? player.PSXP : null;
         const pam = player ? player.PEPS : null;
 
-        // Check if this is a generic face based on PAM
-        const isGenericPam = pam && typeof pam === 'string' &&
+        // Portrait display priority:
+        // 1. If player has a valid PID (> 0), always use PID for portrait
+        // 2. Only use PAM-based portrait if no valid PID exists
+        // This ensures PAM picker doesn't change the displayed portrait
+        const hasValidPid = pid && pid > 0;
+
+        // Check if this is a generic face based on PAM (only used when no valid PID)
+        const isGenericPam = !hasValidPid && pam && typeof pam === 'string' &&
             (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
 
-        // Use PAM-based cache key for generic faces, PID-based for real faces
-        const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
+        // Use PID-based cache key when player has valid PID, PAM-based only as fallback
+        const cacheKey = hasValidPid ? `pid_${pid}` : (isGenericPam ? `pam_${pam}` : `pid_${pid}`);
 
         if (app.portraitCache.has(cacheKey)) {
             const imageData = app.portraitCache.get(cacheKey);
@@ -119,6 +126,56 @@ class PortraitCellRenderer {
 
     refresh(params) {
         return false; // Force re-create on data change
+    }
+
+    destroy() {
+        // Cleanup
+    }
+}
+
+/**
+ * PAM Cell Renderer - shows PAM value with right-click to open PAM picker
+ */
+class PAMCellRenderer {
+    init(params) {
+        const { app } = params;
+
+        this.eGui = document.createElement('div');
+        this.eGui.className = 'pam-cell';
+        this.eGui.style.cssText = `
+            display: flex;
+            align-items: center;
+            height: 100%;
+            cursor: context-menu;
+            padding: 0 8px;
+            font-size: 12px;
+            color: #e0e0e0;
+        `;
+
+        const player = params.data;
+        const pamValue = player ? player.PEPS : null;
+
+        this.eGui.textContent = pamValue || '';
+        this.eGui.title = 'Right-click to select generic PAM';
+
+        // Right-click context menu for PAM picker
+        this.eGui.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (player && app && app.openPAMPicker) {
+                app.openPAMPicker(player, params.node.rowIndex);
+            }
+        });
+    }
+
+    getGui() {
+        return this.eGui;
+    }
+
+    refresh(params) {
+        const player = params.data;
+        const pamValue = player ? player.PEPS : null;
+        this.eGui.textContent = pamValue || '';
+        return true;
     }
 
     destroy() {
@@ -279,6 +336,7 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
         if (fieldName === 'PEPS') {
             colDef.width = 180;
             colDef.minWidth = 150;
+            // Note: cellRenderer set after type handling to avoid being overwritten
         }
 
         // Pin Last Name and First Name columns to the left
@@ -557,6 +615,14 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             console.log(`[AG-Grid] Text column ${fieldName} configured with agTextCellEditor`);
         }
 
+        // PAM (PEPS) column - add right-click for PAM picker AFTER type handling
+        // This must come after text type handling to not be overwritten
+        if (fieldName === 'PEPS') {
+            colDef.cellRenderer = PAMCellRenderer;
+            colDef.cellRendererParams = { app };
+            console.log('[AG-Grid] PEPS column configured with PAMCellRenderer for right-click picker');
+        }
+
         columnDefs.push(colDef);
     });
 
@@ -628,6 +694,52 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
         stopEditingWhenCellsLoseFocus: true,
 
         // Events
+
+        // Handle header click for sorting - use app's sort mechanism which handles paginated data
+        onCellClicked: (event) => {
+            // Header clicks are handled separately via onSortChanged
+        },
+
+        // Handle sort changes - delegate to app's sort mechanism for full data sorting
+        onSortChanged: (event) => {
+            // Prevent infinite loop when re-rendering after sort
+            if (app._isRendering) {
+                console.log('[AG-Grid] onSortChanged: Skipping during render');
+                return;
+            }
+
+            const sortModel = event.api.getColumnState().filter(c => c.sort);
+            console.log('[AG-Grid] onSortChanged:', sortModel);
+
+            if (sortModel.length === 0) {
+                // No sort - clear app's sort and re-render
+                if (app.sortColumns && app.sortColumns.length > 0) {
+                    app.sortColumns = [];
+                    app.currentPage = 1;
+                    app._isRendering = true;
+                    app.renderRoster();
+                    app._isRendering = false;
+                }
+                return;
+            }
+
+            const sortCol = sortModel[0];
+            const fieldName = sortCol.colId;
+            const sortDirection = sortCol.sort; // 'asc' or 'desc'
+
+            console.log(`[AG-Grid] Sorting by ${fieldName} ${sortDirection}`);
+
+            // Update app's sortColumns to match
+            // This uses the app's applyFiltersAndSort which handles all data, not just current page
+            app.sortColumns = [{ column: fieldName, order: sortDirection }];
+
+            // Re-render with new sort (applyFiltersAndSort will sort full array)
+            app.currentPage = 1;
+            app._isRendering = true;
+            app.renderRoster();
+            app._isRendering = false;
+        },
+
         onCellEditingStarted: (event) => {
             console.log('[AG-Grid] onCellEditingStarted:', {
                 field: event.colDef.field,
@@ -938,11 +1050,35 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
         onGridReady: (params) => {
             console.log('[AG-Grid] Grid ready, player count:', players.length);
-            // Auto-size all columns to fit content
-            params.api.autoSizeAllColumns(false);
+
+            // Only auto-size if no saved state exists
+            const hasSavedState = localStorage.getItem('rosterGridColumnState');
+            if (!hasSavedState) {
+                params.api.autoSizeAllColumns(false);
+            }
 
             // Apply header colors
             applyHeaderColors(app, container);
+
+            // Click-to-deselect: clicking anywhere outside a grid row deselects
+            document.addEventListener('click', (e) => {
+                // Guard against destroyed grid
+                if (!params.api || params.api.isDestroyed?.()) {
+                    return;
+                }
+
+                // Check if click was on a row element or UI elements that shouldn't deselect
+                const clickedRow = e.target.closest('.ag-row');
+                const clickedHeader = e.target.closest('.ag-header');
+                const clickedMenu = e.target.closest('.ag-menu, .context-menu, #grid-context-menu');
+                const clickedPopup = e.target.closest('.ag-popup, .modal, .dialog, [role="dialog"]');
+                const clickedButton = e.target.closest('button, .btn');
+
+                // If click was NOT on a row, header, menu, popup, or button, deselect all
+                if (!clickedRow && !clickedHeader && !clickedMenu && !clickedPopup && !clickedButton) {
+                    params.api.deselectAll();
+                }
+            });
 
             // Copy/Paste handlers for spreadsheet-like functionality
             document.addEventListener('keydown', (e) => {
@@ -1122,6 +1258,33 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     }
                 }
             });
+
+            // Restore saved column widths if available
+            const savedState = localStorage.getItem('rosterGridColumnState');
+            if (savedState) {
+                try {
+                    const columnState = JSON.parse(savedState);
+                    params.api.applyColumnState({ state: columnState, applyOrder: true });
+                    console.log('[AG-Grid] Restored saved column widths');
+                } catch (e) {
+                    console.warn('[AG-Grid] Failed to restore column state:', e);
+                }
+            }
+        },
+
+        onColumnResized: (params) => {
+            // Save when user finishes dragging
+            if (params.finished) {
+                const columnState = params.api.getColumnState();
+                localStorage.setItem('rosterGridColumnState', JSON.stringify(columnState));
+                console.log('[AG-Grid] Saved column widths');
+            }
+        },
+
+        onColumnMoved: (params) => {
+            const columnState = params.api.getColumnState();
+            localStorage.setItem('rosterGridColumnState', JSON.stringify(columnState));
+            console.log('[AG-Grid] Saved column order');
         }
     };
 
@@ -1173,7 +1336,7 @@ export function applyHeaderColors(app, container) {
 
             if (teamColors) {
                 bgColor = teamColors.primary;  // TEAM PRIMARY COLOR background
-                textColor = teamColors.secondary;  // TEAM SECONDARY COLOR text
+                textColor = teamColors.headerText || teamColors.secondary;  // Use headerText override or secondary
                 console.log('[DEBUG applyHeaderColors] Using team colors - BG:', bgColor, 'Text:', textColor);
             } else {
                 // Fallback
@@ -1200,6 +1363,15 @@ export function applyHeaderColors(app, container) {
     }
 
     // Use highly specific CSS rules to override the theme
+    // Inset effect - text appears pressed in (dark top-left, light bottom-right)
+    const isTeamPage = app.selectedTeamId;
+    const textEffects = isTeamPage
+        ? `text-shadow:
+            -1px -1px 2px rgba(0, 0, 0, 0.9),
+            1px 1px 1px rgba(255, 255, 255, 0.4),
+            0 0 3px rgba(0, 0, 0, 0.5) !important;`
+        : '';
+
     styleEl.textContent = `
         #rosterGrid.ag-theme-alpine .ag-header,
         #rosterGrid.ag-theme-alpine .ag-header-viewport,
@@ -1215,6 +1387,9 @@ export function applyHeaderColors(app, container) {
         #rosterGrid.ag-theme-alpine .ag-header-cell-text,
         #rosterGrid.ag-theme-alpine .ag-header-cell-label {
             color: ${textColor} !important;
+            font-weight: 700 !important;
+            letter-spacing: 0.5px !important;
+            ${textEffects}
         }
     `;
     console.log('[DEBUG applyHeaderColors] Injected dynamic CSS with BG:', bgColor, 'Text:', textColor);
@@ -1239,13 +1414,8 @@ export function applyHeaderColors(app, container) {
             const teamColors = TEAM_COLORS[teamAbbr];
             if (teamColors) {
                 selectionBgColor = teamColors.secondary;
-                // Determine text color based on secondary color brightness
-                // If secondary is dark (black), use white text; if light, use black text
-                const isSecondaryDark = teamColors.secondary === '#000000' ||
-                    teamColors.secondary.toLowerCase() === '#000' ||
-                    teamColors.secondary === '#101820' ||
-                    teamColors.secondary === '#1a1a1a';
-                selectionTextColor = isSecondaryDark ? '#FFFFFF' : '#000000';
+                // Use selectionText override or primary for text on selected rows
+                selectionTextColor = teamColors.selectionText || teamColors.primary;
             } else {
                 selectionBgColor = '#ffa726';
                 selectionTextColor = '#000000';

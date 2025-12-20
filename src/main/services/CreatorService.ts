@@ -43,7 +43,7 @@ export interface GeneratedPlayer {
   lastName: string;
   position: string; // M26 position name (QB, HB, etc.)
   positionCode: number; // M26 position code (0-21)
-  college: number; // College ID from lookup table (e.g., 4 for Alabama, 265 for No College)
+  college: number; // College ID from lookup table (e.g., 4 for Alabama, 0 for N/A)
   team?: string;
   jerseyNum: number;
   age: number;
@@ -1146,12 +1146,12 @@ export class CreatorService {
   /**
    * Match college name to college ID from lookup table
    * Uses fuzzy matching to find closest match
-   * Returns college ID as NUMBER (e.g., 4 for Alabama, 265 for No College)
+   * Returns college ID as NUMBER (e.g., 4 for Alabama, 0 for N/A)
    */
   private matchCollege(scrapedCollegeName: string): number {
-    // Default to "No College" (ID 265) if no name provided
+    // Default to N/A (ID 0) if no name provided
     if (!scrapedCollegeName || scrapedCollegeName === 'Unknown') {
-      return 265; // No College
+      return 0; // N/A
     }
 
     const collegeLookup = this.loadCollegeLookup();
@@ -1213,9 +1213,9 @@ export class CreatorService {
       return bestMatch.id;
     }
 
-    // No match found - return "No College" (ID 265)
-    console.warn(`[CreatorService] No college match found for "${scrapedCollegeName}" (expanded: "${expandedName}") - defaulting to No College (265)`);
-    return 265; // No College
+    // No match found - return N/A (ID 0)
+    console.warn(`[CreatorService] No college match found for "${scrapedCollegeName}" (expanded: "${expandedName}") - defaulting to N/A (0)`);
+    return 0; // N/A
   }
 
   /**
@@ -2897,7 +2897,7 @@ export class CreatorService {
           : this.assignGenericAsset(pid);
 
         // Match college
-        const collegeId = player.college ? this.matchCollege(player.college) : 265;
+        const collegeId = player.college ? this.matchCollege(player.college) : 0;
 
         // Match home state (convert to ID for Madden)
         const homeState = player.homeState ? this.matchHomeState(player.homeState) : 0;
@@ -3146,7 +3146,7 @@ export class CreatorService {
       const pam = this.assignGenericAsset(pid);
 
       // Match college
-      const collegeId = prospect.college ? this.matchCollege(prospect.college) : 265;
+      const collegeId = prospect.college ? this.matchCollege(prospect.college) : 0;
 
       // Match home state
       const homeState = prospect.homestate ? this.matchHomeState(prospect.homestate) : 0;

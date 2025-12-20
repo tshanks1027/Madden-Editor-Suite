@@ -338,6 +338,23 @@ class MaddenEditorApp {
             }
         });
 
+        // PAM picker modal (sets PAM only, not PID)
+        const closePAMPickerBtn = document.getElementById('closePAMPicker');
+        if (closePAMPickerBtn) {
+            closePAMPickerBtn.addEventListener('click', () => {
+                this.closePAMPicker();
+            });
+        }
+
+        const pamPickerModal = document.getElementById('pamPickerModal');
+        if (pamPickerModal) {
+            pamPickerModal.addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    this.closePAMPicker();
+                }
+            });
+        }
+
         // Fix Faces button - assigns verified GENR values to generic face players
         const fixFacesBtn = document.getElementById('fixGenericFacesBtn');
         if (fixFacesBtn) {
@@ -1250,7 +1267,8 @@ class MaddenEditorApp {
                     source: (query, process) => {
                         // Get all player names from PID lookup for autocomplete
                         const results = searchPIDNames(query, 20);
-                        process(results.map(r => r.name));
+                        // Show player name with "(No PID)" indicator for players without PIDs
+                        process(results.map(r => r.hasPid ? r.name : `${r.name} (No PID)`));
                     },
                     strict: false,  // Allow typing custom values
                     allowInvalid: true,  // Allow invalid values temporarily
@@ -1499,19 +1517,17 @@ class MaddenEditorApp {
                                     } else {
                                         this.portraitCache.set(cacheKey, null);
                                     }
-                                    if (this.hotTable && !this.hotTable.isDestroyed) {
-                                        this.hotTable.render();
-                                    }
+                                    // Use safe render to avoid interrupting active editing
+                                    this.safeRenderHotTable();
                                 }).catch((error) => {
                                     console.error(`Error loading portrait for PID ${pid}:`, error);
                                     this.portraitCache.set(cacheKey, null);
-                                    if (this.hotTable && !this.hotTable.isDestroyed) {
-                                        this.hotTable.render();
-                                    }
+                                    // Use safe render to avoid interrupting active editing
+                                    this.safeRenderHotTable();
                                 });
                             } else {
-                                // Portrait already in cache, just re-render
-                                this.hotTable.render();
+                                // Portrait already in cache - safe render to avoid interrupting editing
+                                this.safeRenderHotTable();
                             }
                         }
                     });
@@ -2360,15 +2376,16 @@ class MaddenEditorApp {
                 if (searchText.length >= 2) {
                     const suggestions = searchPIDNames(searchText);
                     if (suggestions.length > 0) {
-                        suggestionsDiv.innerHTML = suggestions.slice(0, 10).map(name =>
-                            `<div class="pid-suggestion" data-name="${name}" style="padding: 5px; cursor: pointer;">${name}</div>`
+                        suggestionsDiv.innerHTML = suggestions.slice(0, 10).map(s =>
+                            `<div class="pid-suggestion" data-name="${s.name}" data-pid="${s.pid}" data-haspid="${s.hasPid}" style="padding: 5px; cursor: pointer;${!s.hasPid ? ' color: #999; font-style: italic;' : ''}">${s.name}${!s.hasPid ? ' (No PID)' : ''}</div>`
                         ).join('');
                         suggestionsDiv.style.display = 'block';
 
                         suggestionsDiv.querySelectorAll('.pid-suggestion').forEach(suggestion => {
                             suggestion.addEventListener('click', () => {
                                 const selectedName = suggestion.dataset.name;
-                                const pid = getPIDFromName(selectedName);
+                                const hasPid = suggestion.dataset.haspid === 'true';
+                                const pid = hasPid ? parseInt(suggestion.dataset.pid) : getPIDFromName(selectedName);
 
                                 // Update inputs in PSXP column
                                 e.target.value = selectedName;
@@ -2415,15 +2432,16 @@ class MaddenEditorApp {
                 if (searchText.length >= 2) {
                     const suggestions = searchPIDNames(searchText);
                     if (suggestions.length > 0) {
-                        suggestionsDiv.innerHTML = suggestions.slice(0, 10).map(name =>
-                            `<div class="pic-suggestion" data-name="${name}" style="padding: 5px; cursor: pointer;">${name}</div>`
+                        suggestionsDiv.innerHTML = suggestions.slice(0, 10).map(s =>
+                            `<div class="pic-suggestion" data-name="${s.name}" data-pid="${s.pid}" data-haspid="${s.hasPid}" style="padding: 5px; cursor: pointer;${!s.hasPid ? ' color: #999; font-style: italic;' : ''}">${s.name}${!s.hasPid ? ' (No PID)' : ''}</div>`
                         ).join('');
                         suggestionsDiv.style.display = 'block';
 
                         suggestionsDiv.querySelectorAll('.pic-suggestion').forEach(suggestion => {
                             suggestion.addEventListener('click', () => {
                                 const selectedName = suggestion.dataset.name;
-                                const pid = getPIDFromName(selectedName);
+                                const hasPid = suggestion.dataset.haspid === 'true';
+                                const pid = hasPid ? parseInt(suggestion.dataset.pid) : getPIDFromName(selectedName);
 
                                 // Update Player Pic input
                                 e.target.value = selectedName;
@@ -3876,7 +3894,17 @@ class MaddenEditorApp {
     restoreFocusToGrid() {
         // First, restore OS-level window focus via IPC (critical for Windows)
         const doFocus = () => {
+            // Increased delay from 50ms to 150ms to ensure all async operations complete
             setTimeout(() => {
+                // Skip focus restoration if user is actively editing (typing)
+                const activeElement = document.activeElement;
+                if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' ||
+                    activeElement.classList.contains('handsontableInput') ||
+                    activeElement.classList.contains('ag-input-field-input'))) {
+                    console.log('[Focus] Skipping focus restoration - user is actively editing');
+                    return;
+                }
+
                 const activePanel = document.querySelector('.tool-panel.active');
                 if (!activePanel) return;
 
@@ -3887,7 +3915,7 @@ class MaddenEditorApp {
                 } else if (activePanel.hasAttribute('tabindex')) {
                     this.aggressiveFocus(activePanel);
                 }
-            }, 50);
+            }, 150);
         };
 
         // Use IPC to restore OS-level window focus if available
@@ -3896,6 +3924,31 @@ class MaddenEditorApp {
         } else {
             doFocus();
         }
+    }
+
+    /**
+     * Safely render Handsontable without interrupting active editing
+     * This prevents typing issues when background operations (like portrait loading) complete
+     */
+    safeRenderHotTable() {
+        if (!this.hotTable || this.hotTable.isDestroyed) return;
+
+        // Check if user is actively editing
+        const activeEditor = this.hotTable.getActiveEditor && this.hotTable.getActiveEditor();
+        if (activeEditor && activeEditor.isOpened && activeEditor.isOpened()) {
+            console.log('[Render] Skipping render - editor is open');
+            return;
+        }
+
+        // Check if an input element inside Handsontable has focus
+        const activeElement = document.activeElement;
+        if (activeElement && activeElement.closest('.handsontable') &&
+            (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
+            console.log('[Render] Skipping render - input has focus');
+            return;
+        }
+
+        this.hotTable.render();
     }
 
     // ========================================
@@ -4410,6 +4463,200 @@ class MaddenEditorApp {
         document.getElementById('genericFacePickerModal').style.display = 'none';
         this.currentFacePickerPlayer = null;
         this.currentFacePickerRowIndex = null;
+    }
+
+    // ========================================
+    // PAM Picker Methods (PAM only, no PID change)
+    // ========================================
+
+    /**
+     * Open PAM picker modal - allows selecting a generic PAM without changing PID
+     * Triggered by right-click on PAM (PEPS) cell
+     */
+    async openPAMPicker(player, rowIndex) {
+        const modal = document.getElementById('pamPickerModal');
+        const grid = document.getElementById('pamPickerGrid');
+
+        if (!modal || !grid) {
+            console.error('[PAMPicker] Modal or grid element not found');
+            return;
+        }
+
+        // Store current player context
+        this.currentPAMPickerPlayer = player;
+        this.currentPAMPickerRowIndex = rowIndex;
+
+        // Show modal
+        modal.style.display = 'flex';
+
+        // Show loading state
+        grid.innerHTML = '<div class="loading-spinner">Loading generic faces...</div>';
+
+        try {
+            // Use the same generic faces loader as the face picker
+            const genericFaces = await this.loadGenericFaces();
+
+            if (genericFaces.length === 0) {
+                grid.innerHTML = '<div class="loading-spinner">No generic faces found</div>';
+                return;
+            }
+
+            // Clear grid and populate with faces
+            grid.innerHTML = '';
+
+            // Create placeholder image for loading state
+            const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzMzMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj4uLi48L3RleHQ+PC9zdmc+';
+
+            // Load faces in batches to prevent UI freeze
+            const BATCH_SIZE = 10;
+            let currentIndex = 0;
+
+            const loadBatch = () => {
+                const endIndex = Math.min(currentIndex + BATCH_SIZE, genericFaces.length);
+
+                for (let i = currentIndex; i < endIndex; i++) {
+                    const face = genericFaces[i];
+                    const faceItem = document.createElement('div');
+                    faceItem.className = 'generic-face-item';
+                    faceItem.dataset.genr = face._verifiedGenr || '';
+
+                    // Create image with placeholder
+                    const img = document.createElement('img');
+                    img.alt = `Generic Face`;
+                    img.src = placeholderSvg;
+
+                    const pamLabel = document.createElement('div');
+                    pamLabel.className = 'generic-face-pid';
+                    // Display the GENR value (e.g., "gen_1_B_B_005")
+                    pamLabel.textContent = face._verifiedGenr || face.portrait?.replace('plpo_generic_', 'gen_') || 'Unknown';
+
+                    faceItem.appendChild(img);
+                    faceItem.appendChild(pamLabel);
+
+                    // Click handler to select this PAM
+                    faceItem.addEventListener('click', () => {
+                        this.selectPAM(face._verifiedGenr, face.portrait);
+                    });
+
+                    grid.appendChild(faceItem);
+
+                    // Load portrait asynchronously
+                    window.electronAPI.portrait.getByPID(face.pid).then(imageData => {
+                        if (imageData && imageData.length > 0) {
+                            img.src = imageData;
+                        } else {
+                            // No portrait available - hide this face from picker
+                            faceItem.style.display = 'none';
+                        }
+                    }).catch(error => {
+                        console.error(`Failed to load portrait for face:`, error);
+                        faceItem.style.display = 'none';
+                    });
+                }
+
+                currentIndex = endIndex;
+
+                // Schedule next batch if there are more faces
+                if (currentIndex < genericFaces.length) {
+                    requestAnimationFrame(loadBatch);
+                }
+            };
+
+            // Start loading batches
+            loadBatch();
+
+        } catch (error) {
+            console.error('Error loading generic faces for PAM picker:', error);
+            grid.innerHTML = '<div class="loading-spinner">Error loading generic faces</div>';
+        }
+    }
+
+    /**
+     * Select a PAM value for the current player (does NOT change PID)
+     */
+    async selectPAM(genrValue, portrait = null) {
+        console.log(`[PAMPicker] Selecting PAM: ${genrValue}, portrait: ${portrait}`);
+
+        if (this.isSelectingPAM) {
+            console.warn('[PAMPicker] Already processing a PAM selection, ignoring duplicate call');
+            return;
+        }
+
+        this.isSelectingPAM = true;
+
+        try {
+            if (!this.currentPAMPickerPlayer) {
+                console.error('[PAMPicker] No player context for PAM selection');
+                return;
+            }
+
+            const player = this.currentPAMPickerPlayer;
+            const gridRowIndex = this.currentPAMPickerRowIndex;
+
+            // Determine which grid we're working with
+            const isRoster = 'PSXP' in player;
+            const isDraft = 'PID' in player && !('PSXP' in player);
+
+            console.log(`[PAMPicker] isRoster: ${isRoster}, isDraft: ${isDraft}`);
+
+            // Set the PAM/PEPS value
+            const pamValue = genrValue || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+
+            if (!pamValue) {
+                console.error('[PAMPicker] No PAM value to set');
+                return;
+            }
+
+            if (isRoster) {
+                // For roster: set PEPS field
+                player.PEPS = pamValue;
+                console.log(`[PAMPicker] Set roster PEPS to: ${pamValue}`);
+
+                // Update portrait cache for new PAM
+                const cacheKey = `pam_${pamValue}`;
+                if (portrait && !this.portraitCache.has(cacheKey)) {
+                    // Try to load portrait for this PAM
+                    try {
+                        const imageData = await window.electronAPI.portrait.getByPAM(pamValue);
+                        if (imageData) {
+                            this.portraitCache.set(cacheKey, imageData);
+                        }
+                    } catch (e) {
+                        console.log('[PAMPicker] Could not load portrait for new PAM:', e);
+                    }
+                }
+
+                // Refresh the grid
+                if (this.agGrid) {
+                    this.agGrid.refreshCells({ force: true });
+                }
+            } else if (isDraft) {
+                // For draft class: set PEPS field
+                player.PEPS = pamValue;
+                console.log(`[PAMPicker] Set draft PEPS to: ${pamValue}`);
+
+                // Refresh draft grid
+                if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                    this.draftGrid.render();
+                }
+            }
+
+            // Close modal
+            this.closePAMPicker();
+            console.log(`[PAMPicker] Complete - PAM updated to ${pamValue}, PID unchanged`);
+
+        } finally {
+            this.isSelectingPAM = false;
+        }
+    }
+
+    closePAMPicker() {
+        const modal = document.getElementById('pamPickerModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        this.currentPAMPickerPlayer = null;
+        this.currentPAMPickerRowIndex = null;
     }
 
     /**
@@ -5780,8 +6027,36 @@ class MaddenEditorApp {
                         }
                     }
                 });
+            },
+            afterColumnResize: (newSize, column, isDoubleClick) => {
+                // Save column widths when user resizes
+                if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                    const colWidths = [];
+                    const colCount = this.draftGrid.countCols();
+                    for (let i = 0; i < colCount; i++) {
+                        colWidths.push(this.draftGrid.getColWidth(i));
+                    }
+                    localStorage.setItem('draftGridColumnWidths', JSON.stringify(colWidths));
+                    console.log('[Draft Grid] Saved column widths');
+                }
             }
         });
+
+        // Restore saved column widths
+        const savedWidths = localStorage.getItem('draftGridColumnWidths');
+        if (savedWidths && this.draftGrid) {
+            try {
+                const colWidths = JSON.parse(savedWidths);
+                const colCount = this.draftGrid.countCols();
+                for (let i = 0; i < Math.min(colWidths.length, colCount); i++) {
+                    this.draftGrid.getPlugin('manualColumnResize').setManualSize(i, colWidths[i]);
+                }
+                this.draftGrid.render();
+                console.log('[Draft Grid] Restored saved column widths');
+            } catch (e) {
+                console.warn('[Draft Grid] Failed to restore column widths:', e);
+            }
+        }
 
         // Setup floating scrollbar for draft class grid
         this.setupFloatingScrollbar(container);

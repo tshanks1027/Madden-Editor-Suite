@@ -276,8 +276,35 @@ export function createRosterGrid(container, players, columnDefs, app) {
 
         onGridReady: (params) => {
             console.log('[AG-Grid] Grid ready');
-            // Auto-size columns on load
-            params.api.sizeColumnsToFit();
+            // Restore saved column widths if available
+            const savedState = localStorage.getItem('rosterGridColumnState');
+            if (savedState) {
+                try {
+                    const columnState = JSON.parse(savedState);
+                    params.api.applyColumnState({ state: columnState, applyOrder: true });
+                    console.log('[AG-Grid] Restored saved column widths');
+                } catch (e) {
+                    console.warn('[AG-Grid] Failed to restore column state:', e);
+                    params.api.sizeColumnsToFit();
+                }
+            } else {
+                params.api.sizeColumnsToFit();
+            }
+        },
+
+        onColumnResized: (params) => {
+            // Only save when user finishes dragging (not during)
+            if (params.finished) {
+                const columnState = params.api.getColumnState();
+                localStorage.setItem('rosterGridColumnState', JSON.stringify(columnState));
+                console.log('[AG-Grid] Saved column widths');
+            }
+        },
+
+        onColumnMoved: (params) => {
+            const columnState = params.api.getColumnState();
+            localStorage.setItem('rosterGridColumnState', JSON.stringify(columnState));
+            console.log('[AG-Grid] Saved column order');
         }
     };
 

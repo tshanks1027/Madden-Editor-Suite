@@ -303,45 +303,23 @@
   }
 
   /**
-   * Open the player browser modal
+   * Open the player browser in a separate window
    */
-  function openPlayerBrowser() {
-    console.log('[PlayerBrowser] Opening browser');
+  async function openPlayerBrowser() {
+    console.log('[PlayerBrowser] Opening browser in separate window');
 
-    const modal = document.getElementById('playerBrowserModal');
-    if (modal) {
-      modal.style.display = 'flex';
+    try {
+      if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.openDatabase) {
+        const result = await window.electronAPI.window.openDatabase();
+        console.log('[PlayerBrowser] Open database window result:', result);
+      } else {
+        console.error('[PlayerBrowser] window.openDatabase API not available');
+        alert('Database browser window not available. Please reload the application.');
+      }
+    } catch (error) {
+      console.error('[PlayerBrowser] Failed to open database window:', error);
+      alert('Failed to open database window: ' + error.message);
     }
-
-    // Reset state when opening
-    isLoading = false; // Reset loading state in case it got stuck
-    currentResults = [];
-    totalResults = 0;
-
-    // Ensure dropdowns are populated (may not have loaded at init time)
-    ensureFiltersPopulated();
-
-    // Clear previous search and do initial load
-    const searchInput = document.getElementById('playerBrowserSearch');
-    if (searchInput) {
-      searchInput.value = '';
-      searchInput.focus();
-    }
-
-    // Reset filters
-    const positionFilter = document.getElementById('playerBrowserPositionFilter');
-    if (positionFilter) positionFilter.value = '';
-    const draftYearFrom = document.getElementById('playerBrowserDraftYearFrom');
-    if (draftYearFrom) draftYearFrom.value = '';
-    const draftYearTo = document.getElementById('playerBrowserDraftYearTo');
-    if (draftYearTo) draftYearTo.value = '';
-    const collegeFilter = document.getElementById('playerBrowserCollegeFilter');
-    if (collegeFilter) collegeFilter.value = '';
-    const emptyFilter = document.getElementById('playerBrowserEmptyFilter');
-    if (emptyFilter) emptyFilter.value = '';
-
-    currentPage = 1;
-    performSearch();
   }
 
   /**

@@ -122,6 +122,56 @@ ipcMain.handle('window:focus', async () => {
 
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;
+let databaseWindow: BrowserWindow | null = null;
+
+// Handler to open database browser in separate window
+ipcMain.handle('window:open-database', async () => {
+  console.log('[main] Opening database browser window');
+
+  // If window already exists and is not destroyed, focus it
+  if (databaseWindow && !databaseWindow.isDestroyed()) {
+    databaseWindow.focus();
+    return { success: true, alreadyOpen: true };
+  }
+
+  // Create new database browser window
+  databaseWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
+    backgroundColor: '#0a0a0a',
+    title: 'Player Database Browser',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  });
+
+  // Load the database browser page
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    // In dev mode, load from vite server
+    // The dev server URL is like http://localhost:3000/ - append the page name
+    const baseUrl = MAIN_WINDOW_VITE_DEV_SERVER_URL.endsWith('/')
+      ? MAIN_WINDOW_VITE_DEV_SERVER_URL
+      : MAIN_WINDOW_VITE_DEV_SERVER_URL + '/';
+    databaseWindow.loadURL(baseUrl + 'database-browser.html');
+    console.log('[main] Loading database browser from:', baseUrl + 'database-browser.html');
+  } else {
+    // In production, load from file
+    databaseWindow.loadFile(
+      path.join(__dirname, '../renderer/database-browser.html')
+    );
+  }
+
+  databaseWindow.on('closed', () => {
+    databaseWindow = null;
+    console.log('[main] Database browser window closed');
+  });
+
+  return { success: true };
+});
 
 const createWindow = (): void => {
   // Create the browser window

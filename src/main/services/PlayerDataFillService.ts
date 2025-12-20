@@ -83,8 +83,12 @@ class PlayerDataFillService {
     status: 'searching' | 'filling' | 'complete' | 'error' | 'cancelled';
     message?: string;
   }): void {
-    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
-      this.mainWindow.webContents.send('player-fill:progress', data);
+    // Send progress to all windows (main and database browser)
+    const allWindows = BrowserWindow.getAllWindows();
+    for (const win of allWindows) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('player-fill:progress', data);
+      }
     }
   }
 

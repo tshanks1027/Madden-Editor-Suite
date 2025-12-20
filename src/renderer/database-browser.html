@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="script-src 'self' 'unsafe-inline' 'unsafe-eval';"
+    />
+    <title>Player Database Browser - Madden Editor Suite</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="css/database-player-card.css">
+    <link rel="stylesheet" href="css/player-browser.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* Override modal styles for standalone window */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a0a;
+            font-family: 'Roboto', sans-serif;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Make player browser fill the window instead of being a modal */
+        #playerBrowserContainer {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+        }
+
+        .player-browser-container {
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            max-height: 100%;
+            border-radius: 0;
+            border: none;
+        }
+
+        .player-browser-header {
+            border-radius: 0;
+        }
+
+        .player-browser-footer {
+            border-radius: 0;
+        }
+
+        /* DB Management modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20000;
+        }
+
+        .modal-content {
+            background: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid #333;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #333;
+            background: #252525;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 18px;
+            color: #fff;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #fff;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid #333;
+            background: #252525;
+            border-radius: 0 0 8px 8px;
+            text-align: right;
+        }
+
+        /* DB Button styles */
+        .db-btn {
+            padding: 8px 16px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .db-btn-primary {
+            background: #0078d4;
+            border-color: #0078d4;
+            color: #fff;
+        }
+
+        .db-btn-primary:hover {
+            background: #1084d8;
+        }
+
+        .db-btn-secondary {
+            background: #333;
+            border-color: #444;
+            color: #fff;
+        }
+
+        .db-btn-secondary:hover {
+            background: #444;
+        }
+
+        .db-btn-danger {
+            background: #d9534f;
+            border-color: #d9534f;
+            color: #fff;
+        }
+
+        .db-btn-danger:hover {
+            background: #c9302c;
+        }
+
+        .db-btn-success {
+            background: #2e7d32;
+            border-color: #2e7d32;
+            color: #fff;
+        }
+
+        .db-btn-success:hover {
+            background: #388e3c;
+        }
+
+        /* Stats card */
+        .stats-card {
+            background: #252525;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: #0078d4;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+
+        /* Action sections */
+        .action-section {
+            margin-bottom: 20px;
+        }
+
+        .action-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* Backup list */
+        #backupListContainer {
+            margin-top: 12px;
+            padding: 12px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        #backupList {
+            width: 100%;
+            padding: 8px;
+            background: #252525;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        /* Progress bar */
+        .progress-container {
+            margin-top: 12px;
+            padding: 12px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .progress-bar-container {
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #3b82f6;
+            transition: width 0.3s;
+        }
+
+        .progress-status {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .progress-counter {
+            font-size: 12px;
+            color: #0078d4;
+            float: right;
+        }
+    </style>
+</head>
+<body>
+    <!-- Player Browser (Main Content) -->
+    <div id="playerBrowserContainer">
+        <div class="player-browser-container">
+            <div class="player-browser-header">
+                <h2>Player Database Browser</h2>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <span style="color: #888; font-size: 12px;">Separate Window Mode</span>
+                </div>
+            </div>
+            <div class="player-browser-controls">
+                <div class="player-browser-search-row">
+                    <input type="text" id="playerBrowserSearch" placeholder="Search by name...">
+                </div>
+                <div class="player-browser-filters">
+                    <div class="player-browser-filter-group">
+                        <label>Position:</label>
+                        <select id="playerBrowserPositionFilter">
+                            <option value="">All Positions</option>
+                        </select>
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>Draft Year:</label>
+                        <input type="number" id="playerBrowserDraftYearFrom" placeholder="From" min="1900" max="2050" style="width: 70px;">
+                        <span style="color: #666;">-</span>
+                        <input type="number" id="playerBrowserDraftYearTo" placeholder="To" min="1900" max="2050" style="width: 70px;">
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>College:</label>
+                        <select id="playerBrowserCollegeFilter" style="width: 140px;">
+                            <option value="">All Colleges</option>
+                        </select>
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>Team:</label>
+                        <select id="playerBrowserTeamFilter" style="width: 120px;">
+                            <option value="">All Teams</option>
+                        </select>
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>HOF:</label>
+                        <select id="playerBrowserHofFilter">
+                            <option value="">All Players</option>
+                            <option value="hof">HOF Only</option>
+                            <option value="non-hof">Non-HOF Only</option>
+                        </select>
+                    </div>
+                    <div class="player-browser-filter-group">
+                        <label>Empty:</label>
+                        <select id="playerBrowserEmptyFilter">
+                            <option value="">Show All</option>
+                            <option value="position">Empty Position</option>
+                            <option value="college">Empty College</option>
+                            <option value="hometown">Empty Hometown</option>
+                            <option value="pid">Empty Photo ID</option>
+                            <option value="draftClass">Empty Draft Year</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="player-browser-content">
+                <div class="player-browser-results-header">
+                    <div>Name</div>
+                    <div>Position</div>
+                    <div>College</div>
+                    <div>Draft</div>
+                    <div>Career</div>
+                    <div>Actions</div>
+                </div>
+                <div id="playerBrowserResults">
+                    <div class="player-browser-loading">Loading players...</div>
+                </div>
+            </div>
+            <div class="player-browser-footer">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <button id="addNewPlayerBtn" class="db-btn db-btn-primary" style="padding: 6px 12px;">+ Add Player</button>
+                        <button id="fillCurrentResultsBtn" class="db-btn db-btn-success" style="padding: 6px 12px; background: #2e7d32; border-color: #2e7d32;" title="Fill missing data from PFR for current search results">Fill from PFR</button>
+                        <span id="batchFillStatusInline" style="color: #888; font-size: 12px; display: none;"></span>
+                        <button id="openDbManagement" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Manage Database</button>
+                    </div>
+                    <div class="player-browser-pagination">
+                        <button id="playerBrowserPrevPage" disabled>&laquo; Previous</button>
+                        <span id="playerBrowserPageInfo">Page 1</span>
+                        <button id="playerBrowserNextPage">Next &raquo;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Player Card Modal (for editing players) -->
+    <div id="dbPlayerCardModal" class="modal" style="display: none;">
+        <div class="modal-content db-player-card-modal">
+            <!-- Header -->
+            <div class="db-player-card-header">
+                <button class="db-player-card-close" id="closeDbPlayerCard">&times;</button>
+                <div class="db-player-card-portrait-container">
+                    <img id="dbPlayerCardPortrait" class="db-player-card-portrait" src="" alt="Player Portrait">
+                </div>
+                <div class="db-player-card-info">
+                    <div class="db-player-card-name-row">
+                        <h2 class="db-player-card-name" id="dbPlayerCardName">Player Name</h2>
+                        <span class="db-player-edited-badge" id="dbPlayerEditedIndicator" style="display: none;">Edited</span>
+                    </div>
+                    <div class="db-player-card-meta">
+                        <span>Database Player Editor</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body with Tabs -->
+            <div class="db-player-card-body">
+                <!-- Tab Navigation -->
+                <div class="db-player-tabs">
+                    <button class="db-player-tab active" data-tab="info">Player Info</button>
+                    <button class="db-player-tab" data-tab="madden">Madden IDs</button>
+                    <button class="db-player-tab" data-tab="ratings">Ratings</button>
+                    <button class="db-player-tab" data-tab="stats">Career Stats</button>
+                </div>
+
+                <!-- Player Info Tab -->
+                <div class="db-player-tab-content active" id="tab-info">
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Basic Information</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">First Name</label>
+                                <input type="text" class="db-form-input" id="dbPlayerFirstName" placeholder="First Name">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Last Name</label>
+                                <input type="text" class="db-form-input" id="dbPlayerLastName" placeholder="Last Name">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Position</label>
+                                <select class="db-form-select" id="dbPlayerPosition"></select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Hometown</label>
+                                <input type="text" class="db-form-input" id="dbPlayerHometown" placeholder="City, ST">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Height (inches)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerHeight" min="60" max="90">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Weight (lbs)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerWeight" min="150" max="400">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">College</label>
+                                <select class="db-form-select" id="dbPlayerCollege"></select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Race</label>
+                                <select class="db-form-select" id="dbPlayerRace"></select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Home State</label>
+                                <select class="db-form-select" id="dbPlayerHomeState"></select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Draft Information</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">Draft Class (Year)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerDraftClass" min="1936" max="2100">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Round</label>
+                                <input type="text" class="db-form-input" id="dbPlayerDraftRound" placeholder="1, 2, UDFA...">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Pick</label>
+                                <input type="number" class="db-form-input" id="dbPlayerDraftPick" min="1" max="300">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Career Span</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">Career From (Year)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerCareerFrom" min="1920" max="2100">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Career To (Year)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerCareerTo" min="1920" max="2100">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Madden IDs Tab -->
+                <div class="db-player-tab-content" id="tab-madden">
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Madden Identifiers</h4>
+                        <div class="db-form-grid db-form-grid-wide">
+                            <div class="db-form-item">
+                                <label class="db-form-label">Photo ID (PID)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerPID" placeholder="e.g., 12345">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Player Assets ID (PAM)</label>
+                                <input type="text" class="db-form-input" id="dbPlayerPAM" placeholder="e.g., Brady_Tom">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Portrait Key (PLPO)</label>
+                                <input type="text" class="db-form-input" id="dbPlayerPLPO" placeholder="e.g., PLPO_Brady_Tom">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Commentary ID</label>
+                                <input type="text" class="db-form-input" id="dbPlayerCommID" placeholder="Commentary ID">
+                            </div>
+                        </div>
+                        <div class="db-form-section-actions" style="margin-top: 12px;">
+                            <button type="button" class="db-btn db-btn-secondary" id="assignGenericFaceBtn" title="Choose a generic face from the face picker">
+                                Choose Generic Face
+                            </button>
+                            <select id="genericFaceSkinTone" class="db-form-input" style="width: auto; margin-left: 8px;">
+                                <option value="1">Skin Tone 1 (Lightest)</option>
+                                <option value="2">Skin Tone 2</option>
+                                <option value="3">Skin Tone 3</option>
+                                <option value="4" selected>Skin Tone 4 (Medium)</option>
+                                <option value="5">Skin Tone 5</option>
+                                <option value="6">Skin Tone 6</option>
+                                <option value="7">Skin Tone 7 (Darkest)</option>
+                            </select>
+                        </div>
+                        <p style="color: #a0a0a0; font-size: 12px; margin-top: 12px;">
+                            These IDs link the player to Madden assets like portraits and commentary.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Ratings Tab -->
+                <div class="db-player-tab-content" id="tab-ratings">
+                    <div class="db-year-selector">
+                        <label>Select Year:</label>
+                        <select id="dbPlayerYearSelect">
+                            <option value="">Select Year for Ratings</option>
+                        </select>
+                        <label class="db-apply-all-years-label" style="margin-left: 20px; display: inline-flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="dbApplyToAllYears" style="margin-right: 6px;">
+                            Apply changes to ALL years
+                        </label>
+                        <label class="db-increment-age-label" style="margin-left: 20px; display: inline-flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="dbIncrementAgeEachYear" style="margin-right: 6px;">
+                            +1 age each year
+                        </label>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Season Info</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">Team</label>
+                                <select class="db-form-select" id="dbPlayerSeasonTeam">
+                                    <option value="">Select Team</option>
+                                </select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Jersey</label>
+                                <input type="number" class="db-form-input" id="dbPlayerSeasonJersey" min="0" max="99">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Age</label>
+                                <input type="number" class="db-form-input" id="dbPlayerSeasonAge" min="18" max="50">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Position</label>
+                                <select class="db-form-select" id="dbPlayerSeasonPosition">
+                                    <option value="">Select Position</option>
+                                </select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Archetype</label>
+                                <select class="db-form-select" id="dbPlayerSeasonArchetype">
+                                    <option value="">Select Position First</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Core Ratings</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item"><span class="db-rating-label">OVR</span><input type="number" class="db-rating-input" id="dbRating_POVR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">SPD</span><input type="number" class="db-rating-input" id="dbRating_PSPD" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">ACC</span><input type="number" class="db-rating-input" id="dbRating_PACC" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">STR</span><input type="number" class="db-rating-input" id="dbRating_PSTR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">AGI</span><input type="number" class="db-rating-input" id="dbRating_PAGI" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">AWR</span><input type="number" class="db-rating-input" id="dbRating_PAWR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">JMP</span><input type="number" class="db-rating-input" id="dbRating_PJMP" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">STA</span><input type="number" class="db-rating-input" id="dbRating_PSTM" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">INJ</span><input type="number" class="db-rating-input" id="dbRating_PINJ" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">TGH</span><input type="number" class="db-rating-input" id="dbRating_PTGH" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">COD</span><input type="number" class="db-rating-input" id="dbRating_PCOD" min="0" max="99"></div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Passing</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item"><span class="db-rating-label">THP</span><input type="number" class="db-rating-input" id="dbRating_PPWR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">TAS</span><input type="number" class="db-rating-input" id="dbRating_PTAS" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">TAM</span><input type="number" class="db-rating-input" id="dbRating_PTAM" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">TAD</span><input type="number" class="db-rating-input" id="dbRating_PTAD" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">TOR</span><input type="number" class="db-rating-input" id="dbRating_PTOR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">TUP</span><input type="number" class="db-rating-input" id="dbRating_PTUP" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">PAC</span><input type="number" class="db-rating-input" id="dbRating_PPBK" min="0" max="99"></div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Running</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item"><span class="db-rating-label">CAR</span><input type="number" class="db-rating-input" id="dbRating_PCAR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">BCV</span><input type="number" class="db-rating-input" id="dbRating_PBCV" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">BTK</span><input type="number" class="db-rating-input" id="dbRating_PBTK" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">TRK</span><input type="number" class="db-rating-input" id="dbRating_PTRK" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">ELU</span><input type="number" class="db-rating-input" id="dbRating_PELU" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">SFA</span><input type="number" class="db-rating-input" id="dbRating_PSFA" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">SPN</span><input type="number" class="db-rating-input" id="dbRating_PSPN" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">JKM</span><input type="number" class="db-rating-input" id="dbRating_PJKM" min="0" max="99"></div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Receiving</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item"><span class="db-rating-label">CTH</span><input type="number" class="db-rating-input" id="dbRating_PCTH" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">SPC</span><input type="number" class="db-rating-input" id="dbRating_PSPC" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">CIT</span><input type="number" class="db-rating-input" id="dbRating_PCIT" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">SRR</span><input type="number" class="db-rating-input" id="dbRating_PSRR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">MRR</span><input type="number" class="db-rating-input" id="dbRating_PMRR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">DRR</span><input type="number" class="db-rating-input" id="dbRating_PDRR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">RLS</span><input type="number" class="db-rating-input" id="dbRating_PREL" min="0" max="99"></div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Blocking</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item"><span class="db-rating-label">RBK</span><input type="number" class="db-rating-input" id="dbRating_PRBK" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">PBK</span><input type="number" class="db-rating-input" id="dbRating_PPBK2" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">IBL</span><input type="number" class="db-rating-input" id="dbRating_PIBK" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">LBK</span><input type="number" class="db-rating-input" id="dbRating_PLBK" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">RBF</span><input type="number" class="db-rating-input" id="dbRating_PFMS" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">RBP</span><input type="number" class="db-rating-input" id="dbRating_PRNS" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">PBF</span><input type="number" class="db-rating-input" id="dbRating_PPBS" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">PBP</span><input type="number" class="db-rating-input" id="dbRating_PPBP" min="0" max="99"></div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Defense</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item"><span class="db-rating-label">TAK</span><input type="number" class="db-rating-input" id="dbRating_PTAK" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">POW</span><input type="number" class="db-rating-input" id="dbRating_PHIT" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">PMV</span><input type="number" class="db-rating-input" id="dbRating_PPWM" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">FMV</span><input type="number" class="db-rating-input" id="dbRating_PFMV" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">BSH</span><input type="number" class="db-rating-input" id="dbRating_PBSH" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">PUR</span><input type="number" class="db-rating-input" id="dbRating_PPRC" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">PRC</span><input type="number" class="db-rating-input" id="dbRating_PPLA" min="0" max="99"></div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Coverage</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item"><span class="db-rating-label">MCV</span><input type="number" class="db-rating-input" id="dbRating_PMCV" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">ZCV</span><input type="number" class="db-rating-input" id="dbRating_PZCV" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">PRS</span><input type="number" class="db-rating-input" id="dbRating_PPRS" min="0" max="99"></div>
+                        </div>
+                    </div>
+
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Kicking</h4>
+                        <div class="db-ratings-grid">
+                            <div class="db-rating-item"><span class="db-rating-label">KPW</span><input type="number" class="db-rating-input" id="dbRating_PKPR" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">KAC</span><input type="number" class="db-rating-input" id="dbRating_PKAC" min="0" max="99"></div>
+                            <div class="db-rating-item"><span class="db-rating-label">KRT</span><input type="number" class="db-rating-input" id="dbRating_PKRT" min="0" max="99"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Career Stats Tab -->
+                <div class="db-player-tab-content" id="tab-stats">
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Career Accolades</h4>
+                        <div class="db-form-grid">
+                            <div class="db-form-item">
+                                <label class="db-form-label">All-Pro Selections (AP1)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerAP1" min="0" max="20">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Pro Bowls (PB)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerPB" min="0" max="20">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Starts (St)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerSt" min="0" max="400">
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Weighted AV (wAV)</label>
+                                <input type="number" class="db-form-input" id="dbPlayerWAV" min="0" max="300">
+                            </div>
+                            <div class="db-form-item db-form-checkbox">
+                                <input type="checkbox" id="dbPlayerHOF">
+                                <label class="db-form-label" style="margin: 0;">Hall of Famer</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="db-player-card-footer">
+                <div class="db-footer-left">
+                    <button class="db-btn db-btn-danger" id="resetDbPlayerBtn">Reset to Original</button>
+                    <button class="db-btn db-btn-warning" id="clearSeasonsBtn" title="Fix wrongly-assigned seasons">Clear Seasons</button>
+                    <button class="db-btn db-btn-info" id="fillFromPFRBtn" title="Fill missing data from Pro-Football-Reference">
+                        Fill from PFR
+                    </button>
+                </div>
+                <div class="db-footer-right">
+                    <button class="db-btn db-btn-secondary" id="cancelDbPlayerBtn">Cancel</button>
+                    <button class="db-btn db-btn-primary" id="saveDbPlayerBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Face Picker Modal -->
+    <div id="genericFacePickerModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 800px; max-height: 80vh;">
+            <div class="modal-header">
+                <h2 class="modal-title">Choose Generic Face</h2>
+                <button class="modal-close" id="closeGenericFacePicker">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                <div id="genericFaceGrid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="db-btn db-btn-secondary" id="cancelGenericFacePicker">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAM Picker Modal (sets PAM only, not PID) -->
+    <div id="pamPickerModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 800px; max-height: 80vh;">
+            <div class="modal-header">
+                <h2 class="modal-title">Select Generic PAM</h2>
+                <button class="modal-close" id="closePAMPicker">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                <div style="margin-bottom: 15px; padding: 10px; background: #2a2a2a; border-radius: 4px; border-left: 3px solid #ff6b35;">
+                    <p style="margin: 0; font-size: 12px; color: #ccc;">
+                        <strong>Note:</strong> This will set the PAM (Player Assets) value only. The PID (Photo ID) will remain unchanged.
+                    </p>
+                </div>
+                <div id="pamPickerGrid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="db-btn db-btn-secondary" id="cancelPAMPicker">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Management Modal -->
+    <div id="dbManagementModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Database Management</h2>
+                <button class="modal-close" id="closeDbManagement">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Statistics -->
+                <div class="stats-card">
+                    <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #fff;">Database Statistics</h4>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value" id="dbStatEditedPlayers">0</div>
+                            <div class="stat-label">Edited Players</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value" id="dbStatCustomPlayers">0</div>
+                            <div class="stat-label">Custom Players</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reset Actions -->
+                <div class="action-section">
+                    <div class="action-section-title">Reset Options</div>
+                    <div class="action-buttons">
+                        <button class="db-btn db-btn-secondary" id="resetEditedPlayers">Reset Edited Players</button>
+                        <button class="db-btn db-btn-secondary" id="resetCustomPlayers">Delete Custom Players</button>
+                        <button class="db-btn db-btn-danger" id="resetAllDatabase">Reset All</button>
+                    </div>
+                </div>
+
+                <!-- Backup Actions -->
+                <div class="action-section">
+                    <div class="action-section-title">Backup & Restore</div>
+                    <div class="action-buttons">
+                        <button class="db-btn db-btn-primary" id="createDbBackup">Create Backup</button>
+                        <button class="db-btn db-btn-secondary" id="restoreDbBackup">Restore from Backup</button>
+                    </div>
+                    <div id="backupListContainer" style="display: none;">
+                        <select id="backupList"></select>
+                        <button class="db-btn db-btn-primary" id="confirmRestoreBackup">Restore Selected</button>
+                    </div>
+                </div>
+
+                <!-- Auto-Fill Missing Data -->
+                <div class="action-section">
+                    <div class="action-section-title">Auto-Fill Missing Data (PFR)</div>
+                    <div class="action-buttons">
+                        <button class="db-btn db-btn-secondary" id="scanMissingDataBtn">
+                            <span id="scanMissingBtnText">Scan for Missing Data</span>
+                            <span id="scanMissingSpinner" style="display: none;">Scanning...</span>
+                        </button>
+                        <button class="db-btn db-btn-success" id="batchFillDataBtn" style="display: none;">Fill All Missing Data</button>
+                    </div>
+                    <div id="missingDataResults" style="display: none; margin-top: 12px;">
+                        <div id="missingDataCount"></div>
+                        <div id="missingDataList" style="font-size: 12px; color: #888; margin-top: 8px;"></div>
+                    </div>
+                    <div id="batchFillProgress" class="progress-container" style="display: none;">
+                        <div class="progress-status" id="batchFillStatus">Starting...</div>
+                        <div class="progress-counter" id="batchFillCounter">0/0</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="batchFillProgressBar" style="width: 0%;"></div>
+                        </div>
+                        <button class="db-btn db-btn-danger" id="cancelBatchFillBtn" style="margin-top: 8px;">Cancel</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="db-btn db-btn-secondary" id="closeDbManagementBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/database-player-card.js"></script>
+    <script src="js/db-management.js"></script>
+    <script>
+        /**
+         * Standalone Database Browser initialization
+         * This runs when the database browser is opened in a separate window
+         */
+        (function() {
+            'use strict';
+
+            // Module state
+            let searchTimeout = null;
+            let currentResults = [];
+            let currentPage = 1;
+            let pageSize = 50;
+            let totalResults = 0;
+            let isLoading = false;
+
+            /**
+             * Initialize the standalone browser
+             */
+            async function init() {
+                console.log('[DatabaseBrowser] Initializing standalone window...');
+
+                // Set up event listeners
+                setupEventListeners();
+
+                // Wait for lookup service to be ready before loading filters
+                if (window.electronAPI?.lookup?.isReady) {
+                    let attempts = 0;
+                    const maxAttempts = 20; // 2 seconds max wait
+                    while (attempts < maxAttempts) {
+                        const ready = await window.electronAPI.lookup.isReady();
+                        if (ready) {
+                            console.log('[DatabaseBrowser] Lookup service ready');
+                            break;
+                        }
+                        await new Promise(r => setTimeout(r, 100));
+                        attempts++;
+                    }
+                    if (attempts === maxAttempts) {
+                        console.warn('[DatabaseBrowser] Lookup service not ready after timeout');
+                    }
+                }
+
+                // Load filter options
+                await loadPositionFilter();
+                await loadCollegeFilter();
+                await loadTeamFilter();
+
+                // Perform initial search
+                await performSearch();
+
+                console.log('[DatabaseBrowser] Initialized');
+            }
+
+            function setupEventListeners() {
+                // Search input with debounce
+                const searchInput = document.getElementById('playerBrowserSearch');
+                if (searchInput) {
+                    searchInput.addEventListener('input', () => {
+                        if (searchTimeout) clearTimeout(searchTimeout);
+                        searchTimeout = setTimeout(() => {
+                            currentPage = 1;
+                            performSearch();
+                        }, 300);
+                    });
+                }
+
+                // Filters
+                ['playerBrowserPositionFilter', 'playerBrowserCollegeFilter', 'playerBrowserTeamFilter', 'playerBrowserHofFilter', 'playerBrowserEmptyFilter'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.addEventListener('change', () => {
+                            currentPage = 1;
+                            performSearch();
+                        });
+                    }
+                });
+
+                // Draft year filters
+                ['playerBrowserDraftYearFrom', 'playerBrowserDraftYearTo'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.addEventListener('change', () => {
+                            currentPage = 1;
+                            performSearch();
+                        });
+                    }
+                });
+
+                // Pagination
+                const prevBtn = document.getElementById('playerBrowserPrevPage');
+                const nextBtn = document.getElementById('playerBrowserNextPage');
+                if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; performSearch(); } });
+                if (nextBtn) nextBtn.addEventListener('click', () => { currentPage++; performSearch(); });
+
+                // Add New Player
+                const addNewBtn = document.getElementById('addNewPlayerBtn');
+                if (addNewBtn) {
+                    addNewBtn.addEventListener('click', () => {
+                        if (typeof window.createNewDbPlayer === 'function') {
+                            window.createNewDbPlayer();
+                        } else {
+                            alert('Create player functionality not available.');
+                        }
+                    });
+                }
+
+                // DB Management
+                const manageBtn = document.getElementById('openDbManagement');
+                if (manageBtn) {
+                    manageBtn.addEventListener('click', () => {
+                        if (typeof window.openDbManagementModal === 'function') {
+                            window.openDbManagementModal();
+                        }
+                    });
+                }
+
+                // Fill Current Results from PFR
+                const fillBtn = document.getElementById('fillCurrentResultsBtn');
+                if (fillBtn) {
+                    fillBtn.addEventListener('click', fillCurrentResultsFromPFR);
+                }
+
+                // Set up progress listener for batch fill
+                if (window.electronAPI && window.electronAPI.playerFill) {
+                    window.electronAPI.playerFill.onProgress(handleBatchProgress);
+                }
+            }
+
+            // Batch fill state
+            let isBatchRunning = false;
+
+            async function fillCurrentResultsFromPFR() {
+                if (currentResults.length === 0) {
+                    alert('No players in current results. Search for players first.');
+                    return;
+                }
+
+                if (isBatchRunning) {
+                    alert('Batch fill already running.');
+                    return;
+                }
+
+                const confirmed = confirm(
+                    'Fill missing data from Pro-Football-Reference for ' + currentResults.length + ' players?\n\n' +
+                    'This will scrape PFR for each player in the current search results.\n' +
+                    'Takes about 1.5 seconds per player.\n\n' +
+                    'Continue?'
+                );
+
+                if (!confirmed) return;
+
+                console.log('[DatabaseBrowser] Starting batch fill for', currentResults.length, 'players');
+                isBatchRunning = true;
+
+                const fillBtn = document.getElementById('fillCurrentResultsBtn');
+                const statusSpan = document.getElementById('batchFillStatusInline');
+
+                if (fillBtn) {
+                    fillBtn.disabled = true;
+                    fillBtn.textContent = 'Filling...';
+                }
+                if (statusSpan) {
+                    statusSpan.style.display = 'inline';
+                    statusSpan.textContent = 'Starting...';
+                }
+
+                try {
+                    // Get player IDs from current results (use internalId, not id)
+                    const playerIds = currentResults.map(p => p.internalId);
+                    console.log('[DatabaseBrowser] Player IDs to fill:', playerIds.slice(0, 5), '...');
+
+                    // Call batch fill with these specific player IDs
+                    const result = await window.electronAPI.playerFill.batchFill({
+                        playerIds: playerIds
+                    });
+
+                    console.log('[DatabaseBrowser] Batch fill complete:', result);
+
+                    alert(
+                        'Batch fill complete!\n\n' +
+                        'Successfully filled: ' + result.success + '\n' +
+                        'Failed: ' + result.failed + '\n' +
+                        'Skipped (no data found): ' + result.skipped
+                    );
+
+                    // Refresh search results
+                    await performSearch();
+
+                } catch (error) {
+                    console.error('[DatabaseBrowser] Batch fill error:', error);
+                    alert('Batch fill error: ' + error.message);
+                } finally {
+                    isBatchRunning = false;
+
+                    if (fillBtn) {
+                        fillBtn.disabled = false;
+                        fillBtn.textContent = 'Fill from PFR';
+                    }
+                    if (statusSpan) {
+                        statusSpan.style.display = 'none';
+                    }
+                }
+            }
+
+            function handleBatchProgress(data) {
+                const statusSpan = document.getElementById('batchFillStatusInline');
+                if (statusSpan && isBatchRunning) {
+                    statusSpan.textContent = data.current + '/' + data.total + ' - ' + (data.playerName || data.status);
+                }
+            }
+
+            async function loadPositionFilter() {
+                const select = document.getElementById('playerBrowserPositionFilter');
+                console.log('[DatabaseBrowser] loadPositionFilter - select:', !!select, 'lookup:', !!window.electronAPI?.lookup);
+                if (!select) {
+                    console.error('[DatabaseBrowser] Position filter select element not found');
+                    return;
+                }
+                if (!window.electronAPI?.lookup) {
+                    console.error('[DatabaseBrowser] Lookup API not available');
+                    return;
+                }
+                try {
+                    const positions = await window.electronAPI.lookup.getDropdownOptions('position_lookup.csv');
+                    console.log('[DatabaseBrowser] Loaded positions:', positions?.length || 0);
+                    if (positions && positions.length > 0) {
+                        positions.forEach(pos => {
+                            const opt = document.createElement('option');
+                            opt.value = pos.label || pos.name;
+                            opt.textContent = pos.label || pos.name;
+                            select.appendChild(opt);
+                        });
+                    }
+                } catch (e) { console.error('Failed to load positions:', e); }
+            }
+
+            async function loadCollegeFilter() {
+                const select = document.getElementById('playerBrowserCollegeFilter');
+                console.log('[DatabaseBrowser] loadCollegeFilter - select:', !!select);
+                if (!select || !window.electronAPI?.lookup) return;
+                try {
+                    // First check the cache status
+                    const status = await window.electronAPI.lookup.getStatus();
+                    console.log('[DatabaseBrowser] Lookup cache status:', status);
+
+                    const colleges = await window.electronAPI.lookup.getDropdownOptions('college_lookup.csv');
+                    console.log('[DatabaseBrowser] Loaded colleges:', colleges?.length || 0);
+                    console.log('[DatabaseBrowser] Sample colleges:', colleges?.slice(0, 3));
+
+                    if (colleges && colleges.length > 0) {
+                        colleges.forEach(col => {
+                            const opt = document.createElement('option');
+                            opt.value = col.label || col.name || '';
+                            opt.textContent = col.label || col.name || '(unknown)';
+                            select.appendChild(opt);
+                        });
+                        console.log('[DatabaseBrowser] Added', colleges.length, 'college options to dropdown');
+                    } else {
+                        console.warn('[DatabaseBrowser] No colleges returned from lookup service');
+                    }
+                } catch (e) {
+                    console.error('Failed to load colleges:', e);
+                }
+            }
+
+            async function loadTeamFilter() {
+                const select = document.getElementById('playerBrowserTeamFilter');
+                console.log('[DatabaseBrowser] loadTeamFilter - select:', !!select);
+                if (!select || !window.electronAPI?.lookup) return;
+                try {
+                    const teams = await window.electronAPI.lookup.getDropdownOptions('team_lookup.csv');
+                    console.log('[DatabaseBrowser] Loaded teams:', teams?.length || 0);
+                    if (teams && teams.length > 0) {
+                        teams.forEach(team => {
+                            const opt = document.createElement('option');
+                            opt.value = team.label || team.name;
+                            opt.textContent = team.label || team.name;
+                            select.appendChild(opt);
+                        });
+                    }
+                } catch (e) { console.error('Failed to load teams:', e); }
+            }
+
+            async function performSearch() {
+                if (isLoading) return;
+                isLoading = true;
+
+                const resultsDiv = document.getElementById('playerBrowserResults');
+                if (resultsDiv) resultsDiv.innerHTML = '<div class="player-browser-loading">Searching...</div>';
+
+                try {
+                    const searchQuery = document.getElementById('playerBrowserSearch')?.value || '';
+                    const position = document.getElementById('playerBrowserPositionFilter')?.value || '';
+                    const draftYearFrom = document.getElementById('playerBrowserDraftYearFrom')?.value ? parseInt(document.getElementById('playerBrowserDraftYearFrom').value) : null;
+                    const draftYearTo = document.getElementById('playerBrowserDraftYearTo')?.value ? parseInt(document.getElementById('playerBrowserDraftYearTo').value) : null;
+                    const hofFilter = document.getElementById('playerBrowserHofFilter')?.value || '';
+
+                    const options = {
+                        limit: pageSize,
+                        offset: (currentPage - 1) * pageSize
+                    };
+                    if (position) options.position = position;
+                    if (draftYearFrom) options.draftYearFrom = draftYearFrom;
+                    if (draftYearTo) options.draftYearTo = draftYearTo;
+                    // Pass HOF filter to server for proper filtering before pagination
+                    if (hofFilter) options.hof = hofFilter;
+
+                    let results;
+                    if (searchQuery.trim()) {
+                        results = await window.electronAPI.database.searchPlayers(searchQuery, options);
+                    } else {
+                        results = await window.electronAPI.database.getAllPlayers(options);
+                    }
+
+                    currentResults = results.players || results || [];
+                    totalResults = results.total || currentResults.length;
+
+                    // Apply remaining client-side filters (college, team, empty filter)
+                    const college = document.getElementById('playerBrowserCollegeFilter')?.value || '';
+                    const team = document.getElementById('playerBrowserTeamFilter')?.value || '';
+                    const emptyFilter = document.getElementById('playerBrowserEmptyFilter')?.value || '';
+
+                    if (college || team || emptyFilter) {
+                        currentResults = currentResults.filter(p => {
+                            if (college && p.college !== college) return false;
+                            if (emptyFilter === 'position' && p.position) return false;
+                            if (emptyFilter === 'college' && p.college) return false;
+                            if (emptyFilter === 'hometown' && p.hometown) return false;
+                            if (emptyFilter === 'pid' && p.photoId) return false;
+                            if (emptyFilter === 'draftClass' && p.draftClass) return false;
+                            return true;
+                        });
+                    }
+
+                    displayResults();
+                } catch (error) {
+                    console.error('Search failed:', error);
+                    if (resultsDiv) resultsDiv.innerHTML = '<div class="player-browser-error"><p>Search failed</p><p class="player-browser-error-msg">' + error.message + '</p></div>';
+                } finally {
+                    isLoading = false;
+                }
+            }
+
+            function displayResults() {
+                const resultsDiv = document.getElementById('playerBrowserResults');
+                if (!resultsDiv) return;
+
+                if (currentResults.length === 0) {
+                    resultsDiv.innerHTML = '<div class="player-browser-empty"><p>No players found</p><p class="player-browser-empty-hint">Try adjusting your search or filters</p></div>';
+                    updatePagination();
+                    return;
+                }
+
+                let html = '';
+                currentResults.forEach(player => {
+                    const hofBadge = player.isHof ? '<span class="player-hof-badge">HOF</span>' : '';
+                    const draftInfo = player.draftClass ? (player.draftRound ? `${player.draftClass} R${player.draftRound}` : player.draftClass) : '-';
+                    const careerInfo = player.careerFrom && player.careerTo ? `${player.careerFrom}-${player.careerTo}` : (player.careerFrom || '-');
+
+                    html += `
+                        <div class="player-browser-row" data-player-id="${player.id}">
+                            <div class="player-browser-name">${player.firstName} ${player.lastName} ${hofBadge}</div>
+                            <div class="player-browser-position">${player.position || '-'}</div>
+                            <div class="player-browser-college">${player.college || '-'}</div>
+                            <div class="player-browser-draft">${draftInfo}</div>
+                            <div class="player-browser-career">${careerInfo}</div>
+                            <div class="player-browser-actions">
+                                <button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(${player.id})">View</button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                resultsDiv.innerHTML = html;
+                updatePagination();
+            }
+
+            function updatePagination() {
+                const prevBtn = document.getElementById('playerBrowserPrevPage');
+                const nextBtn = document.getElementById('playerBrowserNextPage');
+                const pageInfo = document.getElementById('playerBrowserPageInfo');
+
+                if (prevBtn) prevBtn.disabled = currentPage <= 1;
+                if (nextBtn) nextBtn.disabled = currentResults.length < pageSize;
+                if (pageInfo) pageInfo.textContent = `Page ${currentPage}`;
+            }
+
+            // Expose functions
+            window.refreshPlayerBrowser = performSearch;
+            window.getCurrentBrowserResults = function() { return currentResults; };
+
+            // Initialize when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>

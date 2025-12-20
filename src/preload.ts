@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   lookup: {
     isReady: () => ipcRenderer.invoke('lookup:is-ready'),
     reload: () => ipcRenderer.invoke('lookup:reload'),
+    getStatus: () => ipcRenderer.invoke('lookup:get-status'),
     getDropdownOptions: (fileName: string) => ipcRenderer.invoke('lookup:get-dropdown-options', fileName),
     getPIDPortraitMapping: () => ipcRenderer.invoke('lookup:get-pid-portrait-mapping'),
     // Coach lookup methods
@@ -390,9 +391,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importCsv: (csvContent: string) => ipcRenderer.invoke('database:import-csv', csvContent)
   },
 
-  // Window APIs (focus restoration after native dialogs)
+  // Window APIs (focus restoration after native dialogs, multi-window support)
   window: {
-    focus: () => ipcRenderer.invoke('window:focus')
+    focus: () => ipcRenderer.invoke('window:focus'),
+    openDatabase: () => ipcRenderer.invoke('window:open-database')
   },
 
   // Editor Tracking APIs (duplicate prevention for roster/draft building)

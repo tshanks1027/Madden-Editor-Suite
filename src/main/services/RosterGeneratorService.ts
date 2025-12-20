@@ -2202,7 +2202,7 @@ export class RosterGeneratorService {
    */
   private async lookupCollege(collegeName: string): Promise<number> {
     if (!collegeName || collegeName.trim() === '') {
-      return 265; // No College
+      return 0; // N/A - No college specified
     }
 
     const cleanName = collegeName.trim();
@@ -2286,11 +2286,11 @@ export class RosterGeneratorService {
         return match.id;
       }
 
-      console.warn(`[RosterGeneratorService] College not found in lookup: "${collegeName}"`);
-      return 265; // No College
+      console.warn(`[RosterGeneratorService] College not found in lookup: "${collegeName}", using N/A (0)`);
+      return 0; // N/A - College not in list
     } catch (error) {
       console.warn('[RosterGeneratorService] College lookup failed:', collegeName, error);
-      return 265;
+      return 0; // N/A on error
     }
   }
 

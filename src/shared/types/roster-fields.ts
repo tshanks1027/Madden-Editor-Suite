@@ -479,6 +479,22 @@ export const ROSTER_FIELD_DEFINITIONS: Record<string, RosterField> = {
     filterable: true,
     editable: true
   },
+
+  // Race/Appearance (skin tone values 1-7)
+  PLRC: {
+    key: 'PLRC',
+    displayName: 'Race',
+    category: 'physical',
+    dataType: 'number',
+    minValue: 1,
+    maxValue: 7,
+    priority: 'medium',
+    defaultVisible: false,
+    width: 80,
+    sortable: true,
+    filterable: true,
+    editable: true
+  },
   PYWT: {
     key: 'PYWT',
     displayName: 'Years Pro',

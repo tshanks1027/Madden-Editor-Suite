@@ -18,6 +18,23 @@ export const MADDEN_FIELDS = {
     'PAGE': { display: 'Age', shortDisplay: 'Age', type: 'numeric', editable: true, width: 60, min: 18, max: 45 },
     'PHTN': { display: 'Hometown', shortDisplay: 'Hometown', type: 'text', editable: true, width: 100 },
     'PHSN': { display: 'State', shortDisplay: 'State', type: 'lookup', editable: true, width: 120, lookup: 'states' },
+    'PLRC': {
+        display: 'Race',
+        shortDisplay: 'Race',
+        type: 'lookup',
+        editable: true,
+        width: 100,
+        lookup: 'race',
+        options: [
+            { value: 1, display: '1' },
+            { value: 2, display: '2' },
+            { value: 3, display: '3' },
+            { value: 4, display: '4' },
+            { value: 5, display: '5' },
+            { value: 6, display: '6' },
+            { value: 7, display: '7' }
+        ]
+    },
     'PACC': { display: 'Acceleration', shortDisplay: 'ACC', type: 'numeric', editable: true, width: 90, min: 0, max: 99 },
     'PAGI': { display: 'Agility', shortDisplay: 'AGI', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
     'PAWR': { display: 'Awareness', shortDisplay: 'AWR', type: 'numeric', editable: true, width: 90, min: 0, max: 99 },
@@ -137,7 +154,7 @@ export const MADDEN_FIELDS = {
 export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"], ["POID", "Pres ID"],
     ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
-    ["PAGE", "Age"], ["ARCHETYPE", "Archetype"], ["PHTN", "Hometown"], ["PHSN", "State"],
+    ["PAGE", "Age"], ["ARCHETYPE", "Archetype"], ["PHTN", "Hometown"], ["PHSN", "State"], ["PLRC", "Race"],
     ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PHAN", "Handedness"], ["PYRP", "Years Pro"], ["PROL", "Dev Trait"],
     ["POVR", "Overall"],
     ["PACC", "Acceleration"], ["PAGI", "Agility"], ["PAWR", "Awareness"], ["PBCV", "Vision"],
@@ -177,7 +194,7 @@ export const MADDEN_EXPORT_ORDER = [
     "PYRP", "SRRN", "TGID", "TRBH", "TRBR", "TRCB", "TRCL", "TRDO", "TRDS", "TRFB",
     "TRFK", "TRFY", "TRHM", "TRJR", "TRSB", "TRSW", "TRTA", "TRTL", "TRTS", "TRWU",
     "PLTY", "PPOS", "PYWT", "PLDT", "PCPH", "ISCN", "PCBT", "PLCP", "PSA3", "PSB2",
-    "PSB3", "PICN", "PHAN", "PSA4", "PSB4", "PSA5", "PSA6", "PSB5", "PSB6"
+    "PSB3", "PICN", "PHAN", "PSA4", "PSB4", "PSA5", "PSA6", "PSB5", "PSB6", "PLRC"
 ];
 
 // Basic fields for default view (user-friendly editing fields only)
@@ -236,6 +253,7 @@ export let LOOKUP_DATA = {
     pids: new Map(),
     pidsByName: new Map(),
     pidsCapitalized: new Map(), // Maps PID -> Capitalized Name
+    allPlayers: [], // Array of all players [{name, pid, hasPid, plpo}] for full-text search
     plpos: new Map(), // Maps PID -> PLPO key (for portraits)
     plpoToPid: new Map(), // Maps PLPO key -> PID (REVERSE lookup for generic faces)
     pidNames: new Map(), // Maps PID -> { firstName, lastName, fullName } (for Photo Name column)
@@ -251,6 +269,15 @@ export let LOOKUP_DATA = {
         [2, 'Muscular'],
         [3, 'Heavy'],
         [4, 'Lean']
+    ]),
+    races: new Map([
+        [1, '1'],
+        [2, '2'],
+        [3, '3'],
+        [4, '4'],
+        [5, '5'],
+        [6, '6'],
+        [7, '7']
     ]),
     handedness: new Map([
         [0, 'Right'],
@@ -431,17 +458,45 @@ export async function loadLookupData() {
 
             console.log(`Loaded ${pidOptions.length} PID lookups from lookup service`);
 
+            // Reset allPlayers array
+            LOOKUP_DATA.allPlayers = [];
+            let withPid = 0;
+            let withoutPid = 0;
+
             // Populate maps from the lookup options (skip entries with missing labels)
             pidOptions.forEach(option => {
                 if (option.label && option.label.trim()) {
                     const capitalizedName = capitalizeName(option.label);
-                    LOOKUP_DATA.pids.set(option.value, option.label); // Keep original for backward compat
-                    LOOKUP_DATA.pidsCapitalized.set(option.value, capitalizedName); // Capitalized version
-                    LOOKUP_DATA.pidsByName.set(option.label.toLowerCase(), option.value); // Lowercase key for lookup
+                    const hasPid = option.hasPid !== false && option.value > 0;
+
+                    // Store ALL players for searching (with or without PID)
+                    LOOKUP_DATA.allPlayers.push({
+                        name: option.label,
+                        nameCapitalized: capitalizedName,
+                        nameLower: option.label.toLowerCase(),
+                        pid: option.value,
+                        hasPid: hasPid,
+                        plpo: option.plpo || ''
+                    });
+
+                    // Only populate PID maps for players WITH valid PIDs
+                    if (hasPid) {
+                        LOOKUP_DATA.pids.set(option.value, option.label); // Keep original for backward compat
+                        LOOKUP_DATA.pidsCapitalized.set(option.value, capitalizedName); // Capitalized version
+                        LOOKUP_DATA.pidsByName.set(option.label.toLowerCase(), option.value); // Lowercase key for lookup
+                        withPid++;
+                    } else {
+                        withoutPid++;
+                    }
                 }
             });
 
-            console.log(`Processed ${LOOKUP_DATA.pids.size} PID lookups`);
+            console.log(`Processed ${LOOKUP_DATA.pids.size} PID lookups (${withPid} with PID, ${withoutPid} without PID)`);
+            console.log(`Total players in allPlayers array: ${LOOKUP_DATA.allPlayers.length}`);
+
+            // Debug: Find Dobbs entries
+            const dobbsEntries = LOOKUP_DATA.allPlayers.filter(p => p.nameLower.includes('dobbs'));
+            console.log(`Found ${dobbsEntries.length} Dobbs entries:`, dobbsEntries);
         } catch (error) {
             console.error('Failed to load PID lookup:', error);
         }
@@ -560,6 +615,9 @@ export function getLookupOptions(lookupType) {
             return Array.from(LOOKUP_DATA.bodytypes.entries()).map(([value, label]) => ({ value, label }));
         case 'handedness':
             return Array.from(LOOKUP_DATA.handedness.entries()).map(([value, label]) => ({ value, label }));
+        case 'race':
+        case 'races':
+            return Array.from(LOOKUP_DATA.races.entries()).map(([value, label]) => ({ value, label }));
         default:
             return [];
     }
@@ -589,6 +647,9 @@ export function getLookupValue(lookupType, value) {
             return LOOKUP_DATA.handedness.get(value) || 'Right';
         case 'devtraits':
             return LOOKUP_DATA.devtraits.get(value) || 'Normal';
+        case 'race':
+        case 'races':
+            return LOOKUP_DATA.races.get(value) || 'Unknown';
         default:
             return 'Unknown';
     }
@@ -772,13 +833,20 @@ export function searchPIDNames(query, limit = 10) {
     const lowercaseQuery = query.toLowerCase();
     const matches = [];
 
-    for (const [name, pid] of LOOKUP_DATA.pidsByName.entries()) {
-        if (name.includes(lowercaseQuery)) {
-            matches.push({ name: LOOKUP_DATA.pids.get(pid), pid });
+    // Search through players WITH PIDs only
+    for (const player of LOOKUP_DATA.allPlayers) {
+        if (player.hasPid && player.nameLower.includes(lowercaseQuery)) {
+            matches.push({
+                name: player.name,
+                pid: player.pid,
+                hasPid: player.hasPid,
+                plpo: player.plpo
+            });
             if (matches.length >= limit) break;
         }
     }
 
+    // Sort alphabetically
     return matches.sort((a, b) => a.name.localeCompare(b.name));
 }
 

@@ -1072,6 +1072,66 @@ class GenericFaceService {
     console.log(`[GenericFaceService] ===== BTYP SYNC COMPLETE: ${updatedCount} players updated =====`);
     return updatedCount;
   }
+
+  /**
+   * Sync SKNT (skin tone) in BLBM for ALL players from PLRC in PLAY
+   * This ensures the game reads the correct skin tone (game uses SKNT in BLBM)
+   * @param file - The loaded roster file object
+   * @param players - Array of player data from PLAY table
+   * @returns Number of players updated
+   */
+  async syncSkinToneForAllPlayers(file, players) {
+    console.log('[GenericFaceService] ===== SKNT SYNC START (ALL PLAYERS) =====');
+
+    const blob = file.BLOB?.records?.[0];
+    if (!blob) {
+      console.log('[GenericFaceService] No BLOB table found');
+      return 0;
+    }
+
+    const blbm = blob.fields?.['BLBM']?.value;
+    if (!blbm || !blbm._records) {
+      console.log('[GenericFaceService] No BLBM table found in BLOB');
+      return 0;
+    }
+
+    console.log(`[GenericFaceService] Syncing SKNT for ${Math.min(players.length, blbm._records.length)} players`);
+
+    let updatedCount = 0;
+
+    for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+      const player = players[i];
+      const blbmRec = blbm._records[i];
+      const fields = blbmRec.fields || blbmRec._fields;
+
+      if (!fields) continue;
+
+      const plrc = player.PLRC;
+      // Validate PLRC is in range 1-7
+      if (plrc === undefined || plrc === null || plrc < 1 || plrc > 7) continue;
+
+      const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
+
+      // Update SKNT to match PLRC (if SKNT field exists)
+      if (fields['SKNT']) {
+        const currentSknt = fields['SKNT'].value ?? fields['SKNT']._value;
+        if (currentSknt !== plrc) {
+          if (fields['SKNT'].value !== undefined) {
+            fields['SKNT'].value = plrc;
+          } else if (fields['SKNT']._value !== undefined) {
+            fields['SKNT']._value = plrc;
+          }
+          updatedCount++;
+          if (updatedCount <= 10) {
+            console.log(`[GenericFaceService] ${playerName}: SKNT ${currentSknt} -> ${plrc}`);
+          }
+        }
+      }
+    }
+
+    console.log(`[GenericFaceService] ===== SKNT SYNC COMPLETE: ${updatedCount} players updated =====`);
+    return updatedCount;
+  }
 }
 
 const genericFaceService = new GenericFaceService();

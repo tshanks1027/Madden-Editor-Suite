@@ -2448,6 +2448,26 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
         </div>
     </div>
 
+    <!-- PAM Picker Modal (sets PAM only, not PID) -->
+    <div id="pamPickerModal" class="modal" style="display: none;">
+        <div class="modal-content generic-face-picker-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Select Generic PAM</h2>
+                <button class="modal-close" id="closePAMPicker">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 15px; padding: 10px; background: #2a2a2a; border-radius: 4px; border-left: 3px solid #ff6b35;">
+                    <p style="margin: 0; font-size: 12px; color: #ccc;">
+                        <strong>Note:</strong> This will set the PAM (Player Assets) value only. The PID (Photo ID) will remain unchanged.
+                    </p>
+                </div>
+                <div id="pamPickerGrid" class="generic-face-grid">
+                    <div class="loading-spinner">Loading generic faces...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/custom-dropdown.js"></script>
     <script src="js/retro-editor.js"></script>
     <script src="js/database-player-card.js"></script>

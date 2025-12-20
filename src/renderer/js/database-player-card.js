@@ -232,6 +232,17 @@
       });
     }
 
+    // PAM input right-click handler - opens PAM picker (sets PAM only, not PID)
+    var pamInput = document.getElementById('dbPlayerPAM');
+    if (pamInput) {
+      pamInput.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        console.log('[DbPlayerCard] PAM input right-clicked - opening PAM picker');
+        openPAMPickerForDbCard();
+      });
+      pamInput.title = 'Right-click to select generic PAM';
+    }
+
     // OVR change listener - prompt to adjust ratings
     var ovrInput = document.getElementById('dbRating_POVR');
     if (ovrInput) {
@@ -2402,6 +2413,196 @@
     } catch (error) {
       console.error('[DbPlayerCard] Error selecting generic face:', error);
       alert('Failed to apply face: ' + error.message);
+    }
+  }
+
+  // ========================================
+  // PAM Picker for Database Card (sets PAM only, not PID)
+  // ========================================
+
+  var pamPickerInitialized = false;
+
+  /**
+   * Open the PAM picker modal for database player card
+   * Sets PAM value only, does not change PID
+   */
+  async function openPAMPickerForDbCard() {
+    var modal = document.getElementById('pamPickerModal');
+    var grid = document.getElementById('pamPickerGrid');
+
+    if (!modal || !grid) {
+      console.error('[DbPlayerCard] PAM picker modal or grid not found');
+      alert('PAM picker not available');
+      return;
+    }
+
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Show loading state
+    grid.innerHTML = '<div class="loading-spinner">Loading generic faces...</div>';
+
+    // Initialize close button handler
+    if (!pamPickerInitialized) {
+      var closeBtn = document.getElementById('closePAMPicker');
+      if (closeBtn) {
+        // Remove any existing listeners by cloning
+        var newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        newCloseBtn.addEventListener('click', function() {
+          modal.style.display = 'none';
+        });
+      }
+
+      var cancelBtn = document.getElementById('cancelPAMPicker');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+          modal.style.display = 'none';
+        });
+      }
+
+      // Close on background click
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          modal.style.display = 'none';
+        }
+      });
+
+      pamPickerInitialized = true;
+    }
+
+    try {
+      // Use cached generic faces or load them
+      if (!cachedGenericFaces) {
+        // Get verified portrait->GENR mapping
+        var verifiedMapping = {};
+        try {
+          verifiedMapping = await window.electronAPI.lookup.getVerifiedPortraitGenrMapping();
+        } catch (e) {
+          console.error('[DbPlayerCard] Could not load verified mapping:', e);
+        }
+
+        // Get PID_Portrait_Mapping.csv data
+        var mapping = await window.electronAPI.lookup.getPIDPortraitMapping();
+        var allGenericFaces = mapping.filter(function(entry) { return entry.type === 'generic'; });
+
+        // Filter to verified portraits only
+        var verifiedPortraits = new Set(Object.keys(verifiedMapping));
+        var validGenericFaces = allGenericFaces.filter(function(face) { return verifiedPortraits.has(face.portrait); });
+
+        // Deduplicate by portrait
+        var seenPortraits = new Set();
+        cachedGenericFaces = [];
+
+        validGenericFaces.forEach(function(face) {
+          if (!seenPortraits.has(face.portrait)) {
+            seenPortraits.add(face.portrait);
+            var verifiedData = verifiedMapping[face.portrait];
+            face._verifiedGenr = verifiedData ? verifiedData.genr : null;
+            face._verifiedSknt = verifiedData ? verifiedData.sknt : null;
+            cachedGenericFaces.push(face);
+          }
+        });
+
+        // Sort by skin tone category
+        cachedGenericFaces.sort(function(a, b) {
+          var matchA = a.portrait.match(/plpo_generic_(\d+)_/);
+          var matchB = b.portrait.match(/plpo_generic_(\d+)_/);
+          var toneA = matchA ? parseInt(matchA[1]) : 0;
+          var toneB = matchB ? parseInt(matchB[1]) : 0;
+          return toneA - toneB;
+        });
+      }
+
+      if (!cachedGenericFaces || cachedGenericFaces.length === 0) {
+        grid.innerHTML = '<div class="loading-spinner">No generic faces found</div>';
+        return;
+      }
+
+      // Clear grid and populate
+      grid.innerHTML = '';
+
+      cachedGenericFaces.forEach(function(face) {
+        var faceItem = document.createElement('div');
+        faceItem.className = 'generic-face-item';
+        faceItem.style.cssText = 'display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 8px; background: #2a2a2a; border-radius: 6px; transition: all 0.2s;';
+
+        var img = document.createElement('img');
+        img.style.cssText = 'width: 80px; height: 80px; object-fit: cover; border-radius: 4px; background: #333;';
+        img.alt = 'Generic Face';
+
+        var pamLabel = document.createElement('div');
+        pamLabel.style.cssText = 'margin-top: 6px; font-size: 10px; color: #aaa; text-align: center; word-break: break-all;';
+        pamLabel.textContent = face._verifiedGenr || face.portrait.replace('plpo_generic_', 'gen_') || 'Unknown';
+
+        faceItem.appendChild(img);
+        faceItem.appendChild(pamLabel);
+
+        // Hover effect
+        faceItem.addEventListener('mouseenter', function() {
+          faceItem.style.background = '#3a3a3a';
+          faceItem.style.transform = 'scale(1.05)';
+        });
+        faceItem.addEventListener('mouseleave', function() {
+          faceItem.style.background = '#2a2a2a';
+          faceItem.style.transform = 'scale(1)';
+        });
+
+        // Click handler to select PAM
+        faceItem.addEventListener('click', function() {
+          selectPAMForDbCard(face._verifiedGenr, face.portrait);
+        });
+
+        grid.appendChild(faceItem);
+
+        // Load portrait asynchronously
+        window.electronAPI.portrait.getByPID(face.pid).then(function(imageData) {
+          if (imageData && imageData.length > 0) {
+            img.src = imageData;
+          } else {
+            faceItem.style.display = 'none';
+          }
+        }).catch(function() {
+          faceItem.style.display = 'none';
+        });
+      });
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error loading PAM picker:', error);
+      grid.innerHTML = '<div class="loading-spinner">Error loading generic faces</div>';
+    }
+  }
+
+  /**
+   * Select a PAM value for the current player (does NOT change PID)
+   */
+  async function selectPAMForDbCard(genrValue, portrait) {
+    console.log('[DbPlayerCard] Selecting PAM only:', genrValue, 'portrait:', portrait);
+
+    // Set the PAM value
+    var pamValue = genrValue || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+
+    if (!pamValue) {
+      console.error('[DbPlayerCard] No PAM value to set');
+      return;
+    }
+
+    // Update the PAM input field
+    var pamInput = document.getElementById('dbPlayerPAM');
+    if (pamInput) {
+      pamInput.value = pamValue;
+    }
+
+    // Mark as changed
+    hasUnsavedChanges = true;
+    updateSaveButtonState();
+
+    console.log('[DbPlayerCard] Set PAM to:', pamValue, '(PID unchanged)');
+
+    // Close the modal
+    var modal = document.getElementById('pamPickerModal');
+    if (modal) {
+      modal.style.display = 'none';
     }
   }
 

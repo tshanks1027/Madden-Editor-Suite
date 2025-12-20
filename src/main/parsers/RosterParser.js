@@ -116,6 +116,40 @@ async function parseRosterFile(filePath) {
         }
 
         console.log(`[RosterParser] BTYP sync results: ${syncedCount} synced, ${skippedNoBTYP} missing BTYP, ${skippedNoChange} already matched`);
+
+        // Also sync SKNT (skin tone) to PLRC
+        let skntSyncedCount = 0;
+        let skntSkippedNoField = 0;
+        let skntSkippedNoChange = 0;
+
+        for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+          const blbmRec = blbm._records[i];
+          const fields = blbmRec.fields || blbmRec._fields;
+
+          if (!fields || !fields['SKNT']) {
+            skntSkippedNoField++;
+            continue;
+          }
+
+          const sknt = fields['SKNT'].value ?? fields['SKNT']._value;
+          const plrc = players[i].PLRC;
+
+          if (sknt !== undefined && sknt !== null && sknt >= 1 && sknt <= 7) {
+            if (plrc !== sknt) {
+              players[i].PLRC = sknt;
+              skntSyncedCount++;
+            } else {
+              skntSkippedNoChange++;
+            }
+          } else {
+            // Default PLRC to 4 (middle skin tone) if SKNT is invalid
+            if (!plrc || plrc < 1 || plrc > 7) {
+              players[i].PLRC = 4;
+            }
+          }
+        }
+
+        console.log(`[RosterParser] SKNT->PLRC sync results: ${skntSyncedCount} synced, ${skntSkippedNoField} missing SKNT, ${skntSkippedNoChange} already matched`);
       } else {
         console.log('[RosterParser] WARNING: No BLBM table found for BTYP sync');
       }
@@ -371,6 +405,11 @@ async function saveRosterFile(filePath, players, originalData) {
         // The game reads body type from BTYP in BLBM, not PCBT in PLAY!
         btypSynced = await genericFaceService.syncBodyTypeForAllPlayers(file, players);
         console.log('[RosterParser] BTYP sync complete:', btypSynced, 'players synced');
+
+        // Sync SKNT (skin tone) in BLBM from PLRC for ALL players
+        // The game reads skin tone from SKNT in BLBM
+        const skntSynced = await genericFaceService.syncSkinToneForAllPlayers(file, players);
+        console.log('[RosterParser] SKNT sync complete:', skntSynced, 'players synced');
       } catch (err) {
         blbmError = err.message;
         console.warn('[RosterParser] BLBM update failed (non-fatal):', err.message);

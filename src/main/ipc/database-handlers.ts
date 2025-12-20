@@ -683,11 +683,18 @@ ipcMain.handle('database:get-player-season-years', async (event, internalId: num
  * Handle: database:search-players
  * Search for players by name or other criteria
  */
-ipcMain.handle('database:search-players', async (event, query: string, options?: { limit?: number; position?: string; draftYearFrom?: number; draftYearTo?: number; team?: string }) => {
+ipcMain.handle('database:search-players', async (event, query: string, options?: { limit?: number; position?: string; draftYearFrom?: number; draftYearTo?: number; team?: string; hof?: string }) => {
   try {
     await lookupService.waitForReady();
 
     let results = lookupService.searchPlayers(query, options?.limit || 100);
+
+    // Apply HOF filter early (before other filters) for better performance
+    if (options?.hof === 'hof') {
+      results = results.filter(p => p.isHOF === true);
+    } else if (options?.hof === 'non-hof') {
+      results = results.filter(p => !p.isHOF);
+    }
 
     // Apply additional filters
     if (options?.position) {
@@ -836,6 +843,7 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
   draftYearFrom?: number;
   draftYearTo?: number;
   team?: string;
+  hof?: string;
 }) => {
   try {
     await lookupService.waitForReady();
@@ -846,7 +854,13 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     // Get all custom players first
     let customPlayers = userDatabaseService.getAllCustomPlayers();
 
-    // Apply filters to custom players
+    // Apply filters to custom players (HOF is always false for custom players)
+    if (options?.hof === 'hof') {
+      // If filtering for HOF only, exclude all custom players since they can't be HOF
+      customPlayers = [];
+    }
+
+    // Apply other filters to custom players
     if (options?.position) {
       customPlayers = customPlayers.filter(p => {
         const mappedPos = mapToMaddenPosition(p.position || '');
@@ -888,6 +902,14 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     console.log(`[database-handlers] getAllPlayers - Total players in cache: ${allPlayers.length}, custom: ${customMapped.length}`);
 
     // Apply server-side filters BEFORE pagination
+    // Apply HOF filter first (most restrictive)
+    if (options?.hof === 'hof') {
+      allPlayers = allPlayers.filter(p => p.isHOF === true);
+      console.log(`[database-handlers] After HOF filter: ${allPlayers.length} players`);
+    } else if (options?.hof === 'non-hof') {
+      allPlayers = allPlayers.filter(p => !p.isHOF);
+    }
+
     if (options?.position) {
       // Map raw positions (LB, LOLB, MLB, etc.) to Madden positions (SAM, Mike, WILL, etc.) before comparing
       allPlayers = allPlayers.filter(p => {
