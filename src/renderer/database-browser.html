@@ -1183,14 +1183,16 @@
                     const careerInfo = player.careerFrom && player.careerTo ? `${player.careerFrom}-${player.careerTo}` : (player.careerFrom || '-');
 
                     html += `
-                        <div class="player-browser-row" data-player-id="${player.id}">
+                        <div class="player-browser-row" data-player-id="${player.internalId}">
                             <div class="player-browser-name">${player.firstName} ${player.lastName} ${hofBadge}</div>
                             <div class="player-browser-position">${player.position || '-'}</div>
                             <div class="player-browser-college">${player.college || '-'}</div>
                             <div class="player-browser-draft">${draftInfo}</div>
                             <div class="player-browser-career">${careerInfo}</div>
                             <div class="player-browser-actions">
-                                <button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(${player.id})">View</button>
+                                <button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(${player.internalId})">View</button>
+                                <button class="pb-btn pb-btn-add" onclick="window.addToRoster(${player.internalId})" title="Add to Roster">+Roster</button>
+                                <button class="pb-btn pb-btn-add" onclick="window.addToDraft(${player.internalId})" title="Add to Draft Class">+Draft</button>
                             </div>
                         </div>
                     `;
@@ -1213,6 +1215,36 @@
             // Expose functions
             window.refreshPlayerBrowser = performSearch;
             window.getCurrentBrowserResults = function() { return currentResults; };
+
+            // Global action handlers for the standalone window
+            window.viewDbPlayer = function(internalId) {
+                console.log('[DatabaseBrowser] View player:', internalId);
+                if (window.openDbPlayerCard) {
+                    window.openDbPlayerCard(internalId, false);
+                } else {
+                    alert('Player card not available');
+                }
+            };
+
+            window.addToRoster = function(internalId) {
+                console.log('[DatabaseBrowser] Add to roster:', internalId);
+                // Send to main window via IPC
+                if (window.electronAPI?.database?.sendPlayerToMainWindow) {
+                    window.electronAPI.database.sendPlayerToMainWindow(internalId, 'roster');
+                } else {
+                    alert('Cannot add to roster from standalone window.\nPlease use the Player Browser in the main editor.');
+                }
+            };
+
+            window.addToDraft = function(internalId) {
+                console.log('[DatabaseBrowser] Add to draft:', internalId);
+                // Send to main window via IPC
+                if (window.electronAPI?.database?.sendPlayerToMainWindow) {
+                    window.electronAPI.database.sendPlayerToMainWindow(internalId, 'draft');
+                } else {
+                    alert('Cannot add to draft from standalone window.\nPlease use the Player Browser in the main editor.');
+                }
+            };
 
             // Initialize when DOM is ready
             if (document.readyState === 'loading') {

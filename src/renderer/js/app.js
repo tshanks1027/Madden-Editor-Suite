@@ -2165,7 +2165,6 @@ class MaddenEditorApp {
             'PKPW': 'kickPower',
             'PKRT': 'kickReturn',
             'PLDB': 'leadBlock',
-            'PLNS': 'longSnap',
             'PMCV': 'manCoverage',
             'PMRR': 'mediumRouteRunning',
             'PPBF': 'passBlockFinesse',
