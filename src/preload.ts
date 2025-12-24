@@ -388,7 +388,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // CSV Import operations
     selectCsvFile: () => ipcRenderer.invoke('database:select-csv-file'),
     validateCsv: (csvContent: string) => ipcRenderer.invoke('database:validate-csv', csvContent),
-    importCsv: (csvContent: string) => ipcRenderer.invoke('database:import-csv', csvContent)
+    importCsv: (csvContent: string) => ipcRenderer.invoke('database:import-csv', csvContent),
+
+    // Cross-window communication (database browser -> main window)
+    sendPlayerToMainWindow: (internalId: number, target: 'roster' | 'draft') =>
+      ipcRenderer.invoke('database:send-player-to-main', internalId, target),
+    onPlayerFromBrowser: (callback: (internalId: number, target: 'roster' | 'draft') => void) => {
+      ipcRenderer.on('database:player-from-browser', (_event, internalId, target) => callback(internalId, target));
+    }
   },
 
   // Window APIs (focus restoration after native dialogs, multi-window support)

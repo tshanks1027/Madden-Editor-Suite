@@ -71,6 +71,16 @@ ipcMain.handle('window:focus', async () => {
 let mainWindow: BrowserWindow | null = null;
 let databaseWindow: BrowserWindow | null = null;
 
+// Handler to send player from database browser to main window
+ipcMain.handle('database:send-player-to-main', async (_event, internalId: number, target: 'roster' | 'draft') => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('database:player-from-browser', internalId, target);
+    mainWindow.focus();
+    return { success: true };
+  }
+  return { success: false, error: 'Main window not available' };
+});
+
 // Handler to open database browser in separate window
 ipcMain.handle('window:open-database', async () => {
 

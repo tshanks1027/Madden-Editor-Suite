@@ -8882,6 +8882,21 @@ document.addEventListener('DOMContentLoaded', () => {
         window.draftWizard.init();
     }
 
+    // Listen for players sent from database browser window
+    if (window.electronAPI?.database?.onPlayerFromBrowser) {
+        window.electronAPI.database.onPlayerFromBrowser(async (internalId, target) => {
+            console.log('[App] Received player from database browser:', internalId, 'target:', target);
+            // Use existing player browser functions which handle the modal flow
+            if (target === 'roster' && typeof window.addToRoster === 'function') {
+                window.addToRoster(internalId);
+            } else if (target === 'draft' && typeof window.addToDraft === 'function') {
+                window.addToDraft(internalId);
+            } else {
+                console.error('[App] addToRoster/addToDraft functions not available');
+            }
+        });
+    }
+
     // ========================================
     // Player Card Modal Event Listeners
     // ========================================
