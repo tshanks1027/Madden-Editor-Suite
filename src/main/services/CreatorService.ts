@@ -49,6 +49,7 @@ export interface GeneratedPlayer {
   age: number;
   heightInches: number;
   weight: number;
+  hometown?: string; // City name from "City, State" format
   homeState: number; // State ID from lookup table (e.g., 0 for Alabama, 4 for California)
 
   // Dev Trait
@@ -2913,7 +2914,7 @@ export class CreatorService {
           console.log(`[CreatorService V2]   FROM HistoricalPlayer object:`);
           console.log(`[CreatorService V2]     player.position = "${player.position}"`);
           console.log(`[CreatorService V2]     player.jersey = "${player.jersey}"`);
-          console.log(`[CreatorService V2]     player.homeState = "${player.homeState}"`);
+          console.log(`[CreatorService V2]     player.hometown = "${player.hometown}", player.homeState = "${player.homeState}"`);
           console.log(`[CreatorService V2]     player.archetype = "${player.archetype}"`);
           console.log(`[CreatorService V2]     player.photoID = ${player.photoID}`);
           console.log(`[CreatorService V2]     player.playerAssetsID = "${player.playerAssetsID}"`);
@@ -3047,6 +3048,7 @@ export class CreatorService {
           age: this.calculateAge(player.draftClass ? parseInt(String(player.draftClass)) : options.year || 2024),
           heightInches: player.height || this.getDefaultHeight(player.position),
           weight: player.weight || this.getDefaultWeight(player.position),
+          hometown: player.hometown,  // City from "City, State" format
           homeState,
           devTrait,
           ratings: maddenRatings,
@@ -3069,7 +3071,7 @@ export class CreatorService {
           console.log(`[CreatorService V2]     archetype: "${generatedPlayer.archetype}"`);
           console.log(`[CreatorService V2]     PID: ${generatedPlayer.PID}`);
           console.log(`[CreatorService V2]     PAM: "${generatedPlayer.PAM}"`);
-          console.log(`[CreatorService V2]     homeState: ${generatedPlayer.homeState}`);
+          console.log(`[CreatorService V2]     hometown: "${generatedPlayer.hometown}", homeState: ${generatedPlayer.homeState}`);
           console.log(`[CreatorService V2]     ratings.overall: ${generatedPlayer.ratings.overall}`);
           console.log(`[CreatorService V2]     ratings.POVR: ${generatedPlayer.ratings.POVR}`);
           console.log(`[CreatorService V2]   ========================================\n`);

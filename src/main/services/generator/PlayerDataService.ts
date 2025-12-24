@@ -42,7 +42,8 @@ export interface HistoricalPlayer {
   wAV?: number;                 // Weighted Approximate Value
   league?: string;              // "NFL" or "AFL"
   race?: string;
-  homeState?: string;
+  hometown?: string;            // City from "City, State" format
+  homeState?: string;           // State from "City, State" format
   wikiImageURL?: string;
   pfrImageURL?: string;
   isHOF?: boolean;              // Hall of Fame
@@ -249,6 +250,30 @@ export class PlayerDataService {
   }
 
   /**
+   * Parse "City, State" format into hometown and homeState
+   * Examples: "Chattanooga, Tennessee" -> { hometown: "Chattanooga", homeState: "Tennessee" }
+   *           "Tennessee" -> { homeState: "Tennessee" }
+   */
+  private parseHomeLocation(homeLocation: string): { hometown?: string; homeState?: string } {
+    if (!homeLocation || !homeLocation.trim()) {
+      return {};
+    }
+
+    const trimmed = homeLocation.trim();
+
+    if (trimmed.includes(',')) {
+      // "City, State" format
+      const parts = trimmed.split(',');
+      const hometown = parts.slice(0, -1).join(',').trim(); // Everything before last comma
+      const homeState = parts[parts.length - 1].trim(); // Last part is state
+      return { hometown, homeState };
+    } else {
+      // Just state name
+      return { homeState: trimmed };
+    }
+  }
+
+  /**
    * Initialize all data caches
    * Can be called externally to preload data before heavy operations
    */
@@ -333,7 +358,8 @@ export class PlayerDataService {
         wAV: parts[19] ? parseFloat(parts[19].trim()) : undefined,
         league: parts[20].trim(),
         race: parts[21].trim(),
-        homeState: parts[22].trim(),
+        // Parse "City, State" format from column 22
+        ...this.parseHomeLocation(parts[22].trim()),
         wikiImageURL: parts[23].trim(),
         pfrImageURL: parts[24].trim(),
         isHOF: parts[25].trim().toLowerCase() === 'true'
@@ -346,7 +372,7 @@ export class PlayerDataService {
         console.log(`  Jersey: "${player.jersey}"`);
         console.log(`  PhotoID: ${player.photoID}`);
         console.log(`  PlayerAssetsID: "${player.playerAssetsID}"`);
-        console.log(`  HomeState: "${player.homeState}"`);
+        console.log(`  Hometown: "${player.hometown}", HomeState: "${player.homeState}"`);
         console.log(`  Draft Class: ${player.draftClass}`);
       }
 

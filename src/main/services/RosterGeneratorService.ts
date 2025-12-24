@@ -202,6 +202,7 @@ export class RosterGeneratorService {
   private pamRaceMapping: { white: string[]; hispanic: string[]; black: string[] } | null = null;
   private hofLookup: Map<string, boolean> = new Map(); // firstName|lastName -> isHOF
   private pidToCommID: Map<number, number> = new Map(); // PID → CommID (POID) mapping from ALL_PLAYER_LOOKUP.csv
+  private homeLocationLookup: Map<string, { hometown: string; homeState: string }> = new Map(); // firstName|lastName -> hometown/homeState from ALL_PLAYER_LOOKUP.csv
 
   /**
    * Initialize service: Load roster data from database and template
@@ -441,6 +442,22 @@ export class RosterGeneratorService {
         if (!isNaN(photoID) && photoID > 0 && !isNaN(commID) && commID > 0) {
           this.pidToCommID.set(photoID, commID);
         }
+
+        // Extract Home State (contains "City, State" format) for hometown/homeState lookup
+        const homeStateRaw = row['Home State']?.trim() || '';
+        if (firstName && lastName && homeStateRaw) {
+          const key = `${firstName}|${lastName}`;
+          // Parse "City, State" format
+          if (homeStateRaw.includes(',')) {
+            const parts = homeStateRaw.split(',');
+            const hometown = parts.slice(0, -1).join(',').trim();
+            const homeState = parts[parts.length - 1].trim();
+            this.homeLocationLookup.set(key, { hometown, homeState });
+          } else {
+            // Just state name
+            this.homeLocationLookup.set(key, { hometown: '', homeState: homeStateRaw });
+          }
+        }
       });
 
       this.realFirstNames = Array.from(firstNameSet).sort();
@@ -450,6 +467,7 @@ export class RosterGeneratorService {
       console.log('[RosterGeneratorService] Loaded', this.realLastNames.length, 'unique last names');
       console.log('[RosterGeneratorService] Loaded', hofCount, 'Hall of Fame players');
       console.log('[RosterGeneratorService] Loaded', this.pidToCommID.size, 'PID → CommID mappings');
+      console.log('[RosterGeneratorService] Loaded', this.homeLocationLookup.size, 'home location mappings');
     } else {
       console.warn('[RosterGeneratorService] ALL_PLAYER_LOOKUP.csv not found, using fallback names');
       // Fallback to basic names if file not found
@@ -1635,9 +1653,11 @@ export class RosterGeneratorService {
       PEPS: pepsValue,        // Equipment string - "LastNameFirstName_XXXX"
       POID: this.pidToCommID.get(playerPID) || 0, // Presentation ID for in-game commentary
 
-      // College & Home - LOOKUP from CSV strings
+      // College & Home - LOOKUP from CSV strings and ALL_PLAYER_LOOKUP.csv home location data
       PCOL: await this.lookupCollege(csvRow.College), // College is string, needs lookup
-      PHSN: await this.lookupState(csvRow.College), // Infer state from college
+      // Use actual home location from ALL_PLAYER_LOOKUP.csv, not inferred from college
+      PHSN: await this.lookupStateByName(this.homeLocationLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`)?.homeState || ''),
+      PHTN: this.homeLocationLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`)?.hometown || '', // Hometown from ALL_PLAYER_LOOKUP.csv
 
       // Ratings (all numeric - already using correct field codes)
       POVR: parseInt(ratings.POVR) || 50,
@@ -2361,6 +2381,32 @@ export class RosterGeneratorService {
 
     // Default to California if no mapping found
     return 5;
+  }
+
+  /**
+   * Lookup state ID directly by state name
+   * Takes a state name like "Tennessee" and returns the PHSN ID (41)
+   */
+  private async lookupStateByName(stateName: string): Promise<number> {
+    if (!stateName || stateName === '') {
+      return 50; // Non-US (default for missing data)
+    }
+
+    try {
+      const options = await lookupService.getDropdownOptions('state_lookup.csv');
+      // Case-insensitive match
+      const match = options.find((opt: any) =>
+        opt.name.toLowerCase() === stateName.toLowerCase()
+      );
+      if (match) {
+        return match.id;
+      }
+    } catch (error) {
+      console.warn('[RosterGeneratorService] State lookup by name failed:', stateName, error);
+    }
+
+    // Default to Non-US if no mapping found
+    return 50;
   }
 
   /**

@@ -41,6 +41,7 @@ export interface RosterPlayer {
 
   // College/Background
   PCOL: string; // College
+  PHTN?: string; // Home Town (city)
   PHSN?: string; // Home State
 
   // Attributes (all the PSPD, PSTR, etc. fields)
@@ -707,6 +708,7 @@ export class RosterCreatorService {
           PHGT: player.heightInches || 72, // Default to 6'0"
           PWGT: player.weight || 40, // Default to 200 lbs (200-160=40)
           PCOL: player.college, // College ID (already numeric from CreatorService)
+          PHTN: player.hometown || '', // Home town city name
           PHSN: player.homeState, // Home state ID (already numeric from CreatorService)
 
           // Dev trait (0-3) - 0=Normal is the safe default
@@ -1141,6 +1143,7 @@ export class RosterCreatorService {
           PHGT: csvRow.PHGT || csvRow.heightInches || 72,
           PWGT: csvRow.PWGT || csvRow.weight || 220,
           PCOL: csvRow.PCOL || csvRow.college || 0,
+          PHTN: csvRow.PHTN || csvRow.hometown || '',
           PHSN: csvRow.PHSN || csvRow.homeState || 0,
 
           // Dev trait (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
