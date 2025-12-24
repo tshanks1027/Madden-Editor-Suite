@@ -700,7 +700,7 @@
                 </div>
                 <div class="db-footer-right">
                     <button class="db-btn db-btn-secondary" id="cancelDbPlayerBtn">Cancel</button>
-                    <button class="db-btn db-btn-primary" id="saveDbPlayerBtn">Save Changes</button>
+                    <button class="db-btn db-btn-primary" id="saveDbPlayerCardBtn">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -1119,6 +1119,7 @@
                     const draftYearFrom = document.getElementById('playerBrowserDraftYearFrom')?.value ? parseInt(document.getElementById('playerBrowserDraftYearFrom').value) : null;
                     const draftYearTo = document.getElementById('playerBrowserDraftYearTo')?.value ? parseInt(document.getElementById('playerBrowserDraftYearTo').value) : null;
                     const hofFilter = document.getElementById('playerBrowserHofFilter')?.value || '';
+                    const teamFilter = document.getElementById('playerBrowserTeamFilter')?.value || '';
 
                     const options = {
                         limit: pageSize,
@@ -1129,6 +1130,8 @@
                     if (draftYearTo) options.draftYearTo = draftYearTo;
                     // Pass HOF filter to server for proper filtering before pagination
                     if (hofFilter) options.hof = hofFilter;
+                    // Pass team filter to server
+                    if (teamFilter) options.team = teamFilter;
 
                     let results;
                     if (searchQuery.trim()) {
@@ -1140,12 +1143,12 @@
                     currentResults = results.players || results || [];
                     totalResults = results.total || currentResults.length;
 
-                    // Apply remaining client-side filters (college, team, empty filter)
+                    // Apply remaining client-side filters (college, empty filter)
+                    // Note: team filter is handled server-side
                     const college = document.getElementById('playerBrowserCollegeFilter')?.value || '';
-                    const team = document.getElementById('playerBrowserTeamFilter')?.value || '';
                     const emptyFilter = document.getElementById('playerBrowserEmptyFilter')?.value || '';
 
-                    if (college || team || emptyFilter) {
+                    if (college || emptyFilter) {
                         currentResults = currentResults.filter(p => {
                             if (college && p.college !== college) return false;
                             if (emptyFilter === 'position' && p.position) return false;
