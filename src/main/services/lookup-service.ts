@@ -29,6 +29,7 @@ export interface FullDataEntry {
   isHOF?: boolean;       // Hall of Fame status
   height?: number;       // Height in inches
   weight?: number;       // Weight in pounds
+  hometown?: string;     // Hometown city
   homeState?: string;    // Home state name
   wav?: number;          // Weighted Approximate Value
   ap1?: number;          // All-Pro 1st team selections
@@ -225,7 +226,7 @@ export class LookupService {
       SELECT
         p.id, p.first_name, p.last_name, p.race, p.draft_class, p.draft_round, p.draft_pick,
         p.career_from, p.career_to, p.is_hof,
-        p.height, p.weight, p.wav, p.ap1, p.pb, p.starts,
+        p.height, p.weight, p.hometown, p.wav, p.ap1, p.pb, p.starts,
         c.name as college_name,
         s.name as state_name,
         pa.madden_pid, pa.madden_pam, pa.madden_plpo, pa.madden_commid,
@@ -248,6 +249,7 @@ export class LookupService {
       is_hof: number | null;
       height: number | null;
       weight: number | null;
+      hometown: string | null;
       wav: number | null;
       ap1: number | null;
       pb: number | null;
@@ -291,12 +293,18 @@ export class LookupService {
         isHOF: row.is_hof === 1,
         height: row.height || undefined,
         weight: row.weight || undefined,
+        hometown: row.hometown || undefined,
         homeState: row.state_name || undefined,
         wav: row.wav || undefined,
         ap1: row.ap1 || undefined,
         pb: row.pb || undefined,
         starts: row.starts || undefined
       };
+
+      // Log sample data for first few players to verify height/weight/state loading
+      if (this.fullDataCache.size < 3) {
+        console.log(`[lookup-service] Sample player #${this.fullDataCache.size + 1}: ${entry.firstName} ${entry.lastName} - college: "${entry.college}", height: ${entry.height}, weight: ${entry.weight}, hometown: "${entry.hometown}", homeState: "${entry.homeState}"`);
+      }
 
       if (row.madden_pid) {
         entriesWithPID++;
@@ -706,6 +714,17 @@ export class LookupService {
         const careerFrom = parts.length > 14 ? parseInt(parts[14].trim()) || undefined : undefined;
         const careerTo = parts.length > 15 ? parseInt(parts[15].trim()) || undefined : undefined;
 
+        // Parse height (column 12), weight (column 13), homeState (column 22)
+        const height = parts.length > 12 ? parseInt(parts[12].trim()) || undefined : undefined;
+        const weight = parts.length > 13 ? parseInt(parts[13].trim()) || undefined : undefined;
+        const homeState = parts.length > 22 ? parts[22].trim() || undefined : undefined;
+        const race = parts.length > 21 ? parseInt(parts[21].trim()) || undefined : undefined;
+        const isHOF = parts.length > 25 ? parts[25].trim().toUpperCase() === 'TRUE' : false;
+        const wav = parts.length > 19 ? parseInt(parts[19].trim()) || undefined : undefined;
+        const ap1 = parts.length > 16 ? parseInt(parts[16].trim()) || undefined : undefined;
+        const pb = parts.length > 17 ? parseInt(parts[17].trim()) || undefined : undefined;
+        const starts = parts.length > 18 ? parseInt(parts[18].trim()) || undefined : undefined;
+
         const entry: FullDataEntry = {
           internalId: internalId,
           lastName: parts[0].trim(),
@@ -721,11 +740,20 @@ export class LookupService {
           pam: parts[9].trim(),
           commID: parts[10].trim(),
           presID: parts[10].trim(),
-          plpo: parts[11].trim()
+          plpo: parts[11].trim(),
+          height: height,
+          weight: weight,
+          homeState: homeState,
+          race: race,
+          isHOF: isHOF,
+          wav: wav,
+          ap1: ap1,
+          pb: pb,
+          starts: starts
         };
 
         if (i <= 3) {
-          console.log(`[lookup-service] Line ${i}: PID=${entry.pid}, Name=${entry.firstName} ${entry.lastName}, PLPO="${entry.plpo}", Parts=${parts.length}`);
+          console.log(`[lookup-service] CSV Line ${i}: ${entry.firstName} ${entry.lastName} - college: "${entry.college}", height: ${entry.height}, weight: ${entry.weight}, homeState: "${entry.homeState}"`);
         }
 
         if (entry.plpo) entriesWithPLPO++;

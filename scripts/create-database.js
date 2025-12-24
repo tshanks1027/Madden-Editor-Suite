@@ -81,6 +81,7 @@ db.exec(`
     last_name TEXT NOT NULL,
     college_id INTEGER,
     home_state_id INTEGER,
+    hometown TEXT,
     race INTEGER,
     height INTEGER,
     weight INTEGER,
@@ -201,10 +202,12 @@ console.log('\nImporting states...');
 const states = parseCSV('state_lookup.csv');
 const insertState = db.prepare('INSERT INTO states (madden_id, name) VALUES (?, ?)');
 const stateMap = new Map(); // madden_id -> our id
+const stateNameMap = new Map(); // state name (lowercase) -> our id
 for (const row of states) {
   const maddenId = parseInt(row.PHSN);
   const result = insertState.run(maddenId, row.StateName);
   stateMap.set(maddenId, result.lastInsertRowid);
+  stateNameMap.set(row.StateName.toLowerCase(), result.lastInsertRowid);
 }
 console.log(`Imported ${states.length} states`);
 
@@ -247,10 +250,10 @@ const allPlayers = parseCSV('ALL_PLAYER_LOOKUP.csv');
 
 const insertPlayer = db.prepare(`
   INSERT INTO players (
-    first_name, last_name, college_id, race, height, weight,
+    first_name, last_name, college_id, home_state_id, hometown, race, height, weight,
     draft_class, draft_round, draft_pick, career_from, career_to,
     position, wav, ap1, pb, starts, is_hof, league
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const insertAppearance = db.prepare(`
@@ -289,9 +292,32 @@ const insertMany = db.transaction(() => {
     const race = parseInt(row['Race']) || null;
     const position = row['Position'] || null;
 
+    // Parse Home State - format is "City, State" or just state name
+    let homeStateId = null;
+    let hometown = null;
+    const homeStateRaw = row['Home State'] || '';
+    if (homeStateRaw) {
+      // Try to extract city and state from "City, State" format
+      const parts = homeStateRaw.split(',');
+      if (parts.length > 1) {
+        // Has comma - extract city and state
+        hometown = parts.slice(0, -1).join(',').trim(); // Everything before the last comma
+        const stateName = parts[parts.length - 1].trim();
+        homeStateId = stateNameMap.get(stateName.toLowerCase()) || null;
+      } else {
+        // No comma - might be just state name, check if it's a state
+        const possibleState = homeStateRaw.trim();
+        homeStateId = stateNameMap.get(possibleState.toLowerCase()) || null;
+        // If not a state, treat as hometown
+        if (!homeStateId) {
+          hometown = possibleState;
+        }
+      }
+    }
+
     // Insert player
     const result = insertPlayer.run(
-      firstName, lastName, collegeId, race, height, weight,
+      firstName, lastName, collegeId, homeStateId, hometown, race, height, weight,
       draftClass, draftRound, draftPick, careerFrom, careerTo,
       position, wav, ap1, pb, starts, isHof, league
     );
