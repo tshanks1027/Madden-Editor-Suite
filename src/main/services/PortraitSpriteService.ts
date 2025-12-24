@@ -198,6 +198,10 @@ export class PortraitSpriteService {
       this.initialized = true;
       console.log('[PortraitSpriteService] Portrait map initialized with', this.portraitMap.size, 'keys');
       console.log('[PortraitSpriteService] PID map initialized with', this.pidMap.size, 'entries');
+
+      // DEBUG: Show sample generic keys in the map
+      const genericKeys = Array.from(this.portraitMap.keys()).filter(k => k.includes('generic')).slice(0, 10);
+      console.log('[DEBUG Service] Sample generic keys in map:', genericKeys);
     } catch (err) {
       console.error('[PortraitSpriteService] Error loading atlas:', err);
     }

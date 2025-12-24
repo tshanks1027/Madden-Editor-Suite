@@ -300,7 +300,6 @@ ipcMain.handle('portrait:get-image-data-by-pam', async (event, pamCode: string) 
     const spriteInfo = portraitSpriteService.getPortraitByPLPO(plpoName);
 
     if (!spriteInfo) {
-      console.warn(`[Portrait PAM] No atlas entry for ${plpoName} (from ${pamCode})`);
       return null;
     }
 

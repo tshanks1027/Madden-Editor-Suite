@@ -13,22 +13,6 @@
 const path = require('path');
 const fs = require('fs');
 
-// Get electron app for path resolution in packaged builds
-let app = null;
-try {
-  app = require('electron').app;
-} catch (e) {
-  // Not in electron context
-}
-
-// Helper to get app path (works in both dev and packaged builds)
-function getAppBasePath() {
-  if (app) {
-    return app.getAppPath();
-  }
-  return process.cwd();
-}
-
 console.log('[GenericFaceService] Module loading...');
 
 // Load GENR catalog for validating face values
@@ -47,10 +31,7 @@ let genrToFacePickerMapping = null;
 function loadFacePickerMapping() {
   if (facePickerToGenrMapping) return facePickerToGenrMapping;
 
-  const appBase = getAppBasePath();
   const possiblePaths = [
-    path.join(appBase, 'data', 'lookups', 'face-picker-to-genr.json'),
-    path.join(appBase, '..', '..', 'data', 'lookups', 'face-picker-to-genr.json'),
     path.join(__dirname, '..', 'data', 'lookups', 'face-picker-to-genr.json'),
     path.join(__dirname, '..', '..', 'data', 'lookups', 'face-picker-to-genr.json'),
     path.join(process.cwd(), 'data', 'lookups', 'face-picker-to-genr.json'),
@@ -75,10 +56,7 @@ function loadFacePickerMapping() {
 function loadGenrToFacePickerMapping() {
   if (genrToFacePickerMapping) return genrToFacePickerMapping;
 
-  const appBase = getAppBasePath();
   const possiblePaths = [
-    path.join(appBase, 'data', 'lookups', 'genr-to-face-picker.json'),
-    path.join(appBase, '..', '..', 'data', 'lookups', 'genr-to-face-picker.json'),
     path.join(__dirname, '..', 'data', 'lookups', 'genr-to-face-picker.json'),
     path.join(__dirname, '..', '..', 'data', 'lookups', 'genr-to-face-picker.json'),
     path.join(process.cwd(), 'data', 'lookups', 'genr-to-face-picker.json'),
@@ -128,10 +106,7 @@ function getFacePickerNumsForGenr(genr) {
 function loadVerifiedMapping() {
   if (verifiedGenrMapping) return verifiedGenrMapping;
 
-  const appBase = getAppBasePath();
   const possiblePaths = [
-    path.join(appBase, 'data', 'lookups', 'verified-portrait-genr.json'),
-    path.join(appBase, '..', '..', 'data', 'lookups', 'verified-portrait-genr.json'),
     path.join(__dirname, '..', 'data', 'lookups', 'verified-portrait-genr.json'),
     path.join(__dirname, '..', '..', 'data', 'lookups', 'verified-portrait-genr.json'),
     path.join(process.cwd(), 'data', 'lookups', 'verified-portrait-genr.json'),
@@ -167,10 +142,7 @@ function loadVerifiedMapping() {
 function loadGenrCatalog() {
   if (genrCatalog) return genrCatalog;
 
-  const appBase = getAppBasePath();
   const possiblePaths = [
-    path.join(appBase, 'data', 'lookups', 'GENR_catalog.json'),
-    path.join(appBase, '..', '..', 'data', 'lookups', 'GENR_catalog.json'),
     path.join(__dirname, '..', 'data', 'lookups', 'GENR_catalog.json'),
     path.join(__dirname, '..', '..', 'data', 'lookups', 'GENR_catalog.json'),
     path.join(process.cwd(), 'data', 'lookups', 'GENR_catalog.json'),
@@ -253,10 +225,7 @@ function loadRealFacePool() {
     7: []  // Very dark/Black
   };
 
-  const appBase = getAppBasePath();
   const possiblePaths = [
-    path.join(appBase, 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
-    path.join(appBase, '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
     path.join(__dirname, '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
     path.join(__dirname, '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
     path.join(process.cwd(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
@@ -348,10 +317,7 @@ function initDatabase() {
     const Database = require('better-sqlite3');
 
     // Find database path
-    const appBase = getAppBasePath();
     const possiblePaths = [
-      path.join(appBase, 'data', 'players.db'),
-      path.join(appBase, '..', '..', 'data', 'players.db'),
       path.join(__dirname, '..', 'data', 'players.db'),
       path.join(__dirname, '..', '..', 'data', 'players.db'),
       path.join(process.cwd(), 'data', 'players.db'),
@@ -360,7 +326,6 @@ function initDatabase() {
 
     console.log('[GenericFaceService] Searching for database...');
     console.log('[GenericFaceService] __dirname:', __dirname);
-    console.log('[GenericFaceService] appBasePath:', appBase);
 
     for (const dbPath of possiblePaths) {
       console.log('[GenericFaceService] Checking:', dbPath, 'exists:', fs.existsSync(dbPath));

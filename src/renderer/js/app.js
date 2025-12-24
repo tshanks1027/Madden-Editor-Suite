@@ -572,28 +572,19 @@ class MaddenEditorApp {
         }
 
         // Restore focus to the new panel after switching
-        // Uses IPC window focus first (critical for Windows), then aggressive focus
-        const doFocus = () => {
-            setTimeout(() => {
-                const activePanel = document.getElementById(`${toolName}-tool`);
-                if (activePanel) {
-                    // Try to find a grid, input, or button to focus
-                    const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled]), button:not(.modal-close):not([disabled])');
-                    if (focusTarget) {
-                        this.aggressiveFocus(focusTarget);
-                    } else if (activePanel.hasAttribute('tabindex')) {
-                        this.aggressiveFocus(activePanel);
-                    }
+        // Simple timeout to let the DOM settle, then focus the grid or first input
+        setTimeout(() => {
+            const activePanel = document.getElementById(`${toolName}-tool`);
+            if (activePanel) {
+                // Prioritize grid, then inputs (skip buttons to avoid accidental clicks)
+                const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled])');
+                if (focusTarget) {
+                    focusTarget.focus();
+                } else if (activePanel.hasAttribute('tabindex')) {
+                    activePanel.focus();
                 }
-            }, 100);
-        };
-
-        // Use IPC to restore OS-level window focus if available
-        if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
-            window.electronAPI.window.focus().then(doFocus).catch(doFocus);
-        } else {
-            doFocus();
-        }
+            }
+        }, 50);
     }
 
     async openFileDialog() {
@@ -3870,9 +3861,14 @@ class MaddenEditorApp {
         }
 
         // 2. Dispatch real mouse events (more effective than .click())
-        element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-        element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-        element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        // IMPORTANT: Don't dispatch click events to buttons - it will trigger their handlers!
+        // Buttons only need focus, not a simulated click
+        const isButton = element.tagName === 'BUTTON' || element.type === 'button' || element.type === 'submit';
+        if (!isButton) {
+            element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
+            element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
+            element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        }
 
         // 3. Focus the element
         element.focus();
@@ -3881,48 +3877,33 @@ class MaddenEditorApp {
         if (typeof element.select === 'function' && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA')) {
             element.select();
         }
-
-        console.log('[Focus] Aggressive focus applied to:', element.tagName, element.id || element.className);
     }
 
     /**
      * Restore focus to the active grid after modals/loading/tab switches
      * Fixes typing issues where focus is lost after save, error, or navigation
-     * Uses IPC to restore OS-level window focus first (required on Windows)
      */
     restoreFocusToGrid() {
-        // First, restore OS-level window focus via IPC (critical for Windows)
-        const doFocus = () => {
-            // Increased delay from 50ms to 150ms to ensure all async operations complete
-            setTimeout(() => {
-                // Skip focus restoration if user is actively editing (typing)
-                const activeElement = document.activeElement;
-                if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' ||
-                    activeElement.classList.contains('handsontableInput') ||
-                    activeElement.classList.contains('ag-input-field-input'))) {
-                    console.log('[Focus] Skipping focus restoration - user is actively editing');
-                    return;
-                }
+        setTimeout(() => {
+            // Skip focus restoration if user is actively editing (typing)
+            const activeElement = document.activeElement;
+            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' ||
+                activeElement.classList.contains('handsontableInput') ||
+                activeElement.classList.contains('ag-input-field-input'))) {
+                return;
+            }
 
-                const activePanel = document.querySelector('.tool-panel.active');
-                if (!activePanel) return;
+            const activePanel = document.querySelector('.tool-panel.active');
+            if (!activePanel) return;
 
-                // Find the first focusable element in the active panel
-                const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled]), textarea:not([disabled]), button:not([disabled]):not(.modal-close)');
-                if (focusTarget) {
-                    this.aggressiveFocus(focusTarget);
-                } else if (activePanel.hasAttribute('tabindex')) {
-                    this.aggressiveFocus(activePanel);
-                }
-            }, 150);
-        };
-
-        // Use IPC to restore OS-level window focus if available
-        if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
-            window.electronAPI.window.focus().then(doFocus).catch(doFocus);
-        } else {
-            doFocus();
-        }
+            // Find the grid or first input in the active panel (skip buttons)
+            const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled]), textarea:not([disabled])');
+            if (focusTarget) {
+                focusTarget.focus();
+            } else if (activePanel.hasAttribute('tabindex')) {
+                activePanel.focus();
+            }
+        }, 100);
     }
 
     /**

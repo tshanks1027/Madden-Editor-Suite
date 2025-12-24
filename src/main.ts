@@ -53,71 +53,18 @@ registerRatingHandlers();
 registerUpdateHandlers();
 registerPGHEHandlers();
 
-// Register window focus handler - used to restore OS-level focus after native dialogs
-// Windows has focus theft prevention that can leave webContents without keyboard input
-// even when the window appears focused. Blur-then-focus simulates DevTools open/close
-// which reliably restores keyboard input.
-let windowFocusPending = false;
-let windowFocusTimeout: ReturnType<typeof setTimeout> | null = null;
-
+// Register window focus handler - simple focus without visual disruption
+// Used to ensure keyboard input works after various operations
 ipcMain.handle('window:focus', async () => {
-  // Debounce: if a focus operation is pending, skip this call
-  if (windowFocusPending) {
-    console.log('[main] window:focus IPC - skipping (debounced)');
-    return { success: true, debounced: true };
+  const windows = BrowserWindow.getAllWindows();
+  const focusedWindow = windows.find(w => !w.isDestroyed());
+  if (focusedWindow) {
+    // Simple focus - no blur/refocus which causes visual flash
+    focusedWindow.focus();
+    focusedWindow.webContents.focus();
+    return { success: true };
   }
-
-  // Clear any pending timeout
-  if (windowFocusTimeout) {
-    clearTimeout(windowFocusTimeout);
-    windowFocusTimeout = null;
-  }
-
-  windowFocusPending = true;
-  console.log('[main] window:focus IPC called');
-
-  try {
-    const windows = BrowserWindow.getAllWindows();
-    const focusedWindow = windows.find(w => !w.isDestroyed());
-    if (focusedWindow) {
-      // CRITICAL: On Windows, after native dialogs (alert/confirm), the webContents
-      // can lose keyboard input even though it appears focused. Opening DevTools
-      // fixes this, so we simulate that by blurring then refocusing.
-
-      // 1. Focus the app itself first (steal: true forces focus)
-      app.focus({ steal: true });
-
-      // 2. BLUR the window first - this is the key to resetting Windows focus state
-      focusedWindow.blur();
-
-      // 3. Small delay to let Windows process the blur
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // 4. Now focus everything fresh
-      focusedWindow.show();
-      focusedWindow.focus();
-      focusedWindow.moveTop();
-
-      // 5. Focus webContents for keyboard input
-      focusedWindow.webContents.focus();
-
-      // 6. Another small delay
-      await new Promise(resolve => setTimeout(resolve, 50));
-
-      // 7. Final webContents focus to ensure keyboard works
-      focusedWindow.webContents.focus();
-
-      console.log('[main] Window focused successfully (blur-refocus method)');
-      return { success: true };
-    }
-    console.log('[main] No window to focus');
-    return { success: false, error: 'No window available' };
-  } finally {
-    // Reset debounce after a delay to allow subsequent calls
-    windowFocusTimeout = setTimeout(() => {
-      windowFocusPending = false;
-    }, 300);
-  }
+  return { success: false, error: 'No window available' };
 });
 
 // Keep a global reference of the window object
@@ -126,7 +73,6 @@ let databaseWindow: BrowserWindow | null = null;
 
 // Handler to open database browser in separate window
 ipcMain.handle('window:open-database', async () => {
-  console.log('[main] Opening database browser window');
 
   // If window already exists and is not destroyed, focus it
   if (databaseWindow && !databaseWindow.isDestroyed()) {
@@ -157,7 +103,6 @@ ipcMain.handle('window:open-database', async () => {
       ? MAIN_WINDOW_VITE_DEV_SERVER_URL
       : MAIN_WINDOW_VITE_DEV_SERVER_URL + '/';
     databaseWindow.loadURL(baseUrl + 'database-browser.html');
-    console.log('[main] Loading database browser from:', baseUrl + 'database-browser.html');
   } else {
     // In production, load from file
     databaseWindow.loadFile(
@@ -167,13 +112,34 @@ ipcMain.handle('window:open-database', async () => {
 
   databaseWindow.on('closed', () => {
     databaseWindow = null;
-    console.log('[main] Database browser window closed');
   });
 
   return { success: true };
 });
 
 const createWindow = (): void => {
+  const fs = require('fs');
+  console.log('[main] === CREATING MAIN WINDOW ===');
+  console.log('[main] DIAGNOSTIC: __dirname =', __dirname);
+  console.log('[main] DIAGNOSTIC: app.getAppPath() =', app.getAppPath());
+  console.log('[main] DIAGNOSTIC: app.isPackaged =', app.isPackaged);
+  console.log('[main] DIAGNOSTIC: process.cwd() =', process.cwd());
+  console.log('[main] DIAGNOSTIC: MAIN_WINDOW_VITE_DEV_SERVER_URL =', MAIN_WINDOW_VITE_DEV_SERVER_URL);
+
+  // List files in renderer directory
+  const rendererDir = path.join(__dirname, '../renderer');
+  console.log('[main] DIAGNOSTIC: Checking renderer dir:', rendererDir);
+  try {
+    if (fs.existsSync(rendererDir)) {
+      const files = fs.readdirSync(rendererDir);
+      console.log('[main] DIAGNOSTIC: Renderer dir contents:', files.filter((f: string) => f.endsWith('.html')));
+    } else {
+      console.log('[main] DIAGNOSTIC: Renderer dir does NOT exist');
+    }
+  } catch (e) {
+    console.log('[main] DIAGNOSTIC: Error reading renderer dir:', e);
+  }
+
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -190,11 +156,14 @@ const createWindow = (): void => {
 
   // Load the index.html
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    console.log('[main] Loading main window from DEV URL:', MAIN_WINDOW_VITE_DEV_SERVER_URL);
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
-    mainWindow.loadFile(
-      path.join(__dirname, '../renderer/index.html')
-    );
+    const mainHtmlPath = path.join(__dirname, '../renderer/index.html');
+    console.log('[main] DIAGNOSTIC: mainHtmlPath =', mainHtmlPath);
+    console.log('[main] DIAGNOSTIC: index.html exists =', fs.existsSync(mainHtmlPath));
+    console.log('[main] Loading main window from FILE:', mainHtmlPath);
+    mainWindow.loadFile(mainHtmlPath);
   }
 
   mainWindow.on('closed', () => {

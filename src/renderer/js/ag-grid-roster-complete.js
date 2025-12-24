@@ -78,17 +78,18 @@ class PortraitCellRenderer {
         const pam = player ? player.PEPS : null;
 
         // Portrait display priority:
-        // 1. If player has a valid PID (> 0), always use PID for portrait
-        // 2. Only use PAM-based portrait if no valid PID exists
-        // This ensures PAM picker doesn't change the displayed portrait
+        // 1. If PAM indicates a generic face (gen_*, plpo_generic_*), use PAM-based portrait
+        // 2. Otherwise use PID-based portrait
+        // This ensures generic faces display correctly even when they have a PID
         const hasValidPid = pid && pid > 0;
 
-        // Check if this is a generic face based on PAM (only used when no valid PID)
-        const isGenericPam = !hasValidPid && pam && typeof pam === 'string' &&
+        // Check if this is a generic face based on PAM - IMPORTANT: check BEFORE hasValidPid
+        // because generic players CAN have valid PIDs but need PAM-based portraits
+        const isGenericPam = pam && typeof pam === 'string' &&
             (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
 
-        // Use PID-based cache key when player has valid PID, PAM-based only as fallback
-        const cacheKey = hasValidPid ? `pid_${pid}` : (isGenericPam ? `pam_${pam}` : `pid_${pid}`);
+        // Use PAM-based cache key for generic faces, PID for real faces
+        const cacheKey = isGenericPam ? `pam_${pam}` : (hasValidPid ? `pid_${pid}` : `pid_0`);
 
         if (app.portraitCache.has(cacheKey)) {
             const imageData = app.portraitCache.get(cacheKey);
