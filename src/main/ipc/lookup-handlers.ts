@@ -107,13 +107,38 @@ ipcMain.handle('lookup:reload', async (event) => {
  * Load PID -> Portrait PLPO mappings from PID_Portrait_Mapping.csv
  */
 ipcMain.handle('lookup:get-pid-portrait-mapping', async (event) => {
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
-    const { app } = await import('electron');
+  const fs = require('fs');
+  const path = require('path');
+  const { app } = require('electron');
 
-    // Use app.getAppPath() for both dev and packaged builds
-    const dataPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
+  try {
+    console.log('[PID Portrait Mapping] === DEBUG ===');
+    console.log('[PID Portrait Mapping] app.getAppPath():', app.getAppPath());
+    console.log('[PID Portrait Mapping] __dirname:', __dirname);
+
+    // Try multiple paths for both dev and packaged builds
+    const possiblePaths = [
+      path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+      path.join(__dirname, 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+      path.join(__dirname, '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+      path.join(__dirname, '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv')
+    ];
+
+    let dataPath = '';
+    for (const testPath of possiblePaths) {
+      const exists = fs.existsSync(testPath);
+      console.log(`[PID Portrait Mapping] Checking: ${testPath} => ${exists ? 'FOUND' : 'not found'}`);
+      if (exists) {
+        dataPath = testPath;
+        break;
+      }
+    }
+
+    if (!dataPath) {
+      console.error('[PID Portrait Mapping] PID_Portrait_Mapping.csv not found in any path!');
+      return [];
+    }
 
     console.log('[PID Portrait Mapping] Loading from:', dataPath);
 
@@ -404,8 +429,12 @@ ipcMain.handle('lookup:get-valid-genr-set', async () => {
   try {
     const fs = require('fs');
     const path = require('path');
+    const { app } = require('electron');
 
     const possiblePaths = [
+      path.join(app.getAppPath(), 'data', 'lookups', 'GENR_catalog.json'),
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'GENR_catalog.json'),
+      path.join(__dirname, 'data', 'lookups', 'GENR_catalog.json'),
       path.join(__dirname, '..', 'data', 'lookups', 'GENR_catalog.json'),
       path.join(__dirname, '..', '..', 'data', 'lookups', 'GENR_catalog.json'),
       path.join(process.cwd(), 'data', 'lookups', 'GENR_catalog.json'),
@@ -449,8 +478,15 @@ ipcMain.handle('lookup:get-verified-portrait-genr-mapping', async () => {
     const path = require('path');
     const { app } = require('electron');
 
+    console.log('[lookup-handlers] === VERIFIED PORTRAIT GENR MAPPING DEBUG ===');
+    console.log('[lookup-handlers] app.getAppPath():', app.getAppPath());
+    console.log('[lookup-handlers] __dirname:', __dirname);
+    console.log('[lookup-handlers] process.cwd():', process.cwd());
+
     const possiblePaths = [
       path.join(app.getAppPath(), 'data', 'lookups', 'verified-portrait-genr.json'),
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'verified-portrait-genr.json'),
+      path.join(__dirname, 'data', 'lookups', 'verified-portrait-genr.json'),
       path.join(__dirname, '..', 'data', 'lookups', 'verified-portrait-genr.json'),
       path.join(__dirname, '..', '..', 'data', 'lookups', 'verified-portrait-genr.json'),
       path.join(process.cwd(), 'data', 'lookups', 'verified-portrait-genr.json'),
@@ -458,14 +494,16 @@ ipcMain.handle('lookup:get-verified-portrait-genr-mapping', async () => {
     ];
 
     for (const mappingPath of possiblePaths) {
-      if (fs.existsSync(mappingPath)) {
+      const exists = fs.existsSync(mappingPath);
+      console.log(`[lookup-handlers] Checking: ${mappingPath} => ${exists ? 'FOUND' : 'not found'}`);
+      if (exists) {
         const mapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
-        console.log(`[lookup-handlers] Loaded ${Object.keys(mapping).length} verified portrait->GENR mappings`);
+        console.log(`[lookup-handlers] Loaded ${Object.keys(mapping).length} verified portrait->GENR mappings from: ${mappingPath}`);
         return mapping;
       }
     }
 
-    console.warn('[lookup-handlers] Verified portrait-genr mapping not found');
+    console.warn('[lookup-handlers] Verified portrait-genr mapping not found in any path!');
     return {};
   } catch (error) {
     console.error('Error loading verified portrait-genr mapping:', error);
@@ -486,6 +524,8 @@ ipcMain.handle('lookup:get-face-picker-mapping', async () => {
 
     const possiblePaths = [
       path.join(app.getAppPath(), 'data', 'lookups', 'face-picker-to-genr.json'),
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'face-picker-to-genr.json'),
+      path.join(__dirname, 'data', 'lookups', 'face-picker-to-genr.json'),
       path.join(__dirname, '..', 'data', 'lookups', 'face-picker-to-genr.json'),
       path.join(__dirname, '..', '..', 'data', 'lookups', 'face-picker-to-genr.json'),
       path.join(process.cwd(), 'data', 'lookups', 'face-picker-to-genr.json'),
@@ -495,7 +535,7 @@ ipcMain.handle('lookup:get-face-picker-mapping', async () => {
     for (const mappingPath of possiblePaths) {
       if (fs.existsSync(mappingPath)) {
         const mapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
-        console.log(`[lookup-handlers] Loaded ${Object.keys(mapping).length} face picker->GENR mappings`);
+        console.log(`[lookup-handlers] Loaded ${Object.keys(mapping).length} face picker->GENR mappings from: ${mappingPath}`);
         return mapping;
       }
     }

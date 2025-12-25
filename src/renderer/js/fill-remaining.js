@@ -8,6 +8,23 @@
 (function() {
   'use strict';
 
+  // PPOS numeric code to position name mapping (must match position_lookup.csv)
+  const PPOS_TO_POSITION = {
+    0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C', 8: 'RG', 9: 'RT',
+    10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'MIKE', 15: 'WILL', 16: 'CB',
+    17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+  };
+
+  // Helper to get position string from PPOS code or string
+  function getPositionString(posValue) {
+    if (posValue === null || posValue === undefined || posValue === '') return '';
+    if (typeof posValue === 'number') {
+      return PPOS_TO_POSITION[posValue] || '';
+    }
+    // If string, return uppercase (might be "HB", "Mike", etc.)
+    return String(posValue).toUpperCase().trim();
+  }
+
   // Position limits for roster (per team)
   const ROSTER_POSITION_LIMITS_PER_TEAM = {
     QB: 3, HB: 4, FB: 1, WR: 5, TE: 3,
@@ -163,13 +180,16 @@
 
   /**
    * Get current position counts from the grid
+   * Properly handles PPOS numeric codes by converting to position strings
    */
   function getCurrentPositionCounts(target) {
     const counts = {};
 
     if (target === 'roster' && window.app && window.app.agGrid) {
       window.app.agGrid.forEachNode(node => {
-        const pos = (node.data.position || node.data.PPOS || '').toUpperCase().trim();
+        // CRITICAL: PPOS is numeric (1 for HB), position is string
+        // Use getPositionString to properly convert PPOS codes
+        const pos = getPositionString(node.data.PPOS) || getPositionString(node.data.position) || '';
         if (pos) {
           counts[pos] = (counts[pos] || 0) + 1;
         }
@@ -280,7 +300,8 @@
       window.app.agGrid.forEachNode(node => {
         const fn = (node.data.firstName || node.data.PFNA || '').toLowerCase().trim();
         const ln = (node.data.lastName || node.data.PLNA || '').toLowerCase().trim();
-        const pos = (node.data.position || node.data.PPOS || '').toUpperCase().trim();
+        // CRITICAL: PPOS is numeric, must convert to position string
+        const pos = getPositionString(node.data.PPOS) || getPositionString(node.data.position) || '';
         if (fn && ln && pos) {
           excludeKeys.push(`${fn}|${ln}|${pos}`);
         }
@@ -364,7 +385,8 @@
     if (window.app && window.app.agGrid) {
       window.app.agGrid.forEachNode(node => {
         const teamId = node.data.TGID || node.data.teamId || 1009;
-        const pos = (node.data.position || node.data.PPOS || '').toUpperCase().trim();
+        // CRITICAL: PPOS is numeric, must convert to position string
+        const pos = getPositionString(node.data.PPOS) || getPositionString(node.data.position) || '';
 
         if (teamId >= 1 && teamId <= 32 && pos && counts[teamId]) {
           counts[teamId][pos] = (counts[teamId][pos] || 0) + 1;

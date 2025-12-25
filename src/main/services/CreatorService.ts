@@ -562,6 +562,30 @@ export class CreatorService {
   }
 
   /**
+   * Map numeric race value to generic face category
+   * Used when race is stored as a number in the database
+   */
+  private mapNumericRace(numericValue: number): number {
+    switch (numericValue) {
+      case 1: return 1;  // Caucasian -> Category 1
+      case 2: return 7;  // African American Medium -> Category 7
+      case 3: return 2;  // African American Light -> Category 2
+      case 4: return 3;  // African American Dark -> Category 3
+      case 5: return 5;  // Hispanic/Latino -> Category 5
+      case 6: return 6;  // Mixed/Multi-Racial -> Category 6
+      case 7: return 6;  // Asian -> Category 6 (closest match)
+      default:
+        // Handle values 10-55 (variant faces within categories)
+        if (numericValue >= 10 && numericValue < 20) return 1;  // Caucasian variants
+        if (numericValue >= 20 && numericValue < 30) return 7;  // AA Medium variants
+        if (numericValue >= 30 && numericValue < 40) return 2;  // AA Light variants
+        if (numericValue >= 40 && numericValue < 50) return 3;  // AA Dark variants
+        if (numericValue >= 50 && numericValue < 60) return 5;  // Hispanic variants
+        return 7; // Default to Black-Medium (largest pool)
+    }
+  }
+
+  /**
    * Map race value from ROSTER_lookup or MASTER_LOOKUP to generic face category
    * Handles both numeric values (from ROSTER_lookup) and string values (from MASTER_LOOKUP)
    *
@@ -576,10 +600,16 @@ export class CreatorService {
    *
    * Returns category number (1-7) for generic face assignment, or 0 if unknown
    */
-  private mapRaceToCategory(raceValue: string): number {
-    if (!raceValue || !raceValue.trim()) return 0;
+  private mapRaceToCategory(raceValue: string | number | undefined): number {
+    if (raceValue === undefined || raceValue === null || raceValue === '') return 0;
 
-    const trimmed = raceValue.trim();
+    // Handle numeric race values directly
+    if (typeof raceValue === 'number') {
+      return this.mapNumericRace(raceValue);
+    }
+
+    const trimmed = String(raceValue).trim();
+    if (!trimmed) return 0;
 
     // First check if it's a numeric value (from ROSTER_lookup)
     const numericValue = parseInt(trimmed);
@@ -647,14 +677,14 @@ export class CreatorService {
   }
 
   /**
-   * Cache for race data from ROSTER_lookup.csv
+   * Cache for race data from database
    * Key: "firstname_lastname" (lowercase), Value: race code (string)
    */
   private rosterRaceCache?: Map<string, string>;
 
   /**
-   * Load race data from ROSTER_lookup.csv for race-based generic face/PAM assignment
-   * ROSTER_lookup has ~100k player entries with actual Madden race codes
+   * Load race data from database for race-based generic face/PAM assignment
+   * Uses lookupService to get race data from players table
    */
   private loadRosterRaceData(): Map<string, string> {
     if (this.rosterRaceCache) {
@@ -664,57 +694,34 @@ export class CreatorService {
     this.rosterRaceCache = new Map<string, string>();
 
     try {
-      const { app } = require('electron');
-      // Use app.getAppPath() for both dev and packaged builds
-      const rosterPath = path.join(app.getAppPath(), 'data', 'lookups', 'ROSTER_lookup.csv');
+      console.log('[CreatorService] Loading player race data from database');
 
-      const csvContent = fs.readFileSync(rosterPath, 'utf-8');
-      const lines = csvContent.split('\n');
+      const allPlayers = lookupService.getAllPlayers();
 
-      // Parse header to find column indices
-      const header = lines[0].split(',').map(h => h.trim());
-      const firstNameIdx = header.indexOf('First_Name');
-      const lastNameIdx = header.indexOf('Last_Name');
-      const raceIdx = header.indexOf('Race');
-      const pamIdx = header.indexOf('PAM');
+      for (const player of allPlayers) {
+        const firstName = (player.firstName || '').toLowerCase().trim();
+        const lastName = (player.lastName || '').toLowerCase().trim();
+        const race = player.race;
 
-      if (firstNameIdx === -1 || lastNameIdx === -1 || raceIdx === -1) {
-        console.error('[CreatorService] ROSTER_lookup.csv missing required columns');
-        return this.rosterRaceCache;
-      }
-
-      // Parse data rows
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const values = line.split(',');
-        if (values.length <= Math.max(firstNameIdx, lastNameIdx, raceIdx)) continue;
-
-        const firstName = (values[firstNameIdx] || '').trim().toLowerCase();
-        const lastName = (values[lastNameIdx] || '').trim().toLowerCase();
-        const race = (values[raceIdx] || '').trim();
-        const pam = pamIdx >= 0 ? (values[pamIdx] || '').trim() : '';
-
-        if (firstName && lastName && race) {
+        if (firstName && lastName && race !== undefined && race !== null) {
           const key = `${firstName}_${lastName}`;
-          // Store race (and optionally PAM for future use)
+          // Store race (only first occurrence to avoid duplicates)
           if (!this.rosterRaceCache.has(key)) {
-            this.rosterRaceCache.set(key, race);
+            this.rosterRaceCache.set(key, String(race));
           }
         }
       }
 
-      console.log(`[CreatorService] Loaded ${this.rosterRaceCache.size} player race entries from ROSTER_lookup.csv`);
+      console.log(`[CreatorService] Loaded ${this.rosterRaceCache.size} player race entries from database`);
     } catch (error) {
-      console.error('[CreatorService] Error loading ROSTER_lookup.csv race data:', error);
+      console.error('[CreatorService] Error loading race data from database:', error);
     }
 
     return this.rosterRaceCache;
   }
 
   /**
-   * Look up a player's race from ROSTER_lookup.csv
+   * Look up a player's race from database
    * @param firstName Player first name
    * @param lastName Player last name
    * @returns Race code string (numeric like "1", "2", etc.) or undefined if not found
@@ -740,42 +747,56 @@ export class CreatorService {
     this.masterLookupCache = new Map<string, any>();
 
     try {
-      // Use app.getAppPath() for correct path resolution in both dev and packaged builds
-      const { app } = require('electron');
-      const Papa = require('papaparse');
+      // Load from database via lookupService (replaces CSV loading)
+      console.log(`[CreatorService] Loading MASTER_LOOKUP from database via lookupService`);
 
-      const masterLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'ALL_PLAYER_LOOKUP.csv');
-      console.log(`[CreatorService] Loading MASTER_LOOKUP from: ${masterLookupPath}`);
-
-      if (!fs.existsSync(masterLookupPath)) {
-        console.error(`[CreatorService] ALL_PLAYER_LOOKUP.csv NOT FOUND at ${masterLookupPath}`);
-        return this.masterLookupCache;
-      }
-
-      const csvContent = fs.readFileSync(masterLookupPath, 'utf-8');
-
-      // Use Papa Parse for robust CSV parsing (handles quoted fields, commas, etc.)
-      const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true });
-
-      console.log(`[CreatorService] Papa Parse found ${parsed.data.length} rows in ALL_PLAYER_LOOKUP.csv`);
+      const allPlayers = lookupService.getAllPlayers();
+      console.log(`[CreatorService] Found ${allPlayers.length} players in database`);
 
       // Strip pro-football-reference disambiguation markers (e.g., ‡1, †2) from names
       const stripMarkers = (name: string): string => {
         return name.toLowerCase().replace(/[‡†*]+\d*/g, '').trim();
       };
 
-      for (const entry of parsed.data as any[]) {
-        const firstName = entry['First Name'] || '';
-        const lastName = entry['Last Name'] || '';
-        const draftClass = entry['Draft Class'] || '';
+      for (const player of allPlayers) {
+        const firstName = player.firstName || '';
+        const lastName = player.lastName || '';
+        const draftClass = player.draftClass || '';
 
         if (firstName && lastName && draftClass) {
+          // Transform FullDataEntry to CSV-compatible format for backward compatibility
+          const entry = {
+            'First Name': firstName,
+            'Last Name': lastName,
+            'Draft Class': draftClass,
+            'PhotoID': player.pid || 0,
+            'Player Assets ID': player.pam || '',
+            'Position': player.position || '',
+            'College/Univ': player.college || '',
+            'From': player.careerFrom || '',
+            'To': player.careerTo || '',
+            'isHOF': player.isHOF ? 'TRUE' : 'FALSE',
+            'PLPO': player.plpo || '',
+            'CommID': player.commID || '',
+            'Home State': player.homeState ? (player.hometown ? `${player.hometown}, ${player.homeState}` : player.homeState) : '',
+            'Round': player.round || '',
+            'Pick': player.pick || '',
+            'Race': player.race || '',
+            'Height': player.height || '',
+            'Weight': player.weight || '',
+            'wAV': player.wav || '',
+            'AP1': player.ap1 || '',
+            'PB': player.pb || '',
+            'St': player.starts || '',
+            'League': '' // League is not currently stored in database
+          };
+
           const key = `${stripMarkers(firstName)} ${stripMarkers(lastName)} ${draftClass}`;
           this.masterLookupCache.set(key, entry);
         }
       }
 
-      console.log(`[CreatorService] Loaded ${this.masterLookupCache.size} players into MASTER_LOOKUP cache`);
+      console.log(`[CreatorService] Loaded ${this.masterLookupCache.size} players into MASTER_LOOKUP cache from database`);
 
       // Debug: Check if Staubach is in the cache
       const staubachKey = 'roger staubach 1964';
@@ -786,7 +807,7 @@ export class CreatorService {
         console.error(`[CreatorService] ❌ Staubach NOT found in cache with key "${staubachKey}"`);
       }
     } catch (error) {
-      console.error('[CreatorService] Failed to load ALL_PLAYER_LOOKUP.csv:', error);
+      console.error('[CreatorService] Failed to load player data from database:', error);
     }
 
     return this.masterLookupCache;
@@ -1105,8 +1126,7 @@ export class CreatorService {
   }
 
   /**
-   * Load college lookup CSV into memory
-   * Format: CollegeID,CollegeName
+   * Load college lookup from database via lookupService
    */
   private loadCollegeLookup(): Map<string, number> {
     if (this.collegeLookupCache) {
@@ -1116,29 +1136,20 @@ export class CreatorService {
     this.collegeLookupCache = new Map<string, number>();
 
     try {
-      const { app } = require('electron');
-      const collegeLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'college_lookup.csv');
-      const csvContent = fs.readFileSync(collegeLookupPath, 'utf-8');
-      const lines = csvContent.split('\n');
+      // Use lookupService to get college data from database
+      const collegeOptions = lookupService.getDropdownOptions('college_lookup.csv');
 
-      // Skip header row
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-
-        const [collegeIdStr, collegeName] = line.split(',');
-        const collegeId = parseInt(collegeIdStr);
-
-        if (!isNaN(collegeId) && collegeName) {
+      for (const option of collegeOptions) {
+        if (option.id !== undefined && option.name) {
           // Normalize college name: lowercase, remove special chars
-          const normalizedName = collegeName.trim().toLowerCase().replace(/[^a-z\s]/g, '');
-          this.collegeLookupCache.set(normalizedName, collegeId);
+          const normalizedName = option.name.toLowerCase().replace(/[^a-z\s]/g, '');
+          this.collegeLookupCache.set(normalizedName, option.id);
         }
       }
 
-      console.log(`[CreatorService] Loaded ${this.collegeLookupCache.size} colleges from college_lookup.csv`);
+      console.log(`[CreatorService] Loaded ${this.collegeLookupCache.size} colleges from database`);
     } catch (error) {
-      console.warn('[CreatorService] Failed to load college_lookup.csv:', error);
+      console.warn('[CreatorService] Failed to load college data:', error);
     }
 
     return this.collegeLookupCache;
@@ -1301,8 +1312,7 @@ export class CreatorService {
   }
 
   /**
-   * Load state lookup CSV into memory
-   * Format: PHSN,StateName (where PHSN is the state ID)
+   * Load state lookup from database via lookupService
    */
   private loadStateLookup(): Map<string, number> {
     if (this.stateLookupCache) {
@@ -1312,51 +1322,42 @@ export class CreatorService {
     this.stateLookupCache = new Map<string, number>();
 
     try {
-      const { app } = require('electron');
-      const stateLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'state_lookup.csv');
-      const csvContent = fs.readFileSync(stateLookupPath, 'utf-8');
-      const lines = csvContent.split('\n');
+      // Use lookupService to get state data from database
+      const stateOptions = lookupService.getDropdownOptions('state_lookup.csv');
 
-      // Parse CSV: PHSN,StateName
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+      // Create a map of state name -> abbreviation for common conversions
+      const stateAbbreviations: { [key: string]: string } = {
+        'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+        'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+        'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
+        'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+        'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
+        'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+        'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+        'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+        'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+        'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
+        'Non-US': 'XX'
+      };
 
-        const [stateIdStr, stateName] = line.split(',');
-        const stateId = parseInt(stateIdStr);
+      for (const option of stateOptions) {
+        if (option.id !== undefined && option.name) {
+          const fullName = option.name.trim();
 
-        if (!isNaN(stateId) && stateName) {
-          // Map both full name and abbreviation
-          const fullName = stateName.trim();
-
-          // Create a map of state name -> abbreviation for common conversions
-          const stateAbbreviations: { [key: string]: string } = {
-            'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
-            'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
-            'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
-            'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
-            'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
-            'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
-            'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
-            'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
-            'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
-            'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
-            'Non-US': 'XX'
-          };
-
+          // Map by abbreviation
           const abbr = stateAbbreviations[fullName];
           if (abbr) {
-            this.stateLookupCache.set(abbr, stateId);
+            this.stateLookupCache.set(abbr, option.id);
           }
 
           // Also store by full name (lowercase)
-          this.stateLookupCache.set(fullName.toLowerCase(), stateId);
+          this.stateLookupCache.set(fullName.toLowerCase(), option.id);
         }
       }
 
-      console.log(`[CreatorService] Loaded ${this.stateLookupCache.size} state mappings from state_lookup.csv`);
+      console.log(`[CreatorService] Loaded ${this.stateLookupCache.size} state mappings from database`);
     } catch (error) {
-      console.warn('[CreatorService] Failed to load state_lookup.csv:', error);
+      console.warn('[CreatorService] Failed to load state data:', error);
     }
 
     return this.stateLookupCache;

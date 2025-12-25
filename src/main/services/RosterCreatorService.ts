@@ -114,92 +114,96 @@ export class RosterCreatorService {
   private dataLoaded: boolean = false;
 
   /**
-   * Load PID_Portrait_Mapping.csv and pam-race-mapping.json for generic face assignment
+   * Load mapping data from database via lookupService
+   * - PID data from pid_race table and player_appearance table
+   * - PAM race mapping from pam-race-mapping.json (still JSON file)
    */
   private async loadMappingData(): Promise<void> {
     if (this.dataLoaded) return;
 
     try {
-      // Load PID_Portrait_Mapping.csv
+      // Ensure lookupService is initialized
+      await lookupService.waitForReady();
+
+      console.log('[RosterCreatorService] Loading mapping data from database');
+
+      // Load all player data from database - this has PID, PAM, race, PLPO
+      const allPlayers = lookupService.getAllPlayers();
+      let realPlayerCount = 0;
+      let raceCount = 0;
+
+      for (const player of allPlayers) {
+        const pid = player.pid;
+        if (pid && pid > 0) {
+          this.validPIDs.add(pid);
+          realPlayerCount++;
+
+          // Store race mapping
+          if (player.race !== undefined && player.race !== null) {
+            this.pidToRace.set(pid, player.race);
+            raceCount++;
+          }
+
+          // Set type based on PLPO
+          const plpo = player.plpo || '';
+          if (plpo.includes('legends')) {
+            this.pidToType.set(pid, 'legend');
+          } else if (plpo) {
+            this.pidToType.set(pid, 'player');
+          } else {
+            this.pidToType.set(pid, 'player');
+          }
+
+          // Store PAM if available
+          if (player.pam) {
+            this.pidToPAM.set(pid, player.pam);
+          }
+
+          // Store portrait if available
+          if (plpo) {
+            this.pidToPortrait.set(pid, plpo);
+          }
+        }
+      }
+
+      console.log(`[RosterCreatorService] Loaded ${realPlayerCount} players from database, ${raceCount} with race data`);
+
+      // Also get generic face PIDs from pid_race table (lookupService.getRaceByPID handles this)
+      // For now, load PID_Portrait_Mapping.csv only for generic PIDs (still needed for generic face data)
       const pidMappingPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
       if (fs.existsSync(pidMappingPath)) {
         const csvContent = fs.readFileSync(pidMappingPath, 'utf8');
         const parsed = Papa.parse(csvContent, { header: true, skipEmptyLines: true });
 
-        // Build race-based generic face lookup
-        const genericFacesByRaceTemp: Map<number, { pid: number; pam: string; pghe: number }[]> = new Map();
-
-        // Helper to parse skin tone from portrait name - FIRST DIGIT is skin tone (1-7)
-        // Portrait format: plpo_generic_X_Y_Z_NNN where X is skin tone (1=lightest, 7=darkest)
-        const parseSkinToneFromPortrait = (portrait: string): { skinTone: number; headName: string } | null => {
-          if (!portrait.startsWith('plpo_generic_')) return null;
-          const headName = portrait.substring('plpo_generic_'.length); // e.g., "7_M_G_005"
-          const firstChar = headName.charAt(0);
-          const skinTone = parseInt(firstChar);
-          if (isNaN(skinTone) || skinTone < 1 || skinTone > 7) return null;
-          return { skinTone, headName };
-        };
-
-        // REMOVED: generatePAMFromPortrait was incorrectly converting PLPO to PAM
-        // PLPO format: plpo_generic_SKINTONE_... (first digit = skin tone 1-7)
-        // PAM format: gen_GENERATION_BODYCODE_... (first digit = generation 1-3, BODYCODE = B/H/M/T for race)
-        // These encode different information and cannot be directly converted!
-        // Instead, use getGenericPAM(race) which selects from pam-race-mapping.json
-
         for (const row of parsed.data as any[]) {
           const pid = parseInt(row.PID);
-          if (!isNaN(pid)) {
-            // Track all valid PIDs
-            this.validPIDs.add(pid);
+          const type = row.Type || '';
 
-            // Store portrait, type, and race for each PID
+          if (!isNaN(pid) && type === 'generic') {
+            this.validPIDs.add(pid);
+            this.genericPIDs.push(pid);
+
             const portrait = row.Portrait || '';
-            const type = row.Type || 'generic';
-            const race = parseInt(row.Race) || 0;
             if (portrait) this.pidToPortrait.set(pid, portrait);
-            this.pidToType.set(pid, type);
+            this.pidToType.set(pid, 'generic');
+
+            const race = parseInt(row.Race) || 0;
             if (race > 0) this.pidToRace.set(pid, race);
 
-            // Store PGHE mapping if present (may not exist in original CSV)
             const pghe = parseInt(row.PGHE);
-            if (!isNaN(pghe)) {
-              this.pidToPGHE.set(pid, pghe);
-            }
+            if (!isNaN(pghe)) this.pidToPGHE.set(pid, pghe);
 
-            // Handle PAM - only use if it exists in CSV, otherwise leave blank
             const rawPAM = row.PAM ? String(row.PAM).trim() : '';
             if (rawPAM && rawPAM !== '0') {
               this.pidToPAM.set(pid, rawPAM);
             }
-            // If no PAM in lookup, leave blank - game handles it via PID
-
-            // Collect generic PIDs for fallback random selection
-            if (type === 'generic' && portrait) {
-              this.genericPIDs.push(pid);
-
-              // NOTE: We no longer build genericFacesByRace from PLPO portrait names
-              // because PLPO skin tone (1-7) does NOT map to PAM format.
-              // PAM selection will be done at runtime using getGenericPAM(race)
-              // which properly selects from pam-race-mapping.json based on body code.
-
-              // Only cache if CSV already has a valid PAM
-              if (rawPAM && rawPAM !== '0' && !this.pidToPAM.has(pid)) {
-                this.pidToPAM.set(pid, rawPAM);
-              }
-            }
           }
         }
 
-        this.genericFacesByRace = genericFacesByRaceTemp;
-
-        console.log(`[RosterCreatorService] Loaded ${this.pidToPortrait.size} PID mappings, ${this.genericPIDs.length} generic PIDs, ${this.pidToRace.size} race mappings`);
-        console.log('[RosterCreatorService] Generic faces by race:');
-        this.genericFacesByRace.forEach((faces, race) => {
-          console.log(`  Race ${race}: ${faces.length} faces`);
-        });
+        console.log(`[RosterCreatorService] Loaded ${this.genericPIDs.length} generic PIDs from PID_Portrait_Mapping.csv`);
       }
 
-      // Load pam-race-mapping.json
+      // Load pam-race-mapping.json (still from JSON file)
       const pamMappingPath = path.join(app.getAppPath(), 'data', 'lookups', 'pam-race-mapping.json');
       if (fs.existsSync(pamMappingPath)) {
         const jsonContent = fs.readFileSync(pamMappingPath, 'utf8');
@@ -207,62 +211,12 @@ export class RosterCreatorService {
         console.log(`[RosterCreatorService] Loaded PAM race mapping: ${this.pamRaceMapping?.white.length} white, ${this.pamRaceMapping?.hispanic.length} hispanic, ${this.pamRaceMapping?.black.length} black`);
       }
 
-      // CRITICAL FIX: Also load ALL_PLAYER_LOOKUP.csv to ensure ALL valid PIDs and race data are available
-      // This ensures PIDs from MASTER_LOOKUP (used by CreatorService) are recognized as valid
-      const allPlayerLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'ALL_PLAYER_LOOKUP.csv');
-      if (fs.existsSync(allPlayerLookupPath)) {
-        const allPlayerContent = fs.readFileSync(allPlayerLookupPath, 'utf8');
-        const allPlayerParsed = Papa.parse(allPlayerContent, { header: true, skipEmptyLines: true });
+      console.log(`[RosterCreatorService] TOTAL: ${this.validPIDs.size} valid PIDs, ${this.pidToRace.size} race mappings`);
 
-        let addedFromMaster = 0;
-        let raceAddedFromMaster = 0;
-
-        for (const row of allPlayerParsed.data as any[]) {
-          const photoId = parseInt(row['PhotoID']);
-          if (!isNaN(photoId) && photoId > 0) {
-            // Add to validPIDs if not already present
-            if (!this.validPIDs.has(photoId)) {
-              this.validPIDs.add(photoId);
-              addedFromMaster++;
-            }
-
-            // Add race mapping if not already present and race is valid
-            const race = parseInt(row['Race']);
-            if (!isNaN(race) && race > 0 && !this.pidToRace.has(photoId)) {
-              this.pidToRace.set(photoId, race);
-              raceAddedFromMaster++;
-            }
-
-            // Also set type to 'player' or 'legend' based on presence of PLPO
-            if (!this.pidToType.has(photoId)) {
-              const plpo = row['PLPO'] || '';
-              if (plpo.includes('legends')) {
-                this.pidToType.set(photoId, 'legend');
-              } else if (plpo) {
-                this.pidToType.set(photoId, 'player');
-              } else {
-                this.pidToType.set(photoId, 'player'); // Default real players to 'player' type
-              }
-            }
-
-            // Also store PAM (Player Assets ID) if not already present
-            const pamValue = row['Player Assets ID'] || '';
-            if (pamValue && !this.pidToPAM.has(photoId)) {
-              this.pidToPAM.set(photoId, pamValue);
-            }
-          }
-        }
-
-        console.log(`[RosterCreatorService] Extended from ALL_PLAYER_LOOKUP: ${addedFromMaster} new PIDs, ${raceAddedFromMaster} new race mappings`);
-        console.log(`[RosterCreatorService] TOTAL: ${this.validPIDs.size} valid PIDs, ${this.pidToRace.size} race mappings`);
-
-        // DEBUG: Verify Staubach's PID 2966 is in validPIDs
-        console.log(`[RosterCreatorService] ✓ VERIFY: validPIDs.has(2966) = ${this.validPIDs.has(2966)}`);
-        console.log(`[RosterCreatorService] ✓ VERIFY: pidToRace.get(2966) = ${this.pidToRace.get(2966)}`);
-        console.log(`[RosterCreatorService] ✓ VERIFY: pidToType.get(2966) = ${this.pidToType.get(2966)}`);
-      } else {
-        console.warn(`[RosterCreatorService] ALL_PLAYER_LOOKUP.csv not found at ${allPlayerLookupPath}`);
-      }
+      // DEBUG: Verify Staubach's PID 2966 is in validPIDs
+      console.log(`[RosterCreatorService] ✓ VERIFY: validPIDs.has(2966) = ${this.validPIDs.has(2966)}`);
+      console.log(`[RosterCreatorService] ✓ VERIFY: pidToRace.get(2966) = ${this.pidToRace.get(2966)}`);
+      console.log(`[RosterCreatorService] ✓ VERIFY: pidToType.get(2966) = ${this.pidToType.get(2966)}`);
 
       this.dataLoaded = true;
     } catch (error) {
@@ -1042,7 +996,7 @@ export class RosterCreatorService {
   }
 
   /**
-   * Collect free agents from ROSTER_lookup.csv for 5 years before the target year
+   * Collect free agents from database for 5 years before the target year
    * Uses players' final year stats (most recent season)
    * Excludes players already on the current roster
    * @param year - Target roster year
@@ -1061,29 +1015,44 @@ export class RosterCreatorService {
     console.log(`[RosterCreatorService] Template max: ${maxPlayers}`);
     console.log(`[RosterCreatorService] Need ${maxPlayers - currentRosterPlayers.length} free agents`);
 
-    // Load ROSTER_lookup.csv
-    const csvPath = path.join(app.getAppPath(), 'data', 'lookups', 'ROSTER_lookup.csv');
-    console.log(`[RosterCreatorService] Loading CSV from: ${csvPath}`);
-    console.log(`[RosterCreatorService] CSV exists: ${fs.existsSync(csvPath)}`);
+    // Ensure lookupService is ready
+    await lookupService.waitForReady();
 
-    if (!fs.existsSync(csvPath)) {
-      console.error(`[RosterCreatorService] ROSTER_lookup.csv NOT FOUND - generating all random players`);
-      const needed = maxPlayers - currentRosterPlayers.length;
-      const randoms: RosterPlayer[] = [];
-      for (let i = 0; i < needed; i++) {
-        randoms.push(this.generateLowTierPlayer(year));
+    // Collect all player seasons for years 5-1 before target year
+    const startYear = year - 5;
+    const endYear = year - 1;
+    console.log(`[RosterCreatorService] Scanning years ${startYear} to ${endYear} for free agents from database...`);
+
+    const parsed = { data: [] as any[] };
+    for (let y = startYear; y <= endYear; y++) {
+      const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      for (const p of yearPlayers) {
+        // Transform to CSV-compatible format
+        parsed.data.push({
+          Year: y,
+          PFNA: p.firstName,
+          PLNA: p.lastName,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          PPOS: p.position,
+          position: p.position,
+          PAGE: p.age,
+          age: p.age,
+          PJEN: p.jersey,
+          jerseyNum: p.jersey,
+          PSXP: p.maddenPid,
+          PID: p.maddenPid,
+          PEPS: p.maddenPam,
+          PAM: p.maddenPam,
+          PCOL: p.college,
+          college: p.college,
+          Race: p.race,
+          ...p.ratings
+        });
       }
-      return randoms;
     }
 
-    const csvContent = fs.readFileSync(csvPath, 'utf8');
-    const parsed = Papa.parse(csvContent, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: true
-    });
-
-    console.log(`[RosterCreatorService] Parsed ${parsed.data.length} CSV rows`);
+    console.log(`[RosterCreatorService] Loaded ${parsed.data.length} player-seasons from database`);
 
     // Build set of players already on current roster (firstName|lastName only - ignore position)
     const rosterPlayerNames = new Set(
@@ -1091,21 +1060,11 @@ export class RosterCreatorService {
     );
     console.log(`[RosterCreatorService] Current roster has ${rosterPlayerNames.size} unique player names`);
 
-    // Collect free agents from 5 years BEFORE target year
+    // Collect free agents - keep best version of each player
     const freeAgentsByKey = new Map<string, any>();
-    const startYear = year - 5;
-    const endYear = year - 1;
-
-    console.log(`[RosterCreatorService] Scanning years ${startYear} to ${endYear} for free agents...`);
 
     for (const csvRow of parsed.data as any[]) {
-      const rowYear = Math.floor(csvRow.Year);
-
-      // Only include years 5-1 before target year
-      if (rowYear < startYear || rowYear > endYear) {
-        continue;
-      }
-
+      // Year already filtered when loading from database
       const firstName = csvRow.PFNA || csvRow.firstName || '';
       const lastName = csvRow.PLNA || csvRow.lastName || '';
       const nameKey = `${firstName}|${lastName}`;

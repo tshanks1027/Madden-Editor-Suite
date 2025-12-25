@@ -1,17 +1,19 @@
 /**
  * Roster Generator Service
  *
- * Generates complete Madden rosters from ROSTER_lookup.csv historical player data.
+ * Generates complete Madden rosters from the SQLite database (players.db).
  * Supports single year rosters and all-time/decade rosters combining best players.
  *
  * Key Features:
  * - Single Year Mode: All players from specific year + 5-year free agent backfill
  * - All-Time Mode: Best players from year range with position limits
  * - PID-based deduplication (keeps highest POVR version)
- * - Real Madden ratings from CSV with 30-50 variance for missing values
+ * - Real Madden ratings from database with 30-50 variance for missing values
  * - Generic PID/PAM assignment for players without portraits
  * - Archetype numeric validation (0-67)
  * - Template buffer integrity for M26 saves
+ *
+ * DATA SOURCE: Uses lookupService which reads from data/players.db SQLite database
  */
 
 import * as fs from 'fs';
@@ -400,80 +402,53 @@ export class RosterGeneratorService {
       console.warn('[RosterGeneratorService] pam-race-mapping.json not found, will use fallback generation');
     }
 
-    // Load ALL_PLAYER_LOOKUP.csv and extract unique names
-    const allPlayerLookupPath = path.join(app.getAppPath(), 'data', 'lookups', 'ALL_PLAYER_LOOKUP.csv');
-    console.log('[RosterGeneratorService] Loading real names from:', allPlayerLookupPath);
+    // Load player names, HOF status, and home locations from database via lookupService
+    console.log('[RosterGeneratorService] Loading player data from database...');
 
-    if (fs.existsSync(allPlayerLookupPath)) {
-      const allPlayerContent = fs.readFileSync(allPlayerLookupPath, 'utf8');
-      const allPlayerParsed = Papa.parse(allPlayerContent, {
-        header: true,
-        skipEmptyLines: true
-      });
+    // Get unique first and last names from database
+    this.realFirstNames = lookupService.getUniqueFirstNames();
+    this.realLastNames = lookupService.getUniqueLastNames();
 
-      // Extract unique first and last names
-      const firstNameSet = new Set<string>();
-      const lastNameSet = new Set<string>();
+    // Load all player data for HOF status, CommID, and home locations
+    const allPlayers = lookupService.getAllPlayers();
+    let hofCount = 0;
 
-      let hofCount = 0;
-      allPlayerParsed.data.forEach((row: any) => {
-        if (row['First Name'] && typeof row['First Name'] === 'string' && row['First Name'].trim()) {
-          firstNameSet.add(row['First Name'].trim());
+    for (const player of allPlayers) {
+      const firstName = player.firstName?.trim() || '';
+      const lastName = player.lastName?.trim() || '';
+
+      if (firstName && lastName) {
+        const key = `${firstName}|${lastName}`;
+
+        // HOF status
+        if (player.isHOF) {
+          this.hofLookup.set(key, true);
+          hofCount++;
         }
-        if (row['Last Name'] && typeof row['Last Name'] === 'string' && row['Last Name'].trim()) {
-          lastNameSet.add(row['Last Name'].trim());
-        }
-        // Extract HOF status - map by firstName|lastName key
-        const firstName = row['First Name']?.trim() || '';
-        const lastName = row['Last Name']?.trim() || '';
-        if (firstName && lastName) {
-          const key = `${firstName}|${lastName}`;
-          // isHOF column is "TRUE" or "FALSE" string
-          const isHOF = row['isHOF'] === 'TRUE' || row['isHOF'] === true;
-          if (isHOF) {
-            this.hofLookup.set(key, true);
-            hofCount++;
+
+        // CommID (POID) mapping by PID
+        if (player.pid && player.pid > 0 && player.commID) {
+          const commIdNum = parseInt(player.commID);
+          if (!isNaN(commIdNum) && commIdNum > 0) {
+            this.pidToCommID.set(player.pid, commIdNum);
           }
         }
 
-        // Extract CommID (POID) mapping by PhotoID
-        const photoID = parseInt(row['PhotoID']);
-        const commID = parseInt(row['CommID']);
-        if (!isNaN(photoID) && photoID > 0 && !isNaN(commID) && commID > 0) {
-          this.pidToCommID.set(photoID, commID);
+        // Home location lookup
+        if (player.hometown || player.homeState) {
+          this.homeLocationLookup.set(key, {
+            hometown: player.hometown || '',
+            homeState: player.homeState || ''
+          });
         }
-
-        // Extract Home State (contains "City, State" format) for hometown/homeState lookup
-        const homeStateRaw = row['Home State']?.trim() || '';
-        if (firstName && lastName && homeStateRaw) {
-          const key = `${firstName}|${lastName}`;
-          // Parse "City, State" format
-          if (homeStateRaw.includes(',')) {
-            const parts = homeStateRaw.split(',');
-            const hometown = parts.slice(0, -1).join(',').trim();
-            const homeState = parts[parts.length - 1].trim();
-            this.homeLocationLookup.set(key, { hometown, homeState });
-          } else {
-            // Just state name
-            this.homeLocationLookup.set(key, { hometown: '', homeState: homeStateRaw });
-          }
-        }
-      });
-
-      this.realFirstNames = Array.from(firstNameSet).sort();
-      this.realLastNames = Array.from(lastNameSet).sort();
-
-      console.log('[RosterGeneratorService] Loaded', this.realFirstNames.length, 'unique first names');
-      console.log('[RosterGeneratorService] Loaded', this.realLastNames.length, 'unique last names');
-      console.log('[RosterGeneratorService] Loaded', hofCount, 'Hall of Fame players');
-      console.log('[RosterGeneratorService] Loaded', this.pidToCommID.size, 'PID → CommID mappings');
-      console.log('[RosterGeneratorService] Loaded', this.homeLocationLookup.size, 'home location mappings');
-    } else {
-      console.warn('[RosterGeneratorService] ALL_PLAYER_LOOKUP.csv not found, using fallback names');
-      // Fallback to basic names if file not found
-      this.realFirstNames = ['James', 'John', 'Robert', 'Michael', 'William'];
-      this.realLastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones'];
+      }
     }
+
+    console.log('[RosterGeneratorService] Loaded', this.realFirstNames.length, 'unique first names');
+    console.log('[RosterGeneratorService] Loaded', this.realLastNames.length, 'unique last names');
+    console.log('[RosterGeneratorService] Loaded', hofCount, 'Hall of Fame players');
+    console.log('[RosterGeneratorService] Loaded', this.pidToCommID.size, 'PID → CommID mappings');
+    console.log('[RosterGeneratorService] Loaded', this.homeLocationLookup.size, 'home location mappings');
 
     this.initialized = true;
     console.log('[RosterGeneratorService] ===== INITIALIZATION COMPLETE =====');

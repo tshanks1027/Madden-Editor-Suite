@@ -200,11 +200,12 @@ export const MADDEN_EXPORT_ORDER = [
 // Basic fields for default view (user-friendly editing fields only)
 export const BASIC_FIELDS = FIELD_ORDER.map(field => field[0]);
 
-// Position field mappings (simplified position names to internal codes)
+// Position field mappings (PPOS numeric code to position name)
+// MUST match position_lookup.csv exactly
 export const POSITION_MAPPINGS = {
-    0: 'QB', 1: 'HB', 2: 'WR', 3: 'TE', 4: 'LT', 5: 'LG', 6: 'C', 7: 'RG', 8: 'RT',
-    9: 'DT', 10: 'LEDG', 11: 'REDG', 12: 'SAM', 13: 'Mike', 14: 'WILL', 15: 'CB',
-    16: 'FS', 17: 'SS', 18: 'K', 19: 'P'
+    0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C', 8: 'RG', 9: 'RT',
+    10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike', 15: 'WILL', 16: 'CB',
+    17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
 };
 
 // Team mappings - matches team_lookup.csv TGID values (1-32)

@@ -194,6 +194,7 @@ class PlayerDataFillService {
 
   /**
    * Fill missing data for a single player
+   * PRIORITY: Use local CSV/database data first, only scrape PFR for hometown (city)
    * @param playerId - Player ID for saving
    * @param playerInfo - Optional player info from frontend
    */
@@ -213,26 +214,35 @@ class PlayerDataFillService {
   }): Promise<FillResult> {
     console.log(`[PlayerDataFillService] Filling data for player ID: ${playerId}`);
 
-    // Always fetch current data from database to know what's already filled
+    // Get full player data from CSV/database (includes college, height, weight, homeState)
+    const csvPlayer = await this.getPlayerFromCSV(playerId);
     const dbPlayer = await this.getPlayerFromDatabase(playerId);
+    const userEdits = await userDatabaseService.getPlayerEdit(playerId);
 
-    // Merge: use provided playerInfo for names, but use database values for current field state
+    // Merge all sources: CSV data is most complete, then user edits, then provided info
     let player: any;
     if (playerInfo && playerInfo.firstName && playerInfo.lastName) {
-      // Use provided names but merge with database current values
       player = {
         firstName: playerInfo.firstName,
         lastName: playerInfo.lastName,
-        hometown: playerInfo.hometown ?? dbPlayer?.hometown,
-        homeState: playerInfo.homeState ?? dbPlayer?.homeState,
-        height: playerInfo.height ?? dbPlayer?.height,
-        weight: playerInfo.weight ?? dbPlayer?.weight,
-        college: playerInfo.college ?? dbPlayer?.college,
+        // Prioritize: userEdits > CSV data > provided info
+        hometown: userEdits?.hometown || playerInfo.hometown,
+        homeState: userEdits?.homeState || csvPlayer?.homeState || playerInfo.homeState,
+        height: userEdits?.height || csvPlayer?.height || playerInfo.height,
+        weight: userEdits?.weight || csvPlayer?.weight || playerInfo.weight,
+        college: csvPlayer?.college || playerInfo.college,
+        collegeId: userEdits?.collegeId,
         draftYear: playerInfo.draftYear ?? dbPlayer?.draftYear,
         draftRound: playerInfo.draftRound ?? dbPlayer?.draftRound,
         draftPick: playerInfo.draftPick ?? dbPlayer?.draftPick,
         careerFrom: playerInfo.careerFrom ?? dbPlayer?.careerFrom,
         careerTo: playerInfo.careerTo ?? dbPlayer?.careerTo
+      };
+    } else if (csvPlayer) {
+      player = {
+        ...csvPlayer,
+        hometown: userEdits?.hometown,
+        collegeId: userEdits?.collegeId
       };
     } else if (dbPlayer) {
       player = dbPlayer;
@@ -254,128 +264,124 @@ class PlayerDataFillService {
     const playerName = `${player.firstName} ${player.lastName}`;
     const fieldsUpdated: string[] = [];
     let seasonsUpdated = 0;
+    const playerEdits: any = {};
 
-    try {
-      // Initialize browser and scrape
-      await this.scraper.initBrowser();
-      const scrapedData = await this.scraper.scrapePlayerBioExtended(playerName);
+    // STEP 1: Fill from local CSV data FIRST (no scraping needed for these)
+    console.log(`[PlayerDataFillService] CSV data for ${playerName}:`, JSON.stringify({
+      college: csvPlayer?.college,
+      height: csvPlayer?.height,
+      weight: csvPlayer?.weight,
+      homeState: csvPlayer?.homeState
+    }));
 
-      if (!scrapedData) {
-        return {
-          success: false,
-          playerId,
-          playerName,
-          fieldsUpdated: [],
-          seasonsUpdated: 0,
-          error: 'Player not found on Pro-Football-Reference'
-        };
+    // Fill college from CSV if missing in user edits
+    if (!player.collegeId && csvPlayer?.college) {
+      const collegeId = await this.lookupCollegeId(csvPlayer.college);
+      if (collegeId) {
+        playerEdits.collegeId = collegeId;
+        fieldsUpdated.push('college');
+        console.log(`[PlayerDataFillService] Filled college from CSV: ${csvPlayer.college} -> ID ${collegeId}`);
       }
+    }
 
-      // Log what we have for debugging
-      console.log(`[PlayerDataFillService] Current player data:`, JSON.stringify({
-        hometown: player.hometown,
-        homeState: player.homeState,
-        height: player.height,
-        weight: player.weight,
-        college: player.college
-      }));
-      console.log(`[PlayerDataFillService] Scraped data:`, JSON.stringify({
-        hometown: scrapedData.hometown,
-        homeState: scrapedData.homeState,
-        height: scrapedData.height,
-        weight: scrapedData.weight,
-        college: scrapedData.college
-      }));
+    // Fill height from CSV if missing
+    if (!player.height && csvPlayer?.height) {
+      playerEdits.height = csvPlayer.height;
+      fieldsUpdated.push('height');
+      console.log(`[PlayerDataFillService] Filled height from CSV: ${csvPlayer.height}`);
+    }
 
-      // Build player edits object
-      const playerEdits: any = {};
+    // Fill weight from CSV if missing
+    if (!player.weight && csvPlayer?.weight) {
+      playerEdits.weight = csvPlayer.weight;
+      fieldsUpdated.push('weight');
+      console.log(`[PlayerDataFillService] Filled weight from CSV: ${csvPlayer.weight}`);
+    }
 
-      // Fill missing bio data
-      if (!player.hometown && scrapedData.hometown) {
-        playerEdits.hometown = scrapedData.hometown;
-        fieldsUpdated.push('hometown');
-      }
+    // Fill homeState from CSV if missing
+    if (!player.homeState && csvPlayer?.homeState) {
+      playerEdits.homeState = csvPlayer.homeState;
+      fieldsUpdated.push('homeState');
+      console.log(`[PlayerDataFillService] Filled homeState from CSV: ${csvPlayer.homeState}`);
+    }
 
-      if (!player.homeState && scrapedData.homeState) {
-        playerEdits.homeState = scrapedData.homeState;
-        fieldsUpdated.push('homeState');
-      }
+    // STEP 2: Only scrape PFR if we still need hometown (city) or other missing data
+    const needsHometown = !player.hometown && !playerEdits.hometown;
+    const needsOtherData = (!player.height && !playerEdits.height) ||
+                           (!player.weight && !playerEdits.weight) ||
+                           (!player.homeState && !playerEdits.homeState);
 
-      if (!player.height && scrapedData.height) {
-        playerEdits.height = this.convertHeightToInches(scrapedData.height);
-        fieldsUpdated.push('height');
-      }
+    if (needsHometown || needsOtherData) {
+      console.log(`[PlayerDataFillService] Scraping PFR for ${playerName} (needsHometown: ${needsHometown}, needsOtherData: ${needsOtherData})`);
 
-      if (!player.weight && scrapedData.weight) {
-        playerEdits.weight = scrapedData.weight;
-        fieldsUpdated.push('weight');
-      }
+      try {
+        await this.scraper.initBrowser();
+        const scrapedData = await this.scraper.scrapePlayerBioExtended(playerName);
 
-      if (!player.college && scrapedData.college) {
-        const collegeId = await this.lookupCollegeId(scrapedData.college);
-        if (collegeId) {
-          playerEdits.collegeId = collegeId;
-          fieldsUpdated.push('college');
-        }
-      }
+        if (scrapedData) {
+          console.log(`[PlayerDataFillService] PFR data for ${playerName}:`, JSON.stringify({
+            hometown: scrapedData.hometown,
+            homeState: scrapedData.homeState,
+            height: scrapedData.height,
+            weight: scrapedData.weight,
+            college: scrapedData.college
+          }));
 
-      // Save player bio edits if any
-      if (Object.keys(playerEdits).length > 0) {
-        console.log(`[PlayerDataFillService] Saving player edits for ${playerName}:`, playerEdits);
-        await userDatabaseService.savePlayerEdit(playerId, playerEdits);
-      } else {
-        console.log(`[PlayerDataFillService] No new bio data to save for ${playerName} - all fields already filled or no data from PFR`);
-      }
+          // Fill hometown from PFR (only available from scraping)
+          if (needsHometown && scrapedData.hometown) {
+            playerEdits.hometown = scrapedData.hometown;
+            fieldsUpdated.push('hometown');
+          }
 
-      // Fill season data (team and jersey per year)
-      if (scrapedData.careerHistory && scrapedData.careerHistory.length > 0) {
-        for (const yearData of scrapedData.careerHistory) {
-          const seasonEdits: any = {};
+          // Fill other fields from PFR only if still missing after CSV check
+          if (!player.homeState && !playerEdits.homeState && scrapedData.homeState) {
+            playerEdits.homeState = scrapedData.homeState;
+            fieldsUpdated.push('homeState');
+          }
 
-          // Get existing season data
-          const existingSeason = await userDatabaseService.getSeasonEdit(playerId, yearData.year);
+          if (!player.height && !playerEdits.height && scrapedData.height) {
+            playerEdits.height = this.convertHeightToInches(scrapedData.height);
+            fieldsUpdated.push('height');
+          }
 
-          // Fill team if missing
-          if ((!existingSeason || !existingSeason.team) && yearData.team) {
-            const teamAbbrev = this.mapTeamNameToAbbrev(yearData.team);
-            if (teamAbbrev) {
-              seasonEdits.team = teamAbbrev;
+          if (!player.weight && !playerEdits.weight && scrapedData.weight) {
+            playerEdits.weight = scrapedData.weight;
+            fieldsUpdated.push('weight');
+          }
+
+          if (!player.college && !playerEdits.collegeId && scrapedData.college) {
+            const collegeId = await this.lookupCollegeId(scrapedData.college);
+            if (collegeId) {
+              playerEdits.collegeId = collegeId;
+              fieldsUpdated.push('college');
             }
           }
-
-          // Fill jersey if missing
-          if ((!existingSeason || !existingSeason.jersey) && yearData.jersey) {
-            seasonEdits.jersey = yearData.jersey;
-          }
-
-          // Save season edits if any
-          if (Object.keys(seasonEdits).length > 0) {
-            console.log(`[PlayerDataFillService] Saving season ${yearData.year} edits:`, seasonEdits);
-            await userDatabaseService.saveSeasonEdit(playerId, yearData.year, seasonEdits);
-            seasonsUpdated++;
-          }
+        } else {
+          console.log(`[PlayerDataFillService] Player not found on PFR: ${playerName}`);
         }
+      } catch (scrapeError: any) {
+        console.log(`[PlayerDataFillService] PFR scrape failed for ${playerName}: ${scrapeError.message}`);
+        // Continue - we may have filled data from CSV already
       }
-
-      return {
-        success: true,
-        playerId,
-        playerName,
-        fieldsUpdated,
-        seasonsUpdated
-      };
-
-    } catch (error: any) {
-      console.error(`[PlayerDataFillService] Fill error:`, error);
-      return {
-        success: false,
-        playerId,
-        playerName,
-        fieldsUpdated,
-        seasonsUpdated,
-        error: error.message || 'Failed to fill player data'
-      };
+    } else {
+      console.log(`[PlayerDataFillService] Skipping PFR scrape for ${playerName} - all data available from CSV`);
     }
+
+    // Save player bio edits if any
+    if (Object.keys(playerEdits).length > 0) {
+      console.log(`[PlayerDataFillService] Saving player edits for ${playerName}:`, playerEdits);
+      await userDatabaseService.savePlayerEdit(playerId, playerEdits);
+    } else {
+      console.log(`[PlayerDataFillService] No new bio data to save for ${playerName} - all fields already filled`);
+    }
+
+    return {
+      success: true,
+      playerId,
+      playerName,
+      fieldsUpdated,
+      seasonsUpdated
+    };
   }
 
   /**
@@ -604,6 +610,42 @@ class PlayerDataFillService {
 
   // ==================== Helper Methods ====================
 
+  /**
+   * Get player data from CSV/database - this has college, height, weight, homeState
+   * This is the authoritative source for bio data that we already have
+   */
+  private async getPlayerFromCSV(playerId: number): Promise<{
+    firstName: string;
+    lastName: string;
+    college?: string;
+    height?: number;
+    weight?: number;
+    homeState?: string;
+    careerFrom?: number;
+    careerTo?: number;
+  } | null> {
+    try {
+      const players = await lookupService.searchPlayers('', 50000);
+      const player = players.find(p => p.internalId === playerId);
+      if (player) {
+        return {
+          firstName: player.firstName,
+          lastName: player.lastName,
+          college: player.college || undefined,
+          height: player.height,
+          weight: player.weight,
+          homeState: player.homeState,
+          careerFrom: player.careerFrom,
+          careerTo: player.careerTo
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error(`[PlayerDataFillService] Error getting player from CSV ${playerId}:`, error);
+      return null;
+    }
+  }
+
   private async getPlayerFromDatabase(playerId: number): Promise<any | null> {
     try {
       // Try to get player from lookup service
@@ -613,7 +655,6 @@ class PlayerDataFillService {
         return {
           firstName: player.firstName,
           lastName: player.lastName,
-          hometown: player.hometown,
           homeState: player.homeState,
           height: player.height,
           weight: player.weight,
