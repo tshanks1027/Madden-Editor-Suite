@@ -460,7 +460,25 @@ async function loadIntoEditor() {
       console.log('  PID:', joeBurrow.PID);
       console.log('  PAM:', joeBurrow.PAM);
       console.log('  homeState:', joeBurrow.homeState);
+      console.log('  college:', joeBurrow.college);
+      console.log('  commID:', joeBurrow.commID);
+      console.log('  ratings.kickReturn:', joeBurrow.ratings?.kickReturn);
+      console.log('  ratings.longSnap:', joeBurrow.ratings?.longSnap);
+      console.log('  ratings.pressCoverage:', joeBurrow.ratings?.pressCoverage);
     }
+  }
+
+  // DEBUG: Log first 3 players to verify data from generator
+  console.log('[DraftWizard] === FIRST 3 PLAYERS FROM GENERATOR ===');
+  for (let i = 0; i < Math.min(3, wizardState.generatedPlayers.length); i++) {
+    const p = wizardState.generatedPlayers[i];
+    console.log(`[DraftWizard] Player ${i+1}: ${p.firstName} ${p.lastName}`);
+    console.log(`  college: ${p.college} (type: ${typeof p.college})`);
+    console.log(`  homeState: ${p.homeState} (type: ${typeof p.homeState})`);
+    console.log(`  commID: ${p.commID}`);
+    console.log(`  ratings.kickReturn: ${p.ratings?.kickReturn}`);
+    console.log(`  ratings.longSnap: ${p.ratings?.longSnap}`);
+    console.log(`  ratings.pressCoverage: ${p.ratings?.pressCoverage}`);
   }
 
   // Convert generated players to draft class prospect format
@@ -481,8 +499,10 @@ async function loadIntoEditor() {
     PID: player.PID || null,
     PAM: player.PAM || null,
     PEPS: player.PEPS || null,
+    commentaryId: player.commID || 0,  // Map commID from generator to commentaryId for grid
     college: player.college,  // Already numeric ID from CreatorService
     homeState: player.homeState,  // Already numeric ID from CreatorService
+    homeTown: player.hometown || '',  // City name from generator
     jerseyNum: player.jerseyNum,
 
     // Draft info - preserve round=0 for UDFAs (don't use || which treats 0 as falsy)

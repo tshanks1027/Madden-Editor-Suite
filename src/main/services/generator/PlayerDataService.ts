@@ -105,6 +105,7 @@ export interface RookieStats {
   pthp?: number;                // Throw Power
   pkpw?: number;                // Kick Power
   pkac?: number;                // Kick Accuracy
+  pkrt?: number;                // Kick Return
   prbk?: number;                // Run Block
   ppbk?: number;                // Pass Block
   ptak?: number;                // Tackling

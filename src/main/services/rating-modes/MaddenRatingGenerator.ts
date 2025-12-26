@@ -152,6 +152,9 @@ export class MaddenRatingGenerator implements IRatingGenerator {
     if (stats.pthp !== undefined) ratings.PTHP = stats.pthp;
     if (stats.pkpw !== undefined) ratings.PKPW = stats.pkpw;
     if (stats.pkac !== undefined) ratings.PKAC = stats.pkac;
+    if (stats.pkrt !== undefined) ratings.PKRT = stats.pkrt;
+    // Default PKRT to 1 if not in CSV (kick return is rarely tracked)
+    if (ratings.PKRT === undefined) ratings.PKRT = 1;
     if (stats.prbk !== undefined) ratings.PRBK = stats.prbk;
     if (stats.ppbk !== undefined) ratings.PPBK = stats.ppbk;
     if (stats.ptak !== undefined) ratings.PTAK = stats.ptak;

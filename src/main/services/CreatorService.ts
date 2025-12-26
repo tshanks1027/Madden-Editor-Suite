@@ -27,6 +27,7 @@ import { IRatingGenerator, RatingContext } from './rating-modes';
 import { archetypeService } from './utils/archetypeService';
 import { pgheLookupService } from './PGHELookupService';
 import { userDatabaseService, AppearanceEdit } from './UserDatabaseService';
+import { lookupService } from './lookup-service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -1148,6 +1149,9 @@ export class CreatorService {
       }
 
       console.log(`[CreatorService] Loaded ${this.collegeLookupCache.size} colleges from database`);
+      // DEBUG: Show sample entries
+      const sampleEntries = Array.from(this.collegeLookupCache.entries()).slice(0, 5);
+      console.log(`[CreatorService] Sample college entries:`, sampleEntries);
     } catch (error) {
       console.warn('[CreatorService] Failed to load college data:', error);
     }
@@ -1163,10 +1167,12 @@ export class CreatorService {
   private matchCollege(scrapedCollegeName: string): number {
     // Default to N/A (ID 0) if no name provided
     if (!scrapedCollegeName || scrapedCollegeName === 'Unknown') {
+      console.log(`[CreatorService.matchCollege] Empty/Unknown input: "${scrapedCollegeName}"`);
       return 0; // N/A
     }
 
     const collegeLookup = this.loadCollegeLookup();
+    console.log(`[CreatorService.matchCollege] Lookup cache size: ${collegeLookup.size}, searching for: "${scrapedCollegeName}"`);
 
     // Normalize the original name (before expansion)
     const normalizedOriginal = scrapedCollegeName.toLowerCase().replace(/[^a-z\s]/g, '').trim();
@@ -2901,8 +2907,20 @@ export class CreatorService {
         // Match college
         const collegeId = player.college ? this.matchCollege(player.college) : 0;
 
+        // DEBUG: Log college and homeState for first 5 players
+        if (i < 5) {
+          console.log(`[CreatorService V2] Player ${i+1} ${fullName}:`);
+          console.log(`  player.college = "${player.college}" -> collegeId = ${collegeId}`);
+          console.log(`  player.homeState = "${player.homeState}"`);
+        }
+
         // Match home state (convert to ID for Madden)
         const homeState = player.homeState ? this.matchHomeState(player.homeState) : 0;
+
+        // DEBUG: Log final homeState for first 5 players
+        if (i < 5) {
+          console.log(`  -> homeState ID = ${homeState}`);
+        }
 
         // Use jersey from CSV, fallback to generated
         const jerseyNum = player.jersey
@@ -3004,6 +3022,14 @@ export class CreatorService {
           if (i < 5) {
             console.log(`[CreatorService V2] ${fullName} (${mappedPosition.name}): No archetype data, using default archetype ID ${archetypeId}`);
           }
+        }
+
+        // CRITICAL: Validate archetype is correct for position (fixes CB getting S archetypes)
+        // This check applies to ALL archetype sources: rating generator, ArchetypeAssigner, or ROSTER_lookup
+        if (archetypeId !== 0 && !archetypeService.isValidArchetypeIdForPosition(archetypeId, mappedPosition.name)) {
+          const oldId = archetypeId;
+          archetypeId = archetypeService.getDefaultArchetypeForPosition(mappedPosition.name);
+          console.warn(`[CreatorService V2] ⚠️ Invalid archetype ${oldId} for ${mappedPosition.name}, corrected to ${archetypeId}`);
         }
 
         // CRITICAL: Ensure archetype is never 0 (would display as blank)
@@ -3281,13 +3307,14 @@ export class CreatorService {
       // DB ratings
       manCoverage: stats.pman || 65,
       zoneCoverage: stats.pzon || 65,
-      press: stats.pprs || 65,
+      pressCoverage: stats.pprs || 65,
       changeOfDirection: stats.pcod || 65,
 
       // Special teams
       kickPower: stats.pkpw || 65,
       kickAccuracy: stats.pkacc || 65,
       kickReturn: stats.pkrt || 65,
+      longSnap: 30,
 
       // Additional attributes
       awareness: stats.pawr || 65
@@ -4245,10 +4272,11 @@ export class CreatorService {
         powerMoves: factoryRatings.PPWM,
         manCoverage: factoryRatings.PMCV,
         zoneCoverage: factoryRatings.PZCV,
-        press: factoryRatings.PPRS,
+        pressCoverage: factoryRatings.PPRS,
         kickPower: factoryRatings.PKPW,
         kickAccuracy: factoryRatings.PKAC,
-        kickReturn: factoryRatings.PKRT
+        kickReturn: factoryRatings.PKRT,
+        longSnap: 30
       };
     }
 
@@ -4567,7 +4595,7 @@ export class CreatorService {
       hitPower: Math.max(minRating, Math.floor(ratings.hitPower * scaleFactor)),
       manCoverage: Math.max(minRating, Math.floor(ratings.manCoverage * scaleFactor)),
       zoneCoverage: Math.max(minRating, Math.floor(ratings.zoneCoverage * scaleFactor)),
-      press: Math.max(minRating, Math.floor(ratings.press * scaleFactor)),
+      pressCoverage: Math.max(minRating, Math.floor(ratings.pressCoverage * scaleFactor)),
       pursuit: Math.max(minRating, Math.floor(ratings.pursuit * scaleFactor)),
       playRecognition: Math.max(minRating, Math.floor(ratings.playRecognition * scaleFactor)),
       blockShedding: Math.max(minRating, Math.floor(ratings.blockShedding * scaleFactor)),
@@ -4579,7 +4607,8 @@ export class CreatorService {
       toughness: Math.max(minRating + 10, Math.floor(ratings.toughness * scaleFactor)),
       kickPower: Math.max(minRating, Math.floor(ratings.kickPower * scaleFactor)),
       kickAccuracy: Math.max(minRating, Math.floor(ratings.kickAccuracy * scaleFactor)),
-      kickReturn: Math.max(minRating, Math.floor(ratings.kickReturn * scaleFactor))
+      kickReturn: Math.max(minRating, Math.floor(ratings.kickReturn * scaleFactor)),
+      longSnap: 30
     };
 
     return scaledRatings;
