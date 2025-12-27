@@ -919,8 +919,39 @@
       const suggestedSlot = result.suggestedSlot;
       const draftInfo = result.draftInfo;
 
-      // Get current draft data
-      const draftData = window.app.draftGrid.getSourceData();
+      // Get current draft data - support both AG-Grid and Handsontable
+
+      let draftData = [];
+
+      const isAgGrid = !!window.app.draftAgGrid;
+
+      
+
+      if (isAgGrid) {
+
+        // AG-Grid: collect data from all nodes
+
+        window.app.draftAgGrid.forEachNode(node => {
+
+          if (node.data) draftData.push({ ...node.data });
+
+        });
+
+      } else if (window.app.draftGrid && window.app.draftGrid.getSourceData) {
+
+        // Handsontable fallback
+
+        draftData = window.app.draftGrid.getSourceData();
+
+      } else {
+
+        alert('No draft class loaded. Please load or create a draft class first.');
+
+        closeAddToDraftModal();
+
+        return;
+
+      }
 
       // Calculate target slot - use historical draft position or find first empty
       let targetSlot = suggestedSlot;
@@ -1034,8 +1065,17 @@
         }
       }
 
-      // Reload grid with new data
-      window.app.draftGrid.loadData(draftData);
+      // Reload grid with new data - support both AG-Grid and Handsontable
+
+      if (isAgGrid) {
+
+        window.app.draftAgGrid.setGridOption('rowData', draftData);
+
+      } else if (window.app.draftGrid && window.app.draftGrid.loadData) {
+
+        window.app.draftGrid.loadData(draftData);
+
+      }
 
       // Update currentDraftClass.prospects if it exists
       if (window.app.currentDraftClass && window.app.currentDraftClass.prospects) {
@@ -1058,7 +1098,7 @@
       if (window.app.currentDraftClass) {
         const statsEl = document.getElementById('draft-file-stats');
         if (statsEl) {
-          const count = window.app.draftGrid.getSourceData().length;
+          const count = draftData.length;
           statsEl.textContent = `${count} prospects | Year: ${window.app.currentDraftClass.header.year}`;
         }
       }
@@ -1210,8 +1250,9 @@
     console.log('[PlayerBrowser] Add to draft:', internalId);
 
     try {
-      // Check if draft class is loaded or created
-      if (!window.app || !window.app.draftGrid) {
+      // Check if draft class is loaded or created (supports AG-Grid or Handsontable)
+
+      if (!window.app || (!window.app.draftAgGrid && !window.app.draftGrid)) {
         alert('Please load or create a draft class first.\n\nUse "Open Draft Class" to load an existing file, or "New Draft Class" to start fresh.');
         restoreFocusToSearch();
         return;
@@ -1250,8 +1291,25 @@
         }
       }
 
-      // Check draft class limit (M26 supports max 402 prospects)
-      const draftData = window.app.draftGrid.getSourceData();
+      // Check draft class limit (M26 supports max 402 prospects) - support AG-Grid and Handsontable
+
+      let draftDataForCount = [];
+
+      if (window.app.draftAgGrid) {
+
+        window.app.draftAgGrid.forEachNode(node => {
+
+          if (node.data) draftDataForCount.push(node.data);
+
+        });
+
+      } else if (window.app.draftGrid && window.app.draftGrid.getSourceData) {
+
+        draftDataForCount = window.app.draftGrid.getSourceData();
+
+      }
+
+      const draftData = draftDataForCount;
       const MAX_DRAFT_SIZE = 402;
       if (draftData.length >= MAX_DRAFT_SIZE) {
         alert('Draft class is at maximum capacity (' + MAX_DRAFT_SIZE + ' prospects). Remove prospects before adding new ones.');
