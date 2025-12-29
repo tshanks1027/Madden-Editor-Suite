@@ -356,19 +356,23 @@
         console.log('[DatabasePlayerCard] Position options loaded:', MADDEN_POSITIONS.length);
       }
 
-      // Race dropdown
+      // Race dropdown - values match Madden roster PLRC field
+      // Based on CSV: 1=White, 5=Hispanic, 7=Black
       var raceSelect = document.getElementById('dbPlayerRace');
       if (raceSelect) {
         raceSelect.innerHTML =
           '<option value="">Select Race</option>' +
-          '<option value="0">White</option>' +
-          '<option value="1">Black</option>' +
-          '<option value="2">Asian</option>' +
-          '<option value="3">Hispanic</option>' +
-          '<option value="4">Other</option>';
+          '<option value="1">White</option>' +
+          '<option value="2">2</option>' +
+          '<option value="3">3</option>' +
+          '<option value="4">4</option>' +
+          '<option value="5">Hispanic</option>' +
+          '<option value="6">6</option>' +
+          '<option value="7">Black</option>';
       }
 
       // State dropdown - API returns {value: id, label: name}
+      // Use ID as value so it matches what's stored in database
       var stateSelect = document.getElementById('dbPlayerHomeState');
       if (stateSelect) {
         var states = await window.electronAPI.lookup.getDropdownOptions('state_lookup.csv');
@@ -378,7 +382,7 @@
             var stateName = s.label || s.name;
             if (!stateName || stateName.trim() === '') return;
             var opt = document.createElement('option');
-            opt.value = stateName.trim();
+            opt.value = s.value;  // Use ID, not name
             opt.textContent = stateName.trim();
             stateSelect.appendChild(opt);
           });
@@ -689,6 +693,9 @@
    */
   function populatePlayerForm(player) {
     console.log('[DatabasePlayerCard] Populating form with player:', player);
+    console.log('[DatabasePlayerCard] bodyType:', player.bodyType, 'typeof:', typeof player.bodyType);
+    console.log('[DatabasePlayerCard] handedness:', player.handedness, 'typeof:', typeof player.handedness);
+    console.log('[DatabasePlayerCard] homeState:', player.homeState, 'typeof:', typeof player.homeState);
 
     // Basic info - use actual API field names
     setValue('dbPlayerFirstName', player.firstName || '');
@@ -715,6 +722,10 @@
     setValue('dbPlayerWeight', player.weight || '');
     setValue('dbPlayerRace', player.race !== undefined ? player.race : '');
     setValue('dbPlayerHomeState', player.homeState || '');
+    // bodyType comes as "0.0" string from DB, need to convert to int for dropdown match
+    var bodyTypeVal = player.bodyType !== undefined ? Math.floor(parseFloat(player.bodyType)) : '';
+    setValue('dbPlayerBodyType', bodyTypeVal);
+    setValue('dbPlayerHandedness', player.handedness !== undefined ? player.handedness : '');
 
     // Draft info - API uses 'round' and 'pick', not 'draftRound' and 'draftPick'
     setValue('dbPlayerDraftClass', player.draftClass || '');
@@ -1220,6 +1231,8 @@
         weight: getIntValue('dbPlayerWeight'),
         race: getIntValue('dbPlayerRace'),
         homeState: getValue('dbPlayerHomeState'),
+        bodyType: getIntValue('dbPlayerBodyType'),
+        handedness: getIntValue('dbPlayerHandedness'),
         draftClass: getIntValue('dbPlayerDraftClass'),
         draftRound: getValue('dbPlayerDraftRound'),
         draftPick: getIntValue('dbPlayerDraftPick'),

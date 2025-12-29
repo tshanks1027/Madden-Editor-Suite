@@ -577,6 +577,8 @@ async function loadIntoEditor() {
     document.getElementById('save-draft-btn').disabled = false;
     document.getElementById('export-draft-json-btn').disabled = false;
     document.getElementById('import-draft-csv-btn').disabled = false;
+    document.getElementById('fillFromDbDraftBtn').disabled = false;
+    document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
 
     // Create grid
     window.app.createDraftGrid(prospects);

@@ -6,7 +6,9 @@
       "Bash(xcopy:*)",
       "Bash(node:*)",
       "Bash(dir \"C:\\Users\\tshan\\Downloads\\PAM\\Gamemode\")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(timeout 15 npm start)",
+      "Bash(timeout 20 npm start)"
     ],
     "deny": [],
     "ask": []
@@ -14,15 +16,23 @@
   "hooks": {
     "UserPromptSubmit": [
       {
-        "type": "command",
-        "command": "powershell -ExecutionPolicy Bypass -File .claude/hooks/load-workflow.ps1"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File .claude/hooks/load-workflow.ps1"
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
         "matcher": "Edit|Write",
-        "type": "command",
-        "command": "powershell -ExecutionPolicy Bypass -File .claude/hooks/require-plan.ps1 -ToolName $TOOL_NAME"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File .claude/hooks/require-plan.ps1 -ToolName $TOOL_NAME"
+          }
+        ]
       }
     ]
   }

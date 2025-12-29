@@ -1,7 +1,7 @@
 {
   "name": "madden-editor-suite",
   "productName": "madden-editor-suite",
-  "version": "2.4.2",
+  "version": "2.5.1",
   "description": "Professional Madden NFL file editor with 17+ specialized tools for roster, franchise, and visual customization",
   "main": ".vite/build/main.js",
   "scripts": {
@@ -25,7 +25,11 @@
     "build": "npm run typecheck && npm run lint && npm run test && npm run dist",
     "clean": "rimraf dist out coverage .vite",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "rebuild": "electron-rebuild -f -w better-sqlite3"
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "rebuild-db": "npm rebuild better-sqlite3 && node scripts/create-database.js && electron-rebuild -f -w better-sqlite3",
+    "prepackage": "electron-rebuild -f -w better-sqlite3",
+    "predist": "electron-rebuild -f -w better-sqlite3",
+    "predist:simple": "electron-rebuild -f -w better-sqlite3"
   },
   "keywords": [],
   "author": {
@@ -47,6 +51,7 @@
     "@electron-forge/plugin-fuses": "^7.9.0",
     "@electron-forge/plugin-vite": "^7.9.0",
     "@electron/fuses": "^1.8.0",
+    "@electron/rebuild": "^3.7.1",
     "@playwright/test": "^1.55.1",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^6.8.0",
@@ -59,13 +64,13 @@
     "electron": "38.1.2",
     "electron-builder": "^26.0.12",
     "electron-forge-maker-nsis": "^26.0.12",
-    "@electron/rebuild": "^3.7.1",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.32.0",
     "jest": "^30.1.3",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",
+    "sql.js": "^1.13.0",
     "tailwindcss": "^4.1.13",
     "ts-jest": "^29.4.4",
     "typescript": "~4.5.4",

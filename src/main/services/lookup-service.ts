@@ -127,7 +127,7 @@ export class LookupService {
         // Load archetypes from CSV (not in database)
         await this.loadLookupFile('archetype_lookup.csv');
 
-        // Load player data from database into cache for fast access
+        // Load player data from database
         this.loadPlayersFromDatabase();
 
         // Merge in PIDs from PID_lookup.csv (fills in missing PIDs)
@@ -222,19 +222,21 @@ export class LookupService {
     // The create-database.js script has a bug where seasons can get assigned to wrong players
     // with the same name if draft year doesn't match. Using p.position ensures each player
     // displays their correct position from the source data.
+    // Use p.college_name and p.home_state_name directly (raw values stored in players table)
+    // instead of JOINs which fail when foreign key IDs are NULL
     const players = this.db.prepare(`
       SELECT
         p.id, p.first_name, p.last_name, p.race, p.draft_class, p.draft_round, p.draft_pick,
         p.career_from, p.career_to, p.is_hof,
         p.height, p.weight, p.hometown, p.wav, p.ap1, p.pb, p.starts,
-        c.name as college_name,
-        s.name as state_name,
+        COALESCE(p.college_name, c.name) as college_name,
+        COALESCE(p.home_state_name, s.name) as state_name,
         pa.madden_pid, pa.madden_pam, pa.madden_plpo, pa.madden_commid,
         p.position as position,
         (SELECT ps.jersey FROM player_seasons ps WHERE ps.player_id = p.id ORDER BY ps.year DESC LIMIT 1) as jersey
       FROM players p
       LEFT JOIN colleges c ON c.id = p.college_id
-      LEFT JOIN states s ON s.id = p.home_state_id
+      LEFT JOIN states s ON s.madden_id = p.home_state_id
       LEFT JOIN player_appearance pa ON pa.player_id = p.id
     `).all() as Array<{
       id: number;
@@ -1210,6 +1212,21 @@ export class LookupService {
     return this.coachCache.get(pid)?.pam;
   }
 
+  // Find player by name and draft year (for saving bio data from roster editor)
+  public findPlayerByNameAndYear(firstName: string, lastName: string, draftYear: number): FullDataEntry | null {
+    const normalizedFirst = firstName.toLowerCase().trim();
+    const normalizedLast = lastName.toLowerCase().trim();
+
+    for (const [id, entry] of this.fullDataCache) {
+      if (entry.firstName.toLowerCase() === normalizedFirst &&
+          entry.lastName.toLowerCase() === normalizedLast &&
+          entry.draftClass === String(draftYear)) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
   // Look up a coach by name (for retro editor - check if coach has a portrait in game)
   public getCoachByName(lastName: string, firstName: string): CoachLookupEntry | undefined {
     const lastNameLower = lastName.toLowerCase();
@@ -1253,7 +1270,7 @@ export class LookupService {
       SELECT
         ps.*,
         p.first_name, p.last_name, p.race,
-        c.name as college_name,
+        COALESCE(p.college_name, c.name) as college_name,
         pa.madden_pid, pa.madden_pam
       FROM player_seasons ps
       JOIN players p ON p.id = ps.player_id

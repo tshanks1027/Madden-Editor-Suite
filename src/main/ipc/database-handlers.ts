@@ -550,15 +550,20 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
     await userDatabaseService.waitForReady();
     await lookupService.waitForReady();
 
+    console.log('[database-handlers] get-merged-player: Loading internalId:', internalId);
+
     // Get original player data
     const original = lookupService.getPlayerByInternalId(internalId);
     if (!original) {
       return { success: false, error: 'Player not found' };
     }
+    console.log('[database-handlers] get-merged-player: Original player:', original.firstName, original.lastName);
 
     // Get user edits
     const playerEdit = userDatabaseService.getPlayerEdit(internalId);
     const appearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
+    console.log('[database-handlers] get-merged-player: playerEdit:', JSON.stringify(playerEdit, null, 2));
+    console.log('[database-handlers] get-merged-player: appearanceEdit:', JSON.stringify(appearanceEdit, null, 2));
 
     // Merge edits over original data
     const merged = {
@@ -570,6 +575,8 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       ...(playerEdit?.race !== undefined && { race: playerEdit.race }),
       ...(playerEdit?.height !== undefined && { height: playerEdit.height }),
       ...(playerEdit?.weight !== undefined && { weight: playerEdit.weight }),
+      ...(playerEdit?.bodyType !== undefined && { bodyType: playerEdit.bodyType }),
+      ...(playerEdit?.handedness !== undefined && { handedness: playerEdit.handedness }),
       ...(playerEdit?.hometown && { hometown: playerEdit.hometown }),
       ...(playerEdit?.homeState && { homeState: playerEdit.homeState }),
       ...(playerEdit?.draftClass !== undefined && { draftClass: String(playerEdit.draftClass) }),
@@ -593,6 +600,7 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       hasEdits: !!(playerEdit || appearanceEdit)
     };
 
+    console.log('[database-handlers] get-merged-player: Final merged bodyType:', merged.bodyType, 'handedness:', merged.handedness);
     return { success: true, player: merged };
   } catch (error) {
     console.error('[database-handlers] Error getting merged player:', error);
@@ -1110,29 +1118,39 @@ function mapToMaddenPosition(genericPosition: string): { name: string; code: num
 }
 
 // Default archetypes by position (first/primary archetype for each position)
+// Archetype IDs from archetypeService.ts:
+// C Archetypes: 27-30 (C Pass Protector, C Power, C Well-Rounded, C Agile)
+// OT Archetypes: 31-34 (OT Pass Protector, OT Power, OT Well-Rounded, OT Agile)
+// G Archetypes: 35-38 (G Pass Protector, G Well-Rounded, G Power, G Agile)
+// DE Archetypes: 39-42
+// DT Archetypes: 43-46
+// OLB Archetypes: 47-50
+// MLB Archetypes: 51-53
+// CB Archetypes: 54-57
+// S Archetypes: 58-60
 const DEFAULT_ARCHETYPES: Record<string, number> = {
   'QB': 0,    // Field General
   'HB': 6,    // Elusive Back
   'FB': 8,    // Power Blocking
   'WR': 15,   // Playmaker
-  'TE': 20,   // Physical
-  'LT': 27,   // Pass Protector
-  'LG': 31,   // Pass Protector
-  'C': 35,    // Pass Protector
-  'RG': 31,   // Pass Protector
-  'RT': 27,   // Pass Protector
-  'LEDG': 45, // Speed Rusher
-  'REDG': 45, // Speed Rusher
-  'DT': 42,   // Run Stopper
-  'SAM': 49,  // Speed
-  'MIKE': 53, // Field General
-  'WILL': 49, // Speed
-  'CB': 57,   // Man to Man
-  'FS': 61,   // Zone
-  'SS': 65,   // Run Support
-  'K': 69,    // Accurate
-  'P': 71,    // Power
-  'LS': 73    // Field General (Long Snapper)
+  'TE': 22,   // Blocking (was 20)
+  'LT': 31,   // OT Pass Protector (was 27 = C Pass Protector - WRONG!)
+  'LG': 35,   // G Pass Protector (was 31 = OT Pass Protector - WRONG!)
+  'C': 27,    // C Pass Protector (was 35 = G Pass Protector - WRONG!)
+  'RG': 35,   // G Pass Protector (was 31 - WRONG!)
+  'RT': 31,   // OT Pass Protector (was 27 - WRONG!)
+  'LEDG': 39, // DE Smaller Speed Rusher (was 45 = DT Speed Rusher - WRONG!)
+  'REDG': 39, // DE Smaller Speed Rusher (was 45 - WRONG!)
+  'DT': 43,   // DT Nose Tackle (was 42 - close but not exact)
+  'SAM': 47,  // OLB Speed Rusher (was 49 = OLB Pass Coverage)
+  'Mike': 51, // MLB Field General (was 53 = Run Stopper)
+  'WILL': 49, // OLB Pass Coverage
+  'CB': 54,   // CB Man-to-Man (was 57 = Hybrid Corner)
+  'FS': 58,   // S Zone (was 61 = K Accurate - WRONG!)
+  'SS': 60,   // S Run Support (was 65 - wrong range)
+  'K': 61,    // KP Accurate (was 69 - out of range)
+  'P': 62,    // KP Power (was 71 - out of range)
+  'LS': 65    // LS Power (was 73 - out of range)
 };
 
 // Race-appropriate generic PAM names by skin tone
@@ -1186,6 +1204,38 @@ function getSkinToneFromRace(race: number | undefined): number {
     // Mixed/other -> medium skin (3-5)
     return 3 + Math.floor(Math.random() * 3);
   }
+}
+
+/**
+ * Get dev trait from season data
+ * Returns 0=Normal, 1=Star, 2=Superstar, 3=X-Factor
+ */
+function getDevTraitFromSeasonData(seasonData: any): number {
+  if (!seasonData) return 0;
+
+  // Check for devTrait field (try multiple possible property names)
+  const devTrait = seasonData.devTrait ?? seasonData.dev_trait ?? seasonData.development;
+
+  // Handle undefined, null, or empty string - all default to Normal
+  if (devTrait === undefined || devTrait === null || devTrait === '') return 0;
+
+  // Handle string values
+  if (typeof devTrait === 'string') {
+    const lower = devTrait.toLowerCase().trim();
+    if (lower === 'x-factor' || lower === 'xfactor' || lower === 'x factor') return 3;
+    if (lower === 'superstar' || lower === 'ss') return 2;
+    if (lower === 'star') return 1;
+    if (lower === 'normal' || lower === 'n') return 0;
+    const parsed = parseInt(devTrait, 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 3) return parsed;
+  }
+
+  // Handle number values
+  if (typeof devTrait === 'number' && devTrait >= 0 && devTrait <= 3) {
+    return devTrait;
+  }
+
+  return 0;
 }
 
 /**
@@ -1255,12 +1305,39 @@ function isEmptyPID(pid: any): boolean {
 ipcMain.handle('database:get-player-for-roster', async (event, internalId: number, year: number) => {
   try {
     await lookupService.waitForReady();
+    await userDatabaseService.waitForReady();
 
     // Get player base data
-    const player = lookupService.getPlayerByInternalId(internalId);
-    if (!player) {
+    const originalPlayer = lookupService.getPlayerByInternalId(internalId);
+    if (!originalPlayer) {
       return { success: false, error: 'Player not found' };
     }
+
+    // Get user edits and merge with original data
+    const playerEdit = userDatabaseService.getPlayerEdit(internalId);
+
+    // Convert homeState ID to name if user edited it (stored as ID)
+    let rosterEditedHomeStateName: string | undefined;
+    if (playerEdit?.homeState) {
+      const statesLookup = await lookupService.getDropdownOptions('state_lookup.csv');
+      const stateId = typeof playerEdit.homeState === 'string' ? parseInt(playerEdit.homeState, 10) : playerEdit.homeState;
+      const stateEntry = statesLookup.find(s => s.id === stateId);
+      rosterEditedHomeStateName = stateEntry?.name || String(playerEdit.homeState);
+      console.log(`[database-handlers] Roster: Converted homeState ID ${playerEdit.homeState} to name "${rosterEditedHomeStateName}"`);
+    }
+
+    const player = {
+      ...originalPlayer,
+      // Apply user edits if they exist
+      ...(playerEdit?.firstName && { firstName: playerEdit.firstName }),
+      ...(playerEdit?.lastName && { lastName: playerEdit.lastName }),
+      ...(playerEdit?.college && { college: playerEdit.college }),
+      ...(rosterEditedHomeStateName && { homeState: rosterEditedHomeStateName }),
+      ...(playerEdit?.race !== undefined && { race: playerEdit.race }),
+      ...(playerEdit?.height !== undefined && { height: playerEdit.height }),
+      ...(playerEdit?.weight !== undefined && { weight: playerEdit.weight }),
+      ...(playerEdit?.hometown && { hometown: playerEdit.hometown }),
+    };
 
     // Get season data for the specified year
     const seasons = lookupService.getPlayerSeasons(internalId);
@@ -1269,9 +1346,33 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     // Get college ID from lookup - use 0 (None) if not found
     const colleges = lookupService.getDropdownOptions('college_lookup.csv');
     let collegeId = 0;
+    let rosterCollegeName = '';
     if (player.college && player.college.trim()) {
-      const collegeEntry = colleges.find(c => c.name.toLowerCase() === player.college.toLowerCase());
-      collegeId = collegeEntry ? collegeEntry.id : 0;
+      const playerCollegeLower = player.college.toLowerCase();
+      // Try exact match first
+      let collegeEntry = colleges.find(c => c.name.toLowerCase() === playerCollegeLower);
+      // If not found, try partial match
+      if (!collegeEntry) {
+        collegeEntry = colleges.find(c => playerCollegeLower.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(playerCollegeLower));
+      }
+      if (collegeEntry) {
+        collegeId = collegeEntry.id;
+        rosterCollegeName = collegeEntry.name;
+      } else {
+        rosterCollegeName = player.college.trim();
+        console.log(`[database-handlers] Roster college not found in lookup: "${player.college}"`);
+      }
+    }
+
+    // Get state ID from lookup
+    // IMPORTANT: Default to undefined, NOT 0 - because state ID 0 = Alabama in Madden
+    const states = await lookupService.getDropdownOptions('state_lookup.csv');
+    let rosterHomeStateId: number | undefined = undefined;
+    if (player.homeState && player.homeState.trim()) {
+      const stateEntry = states.find(s => s.name.toLowerCase() === player.homeState!.toLowerCase());
+      if (stateEntry) {
+        rosterHomeStateId = stateEntry.id;
+      }
     }
 
     // Get position - use database position or season position
@@ -1338,10 +1439,12 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     try {
       const rosterAppearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
 
-      // Check if appearance edit has generic face data (either PGHE index or PAM starting with gen_)
+      // Check if appearance edit has VALID generic face data
+      // IMPORTANT: PGHE=0 is NOT valid, must be > 0 to be a real face index
+      // Also check for valid PFCG or gen_ PAM
       const hasStoredGenericFace = rosterAppearanceEdit && (
-        rosterAppearanceEdit.maddenPghe !== undefined ||
-        rosterAppearanceEdit.maddenPfcg ||
+        (rosterAppearanceEdit.maddenPghe !== undefined && rosterAppearanceEdit.maddenPghe > 0) ||
+        (rosterAppearanceEdit.maddenPfcg && rosterAppearanceEdit.maddenPfcg.trim() !== '') ||
         (rosterAppearanceEdit.maddenPam && rosterAppearanceEdit.maddenPam.startsWith('gen_'))
       );
 
@@ -1353,7 +1456,9 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
           skinTone: rosterAppearanceEdit.maddenSkinTone || (rosterAppearanceEdit.maddenPfcg ? parseInt(rosterAppearanceEdit.maddenPfcg.charAt(0)) : 4) || 4,
           genr: rosterAppearanceEdit.maddenPam || (rosterAppearanceEdit.maddenPfcg ? `gen_${rosterAppearanceEdit.maddenPfcg}` : '')
         };
-        console.log(`[database-handlers] Found stored PGHE data for roster ${player.firstName} ${player.lastName}: PGHE=${rosterStoredPgheData.pghe}, PID=${rosterStoredPgheData.psxp}, skinTone=${rosterStoredPgheData.skinTone}, genr=${rosterStoredPgheData.genr}`);
+        console.log(`[database-handlers] Found VALID stored PGHE data for roster ${player.firstName} ${player.lastName}: PGHE=${rosterStoredPgheData.pghe}, PID=${rosterStoredPgheData.psxp}, skinTone=${rosterStoredPgheData.skinTone}, genr=${rosterStoredPgheData.genr}`);
+      } else if (rosterAppearanceEdit) {
+        console.log(`[database-handlers] Appearance edit exists but has no valid face data for roster ${player.firstName} ${player.lastName} - will use random generic face`);
       }
     } catch (pgheError) {
       console.warn(`[database-handlers] Could not get PGHE data for ${player.firstName} ${player.lastName}:`, pgheError);
@@ -1388,10 +1493,20 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
         if (player.pid && player.pid > 0) {
           effectiveRace = lookupService.getRaceByPID(player.pid);
         }
-        // If still unknown, pick a random race based on NFL demographics
+        // If still unknown, check career years for historical context
+        // NFL was segregated until 1946 - players before then were white
         if (effectiveRace === undefined || effectiveRace === null) {
-          const rand = Math.random();
-          effectiveRace = rand < 0.70 ? 7 : (rand < 0.95 ? 1 : 5); // 70% Black, 25% White, 5% Mixed
+          // Use already-parsed careerStart from age calculation (guaranteed to be a valid number)
+          console.log(`[database-handlers] Race check: careerStart=${careerStart}, player.careerFrom=${player.careerFrom}, player.draftClass=${player.draftClass}`);
+          if (careerStart && careerStart > 1900 && careerStart < 1946) {
+            // Pre-integration era - NFL was all white
+            effectiveRace = 1; // White
+            console.log(`[database-handlers] Pre-1946 player, defaulting to white for roster ${player.firstName} ${player.lastName} (career start: ${careerStart})`);
+          } else {
+            // Modern era - use NFL demographics (70% Black, 25% White, 5% Mixed)
+            const rand = Math.random();
+            effectiveRace = rand < 0.70 ? 7 : (rand < 0.95 ? 1 : 5);
+          }
         }
         console.log(`[database-handlers] Assigned race ${effectiveRace} for ${player.firstName} ${player.lastName}`);
       }
@@ -1431,7 +1546,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PCBT: getRosterBodyType(positionName, weight, heightInches), // Body type based on position/size
       PHLM: 0, // Helmet style
       PVSL: 0, // Visor style
-      PHSN: 0, // Home state
+      PHSN: rosterHomeStateId, // Home state
       PLBD: 0, // Birthday (will calculate if needed)
       PCMT: parseInt(player.commID) || 0, // Commentary ID - used for in-game announcer names
       POID: parseInt(player.commID) || 0, // Presentation ID - for in-game commentary (same as PCMT)
@@ -1595,39 +1710,106 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
 ipcMain.handle('database:get-player-for-draft', async (event, internalId: number, year: number) => {
   try {
     await lookupService.waitForReady();
+    await userDatabaseService.waitForReady();
 
     // Get player base data
-    const player = lookupService.getPlayerByInternalId(internalId);
-    if (!player) {
+    const originalPlayer = lookupService.getPlayerByInternalId(internalId);
+    if (!originalPlayer) {
       return { success: false, error: 'Player not found' };
     }
+
+    // Get user edits and merge with original data
+    const playerEdit = userDatabaseService.getPlayerEdit(internalId);
+
+    // Convert homeState ID to name if user edited it (stored as ID)
+    let draftEditedHomeStateName: string | undefined;
+    if (playerEdit?.homeState) {
+      const statesLookup = await lookupService.getDropdownOptions('state_lookup.csv');
+      const stateId = typeof playerEdit.homeState === 'string' ? parseInt(playerEdit.homeState, 10) : playerEdit.homeState;
+      const stateEntry = statesLookup.find(s => s.id === stateId);
+      draftEditedHomeStateName = stateEntry?.name || String(playerEdit.homeState);
+      console.log(`[database-handlers] Draft: Converted homeState ID ${playerEdit.homeState} to name "${draftEditedHomeStateName}"`);
+    }
+
+    const player = {
+      ...originalPlayer,
+      // Apply user edits if they exist
+      ...(playerEdit?.firstName && { firstName: playerEdit.firstName }),
+      ...(playerEdit?.lastName && { lastName: playerEdit.lastName }),
+      ...(playerEdit?.college && { college: playerEdit.college }),
+      ...(draftEditedHomeStateName && { homeState: draftEditedHomeStateName }),
+      ...(playerEdit?.race !== undefined && { race: playerEdit.race }),
+      ...(playerEdit?.height !== undefined && { height: playerEdit.height }),
+      ...(playerEdit?.weight !== undefined && { weight: playerEdit.weight }),
+      ...(playerEdit?.hometown && { hometown: playerEdit.hometown }),
+    };
+
+    // DEBUG: Log raw player data from database
+    console.log(`[database-handlers] RAW player data from database for internalId=${internalId}:`);
+    console.log(`  firstName: "${player.firstName}", lastName: "${player.lastName}"`);
+    console.log(`  college: "${player.college}", homeState: "${player.homeState}" (edit: "${playerEdit?.homeState}")`);
+    console.log(`  position: "${player.position}", pid: ${player.pid}, pam: "${player.pam}"`);
+    console.log(`  race: ${player.race}, round: "${player.round}", pick: "${player.pick}"`);
+    console.log(`  careerFrom: ${player.careerFrom}, careerTo: ${player.careerTo}, draftClass: "${player.draftClass}"`);
 
     // Get season data for the specified year
     const seasons = lookupService.getPlayerSeasons(internalId);
     const seasonData = seasons.find(s => s.year === year);
+    console.log(`[database-handlers] Season data for year ${year}:`, seasonData ? JSON.stringify(seasonData).substring(0, 200) : 'NOT FOUND');
 
     // Get college ID from lookup - use 0 (None) if not found
     const colleges = await lookupService.getDropdownOptions('college_lookup.csv');
     let collegeId = 0;
+    let collegeName = '';
     if (player.college && player.college.trim()) {
-      const collegeEntry = colleges.find(c => c.name.toLowerCase() === player.college.toLowerCase());
-      collegeId = collegeEntry ? collegeEntry.id : 0;
+      const playerCollegeLower = player.college.toLowerCase();
+      // Try exact match first
+      let collegeEntry = colleges.find(c => c.name.toLowerCase() === playerCollegeLower);
+      // If not found, try partial match (e.g., "University of Alabama" -> "Alabama")
+      if (!collegeEntry) {
+        collegeEntry = colleges.find(c => playerCollegeLower.includes(c.name.toLowerCase()) || c.name.toLowerCase().includes(playerCollegeLower));
+      }
+      if (collegeEntry) {
+        collegeId = collegeEntry.id;
+        collegeName = collegeEntry.name;
+      } else {
+        // Keep the original college name even if not in lookup
+        collegeName = player.college.trim();
+        console.log(`[database-handlers] College not found in lookup: "${player.college}"`);
+      }
     }
 
-    // Get position - use database position or season position
+    // Get position - ALWAYS prefer player.position from database over seasonData.position
+    // Season data may be from wrong player due to name-only matching in database creation
     // Map to Madden position (handles linebacker variations like LB, LOLB, MLB, etc.)
-    const rawPosition = seasonData?.position || player.position || 'QB';
+    const rawPosition = player.position || seasonData?.position || 'QB';
     const mappedPosition = mapToMaddenPosition(rawPosition);
     const positionName = mappedPosition.name;
     const positionId = mappedPosition.code;
+    console.log(`[database-handlers] Position: raw="${rawPosition}", mapped="${positionName}" (player.position="${player.position}", seasonData.position="${seasonData?.position}")`);
+
+    // Check if season data position matches player position - if not, season data may be wrong
+    const seasonPositionMatches = seasonData && mapToMaddenPosition(seasonData.position || '').name === positionName;
 
     // Get state ID from lookup
+    // IMPORTANT: Default to undefined, NOT 0 - because state ID 0 = Alabama in Madden
     const states = await lookupService.getDropdownOptions('state_lookup.csv');
-    let homeStateId = 0;
+    let homeStateId: number | undefined = undefined;
+    let homeStateName = '';
     if (player.homeState && player.homeState.trim()) {
       const stateEntry = states.find(s => s.name.toLowerCase() === player.homeState!.toLowerCase());
-      homeStateId = stateEntry ? stateEntry.id : 0;
+      if (stateEntry) {
+        homeStateId = stateEntry.id;
+        homeStateName = stateEntry.name;
+      } else {
+        homeStateName = player.homeState.trim();
+      }
     }
+
+    // DEBUG: Log lookup results
+    console.log(`[database-handlers] Lookup results:`);
+    console.log(`  college: ID=${collegeId}, name="${collegeName}" (from DB: "${player.college}")`);
+    console.log(`  homeState: ID=${homeStateId}, name="${homeStateName}" (from DB: "${player.homeState}")`);
 
     // Calculate height in inches - default to position-appropriate height
     let heightInches = player.height || 72;
@@ -1679,10 +1861,12 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     try {
       const appearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
 
-      // Check if appearance edit has generic face data (either PGHE index or PAM starting with gen_)
+      // Check if appearance edit has VALID generic face data
+      // IMPORTANT: PGHE=0 is NOT valid, must be > 0 to be a real face index
+      // Also check for valid PFCG or gen_ PAM
       const hasDraftStoredGenericFace = appearanceEdit && (
-        appearanceEdit.maddenPghe !== undefined ||
-        appearanceEdit.maddenPfcg ||
+        (appearanceEdit.maddenPghe !== undefined && appearanceEdit.maddenPghe > 0) ||
+        (appearanceEdit.maddenPfcg && appearanceEdit.maddenPfcg.trim() !== '') ||
         (appearanceEdit.maddenPam && appearanceEdit.maddenPam.startsWith('gen_'))
       );
 
@@ -1694,7 +1878,9 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
           skinTone: appearanceEdit.maddenSkinTone || (appearanceEdit.maddenPfcg ? parseInt(appearanceEdit.maddenPfcg.charAt(0)) : 4) || 4,
           genr: appearanceEdit.maddenPam || (appearanceEdit.maddenPfcg ? `gen_${appearanceEdit.maddenPfcg}` : '')
         };
-        console.log(`[database-handlers] Found stored PGHE data for draft ${player.firstName} ${player.lastName}: PGHE=${storedPgheData.pghe}, PID=${storedPgheData.psxp}, skinTone=${storedPgheData.skinTone}, genr=${storedPgheData.genr}`);
+        console.log(`[database-handlers] Found VALID stored PGHE data for draft ${player.firstName} ${player.lastName}: PGHE=${storedPgheData.pghe}, PID=${storedPgheData.psxp}, skinTone=${storedPgheData.skinTone}, genr=${storedPgheData.genr}`);
+      } else if (appearanceEdit) {
+        console.log(`[database-handlers] Appearance edit exists but has no valid face data for ${player.firstName} ${player.lastName} - will use random generic face`);
       }
     } catch (pgheError) {
       console.warn(`[database-handlers] Could not get PGHE data for draft ${player.firstName} ${player.lastName}:`, pgheError);
@@ -1724,22 +1910,33 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       console.log(`[database-handlers] Using stored PGHE face for ${player.firstName} ${player.lastName}: PID=${pid}, PGHE=${pgheIndex}, skinTone=${effectiveRace}`);
     } else {
       // Player needs generic face - determine race if unknown
-      // DRAFT RULES: Blank PAM with PID=0, race determines generic face via skinTone
       if (effectiveRace === undefined || effectiveRace === null) {
         // Try to look up race by PID
         if (player.pid && player.pid > 0) {
           effectiveRace = lookupService.getRaceByPID(player.pid);
         }
-        // If still unknown, pick a random race based on NFL demographics
+        // If still unknown, check career years for historical context
+        // NFL was segregated until 1946 - players before then were white
         if (effectiveRace === undefined || effectiveRace === null) {
-          const rand = Math.random();
-          effectiveRace = rand < 0.70 ? 7 : (rand < 0.95 ? 1 : 5); // 70% Black, 25% White, 5% Mixed
+          // Use already-parsed career start from age calculation (draftCareerStart is reliable)
+          console.log(`[database-handlers] Race check: draftCareerStart=${draftCareerStart}, player.careerFrom=${player.careerFrom}, player.draftClass=${player.draftClass}`);
+          if (draftCareerStart && draftCareerStart > 1900 && draftCareerStart < 1946) {
+            // Pre-integration era - NFL was all white
+            effectiveRace = 1; // White
+            console.log(`[database-handlers] Pre-1946 player, defaulting to white for ${player.firstName} ${player.lastName} (career start: ${draftCareerStart})`);
+          } else {
+            // Modern era - use NFL demographics (70% Black, 25% White, 5% Mixed)
+            const rand = Math.random();
+            effectiveRace = rand < 0.70 ? 7 : (rand < 0.95 ? 1 : 5);
+          }
         }
         console.log(`[database-handlers] Assigned race ${effectiveRace} for draft prospect ${player.firstName} ${player.lastName}`);
       }
-      // DRAFT RULES: Blank PAM, use a generic PID that has an actual portrait
-      pam = '';
+      // Set generic PAM so portrait shows (grid uses PEPS/PAM for portrait lookup)
+      // Also get a generic PID for the draft file format
+      pam = getGenericPAM(effectiveRace);
       pid = getGenericPID(effectiveRace);
+      console.log(`[database-handlers] Assigned generic face: PAM='${pam}', PID=${pid}, race=${effectiveRace}`);
     }
 
     console.log(`[database-handlers] Draft PID/PAM for ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}', race=${effectiveRace}, pgheIndex=${pgheIndex ?? 'N/A'}`);
@@ -1747,16 +1944,24 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     // Get default archetype for position
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
 
-    // Parse archetype from season data or use default
+    // Parse archetype from season data ONLY if season position matches player position
+    // If positions don't match, the season data is likely from a different player
     let archetypeId = defaultArchetype;
-    if (seasonData?.archetype !== undefined && seasonData?.archetype !== null) {
+    if (seasonPositionMatches && seasonData?.archetype !== undefined && seasonData?.archetype !== null) {
       if (typeof seasonData.archetype === 'number') {
         archetypeId = seasonData.archetype;
       } else if (typeof seasonData.archetype === 'string') {
         const parsed = parseInt(seasonData.archetype, 10);
         archetypeId = isNaN(parsed) ? defaultArchetype : parsed;
       }
+      console.log(`[database-handlers] Using season archetype ${archetypeId} (positions match)`);
+    } else if (seasonData && !seasonPositionMatches) {
+      console.log(`[database-handlers] Ignoring season archetype - position mismatch (player=${positionName}, season=${seasonData.position})`);
     }
+
+    // Get archetype name from ID and position
+    const archetypeName = ArchetypeService.getArchetypeName(archetypeId, positionName);
+    console.log(`[database-handlers] Archetype: ID=${archetypeId}, name="${archetypeName}" (position=${positionName}, default=${defaultArchetype})`);
 
     // Determine draft round/pick from player data
     let draftRound = 1;
@@ -1784,17 +1989,27 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       PID: pid,
       PEPS: pam,
 
-      // Basic info
+      // Race/skin tone - needed for grid display and face assignment
+      race: effectiveRace,
+      skinTone: storedPgheData ? storedPgheData.skinTone : getSkinToneFromRace(effectiveRace),
+
+      // Player pic - 'Generic Face' for generic players, PAM for real players
+      playerPic: (pam && !pam.startsWith('gen_')) ? pam : 'Generic Face',
+
+      // Basic info - include both IDs and names for grid compatibility
       homeState: homeStateId,
+      homeStateName: homeStateName,
       college: collegeId,
+      collegeName: collegeName,
       age: age,
       heightInches: heightInches,
       weight: weight,
 
-      // Position and role
+      // Position and role - include both ID and name
       position: positionId,
+      positionName: positionName,
       archetype: archetypeId,
-      archetypeName: ArchetypeService.getArchetypeName(archetypeId, positionName),
+      archetypeName: archetypeName,
       jerseyNum: seasonData?.jersey || player.jersey || Math.floor(Math.random() * 99) + 1,
 
       // Draft info (from historical data)
@@ -1802,8 +2017,9 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       draftPick: draftPick,
       draftRound: draftRound,
 
-      // Development (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
-      devTrait: 0,
+      // Development trait - check season data for dev trait, default to Normal
+      // Look for devTrait in season data (may be stored as number or string)
+      devTrait: getDevTraitFromSeasonData(seasonData),
 
       // Commentary ID for in-game announcer names
       commentaryId: parseInt(player.commID) || 0,
@@ -1820,17 +2036,8 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       }
     };
 
-    // Parse dev trait from season data
-    if (seasonData?.devTrait !== undefined) {
-      if (typeof seasonData.devTrait === 'number') {
-        prospect.devTrait = seasonData.devTrait;
-      } else if (typeof seasonData.devTrait === 'string') {
-        const devMap: Record<string, number> = {
-          'normal': 0, 'star': 1, 'superstar': 2, 'x-factor': 3, 'xfactor': 3
-        };
-        prospect.devTrait = devMap[seasonData.devTrait.toLowerCase()] || 0;
-      }
-    }
+    // NOTE: devTrait is already set via getDevTraitFromSeasonData() above (line 1909)
+    // No need to parse again here
 
     // Add ratings from season data if available, otherwise use defaults
     if (seasonData && seasonData.ratings) {
@@ -1936,6 +2143,16 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
 
     // Calculate suggested draft slot based on historical data
     const suggestedSlot = calculateDraftSlot(draftRound, draftPick);
+
+    // Debug log what we're returning
+    console.log(`[database-handlers] FINAL prospect data for ${player.firstName} ${player.lastName}:`);
+    console.log(`  college: ${prospect.college} (ID), collegeName: "${prospect.collegeName}"`);
+    console.log(`  homeState: ${prospect.homeState} (ID), homeStateName: "${prospect.homeStateName}"`);
+    console.log(`  position: ${prospect.position} (ID), positionName: "${prospect.positionName}"`);
+    console.log(`  archetype: ${prospect.archetype} (ID), archetypeName: "${prospect.archetypeName}"`);
+    console.log(`  devTrait: ${prospect.devTrait}`);
+    console.log(`  PID: ${prospect.PID}, PEPS: "${prospect.PEPS}"`);
+    console.log(`  visuals: skinTone=${prospect.visuals?.skinTone}, genericHeadName="${prospect.visuals?.genericHeadName}"`);
 
     return {
       success: true,
@@ -2464,6 +2681,88 @@ ipcMain.handle('database:select-csv-file', async () => {
     };
   } catch (error) {
     console.error('[database-handlers] Error selecting CSV file:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:save-player-bio
+ * Save bio/appearance info from roster/draft class editor
+ * Matches player by name + draft year, then saves to appropriate tables
+ */
+ipcMain.handle('database:save-player-bio', async (event, playerData: {
+  firstName: string;
+  lastName: string;
+  draftYear: number;
+  pid?: number;
+  pam?: string;
+  race?: number;
+  bodyType?: string;
+  handedness?: number;
+  height?: number;
+  weight?: number;
+  college?: number;
+  homeState?: number;
+}) => {
+  console.log('[database-handlers] save-player-bio: IPC HANDLER CALLED');
+  console.log('[database-handlers] save-player-bio: Received data:', JSON.stringify(playerData, null, 2));
+
+  try {
+    console.log('[database-handlers] save-player-bio: Waiting for services...');
+    await userDatabaseService.waitForReady();
+    await lookupService.waitForReady();
+    console.log('[database-handlers] save-player-bio: Services ready');
+
+    console.log(`[database-handlers] save-player-bio: Looking for ${playerData.firstName} ${playerData.lastName} (${playerData.draftYear})`);
+    console.log(`[database-handlers] save-player-bio: Data received:`, JSON.stringify(playerData, null, 2));
+
+    // Find player by name + draft year
+    const player = lookupService.findPlayerByNameAndYear(
+      playerData.firstName,
+      playerData.lastName,
+      playerData.draftYear
+    );
+
+    if (!player) {
+      console.log(`[database-handlers] save-player-bio: Player not found`);
+      return { success: false, error: `Player "${playerData.firstName} ${playerData.lastName}" from ${playerData.draftYear} not found in database` };
+    }
+
+    console.log(`[database-handlers] save-player-bio: Found player with internalId=${player.internalId}`);
+
+    // Save appearance data (PID, PAM) if provided
+    if (playerData.pid !== undefined || playerData.pam !== undefined) {
+      userDatabaseService.saveAppearanceEdit(player.internalId, {
+        maddenPid: playerData.pid,
+        maddenPam: playerData.pam
+      });
+      console.log(`[database-handlers] save-player-bio: Saved appearance (PID=${playerData.pid}, PAM=${playerData.pam})`);
+    }
+
+    // Save bio data if any provided
+    const hasBioData = playerData.race !== undefined || playerData.bodyType !== undefined ||
+                       playerData.handedness !== undefined || playerData.height !== undefined ||
+                       playerData.weight !== undefined || playerData.college !== undefined ||
+                       playerData.homeState !== undefined;
+    if (hasBioData) {
+      const bioToSave = {
+        race: playerData.race,
+        bodyType: playerData.bodyType,
+        handedness: playerData.handedness,
+        height: playerData.height,
+        weight: playerData.weight,
+        collegeId: playerData.college,
+        homeState: playerData.homeState !== undefined ? String(playerData.homeState) : undefined
+      };
+      console.log(`[database-handlers] save-player-bio: Saving bio data:`, JSON.stringify(bioToSave, null, 2));
+      userDatabaseService.savePlayerEdit(player.internalId, bioToSave);
+      console.log(`[database-handlers] save-player-bio: Bio data saved successfully`);
+    }
+
+    console.log(`[database-handlers] save-player-bio: SUCCESS - returning { success: true, playerId: ${player.internalId} }`);
+    return { success: true, playerId: player.internalId };
+  } catch (error) {
+    console.error('[database-handlers] Error saving player bio:', error);
     return { success: false, error: String(error) };
   }
 });

@@ -18,6 +18,12 @@ import {
     destroyAGGrid,
     applyHeaderColors
 } from './ag-grid-roster-complete.js';
+import {
+    initializeDraftAGGrid,
+    updateDraftAGGridData,
+    getDraftDataFromGrid,
+    destroyDraftAGGrid
+} from './ag-grid-draft-complete.js';
 
 // Import wizard scripts to ensure they're bundled by Vite
 import './draft-wizard.js';
@@ -978,6 +984,12 @@ class MaddenEditorApp {
         console.log('[renderRoster] START - sortColumns:', JSON.stringify(this.sortColumns));
         const container = document.getElementById('rosterGrid');
 
+        // Save focused element to restore after grid recreation
+        const activeElement = document.activeElement;
+        const activeElementId = activeElement?.id;
+        const activeElementSelectionStart = activeElement?.selectionStart;
+        const activeElementSelectionEnd = activeElement?.selectionEnd;
+
         // Store scroll position to restore after table creation
         this.pendingScrollLeft = scrollLeft;
 
@@ -1152,6 +1164,21 @@ class MaddenEditorApp {
 
         this.updateStats();
         this.updatePaginationUI();
+
+        // Restore focus to the previously focused element (e.g., search input)
+        if (activeElementId) {
+            const elementToFocus = document.getElementById(activeElementId);
+            if (elementToFocus && elementToFocus !== container) {
+                // Use setTimeout to allow grid to fully initialize before restoring focus
+                setTimeout(() => {
+                    elementToFocus.focus();
+                    // Restore cursor position for text inputs
+                    if (typeof activeElementSelectionStart === 'number' && 'setSelectionRange' in elementToFocus) {
+                        elementToFocus.setSelectionRange(activeElementSelectionStart, activeElementSelectionEnd || activeElementSelectionStart);
+                    }
+                }, 0);
+            }
+        }
     }
 
     // OLD HANDSONTABLE CODE BELOW - KEEPING FOR REFERENCE, REMOVE LATER
@@ -4111,9 +4138,10 @@ class MaddenEditorApp {
         // Determine which grid and data array we're working with
         const isRoster = 'PSXP' in this.currentFacePickerPlayer;
         const isDraft = 'PID' in this.currentFacePickerPlayer;
-        console.log(`[GenericFacePicker] isRoster: ${isRoster}, isDraft: ${isDraft}`);
+        const isDraftAgGrid = isDraft && this.draftAgGrid;
+        console.log(`[GenericFacePicker] isRoster: ${isRoster}, isDraft: ${isDraft}, isDraftAgGrid: ${isDraftAgGrid}`);
 
-        const grid = isRoster ? this.agGrid : (isDraft ? this.draftGrid : null);
+        const grid = isRoster ? this.agGrid : (isDraftAgGrid ? this.draftAgGrid : (isDraft ? this.draftGrid : null));
         const dataArray = isRoster ? this.filteredPlayers : (isDraft ? this.draftProspects : null);
 
         console.log(`[GenericFacePicker] Grid exists: ${!!grid}`);
@@ -4127,7 +4155,8 @@ class MaddenEditorApp {
         }
 
         // For Handsontable (draft mode only), check if destroyed
-        if (isDraft && grid.isDestroyed) {
+        // AG-Grid uses different destroyed check
+        if (isDraft && !isDraftAgGrid && grid.isDestroyed) {
             console.error('[GenericFacePicker] Draft grid is destroyed');
             return;
         }
@@ -4191,13 +4220,19 @@ class MaddenEditorApp {
             } else {
                 console.error(`[GenericFacePicker] ERROR: currentFieldMapping is undefined/null!`);
             }
+        } else if (isDraftAgGrid) {
+            // For draft class with AG-Grid, use column field names
+            pidColumnIndex = 'PID'; // Field name in AG-Grid
+            playerPicColumnIndex = 'playerPic'; // Field name in AG-Grid
+            console.log(`[GenericFacePicker] Draft AG-Grid PID field: ${pidColumnIndex}`);
+            console.log(`[GenericFacePicker] Draft AG-Grid Player Pic field: ${playerPicColumnIndex}`);
         } else if (isDraft) {
-            // For draft class, PID field should be in the columns
+            // For draft class with Handsontable, PID field should be in the columns
             const colHeaders = grid.getColHeader();
             pidColumnIndex = colHeaders.indexOf('PID');
             playerPicColumnIndex = colHeaders.indexOf('Player Pic');
-            console.log(`[GenericFacePicker] Draft PID column index: ${pidColumnIndex}`);
-            console.log(`[GenericFacePicker] Draft Player Pic column index: ${playerPicColumnIndex}`);
+            console.log(`[GenericFacePicker] Draft Handsontable PID column index: ${pidColumnIndex}`);
+            console.log(`[GenericFacePicker] Draft Handsontable Player Pic column index: ${playerPicColumnIndex}`);
         }
 
         console.log(`[GenericFacePicker] FINAL PID column index: ${pidColumnIndex}, Player Pic: ${playerPicColumnIndex}`);
@@ -4354,6 +4389,9 @@ class MaddenEditorApp {
                     if (isRoster && this.agGrid) {
                         // AG-Grid: refresh cells to update portrait display
                         this.agGrid.refreshCells({ force: true });
+                    } else if (isDraftAgGrid && this.draftAgGrid) {
+                        // AG-Grid for draft: refresh cells
+                        this.draftAgGrid.refreshCells({ force: true });
                     } else if (isDraft && grid && !grid.isDestroyed) {
                         // Handsontable: render the grid
                         grid.render();
@@ -4399,6 +4437,28 @@ class MaddenEditorApp {
                 console.log(`[GenericFacePicker] Portrait cell refreshed for row ${gridRowIndex}`);
             } else {
                 console.error(`[GenericFacePicker] Could not find row node at index ${gridRowIndex}`);
+            }
+        } else if (isDraftAgGrid) {
+            // AG-Grid: Get the row node and update data through API
+            const rowNode = grid.getDisplayedRowAtIndex(gridRowIndex);
+            if (rowNode) {
+                // Update via AG-Grid API
+                rowNode.setDataValue('PID', pid);
+                rowNode.setDataValue('playerPic', 'Generic Face');
+                const gridPepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+                if (gridPepsValue) {
+                    rowNode.setDataValue('PEPS', gridPepsValue);
+                }
+                console.log(`[GenericFacePicker] Updated draft row via setDataValue: PID=${pid}, playerPic=Generic Face, PEPS=${gridPepsValue}`);
+
+                // Force refresh the portrait column
+                grid.refreshCells({
+                    rowNodes: [rowNode],
+                    columns: ['_portrait'],
+                    force: true
+                });
+            } else {
+                console.error(`[GenericFacePicker] Could not find draft row node at index ${gridRowIndex}`);
             }
         } else if (isDraft) {
             // Handsontable: Use setDataAtCell to update the grid
@@ -4615,8 +4675,14 @@ class MaddenEditorApp {
                 player.PEPS = pamValue;
                 console.log(`[PAMPicker] Set draft PEPS to: ${pamValue}`);
 
-                // Refresh draft grid
-                if (this.draftGrid && !this.draftGrid.isDestroyed) {
+                // Refresh draft grid - check AG-Grid first, then Handsontable
+                if (this.draftAgGrid) {
+                    const rowNode = this.draftAgGrid.getDisplayedRowAtIndex(gridRowIndex);
+                    if (rowNode) {
+                        rowNode.setDataValue('PEPS', pamValue);
+                        this.draftAgGrid.refreshCells({ rowNodes: [rowNode], force: true });
+                    }
+                } else if (this.draftGrid && !this.draftGrid.isDestroyed) {
                     this.draftGrid.render();
                 }
             }
@@ -4984,6 +5050,7 @@ class MaddenEditorApp {
             document.getElementById('export-draft-json-btn').disabled = false;
             document.getElementById('import-draft-csv-btn').disabled = false;
             document.getElementById('fillFromDbDraftBtn').disabled = false;
+            document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
 
             // Create grid (await to ensure it completes)
             await this.createDraftGrid(result.data.prospects);
@@ -5028,6 +5095,7 @@ class MaddenEditorApp {
         document.getElementById('export-draft-json-btn').disabled = false;
         document.getElementById('import-draft-csv-btn').disabled = false;
         document.getElementById('fillFromDbDraftBtn').disabled = false;
+        document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
 
         // Create empty grid
         this.createDraftGrid([]);
@@ -5037,8 +5105,49 @@ class MaddenEditorApp {
     }
 
     async createDraftGrid(prospects) {
+        // ==== AG-Grid Implementation ====
+        // Using AG-Grid for draft class editor with all features from roster editor
 
         const container = document.getElementById('draft-grid-container');
+
+        // Clear existing grid (both Handsontable and AG-Grid)
+        if (this.draftGrid && this.draftGrid.destroy) {
+            this.draftGrid.destroy();
+            this.draftGrid = null;
+        }
+        if (this.draftAgGrid) {
+            destroyDraftAGGrid(this);
+        }
+
+        // Set container dimensions for AG-Grid
+        container.style.width = '100%';
+        container.style.height = 'calc(100vh - 200px)';
+        container.style.overflow = 'hidden';
+        container.style.position = 'relative';
+
+        // Add AG-Grid theme class
+        container.classList.add('ag-theme-alpine');
+
+        // Store prospects for reference
+        this.draftProspects = prospects;
+
+        // Store original prospect data with numeric IDs for save/restore
+        // CRITICAL: This must be set before AG-Grid init so save can convert names back to IDs
+        this.originalProspectData = prospects.map(p => ({...p}));
+
+        // Initialize AG-Grid (async to load archetype mappings)
+        console.log('[Draft AG-Grid] Initializing with', prospects.length, 'prospects');
+        await initializeDraftAGGrid(this, container, prospects);
+        console.log('[Draft AG-Grid] Grid initialized successfully');
+
+        // Setup floating scrollbar (if needed)
+        // this.setupFloatingScrollbar(container);
+
+        return;
+        // ==== END AG-Grid Implementation ====
+
+        // ==== OLD HANDSONTABLE CODE BELOW (kept for reference, never executed) ====
+        const _DISABLED_container = document.getElementById('draft-grid-container');
 
         // Clear existing grid
         if (this.draftGrid) {
@@ -5047,9 +5156,9 @@ class MaddenEditorApp {
 
         // Set container dimensions - Handsontable will handle its own scrolling
         // Let CSS flex handle the container sizing, just set overflow and position
-        container.style.width = '100%';
-        container.style.overflow = 'hidden';  // Let Handsontable manage scrolling internally
-        container.style.position = 'relative'; // Required for Handsontable positioning
+        _DISABLED_container.style.width = '100%';
+        _DISABLED_container.style.overflow = 'hidden';  // Let Handsontable manage scrolling internally
+        _DISABLED_container.style.position = 'relative'; // Required for Handsontable positioning
 
         // Calculate actual available height dynamically
         // This accounts for header, toolbar, and filter controls properly
@@ -6177,7 +6286,8 @@ class MaddenEditorApp {
 
     async saveDraftClass() {
         try {
-            if (!this.currentDraftClass || !this.draftGrid) {
+            // Check for AG-Grid first, then Handsontable
+            if (!this.currentDraftClass || (!this.draftAgGrid && !this.draftGrid)) {
                 this.showError('No draft class loaded');
                 return;
             }
@@ -6190,7 +6300,15 @@ class MaddenEditorApp {
             }
 
             // Get updated data from grid INCLUDING user edits (has friendly names)
-            const gridData = this.draftGrid.getSourceData();
+            // Use AG-Grid if available, otherwise fall back to Handsontable
+            let gridData;
+            if (this.draftAgGrid) {
+                gridData = getDraftDataFromGrid(this);
+                console.log('[Save] Using AG-Grid data, count:', gridData.length);
+            } else {
+                gridData = this.draftGrid.getSourceData();
+                console.log('[Save] Using Handsontable data, count:', gridData.length);
+            }
 
             // Debug: Log first prospect to see what we're getting
             if (gridData.length > 0) {
@@ -6210,7 +6328,24 @@ class MaddenEditorApp {
 
             // Convert friendly names back to numeric IDs
             const updatedProspects = gridData.map((prospect, index) => {
-                const originalProspect = this.originalProspectData[index];
+                // Get original prospect if it exists (may not for newly added players)
+                const originalProspect = this.originalProspectData?.[index] || {};
+
+                // Helper to convert name to ID, with fallback
+                const positionId = getLookupOptions('positions').find(opt => opt.label === prospect.position)?.value
+                    ?? (typeof prospect.position === 'number' ? prospect.position : originalProspect.position ?? 0);
+                const collegeId = getLookupOptions('colleges').find(opt => opt.label === prospect.college)?.value
+                    ?? (typeof prospect.college === 'number' ? prospect.college : originalProspect.college ?? 0);
+                const stateId = getLookupOptions('states').find(opt => opt.label === prospect.homeState)?.value
+                    ?? (typeof prospect.homeState === 'number' ? prospect.homeState : originalProspect.homeState ?? 0);
+
+                // Convert dev trait name to ID
+                const devTraitIndex = ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait);
+                const devTraitId = devTraitIndex !== -1 ? devTraitIndex
+                    : (typeof prospect.devTrait === 'number' ? prospect.devTrait : originalProspect.devTrait ?? 0);
+
+                // Archetype: use numeric value from prospect if available, else from original
+                const archetypeId = typeof prospect.archetype === 'number' ? prospect.archetype : originalProspect.archetype ?? 0;
 
                 // Build updated prospect object
                 const updated = {
@@ -6220,22 +6355,20 @@ class MaddenEditorApp {
                     // This ensures the saved order matches the grid display order
                     draftPick: index + 1,
                     // Convert position name to ID
-                    position: getLookupOptions('positions').find(opt => opt.label === prospect.position)?.value ?? originalProspect.position,
+                    position: positionId,
                     // Convert college name to ID
-                    college: getLookupOptions('colleges').find(opt => opt.label === prospect.college)?.value ?? originalProspect.college,
+                    college: collegeId,
                     // Convert state name to ID
-                    homeState: getLookupOptions('states').find(opt => opt.label === prospect.homeState)?.value ?? originalProspect.homeState,
-                    // Convert dev trait name to ID
-                    devTrait: ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait) !== -1
-                        ? ['Normal', 'Star', 'Superstar', 'X-Factor'].indexOf(prospect.devTrait)
-                        : originalProspect.devTrait,
-                    // Archetype: keep as numeric ID from original data (archetype field is display string only)
-                    archetype: originalProspect.archetype,
+                    homeState: stateId,
+                    // Dev trait ID
+                    devTrait: devTraitId,
+                    // Archetype ID
+                    archetype: archetypeId,
                     // Keep body type as string (M26Writer expects strings: "Thin", "Muscular", "Heavy", or null for Standard)
                     // "Standard" maps to null (don't write bodyType field, uses Standard_BodyType in loadouts)
                     bodyType: prospect.bodyType === 'Standard' ? null
                         : ['Thin', 'Muscular', 'Heavy'].includes(prospect.bodyType) ? prospect.bodyType
-                        : originalProspect.bodyType,
+                        : originalProspect.bodyType ?? null,
                     // Explicitly preserve PEPS from grid
                     PEPS: prospect.PEPS
                 };
@@ -6369,12 +6502,25 @@ class MaddenEditorApp {
 
     async exportDraftCSV() {
         try {
-            if (!this.draftGrid) {
+            // Support both AG-Grid (new) and Handsontable (legacy)
+            const isAgGrid = !!this.draftAgGrid;
+            const hasGrid = isAgGrid || !!this.draftGrid;
+
+            if (!hasGrid) {
                 this.showError('No draft class loaded');
                 return;
             }
 
-            const data = this.draftGrid.getSourceData();
+            // Get data from appropriate grid
+            let data = [];
+            if (isAgGrid) {
+                this.draftAgGrid.forEachNode(node => {
+                    if (node.data) data.push({ ...node.data });
+                });
+            } else {
+                data = this.draftGrid.getSourceData();
+            }
+
             if (!data || data.length === 0) {
                 this.showError('No draft class data to export');
                 return;
@@ -6506,7 +6652,11 @@ class MaddenEditorApp {
 
     async importDraftCSV() {
         try {
-            if (!this.draftGrid) {
+            // Support both AG-Grid (new) and Handsontable (legacy)
+            const isAgGrid = !!this.draftAgGrid;
+            const hasGrid = isAgGrid || !!this.draftGrid;
+
+            if (!hasGrid) {
                 this.showError('Please create or open a draft class first');
                 return;
             }
@@ -6622,8 +6772,15 @@ class MaddenEditorApp {
 
                         console.log('[Draft Import] Property mapping:', headerIndex);
 
-                        // Get current data from grid
-                        const currentData = this.draftGrid.getSourceData();
+                        // Get current data from grid (support AG-Grid and Handsontable)
+                        let currentData = [];
+                        if (this.draftAgGrid) {
+                            this.draftAgGrid.forEachNode(node => {
+                                if (node.data) currentData.push(node.data);
+                            });
+                        } else {
+                            currentData = this.draftGrid.getSourceData();
+                        }
                         let updatedCount = 0;
                         let errors = [];
 
@@ -6677,8 +6834,12 @@ class MaddenEditorApp {
                             updatedCount++;
                         }
 
-                        // Update the grid
-                        this.draftGrid.loadData(currentData);
+                        // Update the grid (support AG-Grid and Handsontable)
+                        if (this.draftAgGrid) {
+                            this.draftAgGrid.setGridOption('rowData', currentData);
+                        } else {
+                            this.draftGrid.loadData(currentData);
+                        }
 
                         if (errors.length > 0) {
                             console.warn('[Draft Import] Errors:', errors);
@@ -6885,10 +7046,58 @@ class MaddenEditorApp {
     }
 
     filterDraftProspects() {
-        if (!this.currentDraftClass || !this.draftGrid) {
+        // Support both AG-Grid and Handsontable
+        if (!this.currentDraftClass || (!this.draftGrid && !this.draftAgGrid)) {
             return;
         }
 
+        // For AG-Grid, use quick filter
+        if (this.draftAgGrid) {
+            // Combine all filters into a single search term for quick filter
+            // AG-Grid's quick filter searches across all columns
+            const searchTerms = [];
+
+            if (this.draftSearchTerm) {
+                searchTerms.push(this.draftSearchTerm);
+            }
+
+            // Apply round and position filters via external filter
+            this.draftAgGrid.setGridOption('isExternalFilterPresent', () => {
+                return !!(this.selectedDraftRound || this.selectedDraftPosition);
+            });
+
+            this.draftAgGrid.setGridOption('doesExternalFilterPass', (node) => {
+                const prospect = node.data;
+                if (!prospect) return true;
+
+                // Round filter
+                if (this.selectedDraftRound) {
+                    if (this.selectedDraftRound === 'ufa') {
+                        if (prospect.round < 8) return false;
+                    } else {
+                        const targetRound = parseInt(this.selectedDraftRound);
+                        if (prospect.round !== targetRound) return false;
+                    }
+                }
+
+                // Position filter
+                if (this.selectedDraftPosition) {
+                    const position = typeof prospect.position === 'number'
+                        ? getLookupValue('positions', prospect.position)
+                        : prospect.position;
+                    if (position !== this.selectedDraftPosition) return false;
+                }
+
+                return true;
+            });
+
+            // Apply quick filter for search
+            this.draftAgGrid.setGridOption('quickFilterText', this.draftSearchTerm || '');
+            this.draftAgGrid.onFilterChanged();
+            return;
+        }
+
+        // Original Handsontable logic
         const allProspects = this.currentDraftClass.prospects;
         let filtered = [...allProspects];
 
@@ -8010,6 +8219,7 @@ class MaddenEditorApp {
             document.getElementById('export-draft-json-btn').disabled = false;
             document.getElementById('import-draft-csv-btn').disabled = false;
             document.getElementById('fillFromDbDraftBtn').disabled = false;
+            document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
 
             // Pre-calculate round for ALL prospects immediately
             prospects.forEach((prospect, index) => {
@@ -8275,6 +8485,43 @@ class MaddenEditorApp {
     }
 
     // ========================================
+    // ========================================
+    // Draft AG-Grid Helper Methods
+    // ========================================
+
+    /**
+     * Update save button state for draft class
+     */
+    updateSaveButton() {
+        const saveBtn = document.getElementById('save-draft-btn');
+        if (saveBtn) {
+            saveBtn.disabled = !this.hasUnsavedChanges;
+        }
+    }
+
+    /**
+     * Show player card for a draft prospect
+     */
+    showDraftPlayerCard(rowIndex) {
+        // Get prospect data from AG-Grid
+        if (!this.draftAgGrid) {
+            console.error('[showDraftPlayerCard] No draft AG-Grid available');
+            return;
+        }
+
+        const rowNode = this.draftAgGrid.getDisplayedRowAtIndex(rowIndex);
+        if (!rowNode || !rowNode.data) {
+            console.error(`[showDraftPlayerCard] No prospect found at row index ${rowIndex}`);
+            return;
+        }
+
+        const prospect = rowNode.data;
+        console.log('[showDraftPlayerCard] Showing card for:', prospect.firstName, prospect.lastName);
+
+        // For now, just log the prospect data - can be enhanced to show a modal
+        alert(`Draft Prospect: ${prospect.firstName} ${prospect.lastName}\nPosition: ${prospect.position}\nOverall: ${prospect.overall}\nCollege: ${prospect.college}`);
+    }
+
     // Player Card Methods
     // ========================================
 
@@ -8856,6 +9103,178 @@ class MaddenEditorApp {
             15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
         };
         return positionMap[ppos] || null;
+    }
+
+    /**
+     * Show a toast notification
+     * @param {string} message - Message to display
+     * @param {string} type - 'success', 'error', or 'info'
+     */
+    showToast(message, type = 'info') {
+        // Create toast element if it doesn't exist
+        let toast = document.getElementById('app-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'app-toast';
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                padding: 12px 24px;
+                border-radius: 6px;
+                color: white;
+                font-size: 14px;
+                z-index: 10001;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                max-width: 400px;
+            `;
+            document.body.appendChild(toast);
+        }
+
+        // Set color based on type
+        const colors = {
+            success: '#4caf50',
+            error: '#f44336',
+            info: '#2196f3'
+        };
+        toast.style.background = colors[type] || colors.info;
+        toast.textContent = message;
+        toast.style.opacity = '1';
+
+        // Hide after 3 seconds
+        setTimeout(() => {
+            toast.style.opacity = '0';
+        }, 3000);
+    }
+
+    /**
+     * Show bio save modal with checkboxes for each field
+     * @param {string} playerName - Name of player for display
+     * @param {object} playerData - Current player data with all fields
+     * @param {function} callback - Called with selected data or null if cancelled
+     */
+    showBioSaveModal(playerName, playerData, callback) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('bio-save-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'bio-save-modal';
+            document.body.appendChild(modal);
+        }
+
+        // Build field rows with checkboxes
+        const fields = [
+            { key: 'pid', label: 'PID', value: playerData.pid },
+            { key: 'pam', label: 'PAM', value: playerData.pam },
+            { key: 'race', label: 'Race', value: playerData.race },
+            { key: 'bodyType', label: 'Body Type', value: playerData.bodyType },
+            { key: 'handedness', label: 'Handedness', value: playerData.handedness },
+            { key: 'height', label: 'Height', value: playerData.height },
+            { key: 'weight', label: 'Weight', value: playerData.weight },
+            { key: 'college', label: 'College', value: playerData.college },
+            { key: 'homeState', label: 'State', value: playerData.homeState }
+        ];
+
+        const fieldRows = fields.map(f => {
+            const displayValue = f.value !== undefined && f.value !== null && f.value !== '' ? f.value : '(empty)';
+            const isEmpty = f.value === undefined || f.value === null || f.value === '';
+            return `
+                <label style="display: flex; align-items: center; gap: 10px; padding: 6px 0; cursor: pointer; ${isEmpty ? 'opacity: 0.5;' : ''}">
+                    <input type="checkbox" name="bio-field" value="${f.key}" ${isEmpty ? 'disabled' : 'checked'}
+                           style="width: 18px; height: 18px; cursor: pointer;">
+                    <span style="width: 100px; color: #aaa;">${f.label}:</span>
+                    <span style="color: #fff; flex: 1;">${displayValue}</span>
+                </label>
+            `;
+        }).join('');
+
+        modal.innerHTML = `
+            <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10002; display: flex; align-items: center; justify-content: center;">
+                <div style="background: #2a2a2a; padding: 24px; border-radius: 8px; min-width: 400px; max-width: 500px; border: 1px solid #444;">
+                    <h3 style="margin: 0 0 8px 0; color: #fff;">Save Bio to Database</h3>
+                    <p style="color: #ffa726; margin: 0 0 16px 0; font-size: 14px;">${playerName}</p>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; color: #ccc; margin-bottom: 6px;">Draft Year (for matching):</label>
+                        <input type="number" id="bio-draft-year" style="width: 100%; padding: 8px; background: #1a1a1a; border: 1px solid #555; border-radius: 4px; color: #fff; font-size: 14px; box-sizing: border-box;" value="2020" min="1920" max="2030">
+                    </div>
+
+                    <div style="border: 1px solid #444; border-radius: 4px; padding: 12px; background: #1a1a1a; max-height: 300px; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #444;">
+                            <span style="color: #888; font-size: 12px;">Select fields to save:</span>
+                            <div>
+                                <button id="bio-select-all" style="background: none; border: none; color: #4caf50; cursor: pointer; font-size: 12px; margin-right: 8px;">Select All</button>
+                                <button id="bio-select-none" style="background: none; border: none; color: #f44336; cursor: pointer; font-size: 12px;">Select None</button>
+                            </div>
+                        </div>
+                        ${fieldRows}
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-top: 16px; justify-content: flex-end;">
+                        <button id="bio-cancel" style="padding: 8px 16px; background: #555; border: none; border-radius: 4px; color: #fff; cursor: pointer;">Cancel</button>
+                        <button id="bio-save" style="padding: 8px 16px; background: #4caf50; border: none; border-radius: 4px; color: #fff; cursor: pointer;">Save Selected</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        modal.style.display = 'block';
+        document.getElementById('bio-draft-year').focus();
+
+        // Handle select all/none
+        document.getElementById('bio-select-all').onclick = () => {
+            modal.querySelectorAll('input[name="bio-field"]:not(:disabled)').forEach(cb => cb.checked = true);
+        };
+        document.getElementById('bio-select-none').onclick = () => {
+            modal.querySelectorAll('input[name="bio-field"]').forEach(cb => cb.checked = false);
+        };
+
+        // Handle save
+        const handleSave = () => {
+            const draftYear = document.getElementById('bio-draft-year').value;
+            if (!draftYear) {
+                this.showToast('Please enter a draft year', 'error');
+                return;
+            }
+
+            // Collect selected fields
+            const selectedData = {
+                firstName: playerData.firstName,
+                lastName: playerData.lastName,
+                draftYear: parseInt(draftYear)
+            };
+
+            modal.querySelectorAll('input[name="bio-field"]:checked').forEach(cb => {
+                const key = cb.value;
+                const field = fields.find(f => f.key === key);
+                if (field && field.value !== undefined && field.value !== null && field.value !== '') {
+                    selectedData[key] = field.value;
+                }
+            });
+
+            console.log('[BioSaveModal] Selected data to save:', selectedData);
+            modal.style.display = 'none';
+            callback(selectedData);
+        };
+
+        // Handle cancel
+        const handleCancel = () => {
+            modal.style.display = 'none';
+            callback(null);
+        };
+
+        document.getElementById('bio-save').onclick = handleSave;
+        document.getElementById('bio-cancel').onclick = handleCancel;
+
+        // ESC to cancel
+        const handleKeydown = (e) => {
+            if (e.key === 'Escape') {
+                handleCancel();
+                document.removeEventListener('keydown', handleKeydown);
+            }
+        };
+        document.addEventListener('keydown', handleKeydown);
     }
 }
 

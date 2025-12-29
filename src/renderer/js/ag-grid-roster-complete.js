@@ -701,44 +701,21 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             // Header clicks are handled separately via onSortChanged
         },
 
-        // Handle sort changes - delegate to app's sort mechanism for full data sorting
+        // Handle sort changes - let AG-Grid handle sorting, just track state
         onSortChanged: (event) => {
-            // Prevent infinite loop when re-rendering after sort
-            if (app._isRendering) {
-                console.log('[AG-Grid] onSortChanged: Skipping during render');
-                return;
-            }
-
+            // Just store the sort state for persistence - let AG-Grid handle actual sorting
             const sortModel = event.api.getColumnState().filter(c => c.sort);
             console.log('[AG-Grid] onSortChanged:', sortModel);
 
             if (sortModel.length === 0) {
-                // No sort - clear app's sort and re-render
-                if (app.sortColumns && app.sortColumns.length > 0) {
-                    app.sortColumns = [];
-                    app.currentPage = 1;
-                    app._isRendering = true;
-                    app.renderRoster();
-                    app._isRendering = false;
-                }
-                return;
+                app.sortColumns = [];
+            } else {
+                const sortCol = sortModel[0];
+                app.sortColumns = [{ column: sortCol.colId, order: sortCol.sort }];
+                console.log(`[AG-Grid] Sort state stored: ${sortCol.colId} ${sortCol.sort}`);
             }
-
-            const sortCol = sortModel[0];
-            const fieldName = sortCol.colId;
-            const sortDirection = sortCol.sort; // 'asc' or 'desc'
-
-            console.log(`[AG-Grid] Sorting by ${fieldName} ${sortDirection}`);
-
-            // Update app's sortColumns to match
-            // This uses the app's applyFiltersAndSort which handles all data, not just current page
-            app.sortColumns = [{ column: fieldName, order: sortDirection }];
-
-            // Re-render with new sort (applyFiltersAndSort will sort full array)
-            app.currentPage = 1;
-            app._isRendering = true;
-            app.renderRoster();
-            app._isRendering = false;
+            // Don't call renderRoster() - let AG-Grid handle sorting internally
+            // This prevents the grid from being destroyed and recreated
         },
 
         onCellEditingStarted: (event) => {
@@ -1026,6 +1003,50 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     }
                 } else if (action === 'view-player-card') {
                     app.showPlayerCard(rowIndex);
+                } else if (action === 'save-bio-to-db') {
+                    // Save bio info to database
+                    const player = event.data;
+                    const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
+
+                    // Collect all player data for the modal
+                    const playerData = {
+                        firstName: player.PFNA,
+                        lastName: player.PLNA,
+                        pid: player.PSXP,
+                        pam: player.PEPS,
+                        race: player.PLRC,
+                        bodyType: player.PCBT,
+                        handedness: player.PHAN,
+                        height: player.PHGT,
+                        weight: player.PWGT,
+                        college: player.PCOL,
+                        homeState: player.PHSN
+                    };
+
+                    console.log('[AG-Grid] Player data for bio save:', playerData);
+
+                    // Show modal with checkboxes
+                    app.showBioSaveModal(playerName, playerData, (selectedData) => {
+                        if (!selectedData) return; // User cancelled
+
+                        console.log('[AG-Grid] Saving selected bio data:', JSON.stringify(selectedData, null, 2));
+                        console.log('[AG-Grid] Calling savePlayerBio API...');
+
+                        // Save to database
+                        window.electronAPI.database.savePlayerBio(selectedData)
+                            .then(result => {
+                                console.log('[AG-Grid] savePlayerBio result:', result);
+                                if (result.success) {
+                                    app.showToast(`Saved bio for ${playerName} to database`, 'success');
+                                } else {
+                                    app.showToast(`Failed: ${result.error}`, 'error');
+                                }
+                            })
+                            .catch(err => {
+                                console.error('[AG-Grid] Error saving bio:', err);
+                                app.showToast(`Error: ${err.message}`, 'error');
+                            });
+                    });
                 }
 
                 // Hide menu
@@ -1296,6 +1317,20 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
     app.agGrid = gridApi;
     app.agGridOptions = gridOptions;
 
+    // Apply initial sort state from app.sortColumns if any
+    if (app.sortColumns && app.sortColumns.length > 0) {
+        const columnState = app.sortColumns.map((sortCol, index) => ({
+            colId: sortCol.column,
+            sort: sortCol.order, // 'asc' or 'desc'
+            sortIndex: index
+        }));
+        console.log('[AG-Grid] Applying initial sort state:', columnState);
+        gridApi.applyColumnState({
+            state: columnState,
+            defaultState: { sort: null }
+        });
+    }
+
     return gridApi;
 }
 
@@ -1440,7 +1475,23 @@ export function applyHeaderColors(app, container) {
  */
 export function updateAGGridData(app, newPlayers) {
     if (app.agGrid) {
+        // Get current sort state directly from grid to preserve it
+        const currentSortState = app.agGrid.getColumnState().filter(c => c.sort);
+        console.log('[AG-Grid] Updating data, preserving sort state:', currentSortState);
+
         app.agGrid.setGridOption('rowData', newPlayers);
+
+        // Restore sort state if it was set
+        if (currentSortState.length > 0) {
+            // Small delay to ensure data is loaded before applying sort
+            setTimeout(() => {
+                app.agGrid.applyColumnState({
+                    state: currentSortState,
+                    defaultState: { sort: null }
+                });
+                console.log('[AG-Grid] Sort state restored after data update');
+            }, 0);
+        }
     }
 }
 

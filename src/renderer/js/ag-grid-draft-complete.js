@@ -444,6 +444,14 @@ export function createDraftColumnDefs(app, archetypeData = null) {
         field: 'archetype',
         width: 180,
         editable: true,
+        valueGetter: (params) => {
+            const val = params.data?.archetype;
+            // If numeric ID, convert to name
+            if (typeof val === 'number') {
+                return archetypeIdToName[val] || `Unknown (${val})`;
+            }
+            return val || '';
+        },
         cellEditorSelector: (params) => {
             let posName = params.data.position;
             if (typeof posName === 'number') {
@@ -1058,6 +1066,17 @@ export async function initializeDraftAGGrid(app, container, prospects) {
             }
         },
 
+        // Track sort state for the draft grid
+        onSortChanged: (event) => {
+            const sortModel = event.api.getColumnState().filter(c => c.sort);
+            console.log('[Draft AG-Grid] onSortChanged:', sortModel);
+
+            // Store sort state on app for potential restoration after data updates
+            app.draftSortColumns = sortModel.length > 0
+                ? sortModel.map(col => ({ column: col.colId, order: col.sort, sortIndex: col.sortIndex }))
+                : [];
+        },
+
         onRowDragEnd: (event) => {
             // Update draft positions after drag
             const allData = [];
@@ -1459,7 +1478,23 @@ export async function initializeDraftAGGrid(app, container, prospects) {
  */
 export function updateDraftAGGridData(app, newProspects) {
     if (app.draftAgGrid) {
+        // Get current sort state directly from grid (more reliable than app.draftSortColumns)
+        const currentSortState = app.draftAgGrid.getColumnState().filter(c => c.sort);
+        console.log('[Draft AG-Grid] Updating data, preserving sort state:', currentSortState);
+
         app.draftAgGrid.setGridOption('rowData', newProspects);
+
+        // Restore sort state if it was set
+        if (currentSortState.length > 0) {
+            // Small delay to ensure data is loaded before applying sort
+            setTimeout(() => {
+                app.draftAgGrid.applyColumnState({
+                    state: currentSortState,
+                    defaultState: { sort: null }
+                });
+                console.log('[Draft AG-Grid] Sort state restored after data update');
+            }, 0);
+        }
     }
 }
 

@@ -443,8 +443,24 @@
                             <span class="btn-icon">🗃️</span>
                             Fill from Database
                         </button>
+                        <button id="openDraftPlayerBrowserBtn" class="btn btn-secondary" disabled title="Browse player database to add players">
+                            <span class="btn-icon">📚</span>
+                            Browse Players
+                        </button>
                     </div>
                 </div>
+                <script>
+                    // Handler for Draft Class Browse Players button
+                    document.getElementById('openDraftPlayerBrowserBtn').addEventListener('click', function() {
+                        console.log('[Draft] Browse Players clicked');
+                        if (typeof window.openPlayerBrowser === 'function') {
+                            window.openPlayerBrowser('draft');
+                        } else {
+                            var modal = document.getElementById('playerBrowserModal');
+                            if (modal) modal.style.display = 'flex';
+                        }
+                    });
+                </script>
 
                 <div class="filter-controls" style="padding: 10px; background-color: #2a2a2a; border-bottom: 1px solid #444; display: flex; gap: 15px; align-items: center;">
                     <div class="control-group">
@@ -1539,6 +1555,24 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                                 <label class="db-form-label">Home State</label>
                                 <select class="db-form-select" id="dbPlayerHomeState"></select>
                             </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Body Type</label>
+                                <select class="db-form-select" id="dbPlayerBodyType">
+                                    <option value="">--</option>
+                                    <option value="0">Standard</option>
+                                    <option value="1">Thin</option>
+                                    <option value="2">Muscular</option>
+                                    <option value="3">Heavy</option>
+                                </select>
+                            </div>
+                            <div class="db-form-item">
+                                <label class="db-form-label">Handedness</label>
+                                <select class="db-form-select" id="dbPlayerHandedness">
+                                    <option value="">--</option>
+                                    <option value="0">Right</option>
+                                    <option value="1">Left</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -2481,6 +2515,29 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
         <div class="context-menu-item" data-action="view-player-card">
             <span class="context-menu-icon">📋</span>
             View Player Card
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="save-bio-to-db">
+            <span class="context-menu-icon">💾</span>
+            Save Bio to Database
+        </div>
+    </div>
+
+    <!-- Custom Context Menu for Draft Class Editor -->
+    <div id="draft-context-menu" class="grid-context-menu" style="display: none;">
+        <div class="context-menu-item" data-action="delete-player">
+            <span class="context-menu-icon">🗑️</span>
+            Delete Player
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="view-player-card">
+            <span class="context-menu-icon">📋</span>
+            View Player Card
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" data-action="save-bio-to-db">
+            <span class="context-menu-icon">💾</span>
+            Save Bio to Database
         </div>
     </div>
 

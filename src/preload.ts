@@ -390,6 +390,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validateCsv: (csvContent: string) => ipcRenderer.invoke('database:validate-csv', csvContent),
     importCsv: (csvContent: string) => ipcRenderer.invoke('database:import-csv', csvContent),
 
+    // Bio save from roster/draft editor (right-click save to database)
+    savePlayerBio: (playerData: {
+      firstName: string;
+      lastName: string;
+      draftYear: number;
+      pid?: number;
+      pam?: string;
+      race?: number;
+      bodyType?: string;
+      handedness?: number;
+      height?: number;
+      weight?: number;
+      college?: number;
+      homeState?: number;
+    }) => ipcRenderer.invoke('database:save-player-bio', playerData),
+
     // Cross-window communication (database browser -> main window)
     sendPlayerToMainWindow: (internalId: number, target: 'roster' | 'draft') =>
       ipcRenderer.invoke('database:send-player-to-main', internalId, target),

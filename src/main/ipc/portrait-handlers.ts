@@ -292,12 +292,65 @@ ipcMain.handle('portrait:get-image-data-by-pid', async (event, pid: number) => {
  */
 ipcMain.handle('portrait:get-image-data-by-pam', async (event, pamCode: string) => {
   try {
-    // Direct conversion: gen_X_Y_Z_NNN → plpo_generic_X_Y_Z_NNN
-    const plpoName = pamCode.startsWith('gen_')
-      ? pamCode.replace('gen_', 'plpo_generic_')
-      : pamCode;
+    // Skip invalid PAM codes
+    if (!pamCode || pamCode === '0' || pamCode === '0.0') {
+      return null;
+    }
 
-    const spriteInfo = portraitSpriteService.getPortraitByPLPO(plpoName);
+    // Convert PAM/PEPS code to PLPO format that matches the portrait atlas
+    // Atlas format: plpo_generic_X_Y_Z_NN (preserves all parts)
+    // Example: gen_4_B_MS_01 → plpo_generic_4_B_MS_01
+    let plpoName = pamCode;
+
+    console.log(`[Portrait PAM] Input pamCode: "${pamCode}"`);
+
+    let spriteInfo = null;
+
+    if (pamCode.startsWith('gen_')) {
+      // Generic face: just replace gen_ with plpo_generic_
+      plpoName = pamCode.replace('gen_', 'plpo_generic_');
+      console.log(`[Portrait PAM] Generic face converted to: "${plpoName}"`);
+      spriteInfo = portraitSpriteService.getPortraitByPLPO(plpoName);
+    } else {
+      // Check if it's a player name with PID suffix (e.g., taylorLawrence_10891)
+      const pidMatch = pamCode.match(/_(\d+)$/);
+      if (pidMatch) {
+        const pid = parseInt(pidMatch[1], 10);
+        console.log(`[Portrait PAM] Extracted PID ${pid} from "${pamCode}"`);
+        // Try to get portrait by PID first
+        spriteInfo = portraitSpriteService.getPortraitByPID(pid);
+        if (spriteInfo) {
+          console.log(`[Portrait PAM] Found portrait by PID ${pid}`);
+        }
+      }
+
+      // If PID lookup failed, try by name
+      if (!spriteInfo) {
+        const nameOnly = pamCode.replace(/_\d+$/, '');
+        plpoName = `plpo_${nameOnly}`;
+        console.log(`[Portrait PAM] Player name converted to: "${plpoName}"`);
+        spriteInfo = portraitSpriteService.getPortraitByPLPO(plpoName);
+
+        // Try legends format
+        if (!spriteInfo) {
+          const legendsName = `plpo_legends_${nameOnly}`;
+          console.log(`[Portrait PAM] Trying legends format: "${legendsName}"`);
+          spriteInfo = portraitSpriteService.getPortraitByPLPO(legendsName);
+        }
+      }
+    }
+
+    console.log(`[Portrait PAM] Final lookup result: ${spriteInfo ? 'FOUND' : 'NOT FOUND'}`);
+
+    // Fallback: try with _morphed suffix if not found (some atlas entries have this)
+    if (!spriteInfo && !plpoName.endsWith('_morphed')) {
+      const withMorphed = `${plpoName}_morphed`;
+      console.log(`[Portrait PAM] Trying fallback with _morphed: "${withMorphed}"`);
+      spriteInfo = portraitSpriteService.getPortraitByPLPO(withMorphed);
+      if (spriteInfo) {
+        console.log(`[Portrait PAM] Found with _morphed suffix`);
+      }
+    }
 
     if (!spriteInfo) {
       return null;

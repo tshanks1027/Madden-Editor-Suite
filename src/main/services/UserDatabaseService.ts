@@ -52,6 +52,8 @@ export interface PlayerEdit {
   draftPick?: number;
   careerFrom?: number;
   careerTo?: number;
+  bodyType?: string;
+  handedness?: number;
   editedAt?: string;
 }
 
@@ -224,6 +226,17 @@ class UserDatabaseService {
     }
     try {
       this.editsDb.exec(`ALTER TABLE player_edits ADD COLUMN home_state TEXT`);
+    } catch {
+      // Column already exists
+    }
+    // Migration: add body_type and handedness columns for bio saving
+    try {
+      this.editsDb.exec(`ALTER TABLE player_edits ADD COLUMN body_type TEXT`);
+    } catch {
+      // Column already exists
+    }
+    try {
+      this.editsDb.exec(`ALTER TABLE player_edits ADD COLUMN handedness INTEGER`);
     } catch {
       // Column already exists
     }
@@ -401,6 +414,8 @@ class UserDatabaseService {
       if (edits.draftPick !== undefined) { updates.push('draft_pick = ?'); values.push(edits.draftPick); }
       if (edits.careerFrom !== undefined) { updates.push('career_from = ?'); values.push(edits.careerFrom); }
       if (edits.careerTo !== undefined) { updates.push('career_to = ?'); values.push(edits.careerTo); }
+      if (edits.bodyType !== undefined) { updates.push('body_type = ?'); values.push(edits.bodyType); }
+      if (edits.handedness !== undefined) { updates.push('handedness = ?'); values.push(edits.handedness); }
 
       if (updates.length > 0) {
         updates.push("edited_at = datetime('now')");
@@ -411,8 +426,9 @@ class UserDatabaseService {
       // Insert new edit
       this.editsDb.prepare(`
         INSERT INTO player_edits (original_id, first_name, last_name, college_id, race, height, weight,
-                                   hometown, home_state, draft_class, draft_round, draft_pick, career_from, career_to)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   hometown, home_state, draft_class, draft_round, draft_pick, career_from, career_to,
+                                   body_type, handedness)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         originalId,
         edits.firstName ?? null,
@@ -427,7 +443,9 @@ class UserDatabaseService {
         edits.draftRound ?? null,
         edits.draftPick ?? null,
         edits.careerFrom ?? null,
-        edits.careerTo ?? null
+        edits.careerTo ?? null,
+        edits.bodyType ?? null,
+        edits.handedness ?? null
       );
     }
 
@@ -455,6 +473,8 @@ class UserDatabaseService {
       draftPick: row.draft_pick as number | undefined,
       careerFrom: row.career_from as number | undefined,
       careerTo: row.career_to as number | undefined,
+      bodyType: row.body_type as string | undefined,
+      handedness: row.handedness as number | undefined,
       editedAt: row.edited_at as string | undefined
     };
   }

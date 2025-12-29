@@ -862,10 +862,14 @@
       closeAddToRosterModal();
       alert('Successfully added ' + playerName + ' (' + selectedYear + ') to ' + selectedTeamName + '!');
 
+      // Restore focus after alert is dismissed
+      restoreFocusToSearch();
+
     } catch (error) {
       console.error('[PlayerBrowser] Error adding to roster:', error);
       alert('Failed to add player to roster: ' + error.message);
       closeAddToRosterModal();
+      restoreFocusToSearch();
     }
   }
 
@@ -953,34 +957,54 @@
 
       }
 
-      // Calculate target slot - use historical draft position or find first empty
-      let targetSlot = suggestedSlot;
+      // ALWAYS add players at the END of the draft class
+      // Don't use suggested slot - just append at the end
+      let targetSlot = draftData.length;
 
-      // If target slot is beyond current array, add at end
-      if (targetSlot >= draftData.length) {
-        targetSlot = draftData.length;
-      }
-
-      // Round display for logging
-      const roundNum = draftInfo.round || Math.floor(targetSlot / 32) + 1;
+      // Round display for logging (based on new position at end)
+      const roundNum = Math.floor(targetSlot / 32) + 1;
       const pickInRound = (targetSlot % 32) + 1;
       const roundDisplay = roundNum <= 7 ? 'Round ' + roundNum + ' Pick ' + pickInRound : 'UDFA';
 
+      // Debug log the incoming prospect data - use explicit strings so values are visible
+      console.log(`[PlayerBrowser] prospectData from backend:`);
+      console.log(`  Name: ${prospectData.firstName} ${prospectData.lastName}`);
+      console.log(`  Position: ID=${prospectData.position}, Name="${prospectData.positionName}"`);
+      console.log(`  Archetype: ID=${prospectData.archetype}, Name="${prospectData.archetypeName}"`);
+      console.log(`  College: ID=${prospectData.college}, Name="${prospectData.collegeName}"`);
+      console.log(`  HomeState: ID=${prospectData.homeState}, Name="${prospectData.homeStateName}"`);
+      console.log(`  PID=${prospectData.PID}, PEPS="${prospectData.PEPS}"`);
+      console.log(`  Race=${prospectData.race}, SkinTone=${prospectData.skinTone}, PlayerPic="${prospectData.playerPic}"`);
+      console.log(`  Visuals:`, prospectData.visuals);
+
       // Build the row object matching draft grid columns
+      // Use names from backend (fallback to IDs if names not available)
+      // IMPORTANT: Use explicit empty string checks because '' is falsy but valid
+      const getValueOrFallback = (name, id, defaultVal = '') => {
+        // If we have a non-empty name string, use it
+        if (name !== undefined && name !== null && name !== '') return name;
+        // Otherwise use the ID (grid valueGetter will convert to display name)
+        return id !== undefined && id !== null ? id : defaultVal;
+      };
+
       const newRow = {
         draftPosition: targetSlot,
         round: roundNum <= 7 ? roundNum : 8,
-        playerPic: '',
+        playerPic: prospectData.playerPic || 'Generic Face',
         lastName: prospectData.lastName,
         firstName: prospectData.firstName,
-        position: position,
-        archetype: prospectData.archetype || 0,
-        college: prospectData.college,
-        homeState: prospectData.homeState,
+        position: getValueOrFallback(prospectData.positionName, prospectData.position, position),
+        archetype: getValueOrFallback(prospectData.archetypeName, prospectData.archetype, 0),
+        college: getValueOrFallback(prospectData.collegeName, prospectData.college, 0),
+        homeState: getValueOrFallback(prospectData.homeStateName, prospectData.homeState, ''),
         age: prospectData.age,
         PID: prospectData.PID,
         PEPS: prospectData.PEPS,
-        devTrait: prospectData.devTrait || 0,
+        // Race and skin tone for generic face assignment
+        race: prospectData.race,
+        skinTone: prospectData.skinTone,
+        // devTrait: 0=Normal, 1=Star, 2=Superstar, 3=X-Factor (never use falsy check for 0)
+        devTrait: prospectData.devTrait !== undefined && prospectData.devTrait !== null ? prospectData.devTrait : 0,
 
         // Ratings
         overall: prospectData.overall || 70,
@@ -1052,8 +1076,8 @@
         visuals: prospectData.visuals
       };
 
-      // Insert at target position
-      draftData.splice(targetSlot, 0, newRow);
+      // Add to end of draft class (push instead of splice)
+      draftData.push(newRow);
 
       // Renumber draft positions for all rows
       for (let i = 0; i < draftData.length; i++) {
@@ -1080,6 +1104,49 @@
       // Update currentDraftClass.prospects if it exists
       if (window.app.currentDraftClass && window.app.currentDraftClass.prospects) {
         window.app.currentDraftClass.prospects = draftData;
+      }
+
+      // Preload the portrait for the new player so it shows immediately
+      const newPid = prospectData.PID || 0;
+      const newPeps = prospectData.PEPS || '';
+      console.log(`[PlayerBrowser] Portrait preload: PID=${newPid}, PEPS="${newPeps}"`);
+      if (newPid > 0) {
+        const cacheKey = `pid_${newPid}`;
+        if (!window.app.portraitCache.has(cacheKey)) {
+          try {
+            // Use portrait.getByPID for numeric PIDs
+            const imageData = await window.electronAPI.portrait.getByPID(newPid);
+            if (imageData) {
+              window.app.portraitCache.set(cacheKey, imageData);
+              console.log(`[PlayerBrowser] Loaded portrait for ${prospectData.firstName} ${prospectData.lastName}: ${cacheKey}`);
+              // Refresh the grid to show the portrait
+              if (isAgGrid && window.app.draftAgGrid) {
+                window.app.draftAgGrid.refreshCells({ force: true });
+              }
+            } else {
+              console.log(`[PlayerBrowser] No portrait found for PID ${newPid}`);
+            }
+          } catch (err) {
+            console.warn(`[PlayerBrowser] Portrait load error for PID ${newPid}:`, err);
+          }
+        }
+      } else if (newPeps) {
+        // Fallback for PEPS-only (shouldn't happen with generic PIDs)
+        const cacheKey = `pam_${newPeps}`;
+        if (!window.app.portraitCache.has(cacheKey)) {
+          try {
+            const imageData = await window.electronAPI.portrait.getByPLPO(newPeps);
+            if (imageData) {
+              window.app.portraitCache.set(cacheKey, imageData);
+              console.log(`[PlayerBrowser] Loaded portrait for ${prospectData.firstName} ${prospectData.lastName}: ${cacheKey}`);
+              if (isAgGrid && window.app.draftAgGrid) {
+                window.app.draftAgGrid.refreshCells({ force: true });
+              }
+            }
+          } catch (err) {
+            console.warn(`[PlayerBrowser] Portrait load error for PEPS ${newPeps}:`, err);
+          }
+        }
       }
 
       // Track the player to prevent duplicates
@@ -1109,10 +1176,14 @@
       closeAddToDraftModal();
       alert('Successfully added ' + playerName + ' (' + selectedYear + ') to draft class at ' + roundDisplay + '!');
 
+      // Restore focus after alert is dismissed
+      restoreFocusToSearch();
+
     } catch (error) {
       console.error('[PlayerBrowser] Error adding to draft:', error);
       alert('Failed to add player to draft class: ' + error.message);
       closeAddToDraftModal();
+      restoreFocusToSearch();
     }
   }
 

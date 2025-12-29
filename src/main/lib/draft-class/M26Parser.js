@@ -184,6 +184,9 @@ function parseM26AttributeData(attributeData) {
     // PID (Player ID) - stored at 0x92 as uint16LE
     attributes.PID = attributeData.readUInt16LE(0x92) || 0;  // Confirmed ✓
 
+    // Commentary ID (Presentation ID) - stored at 0x9C as uint16LE (right before assetName)
+    attributes.commentaryId = attributeData.readUInt16LE(0x9C) || 0;
+
     // PEPS (Player Equipment Preset System) - read from binary assetName field at 0x9E (42 bytes)
     // This field stores real player assets like "WilliamsCaleb_14500"
     // Generic assets are stored in visuals.genericHeadName instead

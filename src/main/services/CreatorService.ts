@@ -4845,10 +4845,11 @@ export class CreatorService {
   }
 
   /**
-   * Fill missing ratings with defaults (30 for most, 1 for longSnap if not LS)
+   * Fill missing ratings with defaults (40 for most, 1 for longSnap if not LS)
    * Ensures NO ratings are blank/null/undefined/NaN/0
    */
   private fillMissingRatings(ratings: MaddenRatings, position: string): void {
+    const MIN_RATING = 40;
     // ALL possible rating keys in Madden
     const allRatingKeys: (keyof MaddenRatings)[] = [
       'speed', 'acceleration', 'agility', 'changeOfDirection', 'strength', 'awareness', 'jumping', 'stamina', 'injury', 'toughness',
@@ -4872,11 +4873,11 @@ export class CreatorService {
 
       // Check if value is missing, invalid, or 0
       if (value === undefined || value === null || isNaN(value as number) || value === 0) {
-        // longSnap special case: 1 for non-long snappers, 30 for LS
+        // longSnap special case: 1 for non-long snappers, MIN_RATING for LS
         if (key === 'longSnap') {
-          ratings[key] = (isLongSnapper ? 30 : 1) as any;
+          ratings[key] = (isLongSnapper ? MIN_RATING : 1) as any;
         } else {
-          ratings[key] = 30 as any;
+          ratings[key] = MIN_RATING as any;
         }
       }
     }
@@ -5196,19 +5197,26 @@ export class CreatorService {
       'kickReturn', 'longSnap'
     ];
 
+    // Minimum rating floor for generic attributes
+    const MIN_RATING = 40;
+
     // Apply QB-critical minimums first (with higher ranges)
+    // Handle undefined/null/NaN/0 values AND values below minimum
     for (const [field, range] of Object.entries(qbCriticalFields)) {
-      if (ratings[field] !== undefined && ratings[field] < range.min) {
+      const value = ratings[field];
+      if (value === undefined || value === null || isNaN(value) || value === 0 || value < range.min) {
         // Set to random value within the appropriate range for this attribute
         ratings[field] = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min;
       }
     }
 
     // Apply generic minimums for other fields
+    // Handle undefined/null/NaN/0 values with minimum of 40
     for (const field of genericRatingFields) {
-      if (ratings[field] !== undefined && ratings[field] === 0) {
-        // Random value between 15 and 35
-        ratings[field] = Math.floor(Math.random() * 21) + 15;
+      const value = ratings[field];
+      if (value === undefined || value === null || isNaN(value) || value === 0 || value < MIN_RATING) {
+        // Random value between 40 and 55
+        ratings[field] = Math.floor(Math.random() * 16) + MIN_RATING;
       }
     }
   }
