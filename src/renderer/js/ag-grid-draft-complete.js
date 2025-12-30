@@ -625,7 +625,7 @@ export function createDraftColumnDefs(app, archetypeData = null) {
 
     // Commentary ID
     columnDefs.push({
-        headerName: 'Pres ID',
+        headerName: 'Commentary',
         field: 'commentaryId',
         width: 80,
         editable: true,

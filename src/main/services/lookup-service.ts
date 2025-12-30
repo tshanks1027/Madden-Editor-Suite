@@ -84,6 +84,7 @@ export class LookupService {
   private pidToInternalIdMap: Map<number, number[]> = new Map(); // PID → array of internalIds (handles duplicates)
   private coachCache: Map<number, CoachLookupEntry> = new Map(); // PID → CoachLookupEntry
   private coachByPAMCache: Map<string, CoachLookupEntry> = new Map(); // PAM → CoachLookupEntry
+  private commentaryCache: Map<string, number> = new Map(); // lastName (lowercase) → commentary ID
   private initPromise: Promise<void>;
   private initialized: boolean = false;
 
@@ -140,6 +141,9 @@ export class LookupService {
 
       // Load coach data (still from CSV for now)
       await this.loadCoachLookupFile('Coach_lookup.csv');
+
+      // Load commentary ID lookup data
+      await this.loadCommentaryLookup();
 
       this.initialized = true;
       console.log('Lookup service initialized successfully');
@@ -1367,6 +1371,104 @@ export class LookupService {
 
     if (!row || !row.minYear || !row.maxYear) return null;
     return { minYear: row.minYear, maxYear: row.maxYear };
+  }
+
+  // ========== COMMENTARY ID METHODS ==========
+
+  /**
+   * Load commentary lookup data from CSV
+   * Maps last names to in-game commentary IDs
+   */
+  private async loadCommentaryLookup(): Promise<void> {
+    try {
+      const filePath = this.resolveDataPath('lookups', 'commentary_lookup.csv');
+      if (!fs.existsSync(filePath)) {
+        console.warn('[lookup-service] commentary_lookup.csv not found');
+        return;
+      }
+
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const lines = content.split('\n').filter(line => line.trim());
+
+      // Skip header
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        // Parse CSV line (handle quoted names)
+        let id: number;
+        let name: string;
+
+        if (line.startsWith('"') || line.includes(',"')) {
+          // Handle quoted values
+          const match = line.match(/^(\d+),(.+)$/);
+          if (match) {
+            id = parseInt(match[1]);
+            name = match[2].replace(/^"|"$/g, '').trim();
+          } else {
+            continue;
+          }
+        } else {
+          const parts = line.split(',');
+          if (parts.length < 2) continue;
+          id = parseInt(parts[0]);
+          name = parts.slice(1).join(',').trim();
+        }
+
+        if (!isNaN(id) && name) {
+          this.commentaryCache.set(name.toLowerCase(), id);
+        }
+      }
+
+      console.log(`[lookup-service] Loaded ${this.commentaryCache.size} commentary name mappings`);
+
+      // Debug: log a few samples
+      const samples = Array.from(this.commentaryCache.entries()).slice(0, 5);
+      console.log('[lookup-service] Sample commentary entries:', samples);
+    } catch (error) {
+      console.error('[lookup-service] Error loading commentary lookup:', error);
+    }
+  }
+
+  /**
+   * Get commentary ID for a last name
+   * Tries exact match first, then strips suffixes (Jr., II, etc.)
+   * @param lastName - Player's last name
+   * @returns Commentary ID or null if not found
+   */
+  public getCommentaryId(lastName: string): number | null {
+    if (!lastName) return null;
+
+    const normalizedName = lastName.toLowerCase().trim();
+
+    // Debug: log cache size on first call
+    if (this.commentaryCache.size === 0) {
+      console.warn('[lookup-service] getCommentaryId called but commentaryCache is EMPTY!');
+    }
+
+    // Try exact match first (handles "Smith Jr." if it exists in data)
+    let id = this.commentaryCache.get(normalizedName);
+    if (id !== undefined) return id;
+
+    // Try stripping common suffixes
+    const suffixPattern = /\s+(jr\.?|sr\.?|ii|iii|iv|v)$/i;
+    if (suffixPattern.test(normalizedName)) {
+      const baseName = normalizedName.replace(suffixPattern, '').trim();
+      id = this.commentaryCache.get(baseName);
+      if (id !== undefined) return id;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get all commentary entries (for debugging/display)
+   */
+  public getAllCommentaryEntries(): Array<{ name: string; id: number }> {
+    return Array.from(this.commentaryCache.entries()).map(([name, id]) => ({
+      name,
+      id
+    }));
   }
 }
 

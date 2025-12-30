@@ -369,6 +369,29 @@ class MaddenEditorApp {
             });
         }
 
+        // Fix Commentary button - auto-fills commentary IDs by last name (roster)
+        const fixCommentaryBtn = document.getElementById('fixCommentaryBtn');
+        if (fixCommentaryBtn) {
+            fixCommentaryBtn.addEventListener('click', () => {
+                this.fixCommentary();
+            });
+        }
+
+        // Draft editor buttons
+        const fixDraftFacesBtn = document.getElementById('fixDraftFacesBtn');
+        if (fixDraftFacesBtn) {
+            fixDraftFacesBtn.addEventListener('click', () => {
+                this.fixGenericFaces(); // Same function works for both
+            });
+        }
+
+        const fixDraftCommentaryBtn = document.getElementById('fixDraftCommentaryBtn');
+        if (fixDraftCommentaryBtn) {
+            fixDraftCommentaryBtn.addEventListener('click', () => {
+                this.fixCommentary();
+            });
+        }
+
         // Pagination controls
         document.getElementById('firstPageBtn').addEventListener('click', () => {
             this.firstPage();
@@ -733,10 +756,14 @@ class MaddenEditorApp {
                     this.renderRoster();
                     this.setStatus(`Loaded ${this.players.length} players from ${fileName}`);
 
-                    // Enable Fix Faces button when roster is loaded
+                    // Enable Fix Faces and Fix Commentary buttons when roster is loaded
                     const fixFacesBtn = document.getElementById('fixGenericFacesBtn');
                     if (fixFacesBtn) {
                         fixFacesBtn.style.display = 'inline-flex';
+                    }
+                    const fixCommentaryBtn = document.getElementById('fixCommentaryBtn');
+                    if (fixCommentaryBtn) {
+                        fixCommentaryBtn.style.display = 'inline-flex';
                     }
                 } else {
                     throw new Error(result.error || 'Unknown parsing error');
@@ -4917,6 +4944,102 @@ class MaddenEditorApp {
     }
 
     /**
+     * Fix commentary IDs - looks up commentary ID by last name and fills PCMT field
+     * Uses commentary_lookup.csv to find matching last names.
+     * Works on both ROSTER files and DRAFT CLASS files.
+     */
+    async fixCommentary() {
+        // Determine data source: roster or draft class
+        // For AG-Grid draft, we need to update the grid's row data directly
+        const isDraftAgGrid = this.draftAgGrid && this.currentDraftClass;
+        const isDraftClass = this.currentDraftClass && this.currentDraftClass.prospects && this.currentDraftClass.prospects.length > 0;
+        const isRoster = this.players && this.players.length > 0;
+
+        if (!isDraftClass && !isRoster) {
+            this.showError('No roster or draft class loaded. Please load a file first.');
+            return;
+        }
+
+        // For AG-Grid draft, get data from the grid itself
+        let dataSource;
+        if (isDraftAgGrid) {
+            dataSource = [];
+            this.draftAgGrid.forEachNode(node => {
+                if (node.data) dataSource.push(node.data);
+            });
+        } else {
+            dataSource = isDraftClass ? this.currentDraftClass.prospects : this.players;
+        }
+
+        const dataType = isDraftClass ? 'draft class' : 'roster';
+
+        console.log(`[FixCommentary] Starting commentary ID assignment on ${dataType}...`);
+        console.log(`[FixCommentary] Processing ${dataSource.length} ${isDraftClass ? 'prospects' : 'players'}`);
+
+        let fixedCount = 0;
+        let noMatchFound = 0;
+
+        for (const entry of dataSource) {
+            // Get last name based on data type
+            const lastName = isDraftClass ? entry.lastName : entry.PLNA;
+
+            if (!lastName) {
+                noMatchFound++;
+                continue;
+            }
+
+            // Look up commentary ID by last name
+            try {
+                const commentaryId = await window.electronAPI.lookup.getCommentaryId(lastName);
+
+                // Debug first 5 lookups
+                if (fixedCount + noMatchFound < 5) {
+                    console.log(`[FixCommentary] Lookup "${lastName}" -> ${commentaryId}`);
+                }
+
+                if (commentaryId && commentaryId > 0) {
+                    // Set the commentary ID
+                    if (isDraftClass) {
+                        entry.commentaryId = commentaryId;
+                    } else {
+                        entry.PCMT = commentaryId;
+                    }
+                    fixedCount++;
+
+                    if (fixedCount <= 10) {
+                        console.log(`[FixCommentary] ${lastName} -> commentaryId=${commentaryId}`);
+                    }
+                } else {
+                    noMatchFound++;
+                }
+            } catch (e) {
+                console.warn(`[FixCommentary] Error looking up ${lastName}:`, e);
+                noMatchFound++;
+            }
+        }
+
+        // Refresh the appropriate grid
+        if (isDraftAgGrid) {
+            // AG-Grid draft: refresh cells to show updated commentary IDs
+            this.draftAgGrid.refreshCells({ force: true });
+        } else if (isDraftClass && this.draftGrid) {
+            this.draftGrid.render();
+        } else if (this.hot) {
+            this.hot.render();
+        } else if (this.agGrid) {
+            this.agGrid.refreshCells({ force: true });
+        }
+
+        const saveTarget = isDraftClass ? 'draft class' : 'roster';
+        const msg = `Updated ${fixedCount} ${isDraftClass ? 'prospects' : 'players'} with commentary IDs.\n\n` +
+                    `${noMatchFound} had no matching last name in the lookup.\n\n` +
+                    `SAVE the ${saveTarget} to apply changes!`;
+
+        console.log('[FixCommentary]', msg);
+        alert(msg);
+    }
+
+    /**
      * Reload portraits for the current page of players
      * Used after Fix Faces to show updated generic faces
      */
@@ -5051,6 +5174,8 @@ class MaddenEditorApp {
             document.getElementById('import-draft-csv-btn').disabled = false;
             document.getElementById('fillFromDbDraftBtn').disabled = false;
             document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
+            document.getElementById('fixDraftFacesBtn').disabled = false;
+            document.getElementById('fixDraftCommentaryBtn').disabled = false;
 
             // Create grid (await to ensure it completes)
             await this.createDraftGrid(result.data.prospects);
@@ -5096,6 +5221,8 @@ class MaddenEditorApp {
         document.getElementById('import-draft-csv-btn').disabled = false;
         document.getElementById('fillFromDbDraftBtn').disabled = false;
         document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
+        document.getElementById('fixDraftFacesBtn').disabled = false;
+        document.getElementById('fixDraftCommentaryBtn').disabled = false;
 
         // Create empty grid
         this.createDraftGrid([]);
@@ -8220,6 +8347,8 @@ class MaddenEditorApp {
             document.getElementById('import-draft-csv-btn').disabled = false;
             document.getElementById('fillFromDbDraftBtn').disabled = false;
             document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
+            document.getElementById('fixDraftFacesBtn').disabled = false;
+            document.getElementById('fixDraftCommentaryBtn').disabled = false;
 
             // Pre-calculate round for ALL prospects immediately
             prospects.forEach((prospect, index) => {

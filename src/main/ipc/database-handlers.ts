@@ -565,6 +565,18 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
     console.log('[database-handlers] get-merged-player: playerEdit:', JSON.stringify(playerEdit, null, 2));
     console.log('[database-handlers] get-merged-player: appearanceEdit:', JSON.stringify(appearanceEdit, null, 2));
 
+    // Auto-fill commID from commentary lookup if not already set
+    // Use the merged lastName (playerEdit overrides original)
+    const effectiveLastName = playerEdit?.lastName || original.lastName;
+    let autoFilledCommID: string | undefined;
+    if (!original.commID && !appearanceEdit?.maddenCommid && effectiveLastName) {
+      const commId = lookupService.getCommentaryId(effectiveLastName);
+      if (commId !== null) {
+        autoFilledCommID = String(commId);
+        console.log(`[database-handlers] Auto-filled commID for ${effectiveLastName}: ${commId}`);
+      }
+    }
+
     // Merge edits over original data
     const merged = {
       ...original,
@@ -588,7 +600,9 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       ...(appearanceEdit?.maddenPid !== undefined && { pid: appearanceEdit.maddenPid }),
       ...(appearanceEdit?.maddenPam && { pam: appearanceEdit.maddenPam }),
       ...(appearanceEdit?.maddenPlpo && { plpo: appearanceEdit.maddenPlpo }),
+      // commID priority: user edit > auto-filled from lookup > original
       ...(appearanceEdit?.maddenCommid && { commID: appearanceEdit.maddenCommid }),
+      ...(!appearanceEdit?.maddenCommid && autoFilledCommID && { commID: autoFilledCommID }),
       // Apply PGHE matched set for generic faces
       ...(appearanceEdit?.maddenPghe !== undefined && { pghe: appearanceEdit.maddenPghe }),
       ...(appearanceEdit?.maddenPfcg && { pfcg: appearanceEdit.maddenPfcg }),
