@@ -39,7 +39,7 @@ const TABLE_IDS = {
   teamTable: 637929298,
   draftPickTable: 2546719563,
   scheduleTable: 1395485428,
-  gameTable: 2816609684,
+  gameTable: 1607878349, // SeasonGame table - verified with check-table-ids.js
 
   // Additional useful tables
   playerTable: 432457634,
@@ -1205,6 +1205,8 @@ export class RetroEditorService {
             // Set home and away teams using the binary reference format
             franchiseRecord.HomeTeam = homeTeamRef;
             franchiseRecord.AwayTeam = awayTeamRef;
+            // Reset GameStatus to Unplayed (important: existing slots may have been simmed)
+            franchiseRecord.GameStatus = 'Unplayed';
 
             gamesUpdated++;
 
@@ -1393,6 +1395,8 @@ export class RetroEditorService {
               franchiseRecord.AwayTeam = awayTeamRef;
               // Ensure it's marked as PreSeason (in case it was changed)
               setGameField(franchiseRecord, 'SeasonWeekType', 'PreSeason');
+              // Reset GameStatus to Unplayed (important: existing slots may have been simmed)
+              franchiseRecord.GameStatus = 'Unplayed';
               preseasonGamesApplied++;
               gamesUpdated++;
 
@@ -1580,6 +1584,46 @@ export class RetroEditorService {
     }
 
     console.log(`[RetroEditorService] Total games updated: ${gamesUpdated}`);
+
+    // ====== FIX GAMES WITH BAD TEAM REFERENCE PREFIXES ======
+    // Some high-index game slots (like Hall of Fame games) have team references
+    // with incorrect prefixes from the original Madden file. These cause issues
+    // when Madden tries to resolve the team - fix by marking as Invalid_.
+    console.log(`[RetroEditorService] ====== FIXING BAD TEAM REFERENCES ======`);
+    let badRefGamesFixed = 0;
+    for (const record of gameTable.records) {
+      if (record.isEmpty) continue;
+
+      const homeRef = record.HomeTeam;
+      const awayRef = record.AwayTeam;
+
+      // Check if either team has a wrong prefix
+      const homePrefix = homeRef ? homeRef.slice(0, 24) : null;
+      const awayPrefix = awayRef ? awayRef.slice(0, 24) : null;
+      const nullRef = '000000000000000000000000';
+
+      const homeBad = homePrefix && homePrefix !== teamRefPrefix && homePrefix !== nullRef;
+      const awayBad = awayPrefix && awayPrefix !== teamRefPrefix && awayPrefix !== nullRef;
+
+      if (homeBad || awayBad) {
+        // Mark this game as Invalid_ so Madden skips it
+        record.GameStatus = 'Invalid_';
+        // Also mark as OffSeason to ensure it's not shown in preseason schedule
+        try {
+          setGameField(record, 'SeasonWeekType', 'OffSeason');
+        } catch {
+          // If we can't set OffSeason, Invalid_ status should be enough
+        }
+        badRefGamesFixed++;
+        if (badRefGamesFixed <= 5) {
+          console.log(`[RetroEditorService] Fixed bad ref game at index ${record.index}: home=${homePrefix}, away=${awayPrefix}`);
+        }
+      }
+    }
+    if (badRefGamesFixed > 0) {
+      console.log(`[RetroEditorService] Fixed ${badRefGamesFixed} games with bad team reference prefixes`);
+      warnings.push(`Fixed ${badRefGamesFixed} games with invalid team references`);
+    }
 
     // CRITICAL: Save the franchise file to persist changes!
     console.log(`[RetroEditorService] ====== SAVING FRANCHISE FILE ======`);
@@ -1907,39 +1951,60 @@ export class RetroEditorService {
         console.log(`[RetroEditorService] WARNING: No HC (Position=0) found for ${teamData.teamAbbr}! Available positions: ${teamCoaches.map((c: any) => c.Position).join(', ')}`);
       }
 
-      // Helper to update coach record with portrait lookup
+      // Helper to update coach record with portrait and AssetName lookup
       const updateCoachRecord = (record: any, firstName: string, lastName: string, role: string) => {
         const oldFirst = record.FirstName;
         const oldLast = record.LastName;
+        const oldName = record.Name;
         const oldPortrait = record.Portrait;
+        const oldAssetName = record.AssetName;
 
-        // Update name
+        // Update name fields
         record.FirstName = firstName;
         record.LastName = lastName;
 
-        // Look up coach in our database to see if they have a portrait
-        // Coach_lookup.csv has: LastName,FirstName,PAM,PID
-        // The Portrait field in the franchise file is a numeric PID
-        // If a coach is in our database with a valid PID, use it - they have a portrait in the game
+        // Update the short display name (used by upgrade screen and UI)
+        // Format: "F. LastName" (e.g., "N. Armstrong")
+        if (record.Name !== undefined) {
+          const shortName = `${firstName.charAt(0)}. ${lastName}`;
+          record.Name = shortName;
+          console.log(`[RetroEditorService]   Name: "${oldName}" -> "${shortName}"`);
+        }
+
+        // Look up coach in our database to see if they have a portrait and AssetName
+        // Coach_lookup.csv has: LastName,FirstName,PAM(AssetName),PID
         const coachLookup = lookupService.getCoachByName(lastName, firstName);
 
         if (coachLookup && coachLookup.pid !== undefined && coachLookup.pid >= 0) {
           // Coach found in database with valid PID - use their portrait
-          // The PID is what matters, not the PAM string (many coaches have empty PAM but valid portraits)
           if (record.Portrait !== undefined) {
             record.Portrait = coachLookup.pid;
             console.log(`[RetroEditorService]   Portrait: Using PID ${coachLookup.pid} for ${firstName} ${lastName}`);
           }
+          // If coach has a PAM/AssetName in our database, use it
+          if (coachLookup.pam && record.AssetName !== undefined) {
+            record.AssetName = coachLookup.pam;
+            console.log(`[RetroEditorService]   AssetName: Using "${coachLookup.pam}" for ${firstName} ${lastName}`);
+          }
         } else {
-          // Coach not found in database - use generic face
+          // Coach not found in database - use generic face and generic AssetName
           if (record.Portrait !== undefined) {
             record.Portrait = 9999; // Generic face
             console.log(`[RetroEditorService]   Portrait: Coach ${firstName} ${lastName} not in database, using generic (9999)`);
           }
+          // For historical coaches without a database entry, try clearing AssetName
+          // This may force the game to use FirstName/LastName from the Coach table
+          // The 2011 throwback used custom assets (e.g., "SmithLovie1") which requires FMT
+          if (record.AssetName !== undefined) {
+            // Try setting to empty to force fallback to Coach table names
+            record.AssetName = '';
+            console.log(`[RetroEditorService]   AssetName: Cleared (was "${oldAssetName}") for ${firstName} ${lastName}`);
+          }
         }
 
         coachesUpdated++;
-        console.log(`[RetroEditorService] ${teamData.teamAbbr} ${role}: "${oldFirst} ${oldLast}" -> "${firstName} ${lastName}" (Portrait: ${oldPortrait} -> ${record.Portrait})`);
+        console.log(`[RetroEditorService] ${teamData.teamAbbr} ${role}: "${oldFirst} ${oldLast}" -> "${firstName} ${lastName}"`);
+        console.log(`[RetroEditorService]   Portrait: ${oldPortrait} -> ${record.Portrait}, AssetName: "${oldAssetName}" -> "${record.AssetName}"`);
       };
 
       // Update Head Coach

@@ -4,12 +4,334 @@ This document records solutions to problems that have been solved before. Check 
 
 ## Index
 
+- [Retro Editor Issues](#retro-editor-issues)
 - [M26 Draft Class Save Errors](#m26-draft-class-save-errors)
 - [Data Format Mismatches](#data-format-mismatches)
 - [Display and Rendering Bugs](#display-and-rendering-bugs)
 - [Data Persistence Issues](#data-persistence-issues)
 - [Handsontable Sorting Issues](#handsontable-sorting-issues)
 - [Packaging and Distribution Issues](#packaging-and-distribution-issues)
+
+---
+
+## Retro Editor Issues
+
+### Issue: Game crashes after simming more than one week with historical schedule
+
+**Symptoms:**
+- Apply historical schedule using Retro Editor (e.g., 1990 season)
+- Sim week 1 works fine
+- Sim week 2 or beyond causes Madden to crash
+- Crash happens during simulation, not immediately
+
+**Root Cause:**
+- Historical eras had fewer games per season (14-16 games vs modern 17 games)
+- When applying schedule, extra game slots beyond historical data were set to null team references
+- Code was setting `HomeTeam` and `AwayTeam` to `'00000000000000000000000000000000'`
+- Madden crashes when trying to dereference these null team references during simulation
+
+**Locations in Code:**
+1. `RetroEditorService.ts` lines ~1040-1050: Weeks beyond historical season end
+2. `RetroEditorService.ts` lines ~1090-1100: Extra game slots within a week (when era had fewer games/week)
+
+**Solution:**
+Set `SeasonWeekType` to `PreSeason` (0) for unused game slots. This tells Madden to skip these games during regular season simulation.
+
+```typescript
+// WRONG - causes crash:
+franchiseRecord.HomeTeam = '00000000000000000000000000000000';
+franchiseRecord.AwayTeam = '00000000000000000000000000000000';
+
+// ALSO WRONG - record.empty() doesn't exist in the library:
+if (typeof franchiseRecord.empty === 'function') {
+  franchiseRecord.empty();  // Never runs - method doesn't exist!
+}
+
+// CORRECT - mark as PreSeason so Madden skips during regular season sim:
+setGameField(franchiseRecord, 'SeasonWeekType', SEASON_WEEK_TYPES.PreSeason);
+```
+
+**Prevention:**
+- Never set team references to all-zeros in franchise files
+- Mark unused game slots as PreSeason (SeasonWeekType = 0)
+- Test sim beyond week 1 after any schedule-related changes
+
+**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` method
+
+---
+
+### Issue: Schedule changes not persisting - franchise file not saved
+
+**Symptoms:**
+- Apply historical schedule via Retro Editor
+- Changes appear to succeed (console shows games modified)
+- In-game schedule is unchanged (still shows 18 weeks for 2004)
+- "Nothing fucking changed" after applying schedule
+
+**Root Cause:**
+- `applyHistoricalSchedule()` method modified the franchise object in memory
+- **BUT never called `franchise.save(filePath)` to persist changes**
+- All modifications were thrown away when the method returned
+
+**Solution:**
+```typescript
+// In applyHistoricalSchedule() - ADD save call before return:
+console.log(`[RetroEditorService] Saving franchise file...`);
+await franchise.save(filePath);
+console.log(`[RetroEditorService] Franchise file saved successfully`);
+```
+
+**Prevention:**
+- ALWAYS check that file operations end with a save call
+- Look for pattern: modify data → return (missing save!)
+- Add explicit save logging so it's obvious when save occurs
+
+**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` method, line ~1128
+
+---
+
+### Issue: Schedule shows 18 weeks instead of 17 for pre-2021 seasons
+
+**Symptoms:**
+- 2004 season shows 18 weeks in-game
+- 2011 Throwback mod correctly shows 17 weeks
+- Historical schedule should have 17 weeks (16 games + bye weeks)
+
+**Root Cause:**
+- Madden displays weeks based on max SeasonWeek with RegularSeason type
+- 2011 Throwback uses 0-indexed weeks: Weeks 0-16 = RegularSeason, Week 17 = OffSeason
+- Historical schedule JSON uses 1-indexed: Weeks 1-17
+- Code was mapping Madden Week 17 → Historical Week 17 → RegularSeason games exist
+- Result: max RegularSeason week = 17 → displayed as 18 weeks
+
+**Solution:**
+Shift week numbers by 1 to match 2011 Throwback pattern:
+```typescript
+// Map Madden week to historical week (shift by +1)
+// Madden week 0 = Historical week 1, Madden week 16 = Historical week 17
+const historicalWeekNum = maddenWeekNum + 1;
+
+// For weeks beyond historical season, mark as OffSeason (type 8)
+if (historicalWeekNum > maxHistoricalWeek) {
+  setGameField(franchiseRecord, 'SeasonWeekType', SEASON_WEEK_TYPES.OffSeason);
+}
+```
+
+**Key Values:**
+- SeasonWeekType enum: PreSeason=0, RegularSeason=1, ..., OffSeason=8
+- 2011 Throwback uses OffSeason (8) for Week 17, not PreSeason (0)
+- NflseasonWeekCount in 2011 Throwback = 23 (includes preseason + playoffs)
+
+**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` method
+
+---
+
+### Issue: "name.toLowerCase is not a function" error when setting enum fields
+
+**Symptoms:**
+- Schedule application fails with error: `TypeError: name.toLowerCase is not a function`
+- Error occurs when setting SeasonWeekType or other enum fields
+- Some schedules work (e.g., 2004) while others fail (e.g., 1980)
+
+**Root Cause:**
+The madden-franchise library's `getMemberByName()` function (line 930 in index.cjs) expects a STRING parameter:
+```javascript
+getMemberByName(name) {
+    return this._members.find((member) => {
+        return member.name.toLowerCase() === name.toLowerCase(); // <-- Crashes if name is a number!
+    });
+}
+```
+
+When setting an enum field, the library calls `_getEnumFromValue(value)` which first tries `getMemberByName(value)`. If you pass a NUMERIC value (like `8` for OffSeason), the code does `name.toLowerCase()` where `name` is `8`, which crashes because numbers don't have a `toLowerCase()` method.
+
+**Solution:**
+ALWAYS pass STRING values for enum fields, never numeric values:
+```typescript
+// WRONG - causes crash:
+setGameField(franchiseRecord, 'SeasonWeekType', 8);
+record.SeasonWeekType = 8;
+record.Field_53 = 8;
+
+// CORRECT - use string enum names:
+setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
+record.SeasonWeekType = 'OffSeason';
+record.Field_53 = 'OffSeason';  // Even for generic fields!
+```
+
+The library will correctly look up the enum member by name and convert it to the binary representation.
+
+**Prevention:**
+- Always use string enum values when setting fields in franchise files
+- In `setGameField` function, convert numeric values to string names before passing to the record
+- Add type checking/conversion for all enum-type fields
+
+**Fixed In:** RetroEditorService.ts `setGameField()` function - now converts numeric values to string enum names
+
+---
+
+### Issue: Preseason schedule not being applied - week number mismatch
+
+**Symptoms:**
+- Apply historical schedule with preseason games
+- Regular season applies correctly
+- Console shows "No franchise preseason slots for week 1, 2, 3, 4"
+- Preseason games unchanged in franchise file
+
+**Root Cause:**
+- Historical schedule JSON uses 1-indexed weeks (1, 2, 3, 4 for preseason)
+- Madden franchise file uses 0-indexed weeks (0, 1, 2, 3 for preseason)
+- Code was looking up `franchisePreseasonByWeek.get(1)` but Madden stores it as week 0
+
+**Solution:**
+```typescript
+// Convert historical week (1-based) to Madden week (0-based)
+const maddenWeekNum = historicalWeekNum - 1;
+const franchiseGames = franchisePreseasonByWeek.get(maddenWeekNum);
+```
+
+**Key Pattern:**
+- Same pattern as regular season: `const historicalWeekNum = maddenWeekNum + 1`
+- For lookup: `maddenWeekNum = historicalWeekNum - 1`
+- Both preseason and regular season use 0-indexed weeks in Madden
+
+**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` preseason section
+
+---
+
+### Issue: Schedule not applied - wrong TABLE_IDS.gameTable
+
+**Symptoms:**
+- Apply historical schedule via Retro Editor
+- Console shows "Could not find SeasonGame table!" or falls back to getTableByName
+- Schedule appears unchanged in game
+- Team abbreviations show as numbers in schedule screen
+
+**Root Cause:**
+TABLE_IDS.gameTable was set to wrong value:
+- **WRONG:** 2816609684 (doesn't exist in M26 franchise files)
+- **CORRECT:** 1607878349 (actual SeasonGame table uniqueId)
+
+The code fell back to `getTableByName('SeasonGame')` which does return the correct table, but other issues in the team mapping caused incorrect schedule application.
+
+**Solution:**
+```typescript
+// In RetroEditorService.ts TABLE_IDS:
+const TABLE_IDS = {
+  // ...
+  gameTable: 1607878349, // SeasonGame table - verified with check-table-ids.js
+  // ...
+};
+```
+
+**How to verify table IDs:**
+```javascript
+// Run this to check actual table IDs in a franchise file:
+const gameTable = franchise.getTableByName('SeasonGame');
+console.log('SeasonGame uniqueId:', gameTable.header?.uniqueId);
+```
+
+**Prevention:**
+- Always verify TABLE_IDS match actual franchise file tables before using them
+- Add logging when table lookup falls back to getTableByName
+- Create verification script: `check-table-ids.js`
+
+**Fixed In:** RetroEditorService.ts line 42 (TABLE_IDS.gameTable)
+
+---
+
+### Issue: Week skipping in franchise - simmed 1 week, jumped to 3
+
+**Symptoms:**
+- Apply historical schedule using Retro Editor
+- Start franchise mode and sim 1 week
+- Game skips multiple weeks (e.g., sim week 1, lands on week 3)
+- Or weeks complete instantly without proper simulation
+
+**Root Cause:**
+- When applying a schedule to existing game slots, the GameStatus field was NOT being reset
+- Old game slots may have GameStatus = "HomeWon" or "AwayWon" from previous simulations
+- Madden sees these games as already completed and skips to the next unplayed week
+- The RetroEditorService was updating HomeTeam, AwayTeam, SeasonWeekType but NOT GameStatus
+
+**Locations in Code:**
+1. `RetroEditorService.ts` line ~1207-1209: Regular season game application
+2. `RetroEditorService.ts` line ~1396-1397: Preseason game application
+
+**Solution:**
+```typescript
+// When applying a game, ALWAYS reset GameStatus to 'Unplayed'
+franchiseRecord.HomeTeam = homeTeamRef;
+franchiseRecord.AwayTeam = awayTeamRef;
+setGameField(franchiseRecord, 'SeasonWeekType', 'RegularSeason');
+// ADD THIS LINE - critical for proper week progression:
+franchiseRecord.GameStatus = 'Unplayed';
+```
+
+**GameStatus Valid Values:**
+- `'Unplayed'` - Game hasn't been simmed yet (what we want for new schedule)
+- `'HomeWon'` - Home team won (simmed game)
+- `'AwayWon'` - Away team won (simmed game)
+- `'Invalid_'` - Cancelled/invalid game (e.g., Hall of Fame game)
+- `'Unscheduled'` - Slot not used
+
+**Prevention:**
+- When modifying any game records, always consider GameStatus
+- Test by checking week structure before/after: `check-week-state.js`
+- Compare with working 2011 Throwback file structure
+
+**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` method - lines 1208-1209, 1396-1397
+
+---
+
+### Issue: User stuck on wrong team during preseason (e.g., Raiders instead of Cowboys)
+
+**Symptoms:**
+- User selects Cowboys as their team
+- When pressing "Play Game" in preseason, game shows Raiders game instead
+- After simming through preseason, regular season works correctly
+- Happens on fresh franchise files, not just retro-edited ones
+
+**Root Cause:**
+High-index game slots (around idx 344-355) are "Hall of Fame" type games that have:
+1. The user's team set as HomeTeam (correctly)
+2. AwayTeam with an **incorrect team reference prefix** (e.g., `001001110000100000000000` instead of `001011100011101000000000`)
+
+These games have SeasonGameNum=0 (first game of week) and SeasonWeekType=PreSeason, so Madden selects them as the game to play. But the broken AwayTeam reference causes the game to display incorrectly or fall back to a different game.
+
+**Example of bad game:**
+```
+idx=344: SF @ DAL (USER HOME)
+  HomeTeam: 00101110001110100000000000001110 (prefix correct, DAL)
+  AwayTeam: 00100111000010000000000000000000 (prefix WRONG!)
+  SeasonGameNum: 0
+  SeasonWeekType: PreSeason
+  GameStatus: Unplayed
+```
+
+**Solution:**
+Find all games where team reference prefix doesn't match the file's correct prefix (from FranchiseUser.Team), and mark them as Invalid_/OffSeason:
+
+```typescript
+const homePrefix = record.HomeTeam?.slice(0, 24);
+const awayPrefix = record.AwayTeam?.slice(0, 24);
+const nullRef = '000000000000000000000000';
+
+const homeBad = homePrefix && homePrefix !== correctPrefix && homePrefix !== nullRef;
+const awayBad = awayPrefix && awayPrefix !== correctPrefix && awayPrefix !== nullRef;
+
+if (homeBad || awayBad) {
+  record.GameStatus = 'Invalid_';
+  record.SeasonWeekType = 'OffSeason';
+}
+```
+
+**Prevention:**
+- The RetroEditorService now automatically fixes bad team reference prefixes when applying schedules
+- Always verify team reference prefixes match before saving franchise files
+- Test script: `check-high-index-games.js`
+
+**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` method - added bad team ref detection
 
 ---
 
