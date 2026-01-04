@@ -64,7 +64,7 @@ const SEASON_GAME_FIELD_MAPPING = {
   DayOfWeek: 'Field_13',
 };
 
-// SeasonWeekType enum values
+// SeasonWeekType enum values (from M26 schema)
 const SEASON_WEEK_TYPES = {
   PreSeason: 0,
   RegularSeason: 1,
@@ -72,6 +72,9 @@ const SEASON_WEEK_TYPES = {
   Divisional: 3,
   Conference: 4,
   SuperBowl: 5,
+  ProBowl: 6,
+  PostSeason: 7,
+  OffSeason: 8,  // Used for weeks beyond regular season end
 };
 
 /**
@@ -90,14 +93,87 @@ function getGameField(record: any, fieldName: keyof typeof SEASON_GAME_FIELD_MAP
 
 /**
  * Set a field value on a record, using both the named field and the generic Field_X name
+ *
+ * IMPORTANT: For enum fields like SeasonWeekType, the madden-franchise library's
+ * getMemberByName() function expects a STRING value, not a number. When you pass
+ * a number like 8, the library does name.toLowerCase() which fails.
+ *
+ * Solution: ALWAYS pass STRING values for enum fields. The library will look up
+ * the enum member by name and convert to the correct binary representation.
  */
 function setGameField(record: any, fieldName: keyof typeof SEASON_GAME_FIELD_MAPPING, value: any): void {
-  // Try to set via named field first
+  const genericName = SEASON_GAME_FIELD_MAPPING[fieldName];
+
+  // For SeasonWeekType, we need special handling due to madden-franchise library quirks
+  // The library's getMemberByName() crashes when passed a number (it calls .toLowerCase() on it)
+  if (fieldName === 'SeasonWeekType') {
+    const weekTypeReverseMap: Record<number, string> = {
+      0: 'PreSeason',
+      1: 'RegularSeason',
+      2: 'WildCard',
+      3: 'Divisional',
+      4: 'Conference',
+      5: 'SuperBowl',
+      6: 'ProBowl',
+      7: 'PostSeason',
+      8: 'OffSeason',
+    };
+
+    // Convert numeric value to string if needed
+    let stringValue: string;
+    if (typeof value === 'number') {
+      stringValue = weekTypeReverseMap[value] || 'PreSeason';
+    } else if (typeof value === 'string') {
+      stringValue = value;
+    } else {
+      stringValue = 'PreSeason';
+    }
+
+    console.log(`[setGameField] Setting SeasonWeekType: input=${value} (${typeof value}), stringValue="${stringValue}"`);
+
+    // Try multiple approaches in order of preference:
+    let success = false;
+
+    // Approach 1: Try setting the NAMED field with string value
+    if (!success) {
+      try {
+        if (record[fieldName] !== undefined) {
+          console.log(`[setGameField] Approach 1: Setting ${fieldName} = "${stringValue}"`);
+          record[fieldName] = stringValue;
+          console.log(`[setGameField] Approach 1 SUCCESS: ${fieldName} set to "${stringValue}"`);
+          success = true;
+        }
+      } catch (err: any) {
+        console.log(`[setGameField] Approach 1 FAILED: ${err.message}`);
+      }
+    }
+
+    // Approach 2: Try setting the GENERIC field with string value
+    if (!success) {
+      try {
+        if (record[genericName] !== undefined) {
+          console.log(`[setGameField] Approach 2: Setting ${genericName} = "${stringValue}"`);
+          record[genericName] = stringValue;
+          console.log(`[setGameField] Approach 2 SUCCESS: ${genericName} set to "${stringValue}"`);
+          success = true;
+        }
+      } catch (err: any) {
+        console.log(`[setGameField] Approach 2 FAILED: ${err.message}`);
+      }
+    }
+
+    // Approach 3: Just skip it - the schedule might still work without OffSeason marking
+    if (!success) {
+      console.warn(`[setGameField] All approaches failed for SeasonWeekType - skipping (schedule may have extra games)`);
+    }
+
+    return;
+  }
+
+  // For other fields, set both named and generic
   if (record[fieldName] !== undefined) {
     record[fieldName] = value;
   }
-  // Also set via generic field name to ensure it's written
-  const genericName = SEASON_GAME_FIELD_MAPPING[fieldName];
   if (record[genericName] !== undefined) {
     record[genericName] = value;
   }
@@ -423,7 +499,7 @@ export class RetroEditorService {
   }
 
   /**
-   * Set the season year, calendar year, and Super Bowl number
+   * Set the season year, calendar year, Super Bowl number, and regular season week count
    */
   async setSeasonYear(filePath: string, year: number): Promise<void> {
     const franchise = this.franchiseInstances.get(filePath);
@@ -439,6 +515,17 @@ export class RetroEditorService {
 
     // Get Super Bowl number for this year
     const superBowlNumber = this.superBowlMapping[year.toString()] || 1;
+
+    // Get regular season week count for this era
+    const { scheduleService } = await import('./ScheduleService');
+    await scheduleService.initialize();
+    const era = scheduleService.getSeasonEra(year);
+    // regularSeasonWeeks: how many weeks of regular season games
+    // Pre-1990 (no byes): 16 weeks for 16 games
+    // 1990-2020 (with byes): 17 weeks for 16 games
+    // 2021+ (17-game season): 18 weeks for 17 games
+    const regularSeasonWeeks = era?.regularSeasonWeeks || (era?.byeWeeks ? 17 : era?.seasonLength || 18);
+    console.log(`[RetroEditorService] Era for ${year}: ${era?.seasonLength} games, ${regularSeasonWeeks} regular season weeks, byes: ${era?.byeWeeks}`);
 
     // Update season info fields
     // Note: Field names may vary - try multiple common names
@@ -461,7 +548,14 @@ export class RetroEditorService {
       seasonRecord.BaseSuperBowlNumber = superBowlNumber;
     }
 
-    console.log(`[RetroEditorService] Set season year to ${year}, Super Bowl ${superBowlNumber}`);
+    // Set the regular season week count - critical for historical seasons!
+    // This tells Madden how many weeks of regular season games to expect
+    if ('NflseasonWeekCount' in seasonRecord) {
+      seasonRecord.NflseasonWeekCount = regularSeasonWeeks;
+      console.log(`[RetroEditorService] Set NflseasonWeekCount = ${regularSeasonWeeks}`);
+    }
+
+    console.log(`[RetroEditorService] Set season year to ${year}, Super Bowl ${superBowlNumber}, weeks ${regularSeasonWeeks}`);
   }
 
   /**
@@ -874,6 +968,26 @@ export class RetroEditorService {
 
     console.log(`[RetroEditorService] Applying schedule for year ${year}: ${schedule.games.length} games`);
 
+    // Update SeasonInfo with correct regular season week count for this era
+    // This is critical - tells Madden how many weeks of regular season to expect
+    const era = scheduleService.getSeasonEra(year);
+    const regularSeasonWeeks = schedule.regularSeasonWeeks || era?.regularSeasonWeeks || (era?.byeWeeks ? 17 : era?.seasonLength || 18);
+    console.log(`[RetroEditorService] Setting NflseasonWeekCount = ${regularSeasonWeeks} for year ${year}`);
+
+    const seasonInfoTable = franchise.getTableByUniqueId(TABLE_IDS.seasonInfoTable);
+    if (seasonInfoTable) {
+      await seasonInfoTable.readRecords();
+      const seasonRecord = seasonInfoTable.records[0];
+      if (seasonRecord && 'NflseasonWeekCount' in seasonRecord) {
+        seasonRecord.NflseasonWeekCount = regularSeasonWeeks;
+        console.log(`[RetroEditorService] Successfully set NflseasonWeekCount = ${regularSeasonWeeks}`);
+      } else {
+        console.warn('[RetroEditorService] NflseasonWeekCount field not found in SeasonInfo');
+      }
+    } else {
+      console.warn('[RetroEditorService] SeasonInfo table not found');
+    }
+
     // Get the Team table and build TeamIndex → RecordIndex mapping
     let teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
     if (!teamTable) {
@@ -920,6 +1034,19 @@ export class RetroEditorService {
     await gameTable.readRecords();
     console.log(`[RetroEditorService] Found ${gameTable.records.length} game records`);
 
+    // Debug: Count games by week type
+    const weekTypeCounts: Record<string, number> = {};
+    let nonEmptyCount = 0;
+    for (const record of gameTable.records) {
+      if (record.isEmpty) continue;
+      nonEmptyCount++;
+      const weekType = getGameField(record, 'SeasonWeekType');
+      const typeKey = String(weekType);
+      weekTypeCounts[typeKey] = (weekTypeCounts[typeKey] || 0) + 1;
+    }
+    console.log(`[RetroEditorService] Non-empty game records: ${nonEmptyCount}`);
+    console.log(`[RetroEditorService] Games by SeasonWeekType:`, weekTypeCounts);
+
     // Find the reference prefix from an existing game record with teams assigned
     // Format: prefix (24 bits) + record index (8 bits) = 32-bit binary string
     let teamRefPrefix = '001011100011101000000000'; // Default prefix for Team table references
@@ -950,17 +1077,25 @@ export class RetroEditorService {
 
     // Group schedule games by week for easier matching
     const gamesByWeek = new Map<number, typeof schedule.games>();
-    for (const game of schedule.games) {
-      // Only include regular season games (weekType === 'regular')
-      if (game.weekType !== 'regular') continue;
+    // Separate regular season and preseason games
+    const preseasonByWeek = new Map<number, typeof schedule.games>();
 
-      if (!gamesByWeek.has(game.week)) {
-        gamesByWeek.set(game.week, []);
+    for (const game of schedule.games) {
+      if (game.weekType === 'preseason') {
+        if (!preseasonByWeek.has(game.week)) {
+          preseasonByWeek.set(game.week, []);
+        }
+        preseasonByWeek.get(game.week)!.push(game);
+      } else if (game.weekType === 'regular') {
+        if (!gamesByWeek.has(game.week)) {
+          gamesByWeek.set(game.week, []);
+        }
+        gamesByWeek.get(game.week)!.push(game);
       }
-      gamesByWeek.get(game.week)!.push(game);
     }
 
     console.log(`[RetroEditorService] Schedule has ${gamesByWeek.size} weeks of regular season games`);
+    console.log(`[RetroEditorService] Schedule has ${preseasonByWeek.size} weeks of preseason games`);
 
     // Group franchise game records by week
     // IMPORTANT: Madden has Week 0 RegularSeason slots that may need special handling.
@@ -997,113 +1132,478 @@ export class RetroEditorService {
     console.log(`[RetroEditorService] Franchise file has ${franchiseGamesByWeek.size} weeks of regular season game slots`);
     console.log(`[RetroEditorService] Has Week 0 RegularSeason: ${hasWeek0RegularSeason} (${week0Count} games)`);
 
-    // Handle Week 0 specially: fill with Week 1 games (may be placeholder/kickoff slots)
-    // For historical seasons, Week 0 didn't exist, so we use Week 1 data
-    if (hasWeek0RegularSeason && gamesByWeek.has(1)) {
-      const week0Slots = franchiseGamesByWeek.get(0) || [];
-      const week1HistoricalGames = gamesByWeek.get(1) || [];
-
-      console.log(`[RetroEditorService] Filling ${week0Slots.length} Week 0 slots with Week 1 historical games`);
-
-      // Fill Week 0 slots with games from Week 1 historical data
-      // Use different games than what we'll put in Week 1 if possible, or duplicate if needed
-      for (let i = 0; i < week0Slots.length && i < week1HistoricalGames.length; i++) {
-        const franchiseRecord = week0Slots[i];
-        const historicalGame = week1HistoricalGames[i];
-
-        const homeTeamRef = createTeamRef(historicalGame.homeTeamIndex);
-        const awayTeamRef = createTeamRef(historicalGame.awayTeamIndex);
-
-        franchiseRecord.HomeTeam = homeTeamRef;
-        franchiseRecord.AwayTeam = awayTeamRef;
-        gamesUpdated++;
-      }
-    }
+    // NOTE: Week 0 is now handled in the main loop below via the week shift mapping
+    // (Madden Week 0 → Historical Week 1)
 
     // Get max historical week number for this schedule
     const maxHistoricalWeek = Math.max(...gamesByWeek.keys());
     console.log(`[RetroEditorService] Historical schedule max week: ${maxHistoricalWeek}`);
 
-    // Now assign historical games to franchise game slots (Week 1+)
+    // Now assign historical games to franchise game slots
+    // IMPORTANT: 2011 Throwback uses 0-indexed weeks (Week 0-16 for 17-week season)
+    // Our historical schedules use 1-indexed (Week 1-17)
+    // So: Madden Week 0 → Historical Week 1, Madden Week 16 → Historical Week 17
+    console.log(`[RetroEditorService] ====== WEEK MAPPING ======`);
+    const sortedWeeks = [...franchiseGamesByWeek.keys()].sort((a, b) => a - b);
+    console.log(`[RetroEditorService] Madden weeks with RegularSeason games: ${sortedWeeks.join(', ')}`);
+    console.log(`[RetroEditorService] Historical weeks available: ${[...gamesByWeek.keys()].sort((a, b) => a - b).join(', ')}`);
+
     for (const [maddenWeekNum, franchiseGames] of franchiseGamesByWeek) {
-      // Skip Week 0 - already handled above
-      if (maddenWeekNum === 0) continue;
+      try {
+        // Map Madden week to historical week (shift by +1)
+        // Madden week 0 = Historical week 1, Madden week 16 = Historical week 17
+        const historicalWeekNum = maddenWeekNum + 1;
+        const historicalGames = gamesByWeek.get(historicalWeekNum);
 
-      // Historical week = Madden week (direct mapping for Week 1+)
-      const historicalGames = gamesByWeek.get(maddenWeekNum);
-
-      if (!historicalGames || historicalGames.length === 0) {
-        // No historical games for this week - this can happen for:
-        // 1. Week 17+ in pre-17-game eras (1978-2020)
-        // 2. Week 18 in pre-18-week eras
-        // Clear all slots for this week by setting teams to null reference
-        if (maddenWeekNum > maxHistoricalWeek) {
-          warnings.push(`Week ${maddenWeekNum}: No historical games (beyond season end), clearing ${franchiseGames.length} slots`);
-          for (let i = 0; i < franchiseGames.length; i++) {
-            const franchiseRecord = franchiseGames[i];
-            franchiseRecord.HomeTeam = '00000000000000000000000000000000';
-            franchiseRecord.AwayTeam = '00000000000000000000000000000000';
-            gamesUpdated++;
+        if (!historicalGames || historicalGames.length === 0) {
+          // No historical games for this week - this happens when:
+          // - Madden week >= maxHistoricalWeek (e.g., Madden week 17+ for 17-week seasons)
+          // FIX: Set SeasonWeekType to OffSeason (8) so Madden skips these games
+          // The 2011 Throwback mod uses OffSeason for weeks beyond the regular season
+          if (historicalWeekNum > maxHistoricalWeek) {
+            console.log(`[RetroEditorService] >>> Madden Week ${maddenWeekNum} → Historical Week ${historicalWeekNum} BEYOND SEASON END (max=${maxHistoricalWeek})`);
+            console.log(`[RetroEditorService] >>> Marking ${franchiseGames.length} games as OffSeason`);
+            warnings.push(`Week ${maddenWeekNum}: No historical games (historical week ${historicalWeekNum} beyond season end), marking ${franchiseGames.length} slots as OffSeason`);
+            for (let i = 0; i < franchiseGames.length; i++) {
+              try {
+                const franchiseRecord = franchiseGames[i];
+                // Mark as OffSeason so Madden won't try to simulate during regular season
+                // (2011 Throwback uses OffSeason=8 for weeks beyond regular season)
+                // Use string enum value - madden-franchise expects "OffSeason" not 8
+                setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
+                gamesUpdated++;
+              } catch (gameErr: any) {
+                console.error(`[RetroEditorService] Error marking game ${i} in week ${maddenWeekNum} as OffSeason:`, gameErr.message);
+                console.error(`[RetroEditorService] Error stack:`, gameErr.stack);
+                throw gameErr;
+              }
+            }
+          } else {
+            warnings.push(`No historical games for week ${maddenWeekNum}`);
           }
-        } else {
-          warnings.push(`No historical games for week ${maddenWeekNum}`);
+          continue;
         }
-        continue;
-      }
 
-      // We have franchiseGames.length game slots and historicalGames.length games to assign
-      // Typically these should match (16 games per week in modern NFL)
-      // But 28-team eras have only 14 games per week
-      if (franchiseGames.length !== historicalGames.length) {
-        warnings.push(`Week ${maddenWeekNum}: ${franchiseGames.length} game slots vs ${historicalGames.length} historical games`);
-      }
-
-      // Assign games to slots
-      const gamesThisWeek = Math.min(franchiseGames.length, historicalGames.length);
-      for (let i = 0; i < gamesThisWeek; i++) {
-        const franchiseRecord = franchiseGames[i];
-        const historicalGame = historicalGames[i];
-
-        // Create team references from TeamIndex values
-        const homeTeamRef = createTeamRef(historicalGame.homeTeamIndex);
-        const awayTeamRef = createTeamRef(historicalGame.awayTeamIndex);
-
-        // Set home and away teams using the binary reference format
-        franchiseRecord.HomeTeam = homeTeamRef;
-        franchiseRecord.AwayTeam = awayTeamRef;
-
-        gamesUpdated++;
-
-        // Log first few updates for debugging
-        if (gamesUpdated <= 3) {
-          console.log(`[RetroEditorService] Week ${maddenWeekNum} Game ${i+1}: ${historicalGame.awayTeam} @ ${historicalGame.homeTeam}`);
-          console.log(`  HomeTeam ref: ${homeTeamRef} (TeamIndex ${historicalGame.homeTeamIndex})`);
-          console.log(`  AwayTeam ref: ${awayTeamRef} (TeamIndex ${historicalGame.awayTeamIndex})`);
+        // We have franchiseGames.length game slots and historicalGames.length games to assign
+        // Typically these should match (16 games per week in modern NFL)
+        // But 28-team eras have only 14 games per week
+        if (franchiseGames.length !== historicalGames.length) {
+          warnings.push(`Week ${maddenWeekNum}: ${franchiseGames.length} game slots vs ${historicalGames.length} historical games`);
         }
-      }
 
-      // Handle extra game slots when historical has fewer games (e.g., 28-team era with 14 games/week)
-      // Clear extra slots by setting teams to null reference (all zeros)
-      if (franchiseGames.length > historicalGames.length) {
-        const extraCount = franchiseGames.length - historicalGames.length;
-        console.log(`[RetroEditorService] Week ${maddenWeekNum}: Clearing ${extraCount} extra slots`);
-        warnings.push(`Week ${maddenWeekNum}: ${extraCount} extra slots cleared (historical had ${historicalGames.length} games)`);
-        for (let i = historicalGames.length; i < franchiseGames.length; i++) {
-          const franchiseRecord = franchiseGames[i];
-          // Set to null/empty team reference
-          franchiseRecord.HomeTeam = '00000000000000000000000000000000';
-          franchiseRecord.AwayTeam = '00000000000000000000000000000000';
-          gamesUpdated++;
+        // Assign games to slots
+        const gamesThisWeek = Math.min(franchiseGames.length, historicalGames.length);
+        for (let i = 0; i < gamesThisWeek; i++) {
+          try {
+            const franchiseRecord = franchiseGames[i];
+            const historicalGame = historicalGames[i];
+
+            // Create team references from TeamIndex values
+            const homeTeamRef = createTeamRef(historicalGame.homeTeamIndex);
+            const awayTeamRef = createTeamRef(historicalGame.awayTeamIndex);
+
+            // Set home and away teams using the binary reference format
+            franchiseRecord.HomeTeam = homeTeamRef;
+            franchiseRecord.AwayTeam = awayTeamRef;
+
+            gamesUpdated++;
+
+            // Log first few updates for debugging
+            if (gamesUpdated <= 3) {
+              console.log(`[RetroEditorService] Week ${maddenWeekNum} Game ${i+1}: ${historicalGame.awayTeam} @ ${historicalGame.homeTeam}`);
+              console.log(`  HomeTeam ref: ${homeTeamRef} (TeamIndex ${historicalGame.homeTeamIndex})`);
+              console.log(`  AwayTeam ref: ${awayTeamRef} (TeamIndex ${historicalGame.awayTeamIndex})`);
+            }
+          } catch (gameErr: any) {
+            console.error(`[RetroEditorService] Error setting game ${i} in week ${maddenWeekNum}:`, gameErr.message);
+            console.error(`[RetroEditorService] Error stack:`, gameErr.stack);
+            throw gameErr;
+          }
         }
+
+        // Handle extra game slots when historical has fewer games (e.g., 28-team era with 14 games/week)
+        // FIX: Set SeasonWeekType to OffSeason so Madden skips these games during regular season sim
+        if (franchiseGames.length > historicalGames.length) {
+          const extraCount = franchiseGames.length - historicalGames.length;
+          console.log(`[RetroEditorService] Week ${maddenWeekNum}: Marking ${extraCount} extra slots as OffSeason (historical had ${historicalGames.length} games)`);
+          warnings.push(`Week ${maddenWeekNum}: ${extraCount} extra slots marked as OffSeason (historical had ${historicalGames.length} games)`);
+          for (let i = historicalGames.length; i < franchiseGames.length; i++) {
+            try {
+              const franchiseRecord = franchiseGames[i];
+              // Mark as OffSeason so Madden won't try to simulate during regular season
+              // Use string enum value - madden-franchise expects "OffSeason" not 8
+              setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
+              gamesUpdated++;
+            } catch (gameErr: any) {
+              console.error(`[RetroEditorService] Error marking extra slot ${i} in week ${maddenWeekNum} as OffSeason:`, gameErr.message);
+              console.error(`[RetroEditorService] Error stack:`, gameErr.stack);
+              throw gameErr;
+            }
+          }
+        }
+      } catch (weekErr: any) {
+        console.error(`[RetroEditorService] Error processing week ${maddenWeekNum}:`, weekErr.message);
+        throw weekErr;
       }
     }
 
-    console.log(`[RetroEditorService] Updated ${gamesUpdated} games`);
+    console.log(`[RetroEditorService] Updated ${gamesUpdated} regular season games`);
+
+    // ====== APPLY HISTORICAL PRESEASON SCHEDULE ======
+    // SIMPLIFIED APPROACH: Don't sort slots by current teams - just apply historical games directly
+    // The current team matchups in M26 are irrelevant; we're replacing them entirely.
+    let preseasonGamesApplied = 0;
+    if (preseasonByWeek.size > 0) {
+      console.log(`[RetroEditorService] ====== APPLYING PRESEASON SCHEDULE ======`);
+
+      // Determine inactive teams for this year (for diagnostic purposes)
+      const inactiveTeams = new Set<number>();
+      for (const team of this.expansionHistory) {
+        if (team.year > year) {
+          inactiveTeams.add(team.teamIndex);
+        }
+      }
+      if (year >= 1996 && year <= 1998) {
+        inactiveTeams.add(4); // Browns 1996-1998
+      }
+      console.log(`[RetroEditorService] Inactive teams for ${year}: ${[...inactiveTeams].join(', ')}`);
+
+      // Collect ALL franchise preseason game records by week (don't filter by current teams!)
+      const franchisePreseasonByWeek = new Map<number, any[]>();
+
+      for (const record of gameTable.records) {
+        if (record.isEmpty) continue;
+
+        const weekType = getGameField(record, 'SeasonWeekType');
+        const isPreseason = weekType === 0 || weekType === SEASON_WEEK_TYPES.PreSeason || weekType === 'PreSeason';
+        if (!isPreseason) continue;
+
+        const weekNum = getGameField(record, 'SeasonWeek');
+        if (weekNum === undefined || weekNum === null) continue;
+
+        if (!franchisePreseasonByWeek.has(weekNum)) {
+          franchisePreseasonByWeek.set(weekNum, []);
+        }
+        franchisePreseasonByWeek.get(weekNum)!.push(record);
+      }
+
+      const franchisePreseasonWeeks = [...franchisePreseasonByWeek.keys()].sort((a, b) => a - b);
+      const historicalPreseasonWeeks = [...preseasonByWeek.keys()].sort((a, b) => a - b);
+
+      console.log(`[RetroEditorService] Franchise preseason weeks: ${franchisePreseasonWeeks.join(', ')}`);
+      console.log(`[RetroEditorService] Slots per week: ${franchisePreseasonWeeks.map(w => `W${w}=${franchisePreseasonByWeek.get(w)?.length || 0}`).join(', ')}`);
+      console.log(`[RetroEditorService] Historical preseason weeks: ${historicalPreseasonWeeks.join(', ')}`);
+      console.log(`[RetroEditorService] Historical games per week: ${historicalPreseasonWeeks.map(w => `W${w}=${preseasonByWeek.get(w)?.length || 0}`).join(', ')}`);
+
+      // Determine week offset: Historical uses 1-indexed (1,2,3,4), Madden might use 0-indexed (0,1,2,3)
+      let weekOffset = 0;
+      if (franchisePreseasonWeeks.includes(0) && !franchisePreseasonWeeks.includes(4)) {
+        weekOffset = -1; // Madden uses 0,1,2,3 so historical 1 -> Madden 0
+        console.log(`[RetroEditorService] Detected 0-indexed Madden weeks, using offset ${weekOffset}`);
+      } else if (franchisePreseasonWeeks.includes(1) && franchisePreseasonWeeks.includes(4)) {
+        weekOffset = 0; // Madden uses 1,2,3,4 directly
+        console.log(`[RetroEditorService] Detected 1-indexed Madden weeks, using offset ${weekOffset}`);
+      } else {
+        console.log(`[RetroEditorService] Week indexing unclear, will try both approaches`);
+      }
+
+      // CRITICAL: Madden 26 only has 3 preseason weeks (0,1,2) but historical years had 4 weeks
+      // We need to convert OffSeason slots to PreSeason for week 3 if needed
+      const offSeasonSlots: any[] = [];
+      for (const record of gameTable.records) {
+        if (record.isEmpty) continue;
+        const weekType = getGameField(record, 'SeasonWeekType');
+        const isOffSeason = weekType === 8 || weekType === 'OffSeason';
+        if (isOffSeason) {
+          offSeasonSlots.push(record);
+        }
+      }
+      console.log(`[RetroEditorService] Found ${offSeasonSlots.length} OffSeason slots available for conversion`);
+
+      // Apply historical preseason games
+      for (const [historicalWeekNum, historicalGames] of preseasonByWeek) {
+        // Try to find matching franchise week
+        let maddenWeekNum = historicalWeekNum + weekOffset;
+        let franchiseSlots = franchisePreseasonByWeek.get(maddenWeekNum);
+
+        // If not found with offset, try direct match
+        if (!franchiseSlots && weekOffset !== 0) {
+          franchiseSlots = franchisePreseasonByWeek.get(historicalWeekNum);
+          if (franchiseSlots) {
+            maddenWeekNum = historicalWeekNum;
+            console.log(`[RetroEditorService] Using direct match for week ${historicalWeekNum}`);
+          }
+        }
+
+        // If still no slots, convert OffSeason slots to PreSeason for this week
+        if ((!franchiseSlots || franchiseSlots.length === 0) && offSeasonSlots.length >= historicalGames.length) {
+          console.log(`[RetroEditorService] Converting ${historicalGames.length} OffSeason slots to PreSeason week ${maddenWeekNum}`);
+          franchiseSlots = offSeasonSlots.splice(0, historicalGames.length);
+          // Set the week number on these slots
+          for (const slot of franchiseSlots) {
+            try {
+              setGameField(slot, 'SeasonWeek', maddenWeekNum);
+            } catch (err: any) {
+              console.warn(`[RetroEditorService] Could not set SeasonWeek: ${err.message}`);
+            }
+          }
+        }
+
+        // If we have some slots but not enough, supplement with OffSeason slots
+        if (franchiseSlots && franchiseSlots.length < historicalGames.length) {
+          const needed = historicalGames.length - franchiseSlots.length;
+          if (offSeasonSlots.length >= needed) {
+            console.log(`[RetroEditorService] Supplementing week ${maddenWeekNum} with ${needed} additional OffSeason slots`);
+            const additionalSlots = offSeasonSlots.splice(0, needed);
+            for (const slot of additionalSlots) {
+              try {
+                setGameField(slot, 'SeasonWeek', maddenWeekNum);
+              } catch (err: any) {
+                console.warn(`[RetroEditorService] Could not set SeasonWeek: ${err.message}`);
+              }
+            }
+            franchiseSlots = [...franchiseSlots, ...additionalSlots];
+          }
+        }
+
+        if (!franchiseSlots || franchiseSlots.length === 0) {
+          console.warn(`[RetroEditorService] No franchise preseason slots for week ${maddenWeekNum} (historical ${historicalWeekNum})`);
+          continue;
+        }
+
+        console.log(`[RetroEditorService] Preseason Week ${historicalWeekNum} (Madden ${maddenWeekNum}): ${historicalGames.length} historical games, ${franchiseSlots.length} franchise slots`);
+
+        // Apply historical games to franchise slots
+        // Historical games (e.g., 14 for 28-team era) go to first N slots
+        // Remaining slots (e.g., 2 for 32-team franchise) get marked as OffSeason
+        for (let i = 0; i < franchiseSlots.length; i++) {
+          const franchiseRecord = franchiseSlots[i];
+
+          if (i < historicalGames.length) {
+            // Apply historical game
+            const historicalGame = historicalGames[i];
+            const homeRecordIndex = teamIndexToRecordIndex.get(historicalGame.homeTeamIndex);
+            const awayRecordIndex = teamIndexToRecordIndex.get(historicalGame.awayTeamIndex);
+
+            if (homeRecordIndex !== undefined && awayRecordIndex !== undefined) {
+              const homeTeamRef = teamRefPrefix + homeRecordIndex.toString(2).padStart(8, '0');
+              const awayTeamRef = teamRefPrefix + awayRecordIndex.toString(2).padStart(8, '0');
+
+              franchiseRecord.HomeTeam = homeTeamRef;
+              franchiseRecord.AwayTeam = awayTeamRef;
+              // Ensure it's marked as PreSeason (in case it was changed)
+              setGameField(franchiseRecord, 'SeasonWeekType', 'PreSeason');
+              preseasonGamesApplied++;
+              gamesUpdated++;
+
+              // Log first few and last few for verification
+              if (preseasonGamesApplied <= 3 || i === historicalGames.length - 1) {
+                console.log(`[RetroEditorService] Preseason W${historicalWeekNum} G${i + 1}: ${historicalGame.awayTeam} @ ${historicalGame.homeTeam}`);
+              }
+            } else {
+              console.warn(`[RetroEditorService] Could not get team refs for: ${historicalGame.awayTeam} @ ${historicalGame.homeTeam}`);
+            }
+          } else {
+            // Mark extra slot as OffSeason (franchise has more slots than historical games)
+            try {
+              setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
+              gamesUpdated++;
+              if (i === historicalGames.length) {
+                console.log(`[RetroEditorService] Marked slots ${historicalGames.length + 1}-${franchiseSlots.length} as OffSeason for week ${maddenWeekNum}`);
+              }
+            } catch (err: any) {
+              console.warn(`[RetroEditorService] Could not mark slot ${i} as OffSeason: ${err.message}`);
+            }
+          }
+        }
+      }
+
+      console.log(`[RetroEditorService] Applied ${preseasonGamesApplied} preseason games`);
+
+      // Diagnostic: Count games per team after preseason application
+      const teamGameCount: Record<number, number> = {};
+      for (const record of gameTable.records) {
+        if (record.isEmpty) continue;
+        const weekType = getGameField(record, 'SeasonWeekType');
+        const isPreseason = weekType === 0 || weekType === SEASON_WEEK_TYPES.PreSeason || weekType === 'PreSeason';
+        if (!isPreseason) continue;
+
+        const homeTeam = record.HomeTeam;
+        const awayTeam = record.AwayTeam;
+
+        for (const [tIndex, rIndex] of teamIndexToRecordIndex.entries()) {
+          const expectedRef = teamRefPrefix + rIndex.toString(2).padStart(8, '0');
+          if (homeTeam === expectedRef || awayTeam === expectedRef) {
+            teamGameCount[tIndex] = (teamGameCount[tIndex] || 0) + 1;
+          }
+        }
+      }
+
+      // Log teams with wrong game count
+      const expectedGames = schedule.preseasonWeeks || 4;
+      const activeTeamCount = 32 - inactiveTeams.size;
+      let wrongCount = 0;
+      const wrongTeams: string[] = [];
+      for (let teamIdx = 0; teamIdx < 32; teamIdx++) {
+        const count = teamGameCount[teamIdx] || 0;
+        if (inactiveTeams.has(teamIdx)) {
+          // Inactive teams should have 0 games (or games marked OffSeason won't count)
+          continue;
+        }
+        if (count !== expectedGames) {
+          wrongTeams.push(`Team${teamIdx}=${count}`);
+          wrongCount++;
+        }
+      }
+      if (wrongCount === 0) {
+        console.log(`[RetroEditorService] All ${activeTeamCount} active teams have ${expectedGames} preseason games`);
+      } else {
+        console.warn(`[RetroEditorService] ${wrongCount} teams have wrong preseason game count: ${wrongTeams.join(', ')}`);
+      }
+    }
+
+    // ====== HANDLE PRESEASON GAMES FOR EXPANSION TEAMS ======
+    // Get teams that didn't exist in the target year
+    const inactiveTeamIndices = new Set<number>();
+    for (const team of this.expansionHistory) {
+      if (team.year > year) {
+        inactiveTeamIndices.add(team.teamIndex);
+        console.log(`[RetroEditorService] Team ${team.team} (teamIndex ${team.teamIndex}) didn't exist in ${year} - joined in ${team.year}`);
+      }
+    }
+
+    // Also check special cases like Browns 1996-1998
+    const brownsSpecialCase = {
+      teamIndex: 4,
+      inactiveYears: [1996, 1997, 1998]
+    };
+    if (brownsSpecialCase.inactiveYears.includes(year)) {
+      inactiveTeamIndices.add(brownsSpecialCase.teamIndex);
+      console.log(`[RetroEditorService] Browns (teamIndex ${brownsSpecialCase.teamIndex}) were inactive in ${year}`);
+    }
+
+    if (inactiveTeamIndices.size > 0) {
+      console.log(`[RetroEditorService] ====== HANDLING PRESEASON FOR ${inactiveTeamIndices.size} INACTIVE TEAMS ======`);
+      let preseasonGamesModified = 0;
+
+      // Build list of active team indices (teams that existed in the target year)
+      const activeTeamIndices: number[] = [];
+      for (const [teamIndex] of teamIndexToRecordIndex.entries()) {
+        if (!inactiveTeamIndices.has(teamIndex)) {
+          activeTeamIndices.push(teamIndex);
+        }
+      }
+      console.log(`[RetroEditorService] Active teams in ${year}: ${activeTeamIndices.length} teams`);
+
+      // Build a map from inactive team to replacement active team
+      // We'll rotate through active teams to ensure variety
+      const inactiveToActive = new Map<number, number>();
+      const inactiveArray = Array.from(inactiveTeamIndices);
+      for (let i = 0; i < inactiveArray.length; i++) {
+        // Map each inactive team to an active team (rotating through active teams)
+        const replacementIndex = i % activeTeamIndices.length;
+        inactiveToActive.set(inactiveArray[i], activeTeamIndices[replacementIndex]);
+        console.log(`[RetroEditorService] Inactive team ${inactiveArray[i]} -> replacement ${activeTeamIndices[replacementIndex]}`);
+      }
+
+      // Go through ALL preseason games and replace inactive teams
+      for (const record of gameTable.records) {
+        if (record.isEmpty) continue;
+
+        const weekType = getGameField(record, 'SeasonWeekType');
+        const isPreseason = weekType === 0 || weekType === SEASON_WEEK_TYPES.PreSeason || weekType === 'PreSeason';
+
+        if (!isPreseason) continue;
+
+        // Check if either team is inactive
+        const homeTeam = record.HomeTeam;
+        const awayTeam = record.AwayTeam;
+
+        // Reverse lookup: find teamIndex from record reference
+        let homeTeamIndex: number | undefined;
+        let awayTeamIndex: number | undefined;
+
+        for (const [tIndex, rIndex] of teamIndexToRecordIndex.entries()) {
+          const expectedRef = teamRefPrefix + rIndex.toString(2).padStart(8, '0');
+          if (homeTeam === expectedRef) {
+            homeTeamIndex = tIndex;
+          }
+          if (awayTeam === expectedRef) {
+            awayTeamIndex = tIndex;
+          }
+        }
+
+        const homeInactive = homeTeamIndex !== undefined && inactiveTeamIndices.has(homeTeamIndex);
+        const awayInactive = awayTeamIndex !== undefined && inactiveTeamIndices.has(awayTeamIndex);
+
+        if (homeInactive || awayInactive) {
+          try {
+            // Replace inactive teams with active teams
+            if (homeInactive && homeTeamIndex !== undefined) {
+              const replacementIndex = inactiveToActive.get(homeTeamIndex);
+              if (replacementIndex !== undefined) {
+                const recordIndex = teamIndexToRecordIndex.get(replacementIndex);
+                if (recordIndex !== undefined) {
+                  const newRef = teamRefPrefix + recordIndex.toString(2).padStart(8, '0');
+                  record.HomeTeam = newRef;
+                  if (preseasonGamesModified < 5) {
+                    console.log(`[RetroEditorService] Replaced home team ${homeTeamIndex} with ${replacementIndex}`);
+                  }
+                }
+              }
+            }
+            if (awayInactive && awayTeamIndex !== undefined) {
+              const replacementIndex = inactiveToActive.get(awayTeamIndex);
+              if (replacementIndex !== undefined) {
+                const recordIndex = teamIndexToRecordIndex.get(replacementIndex);
+                if (recordIndex !== undefined) {
+                  const newRef = teamRefPrefix + recordIndex.toString(2).padStart(8, '0');
+                  record.AwayTeam = newRef;
+                  if (preseasonGamesModified < 5) {
+                    console.log(`[RetroEditorService] Replaced away team ${awayTeamIndex} with ${replacementIndex}`);
+                  }
+                }
+              }
+            }
+            preseasonGamesModified++;
+          } catch (err: any) {
+            console.warn(`[RetroEditorService] Failed to replace inactive team in preseason: ${err.message}`);
+          }
+        }
+      }
+
+      console.log(`[RetroEditorService] Modified ${preseasonGamesModified} preseason games - replaced inactive teams with active teams`);
+      gamesUpdated += preseasonGamesModified;
+      if (preseasonGamesModified > 0) {
+        warnings.push(`Modified ${preseasonGamesModified} preseason games - replaced teams that didn't exist in ${year}`);
+      }
+    }
+
+    console.log(`[RetroEditorService] Total games updated: ${gamesUpdated}`);
+
+    // CRITICAL: Save the franchise file to persist changes!
+    console.log(`[RetroEditorService] ====== SAVING FRANCHISE FILE ======`);
+    console.log(`[RetroEditorService] Path: ${filePath}`);
+    console.log(`[RetroEditorService] Games updated: ${gamesUpdated}`);
+    console.log(`[RetroEditorService] Warnings: ${warnings.length}`);
+    try {
+      await franchise.save(filePath);
+      console.log(`[RetroEditorService] ====== SAVE COMPLETED SUCCESSFULLY ======`);
+    } catch (saveError: any) {
+      console.error(`[RetroEditorService] ====== SAVE FAILED ======`);
+      console.error(`[RetroEditorService] Error:`, saveError);
+      throw saveError;
+    }
 
     return {
       success: true,
       gamesUpdated,
-      warnings
+      warnings,
+      diagnostics: {
+        preseasonGamesApplied,
+        preseasonWeeks: preseasonByWeek.size,
+        historicalPreseasonGames: [...preseasonByWeek.values()].reduce((sum, games) => sum + games.length, 0)
+      }
     };
   }
 
