@@ -195,11 +195,13 @@
     var closePickerBtn = document.getElementById('closePortraitPickerModal');
     var cancelPickerBtn = document.getElementById('cancelPortraitPickerBtn');
     var confirmPickerBtn = document.getElementById('confirmPortraitPickerBtn');
+    var importNewPortraitBtn = document.getElementById('importNewPortraitBtn');
     var pickerModal = document.getElementById('portraitPickerModal');
 
     if (closePickerBtn) closePickerBtn.addEventListener('click', closePortraitPicker);
     if (cancelPickerBtn) cancelPickerBtn.addEventListener('click', closePortraitPicker);
     if (confirmPickerBtn) confirmPickerBtn.addEventListener('click', confirmPortraitPicker);
+    if (importNewPortraitBtn) importNewPortraitBtn.addEventListener('click', importNewPortraitFromPicker);
     if (pickerModal) {
       pickerModal.addEventListener('click', function(e) {
         if (e.target === pickerModal) closePortraitPicker();
@@ -560,16 +562,21 @@
       // Check if player has edits
       updateEditedIndicator();
 
-      // Show the modal - reset all style properties that may have been set when closing
+      // Show the modal
       var modal = document.getElementById('dbPlayerCardModal');
       if (modal) {
         modal.style.display = 'flex';
       }
 
-      // Show/hide delete button based on whether this is a custom player
+      // Always show delete button - user has full control over their database
       var deleteBtn = document.getElementById('deleteDbPlayerBtn');
       if (deleteBtn) {
-        deleteBtn.style.display = isCustomPlayer ? 'inline-block' : 'none';
+        deleteBtn.style.display = 'inline-block';
+        // Update button text based on player type
+        deleteBtn.textContent = isCustomPlayer ? 'Delete Player' : 'Hide Player';
+        deleteBtn.title = isCustomPlayer
+          ? 'Permanently delete this custom player'
+          : 'Hide this player from search results (can be restored later)';
       }
 
       updateSaveButtonState();
@@ -653,77 +660,30 @@
     // Clear ratings form
     clearRatingsForm();
 
-    // Show the modal - reset all style properties that may have been set when closing
+    // Show the modal
     var modal = document.getElementById('dbPlayerCardModal');
     if (modal) {
       modal.style.display = 'flex';
     }
 
-    // Focus on first name field using aggressive focus (fixes Windows issue)
+    // Focus on first name field with simple focus (removed aggressive focus)
     var firstNameInput = document.getElementById('dbPlayerFirstName');
     if (firstNameInput) {
-      // Use IPC to restore OS-level window focus first
-      var doFocus = function() {
-        setTimeout(function() {
-          if (window.app && window.app.aggressiveFocus) {
-            window.app.aggressiveFocus(firstNameInput);
-          } else {
-            firstNameInput.focus();
-          }
-        }, 100);
-      };
-
-      if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
-        window.electronAPI.window.focus().then(doFocus).catch(doFocus);
-      } else {
-        doFocus();
-      }
+      setTimeout(function() {
+        firstNameInput.focus();
+      }, 100);
     }
   }
 
   /**
-   * Restore focus after save operation using aggressive focus techniques.
-   * Fixes Windows issue where keyboard input stops working after IPC calls.
+   * Restore focus after save operation.
+   * DISABLED: This was causing focus to be stolen from other inputs (search box, etc.)
+   * The aggressive focus attempts were preventing users from typing elsewhere.
    */
   function restoreFocusAfterSave() {
-    // Find a focusable input in the modal
-    var modal = document.getElementById('dbPlayerCardModal');
-    if (!modal) return;
-
-    // Use the global aggressiveFocus if available, otherwise simple focus
-    var doAggressiveFocus = function(element) {
-      if (window.app && window.app.aggressiveFocus) {
-        window.app.aggressiveFocus(element);
-      } else {
-        // Fallback: blur current, dispatch events, focus
-        if (document.activeElement && document.activeElement !== element) {
-          document.activeElement.blur();
-        }
-        element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-        element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-        element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-        element.focus();
-      }
-    };
-
-    // Restore OS-level window focus first, then focus an input
-    var doFocus = function() {
-      setTimeout(function() {
-        // Find the first visible, enabled input in the modal
-        var focusTarget = modal.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
-        if (focusTarget) {
-          doAggressiveFocus(focusTarget);
-          console.log('[DatabasePlayerCard] Focus restored after save');
-        }
-      }, 100);
-    };
-
-    // Use IPC to restore OS-level window focus if available
-    if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
-      window.electronAPI.window.focus().then(doFocus).catch(doFocus);
-    } else {
-      doFocus();
-    }
+    // DISABLED - this function was stealing focus from other inputs
+    // If focus needs to be restored, the user can click on the desired input
+    return;
   }
 
   /**
@@ -816,6 +776,7 @@
     var bodyTypeVal = player.bodyType !== undefined ? Math.floor(parseFloat(player.bodyType)) : '';
     setValue('dbPlayerBodyType', bodyTypeVal);
     setValue('dbPlayerHandedness', player.handedness !== undefined ? player.handedness : '');
+    setChecked('dbPlayerHas3DModel', player.has3DModel || false);
 
     // Draft info - API uses 'round' and 'pick', not 'draftRound' and 'draftPick'
     setValue('dbPlayerDraftClass', player.draftClass || '');
@@ -1073,8 +1034,20 @@
     if (!year || !currentDbPlayerId) return;
 
     try {
-      console.log('[DbPlayerCard] Loading ratings for year:', year, 'player:', currentDbPlayerId);
-      var result = await window.electronAPI.database.getMergedPlayerSeason(currentDbPlayerId, year);
+      console.log('[DbPlayerCard] Loading ratings for year:', year, 'player:', currentDbPlayerId, 'isCustomPlayer:', isCustomPlayer);
+
+      var result;
+      if (isCustomPlayer) {
+        // Custom players use custom_player_seasons table
+        result = await window.electronAPI.database.getCustomPlayerSeason(currentDbPlayerId, year);
+        // Transform result to match expected format
+        if (result.success && result.data) {
+          result = { success: true, season: result.data };
+        }
+      } else {
+        // Original players use merged season data
+        result = await window.electronAPI.database.getMergedPlayerSeason(currentDbPlayerId, year);
+      }
 
       if (result.success && result.season) {
         console.log('[DbPlayerCard] Season data loaded:', {
@@ -1082,7 +1055,8 @@
           position: result.season.position,
           archetype: result.season.archetype,
           age: result.season.age,
-          jersey: result.season.jersey
+          jersey: result.season.jersey,
+          ratings: result.season.ratings
         });
         // Store original values for change detection
         originalSeasonData = JSON.parse(JSON.stringify(result.season));
@@ -1263,7 +1237,10 @@
           maddenPid: getIntValue('dbPlayerPID'),
           maddenPam: getValue('dbPlayerPAM'),
           maddenPlpo: getValue('dbPlayerPLPO'),
-          maddenCommid: getValue('dbPlayerCommID')
+          maddenCommid: getValue('dbPlayerCommID'),
+          bodyType: getIntValue('dbPlayerBodyType'),
+          handedness: getIntValue('dbPlayerHandedness'),
+          has3DModel: document.getElementById('dbPlayerHas3DModel')?.checked || false
         };
 
         // Include PGHE matched set data if a generic face was assigned
@@ -1286,6 +1263,38 @@
         }
 
         console.log('[DatabasePlayerCard] Player created with ID:', result.playerId);
+
+        // Save initial season data (ratings, position, archetype) if any ratings were entered
+        var initialYear = playerData.draftClass || playerData.careerFrom || new Date().getFullYear();
+        var seasonData = collectSeasonEdits(false); // Get all season data
+
+        if (seasonData && Object.keys(seasonData).length > 0) {
+          console.log('[DatabasePlayerCard] Saving initial season data for year:', initialYear, seasonData);
+          try {
+            // Check if "Apply to all years" is checked
+            var applyToAllYears = document.getElementById('dbApplyToAllYears');
+            var incrementAge = document.getElementById('dbIncrementAgeEachYear');
+
+            if (applyToAllYears && applyToAllYears.checked && playerData.careerFrom && playerData.careerTo) {
+              // Save to all years in career span
+              var options = {};
+              if (incrementAge && incrementAge.checked && seasonData.age !== undefined) {
+                options.incrementAge = true;
+              }
+              var allYearsResult = await window.electronAPI.database.saveCustomPlayerSeasonAllYears(
+                result.playerId, seasonData, options
+              );
+              console.log('[DatabasePlayerCard] Saved initial season to all years:', allYearsResult);
+            } else {
+              // Save to just the initial year
+              await window.electronAPI.database.saveCustomPlayerSeason(result.playerId, initialYear, seasonData);
+              console.log('[DatabasePlayerCard] Saved initial season for year:', initialYear);
+            }
+          } catch (seasonError) {
+            console.error('[DatabasePlayerCard] Failed to save initial season:', seasonError);
+            // Don't block player creation for season save failure
+          }
+        }
 
         // Check if this was created from Portrait Manager with a pending portrait
         var pendingPortraitPid = window.portraitManager && window.portraitManager.getPendingPortraitPid
@@ -1370,6 +1379,7 @@
         homeState: getValue('dbPlayerHomeState'),
         bodyType: getIntValue('dbPlayerBodyType'),
         handedness: getIntValue('dbPlayerHandedness'),
+        has3DModel: document.getElementById('dbPlayerHas3DModel')?.checked || false,
         draftClass: getIntValue('dbPlayerDraftClass'),
         draftRound: getValue('dbPlayerDraftRound'),
         draftPick: getIntValue('dbPlayerDraftPick'),
@@ -1398,16 +1408,33 @@
         console.log('[DatabasePlayerCard] Including PGHE data in appearance save:', pghe);
       }
 
-      // Save player edits
-      var playerResult = await window.electronAPI.database.savePlayerEdit(currentDbPlayerId, playerEdits);
-      if (!playerResult.success) {
-        throw new Error(playerResult.error || 'Failed to save player edits');
-      }
+      // Save player edits - use different API for custom vs original players
+      if (isCustomPlayer) {
+        // Custom players: combine all edits into single updateCustomPlayer call
+        var customUpdates = Object.assign({}, playerEdits, {
+          maddenPid: appearanceEdits.maddenPid,
+          maddenPam: appearanceEdits.maddenPam,
+          maddenPlpo: appearanceEdits.maddenPlpo,
+          maddenCommid: appearanceEdits.maddenCommid,
+          has3DModel: playerEdits.has3DModel
+        });
+        console.log('[DatabasePlayerCard] Saving custom player updates:', customUpdates);
+        var playerResult = await window.electronAPI.database.updateCustomPlayer(currentDbPlayerId, customUpdates);
+        if (!playerResult.success) {
+          throw new Error(playerResult.error || 'Failed to save custom player');
+        }
+      } else {
+        // Original database players: use separate edit tables
+        var playerResult = await window.electronAPI.database.savePlayerEdit(currentDbPlayerId, playerEdits);
+        if (!playerResult.success) {
+          throw new Error(playerResult.error || 'Failed to save player edits');
+        }
 
-      // Save appearance edits
-      var appearanceResult = await window.electronAPI.database.saveAppearanceEdit(currentDbPlayerId, appearanceEdits);
-      if (!appearanceResult.success) {
-        throw new Error(appearanceResult.error || 'Failed to save appearance edits');
+        // Save appearance edits
+        var appearanceResult = await window.electronAPI.database.saveAppearanceEdit(currentDbPlayerId, appearanceEdits);
+        if (!appearanceResult.success) {
+          throw new Error(appearanceResult.error || 'Failed to save appearance edits');
+        }
       }
 
       // Check "Apply to ALL years" checkbox FIRST - it works even without a year selected
@@ -1445,15 +1472,34 @@
         var options = {
           incrementAge: incrementAgeEachYear && seasonEdits.age !== undefined
         };
-        console.log('[DatabasePlayerCard] Applying edits to ALL years. Changed fields:', seasonEdits, 'Options:', options);
-        var allYearsResult = await window.electronAPI.database.saveSeasonEditAllYears(
-          currentDbPlayerId,
-          seasonEdits,
-          options
-        );
+        console.log('[DatabasePlayerCard] Applying edits to ALL years. Changed fields:', seasonEdits, 'Options:', options, 'isCustomPlayer:', isCustomPlayer);
+
+        // Use different API for custom vs original players
+        var allYearsResult;
+        if (isCustomPlayer) {
+          allYearsResult = await window.electronAPI.database.saveCustomPlayerSeasonAllYears(
+            currentDbPlayerId,
+            seasonEdits,
+            options
+          );
+        } else {
+          allYearsResult = await window.electronAPI.database.saveSeasonEditAllYears(
+            currentDbPlayerId,
+            seasonEdits,
+            options
+          );
+        }
+        console.log('[DatabasePlayerCard] Save all years result:', allYearsResult);
         if (!allYearsResult.success) {
           throw new Error(allYearsResult.error || 'Failed to save to all years');
         }
+
+        // Check if no years were updated (player has no career range)
+        if (allYearsResult.updatedYears && allYearsResult.updatedYears.length === 0) {
+          alert('No years updated!\n\nThis player has no career range defined (Draft Class, Career From, or Career To).\n\nPlease fill in the Career Info fields on the Player Info tab first, then try again.');
+          return;
+        }
+
         console.log('[DatabasePlayerCard] Updated', allYearsResult.updatedYears?.length || 0, 'seasons');
 
         // Uncheck the checkboxes after save
@@ -1462,7 +1508,14 @@
       } else if (selectedYear) {
         // Save to specific year only - save ALL form values (not just changed)
         var seasonEdits = collectSeasonEdits(false); // false = all fields
-        var seasonResult = await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, selectedYear, seasonEdits);
+
+        // Use different API for custom vs original players
+        if (isCustomPlayer) {
+          console.log('[DatabasePlayerCard] Saving custom player season for year:', selectedYear);
+          var seasonResult = await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, selectedYear, seasonEdits);
+        } else {
+          var seasonResult = await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, selectedYear, seasonEdits);
+        }
         if (!seasonResult.success) {
           throw new Error(seasonResult.error || 'Failed to save season edits');
         }
@@ -1502,8 +1555,8 @@
         }, 1500);
       }
 
-      // Restore focus to an input field after save (fixes Windows focus loss issue)
-      restoreFocusAfterSave();
+      // NOTE: Removed restoreFocusAfterSave() - it was stealing focus from other inputs
+      // and preventing users from typing in the search box after save
 
       // Refresh player browser search results to reflect changes (e.g., college updates)
       if (typeof window.refreshPlayerBrowser === 'function') {
@@ -1547,8 +1600,13 @@
     }
 
     // Season info fields
+    // When using "Apply to all years" (onlyChangedFields=true), skip empty values
+    // to avoid overwriting existing data with blanks
     var team = getValue('dbPlayerSeasonTeam');
-    if (team !== null && team !== undefined && hasChanged('team', team)) {
+    if (team && hasChanged('team', team)) {
+      edits.team = team;
+    } else if (!onlyChangedFields && team !== null && team !== undefined) {
+      // For single year saves, include even empty values
       edits.team = team;
     }
 
@@ -1563,12 +1621,16 @@
     }
 
     var position = getValue('dbPlayerSeasonPosition');
-    if (position !== null && position !== undefined && hasChanged('position', position)) {
+    if (position && hasChanged('position', position)) {
+      edits.position = position;
+    } else if (!onlyChangedFields && position !== null && position !== undefined) {
       edits.position = position;
     }
 
     var archetype = getValue('dbPlayerSeasonArchetype');
-    if (archetype !== null && archetype !== undefined && hasChanged('archetype', archetype)) {
+    if (archetype && hasChanged('archetype', archetype)) {
+      edits.archetype = archetype;
+    } else if (!onlyChangedFields && archetype !== null && archetype !== undefined) {
       edits.archetype = archetype;
     }
 
@@ -1612,58 +1674,120 @@
   }
 
   /**
-   * Delete a custom player from the database
+   * Delete/hide a player from the database
+   * Custom players: permanently delete
+   * Original database players: hide from search results
    */
   async function deleteDbPlayer() {
-    if (!currentDbPlayerId || !isCustomPlayer) {
-      alert('Can only delete custom players');
+    if (!currentDbPlayerId) {
+      alert('No player selected');
       return;
     }
 
     var playerName = currentDbPlayer ? ((currentDbPlayer.firstName || '') + ' ' + (currentDbPlayer.lastName || '')).trim() : 'this player';
 
-    var confirmed = confirm('Are you sure you want to permanently delete ' + playerName + '?\n\nThis cannot be undone.');
-    if (!confirmed) return;
+    if (isCustomPlayer) {
+      // Custom player - permanently delete
+      var confirmed = confirm('Are you sure you want to permanently delete ' + playerName + '?\n\nThis cannot be undone.');
+      if (!confirmed) return;
 
-    try {
-      console.log('[DatabasePlayerCard] Deleting custom player:', currentDbPlayerId);
-      var result = await window.electronAPI.database.deleteCustomPlayer(currentDbPlayerId);
+      try {
+        console.log('[DatabasePlayerCard] Deleting custom player:', currentDbPlayerId);
+        var result = await window.electronAPI.database.deleteCustomPlayer(currentDbPlayerId);
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to delete player');
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to delete player');
+        }
+
+        console.log('[DatabasePlayerCard] Player deleted successfully');
+        try {
+          closeAndRefresh(playerName + ' deleted');
+        } catch (refreshError) {
+          console.error('[DatabasePlayerCard] closeAndRefresh failed:', refreshError);
+          // Force close modal and restore focus even if refresh fails
+          var modal = document.getElementById('dbPlayerCardModal');
+          if (modal) modal.style.display = 'none';
+          var searchInput = document.getElementById('playerBrowserSearch');
+          if (searchInput) searchInput.focus();
+        }
+
+      } catch (error) {
+        console.error('[DatabasePlayerCard] Failed to delete player:', error);
+        alert('Failed to delete player: ' + error.message);
       }
+    } else {
+      // Original database player - hide from search results
+      var confirmed = confirm('Hide ' + playerName + ' from search results?\n\nThis player will no longer appear in searches. You can restore hidden players from the Database Settings.');
+      if (!confirmed) return;
 
-      console.log('[DatabasePlayerCard] Player deleted successfully');
+      try {
+        console.log('[DatabasePlayerCard] Hiding database player:', currentDbPlayerId);
+        var result = await window.electronAPI.database.hidePlayer(currentDbPlayerId);
 
-      // Close the modal
-      var modal = document.getElementById('dbPlayerCardModal');
-      if (modal) {
-        modal.style.display = 'none';
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to hide player');
+        }
+
+        console.log('[DatabasePlayerCard] Player hidden successfully');
+        try {
+          closeAndRefresh(playerName + ' hidden');
+        } catch (refreshError) {
+          console.error('[DatabasePlayerCard] closeAndRefresh failed:', refreshError);
+          // Force close modal and restore focus even if refresh fails
+          var modal = document.getElementById('dbPlayerCardModal');
+          if (modal) modal.style.display = 'none';
+          var searchInput = document.getElementById('playerBrowserSearch');
+          if (searchInput) searchInput.focus();
+        }
+
+      } catch (error) {
+        console.error('[DatabasePlayerCard] Failed to hide player:', error);
+        alert('Failed to hide player: ' + error.message);
       }
-
-      // Clear state
-      currentDbPlayer = null;
-      currentDbPlayerId = null;
-      hasUnsavedChanges = false;
-
-      // Refresh the player browser
-      if (typeof window.refreshPlayerBrowser === 'function') {
-        window.refreshPlayerBrowser();
-      }
-
-      // Also refresh portrait manager if open
-      if (window.portraitManager && window.portraitManager.refresh) {
-        window.portraitManager.refresh();
-      }
-
-      if (typeof window.showToast === 'function') {
-        window.showToast(playerName + ' deleted', 'success');
-      }
-
-    } catch (error) {
-      console.error('[DatabasePlayerCard] Failed to delete player:', error);
-      alert('Failed to delete player: ' + error.message);
     }
+  }
+
+  /**
+   * Close modal and refresh browser after delete/hide
+   */
+  function closeAndRefresh(message) {
+    // 1. Force blur everything and hide modal completely
+    if (document.activeElement) {
+      document.activeElement.blur();
+    }
+
+    var modal = document.getElementById('dbPlayerCardModal');
+    if (modal) {
+      modal.style.display = 'none';
+    }
+
+    // 2. Clear state
+    currentDbPlayer = null;
+    currentDbPlayerId = null;
+    hasUnsavedChanges = false;
+    isCreateMode = false;
+
+    // 3. Toast
+    if (window.showToast) {
+      window.showToast(message, 'success');
+    }
+
+    // 4. Refresh browser then restore focus
+    if (window.refreshPlayerBrowser) {
+      window.refreshPlayerBrowser();
+    }
+
+    // 5. Force focus to search box after refresh completes
+    var focusSearch = function() {
+      var search = document.getElementById('playerBrowserSearch');
+      if (search) {
+        search.focus();
+      }
+    };
+
+    // Wait for refresh to complete, then focus
+    setTimeout(focusSearch, 200);
+    setTimeout(focusSearch, 400);
   }
 
   /**
@@ -2062,11 +2186,23 @@
       }
 
       modal.style.display = 'none';
+      modal.style.visibility = 'hidden';
+      modal.style.pointerEvents = 'none';
 
       // Use centralized focus restoration for player browser
-      if (typeof window.restoreFocusToPlayerBrowser === 'function') {
-        window.restoreFocusToPlayerBrowser();
-      }
+      // Use requestAnimationFrame + setTimeout to ensure the modal display change has been processed
+      // This fixes Windows issue where focus doesn't properly transfer after modal close
+      requestAnimationFrame(function() {
+        setTimeout(function() {
+          // Try centralized function first, fall back to direct focus
+          if (typeof window.restoreFocusToPlayerBrowser === 'function') {
+            window.restoreFocusToPlayerBrowser();
+          } else {
+            var searchInput = document.getElementById('playerBrowserSearch');
+            if (searchInput) searchInput.focus();
+          }
+        }, 50);
+      });
     }
 
     currentDbPlayer = null;
@@ -2973,6 +3109,56 @@
     var modal = document.getElementById('portraitPickerModal');
     if (modal) modal.style.display = 'none';
     selectedPickerPid = null;
+  }
+
+  /**
+   * Import a new portrait from the picker modal
+   */
+  async function importNewPortraitFromPicker() {
+    try {
+      // Use the same import flow as Portrait Manager
+      var result = await window.electronAPI.customPortrait.import();
+
+      if (!result || result.canceled) {
+        console.log('[DatabasePlayerCard] Portrait import cancelled');
+        return;
+      }
+
+      if (!result.success) {
+        alert('Failed to import portrait: ' + (result.error || 'Unknown error'));
+        return;
+      }
+
+      console.log('[DatabasePlayerCard] Portrait imported with PID:', result.pid);
+
+      // Update player name metadata if we know the player
+      if (currentDbPlayer && result.pid) {
+        var playerName = (currentDbPlayer.firstName || '') + ' ' + (currentDbPlayer.lastName || '');
+        if (playerName.trim()) {
+          try {
+            await window.electronAPI.customPortrait.updateMetadata(result.pid, {
+              playerName: playerName.trim(),
+              databasePlayerId: currentDbPlayerId
+            });
+          } catch (err) {
+            console.warn('[DatabasePlayerCard] Could not update portrait metadata:', err);
+          }
+        }
+      }
+
+      // Refresh the portrait picker grid
+      var portraits = await window.electronAPI.customPortrait.list();
+      renderPortraitPickerGrid(portraits);
+
+      // Auto-select the newly imported portrait
+      if (result.pid) {
+        selectPortraitInPicker(result.pid);
+      }
+
+    } catch (error) {
+      console.error('[DatabasePlayerCard] Error importing portrait:', error);
+      alert('Failed to import portrait: ' + error.message);
+    }
   }
 
   /**

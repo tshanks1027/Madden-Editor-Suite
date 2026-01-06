@@ -346,6 +346,7 @@
                         <button id="addNewPlayerBtn" class="db-btn db-btn-primary" style="padding: 6px 12px;">+ Add Player</button>
                         <button id="fillCurrentResultsBtn" class="db-btn db-btn-success" style="padding: 6px 12px; background: #2e7d32; border-color: #2e7d32;" title="Fill missing data from PFR for current search results">Fill from PFR</button>
                         <span id="batchFillStatusInline" style="color: #888; font-size: 12px; display: none;"></span>
+                        <button id="hideAllBlankBtn" class="db-btn db-btn-warning" style="padding: 6px 12px; background: #f57c00; border-color: #f57c00;" title="Hide all players with blank/empty names">Hide All Blank</button>
                         <button id="openDbManagement" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Manage Database</button>
                     </div>
                     <div class="player-browser-pagination">
@@ -447,6 +448,10 @@
                                     <option value="1">Left</option>
                                 </select>
                             </div>
+                            <div class="db-form-item" style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="dbPlayerHas3DModel" style="width: auto;">
+                                <label class="db-form-label" for="dbPlayerHas3DModel" style="margin: 0;">Has 3D Model</label>
+                            </div>
                         </div>
                     </div>
 
@@ -509,15 +514,6 @@
                             <button type="button" class="db-btn db-btn-secondary" id="assignGenericFaceBtn" title="Choose a generic face from the face picker">
                                 Choose Generic Face
                             </button>
-                            <select id="genericFaceSkinTone" class="db-form-input" style="width: auto; margin-left: 8px;">
-                                <option value="1">Skin Tone 1 (Lightest)</option>
-                                <option value="2">Skin Tone 2</option>
-                                <option value="3">Skin Tone 3</option>
-                                <option value="4" selected>Skin Tone 4 (Medium)</option>
-                                <option value="5">Skin Tone 5</option>
-                                <option value="6">Skin Tone 6</option>
-                                <option value="7">Skin Tone 7 (Darkest)</option>
-                            </select>
                         </div>
                         <p style="color: #a0a0a0; font-size: 12px; margin-top: 12px;">
                             These IDs link the player to Madden assets like portraits and commentary.
@@ -968,9 +964,70 @@
                     fillBtn.addEventListener('click', fillCurrentResultsFromPFR);
                 }
 
+                // Hide All Blank Players button
+                const hideAllBlankBtn = document.getElementById('hideAllBlankBtn');
+                if (hideAllBlankBtn) {
+                    hideAllBlankBtn.addEventListener('click', hideAllBlankPlayers);
+                }
+
                 // Set up progress listener for batch fill
                 if (window.electronAPI && window.electronAPI.playerFill) {
                     window.electronAPI.playerFill.onProgress(handleBatchProgress);
+                }
+            }
+
+            // Hide All Blank Players function
+            async function hideAllBlankPlayers() {
+                if (!window.electronAPI || !window.electronAPI.database || !window.electronAPI.database.hideAllBlankPlayers) {
+                    alert('This feature is not available');
+                    return;
+                }
+
+                const confirmed = confirm(
+                    'Hide all players with blank/empty names?\n\n' +
+                    'This will remove all "Blank" entries from the database browser.\n' +
+                    'You can restore them later from the Database Management panel.\n\n' +
+                    'Continue?'
+                );
+
+                if (!confirmed) return;
+
+                const btn = document.getElementById('hideAllBlankBtn');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Hiding...';
+                }
+
+                try {
+                    const result = await window.electronAPI.database.hideAllBlankPlayers();
+                    console.log('[DatabaseBrowser] Hide all blank result:', result);
+
+                    if (result.success) {
+                        if (window.showToast) {
+                            window.showToast(result.message || 'Hidden ' + result.hiddenCount + ' blank players', 'success');
+                        } else {
+                            alert(result.message || 'Hidden ' + result.hiddenCount + ' blank players');
+                        }
+                        // Refresh the search results
+                        performSearch();
+                    } else {
+                        alert('Error: ' + (result.error || 'Unknown error'));
+                    }
+                } catch (err) {
+                    console.error('[DatabaseBrowser] Error hiding blank players:', err);
+                    alert('Error: ' + err.message);
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = 'Hide All Blank';
+                    }
+                    // Restore focus to search input
+                    setTimeout(() => {
+                        const searchInput = document.getElementById('playerBrowserSearch');
+                        if (searchInput) {
+                            searchInput.focus();
+                        }
+                    }, 100);
                 }
             }
 
@@ -1130,8 +1187,15 @@
             }
 
             async function performSearch() {
-                if (isLoading) return;
+                // Safety: reset isLoading if stuck (shouldn't happen but prevents lockout)
+                if (isLoading) {
+                    console.warn('[DatabaseBrowser] performSearch called while loading - will retry');
+                    // Force reset after 5 seconds as safety
+                    setTimeout(function() { isLoading = false; }, 5000);
+                    return;
+                }
                 isLoading = true;
+                console.log('[DatabaseBrowser] performSearch starting...');
 
                 const resultsDiv = document.getElementById('playerBrowserResults');
                 if (resultsDiv) resultsDiv.innerHTML = '<div class="player-browser-loading">Searching...</div>';
@@ -1165,6 +1229,9 @@
 
                     currentResults = results.players || results || [];
                     totalResults = results.total || currentResults.length;
+                    // Log first 10 player IDs to see if hidden player is in results
+                    const first10Ids = currentResults.slice(0, 10).map(p => p.internalId);
+                    console.log('[DatabaseBrowser] First 10 result IDs:', JSON.stringify(first10Ids));
 
                     // Apply remaining client-side filters (college, empty filter)
                     // Note: team filter is handled server-side
@@ -1185,10 +1252,11 @@
 
                     displayResults();
                 } catch (error) {
-                    console.error('Search failed:', error);
+                    console.error('[DatabaseBrowser] Search failed:', error);
                     if (resultsDiv) resultsDiv.innerHTML = '<div class="player-browser-error"><p>Search failed</p><p class="player-browser-error-msg">' + error.message + '</p></div>';
                 } finally {
                     isLoading = false;
+                    console.log('[DatabaseBrowser] performSearch complete, displayed', currentResults.length, 'results');
                 }
             }
 
@@ -1240,7 +1308,10 @@
             }
 
             // Expose functions
-            window.refreshPlayerBrowser = performSearch;
+            window.refreshPlayerBrowser = function() {
+                console.log('[DatabaseBrowser] refreshPlayerBrowser called');
+                return performSearch();
+            };
             window.getCurrentBrowserResults = function() { return currentResults; };
 
             // Global action handlers for the standalone window

@@ -106,6 +106,9 @@ export interface CustomPlayer {
   maddenPam?: string;
   maddenPlpo?: string;
   maddenCommid?: string;
+  bodyType?: number;
+  handedness?: number;
+  has3DModel?: boolean;
   createdAt?: string;
   editedAt?: string;
 }
@@ -313,6 +316,14 @@ class UserDatabaseService {
       )
     `);
 
+    // Table to track hidden players (user wants them removed from search results)
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS hidden_players (
+        original_player_id INTEGER PRIMARY KEY,
+        hidden_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
     console.log('[UserDatabaseService] Edits database schema ready');
   }
 
@@ -357,6 +368,17 @@ class UserDatabaseService {
     } catch { /* Column already exists */ }
     try {
       this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN position TEXT`);
+    } catch { /* Column already exists */ }
+    // Migration: add body_type and handedness columns for bio saving
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN body_type INTEGER`);
+    } catch { /* Column already exists */ }
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN handedness INTEGER`);
+    } catch { /* Column already exists */ }
+    // Migration: add has_3d_model column (indicates real face scan exists)
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN has_3d_model INTEGER DEFAULT 0`);
     } catch { /* Column already exists */ }
 
     // Build custom_player_seasons table with all rating fields
@@ -773,8 +795,9 @@ class UserDatabaseService {
       INSERT INTO custom_players (first_name, last_name, college_id, race, height, weight,
                                    hometown, home_state, position,
                                    draft_class, draft_round, draft_pick, career_from, career_to,
-                                   madden_pid, madden_pam, madden_plpo, madden_commid)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   madden_pid, madden_pam, madden_plpo, madden_commid,
+                                   body_type, handedness, has_3d_model)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       player.firstName,
       player.lastName,
@@ -793,7 +816,10 @@ class UserDatabaseService {
       player.maddenPid ?? null,
       player.maddenPam ?? null,
       player.maddenPlpo ?? null,
-      player.maddenCommid ?? null
+      player.maddenCommid ?? null,
+      player.bodyType ?? null,
+      player.handedness ?? null,
+      player.has3DModel ? 1 : 0
     );
 
     console.log(`[UserDatabaseService] Created custom player: ${player.firstName} ${player.lastName}, id=${result.lastInsertRowid}`);
@@ -824,6 +850,9 @@ class UserDatabaseService {
     if (updates.maddenPam !== undefined) { updateFields.push('madden_pam = ?'); values.push(updates.maddenPam); }
     if (updates.maddenPlpo !== undefined) { updateFields.push('madden_plpo = ?'); values.push(updates.maddenPlpo); }
     if (updates.maddenCommid !== undefined) { updateFields.push('madden_commid = ?'); values.push(updates.maddenCommid); }
+    if (updates.bodyType !== undefined) { updateFields.push('body_type = ?'); values.push(updates.bodyType); }
+    if (updates.handedness !== undefined) { updateFields.push('handedness = ?'); values.push(updates.handedness); }
+    if (updates.has3DModel !== undefined) { updateFields.push('has_3d_model = ?'); values.push(updates.has3DModel ? 1 : 0); }
 
     if (updateFields.length > 0) {
       updateFields.push("edited_at = datetime('now')");
@@ -859,6 +888,9 @@ class UserDatabaseService {
       maddenPam: row.madden_pam as string | undefined,
       maddenPlpo: row.madden_plpo as string | undefined,
       maddenCommid: row.madden_commid as string | undefined,
+      bodyType: row.body_type as number | undefined,
+      handedness: row.handedness as number | undefined,
+      has3DModel: row.has_3d_model === 1,
       createdAt: row.created_at as string | undefined,
       editedAt: row.edited_at as string | undefined
     };
@@ -889,6 +921,9 @@ class UserDatabaseService {
       maddenPam: row.madden_pam as string | undefined,
       maddenPlpo: row.madden_plpo as string | undefined,
       maddenCommid: row.madden_commid as string | undefined,
+      bodyType: row.body_type as number | undefined,
+      handedness: row.handedness as number | undefined,
+      has3DModel: row.has_3d_model === 1,
       createdAt: row.created_at as string | undefined,
       editedAt: row.edited_at as string | undefined
     }));
@@ -913,9 +948,13 @@ class UserDatabaseService {
     const values: unknown[] = [customPlayerId, year, season.team ?? null, season.jersey ?? null,
                                 season.age ?? null, season.position ?? null, season.archetype ?? null];
 
+    // Support both nested (season.ratings.POVR) and flat (season.POVR) formats
+    const seasonAny = season as Record<string, unknown>;
     for (const field of RATING_FIELDS) {
       columns.push(field);
-      values.push(season.ratings?.[field] ?? null);
+      // Check nested ratings first, then flat format
+      const value = season.ratings?.[field] ?? seasonAny[field] ?? null;
+      values.push(value);
     }
 
     const placeholders = columns.map(() => '?').join(', ');
@@ -983,6 +1022,72 @@ class UserDatabaseService {
     });
   }
 
+  /**
+   * Partial update for custom player season - only updates provided fields.
+   * Unlike saveCustomPlayerSeason (INSERT OR REPLACE), this preserves existing values.
+   * If the season doesn't exist, it creates it with the provided values.
+   */
+  public updateCustomPlayerSeason(customPlayerId: number, year: number, edits: Partial<CustomPlayerSeason>): void {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    // Check if season exists
+    const existingRow = this.customDb.prepare(
+      'SELECT id FROM custom_player_seasons WHERE custom_player_id = ? AND year = ?'
+    ).get(customPlayerId, year) as { id: number } | undefined;
+
+    if (!existingRow) {
+      // Season doesn't exist, use saveCustomPlayerSeason to create it
+      console.log(`[UserDatabaseService] Season doesn't exist for player ${customPlayerId} year ${year}, creating new`);
+      this.saveCustomPlayerSeason(customPlayerId, year, edits);
+      return;
+    }
+
+    // Build UPDATE query with only the provided fields
+    const setClauses: string[] = [];
+    const values: unknown[] = [];
+
+    // Handle season info fields
+    const editsAny = edits as Record<string, unknown>;
+    const infoFields = ['team', 'jersey', 'age', 'position', 'archetype'];
+    for (const field of infoFields) {
+      if (editsAny[field] !== undefined) {
+        setClauses.push(`${field} = ?`);
+        values.push(editsAny[field]);
+      }
+    }
+
+    // Handle rating fields - check both flat format (edits.POVR) and nested (edits.ratings.POVR)
+    for (const field of RATING_FIELDS) {
+      // Check flat format first (how frontend sends it)
+      let value = editsAny[field];
+      // Then check nested ratings format
+      if (value === undefined && edits.ratings?.[field] !== undefined) {
+        value = edits.ratings[field];
+      }
+
+      if (value !== undefined) {
+        setClauses.push(`${field} = ?`);
+        values.push(value);
+      }
+    }
+
+    if (setClauses.length === 0) {
+      console.log(`[UserDatabaseService] No fields to update for player ${customPlayerId} year ${year}`);
+      return;
+    }
+
+    // Add WHERE clause values
+    values.push(customPlayerId, year);
+
+    const sql = `UPDATE custom_player_seasons SET ${setClauses.join(', ')} WHERE custom_player_id = ? AND year = ?`;
+
+    console.log(`[UserDatabaseService] Partial update for player ${customPlayerId} year ${year}: updating ${setClauses.length} fields`);
+    console.log(`[UserDatabaseService] Update SQL: ${sql}`);
+    console.log(`[UserDatabaseService] Update values:`, values);
+
+    this.customDb.prepare(sql).run(...values);
+  }
+
   // =============================================
   // RESET OPERATIONS
   // =============================================
@@ -1010,6 +1115,78 @@ class UserDatabaseService {
     this.resetAllEdits();
     this.resetAllCustomPlayers();
     console.log('[UserDatabaseService] Full database reset complete');
+  }
+
+  // =============================================
+  // HIDE/UNHIDE PLAYER OPERATIONS
+  // =============================================
+
+  /**
+   * Hide a player from search results
+   */
+  public hidePlayer(playerId: number): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+    this.editsDb.prepare('INSERT OR REPLACE INTO hidden_players (original_player_id) VALUES (?)').run(playerId);
+    console.log(`[UserDatabaseService] Hidden player id=${playerId}`);
+  }
+
+  /**
+   * Unhide a player (restore to search results)
+   */
+  public unhidePlayer(playerId: number): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+    this.editsDb.prepare('DELETE FROM hidden_players WHERE original_player_id = ?').run(playerId);
+    console.log(`[UserDatabaseService] Unhidden player id=${playerId}`);
+  }
+
+  /**
+   * Check if a player is hidden
+   */
+  public isPlayerHidden(playerId: number): boolean {
+    if (!this.editsDb) return false;
+    const row = this.editsDb.prepare('SELECT 1 FROM hidden_players WHERE original_player_id = ?').get(playerId);
+    return !!row;
+  }
+
+  /**
+   * Get list of all hidden player IDs
+   */
+  public getHiddenPlayers(): number[] {
+    if (!this.editsDb) return [];
+    const rows = this.editsDb.prepare('SELECT original_player_id FROM hidden_players').all() as { original_player_id: number }[];
+    return rows.map(r => r.original_player_id);
+  }
+
+  /**
+   * Clear all hidden players (restore all)
+   */
+  public clearHiddenPlayers(): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+    this.editsDb.exec('DELETE FROM hidden_players');
+    console.log('[UserDatabaseService] Cleared all hidden players');
+  }
+
+  /**
+   * Hide multiple players at once (bulk operation)
+   * Returns the number of players hidden
+   */
+  public hideMultiplePlayers(playerIds: number[]): number {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+    if (playerIds.length === 0) return 0;
+
+    const stmt = this.editsDb.prepare('INSERT OR IGNORE INTO hidden_players (original_player_id) VALUES (?)');
+    const insertMany = this.editsDb.transaction((ids: number[]) => {
+      let count = 0;
+      for (const id of ids) {
+        const result = stmt.run(id);
+        if (result.changes > 0) count++;
+      }
+      return count;
+    });
+
+    const hiddenCount = insertMany(playerIds);
+    console.log(`[UserDatabaseService] Bulk hidden ${hiddenCount} players (${playerIds.length} requested)`);
+    return hiddenCount;
   }
 
   // =============================================
