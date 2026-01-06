@@ -41,6 +41,9 @@ import { registerDebugHandlers } from './main/ipc/debug-handlers';
 import { registerRatingHandlers } from './main/ipc/rating-handlers';
 import { registerUpdateHandlers } from './main/ipc/update-handlers';
 import { registerPGHEHandlers } from './main/ipc/pghe-handlers';
+import { registerFrostyHandlers } from './main/ipc/frosty-handlers';
+import { registerPortraitMappingHandlers } from './main/ipc/portrait-mapping-handlers';
+import { registerCustomPortraitHandlers } from './main/ipc/custom-portrait-handlers';
 import { updateChecker } from './main/services/UpdateChecker';
 import { portraitSpriteService } from './main/services/PortraitSpriteService';
 import { coachPortraitService } from './main/services/CoachPortraitService';
@@ -52,6 +55,9 @@ registerDebugHandlers();
 registerRatingHandlers();
 registerUpdateHandlers();
 registerPGHEHandlers();
+registerFrostyHandlers();
+registerPortraitMappingHandlers();
+registerCustomPortraitHandlers();
 
 // Register window focus handler - simple focus without visual disruption
 // Used to ensure keyboard input works after various operations

@@ -122,6 +122,16 @@ export interface CustomPlayerSeason {
   ratings?: { [key: string]: number };
 }
 
+export interface CustomPortrait {
+  pid: number;                    // 12000+ range
+  imageData: Buffer;              // PNG image bytes (512x512)
+  originalFilename?: string;      // Source filename
+  playerName?: string;            // Optional: associated player name
+  databasePlayerId?: number;      // Optional: linked database player internal ID
+  year?: number;                  // Optional: for year grouping
+  createdAt?: string;
+}
+
 export interface ImportResult {
   success: boolean;
   imported: number;
@@ -380,6 +390,29 @@ class UserDatabaseService {
     this.customDb.exec(`
       CREATE INDEX IF NOT EXISTS idx_custom_players_name ON custom_players(last_name, first_name);
       CREATE INDEX IF NOT EXISTS idx_custom_seasons_player ON custom_player_seasons(custom_player_id);
+    `);
+
+    // Custom portraits table for user-uploaded portraits (PID 12000+)
+    this.customDb.exec(`
+      CREATE TABLE IF NOT EXISTS custom_portraits (
+        pid INTEGER PRIMARY KEY,
+        image_data BLOB NOT NULL,
+        original_filename TEXT,
+        player_name TEXT,
+        database_player_id INTEGER,
+        year INTEGER,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Migration: add database_player_id column if it doesn't exist
+    try {
+      this.customDb.exec(`ALTER TABLE custom_portraits ADD COLUMN database_player_id INTEGER`);
+    } catch { /* Column already exists */ }
+
+    this.customDb.exec(`
+      CREATE INDEX IF NOT EXISTS idx_custom_portraits_year ON custom_portraits(year);
+      CREATE INDEX IF NOT EXISTS idx_custom_portraits_player ON custom_portraits(database_player_id);
     `);
 
     console.log('[UserDatabaseService] Custom players database schema ready');
@@ -1132,6 +1165,233 @@ class UserDatabaseService {
     seasonEdits.forEach(r => ids.add(r.original_player_id));
 
     return Array.from(ids);
+  }
+
+  // =============================================
+  // CUSTOM PORTRAIT OPERATIONS (PID 12000+)
+  // =============================================
+
+  private static readonly CUSTOM_PID_START = 12000;
+
+  /**
+   * Get next available PID for custom portraits (starting at 12000)
+   */
+  public getNextAvailablePid(): number {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    const row = this.customDb.prepare('SELECT MAX(pid) as max_pid FROM custom_portraits').get() as { max_pid: number | null };
+    const maxPid = row?.max_pid ?? (UserDatabaseService.CUSTOM_PID_START - 1);
+    return Math.max(maxPid + 1, UserDatabaseService.CUSTOM_PID_START);
+  }
+
+  /**
+   * Save a custom portrait to the database
+   */
+  public saveCustomPortrait(
+    pid: number,
+    imageData: Buffer,
+    metadata?: { originalFilename?: string; playerName?: string; databasePlayerId?: number; year?: number }
+  ): void {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    this.customDb.prepare(`
+      INSERT OR REPLACE INTO custom_portraits (pid, image_data, original_filename, player_name, database_player_id, year)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      pid,
+      imageData,
+      metadata?.originalFilename ?? null,
+      metadata?.playerName ?? null,
+      metadata?.databasePlayerId ?? null,
+      metadata?.year ?? null
+    );
+
+    console.log(`[UserDatabaseService] Saved custom portrait PID=${pid}${metadata?.databasePlayerId ? ` (player ID: ${metadata.databasePlayerId})` : ''}`);
+  }
+
+  /**
+   * Get a custom portrait by PID
+   */
+  public getCustomPortrait(pid: number): CustomPortrait | null {
+    if (!this.customDb) return null;
+
+    const row = this.customDb.prepare('SELECT * FROM custom_portraits WHERE pid = ?').get(pid) as Record<string, unknown> | undefined;
+    if (!row) return null;
+
+    return {
+      pid: row.pid as number,
+      imageData: row.image_data as Buffer,
+      originalFilename: row.original_filename as string | undefined,
+      playerName: row.player_name as string | undefined,
+      databasePlayerId: row.database_player_id as number | undefined,
+      year: row.year as number | undefined,
+      createdAt: row.created_at as string | undefined
+    };
+  }
+
+  /**
+   * Get custom portrait PID by database player ID
+   * Used by generators to find custom portraits for specific players
+   */
+  public getCustomPortraitByPlayerId(databasePlayerId: number): number | null {
+    if (!this.customDb) return null;
+
+    const row = this.customDb.prepare('SELECT pid FROM custom_portraits WHERE database_player_id = ?').get(databasePlayerId) as { pid: number } | undefined;
+    return row?.pid ?? null;
+  }
+
+  /**
+   * Get all custom portraits (metadata only, no image data for list view)
+   */
+  public getAllCustomPortraits(): Omit<CustomPortrait, 'imageData'>[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(`
+      SELECT pid, original_filename, player_name, database_player_id, year, created_at
+      FROM custom_portraits
+      ORDER BY pid
+    `).all() as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      pid: row.pid as number,
+      originalFilename: row.original_filename as string | undefined,
+      playerName: row.player_name as string | undefined,
+      databasePlayerId: row.database_player_id as number | undefined,
+      year: row.year as number | undefined,
+      createdAt: row.created_at as string | undefined
+    }));
+  }
+
+  /**
+   * Get custom portraits by year
+   */
+  public getCustomPortraitsByYear(year: number): Omit<CustomPortrait, 'imageData'>[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(`
+      SELECT pid, original_filename, player_name, database_player_id, year, created_at
+      FROM custom_portraits
+      WHERE year = ?
+      ORDER BY pid
+    `).all(year) as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      pid: row.pid as number,
+      originalFilename: row.original_filename as string | undefined,
+      playerName: row.player_name as string | undefined,
+      databasePlayerId: row.database_player_id as number | undefined,
+      year: row.year as number | undefined,
+      createdAt: row.created_at as string | undefined
+    }));
+  }
+
+  /**
+   * Delete a custom portrait
+   */
+  public deleteCustomPortrait(pid: number): void {
+    if (!this.customDb) return;
+
+    this.customDb.prepare('DELETE FROM custom_portraits WHERE pid = ?').run(pid);
+    console.log(`[UserDatabaseService] Deleted custom portrait PID=${pid}`);
+  }
+
+  /**
+   * Check if a custom portrait exists
+   */
+  public hasCustomPortrait(pid: number): boolean {
+    if (!this.customDb) return false;
+    const row = this.customDb.prepare('SELECT 1 FROM custom_portraits WHERE pid = ?').get(pid);
+    return !!row;
+  }
+
+  /**
+   * Get count of custom portraits
+   */
+  public getCustomPortraitCount(): number {
+    if (!this.customDb) return 0;
+    const row = this.customDb.prepare('SELECT COUNT(*) as count FROM custom_portraits').get() as { count: number };
+    return row.count;
+  }
+
+  /**
+   * Update custom portrait metadata (not image)
+   */
+  public updateCustomPortraitMetadata(
+    pid: number,
+    metadata: { playerName?: string; databasePlayerId?: number; year?: number }
+  ): void {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    const updates: string[] = [];
+    const values: unknown[] = [];
+
+    if (metadata.playerName !== undefined) {
+      updates.push('player_name = ?');
+      values.push(metadata.playerName);
+    }
+    if (metadata.databasePlayerId !== undefined) {
+      updates.push('database_player_id = ?');
+      values.push(metadata.databasePlayerId);
+    }
+    if (metadata.year !== undefined) {
+      updates.push('year = ?');
+      values.push(metadata.year);
+    }
+
+    if (updates.length > 0) {
+      values.push(pid);
+      this.customDb.prepare(`UPDATE custom_portraits SET ${updates.join(', ')} WHERE pid = ?`).run(...values);
+      console.log(`[UserDatabaseService] Updated custom portrait metadata PID=${pid}${metadata.databasePlayerId ? ` (player ID: ${metadata.databasePlayerId})` : ''}`);
+    }
+  }
+
+  /**
+   * Get all assigned custom portrait PIDs mapped to database player IDs
+   * Used by generators to look up all custom portraits in one call
+   */
+  public getAllCustomPortraitAssignments(): Map<number, number> {
+    if (!this.customDb) return new Map();
+
+    const rows = this.customDb.prepare(`
+      SELECT database_player_id, pid
+      FROM custom_portraits
+      WHERE database_player_id IS NOT NULL
+    `).all() as { database_player_id: number; pid: number }[];
+
+    const map = new Map<number, number>();
+    for (const row of rows) {
+      map.set(row.database_player_id, row.pid);
+    }
+    return map;
+  }
+
+  /**
+   * Get portraits that have a player_name but no database_player_id
+   * These need migration to link to database IDs
+   */
+  public getPortraitsNeedingMigration(): { pid: number; playerName: string }[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(`
+      SELECT pid, player_name
+      FROM custom_portraits
+      WHERE player_name IS NOT NULL AND database_player_id IS NULL
+    `).all() as { pid: number; player_name: string }[];
+
+    return rows.map(r => ({ pid: r.pid, playerName: r.player_name }));
+  }
+
+  /**
+   * Migrate a portrait assignment to link with database player ID
+   */
+  public migratePortraitAssignment(pid: number, databasePlayerId: number): void {
+    if (!this.customDb) return;
+
+    this.customDb.prepare(`
+      UPDATE custom_portraits SET database_player_id = ? WHERE pid = ?
+    `).run(databasePlayerId, pid);
+
+    console.log(`[UserDatabaseService] Migrated portrait PID ${pid} to database player ID ${databasePlayerId}`);
   }
 }
 

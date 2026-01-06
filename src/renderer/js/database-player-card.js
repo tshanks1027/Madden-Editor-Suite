@@ -179,6 +179,33 @@
       fillFromPFRBtn.addEventListener('click', fillFromPFR);
     }
 
+    // Delete Player button (only visible for custom players)
+    var deleteBtn = document.getElementById('deleteDbPlayerBtn');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', deleteDbPlayer);
+    }
+
+    // Assign Custom Portrait button
+    var assignPortraitBtn = document.getElementById('assignCustomPortraitBtn');
+    if (assignPortraitBtn) {
+      assignPortraitBtn.addEventListener('click', openPortraitPicker);
+    }
+
+    // Portrait Picker Modal events
+    var closePickerBtn = document.getElementById('closePortraitPickerModal');
+    var cancelPickerBtn = document.getElementById('cancelPortraitPickerBtn');
+    var confirmPickerBtn = document.getElementById('confirmPortraitPickerBtn');
+    var pickerModal = document.getElementById('portraitPickerModal');
+
+    if (closePickerBtn) closePickerBtn.addEventListener('click', closePortraitPicker);
+    if (cancelPickerBtn) cancelPickerBtn.addEventListener('click', closePortraitPicker);
+    if (confirmPickerBtn) confirmPickerBtn.addEventListener('click', confirmPortraitPicker);
+    if (pickerModal) {
+      pickerModal.addEventListener('click', function(e) {
+        if (e.target === pickerModal) closePortraitPicker();
+      });
+    }
+
     // Add to Roster button
     var addToRosterBtn = document.getElementById('addDbPlayerToRoster');
     if (addToRosterBtn) {
@@ -461,9 +488,46 @@
         await loadDropdownOptions();
       }
 
-      // Get merged player data (original + edits)
-      // Note: The backend handler waits for the database service to be ready
-      var result = await window.electronAPI.database.getMergedPlayer(playerId);
+      // Get player data - use different API for custom vs database players
+      var result;
+      if (custom) {
+        // Custom player - get from custom_players table
+        console.log('[DatabasePlayerCard] Loading custom player:', playerId);
+        result = await window.electronAPI.database.getCustomPlayer(playerId);
+        if (result.success && result.data) {
+          // Map custom player fields to match database player format
+          // Note: Custom player uses different field names (maddenPid, collegeId, etc.)
+          result.player = {
+            id: result.data.id,
+            internalId: result.data.id,
+            firstName: result.data.firstName,
+            lastName: result.data.lastName,
+            position: result.data.position,
+            college: result.data.collegeId, // collegeId, not college
+            height: result.data.height,
+            weight: result.data.weight,
+            race: result.data.race,
+            bodyType: result.data.bodyType,
+            handedness: result.data.handedness,
+            hometown: result.data.hometown,
+            homeState: result.data.homeState,
+            draftClass: result.data.draftClass, // draftClass, not draftYear
+            round: result.data.draftRound,
+            pick: result.data.draftPick,
+            careerFrom: result.data.careerFrom,
+            careerTo: result.data.careerTo,
+            pid: result.data.maddenPid, // maddenPid, not pid
+            pam: result.data.maddenPam, // maddenPam, not pam
+            plpo: result.data.maddenPlpo, // maddenPlpo, not plpo
+            commID: result.data.maddenCommid, // maddenCommid, not commID
+            isCustom: true
+          };
+        }
+      } else {
+        // Database player - get merged data (original + edits)
+        result = await window.electronAPI.database.getMergedPlayer(playerId);
+      }
+
       if (!result.success) {
         throw new Error(result.error || 'Failed to load player');
       }
@@ -500,6 +564,12 @@
       var modal = document.getElementById('dbPlayerCardModal');
       if (modal) {
         modal.style.display = 'flex';
+      }
+
+      // Show/hide delete button based on whether this is a custom player
+      var deleteBtn = document.getElementById('deleteDbPlayerBtn');
+      if (deleteBtn) {
+        deleteBtn.style.display = isCustomPlayer ? 'inline-block' : 'none';
       }
 
       updateSaveButtonState();
@@ -552,6 +622,12 @@
     var resetBtn = document.getElementById('resetDbPlayerBtn');
     if (resetBtn) {
       resetBtn.style.display = 'none';
+    }
+
+    // Hide the Delete button in create mode (nothing to delete yet)
+    var deleteBtn = document.getElementById('deleteDbPlayerBtn');
+    if (deleteBtn) {
+      deleteBtn.style.display = 'none';
     }
 
     // Change save button text
@@ -691,11 +767,25 @@
   /**
    * Populate the player form with data
    */
-  function populatePlayerForm(player) {
+  async function populatePlayerForm(player) {
     console.log('[DatabasePlayerCard] Populating form with player:', player);
     console.log('[DatabasePlayerCard] bodyType:', player.bodyType, 'typeof:', typeof player.bodyType);
     console.log('[DatabasePlayerCard] handedness:', player.handedness, 'typeof:', typeof player.handedness);
     console.log('[DatabasePlayerCard] homeState:', player.homeState, 'typeof:', typeof player.homeState);
+
+    // Check if player has a custom portrait assigned (PID 12000+)
+    // This checks the custom_portraits table by database_player_id
+    let customPortraitPid = null;
+    if (player.id && window.electronAPI?.customPortrait?.getByPlayerId) {
+      try {
+        customPortraitPid = await window.electronAPI.customPortrait.getByPlayerId(player.id);
+        if (customPortraitPid) {
+          console.log('[DatabasePlayerCard] Found custom portrait PID for player:', customPortraitPid);
+        }
+      } catch (e) {
+        console.log('[DatabasePlayerCard] No custom portrait found:', e);
+      }
+    }
 
     // Basic info - use actual API field names
     setValue('dbPlayerFirstName', player.firstName || '');
@@ -737,10 +827,17 @@
     setValue('dbPlayerCareerTo', player.careerTo || '');
 
     // Madden IDs - API uses 'pid', 'pam', 'plpo', 'commID'
-    setValue('dbPlayerPID', player.pid || '');
+    // Use custom portrait PID if assigned, otherwise use stored PID
+    var effectivePid = customPortraitPid || player.pid || '';
+    setValue('dbPlayerPID', effectivePid);
     setValue('dbPlayerPAM', player.pam || '');
     setValue('dbPlayerPLPO', player.plpo || '');
     setValue('dbPlayerCommID', player.commID || '');
+
+    // If we have a custom portrait PID, log it for debugging
+    if (customPortraitPid) {
+      console.log('[DatabasePlayerCard] Using custom portrait PID:', customPortraitPid, 'instead of stored PID:', player.pid);
+    }
 
     // Stats
     setValue('dbPlayerAP1', player.ap1 || 0);
@@ -755,8 +852,8 @@
       nameEl.textContent = ((player.firstName || '') + ' ' + (player.lastName || '')).trim() || 'Unknown Player';
     }
 
-    // Portrait (if PID exists)
-    loadPlayerPortrait(player.pid);
+    // Portrait (if PID exists) - use effectivePid which includes custom portraits
+    loadPlayerPortrait(effectivePid);
   }
 
   /**
@@ -779,13 +876,24 @@
     console.log('[DbPlayerCard] Loading portrait for PID:', pid);
 
     try {
-      // Try getByPID first - returns full data URL already
-      var imageData = await window.electronAPI.portrait.getByPID(pid);
+      // Custom portraits (PID >= 12000) use getImageDataByPid
+      var CUSTOM_PORTRAIT_PID_START = 12000;
+      var isCustomPortrait = parseInt(pid) >= CUSTOM_PORTRAIT_PID_START;
+      var imageData;
+
+      if (isCustomPortrait) {
+        console.log('[DbPlayerCard] Loading custom portrait for PID:', pid);
+        imageData = await window.electronAPI.portrait.getImageDataByPid(pid);
+      } else {
+        // Try getByPID first - returns full data URL already
+        imageData = await window.electronAPI.portrait.getByPID(pid);
+      }
+
       if (imageData) {
         // imageData is already a full data URL (data:image/png;base64,...)
         portraitEl.src = imageData;
         portraitEl.style.display = 'block';
-        console.log('[DbPlayerCard] Portrait loaded successfully for PID:', pid);
+        console.log('[DbPlayerCard] Portrait loaded successfully for PID:', pid, isCustomPortrait ? '(custom)' : '(standard)');
         return;
       }
 
@@ -1179,6 +1287,35 @@
 
         console.log('[DatabasePlayerCard] Player created with ID:', result.playerId);
 
+        // Check if this was created from Portrait Manager with a pending portrait
+        var pendingPortraitPid = window.portraitManager && window.portraitManager.getPendingPortraitPid
+          ? window.portraitManager.getPendingPortraitPid()
+          : null;
+
+        if (pendingPortraitPid) {
+          console.log('[DatabasePlayerCard] Updating portrait metadata for PID:', pendingPortraitPid);
+          try {
+            await window.electronAPI.customPortrait.updateMetadata(pendingPortraitPid, {
+              playerName: firstName + ' ' + lastName,
+              databasePlayerId: result.playerId
+            });
+            console.log('[DatabasePlayerCard] Portrait metadata updated successfully');
+
+            // Clear the pending PID
+            if (window.portraitManager && window.portraitManager.clearPendingPortraitPid) {
+              window.portraitManager.clearPendingPortraitPid();
+            }
+
+            // Refresh portrait manager grid
+            if (window.portraitManager && window.portraitManager.refresh) {
+              window.portraitManager.refresh();
+            }
+          } catch (portraitError) {
+            console.error('[DatabasePlayerCard] Failed to update portrait metadata:', portraitError);
+            // Don't block player creation for portrait metadata failure
+          }
+        }
+
         // Reset create mode state
         isCreateMode = false;
         hasUnsavedChanges = false;
@@ -1471,6 +1608,61 @@
     } catch (error) {
       console.error('[DatabasePlayerCard] Failed to reset player:', error);
       alert('Failed to reset player: ' + error.message);
+    }
+  }
+
+  /**
+   * Delete a custom player from the database
+   */
+  async function deleteDbPlayer() {
+    if (!currentDbPlayerId || !isCustomPlayer) {
+      alert('Can only delete custom players');
+      return;
+    }
+
+    var playerName = currentDbPlayer ? ((currentDbPlayer.firstName || '') + ' ' + (currentDbPlayer.lastName || '')).trim() : 'this player';
+
+    var confirmed = confirm('Are you sure you want to permanently delete ' + playerName + '?\n\nThis cannot be undone.');
+    if (!confirmed) return;
+
+    try {
+      console.log('[DatabasePlayerCard] Deleting custom player:', currentDbPlayerId);
+      var result = await window.electronAPI.database.deleteCustomPlayer(currentDbPlayerId);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete player');
+      }
+
+      console.log('[DatabasePlayerCard] Player deleted successfully');
+
+      // Close the modal
+      var modal = document.getElementById('dbPlayerCardModal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+
+      // Clear state
+      currentDbPlayer = null;
+      currentDbPlayerId = null;
+      hasUnsavedChanges = false;
+
+      // Refresh the player browser
+      if (typeof window.refreshPlayerBrowser === 'function') {
+        window.refreshPlayerBrowser();
+      }
+
+      // Also refresh portrait manager if open
+      if (window.portraitManager && window.portraitManager.refresh) {
+        window.portraitManager.refresh();
+      }
+
+      if (typeof window.showToast === 'function') {
+        window.showToast(playerName + ' deleted', 'success');
+      }
+
+    } catch (error) {
+      console.error('[DatabasePlayerCard] Failed to delete player:', error);
+      alert('Failed to delete player: ' + error.message);
     }
   }
 
@@ -2163,6 +2355,12 @@
       return;
     }
 
+    // Reset the "3D Model Only" checkbox
+    var modelOnlyCheckbox = document.getElementById('modelOnlyCheckbox');
+    if (modelOnlyCheckbox) {
+      modelOnlyCheckbox.checked = false;
+    }
+
     // Show modal
     modal.style.display = 'flex';
 
@@ -2351,6 +2549,14 @@
   async function selectGenericFaceForDbCard(pid, portrait, verifiedGenr, verifiedSknt) {
     console.log('[DbPlayerCard] Selected face: PID=' + pid + ', portrait=' + portrait + ', genr=' + verifiedGenr + ', sknt=' + verifiedSknt);
 
+    // Check if "3D Model Only" checkbox is checked
+    var modelOnlyCheckbox = document.getElementById('modelOnlyCheckbox');
+    var modelOnly = modelOnlyCheckbox && modelOnlyCheckbox.checked;
+
+    if (modelOnly) {
+      console.log('[DbPlayerCard] Model Only mode - setting PAM without changing PID');
+    }
+
     try {
       // Get PGHE entry for this face to get full matched set
       var pgheEntry = null;
@@ -2360,9 +2566,9 @@
         console.log('[DbPlayerCard] Could not get PGHE by PID, will use verified data:', e);
       }
 
-      // Set PID
+      // Set PID (only if NOT model-only mode)
       var pidInput = document.getElementById('dbPlayerPID');
-      if (pidInput) {
+      if (pidInput && !modelOnly) {
         pidInput.value = pid;
       }
 
@@ -2380,9 +2586,9 @@
         pamInput.value = genrValue;
       }
 
-      // Set PLPO (portrait key)
+      // Set PLPO (portrait key) - only if NOT model-only mode
       var plpoInput = document.getElementById('dbPlayerPLPO');
-      if (plpoInput) {
+      if (plpoInput && !modelOnly) {
         plpoInput.value = portrait || ('plpo_generic_' + (verifiedGenr ? verifiedGenr.replace('gen_', '') : ''));
       }
 
@@ -2395,27 +2601,43 @@
           pfcgValue = pgheEntry.pfcg;
         }
 
+        // In model-only mode, keep the existing PID (psxp)
+        var currentPid = modelOnly ? (document.getElementById('dbPlayerPID')?.value || pid) : pid;
+
         currentDbPlayer._pgheData = {
           pghe: pgheEntry ? pgheEntry.pghe : 0,
           pfcg: pfcgValue,
-          gpan: portrait || (pgheEntry ? pgheEntry.gpan : ''),
+          gpan: modelOnly ? (currentDbPlayer._pgheData?.gpan || portrait) : (portrait || (pgheEntry ? pgheEntry.gpan : '')),
           gslp: pgheEntry ? pgheEntry.gslp : 0,
-          psxp: pid,
+          psxp: parseInt(currentPid) || pid,
           cpvf: pgheEntry ? pgheEntry.cpvf : 0,
           genr: verifiedGenr || (pgheEntry ? pgheEntry.genr : ''),
           skinTone: verifiedSknt || (pgheEntry ? pgheEntry.skinTone : 4)
         };
-        console.log('[DbPlayerCard] Stored PGHE data:', currentDbPlayer._pgheData);
+        console.log('[DbPlayerCard] Stored PGHE data:', currentDbPlayer._pgheData, modelOnly ? '(model-only mode)' : '');
       }
 
       // Mark as changed
       hasUnsavedChanges = true;
       updateSaveButtonState();
 
-      // Load portrait for the new PID
-      loadPlayerPortrait(pid);
+      // Load portrait - in model-only mode, refresh the current portrait (keep existing PID)
+      if (modelOnly) {
+        // Refresh current portrait (don't change it)
+        var currentPidValue = document.getElementById('dbPlayerPID')?.value;
+        if (currentPidValue) {
+          loadPlayerPortrait(currentPidValue);
+        }
+      } else {
+        // Load the new portrait
+        loadPlayerPortrait(pid);
+      }
 
-      console.log('[DbPlayerCard] Applied face: PID=' + pid + ', GENR=' + (verifiedGenr || (pgheEntry ? pgheEntry.genr : 'N/A')));
+      if (modelOnly) {
+        console.log('[DbPlayerCard] Applied 3D model only: GENR=' + (verifiedGenr || (pgheEntry ? pgheEntry.genr : 'N/A')) + ' (PID unchanged)');
+      } else {
+        console.log('[DbPlayerCard] Applied face: PID=' + pid + ', GENR=' + (verifiedGenr || (pgheEntry ? pgheEntry.genr : 'N/A')));
+      }
 
       // Close the modal
       var modal = document.getElementById('genericFacePickerModal');
@@ -2619,11 +2841,197 @@
     }
   }
 
+  // =============================================
+  // PORTRAIT PICKER FUNCTIONS
+  // =============================================
+
+  var selectedPickerPid = null;
+
+  /**
+   * Open the portrait picker modal
+   */
+  async function openPortraitPicker() {
+    if (!currentDbPlayerId) {
+      console.warn('[DatabasePlayerCard] No player loaded');
+      return;
+    }
+
+    console.log('[DatabasePlayerCard] Opening portrait picker for player:', currentDbPlayerId);
+
+    // Reset state
+    selectedPickerPid = null;
+    var confirmBtn = document.getElementById('confirmPortraitPickerBtn');
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    // Set player name
+    var firstName = getValue('dbPlayerFirstName') || '';
+    var lastName = getValue('dbPlayerLastName') || '';
+    var playerName = (firstName + ' ' + lastName).trim() || 'Unknown Player';
+    var pickerPlayerName = document.getElementById('pickerPlayerName');
+    if (pickerPlayerName) {
+      pickerPlayerName.textContent = 'Assigning portrait to: ' + playerName;
+    }
+
+    // Load custom portraits
+    var grid = document.getElementById('portraitPickerGrid');
+    if (grid) {
+      grid.innerHTML = '<div class="picker-loading">Loading portraits...</div>';
+    }
+
+    try {
+      var portraits = await window.electronAPI.customPortrait.list();
+      renderPortraitPickerGrid(portraits);
+    } catch (error) {
+      console.error('[DatabasePlayerCard] Error loading portraits:', error);
+      if (grid) {
+        grid.innerHTML = '<div class="picker-empty">Error loading portraits</div>';
+      }
+    }
+
+    // Show modal
+    var modal = document.getElementById('portraitPickerModal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  /**
+   * Render the portrait picker grid
+   */
+  async function renderPortraitPickerGrid(portraits) {
+    var grid = document.getElementById('portraitPickerGrid');
+    if (!grid) return;
+
+    if (!portraits || portraits.length === 0) {
+      grid.innerHTML = '<div class="picker-empty">No custom portraits available. Import portraits in Portrait Manager.</div>';
+      return;
+    }
+
+    grid.innerHTML = '';
+
+    for (var i = 0; i < portraits.length; i++) {
+      var portrait = portraits[i];
+      var card = document.createElement('div');
+      card.className = 'picker-portrait-card';
+      card.dataset.pid = portrait.pid;
+
+      var img = document.createElement('img');
+      img.alt = portrait.playerName || 'PID ' + portrait.pid;
+
+      // Load image
+      try {
+        var imageData = await window.electronAPI.customPortrait.get(portrait.pid);
+        if (imageData) {
+          img.src = imageData;
+        } else {
+          img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>';
+        }
+      } catch (err) {
+        console.error('[DatabasePlayerCard] Error loading portrait image:', err);
+        img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>';
+      }
+
+      card.appendChild(img);
+
+      var pidBadge = document.createElement('div');
+      pidBadge.className = 'picker-portrait-pid';
+      pidBadge.textContent = 'PID: ' + portrait.pid + (portrait.playerName ? ' (' + portrait.playerName + ')' : '');
+      card.appendChild(pidBadge);
+
+      // Click handler
+      (function(pid) {
+        card.addEventListener('click', function() {
+          selectPortraitInPicker(pid);
+        });
+      })(portrait.pid);
+
+      grid.appendChild(card);
+    }
+  }
+
+  /**
+   * Select a portrait in the picker
+   */
+  function selectPortraitInPicker(pid) {
+    selectedPickerPid = pid;
+
+    // Update visual selection
+    var grid = document.getElementById('portraitPickerGrid');
+    if (grid) {
+      grid.querySelectorAll('.picker-portrait-card').forEach(function(card) {
+        card.classList.toggle('selected', parseInt(card.dataset.pid) === pid);
+      });
+    }
+
+    // Enable confirm button
+    var confirmBtn = document.getElementById('confirmPortraitPickerBtn');
+    if (confirmBtn) confirmBtn.disabled = false;
+  }
+
+  /**
+   * Close the portrait picker modal
+   */
+  function closePortraitPicker() {
+    var modal = document.getElementById('portraitPickerModal');
+    if (modal) modal.style.display = 'none';
+    selectedPickerPid = null;
+  }
+
+  /**
+   * Confirm portrait selection and assign to player
+   */
+  async function confirmPortraitPicker() {
+    if (!selectedPickerPid || !currentDbPlayerId) {
+      console.warn('[DatabasePlayerCard] No portrait or player selected');
+      return;
+    }
+
+    var firstName = getValue('dbPlayerFirstName') || '';
+    var lastName = getValue('dbPlayerLastName') || '';
+    var playerName = (firstName + ' ' + lastName).trim() || 'Unknown';
+
+    console.log('[DatabasePlayerCard] Assigning PID', selectedPickerPid, 'to player:', playerName);
+
+    try {
+      // Update player's PID based on type
+      if (currentPlayerSource === 'custom') {
+        // Custom player - update custom_players table
+        await window.electronAPI.database.updateCustomPlayer(currentDbPlayerId, { pid: selectedPickerPid });
+      } else {
+        // Database player - save appearance edit
+        await window.electronAPI.database.saveAppearanceEdit(currentDbPlayerId, { pid: selectedPickerPid });
+      }
+
+      // Update portrait metadata with player name
+      await window.electronAPI.customPortrait.updateMetadata(selectedPickerPid, { playerName: playerName });
+
+      // Update the PID field in the form
+      setValue('dbPlayerPID', selectedPickerPid);
+      hasUnsavedChanges = true;
+      updateSaveButtonState();
+
+      // Close modal and show success
+      closePortraitPicker();
+
+      if (typeof window.showToast === 'function') {
+        window.showToast('Portrait assigned! PID: ' + selectedPickerPid, 'success');
+      } else {
+        console.log('[DatabasePlayerCard] Portrait assigned! PID:', selectedPickerPid);
+      }
+
+    } catch (error) {
+      console.error('[DatabasePlayerCard] Error assigning portrait:', error);
+      if (typeof window.showToast === 'function') {
+        window.showToast('Error assigning portrait: ' + error.message, 'error');
+      }
+    }
+  }
+
   // Make functions available globally
   window.openDbPlayerCard = openDbPlayerCard;
   window.closeDbPlayerCard = closeDbPlayerCard;
   window.createNewDbPlayer = createNewDbPlayer;
   window.initDatabasePlayerCard = initDatabasePlayerCard;
+  window.openPortraitPicker = openPortraitPicker;
+  window.loadPlayerPortrait = loadPlayerPortrait;
 
   // Auto-initialize when DOM is ready
   if (document.readyState === 'loading') {

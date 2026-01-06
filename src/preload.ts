@@ -52,7 +52,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Verified portrait->GENR mapping (268 faces that work correctly in-game)
     getVerifiedPortraitGenrMapping: () => ipcRenderer.invoke('lookup:get-verified-portrait-genr-mapping'),
     // Face picker # -> GENR/SKNT mapping (264 definitive faces from ROSTER-GENHEADTEST)
-    getFacePickerMapping: () => ipcRenderer.invoke('lookup:get-face-picker-mapping')
+    getFacePickerMapping: () => ipcRenderer.invoke('lookup:get-face-picker-mapping'),
+    // Commentary ID lookup by last name
+    getCommentaryId: (lastName: string) => ipcRenderer.invoke('lookup:get-commentary-id', lastName)
   },
 
   // Draft Class APIs
@@ -184,7 +186,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   portrait: {
     getByPLPO: (plpoKey: string) => ipcRenderer.invoke('portrait:get-image-data-by-plpo', plpoKey),
     getByPID: (pid: number) => ipcRenderer.invoke('portrait:get-image-data-by-pid', pid),
-    getImageDataByPam: (pamCode: string) => ipcRenderer.invoke('portrait:get-image-data-by-pam', pamCode)
+    getImageDataByPam: (pamCode: string) => ipcRenderer.invoke('portrait:get-image-data-by-pam', pamCode),
+    // Get image data for any PID - handles both standard (via sprite) and custom (12000+) portraits
+    getImageDataByPid: async (pid: number) => {
+      const CUSTOM_PORTRAIT_PID_START = 12000;
+      if (pid >= CUSTOM_PORTRAIT_PID_START) {
+        // Custom portrait - get from custom portrait service
+        return ipcRenderer.invoke('custom-portrait:get', pid);
+      } else {
+        // Standard portrait - get from sprite service
+        return ipcRenderer.invoke('portrait:get-image-data-by-pid', pid);
+      }
+    }
   },
 
   // Coach Portrait APIs
@@ -193,6 +206,48 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-by-pid', pid),
     getImageDataByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-image-data-by-pid', pid),
     hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid)
+  },
+
+  // Custom Portrait APIs (user-uploaded portraits, PID 12000+)
+  customPortrait: {
+    import: (filePath: string, metadata?: { playerName?: string; year?: number }) =>
+      ipcRenderer.invoke('custom-portrait:import', filePath, metadata),
+    importDialog: () =>
+      ipcRenderer.invoke('custom-portrait:import-dialog'),
+    importMultipleDialog: (metadata?: { year?: number }) =>
+      ipcRenderer.invoke('custom-portrait:import-multiple-dialog', metadata),
+    get: (pid: number) =>
+      ipcRenderer.invoke('custom-portrait:get', pid),
+    list: () =>
+      ipcRenderer.invoke('custom-portrait:list'),
+    listByYear: (year: number) =>
+      ipcRenderer.invoke('custom-portrait:list-by-year', year),
+    delete: (pid: number) =>
+      ipcRenderer.invoke('custom-portrait:delete', pid),
+    updateMetadata: (pid: number, metadata: { playerName?: string; databasePlayerId?: number; year?: number }) =>
+      ipcRenderer.invoke('custom-portrait:update-metadata', pid, metadata),
+    exportDds: (pid: number) =>
+      ipcRenderer.invoke('custom-portrait:export-dds', pid),
+    exportDdsToPath: (pid: number, outputPath: string) =>
+      ipcRenderer.invoke('custom-portrait:export-dds-to-path', pid, outputPath),
+    exportBatch: (pids: number[]) =>
+      ipcRenderer.invoke('custom-portrait:export-batch', pids),
+    exportByYear: (year: number) =>
+      ipcRenderer.invoke('custom-portrait:export-by-year', year),
+    exportAll: () =>
+      ipcRenderer.invoke('custom-portrait:export-all'),
+    getNextPid: () =>
+      ipcRenderer.invoke('custom-portrait:get-next-pid'),
+    has: (pid: number) =>
+      ipcRenderer.invoke('custom-portrait:has', pid),
+    count: () =>
+      ipcRenderer.invoke('custom-portrait:count'),
+    getByPlayerId: (playerId: number) =>
+      ipcRenderer.invoke('custom-portrait:get-by-player-id', playerId),
+    generateSpriteSheets: (options?: { year?: number; prefix?: string }) =>
+      ipcRenderer.invoke('custom-portrait:generate-sprite-sheets', options),
+    getAvailableYears: () =>
+      ipcRenderer.invoke('custom-portrait:get-available-years')
   },
 
   // PGHE Generic Face APIs
@@ -505,5 +560,79 @@ contextBridge.exposeInMainWorld('electronAPI', {
       // Return cleanup function
       return () => ipcRenderer.removeListener('player-fill:progress', listener);
     }
+  },
+
+  // Frosty Export APIs (FMT-compatible file generation for throwback mods)
+  frosty: {
+    exportPlayer: (player: { firstName: string; lastName: string; pid: string; race?: number; team?: string }, outputDir: string) =>
+      ipcRenderer.invoke('frosty:export-player', player, outputDir),
+    exportBatch: (players: Array<{ firstName: string; lastName: string; pid: string; race?: number; team?: string }>, outputDir: string) =>
+      ipcRenderer.invoke('frosty:export-batch', players, outputDir),
+    getGenericFace: (race: number) =>
+      ipcRenderer.invoke('frosty:get-generic-face', race),
+    selectOutputFolder: () =>
+      ipcRenderer.invoke('frosty:select-output-folder'),
+    generatePortraitName: (firstName: string, lastName: string) =>
+      ipcRenderer.invoke('frosty:generate-portrait-name', firstName, lastName)
+  },
+
+  // Portrait Mapping APIs (year-based portrait assignment for throwback mods)
+  portraitMapping: {
+    // Initialize the recyclable PID service
+    init: () => ipcRenderer.invoke('portrait-mapping:init'),
+    // Get counts of recyclable PIDs
+    getRecyclableCount: () => ipcRenderer.invoke('portrait-mapping:getRecyclableCount'),
+    // Generate mapping for a year (draft class, roster, or both)
+    generate: (year: number, mode: 'draft' | 'roster' | 'both') =>
+      ipcRenderer.invoke('portrait-mapping:generate', year, mode),
+    // Get existing mapping for a year
+    get: (year: number) => ipcRenderer.invoke('portrait-mapping:get', year),
+    // Get years with existing mappings
+    getAvailableYears: () => ipcRenderer.invoke('portrait-mapping:getAvailableYears')
+  },
+
+  // Portrait Import/Export API (controlled portrait assignment with Frosty export)
+  portraitImport: {
+    // Initialize portrait import service
+    init: () => ipcRenderer.invoke('portrait-import:init'),
+    // Import portraits from folder (shows dialog)
+    importFromFolder: (year: number, type: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-import:importFromFolder', year, type),
+    // Import from specific path (no dialog)
+    importFromPath: (folderPath: string, year: number, type: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-import:importFromPath', folderPath, year, type),
+    // Get assignments for a year
+    getAssignments: (year: number, type?: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-import:getAssignments', year, type),
+    // Assign a player to a specific PLPO slot
+    assignToSlot: (historicalPlayer: string, year: number, type: 'draft' | 'roster', newPLPO: string) =>
+      ipcRenderer.invoke('portrait-import:assignToSlot', historicalPlayer, year, type, newPLPO),
+    // Swap assignments between two players
+    swapAssignments: (player1: string, player2: string, year: number, type: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-import:swapAssignments', player1, player2, year, type),
+    // Auto-assign by race for better matching
+    autoAssignByRace: (year: number, type: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-import:autoAssignByRace', year, type),
+    // Get available slots (optionally filtered by race)
+    getAvailableSlots: (year: number, type: 'draft' | 'roster', race?: number) =>
+      ipcRenderer.invoke('portrait-import:getAvailableSlots', year, type, race),
+    // Clear assignments for a year
+    clearAssignments: (year: number, type?: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-import:clearAssignments', year, type)
+  },
+
+  portraitExport: {
+    // Export portraits for Frosty (shows folder dialog)
+    exportForFrosty: (year: number, type?: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-export:exportForFrosty', year, type),
+    // Export to specific path (no dialog)
+    exportToPath: (year: number, outputPath: string, type?: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-export:exportToPath', year, outputPath, type),
+    // Get export preview
+    getPreview: (year: number, type?: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-export:getPreview', year, type),
+    // Get manifest only
+    getManifest: (year: number, type?: 'draft' | 'roster') =>
+      ipcRenderer.invoke('portrait-export:getManifest', year, type)
   }
 });
