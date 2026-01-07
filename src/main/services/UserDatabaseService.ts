@@ -614,6 +614,31 @@ class UserDatabaseService {
       // Column already exists, ignore
     }
 
+    // Migration: Add source column for tracking where coaches came from
+    try {
+      this.customDb.exec("ALTER TABLE custom_coaches ADD COLUMN source TEXT DEFAULT 'manual'");
+    } catch (e) {
+      // Column already exists, ignore
+    }
+
+    // Migration: Add career stats columns
+    const careerStatsColumns = [
+      'career_wins INTEGER DEFAULT 0',
+      'career_losses INTEGER DEFAULT 0',
+      'career_ties INTEGER DEFAULT 0',
+      'career_playoff_wins INTEGER DEFAULT 0',
+      'career_playoff_losses INTEGER DEFAULT 0',
+      'career_sb_wins INTEGER DEFAULT 0',
+      'career_sb_losses INTEGER DEFAULT 0'
+    ];
+    for (const col of careerStatsColumns) {
+      try {
+        this.customDb.exec(`ALTER TABLE custom_coaches ADD COLUMN ${col}`);
+      } catch (e) {
+        // Column already exists, ignore
+      }
+    }
+
     // Custom coach seasons
     this.customDb.exec(`
       CREATE TABLE IF NOT EXISTS custom_coach_seasons (
@@ -2176,13 +2201,15 @@ class UserDatabaseService {
   // CUSTOM COACH OPERATIONS
   // =============================================
 
-  public createCustomCoach(coach: Omit<CustomCoach, 'id' | 'createdAt' | 'editedAt'>): number {
+  public createCustomCoach(coach: Omit<CustomCoach, 'id' | 'createdAt' | 'editedAt'> & { source?: string }): number {
     if (!this.customDb) throw new Error('Custom database not initialized');
 
     const result = this.customDb.prepare(`
       INSERT INTO custom_coaches (first_name, last_name, team_index, position, experience, age,
-                                   career_from, career_to, madden_pid, madden_pam, head_asset)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   career_from, career_to, madden_pid, madden_pam, head_asset,
+                                   career_wins, career_losses, career_ties, career_playoff_wins,
+                                   career_playoff_losses, career_sb_wins, career_sb_losses, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       coach.firstName,
       coach.lastName,
@@ -2194,7 +2221,15 @@ class UserDatabaseService {
       coach.careerTo ?? null,
       coach.maddenPid ?? null,
       coach.maddenPam ?? null,
-      coach.headAsset ?? null
+      coach.headAsset ?? null,
+      (coach as any).careerWins ?? 0,
+      (coach as any).careerLosses ?? 0,
+      (coach as any).careerTies ?? 0,
+      (coach as any).careerPlayoffWins ?? 0,
+      (coach as any).careerPlayoffLosses ?? 0,
+      (coach as any).careerSBWins ?? 0,
+      (coach as any).careerSBLosses ?? 0,
+      (coach as any).source ?? 'manual'
     );
 
     console.log(`[UserDatabaseService] Created custom coach: ${coach.firstName} ${coach.lastName}, id=${result.lastInsertRowid}`);
@@ -2279,6 +2314,14 @@ class UserDatabaseService {
     // Seasons are deleted via CASCADE
     this.customDb.prepare('DELETE FROM custom_coaches WHERE id = ?').run(id);
     console.log(`[UserDatabaseService] Deleted custom coach id=${id}`);
+  }
+
+  public clearAllCustomCoaches(): void {
+    if (!this.customDb) return;
+    // Clear seasons first, then coaches
+    this.customDb.prepare('DELETE FROM custom_coach_seasons').run();
+    this.customDb.prepare('DELETE FROM custom_coaches').run();
+    console.log(`[UserDatabaseService] Cleared all custom coaches and seasons`);
   }
 
   public searchCustomCoaches(query: string, limit: number = 50): CustomCoach[] {

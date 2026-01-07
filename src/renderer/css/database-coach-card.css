@@ -325,3 +325,96 @@
   background: #22c55e;
   color: #fff;
 }
+
+/* Year Selector Section */
+.db-coach-year-section {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.db-coach-year-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.db-coach-year-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-coach-year-selector label {
+  font-size: 13px;
+  color: #a0a0a0;
+  font-weight: 600;
+}
+
+.db-coach-year-selector select {
+  background: #0f0f1a;
+  border: 1px solid #2a2a4e;
+  border-radius: 4px;
+  padding: 6px 12px;
+  color: #fff;
+  font-size: 14px;
+  min-width: 100px;
+}
+
+.db-coach-year-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.db-coach-year-position {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.db-coach-year-position.hc {
+  background: #d4af37;
+  color: #000;
+}
+
+.db-coach-year-position.oc {
+  background: #4a90d9;
+  color: #fff;
+}
+
+.db-coach-year-position.dc {
+  background: #e94560;
+  color: #fff;
+}
+
+.db-coach-year-position.fa {
+  background: #666;
+  color: #fff;
+}
+
+.db-coach-year-team {
+  font-size: 14px;
+  color: #fff;
+  font-weight: 500;
+}
+
+/* Career Totals Section */
+.db-coach-career-totals {
+  background: #0f0f1a;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+/* Disabled stats inputs for OC/DC years */
+.db-coach-form-group input:disabled,
+.db-coach-form-group select:disabled {
+  background: #1a1a2e;
+  color: #555;
+  cursor: not-allowed;
+}

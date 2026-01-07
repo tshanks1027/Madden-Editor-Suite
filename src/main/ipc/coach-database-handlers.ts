@@ -251,12 +251,18 @@ ipcMain.handle('coach-database:update-custom-coach', async (event, id: number, u
 
 /**
  * Handle: coach-database:get-custom-coach
- * Get a custom coach by ID
+ * Get a custom coach by ID including all seasons
  */
 ipcMain.handle('coach-database:get-custom-coach', async (event, id: number) => {
   try {
     await userDatabaseService.waitForReady();
-    return { success: true, data: userDatabaseService.getCustomCoach(id) };
+    const coach = userDatabaseService.getCustomCoach(id);
+    if (coach) {
+      // Also fetch all seasons for this coach
+      const seasons = userDatabaseService.getCustomCoachSeasons(id);
+      return { success: true, data: { ...coach, seasons: seasons || [] } };
+    }
+    return { success: true, data: null };
   } catch (error) {
     console.error('[coach-database-handlers] Error getting custom coach:', error);
     return { success: false, error: String(error) };
@@ -1056,6 +1062,161 @@ ipcMain.handle('coach-database:get-generic-portraits', async () => {
     return { success: true, data: result };
   } catch (error) {
     console.error('[coach-database-handlers] Error loading generic portraits:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// =============================================
+// RETRO COACH IMPORT
+// =============================================
+
+/**
+ * Handle: coach-database:import-retro-coaches
+ * Import all retro coaches from the retro-coaches-database.json file
+ */
+ipcMain.handle('coach-database:import-retro-coaches', async () => {
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const { app } = await import('electron');
+
+    await userDatabaseService.waitForReady();
+
+    const appPath = app.getAppPath();
+    let jsonPath: string;
+
+    if (app.isPackaged) {
+      jsonPath = path.join(appPath, '.vite', 'build', 'data', 'lookups', 'retro-coaches-database.json');
+    } else {
+      jsonPath = path.join(appPath, 'data', 'lookups', 'retro-coaches-database.json');
+    }
+
+    if (!fs.existsSync(jsonPath)) {
+      console.warn('[coach-database-handlers] retro-coaches-database.json not found at:', jsonPath);
+      return { success: false, error: 'Retro coaches database not found' };
+    }
+
+    const data = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    console.log(`[coach-database-handlers] Importing ${data.totalCoaches} coaches with ${data.totalSeasons} seasons...`);
+
+    let coachesImported = 0;
+    let seasonsImported = 0;
+    let coachesSkipped = 0;
+
+    for (const coach of data.coaches) {
+      // Check if coach already exists as custom coach
+      const existing = userDatabaseService.searchCustomCoaches(
+        `${coach.firstName} ${coach.lastName}`,
+        1
+      );
+
+      if (existing.length > 0) {
+        // Coach exists, update seasons only
+        const existingCoach = existing[0];
+        for (const season of coach.seasons) {
+          userDatabaseService.saveCustomCoachSeason(existingCoach.id, season.year, {
+            team: season.team,
+            position: season.position,
+            wins: season.careerWins,
+            losses: season.careerLosses,
+            ties: season.careerTies,
+            playoffWins: season.playoffWins,
+            superBowlWins: season.superBowlWins
+          });
+          seasonsImported++;
+        }
+        coachesSkipped++;
+        continue;
+      }
+
+      // Create new custom coach
+      const coachId = userDatabaseService.createCustomCoach({
+        firstName: coach.firstName,
+        lastName: coach.lastName,
+        careerFrom: coach.careerFrom,
+        careerTo: coach.careerTo,
+        careerWins: coach.careerWins,
+        careerLosses: coach.careerLosses,
+        careerTies: coach.careerTies,
+        careerPlayoffWins: coach.playoffWins,
+        careerSBWins: coach.superBowlWins,
+        source: 'retro'
+      });
+
+      // Add seasons
+      for (const season of coach.seasons) {
+        userDatabaseService.saveCustomCoachSeason(coachId, season.year, {
+          team: season.team,
+          position: season.position,
+          wins: season.careerWins,
+          losses: season.careerLosses,
+          ties: season.careerTies,
+          playoffWins: season.playoffWins,
+          superBowlWins: season.superBowlWins
+        });
+        seasonsImported++;
+      }
+
+      coachesImported++;
+    }
+
+    console.log(`[coach-database-handlers] Import complete: ${coachesImported} coaches, ${seasonsImported} seasons (${coachesSkipped} skipped)`);
+
+    return {
+      success: true,
+      imported: coachesImported,
+      seasons: seasonsImported,
+      skipped: coachesSkipped
+    };
+  } catch (error) {
+    console.error('[coach-database-handlers] Error importing retro coaches:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: coach-database:clear-all-coaches
+ * Clear all custom coaches from the database (for testing)
+ */
+ipcMain.handle('coach-database:clear-all-coaches', async () => {
+  try {
+    await userDatabaseService.waitForReady();
+
+    // Get count before clearing
+    const allCustom = userDatabaseService.getAllCustomCoaches();
+    const count = allCustom.length;
+
+    // Clear all custom coaches
+    userDatabaseService.clearAllCustomCoaches();
+
+    console.log(`[coach-database-handlers] Cleared ${count} custom coaches`);
+
+    return { success: true, cleared: count };
+  } catch (error) {
+    console.error('[coach-database-handlers] Error clearing coaches:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: coach-database:get-retro-import-status
+ * Check if retro coaches have been imported
+ */
+ipcMain.handle('coach-database:get-retro-import-status', async () => {
+  try {
+    await userDatabaseService.waitForReady();
+
+    // Count custom coaches with source='retro'
+    const allCustom = userDatabaseService.getAllCustomCoaches();
+    const retroCoaches = allCustom.filter((c: any) => c.source === 'retro');
+
+    return {
+      success: true,
+      imported: retroCoaches.length > 0,
+      count: retroCoaches.length
+    };
+  } catch (error) {
+    console.error('[coach-database-handlers] Error checking retro import status:', error);
     return { success: false, error: String(error) };
   }
 });

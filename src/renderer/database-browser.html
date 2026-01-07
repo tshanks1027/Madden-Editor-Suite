@@ -557,6 +557,9 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                         <div style="display: flex; gap: 8px; align-items: center;">
                             <button id="addNewCoachBtn" class="db-btn db-btn-primary" style="padding: 6px 12px;">+ Add Coach</button>
+                            <button id="importRetroCoachesBtn" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Import Retro Coaches</button>
+                            <button id="clearCoachDbBtn" class="db-btn" style="padding: 6px 12px; background: #8b0000; color: white;">Clear DB</button>
+                            <span id="retroCoachStatus" style="font-size: 11px; color: #888;"></span>
                         </div>
                         <div class="player-browser-pagination">
                             <button id="coachBrowserPrevPage" disabled>&laquo; Previous</button>
@@ -1238,47 +1241,120 @@
 
                 <!-- Career Stats Tab -->
                 <div class="db-coach-tab-content" id="dbCoachTabSeasons">
-                    <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-                        <button class="db-btn db-btn-secondary" id="dbCoachLoadRetroBtn" style="font-size: 12px; padding: 4px 10px;">
-                            Load from Retro Data
-                        </button>
+                    <!-- Year Selector Section -->
+                    <div class="db-coach-year-section">
+                        <div class="db-coach-year-header">
+                            <div class="db-coach-year-selector">
+                                <label>Select Year:</label>
+                                <select id="dbCoachSeasonYear">
+                                    <option value="">Select Year</option>
+                                </select>
+                            </div>
+                            <div class="db-coach-year-info">
+                                <span class="db-coach-year-position" id="dbCoachYearPosition">-</span>
+                                <span class="db-coach-year-team" id="dbCoachYearTeam">-</span>
+                            </div>
+                            <button class="db-btn db-btn-secondary" id="dbCoachLoadRetroBtn" style="font-size: 12px; padding: 4px 10px;">
+                                Load from Retro Data
+                            </button>
+                        </div>
+
+                        <!-- Year-specific stats (only shown for HC years) -->
+                        <div id="dbCoachYearStatsSection">
+                            <div class="db-coach-form-grid" id="dbCoachYearStats">
+                                <div class="db-coach-form-group">
+                                    <label>Team</label>
+                                    <select id="dbCoachSeasonTeam">
+                                        <option value="">Select Team</option>
+                                    </select>
+                                </div>
+                                <div class="db-coach-form-group">
+                                    <label>Position</label>
+                                    <select id="dbCoachSeasonPosition">
+                                        <option value="">Select</option>
+                                        <option value="HC">Head Coach</option>
+                                        <option value="OC">Off. Coordinator</option>
+                                        <option value="DC">Def. Coordinator</option>
+                                        <option value="FA">Free Agent</option>
+                                    </select>
+                                </div>
+                                <div class="db-coach-form-group">
+                                    <label>Cumulative Wins</label>
+                                    <input type="number" id="dbCoachSeasonWins" min="0">
+                                </div>
+                                <div class="db-coach-form-group">
+                                    <label>Cumulative Losses</label>
+                                    <input type="number" id="dbCoachSeasonLosses" min="0">
+                                </div>
+                                <div class="db-coach-form-group">
+                                    <label>Cumulative Ties</label>
+                                    <input type="number" id="dbCoachSeasonTies" min="0">
+                                </div>
+                                <div class="db-coach-form-group">
+                                    <label>Cumulative Playoff Wins</label>
+                                    <input type="number" id="dbCoachSeasonPlayoffWins" min="0">
+                                </div>
+                                <div class="db-coach-form-group">
+                                    <label>Super Bowl Win</label>
+                                    <select id="dbCoachSeasonSBWin">
+                                        <option value="0">No</option>
+                                        <option value="1">Yes</option>
+                                    </select>
+                                </div>
+                                <div class="db-coach-form-group">
+                                    <button class="db-btn db-btn-primary" id="dbCoachSaveYearBtn" style="margin-top: 20px;">Save Year</button>
+                                </div>
+                            </div>
+                            <div id="dbCoachNoStatsMessage" style="display: none; padding: 16px; background: #252525; border-radius: 4px; text-align: center; color: #888;">
+                                <div style="font-size: 14px; margin-bottom: 8px;">This coach was an <strong id="dbCoachNoStatsPosition">OC/DC</strong> in <span id="dbCoachNoStatsYear">-</span></div>
+                                <div style="font-size: 12px;">Coordinator years don't have HC stats, but team assignment is tracked for Retro Editor placement.</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="db-coach-form-grid">
-                        <div class="db-coach-form-group">
-                            <label>Career Wins</label>
-                            <input type="number" id="dbCoachCareerWins" min="0">
-                        </div>
-                        <div class="db-coach-form-group">
-                            <label>Career Losses</label>
-                            <input type="number" id="dbCoachCareerLosses" min="0">
-                        </div>
-                        <div class="db-coach-form-group">
-                            <label>Career Ties</label>
-                            <input type="number" id="dbCoachCareerTies" min="0">
-                        </div>
-                        <div class="db-coach-form-group">
-                            <label>Career Winning Seasons</label>
-                            <input type="number" id="dbCoachCareerWinningSeasons" min="0">
-                        </div>
-                        <div class="db-coach-form-group">
-                            <label>Career Playoff Wins</label>
-                            <input type="number" id="dbCoachCareerPlayoffWins" min="0">
-                        </div>
-                        <div class="db-coach-form-group">
-                            <label>Career Playoff Losses</label>
-                            <input type="number" id="dbCoachCareerPlayoffLosses" min="0">
-                        </div>
-                        <div class="db-coach-form-group">
-                            <label>Career Super Bowl Wins</label>
-                            <input type="number" id="dbCoachCareerSBWins" min="0">
-                        </div>
-                        <div class="db-coach-form-group">
-                            <label>Career Super Bowl Losses</label>
-                            <input type="number" id="dbCoachCareerSBLosses" min="0">
-                        </div>
-                        <div class="db-coach-form-group">
-                            <label>Career Playoffs Made</label>
-                            <input type="number" id="dbCoachCareerPlayoffsMade" min="0">
+
+                    <!-- Divider -->
+                    <div style="border-top: 1px solid #333; margin: 16px 0;"></div>
+
+                    <!-- Total Career Stats Section -->
+                    <div class="db-coach-career-totals">
+                        <h4 style="margin: 0 0 12px 0; color: #888; font-size: 13px;">Career Totals (Final Stats)</h4>
+                        <div class="db-coach-form-grid">
+                            <div class="db-coach-form-group">
+                                <label>Career Wins</label>
+                                <input type="number" id="dbCoachCareerWins" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Losses</label>
+                                <input type="number" id="dbCoachCareerLosses" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Ties</label>
+                                <input type="number" id="dbCoachCareerTies" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Winning Seasons</label>
+                                <input type="number" id="dbCoachCareerWinningSeasons" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Playoff Wins</label>
+                                <input type="number" id="dbCoachCareerPlayoffWins" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Playoff Losses</label>
+                                <input type="number" id="dbCoachCareerPlayoffLosses" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Super Bowl Wins</label>
+                                <input type="number" id="dbCoachCareerSBWins" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Super Bowl Losses</label>
+                                <input type="number" id="dbCoachCareerSBLosses" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Playoffs Made</label>
+                                <input type="number" id="dbCoachCareerPlayoffsMade" min="0">
+                            </div>
                         </div>
                     </div>
                 </div>

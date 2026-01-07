@@ -356,6 +356,31 @@
   }
 
   /**
+   * Load season team dropdown options
+   */
+  async function loadSeasonTeamDropdown() {
+    try {
+      const teamSelect = document.getElementById('dbCoachSeasonTeam');
+      if (!teamSelect || !window.electronAPI?.lookup) return;
+
+      // Clear existing options except the first
+      teamSelect.innerHTML = '<option value="">Select Team</option>';
+
+      const teams = await window.electronAPI.lookup.getDropdownOptions('team_lookup.csv');
+      if (teams && teams.length > 0) {
+        teams.forEach(team => {
+          const opt = document.createElement('option');
+          opt.value = team.name || team.label; // Store team abbreviation
+          opt.textContent = team.label || team.name;
+          teamSelect.appendChild(opt);
+        });
+      }
+    } catch (e) {
+      console.error('[DatabaseCoachCard] Failed to load season teams:', e);
+    }
+  }
+
+  /**
    * Open coach card for viewing/editing
    */
   async function openDbCoachCard(coachId, isCustom) {
@@ -402,6 +427,9 @@
 
       // Load portrait options
       await loadCoachPortraitOptions();
+
+      // Load season team dropdown
+      await loadSeasonTeamDropdown();
 
       // Setup year selector for seasons
       setupYearSelector();
@@ -829,24 +857,43 @@
 
   /**
    * Setup year selector for seasons tab
+   * Uses seasons data from the coach if available, otherwise uses careerFrom/careerTo
    */
   function setupYearSelector() {
     const yearSelect = document.getElementById('dbCoachSeasonYear');
     if (!yearSelect) return;
 
-    yearSelect.innerHTML = '';
+    yearSelect.innerHTML = '<option value="">Select Year</option>';
 
-    const careerFrom = parseInt(getValue('dbCoachCareerFrom')) || new Date().getFullYear();
-    const careerTo = parseInt(getValue('dbCoachCareerTo')) || new Date().getFullYear();
+    // Check if coach has seasons data
+    if (currentDbCoach && currentDbCoach.seasons && currentDbCoach.seasons.length > 0) {
+      // Use seasons data - includes HC, OC, DC years
+      const seasons = currentDbCoach.seasons.sort((a, b) => a.year - b.year);
+      for (const season of seasons) {
+        const opt = document.createElement('option');
+        opt.value = season.year;
+        // Include position in the year label
+        const posLabel = season.position ? ` (${season.position})` : '';
+        opt.textContent = `${season.year}${posLabel}`;
+        opt.dataset.position = season.position || '';
+        opt.dataset.team = season.team || '';
+        yearSelect.appendChild(opt);
+      }
+    } else {
+      // Fall back to careerFrom/careerTo range
+      const careerFrom = parseInt(getValue('dbCoachCareerFrom')) || new Date().getFullYear();
+      const careerTo = parseInt(getValue('dbCoachCareerTo')) || new Date().getFullYear();
 
-    for (let year = careerFrom; year <= careerTo; year++) {
-      const opt = document.createElement('option');
-      opt.value = year;
-      opt.textContent = year;
-      yearSelect.appendChild(opt);
+      for (let year = careerFrom; year <= careerTo; year++) {
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year;
+        yearSelect.appendChild(opt);
+      }
     }
 
-    if (yearSelect.options.length > 0) {
+    if (yearSelect.options.length > 1) {
+      yearSelect.selectedIndex = 1; // Select first year
       selectedYear = parseInt(yearSelect.value);
       loadSeasonData();
     }
@@ -862,7 +909,29 @@
     selectedYear = parseInt(yearSelect.value);
     if (!selectedYear) return;
 
+    // Get position and team from the selected option's data attributes
+    const selectedOption = yearSelect.options[yearSelect.selectedIndex];
+    const position = selectedOption?.dataset?.position || '';
+    const teamFromOption = selectedOption?.dataset?.team || '';
+
+    // Update position badge in header
+    updateYearPositionBadge(position, teamFromOption);
+
+    // Show/hide stats based on position
+    const isHC = position === 'HC' || position === '';
+    toggleStatsVisibility(isHC, position, selectedYear);
+
     try {
+      // First check if we have season data from the coach's seasons array
+      if (currentDbCoach && currentDbCoach.seasons) {
+        const seasonData = currentDbCoach.seasons.find(s => s.year === selectedYear);
+        if (seasonData) {
+          populateSeasonForm(seasonData);
+          return;
+        }
+      }
+
+      // Fall back to database lookup
       if (isCustomCoach && currentDbCoachId) {
         const result = await window.electronAPI.coachDatabase.getCustomCoachSeason(currentDbCoachId, selectedYear);
         if (result.success && result.data) {
@@ -885,16 +954,94 @@
   }
 
   /**
+   * Update the year position badge in the header
+   */
+  function updateYearPositionBadge(position, team) {
+    const positionEl = document.getElementById('dbCoachYearPosition');
+    const teamEl = document.getElementById('dbCoachYearTeam');
+
+    if (positionEl) {
+      // Remove existing position classes
+      positionEl.classList.remove('hc', 'oc', 'dc', 'fa');
+
+      if (position) {
+        const positionNames = {
+          'HC': 'Head Coach',
+          'OC': 'Off. Coord.',
+          'DC': 'Def. Coord.',
+          'FA': 'Free Agent'
+        };
+        positionEl.textContent = positionNames[position] || position;
+        positionEl.classList.add(position.toLowerCase());
+      } else {
+        positionEl.textContent = '-';
+      }
+    }
+
+    if (teamEl) {
+      teamEl.textContent = team || '-';
+    }
+  }
+
+  /**
+   * Toggle visibility of stats fields based on position
+   * HC years show stats, OC/DC years show "no stats" message
+   */
+  function toggleStatsVisibility(showStats, position, year) {
+    const statsGrid = document.getElementById('dbCoachYearStats');
+    const noStatsMessage = document.getElementById('dbCoachNoStatsMessage');
+    const noStatsPosition = document.getElementById('dbCoachNoStatsPosition');
+    const noStatsYear = document.getElementById('dbCoachNoStatsYear');
+
+    if (showStats) {
+      // Show stats form for HC years
+      if (statsGrid) statsGrid.style.display = 'grid';
+      if (noStatsMessage) noStatsMessage.style.display = 'none';
+
+      // Enable stats inputs
+      const statsInputs = ['dbCoachSeasonWins', 'dbCoachSeasonLosses', 'dbCoachSeasonTies',
+                           'dbCoachSeasonPlayoffWins', 'dbCoachSeasonSBWin'];
+      statsInputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = false;
+      });
+    } else {
+      // Show "no stats" message for OC/DC years
+      if (statsGrid) statsGrid.style.display = 'none';
+      if (noStatsMessage) noStatsMessage.style.display = 'block';
+
+      if (noStatsPosition) {
+        const positionNames = {
+          'OC': 'Offensive Coordinator',
+          'DC': 'Defensive Coordinator',
+          'FA': 'Free Agent'
+        };
+        noStatsPosition.textContent = positionNames[position] || position;
+      }
+      if (noStatsYear) noStatsYear.textContent = year;
+    }
+  }
+
+  /**
    * Populate season form
+   * Handles both legacy format and new retro format with careerWins/careerLosses
    */
   function populateSeasonForm(season) {
     setValue('dbCoachSeasonTeam', season.team || '');
     setValue('dbCoachSeasonPosition', season.position || '');
-    setValue('dbCoachSeasonWins', season.wins || '');
-    setValue('dbCoachSeasonLosses', season.losses || '');
-    setValue('dbCoachSeasonTies', season.ties || '');
-    setValue('dbCoachSeasonPlayoffWins', season.playoffWins || '');
-    setValue('dbCoachSeasonSBWin', season.superBowlWins ? '1' : '0');
+
+    // Handle both formats: 'wins' (per-season) and 'careerWins' (cumulative)
+    const wins = season.wins !== undefined ? season.wins : (season.careerWins || '');
+    const losses = season.losses !== undefined ? season.losses : (season.careerLosses || '');
+    const ties = season.ties !== undefined ? season.ties : (season.careerTies || '');
+    const playoffWins = season.playoffWins !== undefined ? season.playoffWins : '';
+    const sbWins = season.superBowlWins !== undefined ? season.superBowlWins : 0;
+
+    setValue('dbCoachSeasonWins', wins);
+    setValue('dbCoachSeasonLosses', losses);
+    setValue('dbCoachSeasonTies', ties);
+    setValue('dbCoachSeasonPlayoffWins', playoffWins);
+    setValue('dbCoachSeasonSBWin', sbWins ? '1' : '0');
   }
 
   /**

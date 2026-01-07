@@ -96,6 +96,113 @@
         }
       });
     }
+
+    // Import Retro Coaches button
+    const importRetroCoachesBtn = document.getElementById('importRetroCoachesBtn');
+    if (importRetroCoachesBtn) {
+      importRetroCoachesBtn.addEventListener('click', importRetroCoaches);
+      // Check import status on load
+      checkRetroImportStatus();
+    }
+
+    // Clear Coach DB button
+    const clearCoachDbBtn = document.getElementById('clearCoachDbBtn');
+    if (clearCoachDbBtn) {
+      clearCoachDbBtn.addEventListener('click', clearCoachDatabase);
+    }
+  }
+
+  /**
+   * Clear all custom coaches from database
+   */
+  async function clearCoachDatabase() {
+    if (!window.electronAPI?.coachDatabase?.clearAllCoaches) {
+      alert('Clear functionality not available.');
+      return;
+    }
+
+    if (!confirm('Clear ALL custom coaches from the database?\n\nThis cannot be undone!')) {
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.coachDatabase.clearAllCoaches();
+      if (result.success) {
+        alert(`Cleared ${result.cleared} coaches from database.`);
+        const statusSpan = document.getElementById('retroCoachStatus');
+        if (statusSpan) statusSpan.textContent = '';
+        const importBtn = document.getElementById('importRetroCoachesBtn');
+        if (importBtn) importBtn.textContent = 'Import Retro Coaches';
+        performSearch(); // Refresh
+      } else {
+        alert('Clear failed: ' + (result.error || 'Unknown error'));
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+    }
+  }
+
+  /**
+   * Check if retro coaches have been imported
+   */
+  async function checkRetroImportStatus() {
+    try {
+      const statusSpan = document.getElementById('retroCoachStatus');
+      const importBtn = document.getElementById('importRetroCoachesBtn');
+
+      if (!window.electronAPI?.coachDatabase?.getRetroImportStatus) return;
+
+      const result = await window.electronAPI.coachDatabase.getRetroImportStatus();
+      if (result.success && result.imported) {
+        if (statusSpan) statusSpan.textContent = `(${result.count} retro coaches imported)`;
+        if (importBtn) importBtn.textContent = 'Re-import Retro Coaches';
+      }
+    } catch (e) {
+      console.error('[CoachBrowser] Error checking retro import status:', e);
+    }
+  }
+
+  /**
+   * Import retro coaches from historical data
+   */
+  async function importRetroCoaches() {
+    const importBtn = document.getElementById('importRetroCoachesBtn');
+    const statusSpan = document.getElementById('retroCoachStatus');
+
+    if (!window.electronAPI?.coachDatabase?.importRetroCoaches) {
+      alert('Import functionality not available.');
+      return;
+    }
+
+    if (!confirm('Import 235 historical head coaches (1966-2024) with their year-by-year stats?\n\n(Excludes in-game coaches and OC/DC records)')) {
+      return;
+    }
+
+    try {
+      if (importBtn) {
+        importBtn.disabled = true;
+        importBtn.textContent = 'Importing...';
+      }
+      if (statusSpan) statusSpan.textContent = 'Importing...';
+
+      const result = await window.electronAPI.coachDatabase.importRetroCoaches();
+
+      if (result.success) {
+        if (statusSpan) statusSpan.textContent = `Imported ${result.imported} coaches, ${result.seasons} seasons`;
+        if (importBtn) importBtn.textContent = 'Re-import Retro Coaches';
+        alert(`Import complete!\n\n${result.imported} coaches imported\n${result.seasons} season records\n${result.skipped} coaches already existed`);
+        performSearch(); // Refresh the list
+      } else {
+        alert('Import failed: ' + (result.error || 'Unknown error'));
+        if (statusSpan) statusSpan.textContent = 'Import failed';
+      }
+    } catch (e) {
+      console.error('[CoachBrowser] Error importing retro coaches:', e);
+      alert('Error importing: ' + e.message);
+      if (statusSpan) statusSpan.textContent = 'Error';
+    } finally {
+      if (importBtn) importBtn.disabled = false;
+    }
   }
 
   /**

@@ -634,7 +634,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Generic portrait options (race-coded generic coach faces)
     getGenericPortraits: () =>
-      ipcRenderer.invoke('coach-database:get-generic-portraits')
+      ipcRenderer.invoke('coach-database:get-generic-portraits'),
+
+    // Retro coach import
+    importRetroCoaches: () =>
+      ipcRenderer.invoke('coach-database:import-retro-coaches'),
+    getRetroImportStatus: () =>
+      ipcRenderer.invoke('coach-database:get-retro-import-status'),
+    clearAllCoaches: () =>
+      ipcRenderer.invoke('coach-database:clear-all-coaches')
   },
 
   // Window APIs (focus restoration after native dialogs, multi-window support)
