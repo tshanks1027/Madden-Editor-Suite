@@ -360,9 +360,21 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             // Use valueGetter to read from PSXP field
             colDef.valueGetter = (params) => {
                 if (!params.data) return null;
-                const pid = params.data.PSXP;
+                const pid = parseInt(params.data.PSXP) || 0;
                 if (!pid) return null;
-                const playerName = pidMap.get(parseInt(pid));
+
+                // Custom portrait PIDs (12000+) - use player's actual name
+                const CUSTOM_PORTRAIT_PID_START = 12000;
+                if (pid >= CUSTOM_PORTRAIT_PID_START) {
+                    const lastName = params.data.PLNA || '';
+                    const firstName = params.data.PFNA || '';
+                    if (lastName || firstName) {
+                        return `${lastName}, ${firstName}`;
+                    }
+                    return 'Custom Portrait';
+                }
+
+                const playerName = pidMap.get(pid);
                 return playerName || 'Generic Face';
             };
 
@@ -1047,6 +1059,16 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                                 app.showToast(`Error: ${err.message}`, 'error');
                             });
                     });
+                } else if (action === 'change-portrait') {
+                    // Open generic face picker to change both PID and PAM
+                    const player = event.data;
+                    console.log('[AG-Grid] Opening face picker for player:', player.PFNA, player.PLNA);
+                    app.openGenericFacePicker(player, rowIndex);
+                } else if (action === 'set-3d-face') {
+                    // Open PAM picker to set 3D face only (keep portrait PID)
+                    const player = event.data;
+                    console.log('[AG-Grid] Opening PAM picker for player:', player.PFNA, player.PLNA);
+                    app.openPAMPicker(player, rowIndex);
                 }
 
                 // Hide menu

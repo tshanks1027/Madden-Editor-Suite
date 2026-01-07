@@ -6,6 +6,526 @@
   "games": [
     {
       "week": 1,
+      "weekType": "preseason",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Tampa Bay Buccaneers",
+      "awayTeam": "Baltimore Ravens",
+      "homeTeamIndex": 5,
+      "awayTeamIndex": 24
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "Seattle Seahawks",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 27
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "St. Louis Rams",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Tennessee Titans",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Jacksonville Jaguars",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 16,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "New England Patriots",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Carolina Panthers",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 20,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Arizona Cardinals",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "Houston Texans",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 31
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 2,
+      "weekType": "preseason",
+      "homeTeam": "Indianapolis Colts",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Cleveland Browns",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 4,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Philadelphia Eagles",
+      "awayTeam": "Carolina Panthers",
+      "homeTeamIndex": 12,
+      "awayTeamIndex": 20
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Baltimore Ravens",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 24,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 14
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "New England Patriots",
+      "awayTeam": "Tampa Bay Buccaneers",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 5
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "New Orleans Saints",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 26,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Arizona Cardinals",
+      "awayTeam": "Dallas Cowboys",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 10
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "Tennessee Titans",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "New York Jets",
+      "awayTeam": "Jacksonville Jaguars",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 16
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Houston Texans",
+      "awayTeam": "Miami Dolphins",
+      "homeTeamIndex": 31,
+      "awayTeamIndex": 11
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "St. Louis Rams",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Seattle Seahawks",
+      "awayTeam": "Denver Broncos",
+      "homeTeamIndex": 27,
+      "awayTeamIndex": 3
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "New York Giants",
+      "awayTeam": "Indianapolis Colts",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 3,
+      "weekType": "preseason",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Baltimore Ravens",
+      "awayTeam": "Carolina Panthers",
+      "homeTeamIndex": 24,
+      "awayTeamIndex": 20
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Detroit Lions",
+      "awayTeam": "New England Patriots",
+      "homeTeamIndex": 18,
+      "awayTeamIndex": 21
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Green Bay Packers",
+      "awayTeam": "Seattle Seahawks",
+      "homeTeamIndex": 19,
+      "awayTeamIndex": 27
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Oakland Raiders",
+      "awayTeam": "Chicago Bears",
+      "homeTeamIndex": 22,
+      "awayTeamIndex": 0
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "New York Giants",
+      "awayTeam": "New York Jets",
+      "homeTeamIndex": 15,
+      "awayTeamIndex": 17
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Pittsburgh Steelers",
+      "awayTeam": "Kansas City Chiefs",
+      "homeTeamIndex": 28,
+      "awayTeamIndex": 8
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Arizona Cardinals",
+      "awayTeam": "San Diego Chargers",
+      "homeTeamIndex": 6,
+      "awayTeamIndex": 7
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Tennessee Titans",
+      "awayTeam": "Atlanta Falcons",
+      "homeTeamIndex": 29,
+      "awayTeamIndex": 13
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "St. Louis Rams",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 23
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "Tampa Bay Buccaneers",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 5
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Washington Redskins",
+      "awayTeam": "Buffalo Bills",
+      "homeTeamIndex": 25,
+      "awayTeamIndex": 2
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Indianapolis Colts",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 9,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "Cincinnati Bengals",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 1
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Jacksonville Jaguars",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 16,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "San Francisco 49ers",
+      "awayTeam": "Minnesota Vikings",
+      "homeTeamIndex": 14,
+      "awayTeamIndex": 30
+    },
+    {
+      "week": 4,
+      "weekType": "preseason",
+      "homeTeam": "Houston Texans",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 31,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Dallas Cowboys",
+      "awayTeam": "Houston Texans",
+      "homeTeamIndex": 10,
+      "awayTeamIndex": 31
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Buffalo Bills",
+      "awayTeam": "Detroit Lions",
+      "homeTeamIndex": 2,
+      "awayTeamIndex": 18
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Seattle Seahawks",
+      "awayTeam": "Oakland Raiders",
+      "homeTeamIndex": 27,
+      "awayTeamIndex": 22
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "San Diego Chargers",
+      "awayTeam": "San Francisco 49ers",
+      "homeTeamIndex": 7,
+      "awayTeamIndex": 14
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Denver Broncos",
+      "awayTeam": "Arizona Cardinals",
+      "homeTeamIndex": 3,
+      "awayTeamIndex": 6
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "St. Louis Rams",
+      "awayTeam": "Baltimore Ravens",
+      "homeTeamIndex": 23,
+      "awayTeamIndex": 24
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Minnesota Vikings",
+      "awayTeam": "Tennessee Titans",
+      "homeTeamIndex": 30,
+      "awayTeamIndex": 29
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Kansas City Chiefs",
+      "awayTeam": "Green Bay Packers",
+      "homeTeamIndex": 8,
+      "awayTeamIndex": 19
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Cincinnati Bengals",
+      "awayTeam": "Indianapolis Colts",
+      "homeTeamIndex": 1,
+      "awayTeamIndex": 9
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Chicago Bears",
+      "awayTeam": "Cleveland Browns",
+      "homeTeamIndex": 0,
+      "awayTeamIndex": 4
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Tampa Bay Buccaneers",
+      "awayTeam": "Washington Redskins",
+      "homeTeamIndex": 5,
+      "awayTeamIndex": 25
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "New England Patriots",
+      "awayTeam": "New York Giants",
+      "homeTeamIndex": 21,
+      "awayTeamIndex": 15
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Miami Dolphins",
+      "awayTeam": "New Orleans Saints",
+      "homeTeamIndex": 11,
+      "awayTeamIndex": 26
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Carolina Panthers",
+      "awayTeam": "Pittsburgh Steelers",
+      "homeTeamIndex": 20,
+      "awayTeamIndex": 28
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "Atlanta Falcons",
+      "awayTeam": "Jacksonville Jaguars",
+      "homeTeamIndex": 13,
+      "awayTeamIndex": 16
+    },
+    {
+      "week": 5,
+      "weekType": "preseason",
+      "homeTeam": "New York Jets",
+      "awayTeam": "Philadelphia Eagles",
+      "homeTeamIndex": 17,
+      "awayTeamIndex": 12
+    },
+    {
+      "week": 1,
       "weekType": "regular",
       "homeTeam": "Denver Broncos",
       "awayTeam": "Baltimore Ravens",
@@ -2053,5 +2573,7 @@
       "awayTeamIndex": 12
     }
   ],
-  "playoffs": []
+  "playoffs": [],
+  "preseasonGames": 65,
+  "preseasonWeeks": 5
 }

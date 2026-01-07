@@ -8,6 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
+import sharp from 'sharp';
 
 interface AtlasEntry {
   id: string;
@@ -431,6 +432,7 @@ export class PortraitSpriteService {
 
     debugLog(`[GetByPID] Called with PID ${pid}`);
     debugLog(`[GetByPID] Initialized: ${this.initialized}, Has Atlas: ${!!this.atlas}, PID Map Size: ${this.pidMap.size}`);
+    console.log(`[PortraitSpriteService] getPortraitByPID(${pid}) - initialized=${this.initialized}, pidMap.size=${this.pidMap.size}`);
 
     if (!this.initialized || !this.atlas) {
       console.warn('[PortraitSpriteService] Service not initialized');
@@ -440,6 +442,7 @@ export class PortraitSpriteService {
 
     const entry = this.pidMap.get(pid);
     debugLog(`[GetByPID] PID Map lookup result: ${entry ? entry.id : 'NOT FOUND'}`);
+    console.log(`[PortraitSpriteService] PID ${pid} -> ${entry ? entry.id : 'NOT FOUND'}`);
 
     if (!entry) {
       debugLog(`[GetByPID] No entry found for PID ${pid}`);
@@ -490,6 +493,66 @@ export class PortraitSpriteService {
   }
 
   /**
+   * Search portraits by query string, including PID
+   * @param query Search query
+   * @param limit Maximum results
+   * @returns Array of {name, pid, sheetPath, x, y, width, height}
+   */
+  public searchPortraitsWithPid(query: string, limit: number = 50): Array<{name: string; pid: number | null} & SpritePortraitInfo> {
+    if (!this.initialized || !this.atlas) {
+      return [];
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const results: Array<{name: string; pid: number | null} & SpritePortraitInfo> = [];
+    const seenNames = new Set<string>();
+
+    // First, search through PID map to get portraits with PIDs
+    for (const [pid, entry] of this.pidMap.entries()) {
+      if (entry.id.toLowerCase().includes(lowerQuery)) {
+        if (!seenNames.has(entry.id)) {
+          seenNames.add(entry.id);
+          results.push({
+            name: entry.id,
+            pid: pid,
+            sheetPath: path.join(this.spritesDir, `portraits-sheet-${entry.sheet}.png`),
+            x: entry.x,
+            y: entry.y,
+            width: entry.width,
+            height: entry.height
+          });
+
+          if (results.length >= limit) {
+            return results;
+          }
+        }
+      }
+    }
+
+    // Then search portrait map for any that weren't found via PID
+    for (const [key, entry] of this.portraitMap.entries()) {
+      if (key.includes(lowerQuery) && !seenNames.has(entry.id)) {
+        seenNames.add(entry.id);
+        results.push({
+          name: entry.id,
+          pid: null, // No PID mapping for this portrait
+          sheetPath: path.join(this.spritesDir, `portraits-sheet-${entry.sheet}.png`),
+          x: entry.x,
+          y: entry.y,
+          width: entry.width,
+          height: entry.height
+        });
+
+        if (results.length >= limit) {
+          break;
+        }
+      }
+    }
+
+    return results;
+  }
+
+  /**
    * Check if portrait exists
    * @param plpoName PLPO name
    * @returns True if portrait exists
@@ -521,6 +584,284 @@ export class PortraitSpriteService {
     }
 
     return this.atlas.portraits.map(p => p.id);
+  }
+
+  /**
+   * Get all PIDs that have sprite sheet portraits
+   * @returns Array of PIDs
+   */
+  public getAllPids(): number[] {
+    if (!this.initialized) {
+      return [];
+    }
+
+    return Array.from(this.pidMap.keys());
+  }
+
+  /**
+   * Extract a portrait from sprite sheet and return as PNG buffer
+   * @param pid Player ID
+   * @param upscale Whether to upscale from 256 to 512 (default true)
+   * @returns PNG buffer or null
+   */
+  public async extractPortraitByPID(pid: number, upscale: boolean = true): Promise<Buffer | null> {
+    const info = this.getPortraitByPID(pid);
+    if (!info) {
+      console.log(`[PortraitSpriteService] No portrait found for PID ${pid}`);
+      return null;
+    }
+
+    return this.extractFromSpriteSheet(info, upscale);
+  }
+
+  /**
+   * Extract a portrait from sprite sheet using PLPO name
+   * @param plpoName PLPO name
+   * @param upscale Whether to upscale from 256 to 512 (default true)
+   * @returns PNG buffer or null
+   */
+  public async extractPortraitByPLPO(plpoName: string, upscale: boolean = true): Promise<Buffer | null> {
+    const info = this.getPortraitByPLPO(plpoName);
+    if (!info) {
+      console.log(`[PortraitSpriteService] No portrait found for PLPO ${plpoName}`);
+      return null;
+    }
+
+    return this.extractFromSpriteSheet(info, upscale);
+  }
+
+  /**
+   * Extract portrait from sprite sheet
+   */
+  private async extractFromSpriteSheet(info: SpritePortraitInfo, upscale: boolean): Promise<Buffer | null> {
+    try {
+      if (!fs.existsSync(info.sheetPath)) {
+        console.error(`[PortraitSpriteService] Sprite sheet not found: ${info.sheetPath}`);
+        return null;
+      }
+
+      // Extract region from sprite sheet
+      let image = sharp(info.sheetPath).extract({
+        left: info.x,
+        top: info.y,
+        width: info.width,
+        height: info.height
+      });
+
+      // Upscale to 512x512 if requested (for DDS export)
+      if (upscale && (info.width !== 512 || info.height !== 512)) {
+        image = image.resize(512, 512, {
+          kernel: sharp.kernel.lanczos3 // High quality upscaling
+        });
+      }
+
+      return await image.png().toBuffer();
+    } catch (err) {
+      console.error('[PortraitSpriteService] Error extracting portrait:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Export a sprite sheet portrait as DDS file
+   * @param pid Player ID
+   * @param outputPath Output directory
+   * @returns Result with file path or error
+   */
+  public async exportPortraitAsDDS(pid: number, outputPath: string): Promise<{ success: boolean; filePath?: string; error?: string }> {
+    try {
+      // Extract and upscale portrait
+      const pngBuffer = await this.extractPortraitByPID(pid, true);
+      if (!pngBuffer) {
+        return { success: false, error: `Portrait not found for PID ${pid}` };
+      }
+
+      // Get raw RGBA pixels
+      const { data: rgbaData, info } = await sharp(pngBuffer)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+      console.log(`[PortraitSpriteService] Exporting PID ${pid}: ${info.width}x${info.height}`);
+
+      // Compress to DXT5
+      const dxt5Data = this.compressToDxt5(rgbaData, info.width, info.height);
+
+      // Build DDS file
+      const ddsBuffer = this.buildDdsFile(dxt5Data, info.width, info.height);
+
+      // Ensure output directory exists
+      if (!fs.existsSync(outputPath)) {
+        fs.mkdirSync(outputPath, { recursive: true });
+      }
+
+      // Write file
+      const filename = `${pid}.dds`;
+      const filePath = path.join(outputPath, filename);
+      fs.writeFileSync(filePath, ddsBuffer);
+
+      console.log(`[PortraitSpriteService] Exported DDS: ${filePath}`);
+      return { success: true, filePath };
+    } catch (err) {
+      console.error('[PortraitSpriteService] DDS export failed:', err);
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  // DDS compression methods (same as CustomPortraitService)
+  private compressToDxt5(rgbaData: Buffer, width: number, height: number): Buffer {
+    const blocksX = width / 4;
+    const blocksY = height / 4;
+    const dxtData = Buffer.alloc(blocksX * blocksY * 16);
+
+    for (let by = 0; by < blocksY; by++) {
+      for (let bx = 0; bx < blocksX; bx++) {
+        const blockOffset = (by * blocksX + bx) * 16;
+        const block = this.extractBlock(rgbaData, width, bx * 4, by * 4);
+        const compressedBlock = this.compressBlockDxt5(block);
+        compressedBlock.copy(dxtData, blockOffset);
+      }
+    }
+
+    return dxtData;
+  }
+
+  private extractBlock(rgbaData: Buffer, width: number, x: number, y: number): Buffer {
+    const block = Buffer.alloc(64);
+    for (let py = 0; py < 4; py++) {
+      for (let px = 0; px < 4; px++) {
+        const srcOffset = ((y + py) * width + (x + px)) * 4;
+        const dstOffset = (py * 4 + px) * 4;
+        block[dstOffset + 0] = rgbaData[srcOffset + 0];
+        block[dstOffset + 1] = rgbaData[srcOffset + 1];
+        block[dstOffset + 2] = rgbaData[srcOffset + 2];
+        block[dstOffset + 3] = rgbaData[srcOffset + 3];
+      }
+    }
+    return block;
+  }
+
+  private compressBlockDxt5(block: Buffer): Buffer {
+    const output = Buffer.alloc(16);
+    const alphas: number[] = [];
+    for (let i = 0; i < 16; i++) {
+      alphas.push(block[i * 4 + 3]);
+    }
+    this.compressAlphaBlock(alphas, output, 0);
+
+    const colors: { r: number; g: number; b: number }[] = [];
+    for (let i = 0; i < 16; i++) {
+      colors.push({ r: block[i * 4 + 0], g: block[i * 4 + 1], b: block[i * 4 + 2] });
+    }
+    this.compressColorBlock(colors, output, 8);
+    return output;
+  }
+
+  private compressAlphaBlock(alphas: number[], output: Buffer, offset: number): void {
+    let minAlpha = 255, maxAlpha = 0;
+    for (const a of alphas) {
+      minAlpha = Math.min(minAlpha, a);
+      maxAlpha = Math.max(maxAlpha, a);
+    }
+    output[offset + 0] = maxAlpha;
+    output[offset + 1] = minAlpha;
+
+    const alphaPalette: number[] = [maxAlpha, minAlpha];
+    if (maxAlpha > minAlpha) {
+      for (let i = 1; i <= 6; i++) {
+        alphaPalette.push(Math.round(((7 - i) * maxAlpha + i * minAlpha) / 7));
+      }
+    } else {
+      for (let i = 1; i <= 4; i++) {
+        alphaPalette.push(Math.round(((5 - i) * maxAlpha + i * minAlpha) / 5));
+      }
+      alphaPalette.push(0);
+      alphaPalette.push(255);
+    }
+
+    let indexBits = BigInt(0);
+    for (let i = 0; i < 16; i++) {
+      let bestIndex = 0, bestDist = 256;
+      for (let j = 0; j < 8; j++) {
+        const dist = Math.abs(alphas[i] - alphaPalette[j]);
+        if (dist < bestDist) { bestDist = dist; bestIndex = j; }
+      }
+      indexBits |= BigInt(bestIndex) << BigInt(i * 3);
+    }
+    for (let i = 0; i < 6; i++) {
+      output[offset + 2 + i] = Number((indexBits >> BigInt(i * 8)) & BigInt(0xFF));
+    }
+  }
+
+  private compressColorBlock(colors: { r: number; g: number; b: number }[], output: Buffer, offset: number): void {
+    let minColor = colors[0], maxColor = colors[0];
+    let minLum = this.luminance(minColor), maxLum = this.luminance(maxColor);
+    for (const c of colors) {
+      const lum = this.luminance(c);
+      if (lum < minLum) { minLum = lum; minColor = c; }
+      if (lum > maxLum) { maxLum = lum; maxColor = c; }
+    }
+
+    const color0 = this.rgb888To565(maxColor.r, maxColor.g, maxColor.b);
+    const color1 = this.rgb888To565(minColor.r, minColor.g, minColor.b);
+    const [c0, c1] = color0 > color1 ? [color0, color1] : [color1, color0];
+    const [col0, col1] = color0 > color1 ? [maxColor, minColor] : [minColor, maxColor];
+
+    output.writeUInt16LE(c0, offset + 0);
+    output.writeUInt16LE(c1, offset + 2);
+
+    const palette = [
+      col0, col1,
+      { r: Math.round((2 * col0.r + col1.r) / 3), g: Math.round((2 * col0.g + col1.g) / 3), b: Math.round((2 * col0.b + col1.b) / 3) },
+      { r: Math.round((col0.r + 2 * col1.r) / 3), g: Math.round((col0.g + 2 * col1.g) / 3), b: Math.round((col0.b + 2 * col1.b) / 3) }
+    ];
+
+    const indexBytes = [0, 0, 0, 0];
+    for (let i = 0; i < 16; i++) {
+      let bestIndex = 0, bestDist = Infinity;
+      for (let j = 0; j < 4; j++) {
+        const dist = this.colorDistanceSq(colors[i], palette[j]);
+        if (dist < bestDist) { bestDist = dist; bestIndex = j; }
+      }
+      indexBytes[Math.floor(i / 4)] |= bestIndex << ((i % 4) * 2);
+    }
+    output[offset + 4] = indexBytes[0];
+    output[offset + 5] = indexBytes[1];
+    output[offset + 6] = indexBytes[2];
+    output[offset + 7] = indexBytes[3];
+  }
+
+  private luminance(c: { r: number; g: number; b: number }): number {
+    return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+  }
+
+  private rgb888To565(r: number, g: number, b: number): number {
+    return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3);
+  }
+
+  private colorDistanceSq(a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }): number {
+    return (a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2;
+  }
+
+  private buildDdsFile(dxtData: Buffer, width: number, height: number): Buffer {
+    const headerSize = 128;
+    const ddsFile = Buffer.alloc(headerSize + dxtData.length);
+
+    ddsFile.writeUInt32LE(0x20534444, 0); // DDS magic
+    ddsFile.writeUInt32LE(124, 4); // Header size
+    ddsFile.writeUInt32LE(0x1 | 0x2 | 0x4 | 0x1000 | 0x80000, 8); // Flags
+    ddsFile.writeUInt32LE(height, 12);
+    ddsFile.writeUInt32LE(width, 16);
+    ddsFile.writeUInt32LE(dxtData.length, 20); // LinearSize
+    ddsFile.writeUInt32LE(0, 24); // Depth
+    ddsFile.writeUInt32LE(1, 28); // MipMapCount
+    ddsFile.writeUInt32LE(32, 76); // Pixel format size
+    ddsFile.writeUInt32LE(0x4, 80); // DDPF_FOURCC
+    ddsFile.writeUInt32LE(0x35545844, 84); // DXT5
+    ddsFile.writeUInt32LE(0x1000, 108); // Caps
+
+    dxtData.copy(ddsFile, headerSize);
+    return ddsFile;
   }
 }
 

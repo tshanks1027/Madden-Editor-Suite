@@ -135,6 +135,16 @@ export interface CustomPortrait {
   createdAt?: string;
 }
 
+export interface CustomCoachPortrait {
+  pid: number;                    // 50000+ range for coaches
+  imageData: Buffer;              // PNG image bytes (512x512)
+  originalFilename?: string;      // Source filename
+  coachName?: string;             // Optional: associated coach name
+  databaseCoachId?: number;       // Optional: linked database coach internal ID
+  year?: number;                  // Optional: for year grouping
+  createdAt?: string;
+}
+
 export interface ImportResult {
   success: boolean;
   imported: number;
@@ -145,6 +155,80 @@ export interface ImportResult {
 export interface DatabaseStats {
   editedPlayers: number;
   customPlayers: number;
+  editedSeasons: number;
+  customSeasons: number;
+}
+
+// =============================================
+// COACH INTERFACES
+// =============================================
+
+export interface CoachEdit {
+  originalId: number;           // PID from Coach_lookup.csv
+  firstName?: string;
+  lastName?: string;
+  teamIndex?: number;
+  position?: string;            // HC, OC, DC
+  experience?: number;
+  age?: number;
+  editedAt?: string;
+}
+
+export interface CoachAppearanceEdit {
+  originalCoachId: number;
+  maddenPid?: number;
+  maddenPam?: string;
+  headAsset?: string;  // GenericHeadAssetName from coachAppearance.json
+  editedAt?: string;
+}
+
+export interface CoachSeasonEdit {
+  id?: number;
+  originalCoachId: number;
+  year: number;
+  team?: string;
+  position?: string;
+  wins?: number;
+  losses?: number;
+  ties?: number;
+  playoffWins?: number;
+  superBowlWins?: number;
+  editedAt?: string;
+}
+
+export interface CustomCoach {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  teamIndex?: number;
+  position?: string;
+  experience?: number;
+  age?: number;
+  careerFrom?: number;
+  careerTo?: number;
+  maddenPid?: number;
+  maddenPam?: string;
+  headAsset?: string;  // GenericHeadAssetName from coachAppearance.json
+  createdAt?: string;
+  editedAt?: string;
+}
+
+export interface CustomCoachSeason {
+  id?: number;
+  customCoachId: number;
+  year: number;
+  team?: string;
+  position?: string;
+  wins?: number;
+  losses?: number;
+  ties?: number;
+  playoffWins?: number;
+  superBowlWins?: number;
+}
+
+export interface CoachDatabaseStats {
+  editedCoaches: number;
+  customCoaches: number;
   editedSeasons: number;
   customSeasons: number;
 }
@@ -324,6 +408,68 @@ class UserDatabaseService {
       )
     `);
 
+    // =============================================
+    // COACH EDIT TABLES
+    // =============================================
+
+    // Coach edits (overlay for Coach_lookup.csv entries)
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS coach_edits (
+        original_id INTEGER PRIMARY KEY,
+        first_name TEXT,
+        last_name TEXT,
+        team_index INTEGER,
+        position TEXT,
+        experience INTEGER,
+        age INTEGER,
+        edited_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Coach appearance edits
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS coach_appearance_edits (
+        original_coach_id INTEGER PRIMARY KEY,
+        madden_pid INTEGER,
+        madden_pam TEXT,
+        head_asset TEXT,
+        edited_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Migration: Add head_asset column if it doesn't exist
+    try {
+      this.editsDb.exec('ALTER TABLE coach_appearance_edits ADD COLUMN head_asset TEXT');
+    } catch (e) {
+      // Column already exists, ignore
+    }
+
+    // Coach season edits
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS coach_season_edits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_coach_id INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        team TEXT,
+        position TEXT,
+        wins INTEGER,
+        losses INTEGER,
+        ties INTEGER,
+        playoff_wins INTEGER,
+        super_bowl_wins INTEGER,
+        edited_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(original_coach_id, year)
+      )
+    `);
+
+    // Hidden coaches
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS hidden_coaches (
+        original_coach_id INTEGER PRIMARY KEY,
+        hidden_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
     console.log('[UserDatabaseService] Edits database schema ready');
   }
 
@@ -435,6 +581,79 @@ class UserDatabaseService {
     this.customDb.exec(`
       CREATE INDEX IF NOT EXISTS idx_custom_portraits_year ON custom_portraits(year);
       CREATE INDEX IF NOT EXISTS idx_custom_portraits_player ON custom_portraits(database_player_id);
+    `);
+
+    // =============================================
+    // CUSTOM COACH TABLES
+    // =============================================
+
+    // Custom coaches (user-created coaches)
+    this.customDb.exec(`
+      CREATE TABLE IF NOT EXISTS custom_coaches (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        team_index INTEGER,
+        position TEXT,
+        experience INTEGER,
+        age INTEGER,
+        career_from INTEGER,
+        career_to INTEGER,
+        madden_pid INTEGER,
+        madden_pam TEXT,
+        head_asset TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        edited_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Migration: Add head_asset column if it doesn't exist
+    try {
+      this.customDb.exec('ALTER TABLE custom_coaches ADD COLUMN head_asset TEXT');
+    } catch (e) {
+      // Column already exists, ignore
+    }
+
+    // Custom coach seasons
+    this.customDb.exec(`
+      CREATE TABLE IF NOT EXISTS custom_coach_seasons (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        custom_coach_id INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        team TEXT,
+        position TEXT,
+        wins INTEGER,
+        losses INTEGER,
+        ties INTEGER,
+        playoff_wins INTEGER,
+        super_bowl_wins INTEGER,
+        FOREIGN KEY (custom_coach_id) REFERENCES custom_coaches(id) ON DELETE CASCADE,
+        UNIQUE(custom_coach_id, year)
+      )
+    `);
+
+    // Indexes for custom coaches
+    this.customDb.exec(`
+      CREATE INDEX IF NOT EXISTS idx_custom_coaches_name ON custom_coaches(last_name, first_name);
+      CREATE INDEX IF NOT EXISTS idx_custom_coach_seasons_coach ON custom_coach_seasons(custom_coach_id);
+    `);
+
+    // Custom coach portraits table for user-uploaded coach portraits (PID 50000+)
+    this.customDb.exec(`
+      CREATE TABLE IF NOT EXISTS custom_coach_portraits (
+        pid INTEGER PRIMARY KEY,
+        image_data BLOB NOT NULL,
+        original_filename TEXT,
+        coach_name TEXT,
+        database_coach_id INTEGER,
+        year INTEGER,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    this.customDb.exec(`
+      CREATE INDEX IF NOT EXISTS idx_custom_coach_portraits_year ON custom_coach_portraits(year);
+      CREATE INDEX IF NOT EXISTS idx_custom_coach_portraits_coach ON custom_coach_portraits(database_coach_id);
     `);
 
     console.log('[UserDatabaseService] Custom players database schema ready');
@@ -1569,6 +1788,721 @@ class UserDatabaseService {
     `).run(databasePlayerId, pid);
 
     console.log(`[UserDatabaseService] Migrated portrait PID ${pid} to database player ID ${databasePlayerId}`);
+  }
+
+  // =============================================
+  // CUSTOM COACH PORTRAIT OPERATIONS
+  // =============================================
+
+  /**
+   * Get next available coach portrait PID (50000+)
+   */
+  public getNextAvailableCoachPid(): number {
+    if (!this.customDb) return 50000;
+
+    const row = this.customDb.prepare('SELECT MAX(pid) as max_pid FROM custom_coach_portraits').get() as { max_pid: number | null };
+    return Math.max(50000, (row?.max_pid ?? 49999) + 1);
+  }
+
+  /**
+   * Save a custom coach portrait
+   */
+  public saveCustomCoachPortrait(
+    pid: number,
+    imageData: Buffer,
+    metadata?: { originalFilename?: string; coachName?: string; databaseCoachId?: number; year?: number }
+  ): void {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    this.customDb.prepare(`
+      INSERT OR REPLACE INTO custom_coach_portraits (pid, image_data, original_filename, coach_name, database_coach_id, year)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      pid,
+      imageData,
+      metadata?.originalFilename ?? null,
+      metadata?.coachName ?? null,
+      metadata?.databaseCoachId ?? null,
+      metadata?.year ?? null
+    );
+
+    console.log(`[UserDatabaseService] Saved custom coach portrait: PID ${pid}`);
+  }
+
+  /**
+   * Get a custom coach portrait by PID
+   */
+  public getCustomCoachPortrait(pid: number): CustomCoachPortrait | null {
+    if (!this.customDb) return null;
+
+    const row = this.customDb.prepare('SELECT * FROM custom_coach_portraits WHERE pid = ?').get(pid) as Record<string, unknown> | undefined;
+
+    if (!row) return null;
+
+    return {
+      pid: row.pid as number,
+      imageData: row.image_data as Buffer,
+      originalFilename: row.original_filename as string | undefined,
+      coachName: row.coach_name as string | undefined,
+      databaseCoachId: row.database_coach_id as number | undefined,
+      year: row.year as number | undefined,
+      createdAt: row.created_at as string | undefined
+    };
+  }
+
+  /**
+   * Get custom coach portrait by database coach ID
+   */
+  public getCustomCoachPortraitByCoachId(databaseCoachId: number): number | null {
+    if (!this.customDb) return null;
+
+    const row = this.customDb.prepare('SELECT pid FROM custom_coach_portraits WHERE database_coach_id = ?').get(databaseCoachId) as { pid: number } | undefined;
+    return row?.pid ?? null;
+  }
+
+  /**
+   * Get all custom coach portraits (metadata only)
+   */
+  public getAllCustomCoachPortraits(): Omit<CustomCoachPortrait, 'imageData'>[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(`
+      SELECT pid, original_filename, coach_name, database_coach_id, year, created_at
+      FROM custom_coach_portraits
+      ORDER BY created_at DESC
+    `).all() as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      pid: row.pid as number,
+      originalFilename: row.original_filename as string | undefined,
+      coachName: row.coach_name as string | undefined,
+      databaseCoachId: row.database_coach_id as number | undefined,
+      year: row.year as number | undefined,
+      createdAt: row.created_at as string | undefined
+    }));
+  }
+
+  /**
+   * Get custom coach portraits by year
+   */
+  public getCustomCoachPortraitsByYear(year: number): Omit<CustomCoachPortrait, 'imageData'>[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(`
+      SELECT pid, original_filename, coach_name, database_coach_id, year, created_at
+      FROM custom_coach_portraits
+      WHERE year = ?
+      ORDER BY created_at DESC
+    `).all(year) as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      pid: row.pid as number,
+      originalFilename: row.original_filename as string | undefined,
+      coachName: row.coach_name as string | undefined,
+      databaseCoachId: row.database_coach_id as number | undefined,
+      year: row.year as number | undefined,
+      createdAt: row.created_at as string | undefined
+    }));
+  }
+
+  /**
+   * Delete a custom coach portrait
+   */
+  public deleteCustomCoachPortrait(pid: number): void {
+    if (!this.customDb) return;
+
+    this.customDb.prepare('DELETE FROM custom_coach_portraits WHERE pid = ?').run(pid);
+    console.log(`[UserDatabaseService] Deleted custom coach portrait: PID ${pid}`);
+  }
+
+  /**
+   * Check if custom coach portrait exists
+   */
+  public hasCustomCoachPortrait(pid: number): boolean {
+    if (!this.customDb) return false;
+    const row = this.customDb.prepare('SELECT 1 FROM custom_coach_portraits WHERE pid = ?').get(pid);
+    return !!row;
+  }
+
+  /**
+   * Get custom coach portrait count
+   */
+  public getCustomCoachPortraitCount(): number {
+    if (!this.customDb) return 0;
+    const row = this.customDb.prepare('SELECT COUNT(*) as count FROM custom_coach_portraits').get() as { count: number };
+    return row.count;
+  }
+
+  /**
+   * Update custom coach portrait metadata
+   */
+  public updateCustomCoachPortraitMetadata(
+    pid: number,
+    metadata: { coachName?: string; databaseCoachId?: number; year?: number }
+  ): void {
+    if (!this.customDb) return;
+
+    const updates: string[] = [];
+    const values: unknown[] = [];
+
+    if (metadata.coachName !== undefined) {
+      updates.push('coach_name = ?');
+      values.push(metadata.coachName);
+    }
+    if (metadata.databaseCoachId !== undefined) {
+      updates.push('database_coach_id = ?');
+      values.push(metadata.databaseCoachId);
+    }
+    if (metadata.year !== undefined) {
+      updates.push('year = ?');
+      values.push(metadata.year);
+    }
+
+    if (updates.length > 0) {
+      values.push(pid);
+      this.customDb.prepare(`UPDATE custom_coach_portraits SET ${updates.join(', ')} WHERE pid = ?`).run(...values);
+    }
+  }
+
+  /**
+   * Get all custom coach portrait assignments (database_coach_id -> pid map)
+   */
+  public getAllCustomCoachPortraitAssignments(): Map<number, number> {
+    if (!this.customDb) return new Map();
+
+    const rows = this.customDb.prepare(`
+      SELECT database_coach_id, pid
+      FROM custom_coach_portraits
+      WHERE database_coach_id IS NOT NULL
+    `).all() as { database_coach_id: number; pid: number }[];
+
+    const map = new Map<number, number>();
+    for (const row of rows) {
+      map.set(row.database_coach_id, row.pid);
+    }
+    return map;
+  }
+
+  /**
+   * Get available years for custom coach portraits
+   */
+  public getCustomCoachPortraitYears(): number[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(`
+      SELECT DISTINCT year FROM custom_coach_portraits WHERE year IS NOT NULL ORDER BY year DESC
+    `).all() as { year: number }[];
+
+    return rows.map(r => r.year);
+  }
+
+  // =============================================
+  // COACH EDIT OPERATIONS
+  // =============================================
+
+  public saveCoachEdit(originalId: number, edits: Partial<CoachEdit>): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+
+    const existing = this.getCoachEdit(originalId);
+
+    if (existing) {
+      const updates: string[] = [];
+      const values: unknown[] = [];
+
+      if (edits.firstName !== undefined) { updates.push('first_name = ?'); values.push(edits.firstName); }
+      if (edits.lastName !== undefined) { updates.push('last_name = ?'); values.push(edits.lastName); }
+      if (edits.teamIndex !== undefined) { updates.push('team_index = ?'); values.push(edits.teamIndex); }
+      if (edits.position !== undefined) { updates.push('position = ?'); values.push(edits.position); }
+      if (edits.experience !== undefined) { updates.push('experience = ?'); values.push(edits.experience); }
+      if (edits.age !== undefined) { updates.push('age = ?'); values.push(edits.age); }
+
+      if (updates.length > 0) {
+        updates.push("edited_at = datetime('now')");
+        values.push(originalId);
+        this.editsDb.prepare(`UPDATE coach_edits SET ${updates.join(', ')} WHERE original_id = ?`).run(...values);
+      }
+    } else {
+      this.editsDb.prepare(`
+        INSERT INTO coach_edits (original_id, first_name, last_name, team_index, position, experience, age)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        originalId,
+        edits.firstName ?? null,
+        edits.lastName ?? null,
+        edits.teamIndex ?? null,
+        edits.position ?? null,
+        edits.experience ?? null,
+        edits.age ?? null
+      );
+    }
+  }
+
+  public getCoachEdit(originalId: number): CoachEdit | null {
+    if (!this.editsDb) return null;
+
+    const row = this.editsDb.prepare('SELECT * FROM coach_edits WHERE original_id = ?').get(originalId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+
+    return {
+      originalId: row.original_id as number,
+      firstName: row.first_name as string | undefined,
+      lastName: row.last_name as string | undefined,
+      teamIndex: row.team_index as number | undefined,
+      position: row.position as string | undefined,
+      experience: row.experience as number | undefined,
+      age: row.age as number | undefined,
+      editedAt: row.edited_at as string | undefined
+    };
+  }
+
+  public hasCoachEdit(originalId: number): boolean {
+    if (!this.editsDb) return false;
+    const row = this.editsDb.prepare('SELECT 1 FROM coach_edits WHERE original_id = ?').get(originalId);
+    return !!row;
+  }
+
+  public resetCoach(originalId: number): void {
+    if (!this.editsDb) return;
+    this.editsDb.prepare('DELETE FROM coach_edits WHERE original_id = ?').run(originalId);
+    this.editsDb.prepare('DELETE FROM coach_appearance_edits WHERE original_coach_id = ?').run(originalId);
+    this.editsDb.prepare('DELETE FROM coach_season_edits WHERE original_coach_id = ?').run(originalId);
+    console.log(`[UserDatabaseService] Reset coach edits for original_id=${originalId}`);
+  }
+
+  // =============================================
+  // COACH APPEARANCE EDIT OPERATIONS
+  // =============================================
+
+  public saveCoachAppearanceEdit(originalCoachId: number, edits: Partial<CoachAppearanceEdit>): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+
+    this.editsDb.prepare(`
+      INSERT OR REPLACE INTO coach_appearance_edits (original_coach_id, madden_pid, madden_pam, head_asset)
+      VALUES (?, ?, ?, ?)
+    `).run(
+      originalCoachId,
+      edits.maddenPid ?? null,
+      edits.maddenPam ?? null,
+      edits.headAsset ?? null
+    );
+  }
+
+  public getCoachAppearanceEdit(originalCoachId: number): CoachAppearanceEdit | null {
+    if (!this.editsDb) return null;
+
+    const row = this.editsDb.prepare('SELECT * FROM coach_appearance_edits WHERE original_coach_id = ?')
+      .get(originalCoachId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+
+    return {
+      originalCoachId: row.original_coach_id as number,
+      maddenPid: row.madden_pid as number | undefined,
+      maddenPam: row.madden_pam as string | undefined,
+      headAsset: row.head_asset as string | undefined,
+      editedAt: row.edited_at as string | undefined
+    };
+  }
+
+  // =============================================
+  // COACH SEASON EDIT OPERATIONS
+  // =============================================
+
+  public saveCoachSeasonEdit(originalCoachId: number, year: number, edits: Partial<CoachSeasonEdit>): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+
+    this.editsDb.prepare(`
+      INSERT OR REPLACE INTO coach_season_edits
+      (original_coach_id, year, team, position, wins, losses, ties, playoff_wins, super_bowl_wins)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      originalCoachId,
+      year,
+      edits.team ?? null,
+      edits.position ?? null,
+      edits.wins ?? null,
+      edits.losses ?? null,
+      edits.ties ?? null,
+      edits.playoffWins ?? null,
+      edits.superBowlWins ?? null
+    );
+  }
+
+  public getCoachSeasonEdit(originalCoachId: number, year: number): CoachSeasonEdit | null {
+    if (!this.editsDb) return null;
+
+    const row = this.editsDb.prepare(
+      'SELECT * FROM coach_season_edits WHERE original_coach_id = ? AND year = ?'
+    ).get(originalCoachId, year) as Record<string, unknown> | undefined;
+    if (!row) return null;
+
+    return {
+      id: row.id as number,
+      originalCoachId: row.original_coach_id as number,
+      year: row.year as number,
+      team: row.team as string | undefined,
+      position: row.position as string | undefined,
+      wins: row.wins as number | undefined,
+      losses: row.losses as number | undefined,
+      ties: row.ties as number | undefined,
+      playoffWins: row.playoff_wins as number | undefined,
+      superBowlWins: row.super_bowl_wins as number | undefined,
+      editedAt: row.edited_at as string | undefined
+    };
+  }
+
+  public getCoachSeasonEditsForCoach(originalCoachId: number): CoachSeasonEdit[] {
+    if (!this.editsDb) return [];
+
+    const rows = this.editsDb.prepare(
+      'SELECT * FROM coach_season_edits WHERE original_coach_id = ? ORDER BY year'
+    ).all(originalCoachId) as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      id: row.id as number,
+      originalCoachId: row.original_coach_id as number,
+      year: row.year as number,
+      team: row.team as string | undefined,
+      position: row.position as string | undefined,
+      wins: row.wins as number | undefined,
+      losses: row.losses as number | undefined,
+      ties: row.ties as number | undefined,
+      playoffWins: row.playoff_wins as number | undefined,
+      superBowlWins: row.super_bowl_wins as number | undefined,
+      editedAt: row.edited_at as string | undefined
+    }));
+  }
+
+  // =============================================
+  // CUSTOM COACH OPERATIONS
+  // =============================================
+
+  public createCustomCoach(coach: Omit<CustomCoach, 'id' | 'createdAt' | 'editedAt'>): number {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    const result = this.customDb.prepare(`
+      INSERT INTO custom_coaches (first_name, last_name, team_index, position, experience, age,
+                                   career_from, career_to, madden_pid, madden_pam, head_asset)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      coach.firstName,
+      coach.lastName,
+      coach.teamIndex ?? null,
+      coach.position ?? null,
+      coach.experience ?? null,
+      coach.age ?? null,
+      coach.careerFrom ?? null,
+      coach.careerTo ?? null,
+      coach.maddenPid ?? null,
+      coach.maddenPam ?? null,
+      coach.headAsset ?? null
+    );
+
+    console.log(`[UserDatabaseService] Created custom coach: ${coach.firstName} ${coach.lastName}, id=${result.lastInsertRowid}`);
+    return result.lastInsertRowid as number;
+  }
+
+  public updateCustomCoach(id: number, updates: Partial<CustomCoach>): void {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    const updateFields: string[] = [];
+    const values: unknown[] = [];
+
+    if (updates.firstName !== undefined) { updateFields.push('first_name = ?'); values.push(updates.firstName); }
+    if (updates.lastName !== undefined) { updateFields.push('last_name = ?'); values.push(updates.lastName); }
+    if (updates.teamIndex !== undefined) { updateFields.push('team_index = ?'); values.push(updates.teamIndex); }
+    if (updates.position !== undefined) { updateFields.push('position = ?'); values.push(updates.position); }
+    if (updates.experience !== undefined) { updateFields.push('experience = ?'); values.push(updates.experience); }
+    if (updates.age !== undefined) { updateFields.push('age = ?'); values.push(updates.age); }
+    if (updates.careerFrom !== undefined) { updateFields.push('career_from = ?'); values.push(updates.careerFrom); }
+    if (updates.careerTo !== undefined) { updateFields.push('career_to = ?'); values.push(updates.careerTo); }
+    if (updates.maddenPid !== undefined) { updateFields.push('madden_pid = ?'); values.push(updates.maddenPid); }
+    if (updates.maddenPam !== undefined) { updateFields.push('madden_pam = ?'); values.push(updates.maddenPam); }
+    if (updates.headAsset !== undefined) { updateFields.push('head_asset = ?'); values.push(updates.headAsset); }
+
+    if (updateFields.length > 0) {
+      updateFields.push("edited_at = datetime('now')");
+      values.push(id);
+      this.customDb.prepare(`UPDATE custom_coaches SET ${updateFields.join(', ')} WHERE id = ?`).run(...values);
+    }
+  }
+
+  public getCustomCoach(id: number): CustomCoach | null {
+    if (!this.customDb) return null;
+
+    const row = this.customDb.prepare('SELECT * FROM custom_coaches WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    if (!row) return null;
+
+    return {
+      id: row.id as number,
+      firstName: row.first_name as string,
+      lastName: row.last_name as string,
+      teamIndex: row.team_index as number | undefined,
+      position: row.position as string | undefined,
+      experience: row.experience as number | undefined,
+      age: row.age as number | undefined,
+      careerFrom: row.career_from as number | undefined,
+      careerTo: row.career_to as number | undefined,
+      maddenPid: row.madden_pid as number | undefined,
+      maddenPam: row.madden_pam as string | undefined,
+      headAsset: row.head_asset as string | undefined,
+      createdAt: row.created_at as string | undefined,
+      editedAt: row.edited_at as string | undefined
+    };
+  }
+
+  public getAllCustomCoaches(): CustomCoach[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare('SELECT * FROM custom_coaches ORDER BY last_name, first_name')
+      .all() as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      id: row.id as number,
+      firstName: row.first_name as string,
+      lastName: row.last_name as string,
+      teamIndex: row.team_index as number | undefined,
+      position: row.position as string | undefined,
+      experience: row.experience as number | undefined,
+      age: row.age as number | undefined,
+      careerFrom: row.career_from as number | undefined,
+      careerTo: row.career_to as number | undefined,
+      maddenPid: row.madden_pid as number | undefined,
+      maddenPam: row.madden_pam as string | undefined,
+      headAsset: row.head_asset as string | undefined,
+      createdAt: row.created_at as string | undefined,
+      editedAt: row.edited_at as string | undefined
+    }));
+  }
+
+  public deleteCustomCoach(id: number): void {
+    if (!this.customDb) return;
+    // Seasons are deleted via CASCADE
+    this.customDb.prepare('DELETE FROM custom_coaches WHERE id = ?').run(id);
+    console.log(`[UserDatabaseService] Deleted custom coach id=${id}`);
+  }
+
+  public searchCustomCoaches(query: string, limit: number = 50): CustomCoach[] {
+    if (!this.customDb) return [];
+
+    const searchTerm = `%${query}%`;
+    const rows = this.customDb.prepare(`
+      SELECT * FROM custom_coaches
+      WHERE first_name LIKE ? OR last_name LIKE ?
+      ORDER BY last_name, first_name
+      LIMIT ?
+    `).all(searchTerm, searchTerm, limit) as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      id: row.id as number,
+      firstName: row.first_name as string,
+      lastName: row.last_name as string,
+      teamIndex: row.team_index as number | undefined,
+      position: row.position as string | undefined,
+      experience: row.experience as number | undefined,
+      age: row.age as number | undefined,
+      careerFrom: row.career_from as number | undefined,
+      careerTo: row.career_to as number | undefined,
+      maddenPid: row.madden_pid as number | undefined,
+      maddenPam: row.madden_pam as string | undefined,
+      createdAt: row.created_at as string | undefined,
+      editedAt: row.edited_at as string | undefined
+    }));
+  }
+
+  // =============================================
+  // CUSTOM COACH SEASON OPERATIONS
+  // =============================================
+
+  public saveCustomCoachSeason(customCoachId: number, year: number, season: Partial<CustomCoachSeason>): void {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    this.customDb.prepare(`
+      INSERT OR REPLACE INTO custom_coach_seasons
+      (custom_coach_id, year, team, position, wins, losses, ties, playoff_wins, super_bowl_wins)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      customCoachId,
+      year,
+      season.team ?? null,
+      season.position ?? null,
+      season.wins ?? null,
+      season.losses ?? null,
+      season.ties ?? null,
+      season.playoffWins ?? null,
+      season.superBowlWins ?? null
+    );
+  }
+
+  public getCustomCoachSeason(customCoachId: number, year: number): CustomCoachSeason | null {
+    if (!this.customDb) return null;
+
+    const row = this.customDb.prepare(
+      'SELECT * FROM custom_coach_seasons WHERE custom_coach_id = ? AND year = ?'
+    ).get(customCoachId, year) as Record<string, unknown> | undefined;
+    if (!row) return null;
+
+    return {
+      id: row.id as number,
+      customCoachId: row.custom_coach_id as number,
+      year: row.year as number,
+      team: row.team as string | undefined,
+      position: row.position as string | undefined,
+      wins: row.wins as number | undefined,
+      losses: row.losses as number | undefined,
+      ties: row.ties as number | undefined,
+      playoffWins: row.playoff_wins as number | undefined,
+      superBowlWins: row.super_bowl_wins as number | undefined
+    };
+  }
+
+  public getCustomCoachSeasons(customCoachId: number): CustomCoachSeason[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(
+      'SELECT * FROM custom_coach_seasons WHERE custom_coach_id = ? ORDER BY year'
+    ).all(customCoachId) as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      id: row.id as number,
+      customCoachId: row.custom_coach_id as number,
+      year: row.year as number,
+      team: row.team as string | undefined,
+      position: row.position as string | undefined,
+      wins: row.wins as number | undefined,
+      losses: row.losses as number | undefined,
+      ties: row.ties as number | undefined,
+      playoffWins: row.playoff_wins as number | undefined,
+      superBowlWins: row.super_bowl_wins as number | undefined
+    }));
+  }
+
+  // =============================================
+  // COACH HIDE/UNHIDE OPERATIONS
+  // =============================================
+
+  public hideCoach(coachId: number): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+    this.editsDb.prepare('INSERT OR IGNORE INTO hidden_coaches (original_coach_id) VALUES (?)').run(coachId);
+  }
+
+  public unhideCoach(coachId: number): void {
+    if (!this.editsDb) return;
+    this.editsDb.prepare('DELETE FROM hidden_coaches WHERE original_coach_id = ?').run(coachId);
+  }
+
+  public isCoachHidden(coachId: number): boolean {
+    if (!this.editsDb) return false;
+    const row = this.editsDb.prepare('SELECT 1 FROM hidden_coaches WHERE original_coach_id = ?').get(coachId);
+    return !!row;
+  }
+
+  public getHiddenCoachIds(): number[] {
+    if (!this.editsDb) return [];
+    const rows = this.editsDb.prepare('SELECT original_coach_id FROM hidden_coaches').all() as { original_coach_id: number }[];
+    return rows.map(r => r.original_coach_id);
+  }
+
+  // =============================================
+  // COACH RESET OPERATIONS
+  // =============================================
+
+  public resetAllCoachEdits(): void {
+    if (!this.editsDb) return;
+    this.editsDb.exec('DELETE FROM coach_edits');
+    this.editsDb.exec('DELETE FROM coach_appearance_edits');
+    this.editsDb.exec('DELETE FROM coach_season_edits');
+    console.log('[UserDatabaseService] Reset all coach edits');
+  }
+
+  public resetAllCustomCoaches(): void {
+    if (!this.customDb) return;
+    this.customDb.exec('DELETE FROM custom_coach_seasons');
+    this.customDb.exec('DELETE FROM custom_coaches');
+    console.log('[UserDatabaseService] Reset all custom coaches');
+  }
+
+  // =============================================
+  // COACH STATISTICS
+  // =============================================
+
+  public getCoachDatabaseStats(): CoachDatabaseStats {
+    const stats: CoachDatabaseStats = {
+      editedCoaches: 0,
+      customCoaches: 0,
+      editedSeasons: 0,
+      customSeasons: 0
+    };
+
+    if (this.editsDb) {
+      const editedRow = this.editsDb.prepare('SELECT COUNT(*) as count FROM coach_edits').get() as { count: number };
+      stats.editedCoaches = editedRow.count;
+
+      const seasonRow = this.editsDb.prepare('SELECT COUNT(*) as count FROM coach_season_edits').get() as { count: number };
+      stats.editedSeasons = seasonRow.count;
+    }
+
+    if (this.customDb) {
+      const customRow = this.customDb.prepare('SELECT COUNT(*) as count FROM custom_coaches').get() as { count: number };
+      stats.customCoaches = customRow.count;
+
+      const customSeasonRow = this.customDb.prepare('SELECT COUNT(*) as count FROM custom_coach_seasons').get() as { count: number };
+      stats.customSeasons = customSeasonRow.count;
+    }
+
+    return stats;
+  }
+
+  /**
+   * Get coach by name for retro editor integration
+   * Checks custom coaches and edited coaches
+   */
+  public getCoachByName(lastName: string, firstName: string): CustomCoach | CoachEdit | null {
+    // First check custom coaches
+    if (this.customDb) {
+      const customRow = this.customDb.prepare(
+        'SELECT * FROM custom_coaches WHERE last_name = ? AND first_name = ?'
+      ).get(lastName, firstName) as Record<string, unknown> | undefined;
+
+      if (customRow) {
+        return {
+          id: customRow.id as number,
+          firstName: customRow.first_name as string,
+          lastName: customRow.last_name as string,
+          teamIndex: customRow.team_index as number | undefined,
+          position: customRow.position as string | undefined,
+          experience: customRow.experience as number | undefined,
+          age: customRow.age as number | undefined,
+          careerFrom: customRow.career_from as number | undefined,
+          careerTo: customRow.career_to as number | undefined,
+          maddenPid: customRow.madden_pid as number | undefined,
+          maddenPam: customRow.madden_pam as string | undefined,
+          createdAt: customRow.created_at as string | undefined,
+          editedAt: customRow.edited_at as string | undefined
+        };
+      }
+    }
+
+    // Then check edited coaches
+    if (this.editsDb) {
+      const editRow = this.editsDb.prepare(
+        'SELECT * FROM coach_edits WHERE last_name = ? AND first_name = ?'
+      ).get(lastName, firstName) as Record<string, unknown> | undefined;
+
+      if (editRow) {
+        return {
+          originalId: editRow.original_id as number,
+          firstName: editRow.first_name as string | undefined,
+          lastName: editRow.last_name as string | undefined,
+          teamIndex: editRow.team_index as number | undefined,
+          position: editRow.position as string | undefined,
+          experience: editRow.experience as number | undefined,
+          age: editRow.age as number | undefined,
+          editedAt: editRow.edited_at as string | undefined
+        };
+      }
+    }
+
+    return null;
   }
 }
 

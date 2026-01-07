@@ -1,0 +1,327 @@
+/**
+ * Database Coach Card Styles
+ *
+ * Styling for the editable database coach card modal
+ */
+
+/* Modal Overlay - Higher z-index than coach browser */
+#dbCoachCardModal {
+  z-index: 11000 !important;
+}
+
+#dbCoachCardModal .db-coach-card-modal {
+  z-index: 11001;
+  pointer-events: auto;
+}
+
+/* Modal Content */
+.db-coach-card-modal {
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  background: #1a1a2e;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Section */
+.db-coach-card-header {
+  background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
+  padding: 20px 24px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 2px solid #4a90d9;
+}
+
+.db-coach-card-portrait-container {
+  flex-shrink: 0;
+}
+
+.db-coach-card-portrait {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid #4a90d9;
+  background: #0a0a0a;
+}
+
+.db-coach-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.db-coach-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.db-coach-card-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.db-coach-edited-badge {
+  background: #4a90d9;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.db-coach-card-meta {
+  display: flex;
+  gap: 16px;
+  color: #a0a0a0;
+  font-size: 14px;
+}
+
+.db-coach-card-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.db-coach-card-close:hover {
+  background: #4a90d9;
+}
+
+/* Body Section */
+.db-coach-card-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+/* Tab Navigation */
+.db-coach-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #2a2a4e;
+  padding-bottom: 0;
+}
+
+.db-coach-tab {
+  padding: 10px 20px;
+  background: transparent;
+  border: none;
+  color: #a0a0a0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.db-coach-tab:hover {
+  color: #fff;
+}
+
+.db-coach-tab.active {
+  color: #4a90d9;
+  border-bottom-color: #4a90d9;
+}
+
+/* Tab Content */
+.db-coach-tab-content {
+  display: none;
+}
+
+.db-coach-tab-content.active {
+  display: block;
+}
+
+/* Form Grid */
+.db-coach-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.db-coach-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.db-coach-form-group label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #a0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.db-coach-form-group input,
+.db-coach-form-group select {
+  background: #0f0f1a;
+  border: 1px solid #2a2a4e;
+  border-radius: 4px;
+  padding: 8px 10px;
+  color: #fff;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.db-coach-form-group input:focus,
+.db-coach-form-group select:focus {
+  outline: none;
+  border-color: #4a90d9;
+}
+
+.db-coach-form-group input::placeholder {
+  color: #555;
+}
+
+/* Season Controls */
+.db-coach-season-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #16213e;
+  border-radius: 8px;
+}
+
+.db-coach-season-controls label {
+  font-size: 13px;
+  color: #a0a0a0;
+}
+
+.db-coach-season-controls select {
+  background: #0f0f1a;
+  border: 1px solid #2a2a4e;
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: #fff;
+  font-size: 13px;
+}
+
+.db-coach-season-controls input[type="checkbox"] {
+  margin-right: 4px;
+}
+
+/* Portrait Picker */
+.db-coach-portrait-picker {
+  margin-top: 16px;
+  padding: 16px;
+  background: #16213e;
+  border-radius: 8px;
+}
+
+.db-coach-portrait-picker label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a0a0a0;
+  margin-bottom: 12px;
+}
+
+.coach-portrait-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.coach-portrait-option {
+  width: 80px;
+  height: 80px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  background: #0a0a0a;
+  transition: all 0.2s;
+}
+
+.coach-portrait-option:hover {
+  border-color: #4a90d9;
+  transform: scale(1.05);
+}
+
+.coach-portrait-option.selected {
+  border-color: #4a90d9;
+  box-shadow: 0 0 8px rgba(74, 144, 217, 0.5);
+}
+
+.coach-portrait-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Footer Section */
+.db-coach-card-footer {
+  background: #16213e;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #2a2a4e;
+}
+
+.db-coach-card-footer-left,
+.db-coach-card-footer-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* Custom Badge for Coach Type */
+.coach-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.coach-type-badge.hc {
+  background: #d4af37;
+  color: #000;
+}
+
+.coach-type-badge.oc {
+  background: #4a90d9;
+  color: #fff;
+}
+
+.coach-type-badge.dc {
+  background: #e94560;
+  color: #fff;
+}
+
+.coach-type-badge.custom {
+  background: #22c55e;
+  color: #fff;
+}

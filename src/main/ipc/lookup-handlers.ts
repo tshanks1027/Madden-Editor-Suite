@@ -548,4 +548,18 @@ ipcMain.handle('lookup:get-face-picker-mapping', async () => {
   }
 });
 
+/**
+ * Handle: lookup:get-commentary-id
+ * Get commentary ID by last name lookup
+ */
+ipcMain.handle('lookup:get-commentary-id', async (event, lastName: string) => {
+  try {
+    const commentaryId = lookupService.getCommentaryId(lastName);
+    return commentaryId || null;
+  } catch (error) {
+    console.error('Error getting commentary ID:', error);
+    return null;
+  }
+});
+
 console.log('[lookup-handlers] Lookup IPC handlers registered');

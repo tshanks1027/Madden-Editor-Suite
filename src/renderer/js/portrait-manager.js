@@ -1216,14 +1216,14 @@
   async function assignPortraitToPlayer(pid, playerId, source, playerName, existingPid = null, skipWarning = false) {
     console.log('[PortraitManager] Assigning PID', pid, 'to', playerName, '(source:', source, ', existingPid:', existingPid, ')');
 
-    // Check if player has an in-game PID (not custom range 12000+)
-    if (!skipWarning && existingPid && existingPid > 0 && existingPid < 12000) {
-      const confirmed = confirm(
-        `⚠️ Warning: ${playerName} already has an in-game portrait (PID: ${existingPid}).\n\n` +
-        `Assigning this custom portrait will replace their official portrait.\n\n` +
-        `Continue?`
-      );
-      if (!confirmed) {
+    // Check if player already has a portrait assigned
+    if (!skipWarning && existingPid && existingPid > 0) {
+      const isInGamePortrait = existingPid < 12000;
+      const warningMessage = isInGamePortrait
+        ? `${playerName} already has an in-game portrait (PID: ${existingPid}).\n\nAssigning this custom portrait will replace their official portrait.\n\nContinue?`
+        : `${playerName} already has a custom portrait assigned (PID: ${existingPid}).\n\nAssigning this new portrait will replace the existing one.\n\nContinue?`;
+
+      if (!confirm(`⚠️ Warning: ${warningMessage}`)) {
         showToast('Assignment cancelled', 'info');
         return false;
       }
@@ -1462,6 +1462,1108 @@
     showToast('Use the Save button in the Player Editor', 'info');
   }
 
+  // =============================================
+  // BUNDLED PORTRAITS EXPORT SECTION
+  // =============================================
+
+  let bundledSelectedPids = new Map(); // name -> pid
+
+  /**
+   * Initialize bundled portraits section
+   */
+  function initBundledPortraitsSection() {
+    // Toggle section collapse
+    const header = document.getElementById('bundledPortraitsHeader');
+    if (header) {
+      header.addEventListener('click', () => {
+        const section = header.closest('.bundled-portraits-section');
+        if (section) {
+          section.classList.toggle('collapsed');
+        }
+      });
+    }
+
+    // Search button
+    const searchBtn = document.getElementById('bundledSearchBtn');
+    if (searchBtn) {
+      searchBtn.addEventListener('click', handleBundledSearch);
+    }
+
+    // Search input - enter key
+    const searchInput = document.getElementById('bundledPortraitSearch');
+    if (searchInput) {
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          handleBundledSearch();
+        }
+      });
+    }
+
+    // Export selected button
+    const exportBtn = document.getElementById('exportBundledSelectedBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', handleExportBundledSelected);
+    }
+  }
+
+  /**
+   * Search bundled portraits by name
+   */
+  async function handleBundledSearch() {
+    const searchInput = document.getElementById('bundledPortraitSearch');
+    const resultsGrid = document.getElementById('bundledPortraitResults');
+    const query = searchInput?.value?.trim();
+
+    if (!query || query.length < 2) {
+      showToast('Please enter at least 2 characters to search', 'warning');
+      return;
+    }
+
+    if (!resultsGrid) return;
+
+    resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>Searching...</p></div>';
+    bundledSelectedPids.clear();
+    updateBundledExportButton();
+
+    try {
+      const result = await window.electronAPI.portrait.searchWithImages(query, 100);
+
+      if (!result.success || !result.portraits || result.portraits.length === 0) {
+        resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>No portraits found matching "' + query + '"</p></div>';
+        return;
+      }
+
+      // Render results
+      resultsGrid.innerHTML = '';
+      for (const portrait of result.portraits) {
+        const card = document.createElement('div');
+        card.className = 'bundled-portrait-card';
+        card.dataset.name = portrait.name;
+        card.dataset.pid = portrait.pid || '';
+
+        const img = document.createElement('img');
+        img.src = portrait.imageData;
+        img.alt = portrait.name;
+        card.appendChild(img);
+
+        const name = document.createElement('div');
+        name.className = 'portrait-name';
+        name.textContent = portrait.pid ? `${portrait.name} (${portrait.pid})` : portrait.name;
+        name.title = portrait.pid ? `PID: ${portrait.pid}` : portrait.name;
+        card.appendChild(name);
+
+        // Only allow selection if portrait has a PID
+        if (portrait.pid) {
+          card.addEventListener('click', () => {
+            if (bundledSelectedPids.has(portrait.name)) {
+              bundledSelectedPids.delete(portrait.name);
+              card.classList.remove('selected');
+            } else {
+              bundledSelectedPids.set(portrait.name, portrait.pid);
+              card.classList.add('selected');
+            }
+            updateBundledExportButton();
+          });
+        } else {
+          card.style.opacity = '0.5';
+          card.title = 'No PID mapping available for this portrait';
+        }
+
+        resultsGrid.appendChild(card);
+      }
+
+      const exportableCount = result.portraits.filter(p => p.pid).length;
+      showToast(`Found ${result.portraits.length} portrait(s), ${exportableCount} exportable`, 'success');
+    } catch (error) {
+      console.error('[PortraitManager] Bundled search error:', error);
+      resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>Search failed: ' + error.message + '</p></div>';
+    }
+  }
+
+  /**
+   * Update bundled export button state
+   */
+  function updateBundledExportButton() {
+    const exportBtn = document.getElementById('exportBundledSelectedBtn');
+    if (exportBtn) {
+      exportBtn.disabled = bundledSelectedPids.size === 0;
+      if (bundledSelectedPids.size > 0) {
+        exportBtn.textContent = `Export ${bundledSelectedPids.size} Selected as DDS`;
+      } else {
+        exportBtn.innerHTML = '<span class="btn-icon">💾</span> Export Selected as DDS';
+      }
+    }
+  }
+
+  /**
+   * Export selected bundled portraits as DDS
+   */
+  async function handleExportBundledSelected() {
+    if (bundledSelectedPids.size === 0) {
+      showToast('No portraits selected', 'warning');
+      return;
+    }
+
+    try {
+      // Get PIDs from our selection map
+      const pidsToExport = Array.from(bundledSelectedPids.values());
+
+      console.log('[PortraitManager] Exporting bundled PIDs:', pidsToExport);
+      showToast(`Exporting ${pidsToExport.length} portrait(s)... Please select a folder.`, 'info');
+
+      // Use batch export
+      const result = await window.electronAPI.portrait.exportBatchDds(pidsToExport);
+
+      if (result.canceled) {
+        return;
+      }
+
+      if (result.success) {
+        showToast(`Exported ${result.exported} portrait${result.exported !== 1 ? 's' : ''} as DDS!`, 'success');
+
+        // Clear selection after successful export
+        bundledSelectedPids.clear();
+        const grid = document.getElementById('bundledPortraitResults');
+        if (grid) {
+          grid.querySelectorAll('.bundled-portrait-card.selected').forEach(card => {
+            card.classList.remove('selected');
+          });
+        }
+        updateBundledExportButton();
+      } else {
+        console.error('[PortraitManager] Export errors:', result.errors);
+        showToast(`Export completed with ${result.failed} failure(s): ${result.errors?.[0] || 'Unknown error'}`, 'warning');
+      }
+    } catch (error) {
+      console.error('[PortraitManager] Export bundled error:', error);
+      showToast(`Export failed: ${error.message}`, 'error');
+    }
+  }
+
+  // Initialize bundled section when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initBundledPortraitsSection);
+  } else {
+    initBundledPortraitsSection();
+  }
+
+  // =============================================
+  // PORTRAIT MANAGER TAB SWITCHING
+  // =============================================
+
+  /**
+   * Initialize portrait manager tabs (Players/Coaches)
+   */
+  function initPortraitManagerTabs() {
+    const playerTabBtn = document.getElementById('playerPortraitTabBtn');
+    const coachTabBtn = document.getElementById('coachPortraitTabBtn');
+    const playerContent = document.getElementById('playerPortraitTabContent');
+    const coachContent = document.getElementById('coachPortraitTabContent');
+
+    if (playerTabBtn && coachTabBtn) {
+      playerTabBtn.addEventListener('click', () => {
+        playerTabBtn.classList.add('active');
+        coachTabBtn.classList.remove('active');
+        if (playerContent) playerContent.classList.add('active');
+        if (coachContent) coachContent.classList.remove('active');
+      });
+
+      coachTabBtn.addEventListener('click', () => {
+        coachTabBtn.classList.add('active');
+        playerTabBtn.classList.remove('active');
+        if (coachContent) coachContent.classList.add('active');
+        if (playerContent) playerContent.classList.remove('active');
+        // Initialize coach section if not already done
+        initCoachPortraitSection();
+      });
+    }
+  }
+
+  // =============================================
+  // COACH PORTRAIT SECTION
+  // =============================================
+
+  let coachBundledSelectedPids = new Map(); // name -> pid
+  let coachSectionInitialized = false;
+
+  /**
+   * Initialize coach portrait section
+   */
+  function initCoachPortraitSection() {
+    if (coachSectionInitialized) return;
+    coachSectionInitialized = true;
+
+    console.log('[PortraitManager] Initializing coach portrait section...');
+
+    // Toggle section collapse
+    const header = document.getElementById('coachBundledPortraitsHeader');
+    if (header) {
+      header.addEventListener('click', () => {
+        const section = header.closest('.bundled-portraits-section');
+        if (section) {
+          section.classList.toggle('collapsed');
+        }
+      });
+    }
+
+    // Search button
+    const searchBtn = document.getElementById('coachBundledSearchBtn');
+    if (searchBtn) {
+      searchBtn.addEventListener('click', handleCoachBundledSearch);
+    }
+
+    // Search input - enter key
+    const searchInput = document.getElementById('coachBundledPortraitSearch');
+    if (searchInput) {
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          handleCoachBundledSearch();
+        }
+      });
+    }
+
+    // Export selected button
+    const exportBtn = document.getElementById('exportCoachBundledSelectedBtn');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', handleExportCoachBundledSelected);
+    }
+
+    console.log('[PortraitManager] Coach portrait section initialized');
+  }
+
+  /**
+   * Search coach portraits by name
+   */
+  async function handleCoachBundledSearch() {
+    const searchInput = document.getElementById('coachBundledPortraitSearch');
+    const resultsGrid = document.getElementById('coachBundledPortraitResults');
+    const query = searchInput?.value?.trim();
+
+    if (!query || query.length < 2) {
+      showToast('Please enter at least 2 characters to search', 'warning');
+      return;
+    }
+
+    if (!resultsGrid) return;
+
+    resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>Searching coaches...</p></div>';
+    coachBundledSelectedPids.clear();
+    updateCoachBundledExportButton();
+
+    try {
+      // Search coach portraits using the coach database
+      const result = await window.electronAPI.coachDatabase.getAllCoaches();
+
+      if (!result.success || !result.data || result.data.length === 0) {
+        resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>No coaches found</p></div>';
+        return;
+      }
+
+      // Filter coaches by search query
+      const queryLower = query.toLowerCase();
+      const matchingCoaches = result.data.filter(coach => {
+        const fullName = `${coach.firstName || ''} ${coach.lastName || ''}`.toLowerCase();
+        const displayName = (coach.displayName || '').toLowerCase();
+        return fullName.includes(queryLower) || displayName.includes(queryLower);
+      });
+
+      if (matchingCoaches.length === 0) {
+        resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>No coaches found matching "' + query + '"</p></div>';
+        return;
+      }
+
+      // Render results with portraits
+      resultsGrid.innerHTML = '';
+      let loadedCount = 0;
+
+      for (const coach of matchingCoaches.slice(0, 100)) {
+        const card = document.createElement('div');
+        card.className = 'bundled-portrait-card';
+        card.dataset.name = coach.displayName || `${coach.firstName} ${coach.lastName}`;
+        card.dataset.pid = coach.pid || '';
+
+        const img = document.createElement('img');
+        img.alt = coach.displayName || `${coach.firstName} ${coach.lastName}`;
+
+        // Load coach portrait
+        if (coach.pid && window.electronAPI?.coachPortrait) {
+          try {
+            const hasPortrait = await window.electronAPI.coachPortrait.hasPortrait(coach.pid);
+            if (hasPortrait) {
+              const imageData = await window.electronAPI.coachPortrait.getImageDataByPID(coach.pid);
+              if (imageData) {
+                img.src = imageData;
+                loadedCount++;
+              } else {
+                img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#333" width="64" height="64"/><text x="32" y="36" text-anchor="middle" fill="#666" font-size="10">No Img</text></svg>');
+              }
+            } else {
+              img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#333" width="64" height="64"/><text x="32" y="36" text-anchor="middle" fill="#666" font-size="10">No Img</text></svg>');
+            }
+          } catch (e) {
+            img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#333" width="64" height="64"/></svg>');
+          }
+        } else {
+          img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#333" width="64" height="64"/></svg>');
+        }
+
+        card.appendChild(img);
+
+        const name = document.createElement('div');
+        name.className = 'portrait-name';
+        name.textContent = coach.pid ? `${coach.displayName || coach.firstName + ' ' + coach.lastName} (${coach.pid})` : (coach.displayName || coach.firstName + ' ' + coach.lastName);
+        name.title = coach.pid ? `PID: ${coach.pid}` : 'No PID';
+        card.appendChild(name);
+
+        // Only allow selection if coach has a PID
+        if (coach.pid) {
+          card.addEventListener('click', () => {
+            const coachName = coach.displayName || `${coach.firstName} ${coach.lastName}`;
+            if (coachBundledSelectedPids.has(coachName)) {
+              coachBundledSelectedPids.delete(coachName);
+              card.classList.remove('selected');
+            } else {
+              coachBundledSelectedPids.set(coachName, coach.pid);
+              card.classList.add('selected');
+            }
+            updateCoachBundledExportButton();
+          });
+        } else {
+          card.style.opacity = '0.5';
+          card.title = 'No PID mapping available for this coach';
+        }
+
+        resultsGrid.appendChild(card);
+      }
+
+      const exportableCount = matchingCoaches.filter(c => c.pid).length;
+      showToast(`Found ${matchingCoaches.length} coach(es), ${loadedCount} with portraits`, 'success');
+    } catch (error) {
+      console.error('[PortraitManager] Coach search error:', error);
+      resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>Search failed: ' + error.message + '</p></div>';
+    }
+  }
+
+  /**
+   * Update coach bundled export button state
+   */
+  function updateCoachBundledExportButton() {
+    const exportBtn = document.getElementById('exportCoachBundledSelectedBtn');
+    if (exportBtn) {
+      exportBtn.disabled = coachBundledSelectedPids.size === 0;
+      if (coachBundledSelectedPids.size > 0) {
+        exportBtn.textContent = `Export ${coachBundledSelectedPids.size} Selected as DDS`;
+      } else {
+        exportBtn.innerHTML = '<span class="btn-icon">💾</span> Export Selected as DDS';
+      }
+    }
+  }
+
+  /**
+   * Export selected coach portraits as DDS
+   */
+  async function handleExportCoachBundledSelected() {
+    if (coachBundledSelectedPids.size === 0) {
+      showToast('No coach portraits selected', 'warning');
+      return;
+    }
+
+    try {
+      const pidsToExport = Array.from(coachBundledSelectedPids.values());
+
+      console.log('[PortraitManager] Exporting coach PIDs:', pidsToExport);
+      showToast(`Exporting ${pidsToExport.length} coach portrait(s)... Please select a folder.`, 'info');
+
+      // Use coach portrait export (we need to add this handler)
+      const result = await window.electronAPI.coachPortrait.exportBatchDds(pidsToExport);
+
+      if (result.canceled) {
+        return;
+      }
+
+      if (result.success) {
+        showToast(`Exported ${result.exported} coach portrait${result.exported !== 1 ? 's' : ''} as DDS!`, 'success');
+
+        // Clear selection after successful export
+        coachBundledSelectedPids.clear();
+        const grid = document.getElementById('coachBundledPortraitResults');
+        if (grid) {
+          grid.querySelectorAll('.bundled-portrait-card.selected').forEach(card => {
+            card.classList.remove('selected');
+          });
+        }
+        updateCoachBundledExportButton();
+      } else {
+        console.error('[PortraitManager] Coach export errors:', result.errors);
+        showToast(`Export completed with ${result.failed} failure(s): ${result.errors?.[0] || 'Unknown error'}`, 'warning');
+      }
+    } catch (error) {
+      console.error('[PortraitManager] Coach export error:', error);
+      showToast(`Export failed: ${error.message}`, 'error');
+    }
+  }
+
+  // =============================================
+  // CUSTOM COACH PORTRAIT MANAGEMENT
+  // =============================================
+
+  let coachSelectedPids = new Set();
+  let coachViewMode = 'workspace'; // 'workspace' or 'all'
+  let selectedCoachForAssignment = null;
+
+  /**
+   * Initialize custom coach portrait section
+   */
+  function initCustomCoachPortraitSection() {
+    console.log('[PortraitManager] Initializing custom coach portrait section...');
+
+    // Import buttons
+    document.getElementById('importCoachPortraitBtn')?.addEventListener('click', handleImportCoachPortrait);
+    document.getElementById('importAndAssignCoachBtn')?.addEventListener('click', handleImportAndAssignCoach);
+    document.getElementById('importMultipleCoachPortraitsBtn')?.addEventListener('click', handleImportMultipleCoachPortraits);
+
+    // Export buttons
+    document.getElementById('exportSelectedCoachPortraitsBtn')?.addEventListener('click', handleExportSelectedCoachPortraits);
+    document.getElementById('exportAllCoachPortraitsBtn')?.addEventListener('click', handleExportAllCoachPortraits);
+
+    // Assign button
+    document.getElementById('assignCoachPortraitBtn')?.addEventListener('click', openCoachAssignModal);
+
+    // Year filter
+    document.getElementById('coachPortraitYearFilter')?.addEventListener('change', refreshCoachPortraits);
+
+    // View mode toggle
+    document.getElementById('coachPortraitViewModeToggle')?.addEventListener('click', toggleCoachViewMode);
+
+    // Coach assignment modal
+    document.getElementById('closeCoachAssignModal')?.addEventListener('click', closeCoachAssignModal);
+    document.getElementById('cancelCoachAssignBtn')?.addEventListener('click', closeCoachAssignModal);
+    document.getElementById('confirmCoachAssignBtn')?.addEventListener('click', confirmCoachAssignment);
+    document.getElementById('quickConfirmCoachBtn')?.addEventListener('click', confirmCoachAssignment);
+
+    // Coach search in assignment modal
+    document.getElementById('assignCoachSearch')?.addEventListener('input', debounce(handleCoachSearchForAssignment, 300));
+
+    // Load year filter options
+    loadCoachYearFilterOptions();
+
+    // Initial load
+    refreshCoachPortraits();
+  }
+
+  /**
+   * Load year filter options for coaches
+   */
+  async function loadCoachYearFilterOptions() {
+    try {
+      const years = await window.electronAPI.customCoachPortrait.getAvailableYears();
+      const select = document.getElementById('coachPortraitYearFilter');
+      if (select && years.length > 0) {
+        select.innerHTML = '<option value="">All Years</option>' +
+          years.map(y => `<option value="${y}">${y}</option>`).join('');
+      }
+    } catch (error) {
+      console.error('[PortraitManager] Error loading coach year filter:', error);
+    }
+  }
+
+  /**
+   * Refresh custom coach portraits grid
+   */
+  async function refreshCoachPortraits() {
+    const grid = document.getElementById('coachPortraitGrid');
+    if (!grid) return;
+
+    try {
+      const yearFilter = document.getElementById('coachPortraitYearFilter')?.value;
+      let portraits;
+
+      if (yearFilter) {
+        portraits = await window.electronAPI.customCoachPortrait.listByYear(parseInt(yearFilter));
+      } else {
+        portraits = await window.electronAPI.customCoachPortrait.list();
+      }
+
+      // Filter by view mode
+      if (coachViewMode === 'workspace') {
+        portraits = portraits.filter(p => !p.databaseCoachId);
+      }
+
+      // Clear selection
+      coachSelectedPids.clear();
+      updateCoachSelectionButtons();
+
+      if (!portraits || portraits.length === 0) {
+        grid.innerHTML = `
+          <div class="portrait-empty-state">
+            <span class="empty-icon">🖼️</span>
+            <h3>No Coach Portraits Yet</h3>
+            <p>Click "Import Portrait" to add custom coach portraits.</p>
+            <p class="empty-hint">Coach portraits will be assigned PIDs starting at 50000.</p>
+          </div>
+        `;
+        updateCoachPortraitCount(0, 0);
+        return;
+      }
+
+      grid.innerHTML = '';
+
+      for (const portrait of portraits) {
+        const card = document.createElement('div');
+        card.className = 'portrait-card';
+        card.dataset.pid = portrait.pid;
+
+        if (portrait.databaseCoachId) {
+          card.classList.add('assigned');
+        }
+
+        // Load image
+        const imageData = await window.electronAPI.customCoachPortrait.get(portrait.pid);
+
+        card.innerHTML = `
+          <img src="${imageData || ''}" alt="Coach Portrait ${portrait.pid}">
+          <div class="portrait-info">
+            <span class="portrait-pid">PID: ${portrait.pid}</span>
+            ${portrait.coachName ? `<span class="portrait-name">${portrait.coachName}</span>` : ''}
+            ${portrait.databaseCoachId ? '<span class="assigned-badge">Assigned</span>' : ''}
+          </div>
+          <div class="portrait-actions">
+            <button class="btn-icon-small" onclick="window.coachPortraitManager.deletePortrait(${portrait.pid})" title="Delete">🗑️</button>
+          </div>
+        `;
+
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.portrait-actions')) return;
+          toggleCoachPortraitSelection(portrait.pid, card);
+        });
+
+        grid.appendChild(card);
+      }
+
+      const unassignedCount = portraits.filter(p => !p.databaseCoachId).length;
+      updateCoachPortraitCount(portraits.length, unassignedCount);
+
+    } catch (error) {
+      console.error('[PortraitManager] Error refreshing coach portraits:', error);
+      grid.innerHTML = '<div class="portrait-empty-state"><p>Error loading portraits</p></div>';
+    }
+  }
+
+  /**
+   * Toggle coach portrait selection
+   */
+  function toggleCoachPortraitSelection(pid, card) {
+    if (coachSelectedPids.has(pid)) {
+      coachSelectedPids.delete(pid);
+      card.classList.remove('selected');
+    } else {
+      coachSelectedPids.add(pid);
+      card.classList.add('selected');
+    }
+    updateCoachSelectionButtons();
+  }
+
+  /**
+   * Update coach selection buttons state
+   */
+  function updateCoachSelectionButtons() {
+    const exportBtn = document.getElementById('exportSelectedCoachPortraitsBtn');
+    const assignBtn = document.getElementById('assignCoachPortraitBtn');
+
+    if (exportBtn) {
+      exportBtn.disabled = coachSelectedPids.size === 0;
+    }
+    if (assignBtn) {
+      assignBtn.disabled = coachSelectedPids.size !== 1;
+    }
+  }
+
+  /**
+   * Update coach portrait count display
+   */
+  function updateCoachPortraitCount(total, unassigned) {
+    const countEl = document.getElementById('coachPortraitCount');
+    if (countEl) {
+      countEl.textContent = `${unassigned} to assign (${total} total)`;
+    }
+  }
+
+  /**
+   * Toggle coach view mode
+   */
+  function toggleCoachViewMode() {
+    const btn = document.getElementById('coachPortraitViewModeToggle');
+    if (coachViewMode === 'workspace') {
+      coachViewMode = 'all';
+      if (btn) btn.innerHTML = '<i class="bi bi-eye-slash"></i> Workspace';
+    } else {
+      coachViewMode = 'workspace';
+      if (btn) btn.innerHTML = '<i class="bi bi-eye"></i> Show All';
+    }
+    refreshCoachPortraits();
+  }
+
+  /**
+   * Handle import coach portrait
+   */
+  async function handleImportCoachPortrait() {
+    try {
+      const result = await window.electronAPI.customCoachPortrait.importDialog();
+      if (result.canceled) return;
+
+      if (result.success) {
+        showToast(`Imported coach portrait: PID ${result.pid}`, 'success');
+        refreshCoachPortraits();
+        loadCoachYearFilterOptions();
+      } else {
+        showToast(`Import failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('[PortraitManager] Coach import error:', error);
+      showToast(`Import failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Handle import and assign coach portrait
+   */
+  async function handleImportAndAssignCoach() {
+    try {
+      const result = await window.electronAPI.customCoachPortrait.importDialog();
+      if (result.canceled) return;
+
+      if (result.success) {
+        showToast(`Imported coach portrait: PID ${result.pid}`, 'success');
+        refreshCoachPortraits();
+        // Select and open assignment modal
+        coachSelectedPids.clear();
+        coachSelectedPids.add(result.pid);
+        openCoachAssignModal();
+      } else {
+        showToast(`Import failed: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('[PortraitManager] Coach import and assign error:', error);
+      showToast(`Import failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Handle import multiple coach portraits
+   */
+  async function handleImportMultipleCoachPortraits() {
+    try {
+      const yearFilter = document.getElementById('coachPortraitYearFilter')?.value;
+      const metadata = yearFilter ? { year: parseInt(yearFilter) } : undefined;
+
+      const result = await window.electronAPI.customCoachPortrait.importMultipleDialog(metadata);
+      if (result.canceled) return;
+
+      if (result.imported > 0) {
+        showToast(`Imported ${result.imported} coach portrait(s)`, 'success');
+        refreshCoachPortraits();
+        loadCoachYearFilterOptions();
+      }
+
+      if (result.errors?.length > 0) {
+        console.error('[PortraitManager] Some coach imports failed:', result.errors);
+      }
+    } catch (error) {
+      console.error('[PortraitManager] Multiple coach import error:', error);
+      showToast(`Import failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Handle export selected coach portraits
+   */
+  async function handleExportSelectedCoachPortraits() {
+    if (coachSelectedPids.size === 0) {
+      showToast('No coach portraits selected', 'warning');
+      return;
+    }
+
+    try {
+      const pids = Array.from(coachSelectedPids);
+      const result = await window.electronAPI.customCoachPortrait.exportBatch(pids);
+
+      if (result.canceled) return;
+
+      if (result.success) {
+        showToast(`Exported ${result.exported} coach portrait(s) as DDS`, 'success');
+      } else {
+        showToast(`Export completed with ${result.failed} failure(s)`, 'warning');
+      }
+    } catch (error) {
+      console.error('[PortraitManager] Coach export error:', error);
+      showToast(`Export failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Handle export all coach portraits
+   */
+  async function handleExportAllCoachPortraits() {
+    try {
+      const result = await window.electronAPI.customCoachPortrait.exportAll();
+
+      if (result.canceled) return;
+
+      if (result.success) {
+        showToast(`Exported ${result.exported} coach portrait(s) as DDS`, 'success');
+      } else {
+        showToast(`Export completed with ${result.failed} failure(s)`, 'warning');
+      }
+    } catch (error) {
+      console.error('[PortraitManager] Coach export all error:', error);
+      showToast(`Export failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Delete coach portrait
+   */
+  async function deleteCoachPortrait(pid) {
+    if (!confirm(`Delete coach portrait PID ${pid}?`)) return;
+
+    try {
+      await window.electronAPI.customCoachPortrait.delete(pid);
+      showToast(`Deleted coach portrait PID ${pid}`, 'success');
+      coachSelectedPids.delete(pid);
+      refreshCoachPortraits();
+    } catch (error) {
+      console.error('[PortraitManager] Coach delete error:', error);
+      showToast(`Delete failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Open coach assignment modal
+   */
+  async function openCoachAssignModal() {
+    if (coachSelectedPids.size !== 1) {
+      showToast('Select exactly one portrait to assign', 'warning');
+      return;
+    }
+
+    const pid = Array.from(coachSelectedPids)[0];
+    const modal = document.getElementById('coachPortraitAssignModal');
+    const preview = document.getElementById('assignCoachPortraitPreview');
+    const pidLabel = document.getElementById('assignCoachPortraitPid');
+
+    if (!modal) return;
+
+    // Load portrait preview
+    try {
+      const imageData = await window.electronAPI.customCoachPortrait.get(pid);
+      if (preview) preview.src = imageData || '';
+      if (pidLabel) pidLabel.textContent = `PID: ${pid}`;
+    } catch (error) {
+      console.error('[PortraitManager] Error loading coach portrait preview:', error);
+    }
+
+    // Clear previous selection
+    selectedCoachForAssignment = null;
+    document.getElementById('assignCoachSearch').value = '';
+    document.getElementById('assignCoachResults').innerHTML = '';
+    document.getElementById('assignSelectedCoach').style.display = 'none';
+    document.getElementById('confirmCoachAssignBtn').disabled = true;
+
+    modal.style.display = 'flex';
+  }
+
+  /**
+   * Close coach assignment modal
+   */
+  function closeCoachAssignModal() {
+    const modal = document.getElementById('coachPortraitAssignModal');
+    if (modal) modal.style.display = 'none';
+    selectedCoachForAssignment = null;
+  }
+
+  /**
+   * Handle coach search for assignment
+   */
+  async function handleCoachSearchForAssignment() {
+    const searchInput = document.getElementById('assignCoachSearch');
+    const resultsDiv = document.getElementById('assignCoachResults');
+    const query = searchInput?.value?.trim();
+
+    if (!query || query.length < 2) {
+      if (resultsDiv) resultsDiv.innerHTML = '';
+      return;
+    }
+
+    try {
+      const result = await window.electronAPI.coachDatabase.searchCoaches({ query, limit: 20 });
+      const coaches = result.success && result.data?.coaches ? result.data.coaches : [];
+
+      if (coaches.length === 0) {
+        // No results - show "Create New Coach" option
+        if (resultsDiv) {
+          resultsDiv.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #888;">
+              <p style="margin: 0 0 12px 0;">No coaches found</p>
+              <button onclick="window.coachPortraitManager.createNewCoach('${query.replace(/'/g, "\\'")}')"
+                      style="padding: 10px 20px; background: #4a9eff; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 14px; display: inline-flex; align-items: center; gap: 6px;">
+                <span style="font-size: 18px;">+</span> Create New Coach
+              </button>
+            </div>
+          `;
+        }
+        return;
+      }
+
+      resultsDiv.innerHTML = coaches.slice(0, 10).map(coach => {
+        const hasExistingPid = coach.pam && coach.pam.length > 0;
+        const pidWarning = hasExistingPid ? `<span class="has-portrait-badge" title="Has PAM: ${coach.pam}">📸</span>` : '';
+        return `
+        <div class="assign-result-item ${hasExistingPid ? 'has-portrait' : ''}" data-coach-id="${coach.id}" data-coach-name="${coach.displayName}" data-existing-pid="${coach.pam || ''}">
+          <span class="result-name">${coach.displayName} ${pidWarning}</span>
+          <span class="result-info">${coach.position || ''}</span>
+        </div>
+      `}).join('');
+
+      // Add click handlers
+      resultsDiv.querySelectorAll('.assign-result-item').forEach(item => {
+        item.addEventListener('click', () => {
+          selectCoachForAssignment(
+            item.dataset.coachId,
+            item.dataset.coachName,
+            item.dataset.existingPid ? parseInt(item.dataset.existingPid) : null
+          );
+        });
+      });
+    } catch (error) {
+      console.error('[PortraitManager] Coach search error:', error);
+      if (resultsDiv) resultsDiv.innerHTML = '<div class="no-results">Search error</div>';
+    }
+  }
+
+  /**
+   * Select coach for assignment
+   */
+  function selectCoachForAssignment(coachId, coachName, existingPid = null) {
+    selectedCoachForAssignment = { id: parseInt(coachId), name: coachName, existingPid };
+
+    // Show selected coach info
+    const selectedDiv = document.getElementById('assignSelectedCoach');
+    const nameEl = document.getElementById('assignCoachName');
+    const detailsEl = document.getElementById('assignCoachDetails');
+
+    if (selectedDiv) selectedDiv.style.display = 'block';
+    if (nameEl) nameEl.textContent = coachName;
+    if (detailsEl) {
+      if (existingPid && existingPid > 0) {
+        detailsEl.textContent = `Current PID: ${existingPid}`;
+        detailsEl.style.color = '#ff9800';
+      } else {
+        detailsEl.textContent = 'No portrait assigned';
+        detailsEl.style.color = '#888';
+      }
+    }
+
+    // Enable confirm button
+    document.getElementById('confirmCoachAssignBtn').disabled = false;
+
+    // Clear search results
+    document.getElementById('assignCoachResults').innerHTML = '';
+  }
+
+  /**
+   * Confirm coach assignment
+   */
+  async function confirmCoachAssignment() {
+    if (!selectedCoachForAssignment || coachSelectedPids.size !== 1) {
+      showToast('Please select a coach to assign', 'warning');
+      return;
+    }
+
+    const pid = Array.from(coachSelectedPids)[0];
+    const { id, name, existingPid } = selectedCoachForAssignment;
+
+    // Check if "Model Only" checkbox is checked
+    const modelOnlyCheckbox = document.getElementById('coachAssignModelOnlyCheckbox');
+    const modelOnly = modelOnlyCheckbox && modelOnlyCheckbox.checked;
+
+    if (modelOnly) {
+      // Model Only mode: only update PAM, keep existing portrait
+      console.log('[PortraitManager] Model Only mode - setting PAM without changing PID');
+
+      try {
+        // Get the PAM from the selected portrait's associated coach
+        // For custom portraits, we get the PAM from Coach_lookup using the original coach if available
+        // For now, we just update the coach's appearance with only PAM (derived from portrait)
+
+        // We need to get the PAM value for this portrait
+        // The PAM might be stored in portrait metadata or derived from the coach it was originally from
+        const portraitData = await window.electronAPI.customCoachPortrait.getMetadata(pid);
+        const pamValue = portraitData?.pam || `_C_PRO`; // Default to generic coach PAM if none set
+
+        // Update only the PAM in the coach database
+        await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
+          maddenPam: pamValue
+          // Note: maddenPid is NOT set, keeping current portrait
+        });
+
+        showToast(`Applied 3D model only to ${name} (portrait unchanged)`, 'success');
+        closeCoachAssignModal();
+        refreshCoachPortraits();
+      } catch (error) {
+        console.error('[PortraitManager] Model Only assignment error:', error);
+        showToast(`Assignment failed: ${error.message}`, 'error');
+      }
+    } else {
+      // Full assignment: update both PID and PAM
+      // Check if coach already has a portrait assigned
+      if (existingPid && existingPid > 0) {
+        const isInGamePortrait = existingPid < 50000;
+        const warningMessage = isInGamePortrait
+          ? `${name} already has an in-game portrait (PID: ${existingPid}).\n\nAssigning this custom portrait will replace their official portrait.\n\nContinue?`
+          : `${name} already has a custom portrait assigned (PID: ${existingPid}).\n\nAssigning this new portrait will replace the existing one.\n\nContinue?`;
+
+        if (!confirm(`⚠️ Warning: ${warningMessage}`)) {
+          showToast('Assignment cancelled', 'info');
+          return;
+        }
+      }
+
+      try {
+        // Update portrait metadata
+        await window.electronAPI.customCoachPortrait.updateMetadata(pid, {
+          coachName: name,
+          databaseCoachId: id
+        });
+
+        // Also update the coach's appearance with the new PID
+        await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
+          maddenPid: pid
+        });
+
+        showToast(`Assigned portrait to ${name}`, 'success');
+        closeCoachAssignModal();
+        refreshCoachPortraits();
+      } catch (error) {
+        console.error('[PortraitManager] Coach assignment error:', error);
+        showToast(`Assignment failed: ${error.message}`, 'error');
+      }
+    }
+  }
+
+  // Debounce helper
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // =============================================
+  // CREATE NEW COACH FROM PORTRAIT MANAGER
+  // =============================================
+
+  let pendingCoachPortraitPid = null; // PID waiting to be assigned to new coach
+
+  /**
+   * Open the full Database Coach Card in create mode, pre-filled with portrait name and PID
+   */
+  async function createNewCoach(searchQuery) {
+    console.log('[PortraitManager] Create new coach from search:', searchQuery);
+
+    // Store the current portrait PID we want to assign (from coachSelectedPids)
+    if (coachSelectedPids.size !== 1) {
+      showToast('No portrait selected', 'warning');
+      return;
+    }
+    pendingCoachPortraitPid = Array.from(coachSelectedPids)[0];
+
+    // Parse name from search query
+    let coachName = searchQuery.trim();
+    const nameParts = coachName.split(/\s+/);
+    const suggestedFirst = nameParts[0] || '';
+    const suggestedLast = nameParts.slice(1).join(' ') || '';
+
+    // Close the assignment modal first
+    closeCoachAssignModal();
+
+    // Check if the full Database Coach Card creator is available
+    if (typeof window.createNewDbCoach !== 'function') {
+      showToast('Coach editor not available. Please open the Database Browser > Coaches tab first.', 'error');
+      return;
+    }
+
+    // Open the full Database Coach Card in create mode
+    await window.createNewDbCoach();
+
+    // Wait a moment for the form to render, then pre-fill the fields
+    setTimeout(async () => {
+      // Pre-fill first name
+      const firstNameInput = document.getElementById('dbCoachFirstName');
+      if (firstNameInput && suggestedFirst) {
+        firstNameInput.value = suggestedFirst;
+      }
+
+      // Pre-fill last name
+      const lastNameInput = document.getElementById('dbCoachLastName');
+      if (lastNameInput && suggestedLast) {
+        lastNameInput.value = suggestedLast;
+      }
+
+      // Pre-fill the PID with the portrait's PID
+      const pidInput = document.getElementById('dbCoachPid');
+      if (pidInput && pendingCoachPortraitPid) {
+        pidInput.value = pendingCoachPortraitPid;
+      }
+
+      // Update the header to show we're creating from portrait
+      const nameEl = document.getElementById('dbCoachCardName');
+      if (nameEl) {
+        nameEl.textContent = 'New Custom Coach (from Portrait)';
+      }
+
+      // Load the portrait preview
+      if (pendingCoachPortraitPid && typeof window.loadCoachPortrait === 'function') {
+        await window.loadCoachPortrait(pendingCoachPortraitPid);
+      }
+
+      // Focus on first name field
+      if (firstNameInput) {
+        firstNameInput.focus();
+        if (!suggestedFirst) {
+          // If no name suggested, keep focus on first name
+        } else if (!suggestedLast) {
+          // If first name filled but no last name, focus last name
+          if (lastNameInput) lastNameInput.focus();
+        }
+      }
+
+      console.log('[PortraitManager] Pre-filled coach form with:', {
+        firstName: suggestedFirst,
+        lastName: suggestedLast,
+        pid: pendingCoachPortraitPid
+      });
+    }, 200);
+
+    // Keep the pending PID so Database Coach Card can update portrait metadata after save
+    console.log('[PortraitManager] Pending coach portrait PID for assignment:', pendingCoachPortraitPid);
+  }
+
+  // Initialize tabs when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      initPortraitManagerTabs();
+      initCustomCoachPortraitSection();
+    });
+  } else {
+    initPortraitManagerTabs();
+    initCustomCoachPortraitSection();
+  }
+
   // Export for potential external use
   window.portraitManager = {
     refresh: refreshPortraits,
@@ -1471,6 +2573,19 @@
     confirmCreatePlayer: confirmCreatePlayer,
     // Get/clear pending portrait PID (used by Database Player Card after save)
     getPendingPortraitPid: () => pendingPortraitPid,
-    clearPendingPortraitPid: () => { pendingPortraitPid = null; }
+    clearPendingPortraitPid: () => { pendingPortraitPid = null; },
+    // Coach portrait functions
+    searchCoachPortraits: handleCoachBundledSearch
+  };
+
+  // Coach portrait manager export
+  window.coachPortraitManager = {
+    refresh: refreshCoachPortraits,
+    deletePortrait: deleteCoachPortrait,
+    getSelectedPids: () => Array.from(coachSelectedPids),
+    createNewCoach: createNewCoach,
+    // Get/clear pending portrait PID (used by Database Coach Card after save)
+    getPendingPortraitPid: () => pendingCoachPortraitPid,
+    clearPendingPortraitPid: () => { pendingCoachPortraitPid = null; }
   };
 })();

@@ -2005,8 +2005,11 @@ export class CreatorService {
           console.log(`[CreatorService] Player ${i+1} "${prospect.name}": scraped="${prospect.homeState}", generated="${generatedState}", finalID=${homeStateId}, wAV=${wAV || 'N/A'}`);
         }
 
-        // Get CommID from MASTER_LOOKUP for in-game commentary
-        const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+        // Get CommID from MASTER_LOOKUP first, then fall back to lastName lookup
+        let commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+        if (!commID) {
+          commID = lookupService.getCommentaryId(lastName) || 0;
+        }
 
         // Get PGHE index from last assigned generic face (if applicable)
         const pgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
@@ -2450,8 +2453,11 @@ export class CreatorService {
         // Determine dev trait using wAV
         const devTrait = this.determineDevTrait(prospect.round, prospect.pick, ratings.overall, prospect.isHallOfFamer, wAV);
 
-        // Get CommID from MASTER_LOOKUP for in-game commentary
-        const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+        // Get CommID from MASTER_LOOKUP first, then fall back to lastName lookup
+        let commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+        if (!commID) {
+          commID = lookupService.getCommentaryId(lastName) || 0;
+        }
 
         // Get PGHE value if we assigned a generic face (ensures matched set)
         const pgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
@@ -2557,8 +2563,11 @@ export class CreatorService {
           const finalWeight = weight || this.getDefaultWeight(mappedPosition.name);
           const bodyType = this.determineBodyType(mappedPosition.name, finalWeight, finalHeight);
 
-          // Get CommID from ufaEntry for in-game commentary
-          const ufaCommID = parseInt(ufaEntry['CommID']) || 0;
+          // Get CommID from ufaEntry first, then fall back to lastName lookup
+          let ufaCommID = parseInt(ufaEntry['CommID']) || 0;
+          if (!ufaCommID) {
+            ufaCommID = lookupService.getCommentaryId(lastName) || 0;
+          }
 
           // Get PGHE value if we assigned a generic face (ensures matched set)
           const ufaPgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
@@ -3770,8 +3779,11 @@ export class CreatorService {
             proRatedWAV  // Use pro-rated wAV for dev trait calculation
           );
 
-          // Get CommID from MASTER_LOOKUP for in-game commentary
-          const commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+          // Get CommID from MASTER_LOOKUP first, then fall back to lastName lookup
+          let commID = lookupEntry ? parseInt(lookupEntry['CommID']) || 0 : 0;
+          if (!commID) {
+            commID = lookupService.getCommentaryId(lastName) || 0;
+          }
 
           // Get PGHE value if we assigned a generic face (ensures matched set)
           const pgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
@@ -4029,8 +4041,11 @@ export class CreatorService {
           // Dev trait from wAV
           const devTrait = this.determineDevTrait(undefined, undefined, ratings.overall, false, proRatedWAV);
 
-          // Get CommID from ufaEntry for in-game commentary
-          const ufaCommID = parseInt(ufaEntry['CommID']) || 0;
+          // Get CommID from ufaEntry first, then fall back to lastName lookup
+          let ufaCommID = parseInt(ufaEntry['CommID']) || 0;
+          if (!ufaCommID) {
+            ufaCommID = lookupService.getCommentaryId(lastName) || 0;
+          }
 
           // Get PGHE value if we assigned a generic face (ensures matched set)
           const ufaPgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID

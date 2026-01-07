@@ -1,0 +1,243 @@
+/**
+ * Coach Browser Module
+ *
+ * Provides a searchable, filterable browser for the coach database.
+ * Allows users to search, view, edit, and create custom coaches.
+ */
+
+(function() {
+  'use strict';
+
+  // Module state
+  let searchTimeout = null;
+  let currentResults = [];
+  let currentPage = 1;
+  let pageSize = 50;
+  let totalResults = 0;
+  let isLoading = false;
+
+  /**
+   * Initialize the coach browser module
+   */
+  function initCoachBrowser() {
+    console.log('[CoachBrowser] Initializing...');
+
+    setupEventListeners();
+    performSearch();
+
+    console.log('[CoachBrowser] Initialized');
+  }
+
+  /**
+   * Set up event listeners
+   */
+  function setupEventListeners() {
+    // Search input with debounce
+    const searchInput = document.getElementById('coachBrowserSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        if (searchTimeout) {
+          clearTimeout(searchTimeout);
+        }
+        searchTimeout = setTimeout(() => {
+          currentPage = 1;
+          performSearch();
+        }, 300);
+      });
+
+      // Enter key for immediate search
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          if (searchTimeout) {
+            clearTimeout(searchTimeout);
+          }
+          currentPage = 1;
+          performSearch();
+        }
+      });
+    }
+
+    // Position filter
+    const positionFilter = document.getElementById('coachBrowserPositionFilter');
+    if (positionFilter) {
+      positionFilter.addEventListener('change', () => {
+        currentPage = 1;
+        performSearch();
+      });
+    }
+
+    // Pagination
+    const prevBtn = document.getElementById('coachBrowserPrevPage');
+    const nextBtn = document.getElementById('coachBrowserNextPage');
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          performSearch();
+        }
+      });
+    }
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        currentPage++;
+        performSearch();
+      });
+    }
+
+    // Add New Coach button
+    const addNewCoachBtn = document.getElementById('addNewCoachBtn');
+    if (addNewCoachBtn) {
+      addNewCoachBtn.addEventListener('click', () => {
+        console.log('[CoachBrowser] Add New Coach clicked');
+        if (typeof window.createNewDbCoach === 'function') {
+          window.createNewDbCoach();
+        } else {
+          alert('Create coach functionality not available. Please reload the application.');
+        }
+      });
+    }
+  }
+
+  /**
+   * Perform search with current filters
+   */
+  async function performSearch() {
+    if (isLoading) {
+      console.warn('[CoachBrowser] Search already in progress');
+      return;
+    }
+    isLoading = true;
+
+    const resultsDiv = document.getElementById('coachBrowserResults');
+    if (resultsDiv) {
+      resultsDiv.innerHTML = '<div class="player-browser-loading">Searching...</div>';
+    }
+
+    try {
+      const searchQuery = document.getElementById('coachBrowserSearch')?.value || '';
+      const position = document.getElementById('coachBrowserPositionFilter')?.value || '';
+
+      const options = {
+        query: searchQuery.trim(),
+        position: position || undefined,
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize
+      };
+
+      console.log('[CoachBrowser] Searching with options:', options);
+
+      const result = await window.electronAPI.coachDatabase.searchCoaches(options);
+
+      if (result.success) {
+        currentResults = result.data.coaches || [];
+        totalResults = result.data.totalCount || 0;
+        console.log('[CoachBrowser] Found', totalResults, 'coaches');
+        displayResults();
+      } else {
+        console.error('[CoachBrowser] Search failed:', result.error);
+        if (resultsDiv) {
+          resultsDiv.innerHTML = '<div class="player-browser-error">Search failed: ' + result.error + '</div>';
+        }
+      }
+    } catch (error) {
+      console.error('[CoachBrowser] Search error:', error);
+      if (resultsDiv) {
+        resultsDiv.innerHTML = '<div class="player-browser-error">Search error: ' + error.message + '</div>';
+      }
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  /**
+   * Display search results
+   */
+  function displayResults() {
+    const resultsDiv = document.getElementById('coachBrowserResults');
+    if (!resultsDiv) return;
+
+    if (currentResults.length === 0) {
+      resultsDiv.innerHTML = '<div class="player-browser-empty"><p>No coaches found</p><p class="player-browser-empty-hint">Try adjusting your search or filters</p></div>';
+      updatePagination();
+      return;
+    }
+
+    let html = '';
+    currentResults.forEach(coach => {
+      const positionBadge = coach.position ? getPositionBadge(coach.position) : '';
+      const customBadge = coach.isCustom ? '<span class="coach-type-badge custom">Custom</span>' : '';
+      const editedBadge = coach.hasEdits ? '<span class="coach-type-badge" style="background:#f59e0b;">Edited</span>' : '';
+      const teamName = coach.teamIndex !== undefined ? `Team ${coach.teamIndex}` : '-';
+
+      html += `
+        <div class="player-browser-row" data-coach-id="${coach.id}" data-is-custom="${coach.isCustom}">
+          <div class="player-browser-name">${coach.displayName} ${customBadge} ${editedBadge}</div>
+          <div class="player-browser-position">${positionBadge || '-'}</div>
+          <div class="player-browser-college">${teamName}</div>
+          <div class="player-browser-draft">${coach.isCustom ? 'Custom' : 'Original'}</div>
+          <div class="player-browser-actions">
+            <button class="pb-btn pb-btn-view" onclick="window.viewDbCoach(${coach.id}, ${coach.isCustom})">Edit</button>
+          </div>
+        </div>
+      `;
+    });
+
+    resultsDiv.innerHTML = html;
+    updatePagination();
+  }
+
+  /**
+   * Get position badge HTML
+   */
+  function getPositionBadge(position) {
+    const positionClasses = {
+      'HC': 'hc',
+      'OC': 'oc',
+      'DC': 'dc'
+    };
+    const positionNames = {
+      'HC': 'Head Coach',
+      'OC': 'Off. Coord.',
+      'DC': 'Def. Coord.'
+    };
+    const cls = positionClasses[position] || '';
+    const name = positionNames[position] || position;
+    return `<span class="coach-type-badge ${cls}">${name}</span>`;
+  }
+
+  /**
+   * Update pagination controls
+   */
+  function updatePagination() {
+    const prevBtn = document.getElementById('coachBrowserPrevPage');
+    const nextBtn = document.getElementById('coachBrowserNextPage');
+    const pageInfo = document.getElementById('coachBrowserPageInfo');
+
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentResults.length < pageSize;
+    if (pageInfo) pageInfo.textContent = `Page ${currentPage}`;
+  }
+
+  // Global function to view/edit a coach
+  window.viewDbCoach = function(coachId, isCustom) {
+    console.log('[CoachBrowser] View coach:', coachId, 'isCustom:', isCustom);
+    if (window.openDbCoachCard) {
+      window.openDbCoachCard(coachId, isCustom === true);
+    } else {
+      alert('Coach card not available');
+    }
+  };
+
+  // Global function to refresh coach browser
+  window.refreshCoachBrowser = function() {
+    console.log('[CoachBrowser] Refreshing...');
+    return performSearch();
+  };
+
+  // Expose init function globally
+  window.initCoachBrowser = initCoachBrowser;
+
+  // Initialize on DOMContentLoaded if not already done
+  // Note: Actual initialization is triggered when coach tab is clicked
+  console.log('[CoachBrowser] Module loaded');
+})();

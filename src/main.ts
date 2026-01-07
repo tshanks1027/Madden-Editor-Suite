@@ -33,6 +33,7 @@ import './main/ipc/shell-handlers';
 import './main/ipc/presentation-id-fix-handlers';
 import './main/ipc/retro-editor-handlers';
 import './main/ipc/database-handlers';
+import './main/ipc/coach-database-handlers';
 import './main/ipc/editor-tracking-handlers';
 import './main/ipc/player-data-fill-handlers';
 import { setMainWindowForFill } from './main/ipc/player-data-fill-handlers';
@@ -44,6 +45,7 @@ import { registerPGHEHandlers } from './main/ipc/pghe-handlers';
 import { registerFrostyHandlers } from './main/ipc/frosty-handlers';
 import { registerPortraitMappingHandlers } from './main/ipc/portrait-mapping-handlers';
 import { registerCustomPortraitHandlers } from './main/ipc/custom-portrait-handlers';
+import { registerCustomCoachPortraitHandlers } from './main/ipc/custom-coach-portrait-handlers';
 import { updateChecker } from './main/services/UpdateChecker';
 import { portraitSpriteService } from './main/services/PortraitSpriteService';
 import { coachPortraitService } from './main/services/CoachPortraitService';
@@ -58,6 +60,7 @@ registerPGHEHandlers();
 registerFrostyHandlers();
 registerPortraitMappingHandlers();
 registerCustomPortraitHandlers();
+registerCustomCoachPortraitHandlers();
 
 // Register window focus handler - simple focus without visual disruption
 // Used to ensure keyboard input works after various operations

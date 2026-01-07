@@ -6,6 +6,7 @@
       "endYear": 1969,
       "seasonLength": 14,
       "byeWeeks": false,
+      "regularSeasonWeeks": 14,
       "playoffTeams": 4,
       "playoffFormat": "Conference championship games only",
       "note": "Pre-merger NFL, 14-game season"
@@ -15,6 +16,7 @@
       "endYear": 1977,
       "seasonLength": 14,
       "byeWeeks": false,
+      "regularSeasonWeeks": 14,
       "playoffTeams": 8,
       "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
       "note": "AFL-NFL merger, 14-game season"
@@ -24,6 +26,7 @@
       "endYear": 1981,
       "seasonLength": 16,
       "byeWeeks": false,
+      "regularSeasonWeeks": 16,
       "playoffTeams": 10,
       "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
       "note": "Expanded to 16 games, no bye weeks"
@@ -33,6 +36,7 @@
       "endYear": 1982,
       "seasonLength": 9,
       "byeWeeks": false,
+      "regularSeasonWeeks": 9,
       "playoffTeams": 16,
       "playoffFormat": "Special tournament format",
       "note": "Strike-shortened season"
@@ -42,6 +46,7 @@
       "endYear": 1989,
       "seasonLength": 16,
       "byeWeeks": false,
+      "regularSeasonWeeks": 16,
       "playoffTeams": 10,
       "playoffFormat": "Wild Card + Divisional + Conference + Super Bowl",
       "note": "16-game season, no bye weeks"

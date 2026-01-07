@@ -5,12 +5,16 @@
  * Provides access to player portrait images from sprite sheets.
  */
 
-import { ipcMain } from 'electron';
+import { ipcMain, BrowserWindow, dialog } from 'electron';
 import { portraitSpriteService } from '../services/PortraitSpriteService';
 import { coachPortraitService } from '../services/CoachPortraitService';
+import { customPortraitService } from '../services/CustomPortraitService';
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
+
+// Custom portrait PID range starts at 12000
+const CUSTOM_PORTRAIT_PID_START = 12000;
 
 // Debug: Test if this module loads
 try {
@@ -64,9 +68,18 @@ ipcMain.handle('portrait:get-by-plpo', async (event, plpoName: string) => {
 /**
  * Handle: portrait:get-by-pid
  * Get portrait sprite info by PID
+ * Returns sprite info for standard portraits, or { isCustom: true } for custom portraits (PID >= 12000)
  */
 ipcMain.handle('portrait:get-by-pid', async (event, pid: number) => {
   try {
+    // Check if this is a custom portrait
+    if (pid >= CUSTOM_PORTRAIT_PID_START) {
+      const hasCustom = customPortraitService.hasPortrait(pid);
+      if (hasCustom) {
+        return { isCustom: true, pid };
+      }
+      return null;
+    }
     return portraitSpriteService.getPortraitByPID(pid);
   } catch (error) {
     console.error('Error getting portrait by PID:', error);
@@ -255,13 +268,36 @@ ipcMain.handle('portrait:get-image-data-by-plpo', async (event, plpoName: string
 
 /**
  * Handle: portrait:get-image-data-by-pid
- * Get portrait image data by PID (extracted from sprite sheet)
+ * Get portrait image data by PID (extracted from sprite sheet or custom portraits)
  */
 ipcMain.handle('portrait:get-image-data-by-pid', async (event, pid: number) => {
   try {
+    console.log(`[portrait-handlers] get-image-data-by-pid called with PID: ${pid}`);
+
+    // Check if this is a custom portrait (PID >= 12000)
+    if (pid >= CUSTOM_PORTRAIT_PID_START) {
+      console.log(`[portrait-handlers] PID ${pid} is in custom portrait range, checking custom portraits...`);
+      const customDataUrl = await customPortraitService.getPortraitDataUrl(pid);
+      if (customDataUrl) {
+        console.log(`[portrait-handlers] Found custom portrait for PID ${pid}`);
+        return customDataUrl;
+      }
+      console.log(`[portrait-handlers] No custom portrait found for PID ${pid}`);
+      return null;
+    }
+
+    // Standard portrait lookup from sprite sheets
     const spriteInfo = portraitSpriteService.getPortraitByPID(pid);
 
     if (!spriteInfo) {
+      console.log(`[portrait-handlers] No sprite info found for PID: ${pid}`);
+      return null;
+    }
+    console.log(`[portrait-handlers] Found sprite info for PID ${pid}:`, spriteInfo.sheetPath, `x=${spriteInfo.x}, y=${spriteInfo.y}`);
+
+    // Check if sprite sheet exists
+    if (!fs.existsSync(spriteInfo.sheetPath)) {
+      console.error(`[portrait-handlers] Sprite sheet not found: ${spriteInfo.sheetPath}`);
       return null;
     }
 
@@ -278,6 +314,7 @@ ipcMain.handle('portrait:get-image-data-by-pid', async (event, pid: number) => {
 
     const base64Image = imageBuffer.toString('base64');
     const dataUrl = `data:image/png;base64,${base64Image}`;
+    console.log(`[portrait-handlers] Successfully extracted portrait for PID ${pid}, data URL length: ${dataUrl.length}`);
 
     return dataUrl;
   } catch (error) {
@@ -451,6 +488,160 @@ ipcMain.handle('coach-portrait:get-image-data-by-pid', async (event, pid: number
   } catch (error) {
     console.error('Error getting coach portrait image data by PID:', error);
     return null;
+  }
+});
+
+/**
+ * Handle: coach-portrait:export-batch-dds
+ * Export multiple coach portraits as DDS files
+ */
+ipcMain.handle('coach-portrait:export-batch-dds', async (event, pids: number[]) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+
+  const result = await dialog.showOpenDialog(window!, {
+    title: 'Select Export Folder for Coach Portraits',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false, canceled: true };
+  }
+
+  const outputPath = result.filePaths[0];
+  const results = {
+    success: true,
+    exported: 0,
+    failed: 0,
+    errors: [] as string[]
+  };
+
+  for (const pid of pids) {
+    const exportResult = await coachPortraitService.exportPortraitAsDDS(pid, outputPath);
+    if (exportResult.success) {
+      results.exported++;
+    } else {
+      results.failed++;
+      results.errors.push(exportResult.error || `Failed to export coach PID ${pid}`);
+    }
+  }
+
+  results.success = results.failed === 0;
+  return results;
+});
+
+/**
+ * Handle: portrait:export-dds-by-pid
+ * Export a sprite sheet portrait as DDS file (extracts + upscales to 512x512)
+ */
+ipcMain.handle('portrait:export-dds-by-pid', async (event, pid: number) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+
+  const result = await dialog.showOpenDialog(window!, {
+    title: 'Select Export Folder',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false, canceled: true };
+  }
+
+  return await portraitSpriteService.exportPortraitAsDDS(pid, result.filePaths[0]);
+});
+
+/**
+ * Handle: portrait:export-dds-by-pid-to-path
+ * Export a sprite sheet portrait as DDS file to a specific path
+ */
+ipcMain.handle('portrait:export-dds-by-pid-to-path', async (event, pid: number, outputPath: string) => {
+  return await portraitSpriteService.exportPortraitAsDDS(pid, outputPath);
+});
+
+/**
+ * Handle: portrait:export-batch-dds
+ * Export multiple sprite sheet portraits as DDS files
+ */
+ipcMain.handle('portrait:export-batch-dds', async (event, pids: number[]) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+
+  const result = await dialog.showOpenDialog(window!, {
+    title: 'Select Export Folder',
+    properties: ['openDirectory', 'createDirectory']
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { success: false, canceled: true };
+  }
+
+  const outputPath = result.filePaths[0];
+  const errors: string[] = [];
+  let exported = 0;
+  let failed = 0;
+
+  for (const pid of pids) {
+    const exportResult = await portraitSpriteService.exportPortraitAsDDS(pid, outputPath);
+    if (exportResult.success) {
+      exported++;
+    } else {
+      failed++;
+      errors.push(`PID ${pid}: ${exportResult.error}`);
+    }
+  }
+
+  return { success: failed === 0, exported, failed, errors };
+});
+
+/**
+ * Handle: portrait:get-all-pids
+ * Get all PIDs that have sprite sheet portraits
+ */
+ipcMain.handle('portrait:get-all-pids', async () => {
+  try {
+    // Get all PIDs from the PID map
+    const pids = portraitSpriteService.getAllPids();
+    return { success: true, pids };
+  } catch (error: any) {
+    console.error('Error getting all PIDs:', error);
+    return { success: false, error: error.message, pids: [] };
+  }
+});
+
+/**
+ * Handle: portrait:search-with-images
+ * Search sprite sheet portraits and return with base64 thumbnails and PIDs
+ */
+ipcMain.handle('portrait:search-with-images', async (event, query: string, limit: number = 100) => {
+  try {
+    const results = portraitSpriteService.searchPortraitsWithPid(query, limit);
+    const withImages = [];
+
+    for (const result of results) {
+      try {
+        // Extract thumbnail from sprite sheet
+        const imageBuffer = await sharp(result.sheetPath)
+          .extract({
+            left: result.x,
+            top: result.y,
+            width: result.width,
+            height: result.height
+          })
+          .png()
+          .toBuffer();
+
+        const base64Image = imageBuffer.toString('base64');
+        withImages.push({
+          name: result.name,
+          pid: result.pid,
+          imageData: `data:image/png;base64,${base64Image}`
+        });
+      } catch (err) {
+        console.error(`Error extracting thumbnail for ${result.name}:`, err);
+      }
+    }
+
+    return { success: true, portraits: withImages };
+  } catch (error: any) {
+    console.error('Error searching portraits with images:', error);
+    return { success: false, error: error.message, portraits: [] };
   }
 });
 

@@ -1951,8 +1951,8 @@ export class RetroEditorService {
         console.log(`[RetroEditorService] WARNING: No HC (Position=0) found for ${teamData.teamAbbr}! Available positions: ${teamCoaches.map((c: any) => c.Position).join(', ')}`);
       }
 
-      // Helper to update coach record with portrait and AssetName lookup
-      const updateCoachRecord = (record: any, firstName: string, lastName: string, role: string) => {
+      // Helper to update coach record with portrait, AssetName, and career stats
+      const updateCoachRecord = (record: any, firstName: string, lastName: string, role: string, coachStats?: any) => {
         const oldFirst = record.FirstName;
         const oldLast = record.LastName;
         const oldName = record.Name;
@@ -2002,27 +2002,59 @@ export class RetroEditorService {
           }
         }
 
+        // Apply career stats from historical data (stats by year)
+        if (coachStats) {
+          // Career record
+          if (record.CareerWins !== undefined && coachStats.careerWins !== undefined) {
+            record.CareerWins = coachStats.careerWins;
+          }
+          if (record.CareerLosses !== undefined && coachStats.careerLosses !== undefined) {
+            record.CareerLosses = coachStats.careerLosses;
+          }
+          if (record.CareerTies !== undefined && coachStats.careerTies !== undefined) {
+            record.CareerTies = coachStats.careerTies;
+          }
+          // Experience
+          if (record.YearsExperience !== undefined && coachStats.yearsAsHC !== undefined) {
+            record.YearsExperience = coachStats.yearsAsHC;
+          }
+          if (record.YearsWithTeam !== undefined && coachStats.yearsWithTeam !== undefined) {
+            record.YearsWithTeam = coachStats.yearsWithTeam;
+          }
+          // Playoff stats
+          if (record.CareerPlayoffWins !== undefined && coachStats.playoffWins !== undefined) {
+            record.CareerPlayoffWins = coachStats.playoffWins;
+          }
+          if (record.CareerPlayoffLosses !== undefined && coachStats.playoffLosses !== undefined) {
+            record.CareerPlayoffLosses = coachStats.playoffLosses;
+          }
+          if (record.SuperBowlWins !== undefined && coachStats.superBowlWins !== undefined) {
+            record.SuperBowlWins = coachStats.superBowlWins;
+          }
+          console.log(`[RetroEditorService]   Stats: W-L-T: ${coachStats.careerWins || 0}-${coachStats.careerLosses || 0}-${coachStats.careerTies || 0}, Years: ${coachStats.yearsAsHC || 0}`);
+        }
+
         coachesUpdated++;
         console.log(`[RetroEditorService] ${teamData.teamAbbr} ${role}: "${oldFirst} ${oldLast}" -> "${firstName} ${lastName}"`);
         console.log(`[RetroEditorService]   Portrait: ${oldPortrait} -> ${record.Portrait}, AssetName: "${oldAssetName}" -> "${record.AssetName}"`);
       };
 
-      // Update Head Coach
+      // Update Head Coach (with stats - HC has career record)
       if (hcRecord && teamData.headCoach.firstName && teamData.headCoach.lastName) {
-        updateCoachRecord(hcRecord, teamData.headCoach.firstName, teamData.headCoach.lastName, 'HC');
+        updateCoachRecord(hcRecord, teamData.headCoach.firstName, teamData.headCoach.lastName, 'HC', teamData.headCoach);
       } else if (!hcRecord) {
         warnings.push(`No HC record found for ${teamData.teamAbbr}`);
       }
 
       // Update Offensive Coordinator (only if historical data has one)
       if (ocRecord && teamData.offensiveCoordinator.firstName && teamData.offensiveCoordinator.lastName) {
-        updateCoachRecord(ocRecord, teamData.offensiveCoordinator.firstName, teamData.offensiveCoordinator.lastName, 'OC');
+        updateCoachRecord(ocRecord, teamData.offensiveCoordinator.firstName, teamData.offensiveCoordinator.lastName, 'OC', teamData.offensiveCoordinator);
       }
       // If no OC in historical data, leave the game's default (don't update)
 
       // Update Defensive Coordinator (only if historical data has one)
       if (dcRecord && teamData.defensiveCoordinator.firstName && teamData.defensiveCoordinator.lastName) {
-        updateCoachRecord(dcRecord, teamData.defensiveCoordinator.firstName, teamData.defensiveCoordinator.lastName, 'DC');
+        updateCoachRecord(dcRecord, teamData.defensiveCoordinator.firstName, teamData.defensiveCoordinator.lastName, 'DC', teamData.defensiveCoordinator);
       }
       // If no DC in historical data, leave the game's default (don't update)
     }

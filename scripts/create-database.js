@@ -512,7 +512,61 @@ async function createDatabase() {
   console.log(`Imported ${importedSeasons} player seasons`);
   console.log(`Unmatched seasons (player not found): ${unmatchedSeasons}`);
 
-  // 7. Import PID Race mappings from PID_Portrait_Mapping.csv
+  // 7. Populate missing Commentary IDs from commentary_lookup.csv
+  console.log('\nPopulating missing commentary IDs from commentary_lookup.csv...');
+  const commentaryData = parseCSV('commentary_lookup.csv');
+
+  // Build name -> ID map (lowercase for matching)
+  const commentaryMap = new Map();
+  for (const row of commentaryData) {
+    const name = (row.name || '').toLowerCase().trim();
+    const id = parseInt(row.id);
+    if (name && !isNaN(id)) {
+      commentaryMap.set(name, id);
+    }
+  }
+  console.log(`Loaded ${commentaryMap.size} commentary name mappings`);
+
+  // Find players with missing commentary IDs
+  const playersNeedingCommId = db.exec(`
+    SELECT p.id, p.last_name, pa.id as pa_id, pa.madden_commid
+    FROM players p
+    LEFT JOIN player_appearance pa ON pa.player_id = p.id
+    WHERE (pa.madden_commid IS NULL OR pa.madden_commid = '' OR pa.madden_commid = '0')
+  `);
+
+  let updatedCommIds = 0;
+  if (playersNeedingCommId.length > 0 && playersNeedingCommId[0].values) {
+    for (const row of playersNeedingCommId[0].values) {
+      const [playerId, lastName, paId, existingCommId] = row;
+      if (!lastName) continue;
+
+      // Try exact match first (including suffix like "Jr.", "II")
+      let commId = commentaryMap.get(lastName.toLowerCase().trim());
+
+      // If no match, try stripping common suffixes
+      if (!commId) {
+        const baseName = lastName.replace(/\s+(Jr\.?|Sr\.?|II|III|IV|V)$/i, '').trim();
+        if (baseName !== lastName) {
+          commId = commentaryMap.get(baseName.toLowerCase());
+        }
+      }
+
+      if (commId) {
+        if (paId) {
+          // Update existing appearance record
+          db.run('UPDATE player_appearance SET madden_commid = ? WHERE id = ?', [commId.toString(), paId]);
+        } else {
+          // Create new appearance record
+          db.run('INSERT INTO player_appearance (player_id, madden_commid) VALUES (?, ?)', [playerId, commId.toString()]);
+        }
+        updatedCommIds++;
+      }
+    }
+  }
+  console.log(`Updated ${updatedCommIds} players with commentary IDs`);
+
+  // 8. Import PID Race mappings from PID_Portrait_Mapping.csv
   console.log('\nImporting PID race mappings from PID_Portrait_Mapping.csv...');
   const pidPortraitData = parseCSV('PID_Portrait_Mapping.csv');
 

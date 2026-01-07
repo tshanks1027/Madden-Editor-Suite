@@ -390,100 +390,35 @@
   }
 
   /**
-   * Focus the search input element after window focus is restored.
-   * Uses click simulation and multiple attempts to combat Windows focus issues.
-   * IMPORTANT: On Windows, document.activeElement can report correct focus but keyboard
-   * input doesn't work. We now always run the aggressive focus simulation.
+   * Focus the search input element.
+   * SIMPLIFIED: Removed aggressive focus with multiple attempts as it was causing
+   * focus to be stolen from other inputs when user clicked elsewhere.
    */
   function focusSearchInput() {
-    var attempts = 0;
-    var maxAttempts = 3;
-    var delays = [100, 200, 400]; // Delays between attempts
+    // Check if we should even try to focus
+    const browserModal = document.getElementById('playerBrowserModal');
+    const playerCardModal = document.getElementById('dbPlayerCardModal');
+    const dbManagementModal = document.getElementById('dbManagementModal');
 
-    function shouldStop() {
-      // Double-check conditions are still valid
-      const browserModal = document.getElementById('playerBrowserModal');
-      const playerCardModal = document.getElementById('dbPlayerCardModal');
-      const dbManagementModal = document.getElementById('dbManagementModal');
-
-      // If browser is closed, stop trying
-      if (!browserModal || browserModal.style.display === 'none' || browserModal.style.display === '') {
-        return true;
-      }
-      // If player card is open, stop (it should handle its own focus)
-      if (playerCardModal && playerCardModal.style.display !== 'none' && playerCardModal.style.display !== '') {
-        return true;
-      }
-      // If db management is open, stop (it should handle its own focus)
-      if (dbManagementModal && dbManagementModal.style.display !== 'none' && dbManagementModal.style.display !== '') {
-        return true;
-      }
-      return false;
+    // If browser is closed, don't focus
+    if (!browserModal || browserModal.style.display === 'none' || browserModal.style.display === '') {
+      return;
+    }
+    // If player card is open, don't steal focus
+    if (playerCardModal && playerCardModal.style.display !== 'none' && playerCardModal.style.display !== '') {
+      return;
+    }
+    // If db management is open, don't steal focus
+    if (dbManagementModal && dbManagementModal.style.display !== 'none' && dbManagementModal.style.display !== '') {
+      return;
     }
 
-    function aggressiveFocus(input) {
-      // Use aggressive focus techniques that work better on Windows
-      // 1. Blur any currently focused element
-      if (document.activeElement && document.activeElement !== input) {
-        document.activeElement.blur();
-      }
-
-      // 2. Dispatch real mouse events (more effective than .click())
-      input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window }));
-      input.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window }));
-      input.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-
-      // 3. Focus the input
-      input.focus();
-
-      // 4. Use select() to activate the text cursor
-      if (typeof input.select === 'function') {
-        input.select();
-      }
-
-      // 5. Dispatch a focus event explicitly
-      input.dispatchEvent(new FocusEvent('focus', { bubbles: false, cancelable: false }));
-    }
-
-    function attemptFocus() {
-      if (shouldStop()) {
-        console.log('[PlayerBrowser] Focus restoration stopped - modal state changed');
-        return;
-      }
-
-      if (attempts >= maxAttempts) {
-        console.log('[PlayerBrowser] Focus restoration completed after', maxAttempts, 'attempts');
-        return;
-      }
-
-      var delay = delays[attempts] || 400;
-      attempts++;
-
-      setTimeout(function() {
-        if (shouldStop()) return;
-
-        const input = document.getElementById('playerBrowserSearch');
-        if (input) {
-          aggressiveFocus(input);
-          var focusWorked = document.activeElement === input;
-          console.log('[PlayerBrowser] Focus attempt', attempts, '- activeElement:',
-            document.activeElement?.id || document.activeElement?.tagName,
-            focusWorked ? '(matched)' : '(mismatch)');
-
-          // Always continue attempts even if it appears to work
-          // because Windows can lie about focus state
-          if (attempts < maxAttempts) {
-            attemptFocus();
-          }
-        }
-      }, delay);
-    }
-
-    // Start focus attempts after a short delay to let IPC focus settle
+    // Simple focus with single attempt
     setTimeout(function() {
-      requestAnimationFrame(function() {
-        attemptFocus();
-      });
+      const input = document.getElementById('playerBrowserSearch');
+      if (input) {
+        input.focus();
+      }
     }, 50);
   }
 
@@ -635,17 +570,19 @@
       const careerSpan = player.careerFrom && player.careerTo ? player.careerFrom + '-' + player.careerTo : (player.careerFrom || 'N/A');
       const hofBadge = player.isHof ? '<span class="player-hof-badge">HOF</span>' : '';
 
+      const isCustom = player.isCustom ? 'true' : 'false';
+      console.log('[PlayerBrowser] Rendering player:', player.firstName, player.lastName, 'internalId:', player.internalId, 'isCustom:', player.isCustom);
       html +=
-        '<div class="player-browser-row" data-internal-id="' + player.internalId + '">' +
+        '<div class="player-browser-row" data-internal-id="' + player.internalId + '" data-is-custom="' + isCustom + '">' +
         '<div class="player-browser-name">' + fullName + ' ' + hofBadge + '</div>' +
         '<div class="player-browser-position">' + (player.position || '-') + '</div>' +
         '<div class="player-browser-college">' + (player.college || '-') + '</div>' +
         '<div class="player-browser-draft">' + draftInfo + '</div>' +
         '<div class="player-browser-career">' + careerSpan + '</div>' +
         '<div class="player-browser-actions">' +
-        '<button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(' + player.internalId + ')" title="View/Edit">View</button>' +
-        '<button class="pb-btn pb-btn-add" onclick="window.addToRoster(' + player.internalId + ')" title="Add to Roster">+Roster</button>' +
-        '<button class="pb-btn pb-btn-add" onclick="window.addToDraft(' + player.internalId + ')" title="Add to Draft Class">+Draft</button>' +
+        '<button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(' + player.internalId + ', ' + isCustom + ')" title="View/Edit">View</button>' +
+        '<button class="pb-btn pb-btn-add" onclick="window.addToRoster(' + player.internalId + ', ' + isCustom + ')" title="Add to Roster">+Roster</button>' +
+        '<button class="pb-btn pb-btn-add" onclick="window.addToDraft(' + player.internalId + ', ' + isCustom + ')" title="Add to Draft Class">+Draft</button>' +
         '</div>' +
         '</div>';
     });
@@ -707,10 +644,10 @@
   }
 
   // Global action handlers
-  window.viewDbPlayer = function(internalId) {
-    console.log('[PlayerBrowser] View player:', internalId);
+  window.viewDbPlayer = function(internalId, isCustom) {
+    console.log('[PlayerBrowser] View player:', internalId, 'isCustom:', isCustom);
     if (window.openDbPlayerCard) {
-      window.openDbPlayerCard(internalId, false);
+      window.openDbPlayerCard(internalId, isCustom === true);
     } else {
       alert('Player card not available');
       restoreFocusToSearch();
@@ -854,6 +791,63 @@
       // Update stats display
       if (window.app.updateStats) {
         window.app.updateStats();
+      }
+
+      // Pre-load portrait for the new player so it displays immediately
+      // MUST use same cache key logic as cell renderer: check PAM first, then PID
+      const pid = playerData.PSXP;
+      const pam = playerData.PEPS;
+      const isGenericPam = pam && typeof pam === 'string' &&
+          (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
+      const hasValidPid = pid && pid > 0;
+      const cacheKey = isGenericPam ? `pam_${pam}` : (hasValidPid ? `pid_${pid}` : null);
+
+      console.log('[PlayerBrowser] Portrait pre-load: PID=' + pid + ', PAM=' + pam + ', cacheKey=' + cacheKey);
+
+      if (cacheKey && !window.app.portraitCache.has(cacheKey)) {
+        if (isGenericPam && window.electronAPI?.portrait?.getImageDataByPam) {
+          // Generic face - load by PAM
+          console.log('[PlayerBrowser] Pre-loading generic portrait for PAM:', pam);
+          window.electronAPI.portrait.getImageDataByPam(pam).then(imageData => {
+            if (imageData && imageData.length > 0) {
+              window.app.portraitCache.set(cacheKey, imageData);
+              console.log('[PlayerBrowser] Portrait cached:', cacheKey, 'data length:', imageData.length);
+              if (window.app.agGrid) {
+                window.app.agGrid.redrawRows();
+              }
+            }
+          }).catch(err => console.error('[PlayerBrowser] Error loading portrait:', err));
+        } else if (hasValidPid) {
+          // Real face - load by PID
+          // Custom portraits (PID >= 12000) use getImageDataByPid directly
+          const CUSTOM_PORTRAIT_PID_START = 12000;
+          const isCustomPortrait = parseInt(pid) >= CUSTOM_PORTRAIT_PID_START;
+          console.log('[PlayerBrowser] Pre-loading portrait for PID:', pid, isCustomPortrait ? '(custom)' : '(standard)');
+
+          if (isCustomPortrait && window.electronAPI?.portrait?.getImageDataByPid) {
+            // Custom portrait - use getImageDataByPid to get the actual image
+            window.electronAPI.portrait.getImageDataByPid(pid).then(imageData => {
+              if (imageData && imageData.length > 0) {
+                window.app.portraitCache.set(cacheKey, imageData);
+                console.log('[PlayerBrowser] Custom portrait cached:', cacheKey, 'data length:', imageData.length);
+                if (window.app.agGrid) {
+                  window.app.agGrid.redrawRows();
+                }
+              }
+            }).catch(err => console.error('[PlayerBrowser] Error loading custom portrait:', err));
+          } else if (window.electronAPI?.portrait?.getByPID) {
+            // Standard portrait - use getByPID
+            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+              if (imageData && imageData.length > 0) {
+                window.app.portraitCache.set(cacheKey, imageData);
+                console.log('[PlayerBrowser] Portrait cached:', cacheKey, 'data length:', imageData.length);
+                if (window.app.agGrid) {
+                  window.app.agGrid.redrawRows();
+                }
+              }
+            }).catch(err => console.error('[PlayerBrowser] Error loading portrait:', err));
+          }
+        }
       }
 
       console.log('[PlayerBrowser] Added player to roster:', playerName, selectedYear, 'Team:', selectedTeamName);
@@ -1073,7 +1067,10 @@
 
         // Face data from database
         PGHE: prospectData.PGHE,
-        visuals: prospectData.visuals
+        visuals: prospectData.visuals,
+
+        // Commentary ID for in-game announcer
+        commentaryId: prospectData.commentaryId || 0
       };
 
       // Add to end of draft class (push instead of splice)
@@ -1114,8 +1111,20 @@
         const cacheKey = `pid_${newPid}`;
         if (!window.app.portraitCache.has(cacheKey)) {
           try {
-            // Use portrait.getByPID for numeric PIDs
-            const imageData = await window.electronAPI.portrait.getByPID(newPid);
+            // Custom portraits (PID >= 12000) use getImageDataByPid directly
+            const CUSTOM_PORTRAIT_PID_START = 12000;
+            const isCustomPortrait = parseInt(newPid) >= CUSTOM_PORTRAIT_PID_START;
+            let imageData;
+
+            if (isCustomPortrait) {
+              // Custom portrait - use getImageDataByPid to get the actual image
+              console.log(`[PlayerBrowser] Loading custom portrait for PID ${newPid}`);
+              imageData = await window.electronAPI.portrait.getImageDataByPid(newPid);
+            } else {
+              // Standard portrait - use getByPID
+              imageData = await window.electronAPI.portrait.getByPID(newPid);
+            }
+
             if (imageData) {
               window.app.portraitCache.set(cacheKey, imageData);
               console.log(`[PlayerBrowser] Loaded portrait for ${prospectData.firstName} ${prospectData.lastName}: ${cacheKey}`);

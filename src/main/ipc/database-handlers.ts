@@ -400,6 +400,225 @@ ipcMain.handle('database:get-custom-player-seasons', async (event, customPlayerI
   }
 });
 
+/**
+ * Handle: database:save-custom-player-season-all-years
+ * Apply partial edits to ALL years in a custom player's career span.
+ * Uses career span (draftClass/careerFrom to careerTo).
+ * Supports options.incrementAge to increment age by 1 for each successive year.
+ */
+ipcMain.handle('database:save-custom-player-season-all-years', async (event, customPlayerId: number, edits: Partial<CustomPlayerSeason>, options?: { incrementAge?: boolean }) => {
+  try {
+    console.log('[database-handlers] ===== SAVE CUSTOM PLAYER SEASON ALL YEARS =====');
+    console.log('[database-handlers] customPlayerId:', customPlayerId);
+    console.log('[database-handlers] edits received:', JSON.stringify(edits, null, 2));
+    console.log('[database-handlers] options:', options);
+
+    await userDatabaseService.waitForReady();
+
+    // Get custom player info to determine career span
+    const customPlayer = userDatabaseService.getCustomPlayer(customPlayerId);
+
+    if (!customPlayer) {
+      console.log('[database-handlers] ERROR: Custom player not found:', customPlayerId);
+      return { success: false, error: 'Custom player not found' };
+    }
+
+    console.log('[database-handlers] Custom player found:', customPlayer.firstName, customPlayer.lastName);
+    console.log('[database-handlers] draftClass:', customPlayer.draftClass, 'careerFrom:', customPlayer.careerFrom, 'careerTo:', customPlayer.careerTo);
+
+    // Determine career span
+    const draftYear = customPlayer.draftClass;
+    const careerFrom = customPlayer.careerFrom;
+    const careerTo = customPlayer.careerTo;
+
+    // Calculate start year (earliest of draft or career from)
+    let startYear = draftYear;
+    if (!startYear) {
+      startYear = careerFrom;
+    } else if (careerFrom && careerFrom < startYear) {
+      startYear = careerFrom;
+    }
+
+    // Calculate end year
+    let endYear = careerTo;
+    if (!endYear) {
+      endYear = new Date().getFullYear();
+    }
+
+    console.log('[database-handlers] Calculated startYear:', startYear, 'endYear:', endYear);
+
+    // Build year range
+    const years: number[] = [];
+    if (startYear && endYear) {
+      for (let year = startYear; year <= endYear; year++) {
+        years.push(year);
+      }
+    }
+
+    if (years.length === 0) {
+      // Fallback to years with existing data
+      console.log('[database-handlers] No year range from career info, checking existing seasons');
+      const existingSeasons = userDatabaseService.getCustomPlayerSeasons(customPlayerId);
+      console.log('[database-handlers] Existing seasons:', existingSeasons?.length || 0);
+      if (existingSeasons && existingSeasons.length > 0) {
+        years.push(...existingSeasons.map(s => s.year));
+      }
+    }
+
+    if (years.length === 0) {
+      console.log('[database-handlers] WARNING: No years found for custom player:', customPlayerId);
+      console.log('[database-handlers] This player has no draftClass, careerFrom, careerTo, or existing seasons');
+      return { success: true, updatedYears: [], message: 'No years to update - player has no career range defined' };
+    }
+
+    console.log('[database-handlers] Years to update:', years.length, 'range:', years[0], '-', years[years.length - 1]);
+
+    // Check if we need to increment age each year
+    const shouldIncrementAge = options?.incrementAge && edits.age !== undefined;
+    const baseAge = edits.age as number;
+
+    console.log(`[database-handlers] Applying edits to ${years.length} custom player seasons (${years[0]}-${years[years.length - 1]}) for player ${customPlayerId}:`, edits);
+    if (shouldIncrementAge) {
+      console.log(`[database-handlers] Age will increment each year starting from ${baseAge}`);
+    }
+
+    // Apply the edits to each year using PARTIAL UPDATE (not INSERT OR REPLACE)
+    // This preserves existing values for fields not being updated
+    for (let i = 0; i < years.length; i++) {
+      const year = years[i];
+      // If incrementing age, adjust for each year
+      const yearEdits = shouldIncrementAge
+        ? { ...edits, age: baseAge + i }
+        : edits;
+
+      // Use updateCustomPlayerSeason for partial updates - preserves existing values
+      userDatabaseService.updateCustomPlayerSeason(customPlayerId, year, yearEdits);
+    }
+
+    console.log(`[database-handlers] Updated ${years.length} custom player seasons (partial update)`);
+    return { success: true, updatedYears: years };
+  } catch (error) {
+    console.error('[database-handlers] Error saving custom player seasons to all years:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// =============================================
+// HIDE/UNHIDE PLAYER OPERATIONS
+// =============================================
+
+/**
+ * Handle: database:hide-player
+ * Hide an original database player from search results
+ */
+ipcMain.handle('database:hide-player', async (event, playerId: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    userDatabaseService.hidePlayer(playerId);
+
+    // Verify the player is actually hidden
+    const hiddenPlayers = userDatabaseService.getHiddenPlayers();
+    const isNowHidden = hiddenPlayers.includes(playerId);
+    console.log(`[database-handlers] hide-player: Verified player ${playerId} hidden=${isNowHidden}, total hidden: ${hiddenPlayers.length}`);
+
+    if (!isNowHidden) {
+      console.error(`[database-handlers] ERROR: Player ${playerId} was not stored in hidden_players!`);
+      return { success: false, error: 'Player not stored in hidden list' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[database-handlers] Error hiding player:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:unhide-player
+ * Restore a hidden player
+ */
+ipcMain.handle('database:unhide-player', async (event, playerId: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    userDatabaseService.unhidePlayer(playerId);
+    return { success: true };
+  } catch (error) {
+    console.error('[database-handlers] Error unhiding player:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:get-hidden-players
+ * Get list of hidden player IDs
+ */
+ipcMain.handle('database:get-hidden-players', async () => {
+  try {
+    await userDatabaseService.waitForReady();
+    return { success: true, playerIds: userDatabaseService.getHiddenPlayers() };
+  } catch (error) {
+    console.error('[database-handlers] Error getting hidden players:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:is-player-hidden
+ * Check if a player is hidden
+ */
+ipcMain.handle('database:is-player-hidden', async (event, playerId: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    return { success: true, hidden: userDatabaseService.isPlayerHidden(playerId) };
+  } catch (error) {
+    console.error('[database-handlers] Error checking hidden status:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:hide-all-blank-players
+ * Hide all players with empty/blank names at once
+ */
+ipcMain.handle('database:hide-all-blank-players', async () => {
+  try {
+    await userDatabaseService.waitForReady();
+
+    // Get all players from lookup service
+    const allPlayers = lookupService.getAllPlayers();
+
+    // Find all players with blank/empty names
+    const blankPlayerIds: number[] = [];
+    for (const player of allPlayers) {
+      const firstName = (player.firstName || '').trim();
+      const lastName = (player.lastName || '').trim();
+
+      // Consider blank if both names are empty OR if display name is just "Blank"
+      const displayName = `${firstName} ${lastName}`.trim();
+      if (!firstName && !lastName) {
+        blankPlayerIds.push(player.internalId);
+      } else if (displayName.toLowerCase() === 'blank') {
+        blankPlayerIds.push(player.internalId);
+      }
+    }
+
+    console.log(`[database-handlers] Found ${blankPlayerIds.length} blank players to hide`);
+
+    if (blankPlayerIds.length === 0) {
+      return { success: true, hiddenCount: 0, message: 'No blank players found' };
+    }
+
+    // Bulk hide all blank players
+    const hiddenCount = userDatabaseService.hideMultiplePlayers(blankPlayerIds);
+
+    console.log(`[database-handlers] Successfully hidden ${hiddenCount} blank players`);
+    return { success: true, hiddenCount, message: `Hidden ${hiddenCount} blank players` };
+  } catch (error) {
+    console.error('[database-handlers] Error hiding blank players:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
 // =============================================
 // RESET OPERATIONS
 // =============================================
@@ -580,6 +799,8 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
     // Merge edits over original data
     const merged = {
       ...original,
+      // Include id for custom portrait lookup (aliased from internalId)
+      id: internalId,
       // Apply player edits (only non-null values)
       ...(playerEdit?.firstName && { firstName: playerEdit.firstName }),
       ...(playerEdit?.lastName && { lastName: playerEdit.lastName }),
@@ -708,8 +929,17 @@ ipcMain.handle('database:get-player-season-years', async (event, internalId: num
 ipcMain.handle('database:search-players', async (event, query: string, options?: { limit?: number; position?: string; draftYearFrom?: number; draftYearTo?: number; team?: string; hof?: string }) => {
   try {
     await lookupService.waitForReady();
+    await userDatabaseService.waitForReady();
+
+    // Get hidden players list
+    const hiddenPlayerIds = new Set(userDatabaseService.getHiddenPlayers());
 
     let results = lookupService.searchPlayers(query, options?.limit || 100);
+
+    // Filter out hidden players
+    if (hiddenPlayerIds.size > 0) {
+      results = results.filter(p => !hiddenPlayerIds.has(p.internalId));
+    }
 
     // Apply HOF filter early (before other filters) for better performance
     if (options?.hof === 'hof') {
@@ -809,21 +1039,33 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
     }
 
     // Map custom players to same format
-    const customMapped = filteredCustom.map(p => ({
-      internalId: p.id,
-      pid: p.maddenPid || 0,
-      firstName: p.firstName,
-      lastName: p.lastName,
-      position: p.position || '',
-      college: '', // Custom players don't have college name resolved
-      draftClass: p.draftClass ? String(p.draftClass) : '',
-      draftRound: p.draftRound || '',
-      draftPick: p.draftPick || 0,
-      careerFrom: p.careerFrom || 0,
-      careerTo: p.careerTo || 0,
-      isHof: false,
-      isCustom: true
-    }));
+    const customMapped = filteredCustom.map(p => {
+      // Resolve college name from collegeId
+      let collegeName = '';
+      if (p.collegeId !== undefined && p.collegeId !== null) {
+        collegeName = lookupService.getDisplayName('college_lookup.csv', p.collegeId) || '';
+        // If lookup returns the ID as string, clear it
+        if (collegeName === String(p.collegeId)) {
+          collegeName = '';
+        }
+      }
+
+      return {
+        internalId: p.id,
+        pid: p.maddenPid || 0,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        position: p.position || '',
+        college: collegeName,
+        draftClass: p.draftClass ? String(p.draftClass) : '',
+        draftRound: p.draftRound || '',
+        draftPick: p.draftPick || 0,
+        careerFrom: p.careerFrom || 0,
+        careerTo: p.careerTo || 0,
+        isHof: false,
+        isCustom: true
+      };
+    });
 
     // Combine results - custom players first
     const allPlayers = [...customMapped, ...players];
@@ -844,6 +1086,13 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
 
       seenPlayers.set(key, p);
       return true;
+    });
+
+    // Sort alphabetically by lastName, then firstName (custom players sorted in with database players)
+    deduplicatedPlayers.sort((a, b) => {
+      const lastNameCompare = (a.lastName || '').toLowerCase().localeCompare((b.lastName || '').toLowerCase());
+      if (lastNameCompare !== 0) return lastNameCompare;
+      return (a.firstName || '').toLowerCase().localeCompare((b.firstName || '').toLowerCase());
     });
 
     console.log(`[database-handlers] searchPlayers - Found ${players.length} database + ${customMapped.length} custom, ${allPlayers.length - deduplicatedPlayers.length} duplicates removed, returning ${deduplicatedPlayers.length} matching "${query}"`);
@@ -869,9 +1118,15 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
 }) => {
   try {
     await lookupService.waitForReady();
+    await userDatabaseService.waitForReady();
 
     const offset = options?.offset || 0;
     const limit = options?.limit || 50;
+
+    // Get hidden players list for filtering
+    const hiddenList = userDatabaseService.getHiddenPlayers();
+    console.log(`[database-handlers] Hidden players from DB:`, hiddenList);
+    const hiddenPlayerIds = new Set(hiddenList);
 
     // Get all custom players first
     let customPlayers = userDatabaseService.getAllCustomPlayers();
@@ -903,25 +1158,52 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     }
 
     // Map custom players to common format
-    const customMapped = customPlayers.map(p => ({
-      internalId: p.id,
-      pid: p.maddenPid || 0,
-      firstName: p.firstName,
-      lastName: p.lastName,
-      position: p.position || '',
-      college: '',
-      draftClass: p.draftClass ? String(p.draftClass) : '',
-      draftRound: p.draftRound || '',
-      draftPick: p.draftPick || 0,
-      careerFrom: p.careerFrom || 0,
-      careerTo: p.careerTo || 0,
-      isHof: false,
-      isCustom: true
-    }));
+    const customMapped = customPlayers.map(p => {
+      // Resolve college name from collegeId
+      let collegeName = '';
+      if (p.collegeId !== undefined && p.collegeId !== null) {
+        collegeName = lookupService.getDisplayName('college_lookup.csv', p.collegeId) || '';
+        // If lookup returns the ID as string, clear it
+        if (collegeName === String(p.collegeId)) {
+          collegeName = '';
+        }
+      }
+
+      return {
+        internalId: p.id,
+        pid: p.maddenPid || 0,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        position: p.position || '',
+        college: collegeName,
+        draftClass: p.draftClass ? String(p.draftClass) : '',
+        draftRound: p.draftRound || '',
+        draftPick: p.draftPick || 0,
+        careerFrom: p.careerFrom || 0,
+        careerTo: p.careerTo || 0,
+        isHof: false,
+        isCustom: true
+      };
+    });
 
     // Get all players from the cache (this is already loaded in memory)
     let allPlayers = lookupService.getAllPlayers();
     console.log(`[database-handlers] getAllPlayers - Total players in cache: ${allPlayers.length}, custom: ${customMapped.length}`);
+
+    // Filter out hidden players (user has hidden from search results)
+    console.log(`[database-handlers] HIDDEN CHECK - size: ${hiddenPlayerIds.size}, IDs:`, Array.from(hiddenPlayerIds));
+    if (hiddenPlayerIds.size > 0) {
+      const beforeFilter = allPlayers.length;
+      // Check each player and log if they're being filtered
+      allPlayers = allPlayers.filter(p => {
+        const isHidden = hiddenPlayerIds.has(p.internalId);
+        if (isHidden) {
+          console.log(`[database-handlers] REMOVING hidden player: internalId=${p.internalId}, name=${p.firstName} ${p.lastName}`);
+        }
+        return !isHidden;
+      });
+      console.log(`[database-handlers] Filtered out ${beforeFilter - allPlayers.length} hidden players, remaining: ${allPlayers.length}`);
+    }
 
     // Apply server-side filters BEFORE pagination
     // Apply HOF filter first (most restrictive)
@@ -1013,6 +1295,14 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
 
     // Get total AFTER filtering and deduplication but BEFORE pagination
     const duplicatesRemoved = combined.length - deduplicated.length;
+
+    // Sort alphabetically by lastName, then firstName (custom players sorted in with database players)
+    deduplicated.sort((a, b) => {
+      const lastNameCompare = (a.lastName || '').toLowerCase().localeCompare((b.lastName || '').toLowerCase());
+      if (lastNameCompare !== 0) return lastNameCompare;
+      return (a.firstName || '').toLowerCase().localeCompare((b.firstName || '').toLowerCase());
+    });
+
     const total = deduplicated.length;
 
     // Apply pagination
@@ -1354,8 +1644,31 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     };
 
     // Get season data for the specified year
+    // IMPORTANT: Check user edits first, then fall back to original database data
     const seasons = lookupService.getPlayerSeasons(internalId);
-    const seasonData = seasons.find(s => s.year === year);
+    const originalRosterSeasonData = seasons.find(s => s.year === year);
+    const userRosterSeasonEdit = userDatabaseService.getSeasonEdit(internalId, year);
+
+    // Merge user edits with original data (user edits take priority)
+    let seasonData: any = null;
+    if (userRosterSeasonEdit || originalRosterSeasonData) {
+      seasonData = {
+        year,
+        team: userRosterSeasonEdit?.team ?? originalRosterSeasonData?.team ?? '',
+        jersey: userRosterSeasonEdit?.jersey ?? originalRosterSeasonData?.jersey ?? 0,
+        age: userRosterSeasonEdit?.age ?? originalRosterSeasonData?.age ?? 22,
+        position: userRosterSeasonEdit?.position ?? originalRosterSeasonData?.position ?? '',
+        archetype: userRosterSeasonEdit?.archetype ?? originalRosterSeasonData?.archetype ?? 0,
+        devTrait: userRosterSeasonEdit?.devTrait ?? originalRosterSeasonData?.devTrait ?? 'normal',
+        overall: userRosterSeasonEdit?.ratings?.POVR ?? originalRosterSeasonData?.ratings?.POVR ?? 70,
+        ratings: {
+          // Merge ratings: user edit ratings override original ratings
+          ...(originalRosterSeasonData?.ratings || {}),
+          ...(userRosterSeasonEdit?.ratings || {})
+        }
+      };
+      console.log(`[database-handlers] Roster merged ratings: PSPD=${seasonData.ratings.PSPD}, PACC=${seasonData.ratings.PACC}, POVR=${seasonData.ratings.POVR}`);
+    }
 
     // Get college ID from lookup - use 0 (None) if not found
     const colleges = lookupService.getDropdownOptions('college_lookup.csv');
@@ -1449,9 +1762,10 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     // Check for stored PGHE data from database appearance edits
     // This allows users to assign specific generic faces in the database player card
     let rosterStoredPgheData: { pghe: number; pfcg: string; psxp: number; skinTone: number; genr: string } | null = null;
+    let rosterAppearanceEdit: ReturnType<typeof userDatabaseService.getAppearanceEdit> = undefined;
 
     try {
-      const rosterAppearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
+      rosterAppearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
 
       // Check if appearance edit has VALID generic face data
       // IMPORTANT: PGHE=0 is NOT valid, must be > 0 to be a real face index
@@ -1535,6 +1849,31 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     // Get default archetype for position if not in season data
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
 
+    // Get commentary ID - priority: user edit > original CSV > lookup by name
+    // rosterAppearanceEdit was already retrieved above for PGHE data
+    let rosterCommId = 0;
+
+    if (rosterAppearanceEdit?.maddenCommid) {
+      rosterCommId = parseInt(rosterAppearanceEdit.maddenCommid) || 0;
+      if (rosterCommId) {
+        console.log(`[database-handlers] Using user-edited PCMT for ${player.lastName}: ${rosterCommId}`);
+      }
+    }
+
+    // Fall back to original CSV data
+    if (!rosterCommId && player.commID) {
+      rosterCommId = parseInt(player.commID) || 0;
+    }
+
+    // Fall back to lookup by last name
+    if (!rosterCommId && player.lastName) {
+      const lookedUpCommId = lookupService.getCommentaryId(player.lastName);
+      if (lookedUpCommId !== null) {
+        rosterCommId = lookedUpCommId;
+        console.log(`[database-handlers] Auto-filled PCMT for roster ${player.lastName}: ${rosterCommId}`);
+      }
+    }
+
     // Build roster player object with Madden field codes
     const rosterPlayer: Record<string, any> = {
       // Bio fields - ALL REQUIRED
@@ -1562,8 +1901,8 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PVSL: 0, // Visor style
       PHSN: rosterHomeStateId, // Home state
       PLBD: 0, // Birthday (will calculate if needed)
-      PCMT: parseInt(player.commID) || 0, // Commentary ID - used for in-game announcer names
-      POID: parseInt(player.commID) || 0, // Presentation ID - for in-game commentary (same as PCMT)
+      PCMT: rosterCommId, // Commentary ID - auto-filled from lookup
+      POID: rosterCommId, // Presentation ID - same as PCMT
       PHAN: 0, // Handedness (0=Right, 1=Left)
 
       // Contract defaults
@@ -1767,9 +2106,33 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     console.log(`  careerFrom: ${player.careerFrom}, careerTo: ${player.careerTo}, draftClass: "${player.draftClass}"`);
 
     // Get season data for the specified year
+    // IMPORTANT: Check user edits first, then fall back to original database data
     const seasons = lookupService.getPlayerSeasons(internalId);
-    const seasonData = seasons.find(s => s.year === year);
-    console.log(`[database-handlers] Season data for year ${year}:`, seasonData ? JSON.stringify(seasonData).substring(0, 200) : 'NOT FOUND');
+    const originalSeasonData = seasons.find(s => s.year === year);
+    const userSeasonEdit = userDatabaseService.getSeasonEdit(internalId, year);
+
+    // Merge user edits with original data (user edits take priority)
+    let seasonData: any = null;
+    if (userSeasonEdit || originalSeasonData) {
+      seasonData = {
+        year,
+        team: userSeasonEdit?.team ?? originalSeasonData?.team ?? '',
+        jersey: userSeasonEdit?.jersey ?? originalSeasonData?.jersey ?? 0,
+        age: userSeasonEdit?.age ?? originalSeasonData?.age ?? 22,
+        position: userSeasonEdit?.position ?? originalSeasonData?.position ?? '',
+        archetype: userSeasonEdit?.archetype ?? originalSeasonData?.archetype ?? 0,
+        devTrait: userSeasonEdit?.devTrait ?? originalSeasonData?.devTrait ?? 'normal',
+        ratings: {
+          // Merge ratings: user edit ratings override original ratings
+          ...(originalSeasonData?.ratings || {}),
+          ...(userSeasonEdit?.ratings || {})
+        }
+      };
+    }
+    console.log(`[database-handlers] Season data for year ${year}: original=${!!originalSeasonData}, userEdit=${!!userSeasonEdit}`);
+    if (seasonData?.ratings) {
+      console.log(`[database-handlers] Merged ratings: PSPD=${seasonData.ratings.PSPD}, PACC=${seasonData.ratings.PACC}, POVR=${seasonData.ratings.POVR}`);
+    }
 
     // Get college ID from lookup - use 0 (None) if not found
     const colleges = await lookupService.getDropdownOptions('college_lookup.csv');
@@ -1871,9 +2234,11 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     // Check for stored PGHE data from database appearance edits
     // This allows users to assign specific generic faces in the database player card
     let storedPgheData: { pghe: number; pfcg: string; psxp: number; skinTone: number; genr: string } | null = null;
+    let draftAppearanceEdit: ReturnType<typeof userDatabaseService.getAppearanceEdit> = undefined;
 
     try {
-      const appearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
+      draftAppearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
+      const appearanceEdit = draftAppearanceEdit; // Alias for backward compat
 
       // Check if appearance edit has VALID generic face data
       // IMPORTANT: PGHE=0 is NOT valid, must be > 0 to be a real face index
@@ -2036,7 +2401,28 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       devTrait: getDevTraitFromSeasonData(seasonData),
 
       // Commentary ID for in-game announcer names
-      commentaryId: parseInt(player.commID) || 0,
+      // Priority: user edit > original CSV > lookup by name
+      commentaryId: (() => {
+        // First check user appearance edit
+        if (draftAppearanceEdit?.maddenCommid) {
+          const userCommId = parseInt(draftAppearanceEdit.maddenCommid) || 0;
+          if (userCommId) {
+            console.log(`[database-handlers] Using user-edited commentaryId for draft ${player.lastName}: ${userCommId}`);
+            return userCommId;
+          }
+        }
+        // Fall back to original CSV
+        let commId = parseInt(player.commID) || 0;
+        // Fall back to lookup by name
+        if (!commId && player.lastName) {
+          const lookedUp = lookupService.getCommentaryId(player.lastName);
+          if (lookedUp !== null) {
+            console.log(`[database-handlers] Auto-filled commentaryId for draft ${player.lastName}: ${lookedUp}`);
+            commId = lookedUp;
+          }
+        }
+        return commId;
+      })(),
 
       // PGHE face picker index (if user assigned specific generic face in database)
       ...(pgheIndex !== undefined && { PGHE: pgheIndex }),
@@ -2054,74 +2440,78 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     // No need to parse again here
 
     // Add ratings from season data if available, otherwise use defaults
+    // NOTE: Database stores ratings with Madden field names (PSPD, PACC, etc.)
     if (seasonData && seasonData.ratings) {
-      prospect.overall = seasonData.overall || seasonData.ratings.overall || 70;
-      prospect.speed = seasonData.ratings.speed || 70;
-      prospect.acceleration = seasonData.ratings.acceleration || 70;
-      prospect.strength = seasonData.ratings.strength || 70;
-      prospect.agility = seasonData.ratings.agility || 70;
-      prospect.awareness = seasonData.ratings.awareness || 70;
-      prospect.jumping = seasonData.ratings.jumping || 70;
-      prospect.stamina = seasonData.ratings.stamina || 85;
-      prospect.changeOfDirection = seasonData.ratings.changeOfDirection || 70;
-      prospect.toughness = seasonData.ratings.toughness || 70;
-      prospect.injury = seasonData.ratings.injury || 85;
+      const r = seasonData.ratings;
+      prospect.overall = r.POVR || 70;
+      prospect.speed = r.PSPD || 70;
+      prospect.acceleration = r.PACC || 70;
+      prospect.strength = r.PSTR || 70;
+      prospect.agility = r.PAGI || 70;
+      prospect.awareness = r.PAWR || 70;
+      prospect.jumping = r.PJMP || 70;
+      prospect.stamina = r.PSTA || 85;
+      prospect.changeOfDirection = r.PCOD || 70;
+      prospect.toughness = r.PTGH || 70;
+      prospect.injury = r.PINJ || 85;
 
       // Ball carrier
-      prospect.carrying = seasonData.ratings.carrying || 70;
-      prospect.ballCarrierVision = seasonData.ratings.ballCarrierVision || 70;
-      prospect.breakTackle = seasonData.ratings.breakTackle || 70;
-      prospect.trucking = seasonData.ratings.trucking || 70;
-      prospect.stiffArm = seasonData.ratings.stiffArm || 70;
-      prospect.spinMove = seasonData.ratings.spinMove || 70;
-      prospect.jukeMove = seasonData.ratings.jukeMove || 70;
+      prospect.carrying = r.PCAR || 70;
+      prospect.ballCarrierVision = r.PBCV || 70;
+      prospect.breakTackle = r.PBTK || 70;
+      prospect.trucking = r.PTRK || 70;
+      prospect.stiffArm = r.PSTF || 70;
+      prospect.spinMove = r.PSPM || 70;
+      prospect.jukeMove = r.PJUM || 70;
 
       // Receiving
-      prospect.catching = seasonData.ratings.catching || 70;
-      prospect.catchInTraffic = seasonData.ratings.catchInTraffic || 70;
-      prospect.spectacularCatch = seasonData.ratings.spectacularCatch || 70;
-      prospect.shortRouteRunning = seasonData.ratings.shortRouteRunning || 70;
-      prospect.mediumRouteRunning = seasonData.ratings.mediumRouteRunning || 70;
-      prospect.deepRouteRunning = seasonData.ratings.deepRouteRunning || 70;
-      prospect.release = seasonData.ratings.release || 70;
+      prospect.catching = r.PCTH || 70;
+      prospect.catchInTraffic = r.PCIT || 70;
+      prospect.spectacularCatch = r.PSPC || 70;
+      prospect.shortRouteRunning = r.PSRR || 70;
+      prospect.mediumRouteRunning = r.PMRR || 70;
+      prospect.deepRouteRunning = r.PDRR || 70;
+      prospect.release = r.PREL || 70;
 
       // Throwing
-      prospect.throwPower = seasonData.ratings.throwPower || 70;
-      prospect.throwAccuracyShort = seasonData.ratings.throwAccuracyShort || 70;
-      prospect.throwAccuracyMid = seasonData.ratings.throwAccuracyMid || 70;
-      prospect.throwAccuracyDeep = seasonData.ratings.throwAccuracyDeep || 70;
-      prospect.throwOnTheRun = seasonData.ratings.throwOnTheRun || 70;
-      prospect.throwUnderPressure = seasonData.ratings.throwUnderPressure || 70;
-      prospect.playAction = seasonData.ratings.playAction || 70;
-      prospect.breakSack = seasonData.ratings.breakSack || 70;
+      prospect.throwPower = r.PTHP || 70;
+      prospect.throwAccuracyShort = r.PTAS || 70;
+      prospect.throwAccuracyMid = r.PTAM || 70;
+      prospect.throwAccuracyDeep = r.PTAD || 70;
+      prospect.throwOnTheRun = r.PTOR || 70;
+      prospect.throwUnderPressure = r.PTUP || 70;
+      prospect.playAction = r.PPLA || 70;
+      prospect.breakSack = r.PBRS || 70;
 
       // Blocking
-      prospect.passBlock = seasonData.ratings.passBlock || 70;
-      prospect.passBlockPower = seasonData.ratings.passBlockPower || seasonData.ratings.passBlockStrength || 70;
-      prospect.passBlockFinesse = seasonData.ratings.passBlockFinesse || 70;
-      prospect.runBlock = seasonData.ratings.runBlock || 70;
-      prospect.runBlockPower = seasonData.ratings.runBlockPower || seasonData.ratings.runBlockStrength || 70;
-      prospect.runBlockFinesse = seasonData.ratings.runBlockFinesse || 70;
-      prospect.leadBlock = seasonData.ratings.leadBlock || 70;
-      prospect.impactBlocking = seasonData.ratings.impactBlocking || 70;
+      prospect.passBlock = r.PPBK || 70;
+      prospect.passBlockPower = r.PPBP || 70;
+      prospect.passBlockFinesse = r.PPBF || 70;
+      prospect.runBlock = r.PRBK || 70;
+      prospect.runBlockPower = r.PRBP || 70;
+      prospect.runBlockFinesse = r.PRBF || 70;
+      prospect.leadBlock = r.PLDB || 70;
+      prospect.impactBlocking = r.PIBL || 70;
 
       // Defense
-      prospect.tackle = seasonData.ratings.tackle || 70;
-      prospect.hitPower = seasonData.ratings.hitPower || 70;
-      prospect.powerMoves = seasonData.ratings.powerMoves || 70;
-      prospect.finesseMoves = seasonData.ratings.finesseMoves || 70;
-      prospect.blockShedding = seasonData.ratings.blockShedding || seasonData.ratings.blockShed || 70;
-      prospect.pursuit = seasonData.ratings.pursuit || 70;
-      prospect.playRecognition = seasonData.ratings.playRecognition || 70;
-      prospect.manCoverage = seasonData.ratings.manCoverage || 70;
-      prospect.zoneCoverage = seasonData.ratings.zoneCoverage || 70;
-      prospect.pressCoverage = seasonData.ratings.pressCoverage || seasonData.ratings.press || 70;
+      prospect.tackle = r.PTAK || 70;
+      prospect.hitPower = r.PHTP || 70;
+      prospect.powerMoves = r.PPWM || 70;
+      prospect.finesseMoves = r.PFNM || 70;
+      prospect.blockShedding = r.PBSH || 70;
+      prospect.pursuit = r.PPUR || 70;
+      prospect.playRecognition = r.PPRC || 70;
+      prospect.manCoverage = r.PMCV || 70;
+      prospect.zoneCoverage = r.PZCV || 70;
+      prospect.pressCoverage = r.PPRS || 70;
 
       // Special teams
-      prospect.kickPower = seasonData.ratings.kickPower || 70;
-      prospect.kickAccuracy = seasonData.ratings.kickAccuracy || 70;
-      prospect.kickReturn = seasonData.ratings.kickReturn || 70;
+      prospect.kickPower = r.PKPW || 70;
+      prospect.kickAccuracy = r.PKAC || 70;
+      prospect.kickReturn = r.PKRT || 70;
       prospect.longSnap = 70;
+
+      console.log(`[database-handlers] Loaded ratings from DB: SPD=${prospect.speed}, ACC=${prospect.acceleration}, STR=${prospect.strength}, OVR=${prospect.overall}`);
     } else {
       // Default ratings if no season data
       const defaultRating = 70;

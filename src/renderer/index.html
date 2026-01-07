@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/creator.css">
     <link rel="stylesheet" href="css/database-player-card.css">
+    <link rel="stylesheet" href="css/database-coach-card.css">
     <link rel="stylesheet" href="css/player-browser.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <!-- AG-Grid Styles -->
@@ -198,6 +199,46 @@
         }
 
         /* Portrait Manager Styles */
+        .portrait-manager-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 12px 16px 0;
+            background: #1a1612;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .portrait-manager-tab {
+            padding: 10px 24px;
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .portrait-manager-tab:hover {
+            color: #fff;
+        }
+
+        .portrait-manager-tab.active {
+            color: #ffa726;
+            border-bottom-color: #ffa726;
+        }
+
+        .portrait-tab-content {
+            display: none;
+        }
+
+        .portrait-tab-content.active {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
         .portrait-manager-content {
             display: flex;
             flex-direction: column;
@@ -435,6 +476,131 @@
         .portrait-empty-state .empty-hint {
             font-size: 12px;
             color: #666;
+        }
+
+        /* Bundled Portraits Export Section */
+        .bundled-portraits-section {
+            margin-top: 16px;
+            background: #1a1612;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .bundled-portraits-section .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: #252220;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .bundled-portraits-section .section-header:hover {
+            background: #2a2520;
+        }
+
+        .bundled-portraits-section .section-header h3 {
+            margin: 0;
+            color: #e0e0e0;
+            font-size: 16px;
+        }
+
+        .bundled-portraits-section .section-subtitle {
+            color: #888;
+            font-size: 13px;
+            margin-left: auto;
+        }
+
+        .bundled-portraits-section .toggle-icon {
+            color: #ffa726;
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+
+        .bundled-portraits-section.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .bundled-portraits-section .section-content {
+            padding: 16px;
+        }
+
+        .bundled-portraits-section.collapsed .section-content {
+            display: none;
+        }
+
+        .bundled-search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+
+        .bundled-search-bar input {
+            flex: 1;
+            background: #2a2520;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px 16px;
+            font-size: 14px;
+        }
+
+        .bundled-search-bar input:focus {
+            outline: none;
+            border-color: #ffa726;
+        }
+
+        .bundled-portrait-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .bundled-portrait-card {
+            background: #252220;
+            border-radius: 8px;
+            padding: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .bundled-portrait-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .bundled-portrait-card.selected {
+            box-shadow: 0 0 0 3px #ffa726;
+        }
+
+        .bundled-portrait-card img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 4px;
+            background: #1a1612;
+        }
+
+        .bundled-portrait-card .portrait-name {
+            margin-top: 6px;
+            color: #e0e0e0;
+            font-size: 12px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bundled-empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 20px;
+            color: #888;
         }
 
         /* Portrait Assignment Modal */
@@ -768,12 +934,21 @@
         }
 
         .picker-player-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
             padding: 8px 12px;
             background: #2a2a2a;
             border-radius: 4px;
             margin-bottom: 12px;
             font-size: 14px;
             color: #8af;
+        }
+
+        .picker-player-info .btn-sm {
+            padding: 4px 10px;
+            font-size: 12px;
         }
 
         .portrait-picker-grid {
@@ -898,10 +1073,6 @@
                         <div class="info-tip">
                             <span class="info-icon">ℹ️</span>
                             <span class="info-text">Click column headers to sort. Shift+click to sort by multiple columns.</span>
-                        </div>
-                        <div class="info-tip">
-                            <span class="info-icon">ℹ️</span>
-                            <span class="info-text">Players tagged with (R) can be replaced easily in Mods.</span>
                         </div>
                     </div>
                     <div class="info-tips-right">
@@ -1506,10 +1677,6 @@
                                         <!-- Portrait stats -->
                                         <div id="retro-portrait-stats">
                                             <div class="retro-change-item">
-                                                <span class="change-label">Recyclable Slots:</span>
-                                                <span id="preview-recyclable-count" class="change-value">--</span>
-                                            </div>
-                                            <div class="retro-change-item">
                                                 <span class="change-label">Players Needing Portraits:</span>
                                                 <span id="preview-portrait-needed" class="change-value">--</span>
                                             </div>
@@ -2072,10 +2239,18 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                 <div class="creator-container">
                     <div class="creator-header">
                         <h2 class="creator-title">Portrait Manager</h2>
-                        <p class="creator-subtitle">Import, manage, and export custom player portraits (PID 12000+)</p>
+                        <p class="creator-subtitle">Import, manage, and export player and coach portraits</p>
+                    </div>
+
+                    <!-- Portrait Manager Tabs -->
+                    <div class="portrait-manager-tabs">
+                        <button class="portrait-manager-tab active" data-tab="players" id="playerPortraitTabBtn">Players</button>
+                        <button class="portrait-manager-tab" data-tab="coaches" id="coachPortraitTabBtn">Coaches</button>
                     </div>
 
                     <div class="portrait-manager-content">
+                        <!-- Players Tab Content -->
+                        <div id="playerPortraitTabContent" class="portrait-tab-content active">
                         <!-- Toolbar -->
                         <div class="portrait-toolbar">
                             <button id="importPortraitBtn" class="btn btn-primary">
@@ -2129,6 +2304,108 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                                 <p class="empty-hint">Portraits will be assigned PIDs starting at 12000.</p>
                             </div>
                         </div>
+
+                        <!-- Bundled Portraits Export Section -->
+                        <div class="bundled-portraits-section">
+                            <div class="section-header" id="bundledPortraitsHeader">
+                                <span class="toggle-icon">▼</span>
+                                <h3>Export Bundled Portraits</h3>
+                                <span class="section-subtitle">Search and export pre-bundled sprite sheet portraits as DDS</span>
+                            </div>
+                            <div id="bundledPortraitsContent" class="section-content">
+                                <div class="bundled-search-bar">
+                                    <input type="text" id="bundledPortraitSearch" placeholder="Search by player name (e.g., Brady, Mahomes)..." autocomplete="off">
+                                    <button id="bundledSearchBtn" class="btn btn-secondary">Search</button>
+                                    <button id="exportBundledSelectedBtn" class="btn btn-primary" disabled>
+                                        <span class="btn-icon">💾</span>
+                                        Export Selected as DDS
+                                    </button>
+                                </div>
+                                <div id="bundledPortraitResults" class="bundled-portrait-grid">
+                                    <div class="bundled-empty-state">
+                                        <p>Search for portraits above to browse and export.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        </div><!-- End Players Tab Content -->
+
+                        <!-- Coaches Tab Content -->
+                        <div id="coachPortraitTabContent" class="portrait-tab-content">
+                        <!-- Coach Toolbar -->
+                        <div class="portrait-toolbar">
+                            <button id="importCoachPortraitBtn" class="btn btn-primary">
+                                <span class="btn-icon">📁</span>
+                                Import Portrait
+                            </button>
+                            <button id="importAndAssignCoachBtn" class="btn btn-success">
+                                <span class="btn-icon">📁+👤</span>
+                                Import & Assign
+                            </button>
+                            <button id="importMultipleCoachPortraitsBtn" class="btn btn-secondary">
+                                <span class="btn-icon">📂</span>
+                                Import Multiple
+                            </button>
+                            <button id="exportSelectedCoachPortraitsBtn" class="btn btn-secondary" disabled>
+                                <span class="btn-icon">💾</span>
+                                Export Selected
+                            </button>
+                            <button id="exportAllCoachPortraitsBtn" class="btn btn-secondary">
+                                <span class="btn-icon">📦</span>
+                                Export All
+                            </button>
+                            <div class="toolbar-separator"></div>
+                            <button id="assignCoachPortraitBtn" class="btn btn-secondary" disabled>
+                                <span class="btn-icon">👤</span>
+                                Assign to Coach
+                            </button>
+                            <div class="toolbar-separator"></div>
+                            <label for="coachYearFilter" class="toolbar-label">Filter by Year:</label>
+                            <select id="coachPortraitYearFilter" class="toolbar-select">
+                                <option value="">All Years</option>
+                            </select>
+                            <div class="toolbar-separator"></div>
+                            <button id="coachPortraitViewModeToggle" class="btn btn-outline-secondary">
+                                <i class="bi bi-eye"></i> Show All
+                            </button>
+                            <div class="toolbar-separator"></div>
+                            <span id="coachPortraitCount" class="toolbar-info">0 to assign</span>
+                        </div>
+
+                        <!-- Coach Portrait Grid -->
+                        <div id="coachPortraitGrid" class="portrait-grid">
+                            <div class="portrait-empty-state">
+                                <span class="empty-icon">🖼️</span>
+                                <h3>No Coach Portraits Yet</h3>
+                                <p>Click "Import Portrait" to add custom coach portraits.</p>
+                                <p class="empty-hint">Coach portraits will be assigned PIDs starting at 50000.</p>
+                            </div>
+                        </div>
+
+                            <!-- Bundled Coach Portraits Section -->
+                            <div class="bundled-portraits-section">
+                                <div class="section-header" id="coachBundledPortraitsHeader">
+                                    <span class="toggle-icon">▼</span>
+                                    <h3>Export Bundled Coach Portraits</h3>
+                                    <span class="section-subtitle">Search and export pre-bundled coach portraits as DDS</span>
+                                </div>
+                                <div id="coachBundledPortraitsContent" class="section-content">
+                                    <div class="bundled-search-bar">
+                                        <input type="text" id="coachBundledPortraitSearch" placeholder="Search by coach name (e.g., Reid, Belichick)..." autocomplete="off">
+                                        <button id="coachBundledSearchBtn" class="btn btn-secondary">Search</button>
+                                        <button id="exportCoachBundledSelectedBtn" class="btn btn-primary" disabled>
+                                            <span class="btn-icon">💾</span>
+                                            Export Selected as DDS
+                                        </button>
+                                    </div>
+                                    <div id="coachBundledPortraitResults" class="bundled-portrait-grid">
+                                        <div class="bundled-empty-state">
+                                            <p>Search for coach portraits above to browse and export.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div><!-- End Coaches Tab Content -->
                     </div>
                 </div>
             </div>
@@ -2190,14 +2467,71 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                     <div class="modal-body">
                         <div id="portraitPickerPlayerInfo" class="picker-player-info">
                             <span id="pickerPlayerName">-</span>
+                            <button class="btn btn-sm btn-secondary" id="importNewPortraitBtn" title="Import a new portrait from file">
+                                <span class="btn-icon">+</span>
+                                Import New
+                            </button>
                         </div>
                         <div id="portraitPickerGrid" class="portrait-picker-grid">
-                            <div class="picker-empty">No custom portraits available. Import portraits in Portrait Manager.</div>
+                            <div class="picker-empty">No custom portraits available. Click "Import New" above to add a portrait.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" id="cancelPortraitPickerBtn">Cancel</button>
                         <button class="btn btn-primary" id="confirmPortraitPickerBtn" disabled>Assign Selected</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coach Portrait Assignment Modal -->
+            <div id="coachPortraitAssignModal" class="modal-overlay" style="display: none;">
+                <div class="modal-content portrait-assign-modal">
+                    <div class="modal-header">
+                        <h3>Assign Portrait to Coach</h3>
+                        <button class="modal-close" id="closeCoachAssignModal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Selected Portrait Preview -->
+                        <div class="assign-portrait-preview">
+                            <img id="assignCoachPortraitPreview" src="" alt="Selected Portrait">
+                            <div class="assign-portrait-info">
+                                <span id="assignCoachPortraitPid">PID: 50000</span>
+                            </div>
+                        </div>
+
+                        <!-- Coach Search -->
+                        <div class="assign-player-search">
+                            <label>Search for Coach:</label>
+                            <input type="text" id="assignCoachSearch" placeholder="Type coach name..." autocomplete="off">
+                            <div id="assignCoachResults" class="assign-player-results"></div>
+                        </div>
+
+                        <!-- Selected Coach Info -->
+                        <div id="assignSelectedCoach" class="assign-selected-player" style="display: none;">
+                            <div class="confirm-match-header">
+                                <span class="confirm-icon">✓</span>
+                                <span id="confirmCoachMatchLabel">Match Found</span>
+                            </div>
+                            <div class="selected-player-info">
+                                <div id="assignCoachName" class="matched-player-name">-</div>
+                                <div id="assignCoachDetails" class="player-details">-</div>
+                                <div id="assignCoachSource" class="player-source">-</div>
+                            </div>
+                            <button id="quickConfirmCoachBtn" class="btn btn-success quick-confirm-btn">
+                                ✓ Confirm Match
+                            </button>
+                            <div class="confirm-hint">Or search above if this is wrong</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 8px; color: #e0e0e0; font-size: 13px; cursor: pointer;">
+                            <input type="checkbox" id="coachAssignModelOnlyCheckbox" style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>Model Only (PAM only, keep current portrait)</span>
+                        </label>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-secondary" id="cancelCoachAssignBtn">Cancel</button>
+                            <button class="btn btn-primary" id="confirmCoachAssignBtn" disabled>Assign Portrait</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2537,15 +2871,6 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                             <button type="button" class="db-btn db-btn-secondary" id="assignGenericFaceBtn" title="Choose a generic face from the face picker">
                                 Choose Generic Face
                             </button>
-                            <select id="genericFaceSkinTone" class="db-form-input" style="width: auto; margin-left: 8px;">
-                                <option value="1">Skin Tone 1 (Lightest)</option>
-                                <option value="2">Skin Tone 2</option>
-                                <option value="3">Skin Tone 3</option>
-                                <option value="4" selected>Skin Tone 4 (Medium)</option>
-                                <option value="5">Skin Tone 5</option>
-                                <option value="6">Skin Tone 6</option>
-                                <option value="7">Skin Tone 7 (Darkest)</option>
-                            </select>
                         </div>
                         <p style="color: #a0a0a0; font-size: 12px; margin-top: 12px;">
                             These IDs link the player to Madden assets like portraits and commentary. Use "Assign Generic Face" to assign a random generic face PID for players without portraits.
@@ -2901,6 +3226,7 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
             <div class="db-player-card-footer">
                 <div class="db-footer-left">
                     <button class="db-btn db-btn-danger" id="resetDbPlayerBtn">Reset to Original</button>
+                    <button class="db-btn db-btn-danger" id="deleteDbPlayerBtn" style="display: none;" title="Permanently delete this custom player">Delete Player</button>
                     <button class="db-btn db-btn-warning" id="clearSeasonsBtn" title="Fix wrongly-assigned seasons by clearing all season data for this player">Clear Seasons</button>
                     <button class="db-btn db-btn-info" id="fillFromPFRBtn" title="Fill missing data from Pro-Football-Reference (hometown, height, weight, college, team/jersey per year)">
                         <span id="fillFromPFRBtnText">Fill from PFR</span>
@@ -3405,10 +3731,323 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
         </div>
     </div>
 
+    <!-- Database Coach Card Modal (for editing coaches from Portrait Manager) -->
+    <div id="dbCoachCardModal" class="modal" style="display: none;">
+        <div class="modal-content db-coach-card-modal">
+            <!-- Header -->
+            <div class="db-coach-card-header">
+                <button class="db-coach-card-close" id="closeDbCoachCard">&times;</button>
+                <div class="db-coach-card-portrait-container">
+                    <img id="dbCoachCardPortrait" class="db-coach-card-portrait" src="" alt="Coach Portrait">
+                </div>
+                <div class="db-coach-card-info">
+                    <div class="db-coach-card-name-row">
+                        <h2 class="db-coach-card-name" id="dbCoachCardName">Coach Name</h2>
+                        <span class="db-coach-edited-badge" id="dbCoachEditedIndicator" style="display: none;">Edited</span>
+                    </div>
+                    <div class="db-coach-card-meta">
+                        <span>Database Coach Editor</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Body with Tabs -->
+            <div class="db-coach-card-body">
+                <!-- Tab Navigation -->
+                <div class="db-coach-tabs">
+                    <button class="db-coach-tab active" data-tab="info">Coach Info</button>
+                    <button class="db-coach-tab" data-tab="traits">Coach Traits</button>
+                    <button class="db-coach-tab" data-tab="seasons">Career Stats</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="db-coach-tab-content active" id="dbCoachTabInfo">
+                    <div class="db-coach-form-grid">
+                        <div class="db-coach-form-group">
+                            <label>First Name</label>
+                            <input type="text" id="dbCoachFirstName" placeholder="First Name">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Last Name</label>
+                            <input type="text" id="dbCoachLastName" placeholder="Last Name">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Age</label>
+                            <input type="number" id="dbCoachAge" min="25" max="99">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Level</label>
+                            <input type="number" id="dbCoachLevel" min="1" max="10">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Years Coaching</label>
+                            <input type="number" id="dbCoachYearsCoaching" min="0" max="50">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Years With Team</label>
+                            <input type="number" id="dbCoachYearsWithTeam" min="0" max="50">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Position When Fired</label>
+                            <select id="dbCoachPositionWhenFired">
+                                <option value="">Select Position</option>
+                                <option value="HeadCoach">Head Coach</option>
+                                <option value="OffensiveCoordinator">Offensive Coordinator</option>
+                                <option value="DefensiveCoordinator">Defensive Coordinator</option>
+                            </select>
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Legacy Score</label>
+                            <input type="number" id="dbCoachLegacyScore" min="0">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Career From</label>
+                            <input type="number" id="dbCoachCareerFrom" min="1920" max="2030" placeholder="e.g., 1970">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Career To</label>
+                            <input type="number" id="dbCoachCareerTo" min="1920" max="2030" placeholder="e.g., 1985">
+                        </div>
+                    </div>
+
+                    <!-- Portrait and Asset Info -->
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #2a2a4e;">
+                        <div class="db-coach-form-grid">
+                            <div class="db-coach-form-group">
+                                <label>Portrait ID (PID)</label>
+                                <input type="number" id="dbCoachPid" placeholder="Portrait ID">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Asset Name (PAM)</label>
+                                <input type="text" id="dbCoachPam" placeholder="PAM Code">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Portrait Picker -->
+                    <div class="db-coach-portrait-picker">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label>Select Portrait:</label>
+                            <label style="display: flex; align-items: center; gap: 8px; color: #e0e0e0; font-size: 12px; cursor: pointer;">
+                                <input type="checkbox" id="coachModelOnlyCheckbox" style="width: 14px; height: 14px; cursor: pointer;">
+                                <span>Model Only (PAM only, keep current portrait)</span>
+                            </label>
+                        </div>
+                        <div id="dbCoachPortraitGrid" class="coach-portrait-grid">
+                            <!-- Portrait options will be loaded dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Head Model Picker -->
+                    <div class="db-coach-portrait-picker" style="margin-top: 16px;">
+                        <label>Select 3D Head Model:</label>
+                        <input type="hidden" id="dbCoachHeadAsset" value="">
+                        <div id="dbCoachHeadModelGrid" class="coach-portrait-grid">
+                            <!-- Head model options will be loaded dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coach Traits Tab -->
+                <div class="db-coach-tab-content" id="dbCoachTabTraits">
+                    <div class="db-coach-form-grid">
+                        <div class="db-coach-form-group">
+                            <label>Trading Tendency</label>
+                            <select id="dbCoachTradingTendency">
+                                <option value="">Select...</option>
+                                <option value="TradesUp">Trades Up</option>
+                                <option value="TradesDown">Trades Down</option>
+                                <option value="Balanced">Balanced</option>
+                            </select>
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Team Building</label>
+                            <select id="dbCoachTeamBuilding">
+                                <option value="">Select...</option>
+                                <option value="ThroughDraft">Through Draft</option>
+                                <option value="ThroughFreeAgency">Through Free Agency</option>
+                                <option value="Balanced">Balanced</option>
+                            </select>
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Coach Specialty</label>
+                            <select id="dbCoachSpecialty">
+                                <option value="">Select...</option>
+                                <option value="Quarterbacks">Quarterbacks</option>
+                                <option value="Receivers">Receivers</option>
+                                <option value="RunningBacks">Running Backs</option>
+                                <option value="OffensiveLine">Offensive Line</option>
+                                <option value="DefensiveLine">Defensive Line</option>
+                                <option value="Linebackers">Linebackers</option>
+                                <option value="SecondaryCorners">Secondary/Corners</option>
+                                <option value="SecondarySafeties">Secondary/Safeties</option>
+                            </select>
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Offensive Playbook</label>
+                            <select id="dbCoachOffPlaybook">
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Defensive Playbook</label>
+                            <select id="dbCoachDefPlaybook">
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Offensive Scheme</label>
+                            <select id="dbCoachOffScheme">
+                                <option value="">Select...</option>
+                                <option value="VerticalPowerRun">Vertical Power Run</option>
+                                <option value="WestCoast">West Coast</option>
+                                <option value="SpreadOption">Spread Option</option>
+                                <option value="MultipleWest">Multiple West</option>
+                            </select>
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Defensive Scheme</label>
+                            <select id="dbCoachDefScheme">
+                                <option value="">Select...</option>
+                                <option value="4-3Quarters">4-3 Quarters</option>
+                                <option value="3-4Odd">3-4 Odd</option>
+                                <option value="4-3Under">4-3 Under</option>
+                                <option value="MultipleDefense">Multiple Defense</option>
+                            </select>
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Is Created</label>
+                            <select id="dbCoachIsCreated">
+                                <option value="false">False</option>
+                                <option value="true">True</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Career Stats Tab -->
+                <div class="db-coach-tab-content" id="dbCoachTabSeasons">
+                    <!-- Year-by-Year Stats Section -->
+                    <div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #2a2a4e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <label style="margin: 0;">Year:</label>
+                                <select id="dbCoachSeasonYear" style="padding: 6px 12px; background: #1a1a2e; border: 1px solid #3a3a5e; border-radius: 4px; color: #fff; min-width: 100px;">
+                                    <!-- Populated from Career From/To -->
+                                </select>
+                                <button class="db-btn db-btn-secondary" id="dbCoachSaveYearBtn" style="font-size: 12px; padding: 4px 10px;">
+                                    Save Year
+                                </button>
+                            </div>
+                            <button class="db-btn db-btn-secondary" id="dbCoachLoadRetroBtn" style="font-size: 12px; padding: 4px 10px;">
+                                Load from Retro Data
+                            </button>
+                        </div>
+                        <div class="db-coach-form-grid">
+                            <div class="db-coach-form-group">
+                                <label>Team</label>
+                                <input type="text" id="dbCoachSeasonTeam" placeholder="e.g., DAL">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Position</label>
+                                <select id="dbCoachSeasonPosition">
+                                    <option value="">Select...</option>
+                                    <option value="HC">Head Coach</option>
+                                    <option value="OC">Offensive Coordinator</option>
+                                    <option value="DC">Defensive Coordinator</option>
+                                </select>
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Wins</label>
+                                <input type="number" id="dbCoachSeasonWins" min="0" max="20">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Losses</label>
+                                <input type="number" id="dbCoachSeasonLosses" min="0" max="20">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Ties</label>
+                                <input type="number" id="dbCoachSeasonTies" min="0" max="5">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Playoff Wins</label>
+                                <input type="number" id="dbCoachSeasonPlayoffWins" min="0" max="4">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Super Bowl Win</label>
+                                <select id="dbCoachSeasonSBWin">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Career Totals Section -->
+                    <div>
+                        <h4 style="margin: 0 0 12px 0; color: #888; font-size: 13px; text-transform: uppercase;">Career Totals</h4>
+                        <div class="db-coach-form-grid">
+                            <div class="db-coach-form-group">
+                                <label>Career Wins</label>
+                                <input type="number" id="dbCoachCareerWins" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Losses</label>
+                                <input type="number" id="dbCoachCareerLosses" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Ties</label>
+                                <input type="number" id="dbCoachCareerTies" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Winning Seasons</label>
+                                <input type="number" id="dbCoachCareerWinningSeasons" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Playoff Wins</label>
+                                <input type="number" id="dbCoachCareerPlayoffWins" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Playoff Losses</label>
+                                <input type="number" id="dbCoachCareerPlayoffLosses" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Super Bowl Wins</label>
+                                <input type="number" id="dbCoachCareerSBWins" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Super Bowl Losses</label>
+                                <input type="number" id="dbCoachCareerSBLosses" min="0">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Career Playoffs Made</label>
+                                <input type="number" id="dbCoachCareerPlayoffsMade" min="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="db-coach-card-footer">
+                <div class="db-coach-card-footer-left">
+                    <button class="db-btn db-btn-danger" id="dbCoachDeleteBtn" style="display: none;">Delete</button>
+                    <button class="db-btn db-btn-secondary" id="dbCoachResetBtn">Reset</button>
+                    <button class="db-btn db-btn-secondary" id="dbCoachHideBtn">Hide</button>
+                </div>
+                <div class="db-coach-card-footer-right">
+                    <button class="db-btn db-btn-secondary" id="dbCoachCancelBtn">Cancel</button>
+                    <button class="db-btn db-btn-primary" id="dbCoachSaveBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/custom-dropdown.js"></script>
     <script src="js/retro-editor.js"></script>
     <script src="js/portrait-manager.js"></script>
     <script src="js/database-player-card.js"></script>
+    <script src="js/database-coach-card.js"></script>
     <!-- Custom Context Menu for Grid Editors -->
     <div id="grid-context-menu" class="grid-context-menu" style="display: none;">
         <div class="context-menu-item" data-action="delete-player">

@@ -197,7 +197,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
         // Standard portrait - get from sprite service
         return ipcRenderer.invoke('portrait:get-image-data-by-pid', pid);
       }
-    }
+    },
+    // Export sprite sheet portrait as DDS (shows folder dialog)
+    exportDdsByPid: (pid: number) =>
+      ipcRenderer.invoke('portrait:export-dds-by-pid', pid),
+    // Export sprite sheet portrait as DDS to specific path
+    exportDdsToPath: (pid: number, outputPath: string) =>
+      ipcRenderer.invoke('portrait:export-dds-by-pid-to-path', pid, outputPath),
+    // Batch export multiple sprite sheet portraits as DDS
+    exportBatchDds: (pids: number[]) =>
+      ipcRenderer.invoke('portrait:export-batch-dds', pids),
+    // Get all PIDs that have sprite sheet portraits
+    getAllPids: () =>
+      ipcRenderer.invoke('portrait:get-all-pids'),
+    // Search sprite sheet portraits with thumbnails
+    searchWithImages: (query: string, limit?: number) =>
+      ipcRenderer.invoke('portrait:search-with-images', query, limit)
   },
 
   // Coach Portrait APIs
@@ -205,7 +220,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     initialize: () => ipcRenderer.invoke('coach-portrait:initialize'),
     getByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-by-pid', pid),
     getImageDataByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-image-data-by-pid', pid),
-    hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid)
+    hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid),
+    exportBatchDds: (pids: number[]) => ipcRenderer.invoke('coach-portrait:export-batch-dds', pids)
   },
 
   // Custom Portrait APIs (user-uploaded portraits, PID 12000+)
@@ -248,6 +264,42 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('custom-portrait:generate-sprite-sheets', options),
     getAvailableYears: () =>
       ipcRenderer.invoke('custom-portrait:get-available-years')
+  },
+
+  // Custom Coach Portrait APIs (user-uploaded coach portraits, PID 50000+)
+  customCoachPortrait: {
+    import: (filePath: string, metadata?: { coachName?: string; year?: number }) =>
+      ipcRenderer.invoke('custom-coach-portrait:import', filePath, metadata),
+    importDialog: () =>
+      ipcRenderer.invoke('custom-coach-portrait:import-dialog'),
+    importMultipleDialog: (metadata?: { year?: number }) =>
+      ipcRenderer.invoke('custom-coach-portrait:import-multiple-dialog', metadata),
+    get: (pid: number) =>
+      ipcRenderer.invoke('custom-coach-portrait:get', pid),
+    list: () =>
+      ipcRenderer.invoke('custom-coach-portrait:list'),
+    listByYear: (year: number) =>
+      ipcRenderer.invoke('custom-coach-portrait:list-by-year', year),
+    delete: (pid: number) =>
+      ipcRenderer.invoke('custom-coach-portrait:delete', pid),
+    updateMetadata: (pid: number, metadata: { coachName?: string; databaseCoachId?: number; year?: number }) =>
+      ipcRenderer.invoke('custom-coach-portrait:update-metadata', pid, metadata),
+    exportDds: (pid: number) =>
+      ipcRenderer.invoke('custom-coach-portrait:export-dds', pid),
+    exportBatch: (pids: number[]) =>
+      ipcRenderer.invoke('custom-coach-portrait:export-batch', pids),
+    exportAll: () =>
+      ipcRenderer.invoke('custom-coach-portrait:export-all'),
+    getNextPid: () =>
+      ipcRenderer.invoke('custom-coach-portrait:get-next-pid'),
+    has: (pid: number) =>
+      ipcRenderer.invoke('custom-coach-portrait:has', pid),
+    count: () =>
+      ipcRenderer.invoke('custom-coach-portrait:count'),
+    getByCoachId: (coachId: number) =>
+      ipcRenderer.invoke('custom-coach-portrait:get-by-coach-id', coachId),
+    getAvailableYears: () =>
+      ipcRenderer.invoke('custom-coach-portrait:get-available-years')
   },
 
   // PGHE Generic Face APIs
@@ -395,6 +447,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('database:get-custom-player-season', customPlayerId, year),
     getCustomPlayerSeasons: (customPlayerId: number) =>
       ipcRenderer.invoke('database:get-custom-player-seasons', customPlayerId),
+    saveCustomPlayerSeasonAllYears: (customPlayerId: number, edits: any, options?: { incrementAge?: boolean }) =>
+      ipcRenderer.invoke('database:save-custom-player-season-all-years', customPlayerId, edits, options),
+
+    // Hide/unhide player operations
+    hidePlayer: (playerId: number) =>
+      ipcRenderer.invoke('database:hide-player', playerId),
+    unhidePlayer: (playerId: number) =>
+      ipcRenderer.invoke('database:unhide-player', playerId),
+    getHiddenPlayers: () =>
+      ipcRenderer.invoke('database:get-hidden-players'),
+    isPlayerHidden: (playerId: number) =>
+      ipcRenderer.invoke('database:is-player-hidden', playerId),
+    hideAllBlankPlayers: () =>
+      ipcRenderer.invoke('database:hide-all-blank-players'),
 
     // Reset operations
     resetAllEdits: () => ipcRenderer.invoke('database:reset-all-edits'),
@@ -467,6 +533,108 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onPlayerFromBrowser: (callback: (internalId: number, target: 'roster' | 'draft') => void) => {
       ipcRenderer.on('database:player-from-browser', (_event, internalId, target) => callback(internalId, target));
     }
+  },
+
+  // Coach Database APIs (Edit coach database, custom coaches)
+  coachDatabase: {
+    // Coach edit operations (edits to original database coaches)
+    saveCoachEdit: (originalId: number, edits: any) =>
+      ipcRenderer.invoke('coach-database:save-coach-edit', originalId, edits),
+    getCoachEdit: (originalId: number) =>
+      ipcRenderer.invoke('coach-database:get-coach-edit', originalId),
+    hasCoachEdit: (originalId: number) =>
+      ipcRenderer.invoke('coach-database:has-coach-edit', originalId),
+    resetCoach: (originalId: number) =>
+      ipcRenderer.invoke('coach-database:reset-coach', originalId),
+
+    // Coach appearance edit operations
+    saveAppearanceEdit: (originalCoachId: number, edits: any) =>
+      ipcRenderer.invoke('coach-database:save-appearance-edit', originalCoachId, edits),
+    getAppearanceEdit: (originalCoachId: number) =>
+      ipcRenderer.invoke('coach-database:get-appearance-edit', originalCoachId),
+
+    // Coach season edit operations
+    saveSeasonEdit: (originalCoachId: number, year: number, edits: any) =>
+      ipcRenderer.invoke('coach-database:save-season-edit', originalCoachId, year, edits),
+    getSeasonEdit: (originalCoachId: number, year: number) =>
+      ipcRenderer.invoke('coach-database:get-season-edit', originalCoachId, year),
+    getSeasonEditsForCoach: (originalCoachId: number) =>
+      ipcRenderer.invoke('coach-database:get-season-edits-for-coach', originalCoachId),
+    saveSeasonEditAllYears: (originalCoachId: number, edits: any, options?: { careerFrom?: number, careerTo?: number }) =>
+      ipcRenderer.invoke('coach-database:save-season-edit-all-years', originalCoachId, edits, options),
+
+    // Custom coach operations
+    createCustomCoach: (coach: any) =>
+      ipcRenderer.invoke('coach-database:create-custom-coach', coach),
+    updateCustomCoach: (id: number, updates: any) =>
+      ipcRenderer.invoke('coach-database:update-custom-coach', id, updates),
+    getCustomCoach: (id: number) =>
+      ipcRenderer.invoke('coach-database:get-custom-coach', id),
+    getAllCustomCoaches: () =>
+      ipcRenderer.invoke('coach-database:get-all-custom-coaches'),
+    deleteCustomCoach: (id: number) =>
+      ipcRenderer.invoke('coach-database:delete-custom-coach', id),
+    searchCustomCoaches: (query: string, limit?: number) =>
+      ipcRenderer.invoke('coach-database:search-custom-coaches', query, limit),
+
+    // Custom coach season operations
+    saveCustomCoachSeason: (customCoachId: number, year: number, season: any) =>
+      ipcRenderer.invoke('coach-database:save-custom-coach-season', customCoachId, year, season),
+    getCustomCoachSeason: (customCoachId: number, year: number) =>
+      ipcRenderer.invoke('coach-database:get-custom-coach-season', customCoachId, year),
+    getCustomCoachSeasons: (customCoachId: number) =>
+      ipcRenderer.invoke('coach-database:get-custom-coach-seasons', customCoachId),
+    saveCustomCoachSeasonAllYears: (customCoachId: number, edits: any) =>
+      ipcRenderer.invoke('coach-database:save-custom-coach-season-all-years', customCoachId, edits),
+
+    // Hide/unhide coach operations
+    hideCoach: (coachId: number) =>
+      ipcRenderer.invoke('coach-database:hide-coach', coachId),
+    unhideCoach: (coachId: number) =>
+      ipcRenderer.invoke('coach-database:unhide-coach', coachId),
+    getHiddenCoaches: () =>
+      ipcRenderer.invoke('coach-database:get-hidden-coaches'),
+    isCoachHidden: (coachId: number) =>
+      ipcRenderer.invoke('coach-database:is-coach-hidden', coachId),
+
+    // Reset operations
+    resetAllEdits: () => ipcRenderer.invoke('coach-database:reset-all-edits'),
+    resetAllCustomCoaches: () => ipcRenderer.invoke('coach-database:reset-all-custom'),
+
+    // Statistics
+    getStats: () => ipcRenderer.invoke('coach-database:get-stats'),
+
+    // Merged data access (original + user edits)
+    getMergedCoach: (coachId: number) =>
+      ipcRenderer.invoke('coach-database:get-merged-coach', coachId),
+    getMergedCoachSeason: (coachId: number, year: number) =>
+      ipcRenderer.invoke('coach-database:get-merged-coach-season', coachId, year),
+
+    // Search operations
+    searchCoaches: (options?: { query?: string; position?: string; includeHidden?: boolean; limit?: number; offset?: number }) =>
+      ipcRenderer.invoke('coach-database:search-coaches', options || {}),
+    getAllCoaches: () =>
+      ipcRenderer.invoke('coach-database:get-all-coaches'),
+    getCoachByName: (lastName: string, firstName: string) =>
+      ipcRenderer.invoke('coach-database:get-coach-by-name', lastName, firstName),
+
+    // Coach appearance options (GenericHeadAssetName from MFT data)
+    getHeadAssetOptions: () =>
+      ipcRenderer.invoke('coach-database:get-head-asset-options'),
+
+    // Coach PAM options (for PAM-only picker)
+    getPamOptions: () =>
+      ipcRenderer.invoke('coach-database:get-pam-options'),
+
+    // Retro coach data (historical coaching data)
+    getRetroCoachData: (year: number) =>
+      ipcRenderer.invoke('coach-database:get-retro-coach-data', year),
+    getAvailableRetroYears: () =>
+      ipcRenderer.invoke('coach-database:get-available-retro-years'),
+
+    // Generic portrait options (race-coded generic coach faces)
+    getGenericPortraits: () =>
+      ipcRenderer.invoke('coach-database:get-generic-portraits')
   },
 
   // Window APIs (focus restoration after native dialogs, multi-window support)

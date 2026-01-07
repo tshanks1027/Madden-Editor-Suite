@@ -347,6 +347,9 @@ async function loadPreview() {
     // Load scheme preview
     await loadSchemePreview();
 
+    // Load portrait preview
+    await loadPortraitPreview();
+
     hideRetroMessage();
 
   } catch (error) {
@@ -818,8 +821,12 @@ async function applyChanges() {
 
       try {
         scheduleResult = await window.electronAPI.retro.applySchedule(retroState.filePath, retroState.targetYear);
+        console.log('[RetroEditor] Schedule result:', scheduleResult);
+        if (!scheduleResult?.success) {
+          console.error('[RetroEditor] Schedule failed:', scheduleResult?.error || 'Unknown error');
+        }
       } catch (scheduleError) {
-        console.warn('[RetroEditor] Schedule application failed:', scheduleError);
+        console.error('[RetroEditor] Schedule application exception:', scheduleError);
         // Continue - schedule is optional
       }
     }
@@ -905,7 +912,7 @@ async function applyChanges() {
 
     // Add schedule result if attempted
     if (scheduleResult && scheduleResult.success) {
-      resultItems.push(`<li>${scheduleResult.data.gamesModified || 0} schedule game(s) set</li>`);
+      resultItems.push(`<li>${scheduleResult.data.gamesUpdated || 0} schedule game(s) set</li>`);
     } else if (hasSchedule && (!scheduleResult || !scheduleResult.success)) {
       resultItems.push(`<li style="color: var(--warning-color);">Schedule could not be applied (optional)</li>`);
     }
@@ -1115,6 +1122,14 @@ async function restartRetroWizard() {
   const schemeDetailsDiv = document.getElementById('retro-scheme-details');
   if (schemeDetailsDiv) schemeDetailsDiv.style.display = 'none';
 
+  // Reset portrait preview UI
+  document.getElementById('preview-portrait-needed').textContent = '--';
+  document.getElementById('preview-real-portraits').textContent = '--';
+  const portraitStatusDiv = document.getElementById('retro-portrait-status');
+  if (portraitStatusDiv) portraitStatusDiv.innerHTML = '<p class="no-changes">Select a year to see portrait requirements</p>';
+  const portraitDetailsDiv = document.getElementById('retro-portrait-details');
+  if (portraitDetailsDiv) portraitDetailsDiv.style.display = 'none';
+
   const saveBtn = document.getElementById('retro-save-file');
   saveBtn.disabled = false;
   saveBtn.innerHTML = '<span class="btn-icon">&#128190;</span> Overwrite Original';
@@ -1204,14 +1219,406 @@ async function debugTeamTable() {
   }
 }
 
+/**
+ * Load portrait preview for the selected year
+ */
+async function loadPortraitPreview() {
+  try {
+    // Initialize portrait mapping service
+    const initResult = await window.electronAPI.portraitMapping.init();
+    console.log('[RetroEditor] Portrait mapping initialized:', initResult);
+
+    // Check for existing mapping for this year
+    const existingMapping = await window.electronAPI.portraitMapping.get(retroState.targetYear);
+
+    const portraitStatusDiv = document.getElementById('retro-portrait-status');
+    const portraitDetailsDiv = document.getElementById('retro-portrait-details');
+
+    if (existingMapping.success && existingMapping.mapping) {
+      const summary = existingMapping.mapping.summary;
+      document.getElementById('preview-portrait-needed').textContent = summary.recyclableAssigned;
+      document.getElementById('preview-real-portraits').textContent = summary.realPortraits;
+
+      portraitStatusDiv.innerHTML = `
+        <div style="color: var(--success-color);">
+          <strong>Mapping already generated</strong><br>
+          <span style="font-size: 0.9em;">Generated: ${new Date(existingMapping.mapping.generatedAt).toLocaleDateString()}</span>
+        </div>
+      `;
+
+      // Show preview
+      if (portraitDetailsDiv) {
+        portraitDetailsDiv.style.display = 'block';
+        const mappings = existingMapping.mapping.roster || existingMapping.mapping.draftClass || [];
+        displayPortraitMappings(mappings.slice(0, 50)); // Show first 50
+      }
+    } else {
+      portraitStatusDiv.innerHTML = `
+        <p class="no-changes">No mapping generated yet. Click a button above to generate.</p>
+      `;
+      document.getElementById('preview-portrait-needed').textContent = '--';
+      document.getElementById('preview-real-portraits').textContent = '--';
+      if (portraitDetailsDiv) portraitDetailsDiv.style.display = 'none';
+    }
+
+  } catch (error) {
+    console.error('[RetroEditor] Error loading portrait preview:', error);
+    const portraitStatusDiv = document.getElementById('retro-portrait-status');
+    if (portraitStatusDiv) {
+      portraitStatusDiv.innerHTML = `
+        <p class="no-changes" style="color: var(--error-color);">Error loading portrait data: ${error.message}</p>
+      `;
+    }
+  }
+}
+
+/**
+ * Display portrait mappings in the preview list
+ */
+function displayPortraitMappings(mappings) {
+  const listContainer = document.getElementById('retro-portrait-list');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = mappings.map(m => {
+    const typeColor = m.type === 'REAL' ? 'var(--success-color)' :
+                      m.type === 'RECYCLABLE' ? 'var(--primary-color)' :
+                      'var(--warning-color)';
+    return `
+      <div class="portrait-item" style="margin-bottom: 6px; padding: 6px; background: var(--bg-secondary); border-radius: 4px; font-size: 0.85em;">
+        <div style="display: flex; justify-content: space-between;">
+          <strong>${m.historicalPlayer}</strong>
+          <span style="color: ${typeColor};">${m.type}</span>
+        </div>
+        ${m.type === 'RECYCLABLE' ? `
+          <div style="color: var(--text-secondary); font-size: 0.85em;">
+            → ${m.ddsFilename} <span style="opacity: 0.7;">(was: ${m.recycledFrom})</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  if (mappings.length === 50) {
+    listContainer.innerHTML += `
+      <div style="text-align: center; padding: 8px; color: var(--text-secondary); font-size: 0.85em;">
+        Showing first 50 entries. See CSV file for complete list.
+      </div>
+    `;
+  }
+}
+
+/**
+ * Generate portrait mapping for roster
+ */
+async function generateRosterPortraitMapping() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-generate-portrait-mapping');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+
+  try {
+    const result = await window.electronAPI.portraitMapping.generate(retroState.targetYear, 'roster');
+
+    if (result.success) {
+      showRetroMessage(`Roster mapping generated! ${result.result.recyclableAssigned} players assigned, saved to ${result.files.csvPath}`, 'success');
+      // Reload preview
+      await loadPortraitPreview();
+    } else {
+      showRetroMessage('Error generating mapping: ' + result.error, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error generating roster mapping:', error);
+    showRetroMessage('Error: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+/**
+ * Generate portrait mapping for draft class
+ */
+async function generateDraftPortraitMapping() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-generate-draft-mapping');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+
+  try {
+    const result = await window.electronAPI.portraitMapping.generate(retroState.targetYear, 'draft');
+
+    if (result.success) {
+      showRetroMessage(`Draft class mapping generated! ${result.result.recyclableAssigned} players assigned, saved to ${result.files.csvPath}`, 'success');
+      // Reload preview
+      await loadPortraitPreview();
+    } else {
+      showRetroMessage('Error generating mapping: ' + result.error, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error generating draft mapping:', error);
+    showRetroMessage('Error: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+// ============================================
+// Portrait Import/Export Functions
+// ============================================
+
+/**
+ * Import draft portraits from folder
+ */
+async function importDraftPortraits() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-import-draft-portraits');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Importing...';
+
+  try {
+    const result = await window.electronAPI.portraitImport.importFromFolder(retroState.targetYear, 'draft');
+
+    if (result.canceled) {
+      showRetroMessage('Import canceled', 'info');
+      return;
+    }
+
+    if (result.success) {
+      showRetroMessage(`Imported ${result.imported} draft portraits. ${result.summary.raceMatches} race matches.`, 'success');
+      await refreshPortraitAssignments();
+    } else {
+      showRetroMessage('Import failed: ' + (result.error || result.errors?.join(', ')), 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Import error:', error);
+    showRetroMessage('Import error: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+/**
+ * Import roster portraits from folder
+ */
+async function importRosterPortraits() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-import-roster-portraits');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Importing...';
+
+  try {
+    const result = await window.electronAPI.portraitImport.importFromFolder(retroState.targetYear, 'roster');
+
+    if (result.canceled) {
+      showRetroMessage('Import canceled', 'info');
+      return;
+    }
+
+    if (result.success) {
+      showRetroMessage(`Imported ${result.imported} roster portraits. ${result.summary.raceMatches} race matches.`, 'success');
+      await refreshPortraitAssignments();
+    } else {
+      showRetroMessage('Import failed: ' + (result.error || result.errors?.join(', ')), 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Import error:', error);
+    showRetroMessage('Import error: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+/**
+ * Auto-assign by race for better matching
+ */
+async function autoAssignByRace() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-auto-assign-race');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Optimizing...';
+
+  try {
+    let totalImproved = 0;
+
+    // Try both draft and roster
+    const draftResult = await window.electronAPI.portraitImport.autoAssignByRace(retroState.targetYear, 'draft');
+    if (draftResult.success) totalImproved += draftResult.improved;
+
+    const rosterResult = await window.electronAPI.portraitImport.autoAssignByRace(retroState.targetYear, 'roster');
+    if (rosterResult.success) totalImproved += rosterResult.improved;
+
+    if (totalImproved > 0) {
+      showRetroMessage(`Improved ${totalImproved} race matches!`, 'success');
+      await refreshPortraitAssignments();
+    } else {
+      showRetroMessage('No improvements found - assignments already optimal.', 'info');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Auto-assign error:', error);
+    showRetroMessage('Error: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+/**
+ * Export portraits for Frosty
+ */
+async function exportForFrosty() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-export-frosty');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Exporting...';
+
+  try {
+    // Export both draft and roster if available
+    const result = await window.electronAPI.portraitExport.exportForFrosty(retroState.targetYear);
+
+    if (result.canceled) {
+      showRetroMessage('Export canceled', 'info');
+      return;
+    }
+
+    if (result.success) {
+      showRetroMessage(`Exported ${result.exportedCount} portraits to: ${result.outputPath}`, 'success');
+    } else {
+      showRetroMessage('Export failed: ' + (result.error || result.errors?.join(', ')), 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Export error:', error);
+    showRetroMessage('Export error: ' + error.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+/**
+ * Refresh portrait assignment display
+ */
+async function refreshPortraitAssignments() {
+  if (!retroState.targetYear) return;
+
+  try {
+    // Get assignments for both draft and roster
+    const draftResult = await window.electronAPI.portraitImport.getAssignments(retroState.targetYear, 'draft');
+    const rosterResult = await window.electronAPI.portraitImport.getAssignments(retroState.targetYear, 'roster');
+
+    const draftCount = draftResult.success ? draftResult.count : 0;
+    const rosterCount = rosterResult.success ? rosterResult.count : 0;
+    const totalCount = draftCount + rosterCount;
+
+    // Update stats display
+    const statsDiv = document.getElementById('portrait-assignment-stats');
+    const statusDiv = document.getElementById('portrait-import-status');
+    const detailsDiv = document.getElementById('portrait-assignments-details');
+    const autoAssignBtn = document.getElementById('btn-auto-assign-race');
+    const exportBtn = document.getElementById('btn-export-frosty');
+
+    if (totalCount > 0) {
+      statsDiv.style.display = 'block';
+      document.getElementById('import-draft-count').textContent = draftCount;
+      document.getElementById('import-roster-count').textContent = rosterCount;
+
+      // Count race matches
+      const allAssignments = [...(draftResult.assignments || []), ...(rosterResult.assignments || [])];
+      const raceMatches = allAssignments.filter(a => a.raceMatch).length;
+      document.getElementById('import-race-matches').textContent = `${raceMatches} / ${totalCount}`;
+
+      statusDiv.innerHTML = `<p style="color: var(--success-color);">Ready to export ${totalCount} portraits for Frosty.</p>`;
+
+      // Enable buttons
+      autoAssignBtn.disabled = false;
+      exportBtn.disabled = false;
+
+      // Update and show assignments table
+      document.getElementById('assignments-count').textContent = totalCount;
+      detailsDiv.style.display = 'block';
+
+      // Populate table
+      const tbody = document.getElementById('portrait-assignments-body');
+      tbody.innerHTML = '';
+
+      for (const a of allAssignments) {
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid var(--border-color)';
+
+        const raceIcon = a.raceMatch ? '&#9989;' : '&#9888;';
+        const raceColor = a.raceMatch ? 'var(--success-color)' : 'var(--warning-color)';
+
+        row.innerHTML = `
+          <td style="padding: 6px;">${a.historicalPlayer}</td>
+          <td style="padding: 6px;">${a.position || '-'}</td>
+          <td style="padding: 6px; font-family: monospace; font-size: 0.75rem;">${a.assignedPLPO}</td>
+          <td style="padding: 6px; text-align: center; color: ${raceColor};">${raceIcon}</td>
+        `;
+        tbody.appendChild(row);
+      }
+    } else {
+      statsDiv.style.display = 'none';
+      detailsDiv.style.display = 'none';
+      statusDiv.innerHTML = `<p class="no-changes">No portraits imported yet. Select a year and import from folder.</p>`;
+      autoAssignBtn.disabled = true;
+      exportBtn.disabled = true;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error refreshing assignments:', error);
+  }
+}
+
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   // Only initialize if on the main editor page with retro tool
   if (document.getElementById('retro-tool')) {
     initRetroEditor();
+
+    // Portrait mapping buttons
+    document.getElementById('btn-generate-portrait-mapping')?.addEventListener('click', generateRosterPortraitMapping);
+    document.getElementById('btn-generate-draft-mapping')?.addEventListener('click', generateDraftPortraitMapping);
+
+    // Portrait import/export buttons
+    document.getElementById('btn-import-draft-portraits')?.addEventListener('click', importDraftPortraits);
+    document.getElementById('btn-import-roster-portraits')?.addEventListener('click', importRosterPortraits);
+    document.getElementById('btn-auto-assign-race')?.addEventListener('click', autoAssignByRace);
+    document.getElementById('btn-export-frosty')?.addEventListener('click', exportForFrosty);
   }
 });
 
 // Export for use by other modules
 window.initRetroEditor = initRetroEditor;
 window.debugTeamTable = debugTeamTable;
+window.refreshPortraitAssignments = refreshPortraitAssignments;

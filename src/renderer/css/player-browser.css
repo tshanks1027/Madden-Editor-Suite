@@ -138,6 +138,7 @@
 /* Results Container */
 .player-browser-content {
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -156,7 +157,8 @@
   text-transform: uppercase;
 }
 
-#playerBrowserResults {
+#playerBrowserResults,
+#coachBrowserResults {
   flex: 1;
   overflow-y: auto;
   padding: 0;

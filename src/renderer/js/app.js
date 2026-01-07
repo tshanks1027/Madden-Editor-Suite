@@ -1142,7 +1142,14 @@ class MaddenEditorApp {
                             });
                         } else {
                             // For real faces, load by PID
-                            window.electronAPI.portrait.getByPID(pid).then(async (imageData) => {
+                            // Custom portraits (PID >= 12000) use getImageDataByPid directly
+                            const CUSTOM_PORTRAIT_PID_START = 12000;
+                            const isCustomPortrait = parseInt(pid) >= CUSTOM_PORTRAIT_PID_START;
+                            const loadPromise = isCustomPortrait
+                                ? window.electronAPI.portrait.getImageDataByPid(pid)
+                                : window.electronAPI.portrait.getByPID(pid);
+
+                            loadPromise.then(async (imageData) => {
                                 if (imageData && imageData.length > 0) {
                                     this.portraitCache.set(cacheKey, imageData);
                                 } else {
@@ -1711,8 +1718,14 @@ class MaddenEditorApp {
 
         // Handle PID Player Pic field - convert PID to player name
         if (fieldName === 'PLAYERPIC') {
-            const pid = player['PSXP'] || 0;
-            return getPlayerNameFromPID(pid);
+            const pid = parseInt(player['PSXP']) || 0;
+            // Custom portraits (PID >= 12000) use player's actual name
+            if (pid >= 12000) {
+                const lastName = player['PLNA'] || '';
+                const firstName = player['PFNA'] || '';
+                return `${lastName}, ${firstName}`;
+            }
+            return getPlayerNameFromPID(pid) || 'Generic Face';
         }
 
         // Handle weight conversion: roster value starts at 1 = 160 lbs
@@ -1854,8 +1867,15 @@ class MaddenEditorApp {
                             this.players[actualPlayerIndex]['PLAYERPIC'] = convertedValue;
                         } else {
                             // Invalid name typed - revert to original value
-                            const originalPID = this.players[actualPlayerIndex]['PSXP'];
-                            convertedValue = getPlayerNameFromPID(originalPID);
+                            const originalPID = parseInt(this.players[actualPlayerIndex]['PSXP']) || 0;
+                            // Custom portraits (PID >= 12000) use player's actual name
+                            if (originalPID >= 12000) {
+                                const lastName = this.players[actualPlayerIndex]['PLNA'] || '';
+                                const firstName = this.players[actualPlayerIndex]['PFNA'] || '';
+                                convertedValue = `${lastName}, ${firstName}`;
+                            } else {
+                                convertedValue = getPlayerNameFromPID(originalPID) || 'Generic Face';
+                            }
                             this.players[actualPlayerIndex]['PLAYERPIC'] = convertedValue;
                             // Update the grid to show the reverted value
                             this.updateGridCell(row, 'PLAYERPIC', convertedValue);
@@ -1879,7 +1899,15 @@ class MaddenEditorApp {
 
                         // Handle PID changes - update Player Pic automatically
                         if (fieldName === 'PSXP') {
-                            const playerName = getPlayerNameFromPID(convertedValue);
+                            let playerName;
+                            // Custom portraits (PID >= 12000) use player's actual name
+                            if (convertedValue >= 12000) {
+                                const lastName = this.players[actualPlayerIndex]['PLNA'] || '';
+                                const firstName = this.players[actualPlayerIndex]['PFNA'] || '';
+                                playerName = `${lastName}, ${firstName}`;
+                            } else {
+                                playerName = getPlayerNameFromPID(convertedValue) || 'Generic Face';
+                            }
                             // Update PLAYERPIC with the looked-up name (or 'Generic Face' if not found)
                             this.players[actualPlayerIndex]['PLAYERPIC'] = playerName;
                             this.updateGridCell(row, 'PLAYERPIC', playerName);
@@ -2144,8 +2172,19 @@ class MaddenEditorApp {
     playerPicRenderer(instance, td, row, col, prop, value, cellProperties) {
         const rowData = instance.getDataAtRow(row);
         const psxpIndex = this.currentFieldMapping.indexOf('PSXP');
-        const currentPID = psxpIndex !== -1 ? rowData[psxpIndex] : '';
-        const playerName = getPlayerNameFromPID(currentPID);
+        const currentPID = psxpIndex !== -1 ? parseInt(rowData[psxpIndex]) || 0 : 0;
+
+        let playerName;
+        // Custom portraits (PID >= 12000) use player's actual name
+        if (currentPID >= 12000) {
+            const plnaIndex = this.currentFieldMapping.indexOf('PLNA');
+            const pfnaIndex = this.currentFieldMapping.indexOf('PFNA');
+            const lastName = plnaIndex !== -1 ? rowData[plnaIndex] : '';
+            const firstName = pfnaIndex !== -1 ? rowData[pfnaIndex] : '';
+            playerName = `${lastName}, ${firstName}`;
+        } else {
+            playerName = getPlayerNameFromPID(currentPID) || 'Generic Face';
+        }
 
         td.innerHTML = `
             <div class="player-pic-container">
@@ -2389,7 +2428,19 @@ class MaddenEditorApp {
             clone.addEventListener('input', (e) => {
                 const row = parseInt(e.target.dataset.row);
                 const pidValue = parseInt(e.target.value.trim()) || 0;
-                const playerName = getPlayerNameFromPID(pidValue) || 'Generic Face';
+
+                let playerName;
+                // Custom portraits (PID >= 12000) use player's actual name
+                if (pidValue >= 12000) {
+                    const rowData = this.hotTable.getDataAtRow(row);
+                    const plnaIndex = this.currentFieldMapping.indexOf('PLNA');
+                    const pfnaIndex = this.currentFieldMapping.indexOf('PFNA');
+                    const lastName = plnaIndex !== -1 ? rowData[plnaIndex] : '';
+                    const firstName = pfnaIndex !== -1 ? rowData[pfnaIndex] : '';
+                    playerName = `${lastName}, ${firstName}`;
+                } else {
+                    playerName = getPlayerNameFromPID(pidValue) || 'Generic Face';
+                }
 
                 // Update the name input in same cell
                 const nameInput = e.target.parentElement.querySelector('.pid-name-input');
@@ -8948,7 +8999,14 @@ class MaddenEditorApp {
             portraitImg.style.display = 'none';
             this.portraitCache.set(cacheKey, 'loading');
 
-            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+            // Custom portraits (PID >= 12000) use getImageDataByPid directly
+            const CUSTOM_PORTRAIT_PID_START = 12000;
+            const isCustomPortrait = parseInt(pid) >= CUSTOM_PORTRAIT_PID_START;
+            const loadPromise = isCustomPortrait
+                ? window.electronAPI.portrait.getImageDataByPid(pid)
+                : window.electronAPI.portrait.getByPID(pid);
+
+            loadPromise.then(imageData => {
                 this.portraitCache.set(cacheKey, imageData);
                 // Update portrait if still on same player
                 const currentPid = document.getElementById('playerCardPIDSelect').value;

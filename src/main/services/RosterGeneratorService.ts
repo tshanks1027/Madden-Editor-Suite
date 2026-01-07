@@ -23,6 +23,7 @@ import Papa from 'papaparse';
 import { lookupService } from './lookup-service';
 import { draftClassService } from './DraftClassService';
 import { pgheLookupService } from './PGHELookupService';
+import { userDatabaseService } from './UserDatabaseService';
 
 export interface RosterPlayer {
   // Basic Info
@@ -205,6 +206,8 @@ export class RosterGeneratorService {
   private hofLookup: Map<string, boolean> = new Map(); // firstName|lastName -> isHOF
   private pidToCommID: Map<number, number> = new Map(); // PID → CommID (POID) mapping from ALL_PLAYER_LOOKUP.csv
   private homeLocationLookup: Map<string, { hometown: string; homeState: string }> = new Map(); // firstName|lastName -> hometown/homeState from ALL_PLAYER_LOOKUP.csv
+  private customPortraitAssignments: Map<number, number> = new Map(); // databasePlayerId → customPID (from user assignments)
+  private nameToInternalId: Map<string, number> = new Map(); // firstName|lastName -> internalId (for custom portrait lookup)
 
   /**
    * Initialize service: Load roster data from database and template
@@ -441,6 +444,12 @@ export class RosterGeneratorService {
             homeState: player.homeState || ''
           });
         }
+
+        // Name → InternalId lookup (for custom portrait matching)
+        // Only store first occurrence to avoid collisions with different players of same name
+        if (player.internalId && !this.nameToInternalId.has(key)) {
+          this.nameToInternalId.set(key, player.internalId);
+        }
       }
     }
 
@@ -449,6 +458,42 @@ export class RosterGeneratorService {
     console.log('[RosterGeneratorService] Loaded', hofCount, 'Hall of Fame players');
     console.log('[RosterGeneratorService] Loaded', this.pidToCommID.size, 'PID → CommID mappings');
     console.log('[RosterGeneratorService] Loaded', this.homeLocationLookup.size, 'home location mappings');
+    console.log('[RosterGeneratorService] Loaded', this.nameToInternalId.size, 'name → internalId mappings');
+
+    // Load custom portrait assignments from user database
+    try {
+      await userDatabaseService.waitForReady();
+
+      // Migrate existing portrait assignments that are missing database_player_id
+      const needsMigration = userDatabaseService.getPortraitsNeedingMigration();
+      if (needsMigration.length > 0) {
+        console.log(`[RosterGeneratorService] Migrating ${needsMigration.length} portrait assignments...`);
+        let migratedCount = 0;
+        for (const { pid, playerName } of needsMigration) {
+          // Parse player name (format: "FirstName LastName")
+          const parts = playerName.split(' ');
+          if (parts.length >= 2) {
+            const firstName = parts[0];
+            const lastName = parts.slice(1).join(' ');
+            const key = `${firstName}|${lastName}`;
+            const internalId = this.nameToInternalId.get(key);
+            if (internalId) {
+              userDatabaseService.migratePortraitAssignment(pid, internalId);
+              migratedCount++;
+              console.log(`[RosterGeneratorService] Migrated "${playerName}" (PID ${pid}) -> internal ID ${internalId}`);
+            } else {
+              console.warn(`[RosterGeneratorService] Could not find database player for "${playerName}"`);
+            }
+          }
+        }
+        console.log(`[RosterGeneratorService] Migration complete: ${migratedCount}/${needsMigration.length} portraits linked`);
+      }
+
+      this.customPortraitAssignments = userDatabaseService.getAllCustomPortraitAssignments();
+      console.log('[RosterGeneratorService] Loaded', this.customPortraitAssignments.size, 'custom portrait assignments');
+    } catch (error) {
+      console.warn('[RosterGeneratorService] Failed to load custom portrait assignments:', error);
+    }
 
     this.initialized = true;
     console.log('[RosterGeneratorService] ===== INITIALIZATION COMPLETE =====');
@@ -907,7 +952,8 @@ export class RosterGeneratorService {
           PSXP: genericFace.pid,
           PLPL: 0, // Generic face marker
           PEPS: genericFace.pam, // GENR from PGHE lookup - matched set with PSXP and PGHE
-          POID: 0, // Filler players have no commentary ID
+          POID: 0, // Filler players have no Presentation ID
+          PCMT: lookupService.getCommentaryId(lastName) || 0, // Commentary ID - looked up by last name
           // DON'T SET PSKI - BLBM handles it
           PGHE: genericFace.pghe,
           _race: fillerRace, // Race for BLBM GENR/SKNT assignment
@@ -1343,7 +1389,8 @@ export class RosterGeneratorService {
       PID: genericFace.pid,
       PAM: 0,  // Generic faces use 0 (number) for PLPL
       PEPS: genericFace.pam,  // GENR from PGHE lookup - matched set with pid and pghe
-      POID: 0,  // Filler players have no commentary ID
+      POID: 0,  // Filler players have no Presentation ID
+      PCMT: lookupService.getCommentaryId(lastName) || 0,  // Commentary ID - looked up by last name
 
       // College & Home - Skip ID 0 (Blank), use 1-264 (real colleges)
       college: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
@@ -1504,8 +1551,21 @@ export class RosterGeneratorService {
     let playerPAM = String(csvRow.PAM || '');
     const csvRace = parseInt(csvRow.Race) || 1; // Get race from CSV
 
+    // Check for custom portrait assignment FIRST (user-uploaded portraits, PID 12000+)
+    const playerNameKey = `${csvRow.First_Name}|${csvRow.Last_Name}`;
+    const playerInternalId = this.nameToInternalId.get(playerNameKey);
+    const customPortraitPID = playerInternalId ? this.customPortraitAssignments.get(playerInternalId) : undefined;
+
+    if (customPortraitPID) {
+      // Player has a custom portrait assigned - use it!
+      playerPID = customPortraitPID;
+      console.log(`[RosterGeneratorService] Using custom portrait PID ${customPortraitPID} for ${csvRow.First_Name} ${csvRow.Last_Name}`);
+      // Custom portraits are treated as real faces (PLPL=100), skip all generic face logic below
+    }
+
     // CRITICAL: Only use PID from CSV if it exists in PID_Portrait_Mapping.csv AND matches the race
-    if (playerPID !== 0) {
+    // Skip this validation if we're using a custom portrait (PID 12000+)
+    if (playerPID !== 0 && playerPID < 12000) {
       if (!this.validPIDs.has(playerPID)) {
         console.warn(`[RosterGeneratorService] Invalid PID ${playerPID} for ${csvRow.First_Name} ${csvRow.Last_Name} - assigning generic face`);
         playerPID = 0; // Force reassignment to generic face
@@ -1532,6 +1592,7 @@ export class RosterGeneratorService {
     // DON'T track pskiValue - BLBM GENR/SKNT controls face appearance
     let plplValue: number = 100; // Default to real face (100)
     let pepsValue: string = ''; // Will be set below based on face type
+    let playerPicValue: string = ''; // Display name for Player Pic column
 
     if (playerPID === 0) {
       // Assign generic face for players without valid portraits
@@ -1549,7 +1610,11 @@ export class RosterGeneratorService {
       const mappedPAM = this.pidToPAM.get(playerPID);
       const mappedPortrait = this.pidToPortrait.get(playerPID);
 
+      // Custom portraits (PID 12000+) are always treated as real faces
+      const isCustomPortrait = playerPID >= 12000;
+
       // Check portrait type to determine face handling:
+      // - Custom portrait (PID 12000+) = Real face (PLPL=100)
       // - plpo_legends_* = Legend portrait (real face, PLPL=100)
       // - plpo_generic_* = Generic face (PLPL=0)
       // - Other non-generic portrait = Real face (PLPL=100)
@@ -1558,15 +1623,23 @@ export class RosterGeneratorService {
       const isGenericPortrait = mappedPortrait && mappedPortrait.includes('generic');
       const isRealFacePAM = mappedPAM && !mappedPAM.startsWith('gen_');
 
-      // Real face = legend portrait OR non-generic portrait OR player-format PAM
-      const isRealFace = isLegendPortrait || (!isGenericPortrait && mappedPortrait) || isRealFacePAM;
+      // Real face = custom portrait OR legend portrait OR non-generic portrait OR player-format PAM
+      const isRealFace = isCustomPortrait || isLegendPortrait || (!isGenericPortrait && mappedPortrait) || isRealFacePAM;
 
       if (isRealFace) {
-        // Real face (legend or player scan) - keep PID, set PLPL=100
+        // Real face (legend, player scan, or custom portrait) - keep PID, set PLPL=100
         plplValue = 100;
-        // Use PAM from lookup if available, otherwise leave blank - game handles it
-        pepsValue = mappedPAM || '';
-        console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Real face PID ${playerPID}, Portrait="${mappedPortrait}", PEPS="${pepsValue}"`);
+        if (isCustomPortrait) {
+          // Custom portrait - PAM is empty, Player Pic shows "Last, First"
+          pepsValue = ''; // No PAM for custom portraits
+          playerPicValue = `${csvRow.Last_Name || ''}, ${csvRow.First_Name || ''}`;
+          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Custom portrait PID ${playerPID}, PEPS="" (no PAM), PlayerPic="${playerPicValue}"`);
+        } else {
+          // Standard portrait - use mapped PAM, Player Pic from portrait name
+          pepsValue = mappedPAM || '';
+          playerPicValue = mappedPortrait || '';
+          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Real face PID ${playerPID}, Portrait="${mappedPortrait}", PEPS="${pepsValue}"`);
+        }
       } else if (isGenericPortrait) {
         // Generic face portrait - select matched PGHE set for this player
         isGenericFace = true;
@@ -1625,8 +1698,10 @@ export class RosterGeneratorService {
       // IDs - Use processed PID/PAM (generic if original was 0)
       PSXP: playerPID,       // Player ID (PID) - Generic face if CSV had 0
       PLPL: plplValue,        // Player Asset (PAM) - 0 for generic, 100 for real face
-      PEPS: pepsValue,        // Equipment string - "LastNameFirstName_XXXX"
+      PEPS: pepsValue,        // PAM code - blank for custom portraits
+      PLAYERPIC: playerPicValue, // Player Pic display name (format: "Last, First" for custom portraits)
       POID: this.pidToCommID.get(playerPID) || 0, // Presentation ID for in-game commentary
+      PCMT: lookupService.getCommentaryId(csvRow.Last_Name || '') || 0, // Commentary ID - looked up by last name
 
       // College & Home - LOOKUP from CSV strings and ALL_PLAYER_LOOKUP.csv home location data
       PCOL: await this.lookupCollege(csvRow.College), // College is string, needs lookup

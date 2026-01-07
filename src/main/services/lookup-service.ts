@@ -51,7 +51,7 @@ export interface CoachLookupEntry {
   lastName: string;
   firstName: string;
   pam: string;
-  pid: number;
+  pid: number | null; // null for PAM-only coaches (no portrait PID yet)
   displayName: string; // Generated from firstName + lastName
 }
 
@@ -139,8 +139,8 @@ export class LookupService {
         await this.loadLookupsFromCSV();
       }
 
-      // Load coach data (still from CSV for now)
-      await this.loadCoachLookupFile('Coach_lookup.csv');
+      // Load coach data from CoachPAM_lookup.csv (has real coach PAMs + PIDs)
+      await this.loadCoachLookupFile('CoachPAM_lookup.csv');
 
       // Load commentary ID lookup data
       await this.loadCommentaryLookup();
@@ -466,8 +466,8 @@ export class LookupService {
         return;
       }
 
-      // Special handling for Coach_lookup.csv
-      if (fileName === 'Coach_lookup.csv') {
+      // Special handling for Coach lookup files
+      if (fileName === 'Coach_lookup.csv' || fileName === 'CoachPAM_lookup.csv') {
         await this.loadCoachLookupFile(fileName);
         return;
       }
@@ -593,31 +593,42 @@ export class LookupService {
       this.coachCache.clear();
       this.coachByPAMCache.clear();
 
+      let pamOnlyIndex = -1; // Use negative indices for PAM-only coaches
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
 
         const parts = line.split(',');
-        if (parts.length < 4) continue;
+        if (parts.length < 3) continue; // Need at least lastName, firstName, pam
 
         const lastName = parts[0].trim();
         const firstName = parts[1].trim();
         const pam = parts[2].trim();
-        const pid = parseInt(parts[3].trim());
+        const pidStr = parts.length > 3 ? parts[3].trim() : '';
+        const pid = pidStr ? parseInt(pidStr) : NaN;
 
-        if (isNaN(pid)) continue;
+        // Skip entries with no PAM and no PID (owners without portraits)
+        if (!pam && isNaN(pid)) continue;
 
-        const displayName = firstName && lastName ? `${firstName} ${lastName}` : (firstName || lastName || `Coach ${pid}`);
+        const displayName = firstName && lastName ? `${firstName} ${lastName}` : (firstName || lastName || (isNaN(pid) ? `Coach (PAM)` : `Coach ${pid}`));
 
         const coachEntry: CoachLookupEntry = {
           lastName,
           firstName,
           pam,
-          pid,
+          pid: isNaN(pid) ? null : pid, // null for PAM-only coaches
           displayName
         };
 
-        this.coachCache.set(pid, coachEntry);
+        // Use PID as key if available, otherwise use negative index for PAM-only
+        if (!isNaN(pid)) {
+          this.coachCache.set(pid, coachEntry);
+        } else if (pam) {
+          // PAM-only coach - use negative index as key
+          this.coachCache.set(pamOnlyIndex, coachEntry);
+          pamOnlyIndex--;
+        }
+
         if (pam) {
           this.coachByPAMCache.set(pam, coachEntry);
         }
@@ -925,10 +936,32 @@ export class LookupService {
   public searchPlayers(query: string, limit: number = 50): FullDataEntry[] {
     // Always use cache for search - it has all players loaded with all fields
     const results: FullDataEntry[] = [];
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = query.toLowerCase().trim();
+    const queryParts = lowerQuery.split(/\s+/); // Split by whitespace for multi-word queries
+
     for (const entry of this.fullDataCache.values()) {
-      if (entry.firstName.toLowerCase().includes(lowerQuery) ||
-          entry.lastName.toLowerCase().includes(lowerQuery)) {
+      const firstName = entry.firstName.toLowerCase();
+      const lastName = entry.lastName.toLowerCase();
+      const fullName = `${firstName} ${lastName}`;
+
+      let matches = false;
+
+      if (queryParts.length === 1) {
+        // Single word: check first name OR last name
+        matches = firstName.includes(lowerQuery) || lastName.includes(lowerQuery);
+      } else {
+        // Multi-word query: check full name OR all parts must match somewhere
+        if (fullName.includes(lowerQuery)) {
+          matches = true;
+        } else {
+          // Check if all query parts are found in either first or last name
+          matches = queryParts.every(part =>
+            firstName.includes(part) || lastName.includes(part)
+          );
+        }
+      }
+
+      if (matches) {
         results.push(entry);
         if (results.length >= limit) break;
       }

@@ -120,6 +120,7 @@ export const MADDEN_FIELDS = {
     'PGID': { display: 'Player ID', shortDisplay: 'ID', type: 'numeric', editable: false, width: 80, min: 0, max: 99999 },
     'POVR': { display: 'Overall Rating', shortDisplay: 'OVR', type: 'numeric', editable: false, width: 70, min: 0, max: 99 },
     'POID': { display: 'Presentation ID', shortDisplay: 'POID', type: 'numeric', editable: true, width: 80, min: 0, max: 99999 },
+    'PCMT': { display: 'Commentary ID', shortDisplay: 'PCMT', type: 'numeric', editable: true, width: 80, min: 0, max: 99999 },
 
     // Draft class specific fields
     'PDPI': { display: 'Draft Position', shortDisplay: 'Draft Pos', type: 'numeric', editable: true, width: 90, min: 0, max: 500 },
@@ -152,7 +153,7 @@ export const MADDEN_FIELDS = {
 
 // Field order for user-friendly editing (Madden game order)
 export const FIELD_ORDER = [
-    ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"], ["POID", "Pres ID"],
+    ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"], ["POID", "Pres ID"], ["PCMT", "Commentary"],
     ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["ARCHETYPE", "Archetype"], ["PHTN", "Hometown"], ["PHSN", "State"], ["PLRC", "Race"],
     ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PHAN", "Handedness"], ["PYRP", "Years Pro"], ["PROL", "Dev Trait"],
@@ -778,10 +779,25 @@ export function getPIDFromPLPO(plpo) {
  * @param {number} pid - PID to look up
  * @returns {string} Player name or 'Generic Name'
  */
-export function getPlayerNameFromPID(pid) {
+export function getPlayerNameFromPID(pid, playerData = null) {
     // If PID is 0, return blank (no player assigned)
     if (!pid || pid === 0) {
         return '';
+    }
+
+    // Custom portrait PIDs (12000+) - use player's actual name
+    const CUSTOM_PORTRAIT_PID_START = 12000;
+    if (parseInt(pid) >= CUSTOM_PORTRAIT_PID_START) {
+        // If player data is provided, use it
+        if (playerData) {
+            const lastName = playerData.PLNA || playerData.lastName || '';
+            const firstName = playerData.PFNA || playerData.firstName || '';
+            if (lastName || firstName) {
+                return `${lastName}, ${firstName}`;
+            }
+        }
+        // Return null to signal callers to look up player name from context
+        return null;
     }
 
     // Check PID_lookup.csv for player name
