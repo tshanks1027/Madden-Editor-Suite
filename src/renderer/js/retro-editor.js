@@ -21,7 +21,14 @@ let retroState = {
   salaryCapData: null,
   stadiumPreview: null,
   schemePreview: null,
-  applyResult: null
+  applyResult: null,
+  // User-selected options
+  options: {
+    teams: true,        // Update team names/cities
+    abbreviations: true, // Update team abbreviations
+    schedule: true,      // Load season schedule
+    logos: false         // Download era logos
+  }
 };
 
 // Super Bowl number to Roman numeral mapping
@@ -54,6 +61,9 @@ function initRetroEditor() {
     retroState.targetYear = parseInt(e.target.value);
     updateYearInfo(retroState.targetYear);
     updateNextButtonState();
+    // Enable scrape button when year is selected
+    const scrapeBtn = document.getElementById('btn-scrape-all-logos');
+    if (scrapeBtn) scrapeBtn.disabled = !retroState.targetYear;
   });
 
   // Navigation buttons
@@ -151,11 +161,37 @@ async function selectFranchiseFile() {
     const fileInfo = document.getElementById('retro-file-info');
     const fileDetails = document.getElementById('retro-file-details');
     fileInfo.style.display = 'flex';
+
+    const currentYear = loadResult.data.currentSeasonYear || 2025;
+    const nextYear = currentYear + 1;
+
     fileDetails.innerHTML = `
-      Season: ${loadResult.data.currentSeasonYear || 'Unknown'}<br>
+      Current Season: <strong>${currentYear}</strong><br>
       Teams: ${loadResult.data.teamCount || 32}<br>
       Super Bowl: ${loadResult.data.superBowlNumber || 'Unknown'}
     `;
+
+    // Pre-select the NEXT year in the dropdown for year continuity
+    const yearSelect = document.getElementById('retro-year-select');
+    if (yearSelect) {
+      // Check if next year is available in the dropdown
+      const nextYearOption = yearSelect.querySelector(`option[value="${nextYear}"]`);
+      if (nextYearOption) {
+        yearSelect.value = nextYear;
+        retroState.targetYear = nextYear;
+        updateYearInfo(nextYear);
+        console.log(`[RetroEditor] Pre-selected next year: ${nextYear} (current franchise year: ${currentYear})`);
+      } else {
+        // Fall back to current year if next year not available
+        const currentYearOption = yearSelect.querySelector(`option[value="${currentYear}"]`);
+        if (currentYearOption) {
+          yearSelect.value = currentYear;
+          retroState.targetYear = currentYear;
+          updateYearInfo(currentYear);
+          console.log(`[RetroEditor] Pre-selected current year: ${currentYear}`);
+        }
+      }
+    }
 
     // Enable next button
     updateNextButtonState();
@@ -184,6 +220,67 @@ function updateYearInfo(year) {
   yearInfo.style.display = 'flex';
   sbLabel.textContent = `Super Bowl ${romanNumeral}`;
   sbDetails.textContent = `The ${year} NFL season culminating in Super Bowl ${romanNumeral} (played in January ${year + 1})`;
+
+  // Also update uniform preview
+  updateUniformPreview(year);
+}
+
+/**
+ * Update uniform preview for selected year
+ */
+async function updateUniformPreview(year) {
+  const uniformInfo = document.getElementById('retro-uniform-info');
+  const uniformSummary = document.getElementById('retro-uniform-summary');
+  const uniformList = document.getElementById('retro-uniform-list');
+
+  // Early exit if elements don't exist
+  if (!uniformInfo) return;
+
+  if (!year) {
+    uniformInfo.style.display = 'none';
+    return;
+  }
+
+  try {
+    // Get uniform summary
+    const summaryResult = await window.electronAPI.retro.getUniformPreviewSummary(year);
+    if (summaryResult.success && summaryResult.data.available) {
+      uniformInfo.style.display = 'flex';
+      if (uniformSummary) uniformSummary.textContent = summaryResult.data.summary;
+
+      // Get detailed uniform list
+      const detailResult = await window.electronAPI.retro.getUniformsForYear(year);
+      if (detailResult.success && detailResult.data.uniforms && uniformList) {
+        // Group by variant type for cleaner display
+        const throwbacks = detailResult.data.uniforms.filter(u =>
+          !u.variantName.toLowerCase().includes('modern') && u.variantName.toLowerCase() !== 'default'
+        );
+        const modern = detailResult.data.uniforms.filter(u =>
+          u.variantName.toLowerCase().includes('modern') || u.variantName.toLowerCase() === 'default'
+        );
+
+        let html = '';
+        if (throwbacks.length > 0) {
+          html += '<div style="margin-bottom: 8px;"><strong>Era-Appropriate Uniforms:</strong></div>';
+          throwbacks.forEach(u => {
+            html += `<div style="padding: 2px 0;"><span style="color: var(--accent-color);">${u.teamAbbr}</span>: ${u.variantName}</div>`;
+          });
+        }
+        if (modern.length > 0) {
+          html += '<div style="margin-top: 8px; margin-bottom: 8px;"><strong>Modern Uniforms:</strong></div>';
+          modern.forEach(u => {
+            html += `<div style="padding: 2px 0; opacity: 0.7;">${u.teamAbbr}: ${u.variantName}</div>`;
+          });
+        }
+        uniformList.innerHTML = html;
+      }
+    } else {
+      uniformInfo.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading uniform preview:', error);
+    uniformInfo.style.display = 'none';
+  }
 }
 
 /**
@@ -223,6 +320,14 @@ async function retroNextStep() {
 
   // Special handling for step 2 -> 3 (preview)
   if (currentStep === 2) {
+    // Read user options from checkboxes
+    retroState.options.teams = document.getElementById('retro-opt-teams')?.checked ?? true;
+    retroState.options.abbreviations = document.getElementById('retro-opt-abbreviations')?.checked ?? true;
+    retroState.options.schedule = document.getElementById('retro-opt-schedule')?.checked ?? true;
+    retroState.options.coaches = document.getElementById('retro-opt-coaches')?.checked ?? true;
+    retroState.options.logos = document.getElementById('retro-opt-logos')?.checked ?? false;
+
+    console.log('[RetroEditor] Options selected:', retroState.options);
     await loadPreview();
   }
 
@@ -296,8 +401,9 @@ async function loadPreview() {
     }
 
     retroState.previewData = result.data;
+    const opts = retroState.options;
 
-    // Update season changes
+    // Update season changes (always shown)
     const superBowlNum = retroState.targetYear - 1965;
     const romanNumeral = superBowlNumerals[superBowlNum] || superBowlNum;
 
@@ -305,49 +411,89 @@ async function loadPreview() {
     document.getElementById('preview-superbowl').textContent = `Super Bowl ${romanNumeral}`;
     document.getElementById('preview-calendar-year').textContent = retroState.targetYear;
 
-    // Update team changes
-    const teamChangesContainer = document.getElementById('retro-team-changes');
-    if (result.data.teamChanges && result.data.teamChanges.length > 0) {
-      teamChangesContainer.innerHTML = result.data.teamChanges.map(change => `
-        <div class="retro-change-item">
-          <span class="change-label">${change.originalCity} ${change.originalName}</span>
-          <span class="change-arrow">&rarr;</span>
-          <span class="change-value">${change.newCity} ${change.newName}</span>
-        </div>
-      `).join('');
-    } else {
-      teamChangesContainer.innerHTML = '<p class="no-changes">No team name changes needed for this year</p>';
+    // Show/hide team names section
+    const teamsSection = document.getElementById('retro-teams-section');
+    if (teamsSection) {
+      teamsSection.style.display = opts.teams ? 'block' : 'none';
     }
 
-    // Update draft changes
-    const draftChangesContainer = document.getElementById('retro-draft-changes');
-    if (result.data.draftChanges && result.data.draftChanges.inactiveTeams && result.data.draftChanges.inactiveTeams.length > 0) {
-      draftChangesContainer.innerHTML = `
-        <p>Draft picks for expansion teams will be moved to the end of each round:</p>
-        <ul class="inactive-teams-list">
-          ${result.data.draftChanges.inactiveTeams.map(team => `<li>${team}</li>`).join('')}
-        </ul>
-      `;
-    } else {
-      draftChangesContainer.innerHTML = '<p class="no-changes">No draft pick reordering needed (all 32 teams active)</p>';
+    // Update team changes (if enabled)
+    if (opts.teams) {
+      const teamChangesContainer = document.getElementById('retro-team-changes');
+      if (result.data.teamChanges && result.data.teamChanges.length > 0) {
+        teamChangesContainer.innerHTML = result.data.teamChanges.map(change => `
+          <div class="retro-change-item">
+            <span class="change-label">${change.originalCity} ${change.originalName}</span>
+            <span class="change-arrow">&rarr;</span>
+            <span class="change-value">${change.newCity} ${change.newName}</span>
+          </div>
+        `).join('');
+      } else {
+        teamChangesContainer.innerHTML = '<p class="no-changes">No team name changes needed for this year</p>';
+      }
     }
 
-    // Load schedule preview
-    await loadSchedulePreview();
+    // Show/hide draft section (tied to teams)
+    const draftSection = document.getElementById('retro-draft-section');
+    if (draftSection) {
+      draftSection.style.display = opts.teams ? 'block' : 'none';
+    }
 
-    // Load coach preview
-    await loadCoachPreview();
+    // Update draft changes (if teams enabled)
+    if (opts.teams) {
+      const draftChangesContainer = document.getElementById('retro-draft-changes');
+      if (result.data.draftChanges && result.data.draftChanges.inactiveTeams && result.data.draftChanges.inactiveTeams.length > 0) {
+        draftChangesContainer.innerHTML = `
+          <p>Draft picks for expansion teams will be moved to the end of each round:</p>
+          <ul class="inactive-teams-list">
+            ${result.data.draftChanges.inactiveTeams.map(team => `<li>${team}</li>`).join('')}
+          </ul>
+        `;
+      } else {
+        draftChangesContainer.innerHTML = '<p class="no-changes">No draft pick reordering needed (all 32 teams active)</p>';
+      }
+    }
 
-    // Load salary cap preview
+    // Show/hide schedule section
+    const scheduleSection = document.getElementById('retro-schedule-section');
+    if (scheduleSection) {
+      scheduleSection.style.display = opts.schedule ? 'block' : 'none';
+    }
+
+    // Load schedule preview (if enabled)
+    if (opts.schedule) {
+      await loadSchedulePreview();
+    }
+
+    // Show/hide logo section
+    const logoSection = document.getElementById('retro-logo-section');
+    if (logoSection) {
+      logoSection.style.display = opts.logos ? 'block' : 'none';
+    }
+
+    // Load logo preview and download (if enabled)
+    if (opts.logos) {
+      await loadLogoPreview();
+      // Auto-download logos for teams that need them
+      const scrapeBtn = document.getElementById('btn-scrape-all-logos');
+      if (scrapeBtn && !scrapeBtn.disabled) {
+        await scrapeAllLogos();
+      }
+    }
+
+    // Load coach preview if option is checked
+    if (opts.coaches) {
+      await loadCoachPreview();
+      document.getElementById('retro-coach-section').style.display = '';
+    } else {
+      document.getElementById('retro-coach-section').style.display = 'none';
+      retroState.coachPreview = null;
+    }
+
+    // These are always loaded (not optional currently)
     await loadSalaryCapPreview();
-
-    // Load stadium preview
     await loadStadiumPreview();
-
-    // Load scheme preview
     await loadSchemePreview();
-
-    // Load portrait preview
     await loadPortraitPreview();
 
     hideRetroMessage();
@@ -771,13 +917,16 @@ async function applyChanges() {
     resultsSection.style.display = 'none';
     errorSection.style.display = 'none';
 
-    // Determine total steps based on what's available
-    const hasSchedule = retroState.schedulePreview !== null;
-    const hasCoaches = retroState.coachPreview !== null;
+    const opts = retroState.options;
+
+    // Determine total steps based on options and what's available
+    const hasSchedule = retroState.schedulePreview !== null && opts.schedule;
+    const hasCoaches = retroState.coachPreview !== null && opts.coaches;
     const hasSalaryCap = retroState.salaryCapData !== null;
     const hasStadiums = retroState.stadiumPreview !== null;
     const hasSchemes = retroState.schemePreview !== null;
-    let totalSteps = 3; // Base: season, teams, draft
+    let totalSteps = 1; // Base: season (always)
+    if (opts.teams) totalSteps += 2; // teams + draft
     if (hasSchedule) totalSteps++;
     if (hasCoaches) totalSteps++;
     if (hasSalaryCap) totalSteps++;
@@ -792,17 +941,26 @@ async function applyChanges() {
     progressText.textContent = 'Applying season settings...';
     await sleep(500);
 
-    currentStep++;
-    progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-    progressText.textContent = 'Updating team names...';
-    await sleep(500);
+    if (opts.teams) {
+      currentStep++;
+      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
+      progressText.textContent = 'Updating team names...';
+      await sleep(500);
 
-    currentStep++;
-    progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-    progressText.textContent = 'Reordering draft picks...';
+      currentStep++;
+      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
+      progressText.textContent = 'Reordering draft picks...';
+    }
 
-    // Apply all changes
-    const result = await window.electronAPI.retro.applyAllChanges(retroState.filePath, retroState.targetYear);
+    // Apply all changes - pass options so backend knows what to skip
+    const result = await window.electronAPI.retro.applyAllChanges(
+      retroState.filePath,
+      retroState.targetYear,
+      {
+        applyTeams: opts.teams,
+        applyAbbreviations: opts.abbreviations
+      }
+    );
 
     if (!result.success) {
       progressText.textContent = 'Error applying changes';
@@ -811,7 +969,7 @@ async function applyChanges() {
       return;
     }
 
-    // Apply schedule if available
+    // Apply schedule if enabled and available
     let scheduleResult = null;
     if (hasSchedule) {
       currentStep++;
@@ -895,6 +1053,20 @@ async function applyChanges() {
       }
     }
 
+    // Apply uniforms (always attempt - uses year mapping)
+    let uniformResult = null;
+    currentStep++;
+    progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
+    progressText.textContent = 'Setting era-appropriate uniforms...';
+    await sleep(300);
+
+    try {
+      uniformResult = await window.electronAPI.retro.applyUniforms(retroState.targetYear);
+    } catch (uniformError) {
+      console.warn('[RetroEditor] Uniform application failed:', uniformError);
+      // Continue - uniforms are optional
+    }
+
     progressBar.style.width = '100%';
     await sleep(300);
 
@@ -949,6 +1121,13 @@ async function applyChanges() {
       resultItems.push(`<li>${schemeResult.data.schemesUpdated || 0} team scheme(s) updated</li>`);
     } else if (hasSchemes && (!schemeResult || !schemeResult.success)) {
       resultItems.push(`<li style="color: var(--warning-color);">Team schemes could not be updated (optional)</li>`);
+    }
+
+    // Add uniform result
+    if (uniformResult && uniformResult.success) {
+      resultItems.push(`<li>${uniformResult.data.uniformsApplied || 0} team uniform(s) set</li>`);
+    } else if (uniformResult && !uniformResult.success) {
+      resultItems.push(`<li style="color: var(--warning-color);">Uniforms could not be updated (optional)</li>`);
     }
 
     resultsSummary.innerHTML = `<ul>${resultItems.join('')}</ul>`;
@@ -1078,7 +1257,14 @@ async function restartRetroWizard() {
     salaryCapData: null,
     stadiumPreview: null,
     schemePreview: null,
-    applyResult: null
+    applyResult: null,
+    // User-selected options (reset to defaults)
+    options: {
+      teams: true,
+      abbreviations: true,
+      schedule: true,
+      logos: false
+    }
   };
 
   // Reset UI
@@ -1122,6 +1308,10 @@ async function restartRetroWizard() {
   const schemeDetailsDiv = document.getElementById('retro-scheme-details');
   if (schemeDetailsDiv) schemeDetailsDiv.style.display = 'none';
 
+  // Reset uniform preview UI
+  const uniformInfoDiv = document.getElementById('retro-uniform-info');
+  if (uniformInfoDiv) uniformInfoDiv.style.display = 'none';
+
   // Reset portrait preview UI
   document.getElementById('preview-portrait-needed').textContent = '--';
   document.getElementById('preview-real-portraits').textContent = '--';
@@ -1129,6 +1319,18 @@ async function restartRetroWizard() {
   if (portraitStatusDiv) portraitStatusDiv.innerHTML = '<p class="no-changes">Select a year to see portrait requirements</p>';
   const portraitDetailsDiv = document.getElementById('retro-portrait-details');
   if (portraitDetailsDiv) portraitDetailsDiv.style.display = 'none';
+
+  // Reset logo preview UI
+  const logoTeamsNeedingSpan = document.getElementById('logo-teams-needing');
+  if (logoTeamsNeedingSpan) logoTeamsNeedingSpan.textContent = '--';
+  const logoImportedCountSpan = document.getElementById('logo-imported-count');
+  if (logoImportedCountSpan) logoImportedCountSpan.textContent = '--';
+  const logoStatusDiv = document.getElementById('logo-status');
+  if (logoStatusDiv) logoStatusDiv.innerHTML = '<p class="no-changes">Select a year to see logo requirements.</p>';
+  const logoTeamsDetails = document.getElementById('logo-teams-details');
+  if (logoTeamsDetails) logoTeamsDetails.style.display = 'none';
+  const exportLogosBtn = document.getElementById('btn-export-logos-frosty');
+  if (exportLogosBtn) exportLogosBtn.disabled = true;
 
   const saveBtn = document.getElementById('retro-save-file');
   saveBtn.disabled = false;
@@ -1615,10 +1817,449 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-import-roster-portraits')?.addEventListener('click', importRosterPortraits);
     document.getElementById('btn-auto-assign-race')?.addEventListener('click', autoAssignByRace);
     document.getElementById('btn-export-frosty')?.addEventListener('click', exportForFrosty);
+
+    // Logo manager buttons
+    document.getElementById('btn-export-logos-frosty')?.addEventListener('click', exportLogosForFrosty);
+    document.getElementById('btn-export-logos-mft')?.addEventListener('click', exportLogosForMFT);
+
+    // Logo scraper buttons
+    document.getElementById('btn-scrape-all-logos')?.addEventListener('click', scrapeAllLogos);
+    document.getElementById('btn-view-scraped-logos')?.addEventListener('click', viewScrapedLogos);
   }
 });
+
+// ============================================
+// Logo Manager Functions
+// ============================================
+
+/**
+ * Load logo preview for the selected year
+ */
+async function loadLogoPreview() {
+  try {
+    if (!retroState.targetYear) return;
+
+    const statusDiv = document.getElementById('logo-status');
+    const teamsDetailsDiv = document.getElementById('logo-teams-details');
+    const teamsNeedingSpan = document.getElementById('logo-teams-needing');
+    const importedCountSpan = document.getElementById('logo-imported-count');
+    const exportBtn = document.getElementById('btn-export-logos-frosty');
+    const exportMftBtn = document.getElementById('btn-export-logos-mft');
+
+    statusDiv.innerHTML = '<p class="no-changes">Loading logo data...</p>';
+
+    // Get teams for this year
+    const teamsResult = await window.electronAPI.logo.getTeamsForYear(retroState.targetYear);
+
+    if (!teamsResult.success) {
+      statusDiv.innerHTML = `<p class="no-changes" style="color: var(--error-color);">Error: ${teamsResult.error}</p>`;
+      return;
+    }
+
+    const teams = teamsResult.teams || [];
+    const teamsNeedingLogos = teams.filter(t => t.needsCustomLogo && t.abbreviation !== 'NFL');
+
+    // Get logo summary
+    const summaryResult = await window.electronAPI.logo.getSummary();
+    const summary = summaryResult.success ? summaryResult.summary : { totalLogos: 0 };
+
+    // Update stats
+    teamsNeedingSpan.textContent = teamsNeedingLogos.length;
+    importedCountSpan.textContent = summary.totalLogos;
+
+    if (teamsNeedingLogos.length > 0) {
+      statusDiv.innerHTML = `
+        <div style="color: var(--warning-color);">
+          <strong>${teamsNeedingLogos.length} team(s) need custom logos</strong><br>
+          <span style="font-size: 0.9em; color: var(--text-secondary);">
+            These teams have different abbreviations than current and need retro logos for MFT.
+          </span>
+        </div>
+      `;
+
+      // Show teams table
+      teamsDetailsDiv.style.display = '';
+      document.getElementById('logo-teams-count').textContent = teamsNeedingLogos.length;
+
+      // Populate table
+      const tbody = document.getElementById('logo-teams-body');
+      tbody.innerHTML = '';
+
+      for (const team of teamsNeedingLogos) {
+        const logos = await window.electronAPI.logo.getLogosForTeam(team.abbreviation);
+        const hasPrimary = logos.success && logos.logos && logos.logos.primary;
+        const hasHelmet = logos.success && logos.logos && logos.logos.helmet;
+
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid var(--border-color)';
+
+        const checkIcon = '&#9989;';
+        const emptyIcon = '&#9744;';
+
+        row.innerHTML = `
+          <td style="padding: 6px; font-weight: bold;">${team.abbreviation}</td>
+          <td style="padding: 6px;">${team.yearCity} ${team.yearName}</td>
+          <td style="padding: 6px; text-align: center; color: ${hasPrimary ? 'var(--success-color)' : 'var(--text-secondary)'};">
+            ${hasPrimary ? checkIcon : emptyIcon}
+          </td>
+          <td style="padding: 6px; text-align: center; color: ${hasHelmet ? 'var(--success-color)' : 'var(--text-secondary)'};">
+            ${hasHelmet ? checkIcon : emptyIcon}
+          </td>
+          <td style="padding: 6px; text-align: center;">
+            <button class="btn btn-secondary btn-sm" onclick="importLogoForTeam('${team.abbreviation}', 'primary')" style="font-size: 0.7rem; padding: 2px 6px;">
+              Import
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      }
+
+      // Enable export buttons if any logos exist
+      const hasLogos = summary.totalLogos > 0;
+      exportBtn.disabled = !hasLogos;
+      if (exportMftBtn) exportMftBtn.disabled = !hasLogos;
+    } else {
+      statusDiv.innerHTML = `
+        <p class="no-changes" style="color: var(--success-color);">No custom logos needed for ${retroState.targetYear}!</p>
+        <p style="font-size: 0.85em; color: var(--text-secondary);">All teams use their current abbreviations.</p>
+      `;
+      teamsDetailsDiv.style.display = 'none';
+      exportBtn.disabled = true;
+      if (exportMftBtn) exportMftBtn.disabled = true;
+    }
+
+    // Load all abbreviations
+    await loadAllAbbreviations();
+
+  } catch (error) {
+    console.error('[RetroEditor] Error loading logo preview:', error);
+    document.getElementById('logo-status').innerHTML = `
+      <p class="no-changes" style="color: var(--error-color);">Error: ${error.message}</p>
+    `;
+  }
+}
+
+/**
+ * Load all historical abbreviations that need logos
+ */
+async function loadAllAbbreviations() {
+  try {
+    const result = await window.electronAPI.logo.getAbbreviationsNeedingLogos();
+
+    if (!result.success) {
+      console.error('[RetroEditor] Failed to get abbreviations:', result.error);
+      return;
+    }
+
+    const abbreviations = result.abbreviations || [];
+    const listDiv = document.getElementById('logo-all-abbrev-list');
+
+    if (abbreviations.length === 0) {
+      listDiv.innerHTML = '<p class="no-changes">No historical abbreviations found.</p>';
+      return;
+    }
+
+    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;">';
+
+    for (const abbr of abbreviations) {
+      // Check if logos exist for this abbreviation
+      const logosResult = await window.electronAPI.logo.getLogosForTeam(abbr.abbreviation);
+      const hasLogos = logosResult.success && logosResult.logos && Object.keys(logosResult.logos).length > 0;
+
+      html += `
+        <div style="background: var(--bg-secondary); padding: 8px; border-radius: 4px; border-left: 3px solid ${hasLogos ? 'var(--success-color)' : 'var(--border-color)'};">
+          <strong style="font-size: 1.1em;">${abbr.abbreviation}</strong>
+          <div style="font-size: 0.8em; color: var(--text-secondary);">
+            ${abbr.teams.join(', ')}
+          </div>
+          <div style="font-size: 0.75em; color: var(--text-secondary); margin-top: 4px;">
+            ${abbr.yearRanges.join(', ')}
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="importLogoForTeam('${abbr.abbreviation}', 'primary')" style="font-size: 0.7rem; padding: 2px 6px; margin-top: 6px;">
+            ${hasLogos ? 'Update Logo' : 'Import Logo'}
+          </button>
+        </div>
+      `;
+    }
+
+    html += '</div>';
+    listDiv.innerHTML = html;
+
+  } catch (error) {
+    console.error('[RetroEditor] Error loading abbreviations:', error);
+  }
+}
+
+/**
+ * Import a logo for a specific team abbreviation
+ */
+async function importLogoForTeam(abbreviation, logoType) {
+  try {
+    showRetroMessage(`Importing ${logoType} logo for ${abbreviation}...`, 'info');
+
+    const result = await window.electronAPI.logo.importLogo(abbreviation, logoType);
+
+    if (result.canceled) {
+      hideRetroMessage();
+      return;
+    }
+
+    if (result.success) {
+      showRetroMessage(`Logo imported successfully for ${abbreviation}!`, 'success');
+      // Refresh logo preview
+      await loadLogoPreview();
+    } else {
+      showRetroMessage(`Failed to import logo: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error importing logo:', error);
+    showRetroMessage(`Error: ${error.message}`, 'error');
+  }
+}
+
+/**
+ * Export logos for Frosty
+ */
+async function exportLogosForFrosty() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-export-logos-frosty');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Exporting...';
+
+  try {
+    const result = await window.electronAPI.logo.exportForFrosty(retroState.targetYear);
+
+    if (result.canceled) {
+      showRetroMessage('Export canceled', 'info');
+      return;
+    }
+
+    if (result.success) {
+      const filesCreated = result.filesCreated?.length || 0;
+      const filesSkipped = result.filesSkipped?.length || 0;
+
+      let message = `Exported ${filesCreated} logo file(s) to: ${result.outputPath}`;
+      if (filesSkipped > 0) {
+        message += ` (${filesSkipped} team(s) skipped - no logos)`;
+      }
+      showRetroMessage(message, 'success');
+    } else {
+      showRetroMessage(`Export failed: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Export error:', error);
+    showRetroMessage(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+/**
+ * Export logos for MFT
+ */
+async function exportLogosForMFT() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-export-logos-mft');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Exporting...';
+
+  try {
+    const result = await window.electronAPI.logo.exportForMFT(retroState.targetYear);
+
+    if (result.canceled) {
+      return;
+    }
+
+    if (result.success) {
+      const filesCreated = result.filesCreated?.length || 0;
+      const filesSkipped = result.filesSkipped?.length || 0;
+
+      let message = `Exported ${filesCreated} MFT logo file(s) to: ${result.outputPath}`;
+      if (filesSkipped > 0) {
+        message += ` (${filesSkipped} team(s) skipped - no logos)`;
+      }
+      showRetroMessage(message, 'success');
+    } else {
+      showRetroMessage(`MFT export failed: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] MFT export error:', error);
+    showRetroMessage(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+// ============================================
+// Logo Download Functions (SportsLogos.net)
+// ============================================
+
+/**
+ * Download logos from SportsLogos.net for the selected year
+ */
+async function scrapeAllLogos() {
+  if (!retroState.targetYear) {
+    showRetroMessage('Please select a year first', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-scrape-all-logos');
+  const progressDiv = document.getElementById('scrape-progress');
+  const progressBar = document.getElementById('scrape-progress-bar');
+  const progressText = document.getElementById('scrape-progress-text');
+
+  try {
+    btn.disabled = true;
+    btn.textContent = 'Downloading...';
+    progressDiv.style.display = 'block';
+    progressBar.style.width = '0%';
+    progressText.textContent = 'Getting team list...';
+
+    // Get teams for this year
+    const teamsResult = await window.electronAPI.logo.getTeamsForYear(retroState.targetYear);
+
+    if (!teamsResult.success) {
+      showRetroMessage(`Error: ${teamsResult.error}`, 'error');
+      return;
+    }
+
+    const teams = teamsResult.teams || [];
+    // Get teams that need custom logos (different abbreviation)
+    const teamsNeedingLogos = teams.filter(t => t.needsCustomLogo && t.abbreviation !== 'NFL');
+    const abbreviations = teamsNeedingLogos.map(t => t.abbreviation);
+
+    if (abbreviations.length === 0) {
+      showRetroMessage('No teams need custom logos for this year.', 'info');
+      return;
+    }
+
+    console.log(`[RetroEditor] Downloading logos for ${abbreviations.length} teams:`, abbreviations);
+    progressText.textContent = `Downloading ${abbreviations.length} team logos...`;
+
+    // Scrape logos
+    const results = await window.electronAPI.logo.scrapeForYear(retroState.targetYear, abbreviations);
+
+    if (!results.success) {
+      showRetroMessage(`Scraping failed: ${results.error}`, 'error');
+      return;
+    }
+
+    // Update progress
+    progressBar.style.width = '100%';
+
+    // Count results
+    const successful = results.results.filter(r => r.success).length;
+    const failed = results.results.filter(r => !r.success).length;
+
+    // Display results
+    const scrapedList = document.getElementById('scraped-logos-list');
+    scrapedList.style.display = 'block';
+    scrapedList.innerHTML = `
+      <div style="margin-bottom: 8px; font-size: 0.85rem;">
+        <strong>Results:</strong> ${successful} succeeded, ${failed} failed
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px;">
+        ${results.results.map(r => `
+          <div style="text-align: center; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+            <div style="font-weight: bold; font-size: 0.9rem; color: ${r.success ? 'var(--success-color)' : 'var(--error-color)'};">
+              ${r.abbreviation}
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-secondary);">
+              ${r.success ? '✓' : '✗'}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    progressText.textContent = `Done! ${successful}/${abbreviations.length} logos downloaded.`;
+    showRetroMessage(`Downloaded ${successful}/${abbreviations.length} logos successfully!`, 'success');
+
+    // Refresh logo preview
+    await loadLogoPreview();
+
+  } catch (error) {
+    console.error('[RetroEditor] Scrape error:', error);
+    showRetroMessage(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download Logos';
+  }
+}
+
+/**
+ * View downloaded/scraped logos
+ */
+async function viewScrapedLogos() {
+  const scrapedList = document.getElementById('scraped-logos-list');
+
+  try {
+    const result = await window.electronAPI.logo.listDownloaded();
+
+    if (!result.success) {
+      scrapedList.innerHTML = `<p style="color: var(--error-color);">Error: ${result.error}</p>`;
+      scrapedList.style.display = 'block';
+      return;
+    }
+
+    const logos = result.logos || [];
+
+    if (logos.length === 0) {
+      scrapedList.innerHTML = '<p style="color: var(--text-secondary);">No logos downloaded yet.</p>';
+      scrapedList.style.display = 'block';
+      return;
+    }
+
+    scrapedList.style.display = 'block';
+    scrapedList.innerHTML = `
+      <div style="margin-bottom: 8px; font-size: 0.85rem;">
+        <strong>Downloaded Logos:</strong> ${logos.length}
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+        ${logos.map(abbr => `
+          <span style="display: inline-block; padding: 4px 8px; background: var(--bg-tertiary); border-radius: 4px; font-size: 0.8rem;">
+            ${abbr}
+          </span>
+        `).join('')}
+      </div>
+    `;
+
+  } catch (error) {
+    console.error('[RetroEditor] Error viewing scraped logos:', error);
+    scrapedList.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+    scrapedList.style.display = 'block';
+  }
+}
+
+/**
+ * Enable/disable scrape button based on year selection
+ */
+function updateScrapeButtonState() {
+  const btn = document.getElementById('btn-scrape-all-logos');
+  if (btn) {
+    btn.disabled = !retroState.targetYear;
+  }
+}
 
 // Export for use by other modules
 window.initRetroEditor = initRetroEditor;
 window.debugTeamTable = debugTeamTable;
 window.refreshPortraitAssignments = refreshPortraitAssignments;
+window.importLogoForTeam = importLogoForTeam;
+window.exportLogosForFrosty = exportLogosForFrosty;
+window.loadLogoPreview = loadLogoPreview;
+window.scrapeAllLogos = scrapeAllLogos;
+window.viewScrapedLogos = viewScrapedLogos;
+window.exportLogosForMFT = exportLogosForMFT;

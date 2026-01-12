@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 import { lookupService } from './lookup-service';
+import { userDatabaseService } from './UserDatabaseService';
 
 // madden-franchise provides both CJS and ESM builds
 // We need to use the named 'create' export for the static factory method
@@ -39,7 +40,7 @@ const TABLE_IDS = {
   teamTable: 637929298,
   draftPickTable: 2546719563,
   scheduleTable: 1395485428,
-  gameTable: 1607878349, // SeasonGame table - verified with check-table-ids.js
+  gameTable: 2816609684,
 
   // Additional useful tables
   playerTable: 432457634,
@@ -193,6 +194,7 @@ interface HistoricalTeam {
   teamIndex: number;
   currentName: string;
   currentCity: string;
+  currentAbbreviation?: string;
   changes: TeamChange[];
   expansionYear?: number;
   note?: string;
@@ -618,18 +620,29 @@ export class RetroEditorService {
         continue;
       }
 
-      // Skip if no changes needed (check city, name, AND abbreviation)
-      const currentAbbr = team.currentAbbreviation || '';
-      const changeAbbr = change.abbreviation || '';
-      const needsUpdate = change.city !== team.currentCity ||
-                          change.name !== team.currentName ||
-                          (changeAbbr && changeAbbr !== currentAbbr);
+      // Get current values from the franchise file (what's actually in the file now)
+      const franchiseCity = teamRecord.LongName || '';
+      const franchiseName = teamRecord.DisplayName || teamRecord.NickName || '';
+      const franchiseAbbr = teamRecord.ShortName || '';
+
+      // Get target values for this year
+      const targetCity = change.city || '';
+      const targetName = change.name || '';
+      const targetAbbr = change.abbreviation || '';
+
+      // Check if any field needs updating (compare franchise file vs target year)
+      const needsUpdate = targetCity !== franchiseCity ||
+                          targetName !== franchiseName ||
+                          targetAbbr !== franchiseAbbr;
+
+      console.log(`[RetroEditorService] TeamIndex ${teamIndex} (${team.currentName}): franchise=[${franchiseCity}|${franchiseName}|${franchiseAbbr}] target=[${targetCity}|${targetName}|${targetAbbr}] needsUpdate=${needsUpdate}`);
+
       if (!needsUpdate) {
         continue;
       }
 
-      const originalCity = teamRecord.DisplayName || teamRecord.LongName?.split(' ')[0] || team.currentCity;
-      const originalName = teamRecord.NickName || teamRecord.ShortName || team.currentName;
+      const originalCity = franchiseCity || team.currentCity;
+      const originalName = franchiseName || team.currentName;
 
       console.log(`[RetroEditorService] Applying change to TeamIndex ${teamIndex}: ${originalCity} ${originalName} -> ${change.city} ${change.name}`);
 
@@ -873,11 +886,12 @@ export class RetroEditorService {
    */
   async getSchedulePreview(filePath: string, year: number): Promise<{
     available: boolean;
-    gameCount: number;
+    totalGames: number;
     regularSeasonWeeks: number;
     byeWeeks: boolean;
     seasonLength: number;
-    warnings: string[];
+    gamesByWeek: Record<number, Array<{ homeTeam: string; awayTeam: string }>>;
+    validation: { warnings: string[]; errors: string[] };
   }> {
     // Import schedule service dynamically to avoid circular dependencies
     const { scheduleService } = await import('./ScheduleService');
@@ -891,11 +905,12 @@ export class RetroEditorService {
     if (!hasSchedule) {
       return {
         available: false,
-        gameCount: 0,
+        totalGames: 0,
         regularSeasonWeeks: era?.regularSeasonWeeks || 17,
         byeWeeks: era?.byeWeeks || false,
         seasonLength: era?.seasonLength || 16,
-        warnings: [`No schedule data available for ${year}`]
+        gamesByWeek: {},
+        validation: { warnings: [`No schedule data available for ${year}`], errors: [] }
       };
     }
 
@@ -903,24 +918,40 @@ export class RetroEditorService {
     if (!schedule) {
       return {
         available: false,
-        gameCount: 0,
+        totalGames: 0,
         regularSeasonWeeks: era?.regularSeasonWeeks || 17,
         byeWeeks: era?.byeWeeks || false,
         seasonLength: era?.seasonLength || 16,
-        warnings: [`Failed to load schedule for ${year}`]
+        gamesByWeek: {},
+        validation: { warnings: [`Failed to load schedule for ${year}`], errors: [] }
       };
     }
 
     // Validate the schedule
-    const validation = scheduleService.validateScheduleForYear(schedule, year);
+    const validationResult = scheduleService.validateScheduleForYear(schedule, year);
+
+    // Group games by week for preview display
+    const gamesByWeek: Record<number, Array<{ homeTeam: string; awayTeam: string }>> = {};
+    for (const game of schedule.games) {
+      if (game.weekType === 'regular') {
+        if (!gamesByWeek[game.week]) {
+          gamesByWeek[game.week] = [];
+        }
+        gamesByWeek[game.week].push({
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam
+        });
+      }
+    }
 
     return {
       available: true,
-      gameCount: schedule.games.length,
+      totalGames: schedule.games.length,
       regularSeasonWeeks: schedule.regularSeasonWeeks || 17,
       byeWeeks: schedule.byeWeeksEnabled,
       seasonLength: schedule.seasonLength,
-      warnings: [...validation.warnings, ...validation.errors]
+      gamesByWeek,
+      validation: { warnings: validationResult.warnings, errors: validationResult.errors }
     };
   }
 
@@ -1169,8 +1200,11 @@ export class RetroEditorService {
                 const franchiseRecord = franchiseGames[i];
                 // Mark as OffSeason so Madden won't try to simulate during regular season
                 // (2011 Throwback uses OffSeason=8 for weeks beyond regular season)
-                // Use string enum value - madden-franchise expects "OffSeason" not 8
+                // CRITICAL: Must also set null team refs (all zeros) - this is what 2011 mod does
                 setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
+                franchiseRecord.HomeTeam = '00000000000000000000000000000000';
+                franchiseRecord.AwayTeam = '00000000000000000000000000000000';
+                franchiseRecord.GameStatus = 'Unplayed';
                 gamesUpdated++;
               } catch (gameErr: any) {
                 console.error(`[RetroEditorService] Error marking game ${i} in week ${maddenWeekNum} as OffSeason:`, gameErr.message);
@@ -1233,8 +1267,11 @@ export class RetroEditorService {
             try {
               const franchiseRecord = franchiseGames[i];
               // Mark as OffSeason so Madden won't try to simulate during regular season
-              // Use string enum value - madden-franchise expects "OffSeason" not 8
+              // CRITICAL: Must also set null team refs (all zeros) - this is what 2011 mod does
               setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
+              franchiseRecord.HomeTeam = '00000000000000000000000000000000';
+              franchiseRecord.AwayTeam = '00000000000000000000000000000000';
+              franchiseRecord.GameStatus = 'Unplayed';
               gamesUpdated++;
             } catch (gameErr: any) {
               console.error(`[RetroEditorService] Error marking extra slot ${i} in week ${maddenWeekNum} as OffSeason:`, gameErr.message);
@@ -1251,230 +1288,178 @@ export class RetroEditorService {
 
     console.log(`[RetroEditorService] Updated ${gamesUpdated} regular season games`);
 
-    // ====== APPLY HISTORICAL PRESEASON SCHEDULE ======
-    // SIMPLIFIED APPROACH: Don't sort slots by current teams - just apply historical games directly
-    // The current team matchups in M26 are irrelevant; we're replacing them entirely.
+    // ====== PRESEASON HANDLING ======
+    // IMPORTANT: Do NOT modify preseason - keep Madden's default preseason structure
+    // This approach is proven to work (tested with 2011, 1994, 1980, 1975 schedules)
+    // The schedule JSON files have preseason data but we intentionally skip it
     let preseasonGamesApplied = 0;
-    if (preseasonByWeek.size > 0) {
+    const SKIP_PRESEASON = true; // Set to false only if you want to apply historical preseason
+    if (!SKIP_PRESEASON && preseasonByWeek.size > 0) {
       console.log(`[RetroEditorService] ====== APPLYING PRESEASON SCHEDULE ======`);
 
-      // Determine inactive teams for this year (for diagnostic purposes)
-      const inactiveTeams = new Set<number>();
-      for (const team of this.expansionHistory) {
-        if (team.year > year) {
-          inactiveTeams.add(team.teamIndex);
-        }
+      // Flatten all historical preseason games into a single array
+      const allHistoricalPreseasonGames: typeof schedule.games = [];
+      const sortedWeeks = [...preseasonByWeek.keys()].sort((a, b) => a - b);
+      for (const week of sortedWeeks) {
+        const gamesThisWeek = preseasonByWeek.get(week) || [];
+        allHistoricalPreseasonGames.push(...gamesThisWeek);
       }
-      if (year >= 1996 && year <= 1998) {
-        inactiveTeams.add(4); // Browns 1996-1998
-      }
-      console.log(`[RetroEditorService] Inactive teams for ${year}: ${[...inactiveTeams].join(', ')}`);
+      console.log(`[RetroEditorService] Total historical preseason games: ${allHistoricalPreseasonGames.length}`);
+      console.log(`[RetroEditorService] Historical preseason weeks: ${sortedWeeks.join(', ')}`);
 
-      // Collect ALL franchise preseason game records by week (don't filter by current teams!)
-      const franchisePreseasonByWeek = new Map<number, any[]>();
+      // Madden 26 preseason structure: 3 weeks (0, 1, 2), max 16 games per week = 48 total slots
+      const MADDEN_PRESEASON_WEEKS = 3;
+      const MAX_PRESEASON_GAMES = 48;
 
-      for (const record of gameTable.records) {
-        if (record.isEmpty) continue;
+      // Calculate actual games per week from the schedule (may be less than 16 for years with fewer teams)
+      const gamesPerHistoricalWeek = sortedWeeks.length > 0
+        ? Math.ceil(allHistoricalPreseasonGames.length / sortedWeeks.length)
+        : 16;
+      console.log(`[RetroEditorService] Historical games per week: ${gamesPerHistoricalWeek}`);
+      console.log(`[RetroEditorService] Historical weeks: ${sortedWeeks.length}, Madden weeks: ${MADDEN_PRESEASON_WEEKS}`);
 
-        const weekType = getGameField(record, 'SeasonWeekType');
-        const isPreseason = weekType === 0 || weekType === SEASON_WEEK_TYPES.PreSeason || weekType === 'PreSeason';
-        if (!isPreseason) continue;
-
-        const weekNum = getGameField(record, 'SeasonWeek');
-        if (weekNum === undefined || weekNum === null) continue;
-
-        if (!franchisePreseasonByWeek.has(weekNum)) {
-          franchisePreseasonByWeek.set(weekNum, []);
-        }
-        franchisePreseasonByWeek.get(weekNum)!.push(record);
-      }
-
-      const franchisePreseasonWeeks = [...franchisePreseasonByWeek.keys()].sort((a, b) => a - b);
-      const historicalPreseasonWeeks = [...preseasonByWeek.keys()].sort((a, b) => a - b);
-
-      console.log(`[RetroEditorService] Franchise preseason weeks: ${franchisePreseasonWeeks.join(', ')}`);
-      console.log(`[RetroEditorService] Slots per week: ${franchisePreseasonWeeks.map(w => `W${w}=${franchisePreseasonByWeek.get(w)?.length || 0}`).join(', ')}`);
-      console.log(`[RetroEditorService] Historical preseason weeks: ${historicalPreseasonWeeks.join(', ')}`);
-      console.log(`[RetroEditorService] Historical games per week: ${historicalPreseasonWeeks.map(w => `W${w}=${preseasonByWeek.get(w)?.length || 0}`).join(', ')}`);
-
-      // Determine week offset: Historical uses 1-indexed (1,2,3,4), Madden might use 0-indexed (0,1,2,3)
-      let weekOffset = 0;
-      if (franchisePreseasonWeeks.includes(0) && !franchisePreseasonWeeks.includes(4)) {
-        weekOffset = -1; // Madden uses 0,1,2,3 so historical 1 -> Madden 0
-        console.log(`[RetroEditorService] Detected 0-indexed Madden weeks, using offset ${weekOffset}`);
-      } else if (franchisePreseasonWeeks.includes(1) && franchisePreseasonWeeks.includes(4)) {
-        weekOffset = 0; // Madden uses 1,2,3,4 directly
-        console.log(`[RetroEditorService] Detected 1-indexed Madden weeks, using offset ${weekOffset}`);
-      } else {
-        console.log(`[RetroEditorService] Week indexing unclear, will try both approaches`);
-      }
-
-      // CRITICAL: Madden 26 only has 3 preseason weeks (0,1,2) but historical years had 4 weeks
-      // We need to convert OffSeason slots to PreSeason for week 3 if needed
+      // STEP 1: Collect ALL preseason AND offseason slots (file may be corrupted from previous runs)
+      const allPreseasonSlots: any[] = [];
       const offSeasonSlots: any[] = [];
       for (const record of gameTable.records) {
         if (record.isEmpty) continue;
         const weekType = getGameField(record, 'SeasonWeekType');
+        const isPreseason = weekType === 0 || weekType === SEASON_WEEK_TYPES.PreSeason || weekType === 'PreSeason';
         const isOffSeason = weekType === 8 || weekType === 'OffSeason';
-        if (isOffSeason) {
+        if (isPreseason) {
+          allPreseasonSlots.push(record);
+        } else if (isOffSeason) {
           offSeasonSlots.push(record);
         }
       }
-      console.log(`[RetroEditorService] Found ${offSeasonSlots.length} OffSeason slots available for conversion`);
+      console.log(`[RetroEditorService] Found ${allPreseasonSlots.length} PreSeason + ${offSeasonSlots.length} OffSeason slots`);
 
-      // Apply historical preseason games
-      for (const [historicalWeekNum, historicalGames] of preseasonByWeek) {
-        // Try to find matching franchise week
-        let maddenWeekNum = historicalWeekNum + weekOffset;
-        let franchiseSlots = franchisePreseasonByWeek.get(maddenWeekNum);
-
-        // If not found with offset, try direct match
-        if (!franchiseSlots && weekOffset !== 0) {
-          franchiseSlots = franchisePreseasonByWeek.get(historicalWeekNum);
-          if (franchiseSlots) {
-            maddenWeekNum = historicalWeekNum;
-            console.log(`[RetroEditorService] Using direct match for week ${historicalWeekNum}`);
-          }
+      // STEP 2: Reset ALL preseason slots to OffSeason first (clean slate)
+      for (const slot of allPreseasonSlots) {
+        try {
+          slot.SeasonWeek = 0;
+          slot.Field_52 = 0;
+          setGameField(slot, 'SeasonWeekType', 'OffSeason');
+        } catch (err) {
+          // Ignore errors during reset
         }
+      }
+      console.log(`[RetroEditorService] Reset all ${allPreseasonSlots.length} preseason slots to OffSeason`);
 
-        // If still no slots, convert OffSeason slots to PreSeason for this week
-        if ((!franchiseSlots || franchiseSlots.length === 0) && offSeasonSlots.length >= historicalGames.length) {
-          console.log(`[RetroEditorService] Converting ${historicalGames.length} OffSeason slots to PreSeason week ${maddenWeekNum}`);
-          franchiseSlots = offSeasonSlots.splice(0, historicalGames.length);
-          // Set the week number on these slots
-          for (const slot of franchiseSlots) {
-            try {
-              setGameField(slot, 'SeasonWeek', maddenWeekNum);
-            } catch (err: any) {
-              console.warn(`[RetroEditorService] Could not set SeasonWeek: ${err.message}`);
+      // STEP 3: Now we have a clean pool - take exactly 48 slots for preseason
+      const availableSlots = [...allPreseasonSlots, ...offSeasonSlots].slice(0, MAX_PRESEASON_GAMES);
+      console.log(`[RetroEditorService] Using ${availableSlots.length} slots for preseason (max ${MAX_PRESEASON_GAMES})`);
+
+      // Limit historical games to what Madden can handle
+      const gamesToApply = allHistoricalPreseasonGames.slice(0, MAX_PRESEASON_GAMES);
+      if (allHistoricalPreseasonGames.length > MAX_PRESEASON_GAMES) {
+        console.log(`[RetroEditorService] Limiting to ${MAX_PRESEASON_GAMES} games (dropping ${allHistoricalPreseasonGames.length - MAX_PRESEASON_GAMES})`);
+      }
+
+      // Apply games to slots, setting the correct week for each
+      for (let i = 0; i < availableSlots.length; i++) {
+        const slot = availableSlots[i];
+
+        if (i < gamesToApply.length) {
+          // Apply historical game to this slot
+          const game = gamesToApply[i];
+
+          // Use the game's actual week from the schedule (convert to 0-indexed for Madden)
+          // Historical weeks are 1, 2, 3 -> Madden weeks 0, 1, 2
+          const maddenWeek = Math.min((game.week || 1) - 1, MADDEN_PRESEASON_WEEKS - 1);
+
+          const homeRecordIndex = teamIndexToRecordIndex.get(game.homeTeamIndex);
+          const awayRecordIndex = teamIndexToRecordIndex.get(game.awayTeamIndex);
+
+          // DEBUG: Log the mapping for first 10 games
+          if (i < 10) {
+            console.log(`[DEBUG] Game ${i}: ${game.awayTeam} (idx=${game.awayTeamIndex}) @ ${game.homeTeam} (idx=${game.homeTeamIndex})`);
+            console.log(`[DEBUG]   homeRecordIndex = teamIndexToRecordIndex.get(${game.homeTeamIndex}) = ${homeRecordIndex}`);
+            console.log(`[DEBUG]   awayRecordIndex = teamIndexToRecordIndex.get(${game.awayTeamIndex}) = ${awayRecordIndex}`);
+          }
+
+          if (homeRecordIndex !== undefined && awayRecordIndex !== undefined) {
+            const homeTeamRef = teamRefPrefix + homeRecordIndex.toString(2).padStart(8, '0');
+            const awayTeamRef = teamRefPrefix + awayRecordIndex.toString(2).padStart(8, '0');
+
+            // DEBUG: Log the references being created
+            if (i < 10) {
+              console.log(`[DEBUG]   homeTeamRef = ${homeTeamRef} (last 8: ${homeRecordIndex.toString(2).padStart(8, '0')})`);
+              console.log(`[DEBUG]   awayTeamRef = ${awayTeamRef} (last 8: ${awayRecordIndex.toString(2).padStart(8, '0')})`);
             }
-          }
-        }
 
-        // If we have some slots but not enough, supplement with OffSeason slots
-        if (franchiseSlots && franchiseSlots.length < historicalGames.length) {
-          const needed = historicalGames.length - franchiseSlots.length;
-          if (offSeasonSlots.length >= needed) {
-            console.log(`[RetroEditorService] Supplementing week ${maddenWeekNum} with ${needed} additional OffSeason slots`);
-            const additionalSlots = offSeasonSlots.splice(0, needed);
-            for (const slot of additionalSlots) {
-              try {
-                setGameField(slot, 'SeasonWeek', maddenWeekNum);
-              } catch (err: any) {
-                console.warn(`[RetroEditorService] Could not set SeasonWeek: ${err.message}`);
-              }
+            slot.HomeTeam = homeTeamRef;
+            slot.AwayTeam = awayTeamRef;
+            slot.SeasonWeek = maddenWeek;
+            slot.Field_52 = maddenWeek; // Generic field name backup
+            setGameField(slot, 'SeasonWeekType', 'PreSeason');
+            slot.GameStatus = 'Unplayed';
+
+            // VERIFY: Read back values immediately to confirm write
+            const verifyHome = slot.HomeTeam;
+            const verifyAway = slot.AwayTeam;
+            if (verifyHome !== homeTeamRef || verifyAway !== awayTeamRef) {
+              console.error(`[DEBUG] WRITE VERIFICATION FAILED for slot ${i} (record ${slot.index})!`);
+              console.error(`[DEBUG]   HomeTeam: wrote ${homeTeamRef}, read back ${verifyHome}`);
+              console.error(`[DEBUG]   AwayTeam: wrote ${awayTeamRef}, read back ${verifyAway}`);
+            } else if (i < 10) {
+              console.log(`[DEBUG]   Write verified OK for slot ${i} (record ${slot.index})`);
             }
-            franchiseSlots = [...franchiseSlots, ...additionalSlots];
-          }
-        }
 
-        if (!franchiseSlots || franchiseSlots.length === 0) {
-          console.warn(`[RetroEditorService] No franchise preseason slots for week ${maddenWeekNum} (historical ${historicalWeekNum})`);
-          continue;
-        }
+            preseasonGamesApplied++;
+            gamesUpdated++;
 
-        console.log(`[RetroEditorService] Preseason Week ${historicalWeekNum} (Madden ${maddenWeekNum}): ${historicalGames.length} historical games, ${franchiseSlots.length} franchise slots`);
-
-        // Apply historical games to franchise slots
-        // Historical games (e.g., 14 for 28-team era) go to first N slots
-        // Remaining slots (e.g., 2 for 32-team franchise) get marked as OffSeason
-        for (let i = 0; i < franchiseSlots.length; i++) {
-          const franchiseRecord = franchiseSlots[i];
-
-          if (i < historicalGames.length) {
-            // Apply historical game
-            const historicalGame = historicalGames[i];
-            const homeRecordIndex = teamIndexToRecordIndex.get(historicalGame.homeTeamIndex);
-            const awayRecordIndex = teamIndexToRecordIndex.get(historicalGame.awayTeamIndex);
-
-            if (homeRecordIndex !== undefined && awayRecordIndex !== undefined) {
-              const homeTeamRef = teamRefPrefix + homeRecordIndex.toString(2).padStart(8, '0');
-              const awayTeamRef = teamRefPrefix + awayRecordIndex.toString(2).padStart(8, '0');
-
-              franchiseRecord.HomeTeam = homeTeamRef;
-              franchiseRecord.AwayTeam = awayTeamRef;
-              // Ensure it's marked as PreSeason (in case it was changed)
-              setGameField(franchiseRecord, 'SeasonWeekType', 'PreSeason');
-              // Reset GameStatus to Unplayed (important: existing slots may have been simmed)
-              franchiseRecord.GameStatus = 'Unplayed';
-              preseasonGamesApplied++;
-              gamesUpdated++;
-
-              // Log first few and last few for verification
-              if (preseasonGamesApplied <= 3 || i === historicalGames.length - 1) {
-                console.log(`[RetroEditorService] Preseason W${historicalWeekNum} G${i + 1}: ${historicalGame.awayTeam} @ ${historicalGame.homeTeam}`);
-              }
-            } else {
-              console.warn(`[RetroEditorService] Could not get team refs for: ${historicalGame.awayTeam} @ ${historicalGame.homeTeam}`);
+            // Log first few games per week for verification
+            if (i < 6) {
+              console.log(`[RetroEditorService] Preseason W${maddenWeek}: ${game.awayTeam} @ ${game.homeTeam}`);
             }
           } else {
-            // Mark extra slot as OffSeason (franchise has more slots than historical games)
-            try {
-              setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
-              gamesUpdated++;
-              if (i === historicalGames.length) {
-                console.log(`[RetroEditorService] Marked slots ${historicalGames.length + 1}-${franchiseSlots.length} as OffSeason for week ${maddenWeekNum}`);
-              }
-            } catch (err: any) {
-              console.warn(`[RetroEditorService] Could not mark slot ${i} as OffSeason: ${err.message}`);
-            }
+            console.warn(`[RetroEditorService] Could not resolve teams: ${game.awayTeam} (idx=${game.awayTeamIndex}, rec=${awayRecordIndex}) @ ${game.homeTeam} (idx=${game.homeTeamIndex}, rec=${homeRecordIndex})`);
+          }
+        } else {
+          // Mark unused preseason slot as Invalid_ with null team refs
+          // CRITICAL: Keep SeasonWeekType as PreSeason, just set GameStatus to Invalid_
+          // This matches how the working 2011 mod handles unused preseason slots
+          try {
+            slot.GameStatus = 'Invalid_';
+            slot.HomeTeam = '00000000000000000000000000000000';
+            slot.AwayTeam = '00000000000000000000000000000000';
+            slot.SeasonWeek = 0;
+            gamesUpdated++;
+          } catch (err: any) {
+            // Ignore
           }
         }
       }
 
-      console.log(`[RetroEditorService] Applied ${preseasonGamesApplied} preseason games`);
+      console.log(`[RetroEditorService] Applied ${preseasonGamesApplied} preseason games across ${MADDEN_PRESEASON_WEEKS} weeks`);
 
-      // Diagnostic: Count games per team after preseason application
-      const teamGameCount: Record<number, number> = {};
+      // Diagnostic: Log final preseason week distribution
+      const weekDistribution: Record<number, number> = {};
       for (const record of gameTable.records) {
         if (record.isEmpty) continue;
         const weekType = getGameField(record, 'SeasonWeekType');
         const isPreseason = weekType === 0 || weekType === SEASON_WEEK_TYPES.PreSeason || weekType === 'PreSeason';
         if (!isPreseason) continue;
-
-        const homeTeam = record.HomeTeam;
-        const awayTeam = record.AwayTeam;
-
-        for (const [tIndex, rIndex] of teamIndexToRecordIndex.entries()) {
-          const expectedRef = teamRefPrefix + rIndex.toString(2).padStart(8, '0');
-          if (homeTeam === expectedRef || awayTeam === expectedRef) {
-            teamGameCount[tIndex] = (teamGameCount[tIndex] || 0) + 1;
-          }
-        }
+        const week = getGameField(record, 'SeasonWeek') ?? record.SeasonWeek ?? record.Field_52;
+        weekDistribution[week] = (weekDistribution[week] || 0) + 1;
       }
-
-      // Log teams with wrong game count
-      const expectedGames = schedule.preseasonWeeks || 4;
-      const activeTeamCount = 32 - inactiveTeams.size;
-      let wrongCount = 0;
-      const wrongTeams: string[] = [];
-      for (let teamIdx = 0; teamIdx < 32; teamIdx++) {
-        const count = teamGameCount[teamIdx] || 0;
-        if (inactiveTeams.has(teamIdx)) {
-          // Inactive teams should have 0 games (or games marked OffSeason won't count)
-          continue;
-        }
-        if (count !== expectedGames) {
-          wrongTeams.push(`Team${teamIdx}=${count}`);
-          wrongCount++;
-        }
-      }
-      if (wrongCount === 0) {
-        console.log(`[RetroEditorService] All ${activeTeamCount} active teams have ${expectedGames} preseason games`);
-      } else {
-        console.warn(`[RetroEditorService] ${wrongCount} teams have wrong preseason game count: ${wrongTeams.join(', ')}`);
-      }
+      console.log(`[RetroEditorService] Preseason games per week: ${JSON.stringify(weekDistribution)}`);
     }
 
     // ====== HANDLE PRESEASON GAMES FOR EXPANSION TEAMS ======
-    // Get teams that didn't exist in the target year
-    const inactiveTeamIndices = new Set<number>();
-    for (const team of this.expansionHistory) {
-      if (team.year > year) {
-        inactiveTeamIndices.add(team.teamIndex);
-        console.log(`[RetroEditorService] Team ${team.team} (teamIndex ${team.teamIndex}) didn't exist in ${year} - joined in ${team.year}`);
+    // NOTE: Since we're not modifying preseason (SKIP_PRESEASON=true),
+    // we also skip expansion team preseason handling
+    // Madden's default preseason can have expansion teams playing - that's fine for retro modes
+    if (!SKIP_PRESEASON) {
+      // Get teams that didn't exist in the target year
+      const inactiveTeamIndices = new Set<number>();
+      for (const team of this.expansionHistory) {
+        if (team.year > year) {
+          inactiveTeamIndices.add(team.teamIndex);
+          console.log(`[RetroEditorService] Team ${team.team} (teamIndex ${team.teamIndex}) didn't exist in ${year} - joined in ${team.year}`);
+        }
       }
-    }
 
     // Also check special cases like Browns 1996-1998
     const brownsSpecialCase = {
@@ -1582,6 +1567,7 @@ export class RetroEditorService {
         warnings.push(`Modified ${preseasonGamesModified} preseason games - replaced teams that didn't exist in ${year}`);
       }
     }
+    } // End of if (!SKIP_PRESEASON) for expansion team handling
 
     console.log(`[RetroEditorService] Total games updated: ${gamesUpdated}`);
 
@@ -1971,34 +1957,69 @@ export class RetroEditorService {
           console.log(`[RetroEditorService]   Name: "${oldName}" -> "${shortName}"`);
         }
 
-        // Look up coach in our database to see if they have a portrait and AssetName
-        // Coach_lookup.csv has: LastName,FirstName,PAM(AssetName),PID
-        const coachLookup = lookupService.getCoachByName(lastName, firstName);
+        // First, check User Database for edited/custom coaches (has priority)
+        // This allows users to assign custom portraits and use year-specific stats
+        const userDbCoach = userDatabaseService.getCoachByNameForRetro(firstName, lastName, year);
 
-        if (coachLookup && coachLookup.pid !== undefined && coachLookup.pid >= 0) {
-          // Coach found in database with valid PID - use their portrait
-          if (record.Portrait !== undefined) {
-            record.Portrait = coachLookup.pid;
-            console.log(`[RetroEditorService]   Portrait: Using PID ${coachLookup.pid} for ${firstName} ${lastName}`);
+        if (userDbCoach) {
+          // Coach found in user database
+          // Use PID/PAM if available
+          if (userDbCoach.pid !== null && userDbCoach.pid >= 0) {
+            if (record.Portrait !== undefined) {
+              record.Portrait = userDbCoach.pid;
+              console.log(`[RetroEditorService]   Portrait: Using USER DB PID ${userDbCoach.pid} for ${firstName} ${lastName}`);
+            }
+            if (userDbCoach.pam && record.AssetName !== undefined) {
+              record.AssetName = userDbCoach.pam;
+              console.log(`[RetroEditorService]   AssetName: Using USER DB "${userDbCoach.pam}" for ${firstName} ${lastName}`);
+            }
           }
-          // If coach has a PAM/AssetName in our database, use it
-          if (coachLookup.pam && record.AssetName !== undefined) {
-            record.AssetName = coachLookup.pam;
-            console.log(`[RetroEditorService]   AssetName: Using "${coachLookup.pam}" for ${firstName} ${lastName}`);
+
+          // Use year-specific stats from user database if available (overrides coachStats from JSON)
+          if (userDbCoach.seasonStats) {
+            console.log(`[RetroEditorService]   Using USER DB stats for year ${year}: W-L-T: ${userDbCoach.seasonStats.careerWins}-${userDbCoach.seasonStats.careerLosses}-${userDbCoach.seasonStats.careerTies}`);
+            // Override coachStats with user database season stats
+            if (coachStats) {
+              coachStats.careerWins = userDbCoach.seasonStats.careerWins;
+              coachStats.careerLosses = userDbCoach.seasonStats.careerLosses;
+              coachStats.careerTies = userDbCoach.seasonStats.careerTies;
+              coachStats.playoffWins = userDbCoach.seasonStats.playoffWins;
+              coachStats.superBowlWins = userDbCoach.seasonStats.superBowlWins;
+            }
           }
-        } else {
-          // Coach not found in database - use generic face and generic AssetName
-          if (record.Portrait !== undefined) {
-            record.Portrait = 9999; // Generic face
-            console.log(`[RetroEditorService]   Portrait: Coach ${firstName} ${lastName} not in database, using generic (9999)`);
-          }
-          // For historical coaches without a database entry, try clearing AssetName
-          // This may force the game to use FirstName/LastName from the Coach table
-          // The 2011 throwback used custom assets (e.g., "SmithLovie1") which requires FMT
-          if (record.AssetName !== undefined) {
-            // Try setting to empty to force fallback to Coach table names
-            record.AssetName = '';
-            console.log(`[RetroEditorService]   AssetName: Cleared (was "${oldAssetName}") for ${firstName} ${lastName}`);
+        }
+
+        // If no PID from user database, fall back to Coach_lookup.csv
+        if (!userDbCoach || userDbCoach.pid === null || userDbCoach.pid < 0) {
+          // Fall back to Coach_lookup.csv
+          // Coach_lookup.csv has: LastName,FirstName,PAM(AssetName),PID
+          const coachLookup = lookupService.getCoachByName(lastName, firstName);
+
+          if (coachLookup && coachLookup.pid !== undefined && coachLookup.pid >= 0) {
+            // Coach found in database with valid PID - use their portrait
+            if (record.Portrait !== undefined) {
+              record.Portrait = coachLookup.pid;
+              console.log(`[RetroEditorService]   Portrait: Using PID ${coachLookup.pid} for ${firstName} ${lastName}`);
+            }
+            // If coach has a PAM/AssetName in our database, use it
+            if (coachLookup.pam && record.AssetName !== undefined) {
+              record.AssetName = coachLookup.pam;
+              console.log(`[RetroEditorService]   AssetName: Using "${coachLookup.pam}" for ${firstName} ${lastName}`);
+            }
+          } else {
+            // Coach not found in any database - use generic face and generic AssetName
+            if (record.Portrait !== undefined) {
+              record.Portrait = 9999; // Generic face
+              console.log(`[RetroEditorService]   Portrait: Coach ${firstName} ${lastName} not in database, using generic (9999)`);
+            }
+            // For historical coaches without a database entry, try clearing AssetName
+            // This may force the game to use FirstName/LastName from the Coach table
+            // The 2011 throwback used custom assets (e.g., "SmithLovie1") which requires FMT
+            if (record.AssetName !== undefined) {
+              // Try setting to empty to force fallback to Coach table names
+              record.AssetName = '';
+              console.log(`[RetroEditorService]   AssetName: Cleared (was "${oldAssetName}") for ${firstName} ${lastName}`);
+            }
           }
         }
 
@@ -2639,6 +2660,312 @@ export class RetroEditorService {
       success: true,
       schemesUpdated,
       warnings
+    };
+  }
+
+  // ============================================
+  // UNIFORM MANAGEMENT
+  // ============================================
+
+  /**
+   * Load uniform mapping data
+   */
+  async loadUniformMapping(): Promise<any | null> {
+    try {
+      const appPath = app.getAppPath();
+      const dataPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
+        : path.join(appPath, 'data', 'retro');
+
+      const uniformFilePath = path.join(dataPath, 'uniform-mapping.json');
+
+      if (!fs.existsSync(uniformFilePath)) {
+        console.log('[RetroEditorService] No uniform mapping file found');
+        return null;
+      }
+
+      const uniformData = JSON.parse(fs.readFileSync(uniformFilePath, 'utf-8'));
+      console.log(`[RetroEditorService] Loaded uniform mapping for ${Object.keys(uniformData.teams || {}).length} teams`);
+      return uniformData;
+    } catch (error) {
+      console.error('[RetroEditorService] Error loading uniform mapping:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get uniform configuration for all teams for a specific year
+   * Returns what uniforms would be applied for the given year
+   */
+  async getUniformsForYear(year: number): Promise<{
+    available: boolean;
+    year: number;
+    teamCount: number;
+    uniforms: Array<{
+      teamAbbr: string;
+      variantName: string;
+      homeIndex: number;
+      awayIndex: number;
+      homeShade: string;
+      awayShade: string;
+      note?: string;
+    }>;
+    warnings: string[];
+  }> {
+    const uniformData = await this.loadUniformMapping();
+
+    if (!uniformData || !uniformData.teams) {
+      return {
+        available: false,
+        year,
+        teamCount: 0,
+        uniforms: [],
+        warnings: ['No uniform mapping data available']
+      };
+    }
+
+    const uniforms: Array<{
+      teamAbbr: string;
+      variantName: string;
+      homeIndex: number;
+      awayIndex: number;
+      homeShade: string;
+      awayShade: string;
+      note?: string;
+    }> = [];
+    const warnings: string[] = [];
+
+    for (const [teamAbbr, teamData] of Object.entries(uniformData.teams as Record<string, any>)) {
+      const variants = teamData.uniformVariants || [];
+      const yearMappings = teamData.yearMapping || [];
+
+      // Find the appropriate variant for this year
+      let selectedVariant = null;
+      let selectedMapping = null;
+
+      for (const mapping of yearMappings) {
+        if (year >= mapping.startYear && year <= mapping.endYear) {
+          selectedMapping = mapping;
+          if (mapping.variantIndex >= 0 && mapping.variantIndex < variants.length) {
+            selectedVariant = variants[mapping.variantIndex];
+          }
+          break;
+        }
+      }
+
+      if (selectedVariant) {
+        uniforms.push({
+          teamAbbr,
+          variantName: selectedVariant.name || 'Unknown',
+          homeIndex: selectedVariant.homeIndex ?? -1,
+          awayIndex: selectedVariant.awayIndex ?? -1,
+          homeShade: selectedVariant.homeShade || 'Dark',
+          awayShade: selectedVariant.awayShade || 'Light',
+          note: selectedVariant.note || selectedMapping?.note
+        });
+      } else {
+        // Default to modern/index 0 if no mapping found
+        const defaultVariant = variants[0];
+        if (defaultVariant) {
+          uniforms.push({
+            teamAbbr,
+            variantName: defaultVariant.name || 'Modern',
+            homeIndex: defaultVariant.homeIndex ?? -1,
+            awayIndex: defaultVariant.awayIndex ?? -1,
+            homeShade: defaultVariant.homeShade || 'Dark',
+            awayShade: defaultVariant.awayShade || 'Light',
+            note: `No specific mapping for ${year}, using default`
+          });
+        } else {
+          warnings.push(`No uniform data for ${teamAbbr}`);
+        }
+      }
+    }
+
+    return {
+      available: true,
+      year,
+      teamCount: uniforms.length,
+      uniforms,
+      warnings
+    };
+  }
+
+  /**
+   * Apply uniforms for a specific year to the loaded franchise
+   * Sets HomeUniformIndex/AwayUniformIndex on Team table records
+   */
+  async applyUniforms(year: number): Promise<{
+    success: boolean;
+    uniformsApplied: number;
+    warnings: string[];
+    error?: string;
+  }> {
+    if (!this.franchise) {
+      return {
+        success: false,
+        uniformsApplied: 0,
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    const uniformConfig = await this.getUniformsForYear(year);
+    if (!uniformConfig.available) {
+      return {
+        success: false,
+        uniformsApplied: 0,
+        warnings: uniformConfig.warnings,
+        error: 'No uniform configuration available'
+      };
+    }
+
+    const warnings: string[] = [...uniformConfig.warnings];
+    let uniformsApplied = 0;
+
+    try {
+      // Get team table
+      const teamTable = await this.franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+      if (!teamTable) {
+        return {
+          success: false,
+          uniformsApplied: 0,
+          warnings,
+          error: 'Could not find Team table in franchise file'
+        };
+      }
+
+      await teamTable.readRecords();
+      const teams = teamTable.records;
+
+      // Build team abbreviation to index mapping
+      const teamAbbrToIndex: Map<string, number> = new Map();
+      for (let i = 0; i < teams.length; i++) {
+        const team = teams[i];
+        const shortName = team.ShortName || team.Field_51; // ShortName field
+        if (shortName && !team.isEmpty) {
+          teamAbbrToIndex.set(shortName.toUpperCase(), i);
+        }
+      }
+
+      // Apply uniforms
+      for (const uniformInfo of uniformConfig.uniforms) {
+        const teamIndex = teamAbbrToIndex.get(uniformInfo.teamAbbr.toUpperCase());
+        if (teamIndex === undefined) {
+          warnings.push(`Team ${uniformInfo.teamAbbr} not found in franchise`);
+          continue;
+        }
+
+        const teamRecord = teams[teamIndex];
+
+        // Only apply if we have valid indices (not -1)
+        let applied = false;
+
+        // Apply HomeUniformShade
+        if ('HomeUniformShade' in teamRecord) {
+          try {
+            teamRecord.HomeUniformShade = uniformInfo.homeShade;
+            applied = true;
+          } catch (err) {
+            console.log(`[RetroEditorService] Could not set HomeUniformShade for ${uniformInfo.teamAbbr}`);
+          }
+        }
+
+        // Apply AwayUniformShade
+        if ('AwayUniformShade' in teamRecord) {
+          try {
+            teamRecord.AwayUniformShade = uniformInfo.awayShade;
+            applied = true;
+          } catch (err) {
+            console.log(`[RetroEditorService] Could not set AwayUniformShade for ${uniformInfo.teamAbbr}`);
+          }
+        }
+
+        // Note: HomeUniformIndex/AwayUniformIndex are game-level fields, not team-level
+        // If these fields exist on Team table, try to set them
+        if (uniformInfo.homeIndex >= 0 && 'HomeUniform' in teamRecord) {
+          try {
+            teamRecord.HomeUniform = uniformInfo.homeIndex;
+            applied = true;
+          } catch (err) {
+            console.log(`[RetroEditorService] Could not set HomeUniform for ${uniformInfo.teamAbbr}`);
+          }
+        }
+
+        if (uniformInfo.awayIndex >= 0 && 'AwayUniform' in teamRecord) {
+          try {
+            teamRecord.AwayUniform = uniformInfo.awayIndex;
+            applied = true;
+          } catch (err) {
+            console.log(`[RetroEditorService] Could not set AwayUniform for ${uniformInfo.teamAbbr}`);
+          }
+        }
+
+        if (applied) {
+          uniformsApplied++;
+          console.log(`[RetroEditorService] Applied ${uniformInfo.variantName} uniform to ${uniformInfo.teamAbbr}`);
+        }
+      }
+
+      console.log(`[RetroEditorService] Applied uniforms to ${uniformsApplied} teams for year ${year}`);
+
+      return {
+        success: true,
+        uniformsApplied,
+        warnings
+      };
+    } catch (error) {
+      console.error('[RetroEditorService] Error applying uniforms:', error);
+      return {
+        success: false,
+        uniformsApplied,
+        warnings,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Get uniform preview summary for a year
+   * Returns a simplified summary for UI display
+   */
+  async getUniformPreviewSummary(year: number): Promise<{
+    available: boolean;
+    summary: string;
+    teamsWithThrowbacks: number;
+    teamsWithModern: number;
+  }> {
+    const uniformConfig = await this.getUniformsForYear(year);
+
+    if (!uniformConfig.available) {
+      return {
+        available: false,
+        summary: 'No uniform data available',
+        teamsWithThrowbacks: 0,
+        teamsWithModern: 0
+      };
+    }
+
+    let throwbackCount = 0;
+    let modernCount = 0;
+
+    for (const uniform of uniformConfig.uniforms) {
+      if (uniform.variantName.toLowerCase().includes('modern') || uniform.variantName.toLowerCase() === 'default') {
+        modernCount++;
+      } else {
+        throwbackCount++;
+      }
+    }
+
+    const summary = throwbackCount > 0
+      ? `${throwbackCount} teams with era-appropriate uniforms, ${modernCount} with modern`
+      : `All ${modernCount} teams using modern uniforms`;
+
+    return {
+      available: true,
+      summary,
+      teamsWithThrowbacks: throwbackCount,
+      teamsWithModern: modernCount
     };
   }
 }

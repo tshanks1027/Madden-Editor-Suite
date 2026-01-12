@@ -1516,6 +1516,61 @@
                                         <p id="retro-superbowl-details"></p>
                                     </div>
                                 </div>
+                                <!-- Options Selection -->
+                                <div id="retro-options-section" class="options-section" style="margin-top: 20px; padding: 16px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <h4 style="margin: 0 0 12px 0; color: var(--text-primary); font-size: 0.95rem;">What to Update:</h4>
+
+                                    <label class="option-checkbox" style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; cursor: pointer;">
+                                        <input type="checkbox" id="retro-opt-teams" checked style="margin-top: 3px;">
+                                        <div>
+                                            <strong style="color: var(--text-primary);">Team Names & Cities</strong>
+                                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                                Updates team names to match the era (e.g., Houston Oilers, St. Louis Cardinals)
+                                            </p>
+                                        </div>
+                                    </label>
+
+                                    <label class="option-checkbox" style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; cursor: pointer;">
+                                        <input type="checkbox" id="retro-opt-abbreviations" checked style="margin-top: 3px;">
+                                        <div>
+                                            <strong style="color: var(--text-primary);">Team Abbreviations</strong>
+                                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                                Changes 3-letter team codes (HOU, STL, PHX, etc.) for stadium/broadcast display
+                                            </p>
+                                        </div>
+                                    </label>
+
+                                    <label class="option-checkbox" style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; cursor: pointer;">
+                                        <input type="checkbox" id="retro-opt-schedule" checked style="margin-top: 3px;">
+                                        <div>
+                                            <strong style="color: var(--text-primary);">Season Schedule</strong>
+                                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                                Loads the real NFL schedule for the selected year (matchups, bye weeks)
+                                            </p>
+                                        </div>
+                                    </label>
+
+                                    <label class="option-checkbox" style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; cursor: pointer;">
+                                        <input type="checkbox" id="retro-opt-coaches" checked style="margin-top: 3px;">
+                                        <div>
+                                            <strong style="color: var(--text-primary);">Historical Coaches</strong>
+                                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                                Updates head coaches to match the selected year (names and team assignments)
+                                            </p>
+                                        </div>
+                                    </label>
+
+                                    <label class="option-checkbox" style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer;">
+                                        <input type="checkbox" id="retro-opt-logos" style="margin-top: 3px;">
+                                        <div>
+                                            <strong style="color: var(--text-primary);">Download Era Logos</strong>
+                                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                                Downloads historical team logos for teams that changed names. Export for MFT after preview.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+
                                 <div class="wizard-nav">
                                     <button class="btn btn-secondary retro-wizard-back">Back</button>
                                     <button class="btn btn-primary retro-wizard-next" disabled>Next: Preview Changes</button>
@@ -1552,7 +1607,7 @@
                                 </div>
 
                                 <!-- Team Changes -->
-                                <div class="retro-preview-section">
+                                <div class="retro-preview-section" id="retro-teams-section">
                                     <h4 class="retro-section-title">&#127944; Team Name Changes</h4>
                                     <div id="retro-team-changes" class="retro-changes-list">
                                         <p class="no-changes">No team name changes for this year</p>
@@ -1560,7 +1615,7 @@
                                 </div>
 
                                 <!-- Draft Changes -->
-                                <div class="retro-preview-section">
+                                <div class="retro-preview-section" id="retro-draft-section">
                                     <h4 class="retro-section-title">&#128203; Draft Pick Reordering</h4>
                                     <div id="retro-draft-changes" class="retro-changes-list">
                                         <p class="no-changes">No draft pick changes needed</p>
@@ -1780,6 +1835,99 @@
                                                 </table>
                                             </div>
                                         </details>
+                                    </div>
+                                </div>
+
+                                <!-- Team Logo Manager Section (Frosty/MFT Integration) -->
+                                <div class="retro-preview-section" id="retro-logo-section">
+                                    <h4 class="retro-section-title">&#127941; Team Logo Manager</h4>
+                                    <div id="retro-logo-info" class="retro-changes-list">
+                                        <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 0.85rem;">
+                                            Manage team logos for Frosty/MFT. Teams with different abbreviations than current need custom logos.
+                                        </p>
+
+                                        <!-- Logo Summary Stats -->
+                                        <div id="logo-summary-stats" style="margin-bottom: 16px;">
+                                            <div class="retro-change-item">
+                                                <span class="change-label">Teams Needing Logos:</span>
+                                                <span id="logo-teams-needing" class="change-value">--</span>
+                                            </div>
+                                            <div class="retro-change-item">
+                                                <span class="change-label">Logos Imported:</span>
+                                                <span id="logo-imported-count" class="change-value">--</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Logo status -->
+                                        <div id="logo-status">
+                                            <p class="no-changes">Select a year to see logo requirements.</p>
+                                        </div>
+
+                                        <!-- Logo table (collapsible) -->
+                                        <details id="logo-teams-details" style="display: none; margin-top: 12px;">
+                                            <summary style="cursor: pointer; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                Teams Needing Custom Logos (<span id="logo-teams-count">0</span>)
+                                            </summary>
+                                            <div id="logo-teams-table" style="max-height: 400px; overflow-y: auto; margin-top: 8px;">
+                                                <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">
+                                                    <thead>
+                                                        <tr style="background: var(--bg-tertiary); position: sticky; top: 0;">
+                                                            <th style="padding: 6px; text-align: left;">Abbr</th>
+                                                            <th style="padding: 6px; text-align: left;">Team</th>
+                                                            <th style="padding: 6px; text-align: center;">Primary</th>
+                                                            <th style="padding: 6px; text-align: center;">Helmet</th>
+                                                            <th style="padding: 6px; text-align: center;">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="logo-teams-body">
+                                                        <!-- Logo rows populated via JS -->
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </details>
+
+                                        <!-- All abbreviations section -->
+                                        <details id="logo-all-abbrev-details" style="margin-top: 12px;">
+                                            <summary style="cursor: pointer; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                All Historical Abbreviations
+                                            </summary>
+                                            <div id="logo-all-abbrev-list" style="max-height: 300px; overflow-y: auto; margin-top: 8px; padding: 8px;">
+                                                <!-- Abbreviation list populated via JS -->
+                                            </div>
+                                        </details>
+
+                                        <!-- Logo Download Section -->
+                                        <div id="logo-scraper-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                                            <h5 style="margin-bottom: 8px; font-size: 0.9rem; color: var(--accent-color);">Download Historical Logos</h5>
+                                            <p style="color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 12px;">
+                                                Downloads era-correct logos from SportsLogos.net database. Converts to 1024x1024 PNG for MFT.
+                                            </p>
+                                            <div style="display: flex; gap: 8px; align-items: center;">
+                                                <button id="btn-scrape-all-logos" class="btn btn-primary" disabled title="Download logos for teams needing custom logos">
+                                                    Download Logos
+                                                </button>
+                                                <span id="download-status" style="font-size: 0.75rem; color: var(--text-secondary);"></span>
+                                            </div>
+                                            <div id="scrape-progress" style="display: none; margin-top: 12px;">
+                                                <div class="progress-bar" style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                                                    <div id="scrape-progress-bar" style="height: 100%; background: var(--accent-color); width: 0%; transition: width 0.3s;"></div>
+                                                </div>
+                                                <p id="scrape-progress-text" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">Downloading...</p>
+                                            </div>
+                                            <div id="scraped-logos-list" style="display: none; margin-top: 12px; max-height: 200px; overflow-y: auto;">
+                                                <!-- Populated via JS -->
+                                            </div>
+                                        </div>
+
+                                        <!-- Export actions -->
+                                        <div id="logo-export-actions" style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                            <button id="btn-export-logos-frosty" class="btn btn-primary" disabled>
+                                                Export for Frosty
+                                            </button>
+                                            <button id="btn-export-logos-mft" class="btn btn-primary" disabled>
+                                                Export for MFT
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
