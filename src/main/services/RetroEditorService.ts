@@ -43,7 +43,8 @@ const TABLE_IDS = {
   gameTable: 2816609684,
 
   // Additional useful tables
-  playerTable: 432457634,
+  // NOTE: Player table ID is 4222 (found via franchise-table-list.txt dump)
+  playerTable: 4222,
   coachTable: 1864063867,
   ownerTable: 3429237668,
   stadiumTable: 459799498,
@@ -213,6 +214,61 @@ interface SpecialCase {
   teamIndex: number;
 }
 
+interface ExpansionEventTeam {
+  teamIndex: number;
+  name: string;
+}
+
+interface ExpansionEventRules {
+  playersPerTeam?: number;
+  protectedPerTeam?: number;
+  rounds?: number;
+  selectionOrder?: string;
+  maxFromSameTeam?: number | string;
+  playerTransfer?: string;
+  description: string;
+}
+
+interface ExpansionProtectionRules {
+  maxProtected: number;
+  positionLimits: Record<string, number> | null;
+}
+
+interface ExpansionEvent {
+  id: string;
+  type: 'expansion' | 'relocation';
+  year: number;
+  name: string;
+  description: string;
+  teams?: ExpansionEventTeam[];
+  sourceTeam?: ExpansionEventTeam;
+  destinationTeam?: ExpansionEventTeam;
+  rules: ExpansionEventRules;
+  protectionRules?: ExpansionProtectionRules;
+  inactiveTeam?: {
+    teamIndex: number;
+    inactiveYears: number[];
+    reason: string;
+  };
+}
+
+interface PlayerForDraft {
+  recordIndex: number;
+  firstName: string;
+  lastName: string;
+  position: string;
+  overall: number;
+  age: number;
+  teamIndex: number;
+  teamName: string;
+  isProtected: boolean;
+}
+
+interface ExpansionDraftSelection {
+  playerRecordIndex: number;
+  newTeamIndex: number;
+}
+
 interface FranchiseMetadata {
   filePath: string;
   gameYear: string;
@@ -256,6 +312,7 @@ export class RetroEditorService {
   private superBowlMapping: Record<string, number> = {};
   private expansionHistory: ExpansionTeam[] = [];
   private specialCases: Record<string, SpecialCase> = {};
+  private expansionEvents: ExpansionEvent[] = [];
   private dataLoaded = false;
 
   constructor() {
@@ -268,9 +325,11 @@ export class RetroEditorService {
   private loadHistoricalData(): void {
     try {
       const appPath = app.getAppPath();
-      const dataPath = app.isPackaged
-        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
-        : path.join(appPath, 'data', 'retro');
+      // Use same pattern as lookup-service: app.getAppPath()/data/retro
+      // In dev mode with Vite, appPath is .vite/build so files are at .vite/build/data/retro
+      // In packaged mode, appPath is the asar so files are at app.asar/data/retro
+      const dataPath = path.join(appPath, 'data', 'retro');
+      console.log('[RetroEditorService] Loading historical data from:', dataPath);
 
       // Load historical teams
       const teamsPath = path.join(dataPath, 'historical-teams.json');
@@ -298,6 +357,19 @@ export class RetroEditorService {
         console.log('[RetroEditorService] Loaded special cases:', Object.keys(this.specialCases).length);
       }
 
+      // Load expansion events (detailed draft/relocation rules)
+      const eventsPath = path.join(dataPath, 'expansion-events.json');
+      console.log('[RetroEditorService] Looking for expansion-events.json at:', eventsPath);
+      console.log('[RetroEditorService] File exists:', fs.existsSync(eventsPath));
+      if (fs.existsSync(eventsPath)) {
+        const eventsData = JSON.parse(fs.readFileSync(eventsPath, 'utf-8'));
+        this.expansionEvents = eventsData.events || [];
+        console.log('[RetroEditorService] Loaded expansion events:', this.expansionEvents.length);
+        console.log('[RetroEditorService] Event years:', this.expansionEvents.map(e => `${e.year}:${e.type}`).join(', '));
+      } else {
+        console.log('[RetroEditorService] expansion-events.json NOT FOUND - expansion features will not work');
+      }
+
       this.dataLoaded = true;
     } catch (error) {
       console.error('[RetroEditorService] Error loading historical data:', error);
@@ -313,6 +385,400 @@ export class RetroEditorService {
       years.push(year);
     }
     return years;
+  }
+
+  /**
+   * Get expansion/relocation event for a specific year
+   * Returns null if no event for that year
+   */
+  getExpansionEventForYear(year: number): ExpansionEvent | null {
+    console.log(`[RetroEditorService] getExpansionEventForYear(${year}) - total events loaded: ${this.expansionEvents.length}`);
+    const event = this.expansionEvents.find(e => e.year === year);
+    if (event) {
+      console.log(`[RetroEditorService] Found expansion event for ${year}: ${event.name} (${event.type})`);
+    } else {
+      console.log(`[RetroEditorService] No expansion event found for ${year}`);
+      if (this.expansionEvents.length > 0) {
+        console.log(`[RetroEditorService] Available years: ${this.expansionEvents.map(e => e.year).join(', ')}`);
+      }
+    }
+    return event || null;
+  }
+
+  /**
+   * Get all expansion events
+   */
+  getAllExpansionEvents(): ExpansionEvent[] {
+    return this.expansionEvents;
+  }
+
+  /**
+   * Move a single player to a new team
+   * Used for relocations and expansion drafts
+   */
+  async movePlayerToTeam(
+    filePath: string,
+    playerRecordIndex: number,
+    newTeamIndex: number
+  ): Promise<{ success: boolean; playerName?: string; error?: string }> {
+    try {
+      const franchise = this.franchiseInstances.get(filePath);
+      if (!franchise) {
+        throw new Error('Franchise file not loaded');
+      }
+
+      // Get player table - try by name first, then by ID
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+      }
+      if (!playerTable) {
+        throw new Error('Player table not found');
+      }
+      await playerTable.readRecords();
+
+      // Get the player record
+      const player = playerTable.records[playerRecordIndex];
+      if (!player || player.isEmpty) {
+        throw new Error(`Player record ${playerRecordIndex} not found or empty`);
+      }
+
+      const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim();
+      const oldTeamIndex = player.TeamIndex;
+
+      // Update player's team
+      player.TeamIndex = newTeamIndex;
+
+      console.log(`[RetroEditorService] Moved player "${playerName}" from team ${oldTeamIndex} to team ${newTeamIndex}`);
+
+      return { success: true, playerName };
+    } catch (error: any) {
+      console.error('[RetroEditorService] Error moving player:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Execute a team relocation (e.g., Cleveland Browns → Baltimore Ravens 1996)
+   * SWAPS rosters between source and dest teams.
+   * Source players go to dest roster, dest players go to source roster.
+   */
+  async executeRelocation(
+    filePath: string,
+    sourceTeamIndex: number,
+    destTeamIndex: number
+  ): Promise<{ success: boolean; playersTransferred: number; playerNames: string[]; error?: string }> {
+    // FULL SWAP: Match working swap-rosters.js pattern exactly
+    // Must swap BOTH roster arrays AND TeamIndex fields
+    try {
+      const franchise = this.franchiseInstances.get(filePath);
+      if (!franchise) {
+        throw new Error('Franchise file not loaded');
+      }
+
+      console.log(`[executeRelocation] ========== START ==========`);
+      console.log(`[executeRelocation] Swapping teams: ${sourceTeamIndex} <-> ${destTeamIndex}`);
+
+      // 1. Get Team table and find source/dest teams
+      const teamTable = franchise.getTableByUniqueId(637929298);
+      await teamTable.readRecords();
+
+      let sourceTeam: any = null;
+      let destTeam: any = null;
+      for (const t of teamTable.records) {
+        if (t.isEmpty) continue;
+        const ti = Number(t.TeamIndex);
+        if (ti === sourceTeamIndex) sourceTeam = t;
+        if (ti === destTeamIndex) destTeam = t;
+      }
+
+      if (!sourceTeam || !destTeam) {
+        throw new Error(`Could not find teams: source=${sourceTeamIndex} dest=${destTeamIndex}`);
+      }
+
+      console.log(`[executeRelocation] Source team: ${sourceTeam.ShortName} (TeamIndex=${sourceTeamIndex})`);
+      console.log(`[executeRelocation] Dest team: ${destTeam.ShortName} (TeamIndex=${destTeamIndex})`);
+
+      // 2. Get roster refs from teams
+      const sourceRosterRef = sourceTeam.getReferenceDataByKey('Roster');
+      const destRosterRef = destTeam.getReferenceDataByKey('Roster');
+
+      console.log(`[executeRelocation] Source roster ref: tableId=${sourceRosterRef.tableId}, row=${sourceRosterRef.rowNumber}`);
+      console.log(`[executeRelocation] Dest roster ref: tableId=${destRosterRef.tableId}, row=${destRosterRef.rowNumber}`);
+
+      // 3. Get roster array table
+      const rosterTable = franchise.getTableById(sourceRosterRef.tableId);
+      await rosterTable.readRecords();
+
+      const sourceRoster = rosterTable.records[sourceRosterRef.rowNumber];
+      const destRoster = rosterTable.records[destRosterRef.rowNumber];
+
+      console.log(`[executeRelocation] Source roster size: ${sourceRoster.arraySize}`);
+      console.log(`[executeRelocation] Dest roster size: ${destRoster.arraySize}`);
+
+      // 4. SAVE all player refs BEFORE swapping (critical - refs become stale after swap)
+      const sourcePlayerRefs: string[] = [];
+      for (let i = 0; i < sourceRoster.arraySize; i++) {
+        sourcePlayerRefs.push(sourceRoster[`Player${i}`]);
+      }
+      const sourceSize = sourceRoster.arraySize;
+
+      const destPlayerRefs: string[] = [];
+      for (let i = 0; i < destRoster.arraySize; i++) {
+        destPlayerRefs.push(destRoster[`Player${i}`]);
+      }
+      const destSize = destRoster.arraySize;
+
+      console.log(`[executeRelocation] Saved ${sourcePlayerRefs.length} source refs, ${destPlayerRefs.length} dest refs`);
+
+      // 5. SWAP: Put dest player refs into source roster
+      for (let i = 0; i < destPlayerRefs.length; i++) {
+        sourceRoster[`Player${i}`] = destPlayerRefs[i];
+      }
+      sourceRoster.arraySize = destSize;
+      rosterTable.arraySizes[sourceRosterRef.rowNumber] = destSize;
+      sourceRoster.isChanged = true;
+      sourceRoster._parent.onEvent('change', sourceRoster);
+
+      // 6. SWAP: Put source player refs into dest roster
+      for (let i = 0; i < sourcePlayerRefs.length; i++) {
+        destRoster[`Player${i}`] = sourcePlayerRefs[i];
+      }
+      destRoster.arraySize = sourceSize;
+      rosterTable.arraySizes[destRosterRef.rowNumber] = sourceSize;
+      destRoster.isChanged = true;
+      destRoster._parent.onEvent('change', destRoster);
+
+      console.log(`[executeRelocation] Swapped roster arrays`);
+
+      // 7. Get Player table for TeamIndex updates
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        const tables = franchise.getAllTablesByName('Player');
+        if (tables?.length) playerTable = tables[0];
+      }
+      await playerTable.readRecords();
+
+      // 8. Update TeamIndex on players using the SAVED refs
+      // sourceRoster now has destPlayerRefs (formerly dest team players)
+      // These players should have TeamIndex = sourceTeamIndex
+      const sourcePlayerNames: string[] = [];
+      for (let i = 0; i < destPlayerRefs.length; i++) {
+        const ref = sourceRoster.getReferenceDataByKey(`Player${i}`);
+        if (ref?.rowNumber !== undefined) {
+          const p = playerTable.records[ref.rowNumber];
+          if (p && !p.isEmpty) {
+            p.TeamIndex = sourceTeamIndex;
+          }
+        }
+      }
+
+      // destRoster now has sourcePlayerRefs (formerly source team players)
+      // These players should have TeamIndex = destTeamIndex
+      for (let i = 0; i < sourcePlayerRefs.length; i++) {
+        const ref = destRoster.getReferenceDataByKey(`Player${i}`);
+        if (ref?.rowNumber !== undefined) {
+          const p = playerTable.records[ref.rowNumber];
+          if (p && !p.isEmpty) {
+            p.TeamIndex = destTeamIndex;
+            sourcePlayerNames.push(`${p.FirstName || ''} ${p.LastName || ''}`.trim());
+          }
+        }
+      }
+
+      console.log(`[executeRelocation] Updated TeamIndex on ${sourcePlayerNames.length} source players -> ${destTeamIndex}`);
+      console.log(`[executeRelocation] Updated TeamIndex on ${destPlayerRefs.length} dest players -> ${sourceTeamIndex}`);
+      console.log(`[executeRelocation] ========== END ==========`);
+
+      return { success: true, playersTransferred: sourcePlayerNames.length, playerNames: sourcePlayerNames };
+    } catch (error: any) {
+      console.error('[executeRelocation] Error:', error);
+      return { success: false, playersTransferred: 0, playerNames: [], error: error.message };
+    }
+  }
+
+
+  /**
+   * Get players eligible for an expansion draft
+   * Returns all players from existing teams that can be drafted
+   */
+  async getEligiblePlayersForExpansionDraft(
+    filePath: string,
+    event: ExpansionEvent
+  ): Promise<{ success: boolean; players?: PlayerForDraft[]; error?: string }> {
+    try {
+      const franchise = this.franchiseInstances.get(filePath);
+      if (!franchise) {
+        throw new Error('Franchise file not loaded');
+      }
+
+      // Get player table - try by name first, then by ID
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+      }
+      if (!playerTable) {
+        throw new Error('Player table not found');
+      }
+      await playerTable.readRecords();
+
+      // Get team table for team names
+      let teamTable = franchise.getTableByName('Team');
+      if (!teamTable) {
+        teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+      }
+      if (!teamTable) {
+        throw new Error('Team table not found');
+      }
+      await teamTable.readRecords();
+
+      // Build team name map
+      const teamNameMap = new Map<number, string>();
+      for (const team of teamTable.records) {
+        if (team.isEmpty) continue;
+        if (team.TeamIndex !== undefined && team.TeamIndex < 32) {
+          teamNameMap.set(team.TeamIndex, team.ShortName || team.DisplayName || `Team ${team.TeamIndex}`);
+        }
+      }
+
+      // Get expansion team indices (these teams don't contribute players)
+      const expansionTeamIndices = new Set<number>();
+      if (event.teams) {
+        for (const team of event.teams) {
+          expansionTeamIndices.add(team.teamIndex);
+        }
+      }
+      if (event.destinationTeam) {
+        expansionTeamIndices.add(event.destinationTeam.teamIndex);
+      }
+
+      // Get inactive team indices (Browns 1996-98)
+      const inactiveTeamIndices = new Set<number>();
+      if (event.inactiveTeam) {
+        inactiveTeamIndices.add(event.inactiveTeam.teamIndex);
+      }
+
+      const players: PlayerForDraft[] = [];
+
+      for (const player of playerTable.records) {
+        if (player.isEmpty) continue;
+
+        const teamIndex = player.TeamIndex;
+
+        // Skip free agents and invalid teams
+        if (teamIndex === undefined || teamIndex >= 32) continue;
+
+        // Skip players on expansion teams
+        if (expansionTeamIndices.has(teamIndex)) continue;
+
+        // Skip players on inactive teams
+        if (inactiveTeamIndices.has(teamIndex)) continue;
+
+        const playerData: PlayerForDraft = {
+          recordIndex: player.index,
+          firstName: player.FirstName || '',
+          lastName: player.LastName || '',
+          position: player.Position || 'Unknown',
+          overall: player.OverallRating || player.Overall || 0,
+          age: player.Age || 0,
+          teamIndex: teamIndex,
+          teamName: teamNameMap.get(teamIndex) || `Team ${teamIndex}`,
+          isProtected: false, // Will be set by auto-protect logic
+        };
+
+        players.push(playerData);
+      }
+
+      // Sort by overall descending
+      players.sort((a, b) => b.overall - a.overall);
+
+      console.log(`[RetroEditorService] Found ${players.length} eligible players for expansion draft`);
+
+      return { success: true, players };
+    } catch (error: any) {
+      console.error('[RetroEditorService] Error getting eligible players:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Auto-protect players based on expansion draft rules
+   * Each team can protect up to maxProtected players
+   */
+  autoProtectPlayers(players: PlayerForDraft[], maxProtected: number): PlayerForDraft[] {
+    // Group players by team
+    const playersByTeam = new Map<number, PlayerForDraft[]>();
+    for (const player of players) {
+      if (!playersByTeam.has(player.teamIndex)) {
+        playersByTeam.set(player.teamIndex, []);
+      }
+      playersByTeam.get(player.teamIndex)!.push(player);
+    }
+
+    // For each team, protect the top N players by overall
+    for (const [teamIndex, teamPlayers] of playersByTeam) {
+      // Sort by overall descending
+      teamPlayers.sort((a, b) => b.overall - a.overall);
+
+      // Protect top N
+      for (let i = 0; i < Math.min(maxProtected, teamPlayers.length); i++) {
+        teamPlayers[i].isProtected = true;
+      }
+    }
+
+    console.log(`[RetroEditorService] Auto-protected top ${maxProtected} players per team`);
+
+    return players;
+  }
+
+  /**
+   * Execute expansion draft with selected players
+   * Moves selected players to their new expansion teams
+   */
+  async executeExpansionDraft(
+    filePath: string,
+    selections: ExpansionDraftSelection[]
+  ): Promise<{ success: boolean; playersSelected: number; error?: string }> {
+    try {
+      const franchise = this.franchiseInstances.get(filePath);
+      if (!franchise) {
+        throw new Error('Franchise file not loaded');
+      }
+
+      console.log(`[RetroEditorService] Executing expansion draft with ${selections.length} selections`);
+
+      // Get player table - try by name first, then by ID
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+      }
+      if (!playerTable) {
+        throw new Error('Player table not found');
+      }
+      await playerTable.readRecords();
+
+      let playersSelected = 0;
+
+      for (const selection of selections) {
+        const player = playerTable.records[selection.playerRecordIndex];
+        if (player && !player.isEmpty) {
+          const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim();
+          const oldTeamIndex = player.TeamIndex;
+
+          player.TeamIndex = selection.newTeamIndex;
+          playersSelected++;
+
+          console.log(`[RetroEditorService] Drafted "${playerName}" from team ${oldTeamIndex} to team ${selection.newTeamIndex}`);
+        }
+      }
+
+      console.log(`[RetroEditorService] Expansion draft complete: ${playersSelected} players selected`);
+
+      return { success: true, playersSelected };
+    } catch (error: any) {
+      console.error('[RetroEditorService] Error executing expansion draft:', error);
+      return { success: false, playersSelected: 0, error: error.message };
+    }
   }
 
   /**
@@ -1447,11 +1913,11 @@ export class RetroEditorService {
       console.log(`[RetroEditorService] Preseason games per week: ${JSON.stringify(weekDistribution)}`);
     }
 
-    // ====== HANDLE PRESEASON GAMES FOR EXPANSION TEAMS ======
-    // NOTE: Since we're not modifying preseason (SKIP_PRESEASON=true),
-    // we also skip expansion team preseason handling
-    // Madden's default preseason can have expansion teams playing - that's fine for retro modes
-    if (!SKIP_PRESEASON) {
+    // ====== HANDLE PRESEASON GAMES FOR INACTIVE/EXPANSION TEAMS ======
+    // NOTE: Even with SKIP_PRESEASON=true (don't apply historical preseason data),
+    // we MUST still handle inactive teams (like Browns 1996-1998) in preseason.
+    // Otherwise the Browns will still appear in preseason games.
+    {
       // Get teams that didn't exist in the target year
       const inactiveTeamIndices = new Set<number>();
       for (const team of this.expansionHistory) {
@@ -1567,7 +2033,7 @@ export class RetroEditorService {
         warnings.push(`Modified ${preseasonGamesModified} preseason games - replaced teams that didn't exist in ${year}`);
       }
     }
-    } // End of if (!SKIP_PRESEASON) for expansion team handling
+    } // End of inactive/expansion team handling block
 
     console.log(`[RetroEditorService] Total games updated: ${gamesUpdated}`);
 
