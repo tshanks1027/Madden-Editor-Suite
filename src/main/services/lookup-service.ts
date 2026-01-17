@@ -1503,6 +1503,54 @@ export class LookupService {
       id
     }));
   }
+
+  // ========== BUNDLED HIDDEN PLAYERS ==========
+
+  /**
+   * Check if a player is in the bundled hidden list
+   * These are players hidden by the developer, not by the user
+   * @param playerId The internal player ID
+   * @returns true if player is in bundled hidden list
+   */
+  public isBundledHiddenPlayer(playerId: number): boolean {
+    if (!this.db) return false;
+    try {
+      // Check if the bundled_hidden_players table exists
+      const tableExists = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bundled_hidden_players'"
+      ).get();
+      if (!tableExists) return false;
+
+      const row = this.db.prepare(
+        'SELECT 1 FROM bundled_hidden_players WHERE player_id = ?'
+      ).get(playerId);
+      return !!row;
+    } catch (e) {
+      // Table may not exist in older database versions
+      return false;
+    }
+  }
+
+  /**
+   * Get all bundled hidden player IDs
+   * @returns Array of player IDs that are hidden in the bundled database
+   */
+  public getBundledHiddenPlayers(): number[] {
+    if (!this.db) return [];
+    try {
+      const tableExists = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bundled_hidden_players'"
+      ).get();
+      if (!tableExists) return [];
+
+      const rows = this.db.prepare(
+        'SELECT player_id FROM bundled_hidden_players'
+      ).all() as { player_id: number }[];
+      return rows.map(r => r.player_id);
+    } catch (e) {
+      return [];
+    }
+  }
 }
 
 // Export singleton instance

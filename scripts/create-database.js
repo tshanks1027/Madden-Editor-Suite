@@ -175,6 +175,21 @@ async function createDatabase() {
   `);
   console.log('Created: pid_race');
 
+  // Bundled hidden players table (developer-managed list of players to hide by default)
+  // Users can override this by unhiding in their local database
+  // NOTE: Portrait PIDs are separated by range:
+  //   - Bundled portraits: PIDs < 12000
+  //   - User custom portraits: PIDs >= 12000 (reserved for user uploads)
+  // This prevents PID conflicts during app updates
+  db.run(`
+    CREATE TABLE bundled_hidden_players (
+      player_id INTEGER PRIMARY KEY,
+      reason TEXT,
+      hidden_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+  console.log('Created: bundled_hidden_players');
+
   // Create indexes for fast lookups
   db.run(`CREATE INDEX idx_players_name ON players(last_name, first_name)`);
   db.run(`CREATE INDEX idx_players_draft ON players(draft_class)`);

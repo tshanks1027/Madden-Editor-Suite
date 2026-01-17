@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 import Database from 'better-sqlite3';
+import { lookupService } from './lookup-service';
 
 // All rating fields from the database schema
 // Rating fields must match exactly what the frontend sends (database-player-card.js)
@@ -405,6 +406,15 @@ class UserDatabaseService {
       CREATE TABLE IF NOT EXISTS hidden_players (
         original_player_id INTEGER PRIMARY KEY,
         hidden_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Table to track user overrides for bundled hidden players
+    // If a player is hidden in bundled DB but user wants to see them, they go here
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS user_unhidden_players (
+        original_player_id INTEGER PRIMARY KEY,
+        unhidden_at TEXT DEFAULT (datetime('now'))
       )
     `);
 
@@ -1367,47 +1377,130 @@ class UserDatabaseService {
 
   /**
    * Hide a player from search results
+   * Also removes from user_unhidden_players if they were there
    */
   public hidePlayer(playerId: number): void {
     if (!this.editsDb) throw new Error('Edits database not initialized');
     this.editsDb.prepare('INSERT OR REPLACE INTO hidden_players (original_player_id) VALUES (?)').run(playerId);
+    // Remove from unhidden list if present (user changed their mind)
+    this.editsDb.prepare('DELETE FROM user_unhidden_players WHERE original_player_id = ?').run(playerId);
     console.log(`[UserDatabaseService] Hidden player id=${playerId}`);
   }
 
   /**
    * Unhide a player (restore to search results)
+   * If player is bundled-hidden, adds to user_unhidden_players to override
    */
   public unhidePlayer(playerId: number): void {
     if (!this.editsDb) throw new Error('Edits database not initialized');
+    // Remove from user's hidden list
     this.editsDb.prepare('DELETE FROM hidden_players WHERE original_player_id = ?').run(playerId);
-    console.log(`[UserDatabaseService] Unhidden player id=${playerId}`);
+
+    // If this player is bundled-hidden, add to user_unhidden to override
+    if (lookupService.isBundledHiddenPlayer(playerId)) {
+      this.editsDb.prepare('INSERT OR REPLACE INTO user_unhidden_players (original_player_id) VALUES (?)').run(playerId);
+      console.log(`[UserDatabaseService] Unhidden bundled-hidden player id=${playerId} (added to user overrides)`);
+    } else {
+      console.log(`[UserDatabaseService] Unhidden player id=${playerId}`);
+    }
   }
 
   /**
    * Check if a player is hidden
+   * A player is hidden if:
+   * 1. User has explicitly hidden them, OR
+   * 2. They are bundled-hidden AND user hasn't explicitly unhidden them
    */
   public isPlayerHidden(playerId: number): boolean {
     if (!this.editsDb) return false;
-    const row = this.editsDb.prepare('SELECT 1 FROM hidden_players WHERE original_player_id = ?').get(playerId);
+
+    // Check if user has explicitly hidden this player
+    const userHidden = this.editsDb.prepare('SELECT 1 FROM hidden_players WHERE original_player_id = ?').get(playerId);
+    if (userHidden) return true;
+
+    // Check if player is bundled-hidden
+    const bundledHidden = lookupService.isBundledHiddenPlayer(playerId);
+    if (bundledHidden) {
+      // Check if user has explicitly unhidden this player (override)
+      const userUnhidden = this.editsDb.prepare('SELECT 1 FROM user_unhidden_players WHERE original_player_id = ?').get(playerId);
+      if (userUnhidden) return false; // User override - not hidden
+      return true; // Bundled hidden, no user override - hidden
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if a player is hidden by the bundled database (developer-hidden)
+   * This is separate from user-hidden for UI purposes
+   */
+  public isBundledHiddenPlayer(playerId: number): boolean {
+    return lookupService.isBundledHiddenPlayer(playerId);
+  }
+
+  /**
+   * Check if user has explicitly unhidden a bundled-hidden player
+   */
+  public hasUserUnhidden(playerId: number): boolean {
+    if (!this.editsDb) return false;
+    const row = this.editsDb.prepare('SELECT 1 FROM user_unhidden_players WHERE original_player_id = ?').get(playerId);
     return !!row;
   }
 
   /**
-   * Get list of all hidden player IDs
+   * Get list of all hidden player IDs (combines user + bundled hidden)
    */
   public getHiddenPlayers(): number[] {
+    if (!this.editsDb) return [];
+
+    // Get user-hidden players
+    const userHiddenRows = this.editsDb.prepare('SELECT original_player_id FROM hidden_players').all() as { original_player_id: number }[];
+    const userHidden = new Set(userHiddenRows.map(r => r.original_player_id));
+
+    // Get bundled-hidden players
+    const bundledHidden = lookupService.getBundledHiddenPlayers();
+
+    // Get user-unhidden players (overrides for bundled)
+    const userUnhiddenRows = this.editsDb.prepare('SELECT original_player_id FROM user_unhidden_players').all() as { original_player_id: number }[];
+    const userUnhidden = new Set(userUnhiddenRows.map(r => r.original_player_id));
+
+    // Combine: user-hidden + (bundled-hidden minus user-unhidden)
+    const allHidden = new Set(userHidden);
+    for (const pid of bundledHidden) {
+      if (!userUnhidden.has(pid)) {
+        allHidden.add(pid);
+      }
+    }
+
+    return Array.from(allHidden);
+  }
+
+  /**
+   * Get list of user-hidden player IDs only (not including bundled)
+   */
+  public getUserHiddenPlayers(): number[] {
     if (!this.editsDb) return [];
     const rows = this.editsDb.prepare('SELECT original_player_id FROM hidden_players').all() as { original_player_id: number }[];
     return rows.map(r => r.original_player_id);
   }
 
   /**
-   * Clear all hidden players (restore all)
+   * Clear all user-hidden players (restore all user hides)
+   * Note: This doesn't affect bundled-hidden players
    */
   public clearHiddenPlayers(): void {
     if (!this.editsDb) throw new Error('Edits database not initialized');
     this.editsDb.exec('DELETE FROM hidden_players');
-    console.log('[UserDatabaseService] Cleared all hidden players');
+    console.log('[UserDatabaseService] Cleared all user-hidden players');
+  }
+
+  /**
+   * Clear all user unhidden overrides (bundled-hidden players become hidden again)
+   */
+  public clearUserUnhiddenPlayers(): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+    this.editsDb.exec('DELETE FROM user_unhidden_players');
+    console.log('[UserDatabaseService] Cleared all user unhidden overrides');
   }
 
   /**
@@ -1419,11 +1512,14 @@ class UserDatabaseService {
     if (playerIds.length === 0) return 0;
 
     const stmt = this.editsDb.prepare('INSERT OR IGNORE INTO hidden_players (original_player_id) VALUES (?)');
+    const removeStmt = this.editsDb.prepare('DELETE FROM user_unhidden_players WHERE original_player_id = ?');
     const insertMany = this.editsDb.transaction((ids: number[]) => {
       let count = 0;
       for (const id of ids) {
         const result = stmt.run(id);
         if (result.changes > 0) count++;
+        // Also remove from unhidden list
+        removeStmt.run(id);
       }
       return count;
     });
