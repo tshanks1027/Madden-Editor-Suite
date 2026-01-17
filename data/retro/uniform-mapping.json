@@ -1,0 +1,318 @@
+{
+  "_comment": "Maps team abbreviations to uniform variants and year ranges. Uniform indices need to be discovered via Frosty. -1 means use default/modern uniform.",
+  "_usage": "When user selects a historical year, the system looks up each team's uniformVariants and yearMapping to determine which uniform to apply.",
+  "_discovery": "To find uniform IDs: 1) Open Madden in Frosty, 2) Find uniform assets, 3) Test in-game, 4) Update this file with correct indices.",
+  "uniformShadeEnum": {
+    "Dark": 0,
+    "Light": 1
+  },
+  "teams": {
+    "ARI": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Cardinals throwback - needs ID from Frosty" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0, "note": "Using modern until throwback ID discovered" }
+      ]
+    },
+    "ATL": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1966", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Original Falcons - needs ID" }
+      ],
+      "yearMapping": [
+        { "startYear": 1966, "endYear": 1989, "variantIndex": 1 },
+        { "startYear": 1990, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "BAL": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" }
+      ],
+      "yearMapping": [
+        { "startYear": 1996, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "BUF": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1960s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "AFL era standing buffalo" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1973, "variantIndex": 1 },
+        { "startYear": 1974, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "CAR": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" }
+      ],
+      "yearMapping": [
+        { "startYear": 1995, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "CHI": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1940s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Classic Bears - needs ID" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0, "note": "Bears uniforms relatively consistent" }
+      ]
+    },
+    "CIN": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1980s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Ickey Shuffle era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1968, "endYear": 1996, "variantIndex": 1 },
+        { "startYear": 1997, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "CLE": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Classic", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Jim Brown era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0, "note": "Browns uniforms historically consistent" }
+      ]
+    },
+    "DAL": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Light", "awayShade": "Dark" },
+        { "name": "Throwback 1960s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Light", "awayShade": "Dark", "note": "Original star design" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1963, "variantIndex": 1 },
+        { "startYear": 1964, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "DEN": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback Orange Crush", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "1977-1996 era" },
+        { "name": "Throwback AFL", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Original vertical striped socks" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1967, "variantIndex": 2 },
+        { "startYear": 1968, "endYear": 1996, "variantIndex": 1 },
+        { "startYear": 1997, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "DET": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Barry Sanders era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "GB": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1960s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Lombardi era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0, "note": "Packers uniforms historically consistent" }
+      ]
+    },
+    "HOU": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" }
+      ],
+      "yearMapping": [
+        { "startYear": 2002, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "IND": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Baltimore Colts", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Johnny Unitas era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1983, "variantIndex": 1, "note": "Baltimore era" },
+        { "startYear": 1984, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "JAX": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" }
+      ],
+      "yearMapping": [
+        { "startYear": 1995, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "KC": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Dallas Texans", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "1960-1962 AFL" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1962, "variantIndex": 1, "note": "Dallas Texans era" },
+        { "startYear": 1963, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "LV": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0, "note": "Raiders uniforms historically consistent" }
+      ]
+    },
+    "LAC": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback Powder Blue", "homeIndex": -1, "awayIndex": -1, "homeShade": "Light", "awayShade": "Light", "note": "San Diego AFL era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1973, "variantIndex": 1 },
+        { "startYear": 1974, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "LAR": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback Blue/Yellow", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Fearsome Foursome era" },
+        { "name": "St. Louis", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Greatest Show on Turf" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1994, "variantIndex": 1, "note": "LA classic era" },
+        { "startYear": 1995, "endYear": 2015, "variantIndex": 2, "note": "St. Louis era" },
+        { "startYear": 2016, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "MIA": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Light", "awayShade": "Light" },
+        { "name": "Throwback 1970s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Light", "awayShade": "Light", "note": "Perfect Season era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1966, "endYear": 1996, "variantIndex": 1 },
+        { "startYear": 1997, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "MIN": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Purple People Eaters era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1961, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "NE": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Pat Patriot", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Boston Patriots era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1992, "variantIndex": 1, "note": "Pat Patriot era" },
+        { "startYear": 1993, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "NO": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Archie Manning era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1967, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "NYG": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1980s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "LT era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "NYJ": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback Titans", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "NY Titans 1960-1962" },
+        { "name": "Throwback Namath", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Super Bowl III era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1962, "variantIndex": 1 },
+        { "startYear": 1963, "endYear": 1997, "variantIndex": 2 },
+        { "startYear": 1998, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "PHI": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Kelly Green", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Cunningham era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1995, "variantIndex": 1 },
+        { "startYear": 1996, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "PIT": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1970s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Steel Curtain era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0, "note": "Steelers uniforms historically consistent" }
+      ]
+    },
+    "SF": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Montana/Young era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "SEA": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1980s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Original silver/blue" }
+      ],
+      "yearMapping": [
+        { "startYear": 1976, "endYear": 2001, "variantIndex": 1 },
+        { "startYear": 2002, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "TB": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Creamsicle", "homeIndex": -1, "awayIndex": -1, "homeShade": "Light", "awayShade": "Light", "note": "Original Bucs orange" },
+        { "name": "Throwback 1997", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Pewter era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1976, "endYear": 1996, "variantIndex": 1 },
+        { "startYear": 1997, "endYear": 2019, "variantIndex": 2 },
+        { "startYear": 2020, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "TEN": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Houston Oilers", "homeIndex": -1, "awayIndex": -1, "homeShade": "Light", "awayShade": "Light", "note": "Earl Campbell era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 1996, "variantIndex": 1, "note": "Houston Oilers era" },
+        { "startYear": 1997, "endYear": 2024, "variantIndex": 0 }
+      ]
+    },
+    "WAS": {
+      "uniformVariants": [
+        { "name": "Modern", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light" },
+        { "name": "Throwback 1980s", "homeIndex": -1, "awayIndex": -1, "homeShade": "Dark", "awayShade": "Light", "note": "Hogs era" }
+      ],
+      "yearMapping": [
+        { "startYear": 1960, "endYear": 2024, "variantIndex": 0 }
+      ]
+    }
+  }
+}

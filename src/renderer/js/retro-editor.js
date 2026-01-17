@@ -21,7 +21,12 @@ let retroState = {
   salaryCapData: null,
   stadiumPreview: null,
   schemePreview: null,
+  expansionEvent: null,
   applyResult: null,
+  // Expansion draft selections from manual draft board
+  expansionDraftSelections: [],
+  // Expansion team indices for clearing rosters before draft
+  expansionTeamIndices: [],
   // User-selected options
   options: {
     teams: true,        // Update team names/cities
@@ -465,6 +470,9 @@ async function loadPreview() {
       await loadSchedulePreview();
     }
 
+    // Load expansion/relocation event preview (always check, might be hidden)
+    await loadExpansionPreview();
+
     // Show/hide logo section
     const logoSection = document.getElementById('retro-logo-section');
     if (logoSection) {
@@ -604,6 +612,80 @@ async function loadSchedulePreview() {
     document.getElementById('retro-schedule-status').innerHTML = `
       <p class="no-changes" style="color: var(--error-color);">Error loading schedule: ${error.message}</p>
     `;
+  }
+}
+
+/**
+ * Load expansion/relocation event preview for the selected year
+ */
+async function loadExpansionPreview() {
+  try {
+    console.log('[RetroEditor] loadExpansionPreview() called for year:', retroState.targetYear);
+
+    const expansionSection = document.getElementById('retro-expansion-section');
+    const statusDiv = document.getElementById('retro-expansion-status');
+    const detailsDiv = document.getElementById('retro-expansion-details');
+
+    console.log('[RetroEditor] Expansion section element:', expansionSection ? 'FOUND' : 'NOT FOUND');
+
+    // Check if there's an expansion event for this year
+    const result = await window.electronAPI.retro.getExpansionEvent(retroState.targetYear);
+    console.log('[RetroEditor] getExpansionEvent result:', JSON.stringify(result));
+
+    if (result.success && result.event) {
+      const event = result.event;
+      retroState.expansionEvent = event;
+
+      // Show the section
+      expansionSection.style.display = 'block';
+      statusDiv.style.display = 'none';
+      detailsDiv.style.display = 'block';
+
+      // Fill in event details
+      document.getElementById('expansion-event-name').textContent = event.name;
+      document.getElementById('expansion-event-type').textContent =
+        event.type === 'relocation' ? 'Team Relocation' : 'Expansion Draft';
+      document.getElementById('expansion-event-description').textContent = event.description;
+
+      // Show appropriate options based on event type
+      const relocationOptions = document.getElementById('relocation-options');
+      const expansionDraftOptions = document.getElementById('expansion-draft-options');
+
+      if (event.type === 'relocation') {
+        relocationOptions.style.display = 'block';
+        expansionDraftOptions.style.display = 'none';
+      } else {
+        relocationOptions.style.display = 'none';
+        expansionDraftOptions.style.display = 'block';
+
+        // Fill in expansion draft details
+        if (event.protectionRules) {
+          document.getElementById('expansion-protected-count').textContent =
+            event.protectionRules.maxProtected || '--';
+        }
+        if (event.rules) {
+          document.getElementById('expansion-players-count').textContent =
+            event.rules.playersPerTeam || '--';
+        }
+
+        // Handle draft mode change
+        const draftModeSelect = document.getElementById('expansion-draft-mode');
+        const manualDraftUI = document.getElementById('manual-draft-ui');
+
+        draftModeSelect.onchange = () => {
+          manualDraftUI.style.display = draftModeSelect.value === 'manual' ? 'block' : 'none';
+        };
+      }
+
+      console.log('[RetroEditor] Loaded expansion event:', event.name);
+    } else {
+      // No expansion event for this year
+      expansionSection.style.display = 'none';
+      retroState.expansionEvent = null;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading expansion preview:', error);
+    document.getElementById('retro-expansion-section').style.display = 'none';
   }
 }
 
@@ -905,7 +987,7 @@ async function loadSchemePreview() {
  */
 async function applyChanges() {
   try {
-    // Move to step 4 first
+    // Move to step 4
     goToRetroStep(4);
 
     // Show progress
@@ -917,221 +999,180 @@ async function applyChanges() {
     resultsSection.style.display = 'none';
     errorSection.style.display = 'none';
 
-    const opts = retroState.options;
-
-    // Determine total steps based on options and what's available
-    const hasSchedule = retroState.schedulePreview !== null && opts.schedule;
-    const hasCoaches = retroState.coachPreview !== null && opts.coaches;
-    const hasSalaryCap = retroState.salaryCapData !== null;
-    const hasStadiums = retroState.stadiumPreview !== null;
-    const hasSchemes = retroState.schemePreview !== null;
-    let totalSteps = 1; // Base: season (always)
-    if (opts.teams) totalSteps += 2; // teams + draft
-    if (hasSchedule) totalSteps++;
-    if (hasCoaches) totalSteps++;
-    if (hasSalaryCap) totalSteps++;
-    if (hasStadiums) totalSteps++;
-    if (hasSchemes) totalSteps++;
-
-    let currentStep = 0;
-
-    // Animate progress
-    currentStep++;
-    progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-    progressText.textContent = 'Applying season settings...';
+    progressBar.style.width = '10%';
+    progressText.textContent = 'Preparing to apply changes...';
     await sleep(500);
 
-    if (opts.teams) {
-      currentStep++;
-      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-      progressText.textContent = 'Updating team names...';
-      await sleep(500);
+    // ===== THE CORRECT APPROACH =====
+    // Collect all wizard data, then make ONE call to apply everything and save
 
-      currentStep++;
-      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-      progressText.textContent = 'Reordering draft picks...';
-    }
+    // Build the config object with all collected wizard data
+    const opts = retroState.options;
 
-    // Apply all changes - pass options so backend knows what to skip
-    const result = await window.electronAPI.retro.applyAllChanges(
-      retroState.filePath,
-      retroState.targetYear,
-      {
-        applyTeams: opts.teams,
-        applyAbbreviations: opts.abbreviations
-      }
-    );
+    // Check if expansion checkbox is checked
+    const expansionCheckbox = document.getElementById('retro-opt-expansion');
+    const expansionEnabled = expansionCheckbox && expansionCheckbox.checked;
 
-    if (!result.success) {
-      progressText.textContent = 'Error applying changes';
-      document.getElementById('retro-error-message').textContent = result.error;
-      errorSection.style.display = 'block';
+    const config = {
+      sourcePath: retroState.filePath,
+      saveAs: false, // Will be set based on user choice
+      year: retroState.targetYear,
+      options: {
+        teams: opts.teams || false,
+        abbreviations: opts.abbreviations || false,
+        schedule: opts.schedule && retroState.schedulePreview !== null,
+        coaches: opts.coaches && retroState.coachPreview !== null,
+        salaryCap: retroState.salaryCapData !== null,
+        stadiums: retroState.stadiumPreview !== null,
+        schemes: retroState.schemePreview !== null,
+        uniforms: true, // Always apply uniforms
+        expansion: expansionEnabled && retroState.expansionEvent !== null
+      },
+      expansionEvent: (expansionEnabled && retroState.expansionEvent) ? retroState.expansionEvent : null,
+      expansionDraftSelections: retroState.expansionDraftSelections || [], // Manual selections from draft board
+      expansionTeamIndices: retroState.expansionTeamIndices || [] // Team indices for clearing rosters
+    };
+
+    console.log('[RetroEditor] Config for applyAllAndSave:', JSON.stringify(config, null, 2));
+
+    progressBar.style.width = '20%';
+    progressText.textContent = 'Choose how to save...';
+    await sleep(300);
+
+    // Ask user: overwrite or save as new file?
+    const saveChoice = await showSaveChoiceDialog();
+    console.log('[RetroEditor] User save choice:', saveChoice);
+
+    if (saveChoice === 'cancel') {
+      progressText.textContent = 'Cancelled';
+      showRetroMessage('Save cancelled by user', 'warning');
       return;
     }
 
-    // Apply schedule if enabled and available
-    let scheduleResult = null;
-    if (hasSchedule) {
-      currentStep++;
-      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-      progressText.textContent = 'Applying historical schedule...';
-      await sleep(300);
+    config.saveAs = (saveChoice === 'saveas');
 
-      try {
-        scheduleResult = await window.electronAPI.retro.applySchedule(retroState.filePath, retroState.targetYear);
-        console.log('[RetroEditor] Schedule result:', scheduleResult);
-        if (!scheduleResult?.success) {
-          console.error('[RetroEditor] Schedule failed:', scheduleResult?.error || 'Unknown error');
-        }
-      } catch (scheduleError) {
-        console.error('[RetroEditor] Schedule application exception:', scheduleError);
-        // Continue - schedule is optional
-      }
+    progressBar.style.width = '30%';
+    progressText.textContent = 'Applying all changes...';
+
+    // ===== MAKE ONE CALL TO APPLY EVERYTHING AND SAVE =====
+    console.log('[RetroEditor] Calling applyAllAndSave (single atomic operation)...');
+    const result = await window.electronAPI.retro.applyAllAndSave(config);
+    console.log('[RetroEditor] applyAllAndSave result:', result);
+
+    // ===== LOG DIAGNOSTICS FOR DEBUGGING =====
+    if (result.diagnostics) {
+      console.log('=== DIAGNOSTICS FROM MAIN PROCESS ===');
+      console.log('Expansion condition:', result.diagnostics.expansionCondition);
+      console.log('BEFORE counts:', result.diagnostics.beforeCounts);
+      console.log('AFTER MOVE counts:', result.diagnostics.afterMoveCounts);
+      console.log('FINAL counts:', result.diagnostics.finalCounts);
+      console.log('Steps:', result.diagnostics.steps);
+      console.log('=== END DIAGNOSTICS ===');
+    } else {
+      console.log('[RetroEditor] No diagnostics returned');
     }
 
-    // Apply coaches if available
-    let coachResult = null;
-    if (hasCoaches) {
-      currentStep++;
-      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-      progressText.textContent = 'Assigning historical coaches...';
-      await sleep(300);
-
-      try {
-        coachResult = await window.electronAPI.retro.applyCoaches(retroState.filePath, retroState.targetYear);
-      } catch (coachError) {
-        console.warn('[RetroEditor] Coach assignment failed:', coachError);
-        // Continue - coaches are optional
-      }
+    if (result.cancelled) {
+      progressText.textContent = 'Cancelled';
+      showRetroMessage('Save cancelled by user', 'warning');
+      return;
     }
 
-    // Apply salary cap if available
-    let salaryCapResult = null;
-    if (hasSalaryCap) {
-      currentStep++;
-      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-      progressText.textContent = 'Setting salary cap...';
-      await sleep(300);
-
-      try {
-        salaryCapResult = await window.electronAPI.retro.applySalaryCap(retroState.filePath, retroState.targetYear);
-      } catch (salaryCapError) {
-        console.warn('[RetroEditor] Salary cap application failed:', salaryCapError);
-        // Continue - salary cap is optional
-      }
-    }
-
-    // Apply stadium names if available
-    let stadiumResult = null;
-    if (hasStadiums) {
-      currentStep++;
-      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-      progressText.textContent = 'Setting historical stadium names...';
-      await sleep(300);
-
-      try {
-        stadiumResult = await window.electronAPI.retro.applyStadiumNames(retroState.filePath, retroState.targetYear);
-      } catch (stadiumError) {
-        console.warn('[RetroEditor] Stadium names application failed:', stadiumError);
-        // Continue - stadiums are optional
-      }
-    }
-
-    // Apply team schemes if available
-    let schemeResult = null;
-    if (hasSchemes) {
-      currentStep++;
-      progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-      progressText.textContent = 'Setting era-appropriate team schemes...';
-      await sleep(300);
-
-      try {
-        schemeResult = await window.electronAPI.retro.applyTeamSchemes(retroState.filePath, retroState.targetYear);
-      } catch (schemeError) {
-        console.warn('[RetroEditor] Team schemes application failed:', schemeError);
-        // Continue - schemes are optional
-      }
-    }
-
-    // Apply uniforms (always attempt - uses year mapping)
-    let uniformResult = null;
-    currentStep++;
-    progressBar.style.width = `${(currentStep * 100) / totalSteps}%`;
-    progressText.textContent = 'Setting era-appropriate uniforms...';
-    await sleep(300);
-
-    try {
-      uniformResult = await window.electronAPI.retro.applyUniforms(retroState.targetYear);
-    } catch (uniformError) {
-      console.warn('[RetroEditor] Uniform application failed:', uniformError);
-      // Continue - uniforms are optional
+    if (!result.success) {
+      progressBar.style.width = '100%';
+      progressText.textContent = 'Error applying changes';
+      document.getElementById('retro-error-message').textContent = result.error || 'Unknown error';
+      errorSection.style.display = 'block';
+      showRetroMessage('Error: ' + (result.error || 'Unknown error'), 'error');
+      return;
     }
 
     progressBar.style.width = '100%';
-    await sleep(300);
+    progressText.textContent = 'Changes applied and saved successfully!';
 
-    retroState.applyResult = result.data;
-    progressText.textContent = 'Changes applied successfully!';
+    // Store results
+    retroState.applyResult = result.results;
+
+    // Build results summary
+    const r = result.results;
+    let resultItems = [];
+
+    if (r.seasonYearSet) {
+      resultItems.push(`<li>Season year set to ${retroState.targetYear}</li>`);
+      resultItems.push(`<li>Super Bowl number set to ${r.superBowlNumber}</li>`);
+    }
+
+    if (r.teamChanges > 0) {
+      resultItems.push(`<li>${r.teamChanges} team name(s) updated</li>`);
+    }
+
+    if (r.draftPicksReordered > 0) {
+      resultItems.push(`<li>${r.draftPicksReordered} draft pick(s) reordered</li>`);
+    }
+
+    if (r.scheduleGamesUpdated > 0) {
+      resultItems.push(`<li>${r.scheduleGamesUpdated} schedule game(s) set</li>`);
+    }
+
+    if (r.coachesUpdated > 0) {
+      resultItems.push(`<li>${r.coachesUpdated} coach(es) assigned</li>`);
+    }
+
+    if (r.salaryCapSet) {
+      resultItems.push(`<li>Salary cap set for ${retroState.targetYear}</li>`);
+    }
+
+    if (r.stadiumsUpdated > 0) {
+      resultItems.push(`<li>${r.stadiumsUpdated} stadium name(s) updated</li>`);
+    }
+
+    if (r.schemesUpdated > 0) {
+      resultItems.push(`<li>${r.schemesUpdated} team scheme(s) updated</li>`);
+    }
+
+    if (r.playersMovedToFA > 0) {
+      resultItems.push(`<li>${r.playersMovedToFA} player(s) moved to free agency</li>`);
+    }
+
+    if (r.expansionPlayersSelected > 0) {
+      if (config.expansionEvent?.type === 'relocation') {
+        resultItems.push(`<li>${r.expansionPlayersSelected} player(s) transferred in relocation</li>`);
+      } else {
+        resultItems.push(`<li>${r.expansionPlayersSelected} player(s) selected in expansion draft</li>`);
+      }
+    }
+
+    if (r.uniformsApplied > 0) {
+      resultItems.push(`<li>${r.uniformsApplied} team uniform(s) set</li>`);
+    }
+
+    const savedTo = result.targetPath || retroState.filePath;
+    resultItems.push(`<li><strong>Saved to: ${savedTo}</strong></li>`);
 
     // Show results
     const resultsSummary = document.getElementById('retro-results-summary');
-    let resultItems = [
-      `<li>Season year set to ${retroState.targetYear}</li>`,
-      `<li>Super Bowl number updated</li>`,
-      `<li>${result.data.teamChanges || 0} team name(s) updated</li>`,
-      `<li>${result.data.draftPicksReordered || 0} draft pick(s) reordered</li>`
-    ];
-
-    // Add schedule result if attempted
-    if (scheduleResult && scheduleResult.success) {
-      resultItems.push(`<li>${scheduleResult.data.gamesUpdated || 0} schedule game(s) set</li>`);
-    } else if (hasSchedule && (!scheduleResult || !scheduleResult.success)) {
-      resultItems.push(`<li style="color: var(--warning-color);">Schedule could not be applied (optional)</li>`);
-    }
-
-    // Add coach result if attempted
-    if (coachResult && coachResult.success) {
-      resultItems.push(`<li>${coachResult.data.coachesUpdated || 0} coach(es) assigned</li>`);
-      // Show warnings if any
-      if (coachResult.data.warnings && coachResult.data.warnings.length > 0) {
-        resultItems.push(`<li style="color: var(--warning-color);">${coachResult.data.warnings.length} coach warning(s)</li>`);
-      }
-    } else if (hasCoaches && (!coachResult || !coachResult.success)) {
-      resultItems.push(`<li style="color: var(--warning-color);">Coaches could not be assigned (optional)</li>`);
-    }
-
-    // Add salary cap result if attempted
-    if (salaryCapResult && salaryCapResult.success) {
-      const capValue = salaryCapResult.data.newCap;
-      const formattedCap = capValue > 0 ? '$' + capValue.toLocaleString() : 'No cap (pre-1994)';
-      resultItems.push(`<li>Salary cap set to ${formattedCap}</li>`);
-    } else if (hasSalaryCap && (!salaryCapResult || !salaryCapResult.success)) {
-      resultItems.push(`<li style="color: var(--warning-color);">Salary cap could not be set (optional)</li>`);
-    }
-
-    // Add stadium result if attempted
-    if (stadiumResult && stadiumResult.success) {
-      resultItems.push(`<li>${stadiumResult.data.stadiumsUpdated || 0} stadium name(s) updated</li>`);
-    } else if (hasStadiums && (!stadiumResult || !stadiumResult.success)) {
-      resultItems.push(`<li style="color: var(--warning-color);">Stadium names could not be updated (optional)</li>`);
-    }
-
-    // Add scheme result if attempted
-    if (schemeResult && schemeResult.success) {
-      resultItems.push(`<li>${schemeResult.data.schemesUpdated || 0} team scheme(s) updated</li>`);
-    } else if (hasSchemes && (!schemeResult || !schemeResult.success)) {
-      resultItems.push(`<li style="color: var(--warning-color);">Team schemes could not be updated (optional)</li>`);
-    }
-
-    // Add uniform result
-    if (uniformResult && uniformResult.success) {
-      resultItems.push(`<li>${uniformResult.data.uniformsApplied || 0} team uniform(s) set</li>`);
-    } else if (uniformResult && !uniformResult.success) {
-      resultItems.push(`<li style="color: var(--warning-color);">Uniforms could not be updated (optional)</li>`);
-    }
-
     resultsSummary.innerHTML = `<ul>${resultItems.join('')}</ul>`;
     resultsSection.style.display = 'block';
+
+    showRetroMessage('All changes applied and saved successfully!', 'success');
+
+    // Disable save buttons since already saved
+    const saveBtn = document.getElementById('retro-save-file');
+    const saveAsBtn = document.getElementById('retro-save-file-as');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="btn-icon">&#9989;</span> Saved';
+    }
+    if (saveAsBtn) {
+      saveAsBtn.disabled = true;
+    }
+
+    // Clear expansion draft selections after successful save
+    retroState.expansionDraftSelections = [];
+    retroState.expansionTeamIndices = [];
+
+    // Close the file
+    await window.electronAPI.retro.closeFile(retroState.filePath);
 
   } catch (error) {
     console.error('[RetroEditor] Error applying changes:', error);
@@ -1142,7 +1183,70 @@ async function applyChanges() {
 }
 
 /**
+ * Show a dialog asking user to choose between overwrite or save as new file
+ * Returns: 'overwrite', 'saveas', or 'cancel'
+ */
+async function showSaveChoiceDialog() {
+  return new Promise((resolve) => {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10000;';
+
+    const dialog = document.createElement('div');
+    dialog.style.cssText = 'background:var(--card-bg);border-radius:8px;padding:24px;max-width:400px;text-align:center;border:1px solid var(--border-color);';
+    dialog.innerHTML = `
+      <h3 style="margin:0 0 16px 0;color:var(--text-color);">Save Changes</h3>
+      <p style="margin:0 0 24px 0;color:var(--text-muted);">How would you like to save the modified franchise file?</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button id="save-choice-overwrite" class="btn btn-primary" style="min-width:140px;">
+          <span class="btn-icon">&#128190;</span> Overwrite Original
+        </button>
+        <button id="save-choice-saveas" class="btn btn-secondary" style="min-width:140px;">
+          <span class="btn-icon">&#128193;</span> Save As New File
+        </button>
+      </div>
+      <div style="margin-top:16px;">
+        <button id="save-choice-cancel" class="btn btn-ghost" style="min-width:100px;">Cancel</button>
+      </div>
+    `;
+
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+
+    const cleanup = () => {
+      document.body.removeChild(overlay);
+    };
+
+    document.getElementById('save-choice-overwrite').addEventListener('click', () => {
+      cleanup();
+      resolve('overwrite');
+    });
+
+    document.getElementById('save-choice-saveas').addEventListener('click', () => {
+      cleanup();
+      resolve('saveas');
+    });
+
+    document.getElementById('save-choice-cancel').addEventListener('click', () => {
+      cleanup();
+      resolve('cancel');
+    });
+
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        cleanup();
+        resolve('cancel');
+      }
+    });
+  });
+}
+
+/**
  * Save the modified franchise file (overwrite original)
+ * NOTE: This is now mostly unused since applyChanges handles saving.
+ * Kept for backwards compatibility if needed.
  */
 async function saveRetroFile() {
   try {
@@ -1152,13 +1256,15 @@ async function saveRetroFile() {
     saveAsBtn.disabled = true;
     saveBtn.innerHTML = '<span class="btn-icon">&#8987;</span> Saving...';
 
-    const result = await window.electronAPI.retro.saveFile(retroState.filePath);
+    // Use applyAndSave instead of saveFile to ensure critical changes persist
+    const result = await window.electronAPI.retro.applyAndSave(retroState.filePath, retroState.targetYear);
+    console.log('[RetroEditor] Manual save result:', result);
 
     if (result.success) {
       saveBtn.innerHTML = '<span class="btn-icon">&#9989;</span> Saved!';
       saveBtn.classList.add('success');
       saveAsBtn.style.display = 'none';
-      showRetroMessage('Franchise file saved successfully!', 'success');
+      showRetroMessage(`Saved! ${result.playersMoved} expansion players moved to FA, Super Bowl set to ${result.superBowlSet}`, 'success');
 
       // Close the file
       await window.electronAPI.retro.closeFile(retroState.filePath);
@@ -1183,6 +1289,7 @@ async function saveRetroFile() {
 
 /**
  * Save the modified franchise file to a new location
+ * Uses applyAndSaveAs to ensure expansion team players are moved to FA and Super Bowl is set
  */
 async function saveRetroFileAs() {
   try {
@@ -1192,7 +1299,9 @@ async function saveRetroFileAs() {
     saveBtn.disabled = true;
     saveAsBtn.innerHTML = '<span class="btn-icon">&#8987;</span> Saving...';
 
-    const result = await window.electronAPI.retro.saveFileAs(retroState.filePath);
+    // Use applyAndSaveAs instead of saveFileAs to ensure critical changes persist
+    const result = await window.electronAPI.retro.applyAndSaveAs(retroState.filePath, retroState.targetYear);
+    console.log('[RetroEditor] Save As result:', result);
 
     if (result.cancelled) {
       // User cancelled the save dialog
@@ -1206,7 +1315,7 @@ async function saveRetroFileAs() {
       saveAsBtn.innerHTML = '<span class="btn-icon">&#9989;</span> Saved!';
       saveAsBtn.classList.add('success');
       saveBtn.style.display = 'none';
-      showRetroMessage(`Franchise file saved to: ${result.newPath}`, 'success');
+      showRetroMessage(`Saved to: ${result.newPath} - ${result.playersMoved} expansion players moved to FA, Super Bowl set to ${result.superBowlSet}`, 'success');
 
       // Update the file path in state to the new location
       retroState.filePath = result.newPath;
@@ -2253,6 +2362,921 @@ function updateScrapeButtonState() {
   }
 }
 
+// ============================================================
+// EXPANSION DRAFT BOARD
+// ============================================================
+
+// State for expansion draft board
+let expansionDraftState = {
+  event: null,
+  eligiblePlayers: [],
+  selections: [],
+  maxPlayersPerTeam: 0,
+  expansionTeams: [],
+  controlledTeams: [], // Teams the user will manually pick for
+  autoPickTeams: [], // Teams that will be auto-drafted
+  protectionMode: false, // When true, clicking players toggles their protection
+  currentTeamTurn: 0 // Index into controlledTeams for alternating picks
+};
+
+/**
+ * Toggle protection mode on/off
+ */
+function toggleProtectionMode() {
+  expansionDraftState.protectionMode = !expansionDraftState.protectionMode;
+  const btn = document.getElementById('protectionModeBtn');
+  if (expansionDraftState.protectionMode) {
+    btn.style.background = 'var(--warning-color)';
+    btn.style.color = '#000';
+    btn.textContent = '🛡️ Done Editing';
+  } else {
+    btn.style.background = 'var(--bg-primary)';
+    btn.style.color = 'var(--text-primary)';
+    btn.textContent = '🛡️ Edit Protection';
+  }
+  renderDraftTeamsList();
+}
+
+/**
+ * Toggle a player's protection status
+ */
+function togglePlayerProtection(recordIndex) {
+  const player = expansionDraftState.eligiblePlayers.find(p => p.recordIndex === recordIndex);
+  if (!player) return;
+
+  player.isProtected = !player.isProtected;
+  console.log(`[ExpansionDraft] ${player.firstName} ${player.lastName} protection: ${player.isProtected}`);
+
+  renderDraftTeamsList();
+  updateDraftSummary();
+}
+
+/**
+ * Open the expansion draft board modal
+ */
+async function openExpansionDraftBoard() {
+  const event = retroState.expansionEvent;
+  if (!event) {
+    console.error('[ExpansionDraft] No expansion event set');
+    alert('No expansion event found for this year');
+    return;
+  }
+
+  console.log('[ExpansionDraft] Opening draft board for:', event.name);
+
+  // Store event in state
+  expansionDraftState.event = event;
+  expansionDraftState.selections = [];
+  expansionDraftState.expansionTeams = event.teams || [];
+  expansionDraftState.maxPlayersPerTeam = event.rules?.playersPerTeam || 30;
+
+  // If multiple expansion teams, show team selection first
+  if (expansionDraftState.expansionTeams.length > 1) {
+    showTeamSelectionModal();
+    return;
+  }
+
+  // Single team - user controls it by default
+  expansionDraftState.controlledTeams = [...expansionDraftState.expansionTeams];
+  expansionDraftState.autoPickTeams = [];
+
+  proceedToExpansionDraft();
+}
+
+/**
+ * Show team selection modal for multi-team expansion drafts
+ */
+function showTeamSelectionModal() {
+  const teams = expansionDraftState.expansionTeams;
+  const event = expansionDraftState.event;
+
+  // Create team selection HTML
+  let html = `
+    <div style="padding: 20px; max-width: 500px;">
+      <h3 style="margin: 0 0 20px 0; color: var(--text-primary);">Select Teams to Control</h3>
+      <p style="color: var(--text-secondary); margin-bottom: 20px;">
+        Choose which expansion team(s) you want to draft for. Unselected teams will auto-draft based on overall ratings.
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+  `;
+
+  for (const team of teams) {
+    html += `
+      <label style="display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px; cursor: pointer;">
+        <input type="checkbox" id="control-team-${team.teamIndex}" checked style="width: 18px; height: 18px;">
+        <span style="font-size: 16px; color: var(--text-primary);">${team.name}</span>
+      </label>
+    `;
+  }
+
+  html += `
+      </div>
+      <div style="display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end;">
+        <button onclick="cancelTeamSelection()" style="padding: 10px 20px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer;">
+          Cancel
+        </button>
+        <button onclick="confirmTeamSelection()" style="padding: 10px 20px; background: var(--accent-color); border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: 600;">
+          Start Draft
+        </button>
+      </div>
+    </div>
+  `;
+
+  // Show in the expansion draft modal container
+  const modal = document.getElementById('expansionDraftModal');
+  modal.style.display = 'flex';
+
+  const container = document.getElementById('draftTeamsList');
+  container.innerHTML = html;
+
+  // Update event info
+  document.getElementById('draftEventInfo').innerHTML = `
+    <div><strong>${event.name}</strong></div>
+    <div style="margin-top: 4px;">${event.description || ''}</div>
+  `;
+
+  // Hide the filters header during team selection
+  const filtersHeader = document.getElementById('draftFiltersHeader');
+  if (filtersHeader) {
+    filtersHeader.style.display = 'none';
+  }
+}
+
+/**
+ * Cancel team selection and close modal
+ */
+function cancelTeamSelection() {
+  closeExpansionDraftModal();
+}
+
+/**
+ * Confirm team selection and proceed to draft
+ */
+function confirmTeamSelection() {
+  const teams = expansionDraftState.expansionTeams;
+  expansionDraftState.controlledTeams = [];
+  expansionDraftState.autoPickTeams = [];
+
+  for (const team of teams) {
+    const checkbox = document.getElementById(`control-team-${team.teamIndex}`);
+    if (checkbox && checkbox.checked) {
+      expansionDraftState.controlledTeams.push(team);
+    } else {
+      expansionDraftState.autoPickTeams.push(team);
+    }
+  }
+
+  console.log('[ExpansionDraft] Controlled teams:', expansionDraftState.controlledTeams.map(t => t.name).join(', '));
+  console.log('[ExpansionDraft] Auto-pick teams:', expansionDraftState.autoPickTeams.map(t => t.name).join(', '));
+
+  // Show filters header again
+  const filtersHeader = document.getElementById('draftFiltersHeader');
+  if (filtersHeader) {
+    filtersHeader.style.display = 'flex';
+  }
+
+  // Show summary
+  const summaryEl = document.getElementById('draftSummary');
+  if (summaryEl) {
+    summaryEl.style.display = 'block';
+  }
+
+  proceedToExpansionDraft();
+}
+
+/**
+ * Proceed to the main expansion draft board after team selection
+ */
+async function proceedToExpansionDraft() {
+  const event = expansionDraftState.event;
+  const modal = document.getElementById('expansionDraftModal');
+  modal.style.display = 'flex';
+
+  // Show loading state
+  document.getElementById('draftTeamsList').innerHTML = `
+    <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+      Loading players...
+    </div>
+  `;
+
+  // Update event info with team control status
+  let teamControlInfo = '';
+  if (expansionDraftState.controlledTeams.length > 0) {
+    teamControlInfo += `<div>You control: ${expansionDraftState.controlledTeams.map(t => t.name).join(', ')}</div>`;
+  }
+  if (expansionDraftState.autoPickTeams.length > 0) {
+    teamControlInfo += `<div style="color: var(--text-secondary);">Auto-draft: ${expansionDraftState.autoPickTeams.map(t => t.name).join(', ')}</div>`;
+  }
+
+  document.getElementById('draftEventInfo').innerHTML = `
+    <div><strong>${event.name}</strong></div>
+    <div style="margin-top: 4px;">${event.description || ''}</div>
+    <div style="margin-top: 8px;">
+      <div>Players per team: ${expansionDraftState.maxPlayersPerTeam}</div>
+      <div>Protected per team: ${event.protectionRules?.maxProtected || 32}</div>
+      <div>Max from same team: ${event.rules?.maxFromSameTeam || 'unlimited'}</div>
+      ${teamControlInfo}
+    </div>
+  `;
+
+  // Update selection count
+  updateDraftSelectionCount();
+
+  try {
+    // First, prepare for expansion draft by moving existing expansion team players to FA
+    console.log('[ExpansionDraft] Preparing expansion draft - moving existing players to FA');
+    const prepareResult = await window.electronAPI.retro.prepareExpansionDraft(
+      retroState.filePath,
+      event
+    );
+    console.log('[ExpansionDraft] Prepare result:', prepareResult);
+    if (prepareResult.movedCount > 0) {
+      console.log(`[ExpansionDraft] Moved ${prepareResult.movedCount} existing players to FA`);
+    }
+
+    // Get eligible players
+    console.log('[ExpansionDraft] Calling getEligiblePlayers for file:', retroState.filePath);
+    const eligibleResult = await window.electronAPI.retro.getEligiblePlayers(
+      retroState.filePath,
+      event
+    );
+
+    console.log('[ExpansionDraft] getEligiblePlayers result:', eligibleResult?.success, 'count:', eligibleResult?.players?.length);
+
+    if (!eligibleResult.success || !eligibleResult.players) {
+      console.error('[ExpansionDraft] Failed to get eligible players:', eligibleResult?.error);
+      document.getElementById('draftTeamsList').innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--error-color);">
+          Failed to load eligible players: ${eligibleResult.error || 'Unknown error'}
+        </div>
+      `;
+      return;
+    }
+
+    // Auto-protect based on rules
+    const maxProtected = event.protectionRules?.maxProtected || 32;
+    const protectedResult = await window.electronAPI.retro.autoProtectPlayers(
+      eligibleResult.players,
+      maxProtected
+    );
+
+    if (!protectedResult.success || !protectedResult.players) {
+      console.error('[ExpansionDraft] Failed to auto-protect players');
+      document.getElementById('draftTeamsList').innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--error-color);">
+          Failed to auto-protect players
+        </div>
+      `;
+      return;
+    }
+
+    console.log('[ExpansionDraft] autoProtectPlayers result:', protectedResult.players.length, 'players');
+    const protectedCount = protectedResult.players.filter(p => p.isProtected).length;
+    const unprotectedCount = protectedResult.players.filter(p => !p.isProtected).length;
+    console.log('[ExpansionDraft] Protected:', protectedCount, 'Unprotected:', unprotectedCount);
+
+    expansionDraftState.eligiblePlayers = protectedResult.players;
+
+    // Populate team filter
+    populateTeamFilter();
+    console.log('[ExpansionDraft] Team filter populated');
+
+    // Render teams and players
+    console.log('[ExpansionDraft] Calling renderDraftTeamsList()');
+    renderDraftTeamsList();
+    renderSelectedPlayersList();
+    updateDraftSelectionCount();
+
+    // Update summary
+    updateDraftSummary();
+
+    // Process any auto-picks if it's not the user's turn first
+    if (expansionDraftState.autoPickTeams.length > 0) {
+      processAutoPicks();
+    }
+
+  } catch (err) {
+    console.error('[ExpansionDraft] Error loading players:', err);
+    document.getElementById('draftTeamsList').innerHTML = `
+      <div style="text-align: center; padding: 40px; color: var(--error-color);">
+        Error: ${err.message}
+      </div>
+    `;
+  }
+}
+
+/**
+ * Get the team that should pick next based on alternating order
+ * Returns { team, isAutoPick } or null if draft is complete
+ */
+function getNextPickingTeam() {
+  const allTeams = expansionDraftState.expansionTeams;
+  if (allTeams.length === 0) return null;
+
+  const maxPerTeam = expansionDraftState.maxPlayersPerTeam;
+
+  // Count total picks made
+  const totalPicks = expansionDraftState.selections.length;
+
+  // Determine which team's turn it is based on total picks (alternating)
+  const teamTurnIndex = totalPicks % allTeams.length;
+  const pickingTeam = allTeams[teamTurnIndex];
+
+  // Check if this team is full
+  const teamCount = expansionDraftState.selections.filter(
+    s => s.newTeamIndex === pickingTeam.teamIndex
+  ).length;
+
+  if (teamCount >= maxPerTeam) {
+    // This team is full, find next team that isn't
+    for (let i = 1; i < allTeams.length; i++) {
+      const nextIdx = (teamTurnIndex + i) % allTeams.length;
+      const nextTeam = allTeams[nextIdx];
+      const nextTeamCount = expansionDraftState.selections.filter(
+        s => s.newTeamIndex === nextTeam.teamIndex
+      ).length;
+      if (nextTeamCount < maxPerTeam) {
+        const isAuto = expansionDraftState.autoPickTeams.some(t => t.teamIndex === nextTeam.teamIndex);
+        return { team: nextTeam, isAutoPick: isAuto };
+      }
+    }
+    return null; // All teams full
+  }
+
+  const isAutoPick = expansionDraftState.autoPickTeams.some(t => t.teamIndex === pickingTeam.teamIndex);
+  return { team: pickingTeam, isAutoPick: isAutoPick };
+}
+
+/**
+ * Auto-pick ONE player for the specified team
+ * Returns true if a player was picked, false if no players available
+ */
+function autoPickOnePlayer(expansionTeam) {
+  const maxFromSameTeam = expansionDraftState.event?.rules?.maxFromSameTeam;
+
+  // Position priority for auto-pick (lower = higher priority)
+  // Specialists (K, P, LS) should be picked last
+  const positionPriority = {
+    'QB': 1, 'HB': 2, 'WR': 3, 'TE': 4, 'FB': 5,
+    'LT': 6, 'LG': 7, 'C': 8, 'RG': 9, 'RT': 10,
+    'LEDG': 11, 'REDG': 12, 'DT': 13,
+    'SAM': 14, 'Mike': 15, 'WILL': 16,
+    'CB': 17, 'FS': 18, 'SS': 19,
+    'K': 50, 'P': 51, 'LS': 52 // Specialists picked last
+  };
+
+  // Track how many players taken from each source team
+  const takenFromTeam = new Map();
+  // Track positions already picked for this team to add variety
+  const positionsTaken = new Map();
+  for (const sel of expansionDraftState.selections) {
+    if (sel.newTeamIndex === expansionTeam.teamIndex) {
+      const player = expansionDraftState.eligiblePlayers.find(p => p.recordIndex === sel.playerRecordIndex);
+      if (player) {
+        takenFromTeam.set(player.teamIndex, (takenFromTeam.get(player.teamIndex) || 0) + 1);
+        positionsTaken.set(player.position, (positionsTaken.get(player.position) || 0) + 1);
+      }
+    }
+  }
+
+  // Get unprotected, unselected players
+  const availablePlayers = expansionDraftState.eligiblePlayers.filter(p => {
+    if (p.isProtected) return false;
+    if (expansionDraftState.selections.some(s => s.playerRecordIndex === p.recordIndex)) return false;
+    // Check max from same team rule
+    if (maxFromSameTeam && typeof maxFromSameTeam === 'number') {
+      const takenCount = takenFromTeam.get(p.teamIndex) || 0;
+      if (takenCount >= maxFromSameTeam) return false;
+    }
+    return true;
+  });
+
+  if (availablePlayers.length === 0) {
+    console.log(`[ExpansionDraft] No more available players for ${expansionTeam.name}`);
+    return false;
+  }
+
+  // Sort by: position priority first, then OVR within same priority tier
+  availablePlayers.sort((a, b) => {
+    const aPriority = positionPriority[a.position] || 30;
+    const bPriority = positionPriority[b.position] || 30;
+
+    // Penalize positions we already have multiple of (encourages roster variety)
+    const aCount = positionsTaken.get(a.position) || 0;
+    const bCount = positionsTaken.get(b.position) || 0;
+    const aAdjusted = aPriority + (aCount * 5);
+    const bAdjusted = bPriority + (bCount * 5);
+
+    if (aAdjusted !== bAdjusted) {
+      return aAdjusted - bAdjusted;
+    }
+    // Same priority tier - pick higher OVR
+    return b.overall - a.overall;
+  });
+
+  const bestPlayer = availablePlayers[0];
+
+  // Add selection
+  expansionDraftState.selections.push({
+    playerRecordIndex: bestPlayer.recordIndex,
+    newTeamIndex: expansionTeam.teamIndex,
+    playerName: `${bestPlayer.firstName} ${bestPlayer.lastName}`,
+    position: bestPlayer.position,
+    overall: bestPlayer.overall,
+    fromTeam: bestPlayer.teamName,
+    toTeam: expansionTeam.name,
+    isAutoPick: true
+  });
+
+  console.log(`[ExpansionDraft] Auto-picked ${bestPlayer.firstName} ${bestPlayer.lastName} (${bestPlayer.position} ${bestPlayer.overall}) for ${expansionTeam.name}`);
+  return true;
+}
+
+/**
+ * Process auto-picks until it's the user's turn
+ * Called after loading draft and after each user pick
+ */
+function processAutoPicks() {
+  let picksMade = 0;
+  const maxPicks = 100; // Safety limit
+
+  while (picksMade < maxPicks) {
+    const nextPick = getNextPickingTeam();
+    if (!nextPick) {
+      console.log('[ExpansionDraft] Draft complete or all teams full');
+      break;
+    }
+
+    if (!nextPick.isAutoPick) {
+      // It's the user's turn
+      console.log(`[ExpansionDraft] Waiting for user to pick for ${nextPick.team.name}`);
+      break;
+    }
+
+    // Auto-pick for this team
+    const picked = autoPickOnePlayer(nextPick.team);
+    if (!picked) {
+      console.log(`[ExpansionDraft] Could not auto-pick for ${nextPick.team.name}`);
+      break;
+    }
+    picksMade++;
+  }
+
+  // Update UI after auto-picks
+  if (picksMade > 0) {
+    renderDraftTeamsList();
+    renderSelectedPlayersList();
+    updateDraftSelectionCount();
+    updateDraftSummary();
+  }
+}
+
+/**
+ * Populate the team filter dropdown
+ */
+function populateTeamFilter() {
+  const teamFilter = document.getElementById('expansionDraftTeamFilter');
+  const teams = new Set();
+
+  for (const player of expansionDraftState.eligiblePlayers) {
+    teams.add(player.teamName);
+  }
+
+  teamFilter.innerHTML = '<option value="all">All Teams</option>';
+  for (const team of [...teams].sort()) {
+    teamFilter.innerHTML += `<option value="${team}">${team}</option>`;
+  }
+}
+
+/**
+ * Render the teams and players list
+ */
+function renderDraftTeamsList() {
+  console.log('[ExpansionDraft] renderDraftTeamsList() called');
+  console.log('[ExpansionDraft] eligiblePlayers count:', expansionDraftState.eligiblePlayers?.length);
+
+  const container = document.getElementById('draftTeamsList');
+  console.log('[ExpansionDraft] Container element:', container ? 'FOUND' : 'NOT FOUND');
+
+  const teamFilter = document.getElementById('expansionDraftTeamFilter')?.value || 'all';
+  const positionFilter = document.getElementById('expansionDraftPositionFilter')?.value || 'all';
+  console.log('[ExpansionDraft] Filters - team:', teamFilter, 'position:', positionFilter);
+
+  // Group players by team
+  const playersByTeam = new Map();
+  for (const player of expansionDraftState.eligiblePlayers) {
+    if (teamFilter !== 'all' && player.teamName !== teamFilter) continue;
+    if (positionFilter !== 'all' && player.position !== positionFilter) continue;
+
+    if (!playersByTeam.has(player.teamName)) {
+      playersByTeam.set(player.teamName, []);
+    }
+    playersByTeam.get(player.teamName).push(player);
+  }
+
+  console.log('[ExpansionDraft] playersByTeam.size:', playersByTeam.size);
+
+  if (playersByTeam.size === 0) {
+    console.log('[ExpansionDraft] No players match filters - showing empty message');
+    container.innerHTML = `
+      <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+        No players match the current filters
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  for (const [teamName, players] of [...playersByTeam.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const protectedCount = players.filter(p => p.isProtected).length;
+    const availableCount = players.length - protectedCount;
+
+    html += `
+      <div class="draft-team-card" style="background: var(--bg-primary); border-radius: 6px; padding: 12px; margin-bottom: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h5 style="margin: 0; color: var(--text-primary);">${teamName}</h5>
+          <span style="font-size: 12px; color: var(--text-secondary);">
+            ${protectedCount} protected, ${availableCount} available
+          </span>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+    `;
+
+    // Position order for sorting (offense, defense, special teams) - using Madden position names
+    const positionOrder = ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT',
+                           'LEDG', 'REDG', 'DT', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS', 'K', 'P', 'LS'];
+
+    // Sort players: unprotected first, then by position, then by OVR within position
+    players.sort((a, b) => {
+      // Unprotected first (so they're easier to click)
+      if (a.isProtected !== b.isProtected) return a.isProtected ? 1 : -1;
+      // Then by position
+      const posA = positionOrder.indexOf(a.position);
+      const posB = positionOrder.indexOf(b.position);
+      if (posA !== posB) return (posA === -1 ? 999 : posA) - (posB === -1 ? 999 : posB);
+      // Then by OVR within position
+      return b.overall - a.overall;
+    });
+
+    for (const player of players) {
+      const isSelected = expansionDraftState.selections.some(s => s.playerRecordIndex === player.recordIndex);
+      const inProtectionMode = expansionDraftState.protectionMode;
+
+      // Skip already selected players (they're in the selections list)
+      if (isSelected && !inProtectionMode) {
+        continue;
+      }
+
+      // Colors depend on mode and status
+      let bgColor, textColor, cursor, opacity;
+      if (inProtectionMode) {
+        // Protection mode: show protected status clearly, all clickable
+        bgColor = player.isProtected ? 'var(--warning-color)' : 'var(--bg-secondary)';
+        textColor = player.isProtected ? '#000' : 'var(--text-primary)';
+        cursor = 'pointer';
+        opacity = '1';
+      } else {
+        // Draft mode: normal colors
+        bgColor = isSelected ? 'var(--success-color)' : (player.isProtected ? 'var(--bg-tertiary)' : 'var(--bg-secondary)');
+        textColor = isSelected ? '#fff' : (player.isProtected ? 'var(--text-muted)' : 'var(--text-primary)');
+        cursor = player.isProtected ? 'not-allowed' : 'pointer';
+        opacity = player.isProtected ? '0.6' : '1';
+      }
+
+      // Click handler depends on mode
+      let clickHandler = '';
+      if (inProtectionMode) {
+        clickHandler = `onclick="togglePlayerProtection(${player.recordIndex})"`;
+      } else if (!player.isProtected) {
+        clickHandler = `onclick="togglePlayerSelection(${player.recordIndex})"`;
+      }
+
+      // Format contract info for tooltip
+      // Service returns salary already in millions (PSA0/100)
+      const contractYears = player.contractYearsLeft || 0;
+      const contractSalary = typeof player.contractSalary === 'number' ? `$${player.contractSalary.toFixed(1)}M` : 'N/A';
+      const capHit = typeof player.capHit === 'number' ? `$${player.capHit.toFixed(1)}M` : 'N/A';
+
+      html += `
+        <div class="draft-player-chip"
+             data-record-index="${player.recordIndex}"
+             data-protected="${player.isProtected}"
+             style="
+               padding: 4px 8px;
+               border-radius: 4px;
+               font-size: 12px;
+               background: ${bgColor};
+               color: ${textColor};
+               cursor: ${cursor};
+               opacity: ${opacity};
+             "
+             ${clickHandler}
+             title="${player.firstName} ${player.lastName}
+OVR: ${player.overall} | Age: ${player.age}
+Years: ${contractYears} | Contract: ${contractSalary} | Cap: ${capHit}${player.isProtected ? '\n(PROTECTED)' : ''}">
+          ${player.lastName}, ${player.firstName.charAt(0)}. (${player.position} ${player.overall})${inProtectionMode && player.isProtected ? ' 🛡️' : ''}
+        </div>
+      `;
+    }
+
+    html += `
+        </div>
+      </div>
+    `;
+  }
+
+  console.log('[ExpansionDraft] Setting container HTML, length:', html.length);
+  container.innerHTML = html;
+  console.log('[ExpansionDraft] Container childElementCount after render:', container?.childElementCount);
+}
+
+/**
+ * Toggle a player's selection status
+ */
+function togglePlayerSelection(recordIndex) {
+  const player = expansionDraftState.eligiblePlayers.find(p => p.recordIndex === recordIndex);
+  if (!player || player.isProtected) return;
+
+  const existingIdx = expansionDraftState.selections.findIndex(s => s.playerRecordIndex === recordIndex);
+
+  if (existingIdx >= 0) {
+    // Deselect
+    expansionDraftState.selections.splice(existingIdx, 1);
+  } else {
+    // Check if we've reached the max
+    const maxTotal = expansionDraftState.maxPlayersPerTeam * expansionDraftState.expansionTeams.length;
+    if (expansionDraftState.selections.length >= maxTotal) {
+      alert(`Maximum ${maxTotal} players can be selected`);
+      return;
+    }
+
+    // Check whose turn it is
+    const nextPick = getNextPickingTeam();
+    if (!nextPick) {
+      alert('Draft is complete - all teams are full');
+      return;
+    }
+    if (nextPick.isAutoPick) {
+      // It's the auto-pick team's turn - wait for auto-pick to finish
+      console.log('[ExpansionDraft] User clicked but it is auto-pick turn, processing auto-picks first');
+      processAutoPicks();
+      return;
+    }
+    const teamIndex = nextPick.team.teamIndex;
+
+    expansionDraftState.selections.push({
+      playerRecordIndex: recordIndex,
+      newTeamIndex: teamIndex
+    });
+
+    // Re-render after user pick
+    renderDraftTeamsList();
+    renderSelectedPlayersList();
+    updateDraftSelectionCount();
+    updateDraftSummary();
+
+    // Process auto-picks for the other team(s) if any
+    if (expansionDraftState.autoPickTeams.length > 0) {
+      // Small delay so user can see their pick before auto-pick happens
+      setTimeout(() => {
+        processAutoPicks();
+      }, 300);
+    }
+    return;
+  }
+
+  // Re-render after deselect
+  renderDraftTeamsList();
+  renderSelectedPlayersList();
+  updateDraftSelectionCount();
+  updateDraftSummary();
+}
+
+/**
+ * Get the next expansion team for user to pick (only controlled teams)
+ * Uses the centralized getNextPickingTeam() logic
+ */
+function getNextAvailableExpansionTeam() {
+  const nextPick = getNextPickingTeam();
+  if (!nextPick) return null;
+
+  // If it's an auto-pick team's turn, something is wrong - we shouldn't be here
+  if (nextPick.isAutoPick) {
+    console.warn('[ExpansionDraft] getNextAvailableExpansionTeam called but it is auto-pick turn');
+    return null;
+  }
+
+  return nextPick.team.teamIndex;
+}
+
+/**
+ * Render the selected players list - grouped by team
+ */
+function renderSelectedPlayersList() {
+  const container = document.getElementById('draftSelectedList');
+
+  if (expansionDraftState.selections.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px;">
+        Click a player to select them
+      </div>
+    `;
+    return;
+  }
+
+  // Group selections by team
+  const selectionsByTeam = new Map();
+  for (const team of expansionDraftState.expansionTeams) {
+    selectionsByTeam.set(team.teamIndex, []);
+  }
+
+  for (const selection of expansionDraftState.selections) {
+    const teamSelections = selectionsByTeam.get(selection.newTeamIndex);
+    if (teamSelections) {
+      teamSelections.push(selection);
+    }
+  }
+
+  let html = '';
+
+  // Only show team headers if there are multiple teams
+  const showTeamHeaders = expansionDraftState.expansionTeams.length > 1;
+
+  for (const team of expansionDraftState.expansionTeams) {
+    const teamSelections = selectionsByTeam.get(team.teamIndex) || [];
+
+    if (showTeamHeaders) {
+      html += `
+        <div style="font-size: 12px; font-weight: 600; color: var(--accent-color); margin: ${html ? '12px' : '0'} 0 6px 0; padding-bottom: 4px; border-bottom: 1px solid var(--border-color);">
+          ${team.name} (${teamSelections.length}/${expansionDraftState.maxPlayersPerTeam})
+        </div>
+      `;
+    }
+
+    for (const selection of teamSelections) {
+      const player = expansionDraftState.eligiblePlayers.find(p => p.recordIndex === selection.playerRecordIndex);
+      if (!player) continue;
+
+      const autoLabel = selection.isAutoPick ? ' (auto)' : '';
+
+      html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: var(--bg-primary); border-radius: 4px; margin-bottom: 4px;">
+          <div>
+            <span style="color: var(--text-primary);">${player.firstName} ${player.lastName}</span>
+            <span style="color: var(--text-secondary); font-size: 12px;"> ${player.position} ${player.overall}${autoLabel}</span>
+          </div>
+          ${!selection.isAutoPick ? `
+            <button onclick="togglePlayerSelection(${player.recordIndex})"
+                    style="background: none; border: none; color: var(--error-color); cursor: pointer; padding: 2px 6px;">
+              ✕
+            </button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    if (teamSelections.length === 0 && showTeamHeaders) {
+      html += `
+        <div style="padding: 8px; color: var(--text-secondary); font-size: 12px; font-style: italic;">
+          No players selected yet
+        </div>
+      `;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+/**
+ * Update the selection count display
+ */
+function updateDraftSelectionCount() {
+  const maxTotal = expansionDraftState.maxPlayersPerTeam * (expansionDraftState.expansionTeams?.length || 1);
+  const current = expansionDraftState.selections.length;
+
+  // Get current team picking info
+  const nextPick = getNextPickingTeam();
+
+  let countText = `${current} / ${maxTotal}`;
+  if (nextPick && expansionDraftState.expansionTeams.length > 1) {
+    const pickLabel = nextPick.isAutoPick ? `${nextPick.team.name} (auto)` : nextPick.team.name;
+    countText += ` | Now picking: ${pickLabel}`;
+  }
+
+  document.getElementById('draftSelectionCount').textContent = countText;
+}
+
+/**
+ * Update the summary display
+ */
+function updateDraftSummary() {
+  const protectedCount = expansionDraftState.eligiblePlayers.filter(p => p.isProtected).length;
+  const availableCount = expansionDraftState.eligiblePlayers.filter(p => !p.isProtected).length;
+  const selectedCount = expansionDraftState.selections.length;
+
+  document.getElementById('draftProtectedCount').textContent = protectedCount;
+  document.getElementById('draftAvailableCount').textContent = availableCount;
+  document.getElementById('draftSelectedCount').textContent = selectedCount;
+}
+
+/**
+ * Close the expansion draft modal
+ */
+function closeExpansionDraftModal() {
+  document.getElementById('expansionDraftModal').style.display = 'none';
+  expansionDraftState = {
+    event: null,
+    eligiblePlayers: [],
+    selections: [],
+    maxPlayersPerTeam: 0,
+    expansionTeams: [],
+    controlledTeams: [],
+    autoPickTeams: [],
+    protectionMode: false,
+    currentTeamTurn: 0
+  };
+}
+
+/**
+ * Execute the expansion draft with current selections.
+ * Instead of executing immediately, store selections in retroState
+ * for the final "Apply Changes" save flow.
+ */
+async function executeExpansionDraftFromBoard() {
+  if (expansionDraftState.selections.length === 0) {
+    alert('Please select at least one player');
+    return;
+  }
+
+  const confirmMsg = `Save ${expansionDraftState.selections.length} player selections for expansion draft?`;
+  if (!confirm(confirmMsg)) return;
+
+  // Store selections in retroState for the final save flow
+  // Include expansion team indices for proper roster array handling
+  retroState.expansionDraftSelections = expansionDraftState.selections.map(sel => ({
+    playerRecordIndex: sel.playerRecordIndex,
+    newTeamIndex: sel.newTeamIndex
+  }));
+
+  // Also store the expansion team indices for clearing rosters
+  retroState.expansionTeamIndices = expansionDraftState.expansionTeams.map(t => t.teamIndex);
+
+  console.log('[ExpansionDraft] Saved selections:', retroState.expansionDraftSelections.length);
+  console.log('[ExpansionDraft] Expansion team indices:', retroState.expansionTeamIndices);
+
+  alert(`Expansion draft selections saved! ${expansionDraftState.selections.length} players.\n\nClick "Apply Changes" to execute the draft and save.`);
+
+  closeExpansionDraftModal();
+}
+
+// Wire up expansion draft board handlers
+document.addEventListener('DOMContentLoaded', () => {
+  // Open draft board button
+  const openBtn = document.getElementById('open-expansion-draft-btn');
+  if (openBtn) {
+    openBtn.onclick = openExpansionDraftBoard;
+  }
+
+  // Close modal button
+  const closeBtn = document.getElementById('closeExpansionDraftBtn');
+  if (closeBtn) {
+    closeBtn.onclick = closeExpansionDraftModal;
+  }
+
+  // Cancel button
+  const cancelBtn = document.getElementById('cancelExpansionDraftBtn');
+  if (cancelBtn) {
+    cancelBtn.onclick = closeExpansionDraftModal;
+  }
+
+  // Execute button
+  const executeBtn = document.getElementById('executeExpansionDraftBtn');
+  if (executeBtn) {
+    executeBtn.onclick = executeExpansionDraftFromBoard;
+  }
+
+  // Filter handlers
+  const teamFilter = document.getElementById('expansionDraftTeamFilter');
+  if (teamFilter) {
+    teamFilter.onchange = renderDraftTeamsList;
+  }
+
+  const positionFilter = document.getElementById('expansionDraftPositionFilter');
+  if (positionFilter) {
+    positionFilter.onchange = renderDraftTeamsList;
+  }
+
+  // Click outside to close
+  const modal = document.getElementById('expansionDraftModal');
+  if (modal) {
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeExpansionDraftModal();
+      }
+    };
+  }
+});
+
 // Export for use by other modules
 window.initRetroEditor = initRetroEditor;
 window.debugTeamTable = debugTeamTable;
@@ -2263,3 +3287,9 @@ window.loadLogoPreview = loadLogoPreview;
 window.scrapeAllLogos = scrapeAllLogos;
 window.viewScrapedLogos = viewScrapedLogos;
 window.exportLogosForMFT = exportLogosForMFT;
+window.openExpansionDraftBoard = openExpansionDraftBoard;
+window.togglePlayerSelection = togglePlayerSelection;
+window.toggleProtectionMode = toggleProtectionMode;
+window.togglePlayerProtection = togglePlayerProtection;
+window.cancelTeamSelection = cancelTeamSelection;
+window.confirmTeamSelection = confirmTeamSelection;

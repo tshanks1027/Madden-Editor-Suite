@@ -46,6 +46,7 @@ import { registerFrostyHandlers } from './main/ipc/frosty-handlers';
 import { registerPortraitMappingHandlers } from './main/ipc/portrait-mapping-handlers';
 import { registerCustomPortraitHandlers } from './main/ipc/custom-portrait-handlers';
 import { registerCustomCoachPortraitHandlers } from './main/ipc/custom-coach-portrait-handlers';
+import { registerLogoHandlers } from './main/ipc/logo-handlers';
 import { updateChecker } from './main/services/UpdateChecker';
 import { portraitSpriteService } from './main/services/PortraitSpriteService';
 import { coachPortraitService } from './main/services/CoachPortraitService';
@@ -61,6 +62,7 @@ registerFrostyHandlers();
 registerPortraitMappingHandlers();
 registerCustomPortraitHandlers();
 registerCustomCoachPortraitHandlers();
+registerLogoHandlers();
 
 // Register window focus handler - simple focus without visual disruption
 // Used to ensure keyboard input works after various operations

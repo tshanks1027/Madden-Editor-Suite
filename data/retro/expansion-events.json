@@ -1,0 +1,178 @@
+{
+  "description": "NFL expansion draft and relocation events with rules for player selection",
+  "events": [
+    {
+      "id": "seahawks-buccaneers-1976",
+      "type": "expansion",
+      "year": 1976,
+      "name": "1976 Seahawks & Buccaneers Expansion Draft",
+      "description": "The NFL added two new teams: Seattle Seahawks and Tampa Bay Buccaneers",
+      "teams": [
+        { "teamIndex": 27, "name": "Seattle Seahawks" },
+        { "teamIndex": 5, "name": "Tampa Bay Buccaneers" }
+      ],
+      "rules": {
+        "playersPerTeam": 39,
+        "protectedPerTeam": 32,
+        "rounds": 8,
+        "selectionOrder": "alternating",
+        "maxFromSameTeam": 3,
+        "description": "Each existing team could protect 32 players. Expansion teams selected 39 players each over 8 rounds."
+      },
+      "protectionRules": {
+        "maxProtected": 32,
+        "positionLimits": null
+      }
+    },
+    {
+      "id": "panthers-jaguars-1995",
+      "type": "expansion",
+      "year": 1995,
+      "name": "1995 Panthers & Jaguars Expansion Draft",
+      "description": "Carolina Panthers and Jacksonville Jaguars joined the NFL",
+      "teams": [
+        { "teamIndex": 20, "name": "Carolina Panthers" },
+        { "teamIndex": 16, "name": "Jacksonville Jaguars" }
+      ],
+      "rules": {
+        "playersPerTeam": 35,
+        "protectedPerTeam": 36,
+        "rounds": 6,
+        "selectionOrder": "alternating",
+        "maxFromSameTeam": "unlimited_per_round",
+        "description": "Each existing team protected 36 players. Expansion teams alternated selections for 6 rounds."
+      },
+      "protectionRules": {
+        "maxProtected": 36,
+        "positionLimits": null
+      }
+    },
+    {
+      "id": "browns-relocation-1996",
+      "type": "relocation",
+      "year": 1996,
+      "name": "Cleveland Browns Relocation to Baltimore",
+      "description": "Art Modell moved the Cleveland Browns to Baltimore. All players, staff, and team history transferred to become the Baltimore Ravens.",
+      "sourceTeam": { "teamIndex": 4, "name": "Cleveland Browns" },
+      "destinationTeam": { "teamIndex": 24, "name": "Baltimore Ravens" },
+      "rules": {
+        "playerTransfer": "all",
+        "description": "All players from Cleveland moved to Baltimore. The Browns franchise was suspended with the agreement that Cleveland would receive a new expansion team by 1999."
+      },
+      "inactiveTeam": {
+        "teamIndex": 4,
+        "inactiveYears": [1996, 1997, 1998],
+        "reason": "Browns franchise suspended until expansion team in 1999"
+      }
+    },
+    {
+      "id": "browns-return-1999",
+      "type": "expansion",
+      "year": 1999,
+      "name": "1999 Cleveland Browns Return Expansion Draft",
+      "description": "The new Cleveland Browns franchise selected players in an expansion draft to begin play in 1999",
+      "teams": [
+        { "teamIndex": 4, "name": "Cleveland Browns" }
+      ],
+      "rules": {
+        "playersPerTeam": 37,
+        "protectedPerTeam": 33,
+        "rounds": 5,
+        "selectionOrder": "single_team",
+        "maxFromSameTeam": 1,
+        "description": "Each existing team protected 33 players. Browns selected 37 players, max 1 per team."
+      },
+      "protectionRules": {
+        "maxProtected": 33,
+        "positionLimits": null
+      }
+    },
+    {
+      "id": "texans-2002",
+      "type": "expansion",
+      "year": 2002,
+      "name": "2002 Houston Texans Expansion Draft",
+      "description": "The Houston Texans became the NFL's 32nd franchise",
+      "teams": [
+        { "teamIndex": 31, "name": "Houston Texans" }
+      ],
+      "rules": {
+        "playersPerTeam": 30,
+        "protectedPerTeam": 15,
+        "rounds": 5,
+        "selectionOrder": "single_team",
+        "maxFromSameTeam": 1,
+        "description": "Each existing team protected only 15 players. Texans could take max 1 from each team. 30 players selected total."
+      },
+      "protectionRules": {
+        "maxProtected": 15,
+        "positionLimits": null
+      }
+    }
+  ],
+  "draftPickCompensation": {
+    "description": "Expansion teams received draft picks. Teams listed get picks at positions specified per round.",
+    "1976": {
+      "note": "Seahawks and Bucs received extra picks in 1976 draft",
+      "teams": [
+        { "teamIndex": 27, "name": "Seattle Seahawks" },
+        { "teamIndex": 5, "name": "Tampa Bay Buccaneers" }
+      ],
+      "pickPositions": {
+        "1": [2, 1],
+        "2": [1, 2],
+        "3": [30, 31],
+        "4": [30, 31],
+        "5": [30, 31],
+        "6": [30, 31],
+        "7": [30, 31]
+      }
+    },
+    "1995": {
+      "note": "Panthers and Jaguars alternated throughout the draft",
+      "teams": [
+        { "teamIndex": 20, "name": "Carolina Panthers" },
+        { "teamIndex": 16, "name": "Jacksonville Jaguars" }
+      ],
+      "pickPositions": {
+        "1": [1, 2],
+        "2": [2, 1],
+        "3": [1, 2],
+        "4": [2, 1],
+        "5": [1, 2],
+        "6": [2, 1],
+        "7": [1, 2]
+      }
+    },
+    "1999": {
+      "note": "Browns received extra compensatory picks",
+      "teams": [
+        { "teamIndex": 4, "name": "Cleveland Browns" }
+      ],
+      "pickPositions": {
+        "1": [1],
+        "2": [1],
+        "3": [32],
+        "4": [32],
+        "5": [32],
+        "6": [32],
+        "7": [32]
+      }
+    },
+    "2002": {
+      "note": "Texans received 1st overall pick",
+      "teams": [
+        { "teamIndex": 31, "name": "Houston Texans" }
+      ],
+      "pickPositions": {
+        "1": [1],
+        "2": [32],
+        "3": [32],
+        "4": [32],
+        "5": [32],
+        "6": [32],
+        "7": [32]
+      }
+    }
+  }
+}

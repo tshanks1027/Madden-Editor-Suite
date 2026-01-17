@@ -345,9 +345,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getTeamList: (filePath: string) => ipcRenderer.invoke('retro:get-team-list', filePath),
     saveFile: (filePath: string) => ipcRenderer.invoke('retro:save-file', filePath),
     saveFileAs: (originalPath: string) => ipcRenderer.invoke('retro:save-file-as', originalPath),
+    createBackup: (filePath: string) => ipcRenderer.invoke('retro:create-backup', filePath),
     closeFile: (filePath: string) => ipcRenderer.invoke('retro:close-file', filePath),
-    applyAllChanges: (filePath: string, year: number) =>
-      ipcRenderer.invoke('retro:apply-all-changes', filePath, year),
+    applyAllChanges: (filePath: string, year: number, options?: { applyTeams?: boolean; applyAbbreviations?: boolean }) =>
+      ipcRenderer.invoke('retro:apply-all-changes', filePath, year, options),
     dumpTables: (filePath: string) =>
       ipcRenderer.invoke('retro:dump-tables', filePath),
     debugTeamTable: (filePath: string) =>
@@ -378,6 +379,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('retro:get-salary-cap', year),
     applySalaryCap: (filePath: string, year: number) =>
       ipcRenderer.invoke('retro:apply-salary-cap', filePath, year),
+    applyEraContracts: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-era-contracts', filePath, year),
+    setPlaceholderCoaches: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:set-placeholder-coaches', filePath, year),
+    replaceFACoaches: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:replace-fa-coaches', filePath, year),
 
     // Stadium APIs
     getStadiumPreview: (filePath: string, year: number) =>
@@ -389,7 +396,69 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSchemePreview: (filePath: string, year: number) =>
       ipcRenderer.invoke('retro:get-scheme-preview', filePath, year),
     applyTeamSchemes: (filePath: string, year: number) =>
-      ipcRenderer.invoke('retro:apply-team-schemes', filePath, year)
+      ipcRenderer.invoke('retro:apply-team-schemes', filePath, year),
+
+    // Uniform APIs
+    getUniformsForYear: (year: number) =>
+      ipcRenderer.invoke('retro:get-uniforms-for-year', year),
+    getUniformPreviewSummary: (year: number) =>
+      ipcRenderer.invoke('retro:get-uniform-preview-summary', year),
+    applyUniforms: (year: number) =>
+      ipcRenderer.invoke('retro:apply-uniforms', year),
+
+    // Expansion/Relocation APIs
+    getExpansionEvent: (year: number) =>
+      ipcRenderer.invoke('retro:get-expansion-event', year),
+    getAllExpansionEvents: () =>
+      ipcRenderer.invoke('retro:get-all-expansion-events'),
+    executeRelocation: (filePath: string, sourceTeamIndex: number, destTeamIndex: number) =>
+      ipcRenderer.invoke('retro:execute-relocation', filePath, sourceTeamIndex, destTeamIndex),
+    prepareExpansionDraft: (filePath: string, expansionEvent: any) =>
+      ipcRenderer.invoke('retro:prepare-expansion-draft', filePath, expansionEvent),
+    getEligiblePlayers: (filePath: string, expansionEvent: any) =>
+      ipcRenderer.invoke('retro:get-eligible-players', filePath, expansionEvent),
+    autoProtectPlayers: (players: any[], maxProtected: number) =>
+      ipcRenderer.invoke('retro:auto-protect-players', players, maxProtected),
+    executeExpansionDraft: (filePath: string, selections: any[], expansionTeamIndices?: number[]) =>
+      ipcRenderer.invoke('retro:execute-expansion-draft', filePath, selections, expansionTeamIndices),
+
+    // Expansion roster cleanup - move inactive team players to FA
+    moveInactivePlayersToFA: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:move-inactive-players-to-fa', filePath, year),
+
+    // League history cleanup - clear Super Bowl history for historical years
+    clearLeagueHistory: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:clear-league-history', filePath, year),
+
+    // Single atomic operation to apply changes AND save
+    applyAndSave: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-and-save', filePath, year),
+
+    // Single atomic operation to apply changes AND save to a new location
+    applyAndSaveAs: (originalPath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-and-save-as', originalPath, year),
+
+    // THE CORRECT APPROACH: Gather all wizard data, then apply ALL changes at once and save
+    // This is called ONCE at the end of the wizard with all collected data
+    applyAllAndSave: (config: {
+      sourcePath: string;
+      saveAs: boolean; // true = show save dialog, false = overwrite source
+      year: number;
+      options: {
+        teams?: boolean;
+        abbreviations?: boolean;
+        schedule?: boolean;
+        coaches?: boolean;
+        salaryCap?: boolean;
+        stadiums?: boolean;
+        schemes?: boolean;
+        uniforms?: boolean;
+        expansion?: boolean;
+      };
+      expansionEvent?: any;
+      expansionDraftSelections?: Array<{ playerRecordIndex: number; newTeamIndex: number }>;
+      expansionTeamIndices?: number[]; // Team indices for clearing rosters before expansion draft
+    }) => ipcRenderer.invoke('retro:apply-all-and-save', config)
   },
 
   // User Database APIs (Edit player database, custom players, CSV import)
@@ -810,5 +879,71 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Get manifest only
     getManifest: (year: number, type?: 'draft' | 'roster') =>
       ipcRenderer.invoke('portrait-export:getManifest', year, type)
+  },
+
+  // Team Logo APIs (logo import/export for Frosty/MFT integration)
+  logo: {
+    // Get teams for a specific year with logo info
+    getTeamsForYear: (year: number) =>
+      ipcRenderer.invoke('logo:getTeamsForYear', year),
+    // Get all abbreviations needing custom logos
+    getAbbreviationsNeedingLogos: () =>
+      ipcRenderer.invoke('logo:getAbbreviationsNeedingLogos'),
+    // Get available logo types
+    getLogoTypes: () =>
+      ipcRenderer.invoke('logo:getLogoTypes'),
+    // Import a logo file (shows dialog)
+    importLogo: (abbreviation: string, logoType: string) =>
+      ipcRenderer.invoke('logo:importLogo', abbreviation, logoType),
+    // Import logo from path (no dialog)
+    importLogoFromPath: (abbreviation: string, logoType: string, sourcePath: string) =>
+      ipcRenderer.invoke('logo:importLogoFromPath', abbreviation, logoType, sourcePath),
+    // Get path to a specific logo
+    getLogoPath: (abbreviation: string, logoType: string) =>
+      ipcRenderer.invoke('logo:getLogoPath', abbreviation, logoType),
+    // Check if logo exists
+    hasLogo: (abbreviation: string, logoType: string) =>
+      ipcRenderer.invoke('logo:hasLogo', abbreviation, logoType),
+    // Get all logos for a team
+    getLogosForTeam: (abbreviation: string) =>
+      ipcRenderer.invoke('logo:getLogosForTeam', abbreviation),
+    // Delete a logo
+    deleteLogo: (abbreviation: string, logoType: string) =>
+      ipcRenderer.invoke('logo:deleteLogo', abbreviation, logoType),
+    // Export logos for Frosty (shows dialog)
+    exportForFrosty: (year: number) =>
+      ipcRenderer.invoke('logo:exportForFrosty', year),
+    // Export to specific path (no dialog)
+    exportForFrostyToPath: (year: number, outputDir: string) =>
+      ipcRenderer.invoke('logo:exportForFrostyToPath', year, outputDir),
+    // Export logos for MFT (shows dialog)
+    exportForMFT: (year: number) =>
+      ipcRenderer.invoke('logo:exportForMFT', year),
+    // Get logo summary stats
+    getSummary: () =>
+      ipcRenderer.invoke('logo:getSummary'),
+
+    // Logo Scraper APIs (Wikimedia Commons)
+    // Search for available logos on Wikimedia
+    scrapeSearch: (abbreviations: string[]) =>
+      ipcRenderer.invoke('logo:scrapeSearch', abbreviations),
+    // Scrape a single team logo
+    scrapeSingle: (abbreviation: string, year?: number) =>
+      ipcRenderer.invoke('logo:scrapeSingle', abbreviation, year),
+    // Scrape all logos for a year
+    scrapeForYear: (year: number, abbreviations: string[]) =>
+      ipcRenderer.invoke('logo:scrapeForYear', year, abbreviations),
+    // List all downloaded logos
+    listDownloaded: () =>
+      ipcRenderer.invoke('logo:listDownloaded'),
+    // Check if scraped logo exists
+    hasScrapedLogo: (abbreviation: string) =>
+      ipcRenderer.invoke('logo:hasScrapedLogo', abbreviation),
+    // Get path to scraped logo
+    getScrapedLogoPath: (abbreviation: string) =>
+      ipcRenderer.invoke('logo:getScrapedLogoPath', abbreviation),
+    // Get logos base path
+    getLogosBasePath: () =>
+      ipcRenderer.invoke('logo:getLogosBasePath')
   }
 });

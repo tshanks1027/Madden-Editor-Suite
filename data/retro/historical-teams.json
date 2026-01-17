@@ -45,7 +45,7 @@
       "currentAbbreviation": "CLE",
       "changes": [
         { "yearRange": [1946, 1995], "city": "Cleveland", "name": "Browns", "abbreviation": "CLE" },
-        { "yearRange": [1996, 1998], "city": null, "name": null, "abbreviation": null, "inactive": true, "note": "Team moved to Baltimore, became Ravens" },
+        { "yearRange": [1996, 1998], "city": null, "name": null, "abbreviation": "NFL", "inactive": true, "note": "Team moved to Baltimore, became Ravens" },
         { "yearRange": [1999, 2099], "city": "Cleveland", "name": "Browns", "abbreviation": "CLE", "note": "Expansion team" }
       ]
     },
@@ -222,8 +222,8 @@
       "currentCity": "Los Angeles",
       "currentAbbreviation": "LAR",
       "changes": [
-        { "yearRange": [1936, 1945], "city": "Cleveland", "name": "Rams", "abbreviation": "CLE" },
-        { "yearRange": [1946, 1994], "city": "Los Angeles", "name": "Rams", "abbreviation": "LA" },
+        { "yearRange": [1936, 1945], "city": "Cleveland", "name": "Rams", "abbreviation": "RAM" },
+        { "yearRange": [1946, 1994], "city": "Los Angeles", "name": "Rams", "abbreviation": "RAM" },
         { "yearRange": [1995, 2015], "city": "St. Louis", "name": "Rams", "abbreviation": "STL" },
         { "yearRange": [2016, 2099], "city": "Los Angeles", "name": "Rams", "abbreviation": "LAR" }
       ]
@@ -281,8 +281,8 @@
       "currentName": "Titans",
       "currentCity": "Tennessee",
       "changes": [
-        { "yearRange": [1960, 1996], "city": "Houston", "name": "Oilers", "abbreviation": "HOU" },
-        { "yearRange": [1997, 1998], "city": "Tennessee", "name": "Oilers", "abbreviation": "TEN" },
+        { "yearRange": [1960, 1996], "city": "Houston", "name": "Oilers", "abbreviation": "OIL" },
+        { "yearRange": [1997, 1998], "city": "Tennessee", "name": "Oilers", "abbreviation": "OIL" },
         { "yearRange": [1999, 2099], "city": "Tennessee", "name": "Titans", "abbreviation": "TEN" }
       ]
     },

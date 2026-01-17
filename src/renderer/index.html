@@ -1569,6 +1569,16 @@
                                             </p>
                                         </div>
                                     </label>
+
+                                    <label class="option-checkbox" style="display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; cursor: pointer;">
+                                        <input type="checkbox" id="retro-opt-expansion" checked style="margin-top: 3px;">
+                                        <div>
+                                            <strong style="color: var(--text-primary);">Apply Expansion/Relocation</strong>
+                                            <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                                Swaps rosters for team relocations (e.g., Browns → Ravens 1996). Uncheck to skip.
+                                            </p>
+                                        </div>
+                                    </label>
                                 </div>
 
                                 <div class="wizard-nav">
@@ -1654,6 +1664,63 @@
                                                 <!-- Schedule weeks will be populated here -->
                                             </div>
                                         </details>
+                                    </div>
+                                </div>
+
+                                <!-- Expansion/Relocation Event Section -->
+                                <div class="retro-preview-section" id="retro-expansion-section" style="display: none;">
+                                    <h4 class="retro-section-title">&#127944; Expansion/Relocation Event</h4>
+                                    <div id="retro-expansion-info" class="retro-changes-list">
+                                        <div id="retro-expansion-status">
+                                            <p class="no-changes">No expansion or relocation event for this year</p>
+                                        </div>
+                                        <!-- Event details -->
+                                        <div id="retro-expansion-details" style="display: none;">
+                                            <div class="retro-change-item">
+                                                <span class="change-label">Event:</span>
+                                                <span id="expansion-event-name" class="change-value">--</span>
+                                            </div>
+                                            <div class="retro-change-item">
+                                                <span class="change-label">Type:</span>
+                                                <span id="expansion-event-type" class="change-value">--</span>
+                                            </div>
+                                            <p id="expansion-event-description" style="margin-top: 8px; font-size: 0.9rem; color: var(--text-secondary);"></p>
+
+                                            <!-- Relocation options -->
+                                            <div id="relocation-options" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                                    <input type="checkbox" id="retro-relocation-checkbox" checked>
+                                                    <span>Transfer all players from source team to destination</span>
+                                                </label>
+                                            </div>
+
+                                            <!-- Expansion draft options -->
+                                            <div id="expansion-draft-options" style="display: none; margin-top: 12px;">
+                                                <div style="padding: 12px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                    <div class="retro-change-item" style="margin-bottom: 8px;">
+                                                        <span class="change-label">Draft Mode:</span>
+                                                        <select id="expansion-draft-mode" style="padding: 4px 8px; border-radius: 4px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                                            <option value="auto">Auto-Select (Historical)</option>
+                                                            <option value="manual">Manual Selection</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="retro-change-item">
+                                                        <span class="change-label">Protected per team:</span>
+                                                        <span id="expansion-protected-count" class="change-value">--</span>
+                                                    </div>
+                                                    <div class="retro-change-item">
+                                                        <span class="change-label">Players to select:</span>
+                                                        <span id="expansion-players-count" class="change-value">--</span>
+                                                    </div>
+                                                </div>
+                                                <!-- Manual draft UI (shown when manual mode selected) -->
+                                                <div id="manual-draft-ui" style="display: none; margin-top: 12px;">
+                                                    <button id="open-expansion-draft-btn" class="btn btn-secondary" style="width: 100%;">
+                                                        Open Expansion Draft Board
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -4186,6 +4253,105 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                 <div class="db-coach-card-footer-right">
                     <button class="db-btn db-btn-secondary" id="dbCoachCancelBtn">Cancel</button>
                     <button class="db-btn db-btn-primary" id="dbCoachSaveBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expansion Draft Board Modal -->
+    <div id="expansionDraftModal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 95%; max-width: 1400px; max-height: 90vh; overflow: hidden;">
+            <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: var(--text-primary);">🏈 Expansion Draft Board</h3>
+                <button id="closeExpansionDraftBtn" style="background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="display: flex; gap: 20px; padding: 16px; height: calc(90vh - 150px); overflow: hidden;">
+                <!-- Left Panel: Teams & Players -->
+                <div id="draftTeamsPanel" style="flex: 2; overflow-y: auto; background: var(--bg-secondary); border-radius: 8px; padding: 12px;">
+                    <div id="draftFiltersHeader" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <h4 style="margin: 0; color: var(--text-primary);">Available Players by Team</h4>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button id="protectionModeBtn" onclick="toggleProtectionMode()" style="padding: 4px 10px; border-radius: 4px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary); cursor: pointer; font-size: 12px;">
+                                🛡️ Edit Protection
+                            </button>
+                            <label style="color: var(--text-secondary); font-size: 12px;">Filter:</label>
+                            <select id="expansionDraftTeamFilter" style="padding: 4px 8px; border-radius: 4px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="all">All Teams</option>
+                            </select>
+                            <select id="expansionDraftPositionFilter" style="padding: 4px 8px; border-radius: 4px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                <option value="all">All Positions</option>
+                                <option value="QB">QB</option>
+                                <option value="HB">HB</option>
+                                <option value="FB">FB</option>
+                                <option value="WR">WR</option>
+                                <option value="TE">TE</option>
+                                <option value="LT">LT</option>
+                                <option value="LG">LG</option>
+                                <option value="C">C</option>
+                                <option value="RG">RG</option>
+                                <option value="RT">RT</option>
+                                <option value="LEDG">LEDG</option>
+                                <option value="REDG">REDG</option>
+                                <option value="DT">DT</option>
+                                <option value="SAM">SAM</option>
+                                <option value="Mike">Mike</option>
+                                <option value="WILL">WILL</option>
+                                <option value="CB">CB</option>
+                                <option value="FS">FS</option>
+                                <option value="SS">SS</option>
+                                <option value="K">K</option>
+                                <option value="P">P</option>
+                                <option value="LS">LS</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="draftTeamsList" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Teams will be rendered here -->
+                        <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                            Loading players...
+                        </div>
+                    </div>
+                </div>
+                <!-- Right Panel: Selections & Summary -->
+                <div id="draftSelectionsPanel" style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                    <!-- Draft Info -->
+                    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 12px;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Draft Info</h4>
+                        <div id="draftEventInfo" style="font-size: 13px; color: var(--text-secondary);">
+                            <!-- Event details will be shown here -->
+                        </div>
+                    </div>
+                    <!-- Selected Players -->
+                    <div style="flex: 1; background: var(--bg-secondary); border-radius: 8px; padding: 12px; overflow-y: auto;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <h4 style="margin: 0; color: var(--text-primary);">Selected Players</h4>
+                            <span id="draftSelectionCount" style="color: var(--success-color); font-weight: bold;">0 / 0</span>
+                        </div>
+                        <div id="draftSelectedList" style="display: flex; flex-direction: column; gap: 6px;">
+                            <!-- Selected players will be shown here -->
+                            <div style="text-align: center; padding: 20px; color: var(--text-secondary); font-size: 13px;">
+                                Click a player to select them
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Selection Summary -->
+                    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 12px;">
+                        <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Selection Summary</h4>
+                        <div id="draftSummary" style="font-size: 13px; color: var(--text-secondary);">
+                            <div>Protected: <span id="draftProtectedCount">0</span> players</div>
+                            <div>Available: <span id="draftAvailableCount">0</span> players</div>
+                            <div>Selected: <span id="draftSelectedCount">0</span> players</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 12px 20px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                <div style="color: var(--text-secondary); font-size: 13px;">
+                    <span id="draftStatusMessage">Select unprotected players to draft</span>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button id="cancelExpansionDraftBtn" class="btn btn-secondary" style="padding: 8px 20px;">Cancel</button>
+                    <button id="executeExpansionDraftBtn" class="btn btn-primary" style="padding: 8px 20px;">Execute Draft</button>
                 </div>
             </div>
         </div>

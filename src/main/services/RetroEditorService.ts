@@ -49,7 +49,15 @@ const TABLE_IDS = {
   ownerTable: 3429237668,
   stadiumTable: 459799498,
   leagueTable: 1625193857,
+
+  // FA array table - discovered via research (RESEARCH_SUMMARY_FA_VISIBILITY.md)
+  // This is the Player[] array that contains ALL free agent player references
+  // Referenced by Franchise.FreeAgents and League.FreeAgents
+  faArrayTable: 5930,
 };
+
+// Empty reference constant - marks unused slots in array tables
+const ZERO_REF = '00000000000000000000000000000000';
 
 // SeasonGame field mappings for M26 (when schema is missing)
 // Based on schema-output.xml indices:
@@ -262,6 +270,10 @@ interface PlayerForDraft {
   teamIndex: number;
   teamName: string;
   isProtected: boolean;
+  // Contract info
+  contractYearsLeft: number;
+  contractSalary: number;
+  capHit: number;
 }
 
 interface ExpansionDraftSelection {
@@ -313,10 +325,51 @@ export class RetroEditorService {
   private expansionHistory: ExpansionTeam[] = [];
   private specialCases: Record<string, SpecialCase> = {};
   private expansionEvents: ExpansionEvent[] = [];
+  private draftPickCompensation: Record<string, any> = {};
   private dataLoaded = false;
 
   constructor() {
     this.loadHistoricalData();
+  }
+
+  /**
+   * Normalize file path for consistent Map key usage on Windows
+   * Converts to lowercase and uses forward slashes
+   */
+  private normalizePath(filePath: string): string {
+    // Normalize: forward slashes, lowercase for Windows case-insensitivity
+    return path.normalize(filePath).replace(/\\/g, '/').toLowerCase();
+  }
+
+  /**
+   * Get franchise instance with normalized path lookup
+   */
+  private getFranchise(filePath: string): any {
+    const normalizedPath = this.normalizePath(filePath);
+    const franchise = this.franchiseInstances.get(normalizedPath);
+    if (!franchise) {
+      console.error(`[RetroEditorService] No franchise instance for path: ${filePath}`);
+      console.error(`[RetroEditorService] Normalized path: ${normalizedPath}`);
+      console.error(`[RetroEditorService] Available keys:`, Array.from(this.franchiseInstances.keys()));
+    }
+    return franchise;
+  }
+
+  /**
+   * Store franchise instance with normalized path key
+   */
+  private setFranchise(filePath: string, franchise: any): void {
+    const normalizedPath = this.normalizePath(filePath);
+    console.log(`[RetroEditorService] Storing franchise with key: ${normalizedPath}`);
+    this.franchiseInstances.set(normalizedPath, franchise);
+  }
+
+  /**
+   * Delete franchise instance with normalized path key
+   */
+  private deleteFranchise(filePath: string): void {
+    const normalizedPath = this.normalizePath(filePath);
+    this.franchiseInstances.delete(normalizedPath);
   }
 
   /**
@@ -351,10 +404,9 @@ export class RetroEditorService {
       const expansionPath = path.join(dataPath, 'expansion-history.json');
       if (fs.existsSync(expansionPath)) {
         const expData = JSON.parse(fs.readFileSync(expansionPath, 'utf-8'));
-        this.expansionHistory = expData.expansions;
+        this.expansionHistory = expData.expansions || [];
         this.specialCases = expData.specialCases || {};
-        console.log('[RetroEditorService] Loaded expansion history:', this.expansionHistory.length);
-        console.log('[RetroEditorService] Loaded special cases:', Object.keys(this.specialCases).length);
+        console.log('[RetroEditorService] Loaded expansion history:', this.expansionHistory.length, 'teams');
       }
 
       // Load expansion events (detailed draft/relocation rules)
@@ -364,7 +416,9 @@ export class RetroEditorService {
       if (fs.existsSync(eventsPath)) {
         const eventsData = JSON.parse(fs.readFileSync(eventsPath, 'utf-8'));
         this.expansionEvents = eventsData.events || [];
+        this.draftPickCompensation = eventsData.draftPickCompensation || {};
         console.log('[RetroEditorService] Loaded expansion events:', this.expansionEvents.length);
+        console.log('[RetroEditorService] Loaded draft pick compensation for years:', Object.keys(this.draftPickCompensation).filter(k => k !== 'description').join(', '));
         console.log('[RetroEditorService] Event years:', this.expansionEvents.map(e => `${e.year}:${e.type}`).join(', '));
       } else {
         console.log('[RetroEditorService] expansion-events.json NOT FOUND - expansion features will not work');
@@ -422,7 +476,7 @@ export class RetroEditorService {
     newTeamIndex: number
   ): Promise<{ success: boolean; playerName?: string; error?: string }> {
     try {
-      const franchise = this.franchiseInstances.get(filePath);
+      const franchise = this.getFranchise(filePath);
       if (!franchise) {
         throw new Error('Franchise file not loaded');
       }
@@ -459,6 +513,461 @@ export class RetroEditorService {
   }
 
   /**
+   * Remove a player from a team's roster array using MFT shift-pad pattern.
+   * Remaining players are shifted down to fill the gap, end is padded with ZERO_REF.
+   *
+   * @param franchise - The loaded franchise instance
+   * @param playerRef - The player's reference string (32-char binary)
+   * @param rosterRef - The team's roster reference { tableId, rowNumber }
+   * @returns true if player was found and removed, false otherwise
+   */
+  private async removePlayerFromRoster(
+    franchise: any,
+    playerRef: string,
+    rosterRef: { tableId: number; rowNumber: number }
+  ): Promise<boolean> {
+    const rosterTable = franchise.getTableById(rosterRef.tableId);
+    await rosterTable.readRecords();
+
+    const roster = rosterTable.records[rosterRef.rowNumber];
+    if (!roster) {
+      console.error('[removePlayerFromRoster] Roster record not found');
+      return false;
+    }
+
+    // Collect all non-ZERO_REF player refs EXCEPT the one we're removing
+    const remainingRefs: string[] = [];
+    let foundPlayer = false;
+
+    for (let i = 0; i < roster.arraySize; i++) {
+      const ref = roster[`Player${i}`];
+      if (ref === playerRef) {
+        foundPlayer = true;
+        console.log(`[removePlayerFromRoster] Found player at slot ${i}`);
+      } else if (ref && ref !== ZERO_REF) {
+        remainingRefs.push(ref);
+      }
+    }
+
+    if (!foundPlayer) {
+      console.log('[removePlayerFromRoster] Player ref not found in roster');
+      return false;
+    }
+
+    // Rebuild roster: remaining players shifted to front, pad end with ZERO_REF
+    const totalSlots = roster.arraySize;
+    for (let i = 0; i < totalSlots; i++) {
+      if (i < remainingRefs.length) {
+        roster[`Player${i}`] = remainingRefs[i];
+      } else {
+        roster[`Player${i}`] = ZERO_REF;
+      }
+    }
+
+    // Update arraySize
+    roster.arraySize = remainingRefs.length;
+    rosterTable.arraySizes[rosterRef.rowNumber] = remainingRefs.length;
+
+    // Mark as changed
+    roster.isChanged = true;
+    roster._parent.onEvent('change', roster);
+
+    console.log(`[removePlayerFromRoster] Removed player, new roster size: ${remainingRefs.length}`);
+    return true;
+  }
+
+  /**
+   * Add a player to a team's roster array.
+   * Appends the player ref to the end of the array and increments arraySize.
+   *
+   * @param franchise - The loaded franchise instance
+   * @param playerRef - The player's reference string (32-char binary)
+   * @param rosterRef - The team's roster reference { tableId, rowNumber }
+   * @returns true if player was added successfully
+   */
+  private async addPlayerToRoster(
+    franchise: any,
+    playerRef: string,
+    rosterRef: { tableId: number; rowNumber: number }
+  ): Promise<boolean> {
+    const rosterTable = franchise.getTableById(rosterRef.tableId);
+    await rosterTable.readRecords();
+
+    const roster = rosterTable.records[rosterRef.rowNumber];
+    if (!roster) {
+      console.error('[addPlayerToRoster] Roster record not found');
+      return false;
+    }
+
+    const currentSize = roster.arraySize;
+
+    // Add player at the next available slot
+    roster[`Player${currentSize}`] = playerRef;
+
+    // Increment arraySize
+    roster.arraySize = currentSize + 1;
+    rosterTable.arraySizes[rosterRef.rowNumber] = currentSize + 1;
+
+    // Mark as changed
+    roster.isChanged = true;
+    roster._parent.onEvent('change', roster);
+
+    console.log(`[addPlayerToRoster] Added player at slot ${currentSize}, new roster size: ${currentSize + 1}`);
+    return true;
+  }
+
+  /**
+   * Add a player to the Free Agent array (table 5930).
+   * This is CRITICAL for FA visibility - players must be in this array to appear in-game.
+   *
+   * The FA array is referenced by Franchise.FreeAgents and League.FreeAgents.
+   * See RESEARCH_SUMMARY_FA_VISIBILITY.md for details.
+   *
+   * @param franchise - The loaded franchise instance
+   * @param playerRef - The player's reference string (32-char binary)
+   * @returns true if player was added successfully
+   */
+  private async addPlayerToFAArray(
+    franchise: any,
+    playerRef: string
+  ): Promise<boolean> {
+    try {
+      const faArrayTable = franchise.getTableById(TABLE_IDS.faArrayTable);
+      if (!faArrayTable) {
+        console.error('[addPlayerToFAArray] FA array table not found (id=5930)');
+        return false;
+      }
+
+      await faArrayTable.readRecords();
+
+      // The FA array is at row 0
+      const faArray = faArrayTable.records[0];
+      if (!faArray) {
+        console.error('[addPlayerToFAArray] FA array record not found at row 0');
+        return false;
+      }
+
+      // Check if player is already in the array (avoid duplicates)
+      for (let i = 0; i < faArray.arraySize; i++) {
+        if (faArray[`Player${i}`] === playerRef) {
+          console.log(`[addPlayerToFAArray] Player already in FA array at slot ${i}`);
+          return true; // Already present, consider it a success
+        }
+      }
+
+      const currentSize = faArray.arraySize || 0;
+
+      // Add player at the next available slot
+      faArray[`Player${currentSize}`] = playerRef;
+
+      // Increment arraySize
+      faArray.arraySize = currentSize + 1;
+      faArrayTable.arraySizes[0] = currentSize + 1;
+
+      // Mark as changed
+      faArray.isChanged = true;
+      faArray._parent.onEvent('change', faArray);
+
+      console.log(`[addPlayerToFAArray] Added player at slot ${currentSize}, new FA array size: ${currentSize + 1}`);
+      return true;
+    } catch (error: any) {
+      console.error('[addPlayerToFAArray] Error:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Remove a player from the Free Agent array (table 5930).
+   * Call this when signing a player to a team.
+   *
+   * @param franchise - The loaded franchise instance
+   * @param playerRef - The player's reference string (32-char binary)
+   * @returns true if player was found and removed, false otherwise
+   */
+  private async removePlayerFromFAArray(
+    franchise: any,
+    playerRef: string
+  ): Promise<boolean> {
+    try {
+      const faArrayTable = franchise.getTableById(TABLE_IDS.faArrayTable);
+      if (!faArrayTable) {
+        console.error('[removePlayerFromFAArray] FA array table not found (id=5930)');
+        return false;
+      }
+
+      await faArrayTable.readRecords();
+
+      // The FA array is at row 0
+      const faArray = faArrayTable.records[0];
+      if (!faArray) {
+        console.error('[removePlayerFromFAArray] FA array record not found at row 0');
+        return false;
+      }
+
+      // Collect all non-ZERO_REF player refs EXCEPT the one we're removing
+      const remainingRefs: string[] = [];
+      let foundPlayer = false;
+
+      for (let i = 0; i < faArray.arraySize; i++) {
+        const ref = faArray[`Player${i}`];
+        if (ref === playerRef) {
+          foundPlayer = true;
+          console.log(`[removePlayerFromFAArray] Found player at slot ${i}`);
+        } else if (ref && ref !== ZERO_REF) {
+          remainingRefs.push(ref);
+        }
+      }
+
+      if (!foundPlayer) {
+        console.log('[removePlayerFromFAArray] Player ref not found in FA array');
+        return false;
+      }
+
+      // Rebuild array: remaining players shifted to front, pad end with ZERO_REF
+      const totalSlots = faArray.arraySize;
+      for (let i = 0; i < totalSlots; i++) {
+        if (i < remainingRefs.length) {
+          faArray[`Player${i}`] = remainingRefs[i];
+        } else {
+          faArray[`Player${i}`] = ZERO_REF;
+        }
+      }
+
+      // Update arraySize
+      faArray.arraySize = remainingRefs.length;
+      faArrayTable.arraySizes[0] = remainingRefs.length;
+
+      // Mark as changed
+      faArray.isChanged = true;
+      faArray._parent.onEvent('change', faArray);
+
+      console.log(`[removePlayerFromFAArray] Removed player, new FA array size: ${remainingRefs.length}`);
+      return true;
+    } catch (error: any) {
+      console.error('[removePlayerFromFAArray] Error:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Add multiple players to the FA array in bulk (more efficient for large operations).
+   *
+   * @param franchise - The loaded franchise instance
+   * @param playerRefs - Array of player reference strings
+   * @returns Number of players successfully added
+   */
+  private async addPlayersToFAArrayBulk(
+    franchise: any,
+    playerRefs: string[]
+  ): Promise<number> {
+    if (!playerRefs || playerRefs.length === 0) return 0;
+
+    try {
+      const faArrayTable = franchise.getTableById(TABLE_IDS.faArrayTable);
+      if (!faArrayTable) {
+        console.error('[addPlayersToFAArrayBulk] FA array table not found (id=5930)');
+        return 0;
+      }
+
+      await faArrayTable.readRecords();
+
+      const faArray = faArrayTable.records[0];
+      if (!faArray) {
+        console.error('[addPlayersToFAArrayBulk] FA array record not found at row 0');
+        return 0;
+      }
+
+      // Build set of existing players for quick lookup
+      const existingRefs = new Set<string>();
+      for (let i = 0; i < faArray.arraySize; i++) {
+        const ref = faArray[`Player${i}`];
+        if (ref && ref !== ZERO_REF) {
+          existingRefs.add(ref);
+        }
+      }
+
+      // Filter out players already in the array
+      const newRefs = playerRefs.filter(ref => !existingRefs.has(ref));
+      if (newRefs.length === 0) {
+        console.log('[addPlayersToFAArrayBulk] All players already in FA array');
+        return 0;
+      }
+
+      let currentSize = faArray.arraySize || 0;
+      let addedCount = 0;
+
+      for (const ref of newRefs) {
+        faArray[`Player${currentSize}`] = ref;
+        currentSize++;
+        addedCount++;
+      }
+
+      // Update arraySize
+      faArray.arraySize = currentSize;
+      faArrayTable.arraySizes[0] = currentSize;
+
+      // Mark as changed
+      faArray.isChanged = true;
+      faArray._parent.onEvent('change', faArray);
+
+      console.log(`[addPlayersToFAArrayBulk] Added ${addedCount} players, new FA array size: ${currentSize}`);
+      return addedCount;
+    } catch (error: any) {
+      console.error('[addPlayersToFAArrayBulk] Error:', error.message);
+      return 0;
+    }
+  }
+
+  /**
+   * Get a player's reference string from their record index.
+   * This creates the 32-char binary reference used in roster arrays.
+   *
+   * @param franchise - The loaded franchise instance
+   * @param playerRecordIndex - The player's index in the Player table
+   * @returns The player's reference string or null if not found
+   */
+  private async getPlayerReference(
+    franchise: any,
+    playerRecordIndex: number
+  ): Promise<string | null> {
+    let playerTable = franchise.getTableByName('Player');
+    if (!playerTable) {
+      const tables = franchise.getAllTablesByName('Player');
+      if (tables?.length) playerTable = tables[0];
+    }
+    if (!playerTable) return null;
+
+    await playerTable.readRecords();
+    const player = playerTable.records[playerRecordIndex];
+    if (!player || player.isEmpty) return null;
+
+    // Get the reference data which contains the binary reference string
+    // The reference is constructed from tableId (15 bits) + rowNumber (17 bits)
+    const tableId = playerTable.header.tableId;
+    const rowNumber = playerRecordIndex;
+
+    // Convert to binary string (15 bits table + 17 bits row = 32 bits)
+    const tableBits = tableId.toString(2).padStart(15, '0');
+    const rowBits = rowNumber.toString(2).padStart(17, '0');
+    const binaryRef = tableBits + rowBits;
+
+    console.log(`[getPlayerReference] Player ${playerRecordIndex}: tableId=${tableId}, row=${rowNumber}, ref=${binaryRef}`);
+    return binaryRef;
+  }
+
+  /**
+   * Get a team's roster reference from their TeamIndex.
+   *
+   * @param franchise - The loaded franchise instance
+   * @param teamIndex - The team's TeamIndex (0-31)
+   * @returns The roster reference { tableId, rowNumber } or null
+   */
+  private async getTeamRosterRef(
+    franchise: any,
+    teamIndex: number
+  ): Promise<{ tableId: number; rowNumber: number } | null> {
+    const teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+    await teamTable.readRecords();
+
+    for (const team of teamTable.records) {
+      if (team.isEmpty) continue;
+      if (Number(team.TeamIndex) === teamIndex) {
+        const rosterRef = team.getReferenceDataByKey('Roster');
+        if (rosterRef) {
+          return { tableId: rosterRef.tableId, rowNumber: rosterRef.rowNumber };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Remove a player reference from a team's depth chart.
+   * Scans all depth chart positions and removes the player using shift-pad pattern.
+   *
+   * @param franchise - The loaded franchise instance
+   * @param playerRef - The player's reference string to remove
+   * @param teamIndex - The team's TeamIndex (0-31)
+   * @returns Number of depth chart slots cleaned
+   */
+  private async removePlayerFromDepthChart(
+    franchise: any,
+    playerRef: string,
+    teamIndex: number
+  ): Promise<number> {
+    let slotsRemoved = 0;
+
+    try {
+      // Get DepthChart table - ID 5879 from franchise-table-list.txt
+      const depthChartTable = franchise.getTableById(5879);
+      if (!depthChartTable) {
+        console.log('[removePlayerFromDepthChart] DepthChart table not found');
+        return 0;
+      }
+      await depthChartTable.readRecords();
+
+      // Find the team's depth chart record
+      for (const depthChart of depthChartTable.records) {
+        if (depthChart.isEmpty) continue;
+        if (Number(depthChart.TeamIndex) !== teamIndex) continue;
+
+        // Scan all Player fields in this depth chart record
+        // Depth charts have Player0, Player1, etc. fields for each position slot
+        for (const field of depthChart.fieldsArray || []) {
+          if (!field.key?.startsWith('Player') || field.key === 'PlayerCount') continue;
+
+          if (field.value === playerRef) {
+            // Found the player - set to ZERO_REF
+            field.value = ZERO_REF;
+            slotsRemoved++;
+            console.log(`[removePlayerFromDepthChart] Removed player from ${field.key}`);
+          }
+        }
+
+        if (slotsRemoved > 0) {
+          depthChart.isChanged = true;
+          depthChart._parent.onEvent('change', depthChart);
+        }
+      }
+    } catch (err: any) {
+      console.log(`[removePlayerFromDepthChart] Error: ${err.message}`);
+    }
+
+    return slotsRemoved;
+  }
+
+  /**
+   * Full cleanup when removing a player from a team.
+   * Removes from roster array and depth chart.
+   *
+   * @param franchise - The loaded franchise instance
+   * @param playerRef - The player's reference string
+   * @param teamIndex - The team's TeamIndex (0-31)
+   * @returns Cleanup result
+   */
+  private async cleanupPlayerFromTeam(
+    franchise: any,
+    playerRef: string,
+    teamIndex: number
+  ): Promise<{ rosterRemoved: boolean; depthChartSlots: number }> {
+    // 1. Get team's roster ref
+    const rosterRef = await this.getTeamRosterRef(franchise, teamIndex);
+    if (!rosterRef) {
+      console.log(`[cleanupPlayerFromTeam] Could not find roster for team ${teamIndex}`);
+      return { rosterRemoved: false, depthChartSlots: 0 };
+    }
+
+    // 2. Remove from roster array
+    const rosterRemoved = await this.removePlayerFromRoster(franchise, playerRef, rosterRef);
+
+    // 3. Remove from depth chart
+    const depthChartSlots = await this.removePlayerFromDepthChart(franchise, playerRef, teamIndex);
+
+    console.log(`[cleanupPlayerFromTeam] Team ${teamIndex}: rosterRemoved=${rosterRemoved}, depthChartSlots=${depthChartSlots}`);
+    return { rosterRemoved, depthChartSlots };
+  }
+
+  /**
    * Execute a team relocation (e.g., Cleveland Browns → Baltimore Ravens 1996)
    * SWAPS rosters between source and dest teams.
    * Source players go to dest roster, dest players go to source roster.
@@ -471,7 +980,7 @@ export class RetroEditorService {
     // FULL SWAP: Match working swap-rosters.js pattern exactly
     // Must swap BOTH roster arrays AND TeamIndex fields
     try {
-      const franchise = this.franchiseInstances.get(filePath);
+      const franchise = this.getFranchise(filePath);
       if (!franchise) {
         throw new Error('Franchise file not loaded');
       }
@@ -599,6 +1108,123 @@ export class RetroEditorService {
 
 
   /**
+   * Prepare franchise for expansion draft by moving existing expansion team players to FA
+   * This must be called BEFORE getEligiblePlayersForExpansionDraft
+   */
+  async prepareExpansionDraft(
+    filePath: string,
+    event: ExpansionEvent
+  ): Promise<{ success: boolean; movedCount: number; error?: string }> {
+    try {
+      const franchise = this.getFranchise(filePath);
+      if (!franchise) {
+        throw new Error('Franchise file not loaded');
+      }
+
+      // Get expansion team indices
+      const expansionTeamIndices = new Set<number>();
+      for (const team of event.teams || []) {
+        expansionTeamIndices.add(team.teamIndex);
+      }
+
+      if (expansionTeamIndices.size === 0) {
+        return { success: true, movedCount: 0 };
+      }
+
+      // Get player table
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+      }
+      if (!playerTable) {
+        throw new Error('Player table not found');
+      }
+      await playerTable.readRecords();
+
+      // Get team table for roster refs
+      const teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+      await teamTable.readRecords();
+
+      // Clear roster arrays for expansion teams
+      for (const team of teamTable.records) {
+        if (team.isEmpty) continue;
+        const teamIdx = Number(team.TeamIndex);
+        if (expansionTeamIndices.has(teamIdx)) {
+          const rosterRef = team.getReferenceDataByKey('Roster');
+          if (rosterRef) {
+            const rosterTable = franchise.getTableById(rosterRef.tableId);
+            await rosterTable.readRecords();
+            const rosterRecord = rosterTable.records[rosterRef.rowNumber];
+            if (rosterRecord) {
+              const originalSize = rosterRecord.arraySize || 0;
+              for (let i = 0; i < originalSize; i++) {
+                rosterRecord[`Player${i}`] = ZERO_REF;
+              }
+              rosterRecord.arraySize = 0;
+              rosterTable.arraySizes[rosterRef.rowNumber] = 0;
+              rosterRecord.isChanged = true;
+              rosterRecord._parent.onEvent('change', rosterRecord);
+              console.log(`[prepareExpansionDraft] Cleared roster for team ${teamIdx}`);
+            }
+          }
+        }
+      }
+
+      // Move players on expansion teams to FA (TeamIndex 32)
+      const FREE_AGENT_TEAM_INDEX = 32;
+      let movedCount = 0;
+      const playerRefsToAddToFA: string[] = [];
+
+      for (const player of playerTable.records) {
+        if (player.isEmpty) continue;
+        const playerTeamIndex = Number(player.TeamIndex);
+        if (expansionTeamIndices.has(playerTeamIndex)) {
+          const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim();
+          console.log(`[prepareExpansionDraft] Moving ${playerName} from team ${playerTeamIndex} to FA`);
+          player.TeamIndex = FREE_AGENT_TEAM_INDEX;
+
+          // Set FA status fields
+          try { player.ContractStatus = 'FreeAgent'; } catch (e) { /* field may not exist */ }
+          try {
+            player.ContractLength = 0;
+            player.ContractYear = 0;
+            for (let i = 0; i < 8; i++) {
+              try {
+                player[`ContractSalary${i}`] = 0;
+                player[`ContractBonus${i}`] = 0;
+              } catch (e) { /* Some years may not exist */ }
+            }
+            player.PLYR_CONSECYEARSWITHTEAM = 0;
+            player.PLYR_ISCAPTAIN = false;
+          } catch (e) { /* Fields may not exist */ }
+
+          // Collect player reference for FA array
+          const tableId = playerTable.header.tableId;
+          const rowNumber = player.index;
+          const tableBits = tableId.toString(2).padStart(15, '0');
+          const rowBits = rowNumber.toString(2).padStart(17, '0');
+          const playerRef = tableBits + rowBits;
+          playerRefsToAddToFA.push(playerRef);
+
+          movedCount++;
+        }
+      }
+
+      // Add players to FA array for game visibility
+      if (playerRefsToAddToFA.length > 0) {
+        const addedToFAArray = await this.addPlayersToFAArrayBulk(franchise, playerRefsToAddToFA);
+        console.log(`[prepareExpansionDraft] Added ${addedToFAArray} players to FA array (table 5930)`);
+      }
+
+      console.log(`[prepareExpansionDraft] Moved ${movedCount} players to FA`);
+      return { success: true, movedCount };
+    } catch (error: any) {
+      console.error('[prepareExpansionDraft] Error:', error);
+      return { success: false, movedCount: 0, error: error.message };
+    }
+  }
+
+  /**
    * Get players eligible for an expansion draft
    * Returns all players from existing teams that can be drafted
    */
@@ -607,7 +1233,7 @@ export class RetroEditorService {
     event: ExpansionEvent
   ): Promise<{ success: boolean; players?: PlayerForDraft[]; error?: string }> {
     try {
-      const franchise = this.franchiseInstances.get(filePath);
+      const franchise = this.getFranchise(filePath);
       if (!franchise) {
         throw new Error('Franchise file not loaded');
       }
@@ -632,14 +1258,13 @@ export class RetroEditorService {
       }
       await teamTable.readRecords();
 
-      // Build team name map
+      // Build team name map from historicalTeams (already loaded from historical-teams.json)
       const teamNameMap = new Map<number, string>();
-      for (const team of teamTable.records) {
-        if (team.isEmpty) continue;
-        if (team.TeamIndex !== undefined && team.TeamIndex < 32) {
-          teamNameMap.set(team.TeamIndex, team.ShortName || team.DisplayName || `Team ${team.TeamIndex}`);
-        }
+      for (const team of this.historicalTeams) {
+        const teamName = `${team.currentCity} ${team.currentName}`;
+        teamNameMap.set(team.teamIndex, teamName);
       }
+      console.log('[getEligiblePlayersForExpansionDraft] Team name map built from historicalTeams:', teamNameMap.size, 'teams');
 
       // Get expansion team indices (these teams don't contribute players)
       const expansionTeamIndices = new Set<number>();
@@ -660,8 +1285,53 @@ export class RetroEditorService {
 
       const players: PlayerForDraft[] = [];
 
+      // Debug: Log available fields on first non-empty player
+      let loggedFields = false;
+
       for (const player of playerTable.records) {
         if (player.isEmpty) continue;
+
+        // Log field names once to discover contract field names
+        if (!loggedFields) {
+          const fieldNames = Object.keys(player).filter(k => !k.startsWith('_'));
+          // Look specifically for contract-related fields
+          const contractFields = fieldNames.filter(f =>
+            f.toLowerCase().includes('contract') ||
+            f.toLowerCase().includes('salary') ||
+            f.toLowerCase().includes('cap') ||
+            f.toLowerCase().includes('year') ||
+            f.startsWith('PS') ||
+            f.startsWith('PC')
+          );
+          loggedFields = true;
+        }
+
+        // Look for Kirk Cousins specifically to debug contract values
+        if (player.LastName === 'Cousins' && player.FirstName === 'Kirk') {
+          const fs = require('fs');
+          const debugPath = require('path').join(process.cwd(), 'player-fields-debug.txt');
+          const debugContent = `Player: ${player.FirstName} ${player.LastName}
+
+Contract fields:
+ContractLength: ${player.ContractLength}
+ContractYear: ${player.ContractYear}
+ContractSalary0: ${player.ContractSalary0}
+ContractSalary1: ${player.ContractSalary1}
+ContractSalary2: ${player.ContractSalary2}
+ContractSalary3: ${player.ContractSalary3}
+ContractBonus0: ${player.ContractBonus0}
+ContractBonus1: ${player.ContractBonus1}
+ContractBonus2: ${player.ContractBonus2}
+ContractBonus3: ${player.ContractBonus3}
+
+Calculated:
+Years Left: ${(player.ContractLength || 0) - (player.ContractYear || 0)}
+Current Year Index: ${player.ContractYear || 0}
+Salary (raw * 0.01): ${(player.ContractSalary0 || 0) * 0.01}
+Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus0 || 0)) * 0.01}`;
+          fs.writeFileSync(debugPath, debugContent);
+          console.log('[RetroEditorService] Kirk Cousins debug written');
+        }
 
         const teamIndex = player.TeamIndex;
 
@@ -674,16 +1344,63 @@ export class RetroEditorService {
         // Skip players on inactive teams
         if (inactiveTeamIndices.has(teamIndex)) continue;
 
+        // Map position to standard abbreviation
+        const positionMap: { [key: number]: string } = {
+          0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE',
+          5: 'LT', 6: 'LG', 7: 'C', 8: 'RG', 9: 'RT',
+          10: 'LEDG', 11: 'REDG', 12: 'DT',
+          13: 'SAM', 14: 'Mike', 15: 'WILL',
+          16: 'CB', 17: 'FS', 18: 'SS',
+          19: 'K', 20: 'P', 21: 'LS'
+        };
+        // String position map for when franchise returns string enums
+        const stringPositionMap: { [key: string]: string } = {
+          'LeftEnd': 'LEDG', 'RightEnd': 'REDG',
+          'LeftTackle': 'LT', 'LeftGuard': 'LG', 'Center': 'C', 'RightGuard': 'RG', 'RightTackle': 'RT',
+          'Quarterback': 'QB', 'Halfback': 'HB', 'Fullback': 'FB', 'WideReceiver': 'WR', 'TightEnd': 'TE',
+          'DefensiveTackle': 'DT', 'MiddleLinebacker': 'Mike', 'OutsideLinebacker': 'SAM',
+          'StrongSideLinebacker': 'SAM', 'WeakSideLinebacker': 'WILL',
+          'Cornerback': 'CB', 'FreeSafety': 'FS', 'StrongSafety': 'SS',
+          'Kicker': 'K', 'Punter': 'P', 'LongSnapper': 'LS',
+          'LE': 'LEDG', 'RE': 'REDG', 'LOLB': 'SAM', 'ROLB': 'WILL', 'MLB': 'Mike',
+          'LEDG': 'LEDG', 'REDG': 'REDG', 'SAM': 'SAM', 'Mike': 'Mike', 'WILL': 'WILL'
+        };
+        const rawPosition = player.Position;
+        let mappedPosition = 'Unknown';
+        if (typeof rawPosition === 'number') {
+          mappedPosition = positionMap[rawPosition] || `POS${rawPosition}`;
+        } else if (typeof rawPosition === 'string') {
+          // Check if it has a prefix like "Position:"
+          let cleanPosition = rawPosition;
+          if (rawPosition.includes(':')) {
+            cleanPosition = rawPosition.split(':').pop() || rawPosition;
+          }
+          // Try string map first, then use as-is
+          mappedPosition = stringPositionMap[cleanPosition] || cleanPosition;
+        }
+
+        // Debug: Log first few positions to see what we're getting
+        if (players.length < 5) {
+          console.log(`[getEligiblePlayers] Player ${player.FirstName} ${player.LastName}: rawPosition=${rawPosition} (${typeof rawPosition}) -> ${mappedPosition}`);
+        }
+
         const playerData: PlayerForDraft = {
           recordIndex: player.index,
           firstName: player.FirstName || '',
           lastName: player.LastName || '',
-          position: player.Position || 'Unknown',
+          position: mappedPosition,
           overall: player.OverallRating || player.Overall || 0,
           age: player.Age || 0,
           teamIndex: teamIndex,
           teamName: teamNameMap.get(teamIndex) || `Team ${teamIndex}`,
           isProtected: false, // Will be set by auto-protect logic
+          // Contract info - franchise files use ContractLength, ContractYear, ContractSalary0-7
+          // Years left = ContractLength - ContractYear
+          contractYearsLeft: (player.ContractLength || 0) - (player.ContractYear || 0),
+          // Total contract value (sum of all years)
+          contractSalary: this.getTotalContractValue(player),
+          // Current year cap hit
+          capHit: this.getContractCapHit(player),
         };
 
         players.push(playerData);
@@ -692,7 +1409,13 @@ export class RetroEditorService {
       // Sort by overall descending
       players.sort((a, b) => b.overall - a.overall);
 
+      // Debug: Count positions to verify mapping
+      const positionCounts = new Map<string, number>();
+      for (const p of players) {
+        positionCounts.set(p.position, (positionCounts.get(p.position) || 0) + 1);
+      }
       console.log(`[RetroEditorService] Found ${players.length} eligible players for expansion draft`);
+      console.log(`[RetroEditorService] Position breakdown:`, Object.fromEntries(positionCounts));
 
       return { success: true, players };
     } catch (error: any) {
@@ -732,22 +1455,107 @@ export class RetroEditorService {
   }
 
   /**
-   * Execute expansion draft with selected players
-   * Moves selected players to their new expansion teams
+   * Get total contract value (sum of all years salary + bonus)
+   * Values are stored in ~$10K units
+   */
+  private getTotalContractValue(player: any): number {
+    const salaryFields = [
+      player.ContractSalary0 || 0,
+      player.ContractSalary1 || 0,
+      player.ContractSalary2 || 0,
+      player.ContractSalary3 || 0,
+      player.ContractSalary4 || 0,
+      player.ContractSalary5 || 0,
+      player.ContractSalary6 || 0,
+      player.ContractSalary7 || 0,
+    ];
+    const bonusFields = [
+      player.ContractBonus0 || 0,
+      player.ContractBonus1 || 0,
+      player.ContractBonus2 || 0,
+      player.ContractBonus3 || 0,
+      player.ContractBonus4 || 0,
+      player.ContractBonus5 || 0,
+      player.ContractBonus6 || 0,
+      player.ContractBonus7 || 0,
+    ];
+
+    const contractLength = player.ContractLength || 0;
+    let total = 0;
+    for (let i = 0; i < contractLength; i++) {
+      total += salaryFields[i] + bonusFields[i];
+    }
+    // Return total in millions
+    return total * 0.01;
+  }
+
+  /**
+   * Calculate approximate cap hit for current year
+   * Cap hit = current year salary + prorated bonuses
+   */
+  private getContractCapHit(player: any): number {
+    const yearIndex = player.ContractYear || 0;
+    const contractLength = player.ContractLength || 1;
+
+    // Get current year salary
+    const salaryFields = [
+      player.ContractSalary0,
+      player.ContractSalary1,
+      player.ContractSalary2,
+      player.ContractSalary3,
+      player.ContractSalary4,
+      player.ContractSalary5,
+      player.ContractSalary6,
+      player.ContractSalary7,
+    ];
+    const bonusFields = [
+      player.ContractBonus0,
+      player.ContractBonus1,
+      player.ContractBonus2,
+      player.ContractBonus3,
+      player.ContractBonus4,
+      player.ContractBonus5,
+      player.ContractBonus6,
+      player.ContractBonus7,
+    ];
+
+    const salary = salaryFields[yearIndex] || 0;
+    const bonus = bonusFields[yearIndex] || 0;
+
+    // Cap hit = salary + bonus (both in same units ~$10K)
+    return (salary + bonus) * 0.01;
+  }
+
+  /**
+   * Execute expansion draft with selected players.
+   * Properly removes players from source teams (roster + depth chart)
+   * and adds them to expansion team rosters.
+   * @param filePath - Path to the franchise file
+   * @param selections - Array of player selections (playerRecordIndex + newTeamIndex)
+   * @param expansionTeamIndices - Optional array of team indices that should be cleared before draft
+   *                               (handles edge case where teams like Browns may have leftover players)
    */
   async executeExpansionDraft(
     filePath: string,
-    selections: ExpansionDraftSelection[]
+    selections: ExpansionDraftSelection[],
+    expansionTeamIndices?: number[]
   ): Promise<{ success: boolean; playersSelected: number; error?: string }> {
     try {
-      const franchise = this.franchiseInstances.get(filePath);
+      const franchise = this.getFranchise(filePath);
       if (!franchise) {
         throw new Error('Franchise file not loaded');
       }
 
-      console.log(`[RetroEditorService] Executing expansion draft with ${selections.length} selections`);
+      console.log(`[executeExpansionDraft] Starting with ${selections.length} selections`);
+      console.log(`[executeExpansionDraft] expansionTeamIndices param:`, expansionTeamIndices);
+      console.log(`[executeExpansionDraft] expansionTeamIndices type:`, typeof expansionTeamIndices);
+      if (expansionTeamIndices?.length) {
+        console.log(`[executeExpansionDraft] Expansion team indices to clear: ${expansionTeamIndices.join(', ')}`);
+      } else {
+        console.log(`[executeExpansionDraft] WARNING: No expansion team indices provided!`);
+      }
 
-      // Get player table - try by name first, then by ID
+      // Get player table
       let playerTable = franchise.getTableByName('Player');
       if (!playerTable) {
         playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
@@ -757,26 +1565,166 @@ export class RetroEditorService {
       }
       await playerTable.readRecords();
 
+      // Get team table for roster refs
+      const teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+      await teamTable.readRecords();
+
+      // Build expansion team roster refs - include BOTH:
+      // 1. Teams that are targets in selections
+      // 2. Teams explicitly listed in expansionTeamIndices (to handle edge cases like Browns)
+      const expansionRosterRefs = new Map<number, { tableId: number; rowNumber: number }>();
+      const teamsToClear = new Set<number>(expansionTeamIndices || []);
+
+      // Also add teams from selections
+      for (const sel of selections) {
+        teamsToClear.add(sel.newTeamIndex);
+      }
+
+      for (const team of teamTable.records) {
+        if (team.isEmpty) continue;
+        const teamIdx = Number(team.TeamIndex);
+        // Get roster ref for any team that should be cleared
+        if (teamsToClear.has(teamIdx)) {
+          const rosterRef = team.getReferenceDataByKey('Roster');
+          if (rosterRef) {
+            expansionRosterRefs.set(teamIdx, { tableId: rosterRef.tableId, rowNumber: rosterRef.rowNumber });
+          }
+        }
+      }
+
+      // Move existing players on expansion teams to Free Agency (TeamIndex 32)
+      // This must happen BEFORE clearing the roster to ensure players aren't orphaned
+      const FREE_AGENT_TEAM_INDEX = 32;
+
+      // Debug: Count players per team before clearing
+      const teamCounts = new Map<number, number>();
+      for (const player of playerTable.records) {
+        if (player.isEmpty) continue;
+        const tIdx = Number(player.TeamIndex);
+        teamCounts.set(tIdx, (teamCounts.get(tIdx) || 0) + 1);
+      }
+      console.log(`[executeExpansionDraft] Teams to clear: ${Array.from(teamsToClear).join(', ')}`);
+      for (const teamIdx of teamsToClear) {
+        console.log(`[executeExpansionDraft] Team ${teamIdx} has ${teamCounts.get(teamIdx) || 0} players BEFORE clearing`);
+      }
+
+      let totalMovedToFA = 0;
+      const playerRefsToAddToFA: string[] = [];
+
+      for (const teamIdx of teamsToClear) {
+        let movedToFA = 0;
+        for (const player of playerTable.records) {
+          if (player.isEmpty) continue;
+          const playerTeamIndex = Number(player.TeamIndex);
+          if (playerTeamIndex === teamIdx) {
+            const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim();
+            console.log(`[executeExpansionDraft] Moving ${playerName} from expansion team ${teamIdx} to FA`);
+            player.TeamIndex = FREE_AGENT_TEAM_INDEX;
+
+            // Set FA status fields
+            try { player.ContractStatus = 'FreeAgent'; } catch (e) { /* field may not exist */ }
+            try {
+              player.ContractLength = 0;
+              player.ContractYear = 0;
+              for (let i = 0; i < 8; i++) {
+                try {
+                  player[`ContractSalary${i}`] = 0;
+                  player[`ContractBonus${i}`] = 0;
+                } catch (e) { /* Some years may not exist */ }
+              }
+              player.PLYR_CONSECYEARSWITHTEAM = 0;
+              player.PLYR_ISCAPTAIN = false;
+            } catch (e) { /* Fields may not exist */ }
+
+            // Collect player reference for FA array
+            const tableId = playerTable.header.tableId;
+            const rowNumber = player.index;
+            const tableBits = tableId.toString(2).padStart(15, '0');
+            const rowBits = rowNumber.toString(2).padStart(17, '0');
+            const playerRef = tableBits + rowBits;
+            playerRefsToAddToFA.push(playerRef);
+
+            movedToFA++;
+          }
+        }
+        console.log(`[executeExpansionDraft] Moved ${movedToFA} players from team ${teamIdx} to Free Agency`);
+        totalMovedToFA += movedToFA;
+      }
+      console.log(`[executeExpansionDraft] TOTAL moved to FA from expansion teams: ${totalMovedToFA}`);
+
+      // Add players to FA array for game visibility
+      if (playerRefsToAddToFA.length > 0) {
+        const addedToFAArray = await this.addPlayersToFAArrayBulk(franchise, playerRefsToAddToFA);
+        console.log(`[executeExpansionDraft] Added ${addedToFAArray} players to FA array (table 5930)`);
+      }
+
+      // Clear expansion team rosters before adding drafted players
+      // This handles edge case where Browns (TeamIndex 4) might have leftover players
+      for (const [teamIdx, rosterRef] of expansionRosterRefs) {
+        console.log(`[executeExpansionDraft] Clearing roster for expansion team ${teamIdx}`);
+        const rosterTable = franchise.getTableById(rosterRef.tableId);
+        await rosterTable.readRecords();
+        const rosterRecord = rosterTable.records[rosterRef.rowNumber];
+
+        if (rosterRecord) {
+          // Clear all player slots
+          const originalSize = rosterRecord.arraySize || 0;
+          for (let i = 0; i < originalSize; i++) {
+            rosterRecord[`Player${i}`] = ZERO_REF;
+          }
+          // Reset array size to 0
+          rosterRecord.arraySize = 0;
+          rosterTable.arraySizes[rosterRef.rowNumber] = 0;
+          rosterRecord.isChanged = true;
+          rosterRecord._parent.onEvent('change', rosterRecord);
+          console.log(`[executeExpansionDraft] Cleared ${originalSize} players from team ${teamIdx} roster`);
+        }
+      }
+
       let playersSelected = 0;
 
       for (const selection of selections) {
         const player = playerTable.records[selection.playerRecordIndex];
-        if (player && !player.isEmpty) {
-          const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim();
-          const oldTeamIndex = player.TeamIndex;
+        if (!player || player.isEmpty) continue;
 
-          player.TeamIndex = selection.newTeamIndex;
-          playersSelected++;
+        const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim();
+        const oldTeamIndex = Number(player.TeamIndex);
+        const newTeamIndex = selection.newTeamIndex;
 
-          console.log(`[RetroEditorService] Drafted "${playerName}" from team ${oldTeamIndex} to team ${selection.newTeamIndex}`);
+        console.log(`[executeExpansionDraft] Processing: ${playerName} (${oldTeamIndex} -> ${newTeamIndex})`);
+
+        // 1. Get player's reference string
+        const playerRef = await this.getPlayerReference(franchise, selection.playerRecordIndex);
+        if (!playerRef) {
+          console.log(`[executeExpansionDraft] Could not get player ref for ${playerName}`);
+          continue;
         }
+
+        // 2. Remove from source team (roster + depth chart)
+        if (oldTeamIndex >= 0 && oldTeamIndex < 32) {
+          await this.cleanupPlayerFromTeam(franchise, playerRef, oldTeamIndex);
+        }
+
+        // 3. Add to expansion team roster
+        const expansionRosterRef = expansionRosterRefs.get(newTeamIndex);
+        if (expansionRosterRef) {
+          await this.addPlayerToRoster(franchise, playerRef, expansionRosterRef);
+        } else {
+          console.log(`[executeExpansionDraft] No roster ref for expansion team ${newTeamIndex}`);
+        }
+
+        // 4. Update player's TeamIndex
+        player.TeamIndex = newTeamIndex;
+
+        playersSelected++;
+        console.log(`[executeExpansionDraft] Drafted "${playerName}" from team ${oldTeamIndex} to team ${newTeamIndex}`);
       }
 
-      console.log(`[RetroEditorService] Expansion draft complete: ${playersSelected} players selected`);
+      console.log(`[executeExpansionDraft] Complete: ${playersSelected} players selected`);
 
       return { success: true, playersSelected };
     } catch (error: any) {
-      console.error('[RetroEditorService] Error executing expansion draft:', error);
+      console.error('[executeExpansionDraft] Error:', error);
       return { success: false, playersSelected: 0, error: error.message };
     }
   }
@@ -809,8 +1757,8 @@ export class RetroEditorService {
       console.log('[RetroEditorService] Franchise file parsed successfully');
       console.log('[RetroEditorService] Tables count:', franchise.tables?.length || 0);
 
-      // Store instance for later operations
-      this.franchiseInstances.set(filePath, franchise);
+      // Store instance for later operations (using normalized path for consistent lookup)
+      this.setFranchise(filePath, franchise);
 
       // Try to find the season info table
       // First, let's see what tables exist
@@ -891,7 +1839,7 @@ export class RetroEditorService {
    * Preview changes for a given year without applying them
    */
   async previewChanges(filePath: string, targetYear: number): Promise<PreviewChanges> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
     }
@@ -968,9 +1916,14 @@ export class RetroEditorService {
 
   /**
    * Set the season year, calendar year, Super Bowl number, and regular season week count
+   *
+   * IMPORTANT: SeasonInfo table fields control the in-game year display:
+   * - CurrentSeasonYear: The current season year (e.g., 1976)
+   * - BaseCalendarYear: The base calendar year
+   * - BaseSuperBowlNumber: The base Super Bowl number
    */
   async setSeasonYear(filePath: string, year: number): Promise<void> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
     }
@@ -980,6 +1933,16 @@ export class RetroEditorService {
     const seasonInfoTable = franchise.getTableByUniqueId(TABLE_IDS.seasonInfoTable);
     await seasonInfoTable.readRecords();
     const seasonRecord = seasonInfoTable.records[0];
+
+    // Log all available fields in SeasonInfo
+    const fieldNames = Object.keys(seasonRecord).filter(k => !k.startsWith('_') && typeof seasonRecord[k] !== 'function');
+    console.log('[RetroEditorService] SeasonInfo fields:', fieldNames);
+
+    // Log BEFORE values
+    console.log('[RetroEditorService] BEFORE changes:');
+    console.log(`  CurrentSeasonYear: ${seasonRecord.CurrentSeasonYear}`);
+    console.log(`  BaseCalendarYear: ${seasonRecord.BaseCalendarYear}`);
+    console.log(`  BaseSuperBowlNumber: ${seasonRecord.BaseSuperBowlNumber}`);
 
     // Get Super Bowl number for this year
     const superBowlNumber = this.superBowlMapping[year.toString()] || 1;
@@ -996,33 +1959,57 @@ export class RetroEditorService {
     console.log(`[RetroEditorService] Era for ${year}: ${era?.seasonLength} games, ${regularSeasonWeeks} regular season weeks, byes: ${era?.byeWeeks}`);
 
     // Update season info fields
-    // Note: Field names may vary - try multiple common names
-    if ('SeasonYear' in seasonRecord) {
-      seasonRecord.SeasonYear = year;
-    }
-    if ('CurrentSeasonYear' in seasonRecord) {
+    // NOTE: Don't use 'X' in obj check - properties are on prototype as getters/setters
+    // Just try to set and catch any errors
+    let changesApplied = 0;
+
+    try {
+      const oldVal = seasonRecord.CurrentSeasonYear;
+      console.log(`[RetroEditorService] Setting CurrentSeasonYear: ${oldVal} -> ${year}`);
       seasonRecord.CurrentSeasonYear = year;
+      console.log(`[RetroEditorService] CurrentSeasonYear after set: ${seasonRecord.CurrentSeasonYear}`);
+      changesApplied++;
+    } catch (e: any) {
+      console.error(`[RetroEditorService] Failed to set CurrentSeasonYear: ${e.message}`);
     }
-    if ('BaseCalendarYear' in seasonRecord) {
+
+    try {
+      const oldVal = seasonRecord.BaseCalendarYear;
+      console.log(`[RetroEditorService] Setting BaseCalendarYear: ${oldVal} -> ${year}`);
       seasonRecord.BaseCalendarYear = year;
+      console.log(`[RetroEditorService] BaseCalendarYear after set: ${seasonRecord.BaseCalendarYear}`);
+      changesApplied++;
+    } catch (e: any) {
+      console.error(`[RetroEditorService] Failed to set BaseCalendarYear: ${e.message}`);
     }
-    if ('CalendarYear' in seasonRecord) {
-      seasonRecord.CalendarYear = year;
-    }
-    if ('SuperBowlNumber' in seasonRecord) {
-      seasonRecord.SuperBowlNumber = superBowlNumber;
-    }
-    if ('BaseSuperBowlNumber' in seasonRecord) {
+
+    try {
+      const oldVal = seasonRecord.BaseSuperBowlNumber;
+      console.log(`[RetroEditorService] Setting BaseSuperBowlNumber: ${oldVal} -> ${superBowlNumber}`);
       seasonRecord.BaseSuperBowlNumber = superBowlNumber;
+      console.log(`[RetroEditorService] BaseSuperBowlNumber after set: ${seasonRecord.BaseSuperBowlNumber}`);
+      changesApplied++;
+    } catch (e: any) {
+      console.error(`[RetroEditorService] Failed to set BaseSuperBowlNumber: ${e.message}`);
     }
 
-    // Set the regular season week count - critical for historical seasons!
-    // This tells Madden how many weeks of regular season games to expect
-    if ('NflseasonWeekCount' in seasonRecord) {
-      seasonRecord.NflseasonWeekCount = regularSeasonWeeks;
-      console.log(`[RetroEditorService] Set NflseasonWeekCount = ${regularSeasonWeeks}`);
-    }
+    // NOTE: We intentionally do NOT change NflseasonWeekCount here!
+    // Changing the week count without also updating the schedule data causes Madden to crash.
+    // The schedule application will handle this if needed, or we keep the default 18 weeks.
+    // if ('NflseasonWeekCount' in seasonRecord) {
+    //   console.log(`[RetroEditorService] Setting NflseasonWeekCount: ${seasonRecord.NflseasonWeekCount} -> ${regularSeasonWeeks}`);
+    //   seasonRecord.NflseasonWeekCount = regularSeasonWeeks;
+    //   changesApplied++;
+    // }
+    console.log(`[RetroEditorService] NOTE: Keeping NflseasonWeekCount at ${seasonRecord.NflseasonWeekCount} (not changing to ${regularSeasonWeeks})`);
+    console.log(`[RetroEditorService] Changing week count without schedule update causes Madden crash`);
 
+    // Log AFTER values to verify changes took effect
+    console.log('[RetroEditorService] AFTER changes:');
+    console.log(`  CurrentSeasonYear: ${seasonRecord.CurrentSeasonYear}`);
+    console.log(`  BaseCalendarYear: ${seasonRecord.BaseCalendarYear}`);
+    console.log(`  BaseSuperBowlNumber: ${seasonRecord.BaseSuperBowlNumber}`);
+    console.log(`[RetroEditorService] Applied ${changesApplied} field changes`);
     console.log(`[RetroEditorService] Set season year to ${year}, Super Bowl ${superBowlNumber}, weeks ${regularSeasonWeeks}`);
   }
 
@@ -1030,7 +2017,7 @@ export class RetroEditorService {
    * Update team names based on the selected year
    */
   async updateTeamNames(filePath: string, year: number): Promise<TeamNameChange[]> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
     }
@@ -1151,10 +2138,10 @@ export class RetroEditorService {
   }
 
   /**
-   * Reorder draft picks to move expansion teams to end of each round
+   * Reorder draft picks for expansion year - assign picks to expansion teams at specified positions
    */
   async reorderDraftPicks(filePath: string, year: number): Promise<number> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
     }
@@ -1169,8 +2156,120 @@ export class RetroEditorService {
 
     await draftPickTable.readRecords();
 
+    // Get draft pick compensation for this year
+    const compensation = this.draftPickCompensation[year.toString()];
+    if (!compensation || !compensation.teams || !compensation.pickPositions) {
+      console.log(`[RetroEditorService] No draft pick compensation data for ${year}, using default inactive team logic`);
+      return this.reorderDraftPicksForInactiveTeams(draftPickTable, year);
+    }
+
+    console.log(`[RetroEditorService] Applying expansion draft pick compensation for ${year}`);
+    console.log(`[RetroEditorService] Expansion teams: ${compensation.teams.map((t: any) => t.name).join(', ')}`);
+
+    const expansionTeamIndices = new Set(compensation.teams.map((t: any) => t.teamIndex));
+    let assignedCount = 0;
+
+    // Group picks by round
+    const picksByRound = new Map<number, any[]>();
+    for (const pick of draftPickTable.records) {
+      if (pick.isEmpty) continue;
+      const round = pick.Round || pick.round || 1;
+      if (!picksByRound.has(round)) {
+        picksByRound.set(round, []);
+      }
+      picksByRound.get(round)!.push(pick);
+    }
+
+    // For each round, assign picks according to compensation rules
+    for (const [round, picks] of picksByRound) {
+      const roundPositions = compensation.pickPositions[round.toString()];
+      if (!roundPositions) continue;
+
+      // Sort picks by current pick number
+      picks.sort((a, b) => (a.PickNumber || a.pickNumber || 0) - (b.PickNumber || b.pickNumber || 0));
+
+      // For each expansion team, assign their pick at the specified position
+      for (let teamIdx = 0; teamIdx < compensation.teams.length; teamIdx++) {
+        const team = compensation.teams[teamIdx];
+        const position = roundPositions[teamIdx];
+        if (!position) continue;
+
+        // Find a pick owned by the expansion team or reassign one
+        let expansionPick = picks.find((p: any) => {
+          const pTeam = p.TeamIndex || p.teamIndex || p.OriginalTeam;
+          return pTeam === team.teamIndex;
+        });
+
+        if (!expansionPick) {
+          // No pick for this team yet - find a pick to reassign
+          // Take the last pick in the round from a non-expansion team
+          for (let i = picks.length - 1; i >= 0; i--) {
+            const pTeam = picks[i].TeamIndex || picks[i].teamIndex || picks[i].OriginalTeam;
+            if (!expansionTeamIndices.has(pTeam)) {
+              expansionPick = picks[i];
+              // Assign to expansion team
+              // NOTE: Don't use 'in' check - properties are on prototype
+              try { expansionPick.TeamIndex = team.teamIndex; } catch (e) { /* field may not exist */ }
+              try { expansionPick.teamIndex = team.teamIndex; } catch (e) { /* field may not exist */ }
+              try { expansionPick.OriginalTeam = team.teamIndex; } catch (e) { /* field may not exist */ }
+              console.log(`[RetroEditorService] Assigned pick in round ${round} position ${position} to ${team.name}`);
+              assignedCount++;
+              break;
+            }
+          }
+        }
+      }
+
+      // Re-sort picks to put expansion teams at their designated positions
+      picks.sort((a, b) => {
+        const aTeam = a.TeamIndex || a.teamIndex || a.OriginalTeam;
+        const bTeam = b.TeamIndex || b.teamIndex || b.OriginalTeam;
+        const aExpIdx = compensation.teams.findIndex((t: any) => t.teamIndex === aTeam);
+        const bExpIdx = compensation.teams.findIndex((t: any) => t.teamIndex === bTeam);
+
+        if (aExpIdx >= 0 && bExpIdx < 0) {
+          // a is expansion team, b is not
+          const aPos = roundPositions[aExpIdx] || 99;
+          const bPos = b.PickNumber || b.pickNumber || 99;
+          return aPos - bPos;
+        }
+        if (bExpIdx >= 0 && aExpIdx < 0) {
+          // b is expansion team, a is not
+          const bPos = roundPositions[bExpIdx] || 99;
+          const aPos = a.PickNumber || a.pickNumber || 99;
+          return aPos - bPos;
+        }
+        if (aExpIdx >= 0 && bExpIdx >= 0) {
+          // Both expansion teams
+          return (roundPositions[aExpIdx] || 99) - (roundPositions[bExpIdx] || 99);
+        }
+        // Neither expansion team - maintain original order
+        return (a.PickNumber || a.pickNumber || 0) - (b.PickNumber || b.pickNumber || 0);
+      });
+
+      // Reassign pick numbers
+      // NOTE: Don't use 'in' check - properties are on prototype
+      picks.forEach((pick, index) => {
+        try { pick.PickNumber = index + 1; } catch (e) { /* field may not exist */ }
+        try { pick.pickNumber = index + 1; } catch (e) { /* field may not exist */ }
+      });
+    }
+
+    console.log(`[RetroEditorService] Assigned/reordered ${assignedCount} picks for expansion teams`);
+    return assignedCount;
+  }
+
+  /**
+   * Fallback: Reorder draft picks for years without specific compensation data
+   */
+  private reorderDraftPicksForInactiveTeams(draftPickTable: any, year: number): number {
     const inactiveTeams = this.getInactiveTeamsForYear(year);
     const inactiveTeamIndices = new Set(inactiveTeams.map(t => t.teamIndex));
+
+    if (inactiveTeamIndices.size === 0) {
+      console.log('[RetroEditorService] No inactive teams for this year');
+      return 0;
+    }
 
     let reorderedCount = 0;
 
@@ -1187,7 +2286,6 @@ export class RetroEditorService {
 
     // For each round, move inactive team picks to the end
     for (const [round, picks] of picksByRound) {
-      // Sort: active teams first, then inactive teams
       picks.sort((a, b) => {
         const aTeamIndex = a.TeamIndex || a.teamIndex;
         const bTeamIndex = b.TeamIndex || b.teamIndex;
@@ -1199,18 +2297,14 @@ export class RetroEditorService {
         return (a.PickNumber || a.pickNumber || 0) - (b.PickNumber || b.pickNumber || 0);
       });
 
-      // Reassign pick numbers
       picks.forEach((pick, index) => {
         const teamIndex = pick.TeamIndex || pick.teamIndex;
         if (inactiveTeamIndices.has(teamIndex)) {
           reorderedCount++;
         }
-        if ('PickNumber' in pick) {
-          pick.PickNumber = index + 1;
-        }
-        if ('pickNumber' in pick) {
-          pick.pickNumber = index + 1;
-        }
+        // NOTE: Don't use 'in' check - properties are on prototype
+        try { pick.PickNumber = index + 1; } catch (e) { /* field may not exist */ }
+        try { pick.pickNumber = index + 1; } catch (e) { /* field may not exist */ }
       });
     }
 
@@ -1219,47 +2313,62 @@ export class RetroEditorService {
   }
 
   /**
-   * Get current team list from franchise file
+   * Get current team list from historical teams data
    */
   async getTeamList(filePath: string): Promise<any[]> {
-    const franchise = this.franchiseInstances.get(filePath);
-    if (!franchise) {
-      throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
-    }
-
-    const teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
-    await teamTable.readRecords();
-
-    return teamTable.records
-      .filter((r: any) => !r.isEmpty)
-      .map((r: any) => ({
-        teamIndex: r.TeamIndex || r.teamIndex,
-        longName: r.LongName || r.longName,
-        displayName: r.DisplayName || r.displayName,
-        shortName: r.ShortName || r.shortName || r.NickName || r.nickName,
-        abbreviation: r.Abbreviation || r.abbreviation
-      }));
+    // Use historicalTeams which is already loaded from historical-teams.json
+    return this.historicalTeams.map(team => ({
+      teamIndex: team.teamIndex,
+      longName: team.currentCity,
+      displayName: team.currentName,
+      shortName: team.currentName,
+      abbreviation: team.currentAbbreviation
+    }));
   }
 
   /**
    * Save the modified franchise file (overwrite original)
    */
   async saveFranchiseFile(filePath: string): Promise<void> {
-    const franchise = this.franchiseInstances.get(filePath);
+    console.log(`[RetroEditorService] Saving franchise file: ${filePath}`);
+
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
     }
 
-    console.log('[RetroEditorService] Saving franchise file:', filePath);
+    // VERIFY: Check player counts before save to confirm changes are in memory
+    try {
+      const playerTable = franchise.getTableByName('Player');
+      if (playerTable && playerTable.records) {
+        let panthers = 0, jaguars = 0, fa = 0;
+        for (const p of playerTable.records) {
+          if (p.isEmpty) continue;
+          const ti = Number(p.TeamIndex);
+          if (ti === 20) panthers++;
+          if (ti === 16) jaguars++;
+          if (ti === 32) fa++;
+        }
+        console.log(`[RetroEditorService] PRE-SAVE STATE: Panthers=${panthers}, Jaguars=${jaguars}, FA=${fa}`);
+      }
+
+      const seasonInfo = franchise.getTableByName('SeasonInfo');
+      if (seasonInfo && seasonInfo.records && seasonInfo.records[0]) {
+        console.log(`[RetroEditorService] PRE-SAVE Super Bowl: ${seasonInfo.records[0].BaseSuperBowlNumber}`);
+      }
+    } catch (e) {
+      console.log('[RetroEditorService] Could not verify pre-save state');
+    }
+
     await franchise.save(filePath);
-    console.log('[RetroEditorService] Franchise file saved successfully');
+    console.log('[RetroEditorService] Save complete');
   }
 
   /**
    * Save the modified franchise file to a new location (Save As)
    */
   async saveFranchiseFileAs(originalPath: string, newPath: string): Promise<void> {
-    const franchise = this.franchiseInstances.get(originalPath);
+    const franchise = this.getFranchise(originalPath);
     if (!franchise) {
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
     }
@@ -1269,16 +2378,39 @@ export class RetroEditorService {
     console.log('[RetroEditorService] Franchise file saved successfully to:', newPath);
 
     // Update the instance map to use the new path
-    this.franchiseInstances.delete(originalPath);
-    this.franchiseInstances.set(newPath, franchise);
+    this.deleteFranchise(originalPath);
+    this.setFranchise(newPath, franchise);
   }
 
   /**
    * Close a franchise file and release resources
    */
   closeFranchiseFile(filePath: string): void {
-    this.franchiseInstances.delete(filePath);
+    this.deleteFranchise(filePath);
     console.log('[RetroEditorService] Closed franchise file:', filePath);
+  }
+
+  /**
+   * Create a backup copy of the franchise file before making changes
+   * Backup is created with timestamp suffix: FILENAME_backup_YYYYMMDD_HHMMSS
+   */
+  async createBackup(filePath: string): Promise<string> {
+    const path = require('path');
+
+    // Generate backup filename with timestamp
+    const dir = path.dirname(filePath);
+    const baseName = path.basename(filePath);
+    const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14); // YYYYMMDDHHMMSS
+    const backupName = `${baseName}_backup_${timestamp}`;
+    const backupPath = path.join(dir, backupName);
+
+    console.log('[RetroEditorService] Creating backup:', backupPath);
+
+    // Copy the file
+    fs.copyFileSync(filePath, backupPath);
+
+    console.log('[RetroEditorService] Backup created successfully');
+    return backupPath;
   }
 
   /**
@@ -1438,7 +2570,7 @@ export class RetroEditorService {
     warnings: string[];
     error?: string;
   }> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       return {
         success: false,
@@ -1469,21 +2601,14 @@ export class RetroEditorService {
     // This is critical - tells Madden how many weeks of regular season to expect
     const era = scheduleService.getSeasonEra(year);
     const regularSeasonWeeks = schedule.regularSeasonWeeks || era?.regularSeasonWeeks || (era?.byeWeeks ? 17 : era?.seasonLength || 18);
-    console.log(`[RetroEditorService] Setting NflseasonWeekCount = ${regularSeasonWeeks} for year ${year}`);
-
-    const seasonInfoTable = franchise.getTableByUniqueId(TABLE_IDS.seasonInfoTable);
-    if (seasonInfoTable) {
-      await seasonInfoTable.readRecords();
-      const seasonRecord = seasonInfoTable.records[0];
-      if (seasonRecord && 'NflseasonWeekCount' in seasonRecord) {
-        seasonRecord.NflseasonWeekCount = regularSeasonWeeks;
-        console.log(`[RetroEditorService] Successfully set NflseasonWeekCount = ${regularSeasonWeeks}`);
-      } else {
-        console.warn('[RetroEditorService] NflseasonWeekCount field not found in SeasonInfo');
-      }
-    } else {
-      console.warn('[RetroEditorService] SeasonInfo table not found');
-    }
+    // NOTE: We intentionally do NOT change NflseasonWeekCount during schedule application!
+    // Based on testing, changing the week count can cause Madden to crash when simming.
+    // The game expects 18 weeks of regular season regardless of era.
+    // FIX: We also do NOT mark extra weeks as OffSeason - that also causes crashes!
+    // Instead, we leave extra game slots untouched with their original matchups.
+    console.log(`[RetroEditorService] Historical season has ${regularSeasonWeeks} weeks`);
+    console.log(`[RetroEditorService] NOT changing NflseasonWeekCount or marking OffSeason - keeping Madden default to prevent crashes`);
+    console.log(`[RetroEditorService] Extra game slots beyond historical schedule will be left untouched`)
 
     // Get the Team table and build TeamIndex → RecordIndex mapping
     let teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
@@ -1655,29 +2780,14 @@ export class RetroEditorService {
         if (!historicalGames || historicalGames.length === 0) {
           // No historical games for this week - this happens when:
           // - Madden week >= maxHistoricalWeek (e.g., Madden week 17+ for 17-week seasons)
-          // FIX: Set SeasonWeekType to OffSeason (8) so Madden skips these games
-          // The 2011 Throwback mod uses OffSeason for weeks beyond the regular season
+          // FIX: Do NOT mark as OffSeason - this causes Madden to crash when simming!
+          // Instead, leave these games untouched with their original matchups.
+          // Madden will still sim these games but with the original teams.
           if (historicalWeekNum > maxHistoricalWeek) {
             console.log(`[RetroEditorService] >>> Madden Week ${maddenWeekNum} → Historical Week ${historicalWeekNum} BEYOND SEASON END (max=${maxHistoricalWeek})`);
-            console.log(`[RetroEditorService] >>> Marking ${franchiseGames.length} games as OffSeason`);
-            warnings.push(`Week ${maddenWeekNum}: No historical games (historical week ${historicalWeekNum} beyond season end), marking ${franchiseGames.length} slots as OffSeason`);
-            for (let i = 0; i < franchiseGames.length; i++) {
-              try {
-                const franchiseRecord = franchiseGames[i];
-                // Mark as OffSeason so Madden won't try to simulate during regular season
-                // (2011 Throwback uses OffSeason=8 for weeks beyond regular season)
-                // CRITICAL: Must also set null team refs (all zeros) - this is what 2011 mod does
-                setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
-                franchiseRecord.HomeTeam = '00000000000000000000000000000000';
-                franchiseRecord.AwayTeam = '00000000000000000000000000000000';
-                franchiseRecord.GameStatus = 'Unplayed';
-                gamesUpdated++;
-              } catch (gameErr: any) {
-                console.error(`[RetroEditorService] Error marking game ${i} in week ${maddenWeekNum} as OffSeason:`, gameErr.message);
-                console.error(`[RetroEditorService] Error stack:`, gameErr.stack);
-                throw gameErr;
-              }
-            }
+            console.log(`[RetroEditorService] >>> SKIPPING ${franchiseGames.length} games (leaving untouched to prevent crash)`);
+            warnings.push(`Week ${maddenWeekNum}: Beyond historical season - leaving ${franchiseGames.length} games untouched`);
+            // Do NOT modify these games - leave them as-is to prevent crash
           } else {
             warnings.push(`No historical games for week ${maddenWeekNum}`);
           }
@@ -1724,27 +2834,13 @@ export class RetroEditorService {
         }
 
         // Handle extra game slots when historical has fewer games (e.g., 28-team era with 14 games/week)
-        // FIX: Set SeasonWeekType to OffSeason so Madden skips these games during regular season sim
+        // FIX: Do NOT mark as OffSeason - this causes Madden to crash when simming!
+        // Instead, leave these games untouched with their original matchups.
         if (franchiseGames.length > historicalGames.length) {
           const extraCount = franchiseGames.length - historicalGames.length;
-          console.log(`[RetroEditorService] Week ${maddenWeekNum}: Marking ${extraCount} extra slots as OffSeason (historical had ${historicalGames.length} games)`);
-          warnings.push(`Week ${maddenWeekNum}: ${extraCount} extra slots marked as OffSeason (historical had ${historicalGames.length} games)`);
-          for (let i = historicalGames.length; i < franchiseGames.length; i++) {
-            try {
-              const franchiseRecord = franchiseGames[i];
-              // Mark as OffSeason so Madden won't try to simulate during regular season
-              // CRITICAL: Must also set null team refs (all zeros) - this is what 2011 mod does
-              setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
-              franchiseRecord.HomeTeam = '00000000000000000000000000000000';
-              franchiseRecord.AwayTeam = '00000000000000000000000000000000';
-              franchiseRecord.GameStatus = 'Unplayed';
-              gamesUpdated++;
-            } catch (gameErr: any) {
-              console.error(`[RetroEditorService] Error marking extra slot ${i} in week ${maddenWeekNum} as OffSeason:`, gameErr.message);
-              console.error(`[RetroEditorService] Error stack:`, gameErr.stack);
-              throw gameErr;
-            }
-          }
+          console.log(`[RetroEditorService] Week ${maddenWeekNum}: SKIPPING ${extraCount} extra slots (leaving untouched to prevent crash)`);
+          warnings.push(`Week ${maddenWeekNum}: ${extraCount} extra game slots left untouched (historical had ${historicalGames.length} games)`);
+          // Do NOT modify these games - leave them as-is to prevent crash
         }
       } catch (weekErr: any) {
         console.error(`[RetroEditorService] Error processing week ${maddenWeekNum}:`, weekErr.message);
@@ -2077,19 +3173,8 @@ export class RetroEditorService {
       warnings.push(`Fixed ${badRefGamesFixed} games with invalid team references`);
     }
 
-    // CRITICAL: Save the franchise file to persist changes!
-    console.log(`[RetroEditorService] ====== SAVING FRANCHISE FILE ======`);
-    console.log(`[RetroEditorService] Path: ${filePath}`);
-    console.log(`[RetroEditorService] Games updated: ${gamesUpdated}`);
-    console.log(`[RetroEditorService] Warnings: ${warnings.length}`);
-    try {
-      await franchise.save(filePath);
-      console.log(`[RetroEditorService] ====== SAVE COMPLETED SUCCESSFULLY ======`);
-    } catch (saveError: any) {
-      console.error(`[RetroEditorService] ====== SAVE FAILED ======`);
-      console.error(`[RetroEditorService] Error:`, saveError);
-      throw saveError;
-    }
+    // NOTE: Do NOT save here - let user choose when to save at end of Apply flow
+    console.log(`[RetroEditorService] Schedule changes applied (${gamesUpdated} games) - changes pending user save`);
 
     return {
       success: true,
@@ -2269,7 +3354,7 @@ export class RetroEditorService {
     warnings: string[];
     error?: string;
   }> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       return {
         success: false,
@@ -2610,6 +3695,9 @@ export class RetroEditorService {
 
   /**
    * Apply salary cap to franchise file
+   *
+   * IMPORTANT: Salary cap is stored in the SalaryInfo table, NOT the League table.
+   * Fields: TeamSalaryCap, InitialSalaryCap (both in thousands, e.g., 255000 = $255M)
    */
   async applySalaryCap(filePath: string, year: number): Promise<{
     success: boolean;
@@ -2618,7 +3706,7 @@ export class RetroEditorService {
     note?: string;
     error?: string;
   }> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       return {
         success: false,
@@ -2631,59 +3719,86 @@ export class RetroEditorService {
     const capInfo = this.getSalaryCapForYear(year);
     console.log(`[RetroEditorService] Setting salary cap for ${year}: $${capInfo.value.toLocaleString()}`);
 
-    // Get the League table
-    let leagueTable = franchise.getTableByUniqueId(TABLE_IDS.leagueTable);
-    if (!leagueTable) {
-      leagueTable = franchise.getTableByName('League');
+    // Salary cap is in SalaryInfo table (ID: 3759217828), NOT League table!
+    const SALARY_INFO_TABLE_ID = 3759217828;
+    let salaryInfoTable = franchise.getTableByUniqueId(SALARY_INFO_TABLE_ID);
+    if (!salaryInfoTable) {
+      salaryInfoTable = franchise.getTableByName('SalaryInfo');
     }
-    if (!leagueTable) {
-      console.error('[RetroEditorService] Could not find League table!');
+    if (!salaryInfoTable) {
+      console.error('[RetroEditorService] Could not find SalaryInfo table!');
       return {
         success: false,
         previousCap: 0,
         newCap: capInfo.value,
-        error: 'Could not find League table in franchise file'
+        error: 'Could not find SalaryInfo table in franchise file'
       };
     }
 
-    await leagueTable.readRecords();
-    console.log(`[RetroEditorService] Found ${leagueTable.records.length} league records`);
+    await salaryInfoTable.readRecords();
+    console.log(`[RetroEditorService] Found ${salaryInfoTable.records.length} SalaryInfo records`);
 
-    // Find the active league record
-    const leagueRecord = leagueTable.records.find((r: any) => !r.isEmpty);
-    if (!leagueRecord) {
+    // Find the active salary info record
+    const salaryRecord = salaryInfoTable.records.find((r: any) => !r.isEmpty);
+    if (!salaryRecord) {
       return {
         success: false,
         previousCap: 0,
         newCap: capInfo.value,
-        error: 'No active league record found'
+        error: 'No active SalaryInfo record found'
       };
     }
 
-    // Log available fields
-    const fieldNames = Object.keys(leagueRecord).filter(k => !k.startsWith('_') && typeof leagueRecord[k] !== 'function');
-    console.log('[RetroEditorService] League table fields:', fieldNames.slice(0, 20));
+    // Log available fields for debugging
+    const fieldNames = Object.keys(salaryRecord).filter(k => !k.startsWith('_') && typeof salaryRecord[k] !== 'function');
+    console.log('[RetroEditorService] SalaryInfo table fields:', fieldNames);
 
     // Get previous cap value
-    const previousCap = leagueRecord.SalaryCap || leagueRecord.SalaryCapTotal || 0;
+    const previousCap = salaryRecord.TeamSalaryCap || salaryRecord.InitialSalaryCap || 0;
+    console.log(`[RetroEditorService] Previous cap value: ${previousCap} (in thousands = $${(previousCap * 1000).toLocaleString()})`);
 
-    // Set salary cap - try various field names
-    if ('SalaryCap' in leagueRecord) {
-      leagueRecord.SalaryCap = capInfo.value;
-      console.log(`[RetroEditorService] Set SalaryCap = ${capInfo.value}`);
+    // Madden stores salary cap in TEN-THOUSANDS (NOT thousands!)
+    // e.g., $159,200,000 is stored as 15920 (159200000 / 10000 = 15920)
+    // e.g., $37,100,000 is stored as 3710 (37100000 / 10000 = 3710)
+    const capInTenThousands = Math.round(capInfo.value / 10000);
+    console.log(`[RetroEditorService] Converting cap: $${capInfo.value.toLocaleString()} -> ${capInTenThousands} (in ten-thousands)`);
+
+    // Set salary cap on the correct fields
+    // NOTE: Don't use 'X' in obj check - properties are on prototype, not own properties
+    let setCount = 0;
+    try {
+      console.log(`[RetroEditorService] Setting TeamSalaryCap: ${salaryRecord.TeamSalaryCap} -> ${capInTenThousands}`);
+      salaryRecord.TeamSalaryCap = capInTenThousands;
+      console.log(`[RetroEditorService] TeamSalaryCap after set: ${salaryRecord.TeamSalaryCap}`);
+      setCount++;
+    } catch (e: any) {
+      console.error(`[RetroEditorService] Failed to set TeamSalaryCap: ${e.message}`);
     }
-    if ('SalaryCapTotal' in leagueRecord) {
-      leagueRecord.SalaryCapTotal = capInfo.value;
-      console.log(`[RetroEditorService] Set SalaryCapTotal = ${capInfo.value}`);
+
+    try {
+      console.log(`[RetroEditorService] Setting InitialSalaryCap: ${salaryRecord.InitialSalaryCap} -> ${capInTenThousands}`);
+      salaryRecord.InitialSalaryCap = capInTenThousands;
+      console.log(`[RetroEditorService] InitialSalaryCap after set: ${salaryRecord.InitialSalaryCap}`);
+      setCount++;
+    } catch (e: any) {
+      console.error(`[RetroEditorService] Failed to set InitialSalaryCap: ${e.message}`);
     }
-    if ('TeamSalaryCap' in leagueRecord) {
-      leagueRecord.TeamSalaryCap = capInfo.value;
-      console.log(`[RetroEditorService] Set TeamSalaryCap = ${capInfo.value}`);
+
+    if (setCount === 0) {
+      console.error('[RetroEditorService] Could not set any salary cap fields!');
+      return {
+        success: false,
+        previousCap,
+        newCap: capInfo.value,
+        error: 'Could not set TeamSalaryCap or InitialSalaryCap fields'
+      };
     }
+
+    console.log(`[RetroEditorService] Successfully set ${setCount} salary cap field(s)`);
 
     return {
       success: true,
-      previousCap,
+      previousCap: previousCap * 1000, // Convert back to full dollars for display
       newCap: capInfo.value,
       note: capInfo.note
     };
@@ -2797,7 +3912,7 @@ export class RetroEditorService {
     warnings: string[];
     error?: string;
   }> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       return {
         success: false,
@@ -2862,17 +3977,23 @@ export class RetroEditorService {
       const oldName = stadiumRecord.Name || stadiumRecord.StadiumName || '(unknown)';
 
       // Update stadium name
-      if ('Name' in stadiumRecord) {
+      // NOTE: Don't use 'in' check - properties are on prototype
+      let updated = false;
+      try {
         stadiumRecord.Name = newName;
-        stadiumsUpdated++;
+        updated = true;
         console.log(`[RetroEditorService] Stadium for team ${teamIndex}: "${oldName}" -> "${newName}"`);
-      } else if ('StadiumName' in stadiumRecord) {
-        stadiumRecord.StadiumName = newName;
-        stadiumsUpdated++;
-        console.log(`[RetroEditorService] Stadium for team ${teamIndex}: "${oldName}" -> "${newName}"`);
-      } else {
-        warnings.push(`Stadium record for team ${teamIndex} has no Name field`);
+      } catch (e) {
+        // Name field may not exist, try StadiumName
+        try {
+          stadiumRecord.StadiumName = newName;
+          updated = true;
+          console.log(`[RetroEditorService] Stadium for team ${teamIndex}: "${oldName}" -> "${newName}"`);
+        } catch (e2) {
+          warnings.push(`Stadium record for team ${teamIndex} has no Name field`);
+        }
       }
+      if (updated) stadiumsUpdated++;
     }
 
     console.log(`[RetroEditorService] Updated ${stadiumsUpdated} stadium names`);
@@ -3015,7 +4136,7 @@ export class RetroEditorService {
     warnings: string[];
     error?: string;
   }> {
-    const franchise = this.franchiseInstances.get(filePath);
+    const franchise = this.getFranchise(filePath);
     if (!franchise) {
       return {
         success: false,
@@ -3100,19 +4221,24 @@ export class RetroEditorService {
       let updated = false;
 
       // Set offensive scheme
-      if (offenseEnum !== undefined && 'OffensiveScheme' in hcRecord) {
-        const oldScheme = hcRecord.OffensiveScheme;
-        hcRecord.OffensiveScheme = offenseEnum;
-        console.log(`[RetroEditorService] ${team.currentName} offense: ${oldScheme} -> ${scheme.offense} (${offenseEnum})`);
-        updated = true;
+      // NOTE: Don't use 'in' check - properties are on prototype
+      if (offenseEnum !== undefined) {
+        try {
+          const oldScheme = hcRecord.OffensiveScheme;
+          hcRecord.OffensiveScheme = offenseEnum;
+          console.log(`[RetroEditorService] ${team.currentName} offense: ${oldScheme} -> ${scheme.offense} (${offenseEnum})`);
+          updated = true;
+        } catch (e) { /* field may not exist */ }
       }
 
       // Set defensive scheme
-      if (defenseEnum !== undefined && 'DefensiveScheme' in hcRecord) {
-        const oldScheme = hcRecord.DefensiveScheme;
-        hcRecord.DefensiveScheme = defenseEnum;
-        console.log(`[RetroEditorService] ${team.currentName} defense: ${oldScheme} -> ${scheme.defense} (${defenseEnum})`);
-        updated = true;
+      if (defenseEnum !== undefined) {
+        try {
+          const oldScheme = hcRecord.DefensiveScheme;
+          hcRecord.DefensiveScheme = defenseEnum;
+          console.log(`[RetroEditorService] ${team.currentName} defense: ${oldScheme} -> ${scheme.defense} (${defenseEnum})`);
+          updated = true;
+        } catch (e) { /* field may not exist */ }
       }
 
       if (updated) {
@@ -3328,28 +4454,25 @@ export class RetroEditorService {
         let applied = false;
 
         // Apply HomeUniformShade
-        if ('HomeUniformShade' in teamRecord) {
-          try {
-            teamRecord.HomeUniformShade = uniformInfo.homeShade;
-            applied = true;
-          } catch (err) {
-            console.log(`[RetroEditorService] Could not set HomeUniformShade for ${uniformInfo.teamAbbr}`);
-          }
+        // NOTE: Don't use 'in' check - properties are on prototype
+        try {
+          teamRecord.HomeUniformShade = uniformInfo.homeShade;
+          applied = true;
+        } catch (err) {
+          console.log(`[RetroEditorService] Could not set HomeUniformShade for ${uniformInfo.teamAbbr}`);
         }
 
         // Apply AwayUniformShade
-        if ('AwayUniformShade' in teamRecord) {
-          try {
-            teamRecord.AwayUniformShade = uniformInfo.awayShade;
-            applied = true;
-          } catch (err) {
-            console.log(`[RetroEditorService] Could not set AwayUniformShade for ${uniformInfo.teamAbbr}`);
-          }
+        try {
+          teamRecord.AwayUniformShade = uniformInfo.awayShade;
+          applied = true;
+        } catch (err) {
+          console.log(`[RetroEditorService] Could not set AwayUniformShade for ${uniformInfo.teamAbbr}`);
         }
 
         // Note: HomeUniformIndex/AwayUniformIndex are game-level fields, not team-level
         // If these fields exist on Team table, try to set them
-        if (uniformInfo.homeIndex >= 0 && 'HomeUniform' in teamRecord) {
+        if (uniformInfo.homeIndex >= 0) {
           try {
             teamRecord.HomeUniform = uniformInfo.homeIndex;
             applied = true;
@@ -3358,7 +4481,7 @@ export class RetroEditorService {
           }
         }
 
-        if (uniformInfo.awayIndex >= 0 && 'AwayUniform' in teamRecord) {
+        if (uniformInfo.awayIndex >= 0) {
           try {
             teamRecord.AwayUniform = uniformInfo.awayIndex;
             applied = true;
@@ -3433,6 +4556,1730 @@ export class RetroEditorService {
       teamsWithThrowbacks: throwbackCount,
       teamsWithModern: modernCount
     };
+  }
+
+  // ============================================
+  // ERA-APPROPRIATE CONTRACT METHODS
+  // ============================================
+
+  /**
+   * Position importance multipliers for contract calculations
+   * Higher value = more money for that position
+   */
+  private readonly positionValueMultipliers: { [key: string]: number } = {
+    // Premium positions
+    'QB': 2.0,      // Quarterbacks get paid the most
+    'LEDG': 1.3,    // Pass rushers
+    'REDG': 1.3,
+    'CB': 1.2,      // Corners
+    'WR': 1.15,     // Receivers
+    'LT': 1.15,     // Left Tackles
+    // Standard positions
+    'DT': 1.0,
+    'FS': 1.0,
+    'SS': 1.0,
+    'LG': 0.95,
+    'RG': 0.95,
+    'RT': 0.95,
+    'C': 0.9,
+    'TE': 0.9,
+    'HB': 0.85,
+    'FB': 0.7,
+    'Mike': 0.85,   // Linebackers
+    'WILL': 0.8,
+    'SAM': 0.8,
+    // Specialists (lowest)
+    'K': 0.5,
+    'P': 0.5,
+    'LS': 0.3
+  };
+
+  /**
+   * Get historical average salary for a year (in thousands)
+   * Based on actual NFL salary history
+   */
+  private getHistoricalAverageSalary(year: number): number {
+    // Historical NFL average salary progression (in thousands)
+    // Pre-1970: ~$20-25K average
+    // 1970s: $30-100K range
+    // 1980s: $100-400K range
+    // 1990s: $400K-1.5M range
+    // 2000s: $1.5-2.5M range
+    // 2010s: $2.5-3M range
+    // 2020s: $3M+ range
+
+    if (year < 1970) return 25;      // $25K average
+    if (year < 1975) return 40;      // $40K average
+    if (year < 1980) return 70;      // $70K average
+    if (year < 1985) return 150;     // $150K average
+    if (year < 1990) return 300;     // $300K average
+    if (year < 1995) return 700;     // $700K average
+    if (year < 2000) return 1200;    // $1.2M average
+    if (year < 2005) return 1800;    // $1.8M average
+    if (year < 2010) return 2200;    // $2.2M average
+    if (year < 2015) return 2500;    // $2.5M average
+    if (year < 2020) return 2900;    // $2.9M average
+    return 3500;                      // $3.5M+ average for modern era
+  }
+
+  /**
+   * Generate era-appropriate contract for a player
+   *
+   * @param position Player's position
+   * @param overall Player's overall rating
+   * @param year Historical year
+   * @param yearsOfService Player's years pro (affects contract length)
+   * @returns Contract details
+   */
+  generateEraAppropriateContract(
+    position: string,
+    overall: number,
+    year: number,
+    yearsOfService: number = 0
+  ): {
+    salary: number;      // Annual salary in thousands
+    length: number;      // Contract length in years
+    bonus: number;       // Signing bonus in thousands
+  } {
+    // Get base historical average
+    const baseAverage = this.getHistoricalAverageSalary(year);
+
+    // Get position multiplier (default to 1.0 if position not found)
+    const positionMultiplier = this.positionValueMultipliers[position] || 1.0;
+
+    // OVR-based multiplier (scale from 0.3x for 60 OVR to 5x for 99 OVR)
+    // This creates a steep curve where elite players get much more
+    let ovrMultiplier: number;
+    if (overall >= 90) {
+      // Elite players: 90-99 OVR get 2.5x to 5x
+      ovrMultiplier = 2.5 + ((overall - 90) / 9) * 2.5;
+    } else if (overall >= 80) {
+      // Good players: 80-89 OVR get 1.2x to 2.5x
+      ovrMultiplier = 1.2 + ((overall - 80) / 9) * 1.3;
+    } else if (overall >= 70) {
+      // Average players: 70-79 OVR get 0.6x to 1.2x
+      ovrMultiplier = 0.6 + ((overall - 70) / 9) * 0.6;
+    } else {
+      // Below average: 60-69 OVR get 0.3x to 0.6x
+      ovrMultiplier = 0.3 + ((overall - 60) / 9) * 0.3;
+    }
+
+    // Calculate base salary
+    let salary = Math.round(baseAverage * positionMultiplier * ovrMultiplier);
+
+    // Apply minimum salary (varies by era)
+    const minSalary = year < 1994 ? Math.round(baseAverage * 0.2) : Math.round(baseAverage * 0.3);
+    salary = Math.max(salary, minSalary);
+
+    // Determine contract length based on OVR and experience
+    let length: number;
+    if (overall >= 90) {
+      length = yearsOfService > 3 ? 5 : 4;  // Elite players get longer deals
+    } else if (overall >= 80) {
+      length = yearsOfService > 3 ? 4 : 3;
+    } else if (overall >= 70) {
+      length = yearsOfService > 5 ? 3 : 2;
+    } else {
+      length = 1;  // Roster fillers get 1-year deals
+    }
+
+    // Cap length at 7 years (Madden max)
+    length = Math.min(length, 7);
+
+    // Signing bonus (only for longer contracts)
+    let bonus = 0;
+    if (length >= 3 && overall >= 75) {
+      // Signing bonus is roughly 10-20% of total contract value
+      bonus = Math.round(salary * length * 0.15);
+    }
+
+    return { salary, length, bonus };
+  }
+
+  /**
+   * Apply era-appropriate contracts to all players in the franchise
+   *
+   * @param filePath Path to franchise file
+   * @param year Historical year
+   * @returns Results of contract application
+   */
+  async applyEraAppropriateContracts(filePath: string, year: number): Promise<{
+    success: boolean;
+    playersUpdated: number;
+    averageSalary: number;
+    warnings: string[];
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        playersUpdated: 0,
+        averageSalary: 0,
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log(`[RetroEditorService] Applying era-appropriate contracts for year ${year}`);
+
+    // Get Player table
+    let playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+    if (!playerTable) {
+      playerTable = franchise.getTableByName('Player');
+    }
+    if (!playerTable) {
+      return {
+        success: false,
+        playersUpdated: 0,
+        averageSalary: 0,
+        warnings: [],
+        error: 'Could not find Player table'
+      };
+    }
+
+    await playerTable.readRecords();
+    console.log(`[RetroEditorService] Found ${playerTable.records.length} player records`);
+
+    const warnings: string[] = [];
+    let playersUpdated = 0;
+    let totalSalary = 0;
+    const FREE_AGENT_TEAM_INDEX = 32;
+
+    for (const player of playerTable.records) {
+      if (player.isEmpty) continue;
+
+      // Get player info
+      const position = player.Position;
+      const overall = player.OverallRating || player.Overall || 70;
+      const teamIndex = player.TeamIndex;
+      const yearsOfService = player.YearsPro || 0;
+
+      // Skip free agents (they don't have active contracts)
+      if (teamIndex >= FREE_AGENT_TEAM_INDEX) continue;
+
+      // Generate era-appropriate contract
+      const contract = this.generateEraAppropriateContract(position, overall, year, yearsOfService);
+
+      // Apply contract fields
+      try {
+        // Set contract length
+        player.ContractLength = contract.length;
+        player.ContractYear = 0;  // Start at year 0
+
+        // Set salary for each year of the contract
+        // NOTE: Don't use 'in' check - properties are on prototype
+        for (let i = 0; i < 8; i++) {
+          const salaryField = `ContractSalary${i}`;
+          const bonusField = `ContractBonus${i}`;
+
+          if (i < contract.length) {
+            // Active contract year - set salary
+            try { player[salaryField] = contract.salary; } catch (e) { /* field may not exist */ }
+            // Set signing bonus in year 0 only
+            try { player[bonusField] = (i === 0) ? contract.bonus : 0; } catch (e) { /* field may not exist */ }
+          } else {
+            // Beyond contract length - zero out
+            try { player[salaryField] = 0; } catch (e) { /* field may not exist */ }
+            try { player[bonusField] = 0; } catch (e) { /* field may not exist */ }
+          }
+        }
+
+        // Update PLYR_CAPSALARY (appears to be cap hit)
+        try { player.PLYR_CAPSALARY = contract.salary + (contract.bonus / contract.length); } catch (e) { /* field may not exist */ }
+
+        // Set contract status to signed
+        try { player.ContractStatus = 'Signed'; } catch (e) { /* field may not exist */ }
+
+        playersUpdated++;
+        totalSalary += contract.salary;
+      } catch (err: any) {
+        warnings.push(`Failed to update contract for ${player.FirstName} ${player.LastName}: ${err.message}`);
+      }
+    }
+
+    const averageSalary = playersUpdated > 0 ? Math.round(totalSalary / playersUpdated) : 0;
+    console.log(`[RetroEditorService] Updated ${playersUpdated} player contracts`);
+    console.log(`[RetroEditorService] Average salary: $${(averageSalary * 1000).toLocaleString()}`);
+
+    return {
+      success: true,
+      playersUpdated,
+      averageSalary,
+      warnings
+    };
+  }
+
+  // ============================================
+  // INACTIVE TEAM COACH METHODS
+  // ============================================
+
+  /**
+   * Set placeholder coaches for inactive teams to prevent coaching FA pool issues
+   *
+   * When teams are inactive (e.g., Texans before 2002, Browns 1996-1998),
+   * we need to ensure their coaches are "locked" so they don't appear in FA.
+   *
+   * @param filePath Path to franchise file
+   * @param year Historical year
+   * @returns Results of placeholder coach application
+   */
+  async setPlaceholderCoachesForInactiveTeams(filePath: string, year: number): Promise<{
+    success: boolean;
+    coachesUpdated: number;
+    inactiveTeams: string[];
+    warnings: string[];
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        coachesUpdated: 0,
+        inactiveTeams: [],
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log(`[RetroEditorService] Setting placeholder coaches for inactive teams in year ${year}`);
+
+    // Get inactive teams for this year
+    const inactiveTeams = this.getInactiveTeamsForYear(year);
+    const inactiveTeamIndices = new Set(inactiveTeams.map(t => t.teamIndex));
+
+    if (inactiveTeamIndices.size === 0) {
+      console.log('[RetroEditorService] No inactive teams for this year');
+      return {
+        success: true,
+        coachesUpdated: 0,
+        inactiveTeams: [],
+        warnings: []
+      };
+    }
+
+    console.log(`[RetroEditorService] Found ${inactiveTeamIndices.size} inactive teams:`,
+      inactiveTeams.map(t => `${t.team} (${t.teamIndex})`).join(', '));
+
+    // Get Coach table
+    let coachTable = franchise.getTableByUniqueId(TABLE_IDS.coachTable);
+    if (!coachTable) {
+      coachTable = franchise.getTableByName('Coach');
+    }
+    if (!coachTable) {
+      return {
+        success: false,
+        coachesUpdated: 0,
+        inactiveTeams: inactiveTeams.map(t => t.team),
+        warnings: [],
+        error: 'Could not find Coach table'
+      };
+    }
+
+    await coachTable.readRecords();
+    console.log(`[RetroEditorService] Found ${coachTable.records.length} coach records`);
+
+    const warnings: string[] = [];
+    let coachesUpdated = 0;
+
+    // Placeholder coach names for inactive teams
+    const placeholderNames = [
+      { first: 'Inactive', last: 'Coach' },
+      { first: 'Reserved', last: 'Position' },
+      { first: 'Placeholder', last: 'Staff' }
+    ];
+
+    for (const coach of coachTable.records) {
+      if (coach.isEmpty) continue;
+
+      const teamIndex = coach.TeamIndex;
+      if (!inactiveTeamIndices.has(teamIndex)) continue;
+
+      // This coach is on an inactive team - set placeholder values
+      try {
+        const position = coach.Position || 'Unknown';
+        const inactiveTeam = inactiveTeams.find(t => t.teamIndex === teamIndex);
+        const teamName = inactiveTeam?.team || `Team ${teamIndex}`;
+
+        console.log(`[RetroEditorService] Setting placeholder for ${position} on ${teamName}`);
+
+        // Choose placeholder name based on position
+        let placeholderIndex = 0;
+        if (position === 'HeadCoach') placeholderIndex = 0;
+        else if (position === 'OffensiveCoordinator') placeholderIndex = 1;
+        else placeholderIndex = 2;
+
+        const placeholder = placeholderNames[placeholderIndex];
+
+        // Set placeholder name
+        coach.FirstName = placeholder.first;
+        coach.LastName = `${placeholder.last} (${teamName})`;
+
+        // Lock them with a long contract so they don't become FA
+        // NOTE: Don't use 'in' check - properties are on prototype as getters/setters
+        try { coach.ContractLength = 30; } catch (e) { /* field may not exist */ }
+        try { coach.ContractYearsRemaining = 30; } catch (e) { /* field may not exist */ }
+        try { coach.ContractStatus = 'Signed'; } catch (e) { /* field may not exist */ }
+
+        // Set a low salary so they don't count against cap
+        try { coach.ContractSalary = 1; } catch (e) { /* field may not exist */ }
+
+        // Mark as not user controlled
+        try { coach.IsUserControlled = false; } catch (e) { /* field may not exist */ }
+
+        // Set a placeholder portrait (generic face)
+        try { coach.Portrait = 0; } catch (e) { /* field may not exist */ }
+
+        coachesUpdated++;
+      } catch (err: any) {
+        warnings.push(`Failed to set placeholder for coach on team ${teamIndex}: ${err.message}`);
+      }
+    }
+
+    console.log(`[RetroEditorService] Updated ${coachesUpdated} coaches on inactive teams`);
+
+    return {
+      success: true,
+      coachesUpdated,
+      inactiveTeams: inactiveTeams.map(t => t.team),
+      warnings
+    };
+  }
+
+  /**
+   * Load the retro coaches database
+   */
+  private loadCoachDatabase(): any | null {
+    try {
+      const appPath = app.getAppPath();
+      const dataPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'lookups')
+        : path.join(appPath, 'data', 'lookups');
+
+      const coachDbPath = path.join(dataPath, 'retro-coaches-database.json');
+      if (!fs.existsSync(coachDbPath)) {
+        console.log('[RetroEditorService] No coach database file found');
+        return null;
+      }
+
+      const coachData = JSON.parse(fs.readFileSync(coachDbPath, 'utf-8'));
+      console.log(`[RetroEditorService] Loaded coach database: ${coachData.totalCoaches} coaches`);
+      return coachData;
+    } catch (error) {
+      console.error('[RetroEditorService] Error loading coach database:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get coaches who were active in a specific year from the database
+   */
+  private getCoachesActiveInYear(coachDb: any, year: number, position?: string): any[] {
+    if (!coachDb || !coachDb.coaches) return [];
+
+    return coachDb.coaches.filter((coach: any) => {
+      // Check if coach's career spans this year
+      if (coach.careerFrom > year || coach.careerTo < year) return false;
+
+      // If position filter is specified, check if coach held that position
+      if (position) {
+        return coach.positions.includes(position);
+      }
+
+      return true;
+    });
+  }
+
+  /**
+   * Replace free agent coaches with real historical coaches from the database
+   *
+   * This ensures that coaching FA pool has era-appropriate coaches based on
+   * when they actually entered the league.
+   *
+   * @param filePath Path to franchise file
+   * @param year Historical year
+   * @returns Results of coach replacement
+   */
+  async replaceFACoachesWithRealCoaches(filePath: string, year: number): Promise<{
+    success: boolean;
+    coachesReplaced: number;
+    faCoachCount: number;
+    availableRealCoaches: number;
+    warnings: string[];
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        coachesReplaced: 0,
+        faCoachCount: 0,
+        availableRealCoaches: 0,
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log(`[RetroEditorService] Replacing FA coaches with real historical coaches for year ${year}`);
+
+    // Load coach database
+    const coachDb = this.loadCoachDatabase();
+    if (!coachDb) {
+      return {
+        success: false,
+        coachesReplaced: 0,
+        faCoachCount: 0,
+        availableRealCoaches: 0,
+        warnings: [],
+        error: 'Could not load coach database'
+      };
+    }
+
+    // Get Coach table
+    let coachTable = franchise.getTableByUniqueId(TABLE_IDS.coachTable);
+    if (!coachTable) {
+      coachTable = franchise.getTableByName('Coach');
+    }
+    if (!coachTable) {
+      return {
+        success: false,
+        coachesReplaced: 0,
+        faCoachCount: 0,
+        availableRealCoaches: 0,
+        warnings: [],
+        error: 'Could not find Coach table'
+      };
+    }
+
+    await coachTable.readRecords();
+    console.log(`[RetroEditorService] Found ${coachTable.records.length} coach records`);
+
+    // Get inactive teams (we don't want to replace their placeholder coaches)
+    const inactiveTeams = this.getInactiveTeamsForYear(year);
+    const inactiveTeamIndices = new Set(inactiveTeams.map(t => t.teamIndex));
+
+    // Find FA coaches (not on any team or on special FA team)
+    const FREE_AGENT_COACH_TEAM = 32; // FA team index
+    const faCoaches: any[] = [];
+
+    for (const coach of coachTable.records) {
+      if (coach.isEmpty) continue;
+
+      const teamIndex = coach.TeamIndex;
+      const contractStatus = coach.ContractStatus;
+
+      // Skip coaches on inactive teams (they're placeholders)
+      if (inactiveTeamIndices.has(teamIndex)) continue;
+
+      // Identify FA coaches - either by team index or contract status
+      if (teamIndex >= FREE_AGENT_COACH_TEAM || contractStatus === 'FreeAgent') {
+        faCoaches.push(coach);
+      }
+    }
+
+    console.log(`[RetroEditorService] Found ${faCoaches.length} free agent coaches`);
+
+    // Get real coaches who were active in or before this year
+    // We want coaches whose career started by this year (they'd be available)
+    const availableHCs = this.getCoachesActiveInYear(coachDb, year, 'HC');
+    const availableOCs = this.getCoachesActiveInYear(coachDb, year, 'OC');
+    const availableDCs = this.getCoachesActiveInYear(coachDb, year, 'DC');
+
+    console.log(`[RetroEditorService] Available real coaches: ${availableHCs.length} HC, ${availableOCs.length} OC, ${availableDCs.length} DC`);
+
+    const warnings: string[] = [];
+    let coachesReplaced = 0;
+
+    // Track which real coaches we've already used
+    const usedCoaches = new Set<string>();
+
+    // Sort FA coaches by position to replace HC, OC, DC in order
+    for (const faCoach of faCoaches) {
+      const position = faCoach.Position || 'Unknown';
+
+      // Get the appropriate pool of real coaches
+      let coachPool: any[];
+      if (position === 'HeadCoach') {
+        coachPool = availableHCs;
+      } else if (position === 'OffensiveCoordinator') {
+        coachPool = availableOCs;
+      } else if (position === 'DefensiveCoordinator') {
+        coachPool = availableDCs;
+      } else {
+        // For other positions, use any available coach
+        coachPool = [...availableOCs, ...availableDCs];
+      }
+
+      // Find an unused real coach
+      let realCoach = null;
+      for (const candidate of coachPool) {
+        const key = `${candidate.firstName}_${candidate.lastName}`;
+        if (!usedCoaches.has(key)) {
+          realCoach = candidate;
+          usedCoaches.add(key);
+          break;
+        }
+      }
+
+      if (!realCoach) {
+        warnings.push(`No available real coach for ${position} position`);
+        continue;
+      }
+
+      // Replace the FA coach with the real coach's info
+      try {
+        console.log(`[RetroEditorService] Replacing ${faCoach.FirstName} ${faCoach.LastName} (${position}) with ${realCoach.firstName} ${realCoach.lastName}`);
+
+        faCoach.FirstName = realCoach.firstName;
+        faCoach.LastName = realCoach.lastName;
+
+        // Set career stats from database
+        // NOTE: Don't use 'in' check - properties are on prototype as getters/setters
+        if (realCoach.careerWins !== undefined) {
+          try { faCoach.CareerWins = realCoach.careerWins; } catch (e) { /* field may not exist */ }
+        }
+        if (realCoach.careerLosses !== undefined) {
+          try { faCoach.CareerLosses = realCoach.careerLosses; } catch (e) { /* field may not exist */ }
+        }
+        if (realCoach.careerTies !== undefined) {
+          try { faCoach.CareerTies = realCoach.careerTies; } catch (e) { /* field may not exist */ }
+        }
+        if (realCoach.playoffWins !== undefined) {
+          try { faCoach.CareerPlayoffWins = realCoach.playoffWins; } catch (e) { /* field may not exist */ }
+        }
+        if (realCoach.playoffLosses !== undefined) {
+          try { faCoach.CareerPlayoffLosses = realCoach.playoffLosses; } catch (e) { /* field may not exist */ }
+        }
+        if (realCoach.superBowlWins !== undefined) {
+          try { faCoach.CareerSuperbowlWins = realCoach.superBowlWins; } catch (e) { /* field may not exist */ }
+        }
+
+        // Calculate approximate years coaching
+        try {
+          const yearsCoaching = Math.max(1, year - realCoach.careerFrom + 1);
+          faCoach.YearsCoaching = yearsCoaching;
+        } catch (e) { /* field may not exist */ }
+
+        // Set age based on career start (assume started at 35-45)
+        try {
+          const yearsCoaching = year - realCoach.careerFrom;
+          faCoach.Age = 40 + yearsCoaching; // Approximate age
+        } catch (e) { /* field may not exist */ }
+
+        coachesReplaced++;
+      } catch (err: any) {
+        warnings.push(`Failed to replace coach ${faCoach.FirstName} ${faCoach.LastName}: ${err.message}`);
+      }
+    }
+
+    console.log(`[RetroEditorService] Replaced ${coachesReplaced} FA coaches with real historical coaches`);
+
+    return {
+      success: true,
+      coachesReplaced,
+      faCoachCount: faCoaches.length,
+      availableRealCoaches: availableHCs.length + availableOCs.length + availableDCs.length,
+      warnings
+    };
+  }
+
+  /**
+   * Move players from inactive/non-existent teams to Free Agency
+   * This is called during apply to handle teams that don't exist in the target year
+   * (e.g., for 1994, Panthers and Jaguars didn't exist yet)
+   */
+  async moveInactiveTeamPlayersToFA(filePath: string, year: number): Promise<{
+    success: boolean;
+    playersMoved: number;
+    inactiveTeams: string[];
+    warnings: string[];
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        playersMoved: 0,
+        inactiveTeams: [],
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log(`[RetroEditorService] Moving expansion team players to FA for year ${year}`);
+
+    // Get EXPANSION teams for this year (teams where year == targetYear)
+    const expansionTeamsThisYear = this.expansionHistory.filter(team => team.year === year);
+    const expansionTeamIndices = new Set(expansionTeamsThisYear.map(t => t.teamIndex));
+
+    console.log(`[RetroEditorService] Expansion teams: ${expansionTeamsThisYear.map(t => `${t.team}(${t.teamIndex})`).join(', ') || 'NONE'}`);
+
+    // Rename for clarity in the rest of the function
+    const inactiveTeams = expansionTeamsThisYear;
+    const inactiveTeamIndices = expansionTeamIndices;
+
+    if (inactiveTeamIndices.size === 0) {
+      console.log('[RetroEditorService] No inactive teams for this year');
+      return {
+        success: true,
+        playersMoved: 0,
+        inactiveTeams: [],
+        warnings: []
+      };
+    }
+
+    console.log(`[RetroEditorService] Found ${inactiveTeamIndices.size} inactive teams:`,
+      inactiveTeams.map(t => `${t.team} (${t.teamIndex})`).join(', '));
+
+    // Get Player table
+    let playerTable = franchise.getTableByName('Player');
+    if (!playerTable) {
+      playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+    }
+    if (!playerTable) {
+      return {
+        success: false,
+        playersMoved: 0,
+        inactiveTeams: inactiveTeams.map(t => t.team),
+        warnings: [],
+        error: 'Could not find Player table'
+      };
+    }
+
+    await playerTable.readRecords();
+    console.log(`[RetroEditorService] Found ${playerTable.records.length} player records`);
+
+    const FREE_AGENT_TEAM_INDEX = 32;
+    const warnings: string[] = [];
+    let playersMoved = 0;
+
+    // Collect player references for adding to FA array
+    const playerRefsToAddToFA: string[] = [];
+
+    for (const player of playerTable.records) {
+      if (player.isEmpty) continue;
+
+      const teamIndex = Number(player.TeamIndex);
+      if (!inactiveTeamIndices.has(teamIndex)) continue;
+
+      // This player is on an inactive team - move to FA
+      try {
+        const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim() || `Player_${player.index}`;
+        const inactiveTeam = inactiveTeams.find(t => t.teamIndex === teamIndex);
+        const teamName = inactiveTeam?.team || `Team ${teamIndex}`;
+
+        if (playersMoved < 10) {
+          console.log(`[RetroEditorService] Moving ${playerName} from ${teamName} to FA`);
+        }
+
+        player.TeamIndex = FREE_AGENT_TEAM_INDEX;
+
+        // Also update contract status to FreeAgent
+        try { player.ContractStatus = 'FreeAgent'; } catch (e) { /* field may not exist */ }
+
+        // Clear contract fields - FA players should have no active contract
+        try {
+          player.ContractLength = 0;
+          player.ContractYear = 0;
+          for (let i = 0; i < 8; i++) {
+            try {
+              player[`ContractSalary${i}`] = 0;
+              player[`ContractBonus${i}`] = 0;
+            } catch (e) { /* Some years may not exist */ }
+          }
+          player.PLYR_CONSECYEARSWITHTEAM = 0;
+          player.PLYR_ISCAPTAIN = false;
+        } catch (e) { /* Fields may not exist */ }
+
+        // Collect player reference for FA array
+        const tableId = playerTable.header.tableId;
+        const rowNumber = player.index;
+        const tableBits = tableId.toString(2).padStart(15, '0');
+        const rowBits = rowNumber.toString(2).padStart(17, '0');
+        const playerRef = tableBits + rowBits;
+        playerRefsToAddToFA.push(playerRef);
+
+        playersMoved++;
+      } catch (err: any) {
+        warnings.push(`Failed to move player from team ${teamIndex}: ${err.message}`);
+      }
+    }
+
+    if (playersMoved >= 10) {
+      console.log(`[RetroEditorService] ... and ${playersMoved - 10} more players`);
+    }
+    console.log(`[RetroEditorService] Moved ${playersMoved} players from inactive teams to FA`);
+
+    // CRITICAL: Add players to FA array (table 5930) for game visibility
+    if (playerRefsToAddToFA.length > 0) {
+      const addedToFAArray = await this.addPlayersToFAArrayBulk(franchise, playerRefsToAddToFA);
+      console.log(`[RetroEditorService] Added ${addedToFAArray} players to FA array (table 5930)`);
+    }
+
+    return {
+      success: true,
+      playersMoved,
+      inactiveTeams: inactiveTeams.map(t => t.team),
+      warnings
+    };
+  }
+
+  /**
+   * Set the correct Super Bowl number for historical mode
+   * This updates SeasonInfo.BaseSuperBowlNumber so the game shows the correct Super Bowl
+   * for the historical year (e.g., 1976 = Super Bowl XI)
+   *
+   * Super Bowl I was after the 1966 season, so Super Bowl # = Year - 1965
+   * - 1976 → Super Bowl XI (11)
+   * - 1995 → Super Bowl XXX (30)
+   * - 2002 → Super Bowl XXXVII (37)
+   */
+  async clearLeagueHistory(filePath: string, year: number): Promise<{
+    success: boolean;
+    entriesCleared: number;
+    warnings: string[];
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        entriesCleared: 0,
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log(`[RetroEditorService] Setting Super Bowl for year ${year}`);
+
+    const warnings: string[] = [];
+    let entriesCleared = 0;
+
+    // Calculate the correct Super Bowl number: Year - 1965
+    const targetSuperBowlNumber = Math.max(0, year - 1965);
+    console.log(`[RetroEditorService] Target Super Bowl: ${targetSuperBowlNumber}`);
+
+    // Set SeasonInfo.BaseSuperBowlNumber to the correct value for this year
+    try {
+      const seasonInfoTable = franchise.getTableByName('SeasonInfo');
+      if (seasonInfoTable) {
+        await seasonInfoTable.readRecords();
+        for (const record of seasonInfoTable.records) {
+          if (record.isEmpty) continue;
+          try {
+            if (record.BaseSuperBowlNumber !== undefined) {
+              const oldValue = record.BaseSuperBowlNumber;
+              record.BaseSuperBowlNumber = targetSuperBowlNumber;
+              console.log(`[RetroEditorService] Updated BaseSuperBowlNumber from ${oldValue} to ${targetSuperBowlNumber}`);
+              entriesCleared++;
+            }
+          } catch (e) {
+            // Field may not exist - ignore
+          }
+        }
+      } else {
+        console.log(`[RetroEditorService] SeasonInfo table not found`);
+        warnings.push('SeasonInfo table not found - could not update Super Bowl number');
+      }
+    } catch (err: any) {
+      console.error(`[RetroEditorService] Error updating SeasonInfo: ${err.message}`);
+      warnings.push(`Error updating Super Bowl number: ${err.message}`);
+    }
+
+    if (entriesCleared === 0) {
+      warnings.push('No SeasonInfo records updated - Super Bowl number may be incorrect');
+    }
+
+    console.log(`[RetroEditorService] Super Bowl number update complete`);
+
+    return {
+      success: true,
+      entriesCleared,
+      warnings
+    };
+  }
+
+  /**
+   * SINGLE OPERATION: Apply ALL retro changes and save
+   * This is the correct approach - gather all data first, then apply everything at once
+   *
+   * @param sourcePath - Path to the franchise file to read from
+   * @param targetPath - Path to save to (can be same as source for overwrite)
+   * @param config - All the configuration gathered from the wizard
+   */
+  async applyAllRetroChangesAndSave(sourcePath: string, targetPath: string, config: {
+    year: number;
+    options: {
+      teams?: boolean;
+      abbreviations?: boolean;
+      schedule?: boolean;
+      coaches?: boolean;
+      salaryCap?: boolean;
+      stadiums?: boolean;
+      schemes?: boolean;
+      uniforms?: boolean;
+      expansion?: boolean;
+    };
+    expansionEvent?: any;
+    expansionDraftSelections?: Array<{ playerRecordIndex: number; newTeamIndex: number }>;
+    expansionTeamIndices?: number[]; // Team indices for clearing rosters before expansion draft
+  }): Promise<{
+    success: boolean;
+    results: {
+      seasonYearSet: boolean;
+      superBowlNumber: number;
+      teamChanges: number;
+      draftPicksReordered: number;
+      scheduleGamesUpdated: number;
+      coachesUpdated: number;
+      salaryCapSet: boolean;
+      stadiumsUpdated: number;
+      schemesUpdated: number;
+      playersMovedToFA: number;
+      expansionPlayersSelected: number;
+      uniformsApplied: number;
+    };
+    diagnostics?: {
+      beforeCounts: { team16: number; team20: number; fa: number };
+      afterMoveCounts: { team16: number; team20: number; fa: number };
+      finalCounts: { team16: number; team20: number; fa: number };
+      expansionCondition: { optsExpansion: boolean; hasEvent: boolean; hasTeams: boolean };
+      steps: string[];
+    };
+    error?: string;
+  }> {
+    console.log(`[RetroEditorService] ===== APPLY ALL RETRO CHANGES AND SAVE =====`);
+    console.log(`[RetroEditorService] Source: ${sourcePath}`);
+    console.log(`[RetroEditorService] Target: ${targetPath}`);
+    console.log(`[RetroEditorService] Year: ${config.year}`);
+    console.log(`[RetroEditorService] Options:`, config.options);
+
+    const results = {
+      seasonYearSet: false,
+      superBowlNumber: 0,
+      teamChanges: 0,
+      draftPicksReordered: 0,
+      scheduleGamesUpdated: 0,
+      coachesUpdated: 0,
+      salaryCapSet: false,
+      stadiumsUpdated: 0,
+      schemesUpdated: 0,
+      playersMovedToFA: 0,
+      expansionPlayersSelected: 0,
+      uniformsApplied: 0,
+    };
+
+    // Diagnostics for renderer visibility
+    const diagnostics = {
+      beforeCounts: { team16: 0, team20: 0, fa: 0 },
+      afterMoveCounts: { team16: 0, team20: 0, fa: 0 },
+      finalCounts: { team16: 0, team20: 0, fa: 0 },
+      expansionCondition: { optsExpansion: false, hasEvent: false, hasTeams: false },
+      steps: [] as string[],
+    };
+
+    try {
+      // Load the franchise file fresh
+      const module = await getFranchiseModule();
+      const createFranchise = module.create || module.default?.create || module.Franchise?.create;
+      if (!createFranchise) {
+        throw new Error('Could not find create function in madden-franchise module');
+      }
+
+      console.log(`[RetroEditorService] Loading franchise file...`);
+      const franchise = await createFranchise(sourcePath);
+      console.log(`[RetroEditorService] Franchise loaded`);
+
+      // Store in cache so existing methods can find it
+      this.setFranchise(sourcePath, franchise);
+
+      const year = config.year;
+      const opts = config.options;
+
+      // DIAGNOSTIC: Track expansion condition for renderer visibility
+      diagnostics.expansionCondition = {
+        optsExpansion: !!opts.expansion,
+        hasEvent: !!config.expansionEvent,
+        hasTeams: !!(config.expansionEvent?.teams),
+      };
+      diagnostics.steps.push(`Expansion condition: opts.expansion=${opts.expansion}, hasEvent=${!!config.expansionEvent}, hasTeams=${!!(config.expansionEvent?.teams)}`);
+
+      if (config.expansionEvent) {
+        diagnostics.steps.push(`Event: type=${config.expansionEvent.type}, teams=${JSON.stringify(config.expansionEvent.teams)}`);
+      }
+
+      // DIAGNOSTIC: Check player team indices BEFORE any changes
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+        diagnostics.steps.push(`Player table found by uniqueId: ${!!playerTable}`);
+      } else {
+        diagnostics.steps.push(`Player table found by name: true`);
+      }
+
+      if (playerTable) {
+        await playerTable.readRecords();
+        let team16Count = 0, team20Count = 0, faCount = 0;
+        for (const p of playerTable.records) {
+          if (p.isEmpty) continue;
+          const ti = Number(p.TeamIndex);
+          if (ti === 16) team16Count++;
+          if (ti === 20) team20Count++;
+          if (ti === 32) faCount++;
+        }
+        diagnostics.beforeCounts = { team16: team16Count, team20: team20Count, fa: faCount };
+        diagnostics.steps.push(`BEFORE: Jaguars(16)=${team16Count}, Panthers(20)=${team20Count}, FA(32)=${faCount}`);
+        console.log(`[RetroEditorService] DIAGNOSTIC - BEFORE CHANGES: Jaguars(16)=${team16Count}, Panthers(20)=${team20Count}, FA(32)=${faCount}`);
+      } else {
+        diagnostics.steps.push(`ERROR: Could not find Player table!`);
+      }
+
+      // ===== 1. SET SEASON YEAR AND SUPER BOWL NUMBER =====
+      console.log(`[RetroEditorService] Step 1: Setting season year and Super Bowl...`);
+      try {
+        await this.setSeasonYear(sourcePath, year);
+        results.seasonYearSet = true;
+        results.superBowlNumber = Math.max(0, year - 1965);
+        console.log(`[RetroEditorService] Season year set to ${year}, Super Bowl to ${results.superBowlNumber}`);
+      } catch (e) {
+        console.warn(`[RetroEditorService] Season year failed:`, e);
+      }
+
+      // ===== 2. UPDATE TEAM NAMES (if enabled) =====
+      if (opts.teams) {
+        console.log(`[RetroEditorService] Step 2: Updating team names...`);
+        try {
+          const teamChanges = await this.updateTeamNames(sourcePath, year);
+          results.teamChanges = teamChanges.length;
+          console.log(`[RetroEditorService] Updated ${results.teamChanges} teams`);
+        } catch (e) {
+          console.warn(`[RetroEditorService] Team names failed:`, e);
+        }
+
+        // Also reorder draft picks for expansion teams
+        try {
+          const draftReordered = await this.reorderDraftPicks(sourcePath, year);
+          results.draftPicksReordered = draftReordered;
+        } catch (e) {
+          console.warn(`[RetroEditorService] Draft reorder failed:`, e);
+        }
+      }
+
+      // ===== 3. APPLY SCHEDULE (if enabled and available) =====
+      if (opts.schedule) {
+        console.log(`[RetroEditorService] Step 3: Applying schedule...`);
+        try {
+          const scheduleResult = await this.applyHistoricalSchedule(sourcePath, year);
+          results.scheduleGamesUpdated = scheduleResult.gamesUpdated;
+          console.log(`[RetroEditorService] Schedule: ${results.scheduleGamesUpdated} games updated`);
+        } catch (e) {
+          console.warn(`[RetroEditorService] Schedule failed:`, e);
+        }
+      }
+
+      // ===== 4. APPLY COACHES (if enabled) =====
+      if (opts.coaches) {
+        console.log(`[RetroEditorService] Step 4: Applying coaches...`);
+        try {
+          const coachResult = await this.applyHistoricalCoaches(sourcePath, year);
+          results.coachesUpdated = coachResult.coachesUpdated;
+          console.log(`[RetroEditorService] Coaches: ${results.coachesUpdated} updated`);
+        } catch (e) {
+          console.warn(`[RetroEditorService] Coaches failed:`, e);
+        }
+      }
+
+      // ===== 5. APPLY SALARY CAP (if enabled) =====
+      if (opts.salaryCap) {
+        console.log(`[RetroEditorService] Step 5: Applying salary cap...`);
+        try {
+          await this.applySalaryCap(sourcePath, year);
+          results.salaryCapSet = true;
+          console.log(`[RetroEditorService] Salary cap set`);
+        } catch (e) {
+          console.warn(`[RetroEditorService] Salary cap failed:`, e);
+        }
+      }
+
+      // ===== 6. APPLY STADIUM NAMES (if enabled) =====
+      if (opts.stadiums) {
+        console.log(`[RetroEditorService] Step 6: Applying stadium names...`);
+        try {
+          const stadiumResult = await this.applyStadiumNames(sourcePath, year);
+          results.stadiumsUpdated = stadiumResult.stadiumsUpdated;
+          console.log(`[RetroEditorService] Stadiums: ${results.stadiumsUpdated} updated`);
+        } catch (e) {
+          console.warn(`[RetroEditorService] Stadiums failed:`, e);
+        }
+      }
+
+      // ===== 7. APPLY TEAM SCHEMES (if enabled) =====
+      if (opts.schemes) {
+        console.log(`[RetroEditorService] Step 7: Applying team schemes...`);
+        try {
+          const schemeResult = await this.applyTeamSchemes(sourcePath, year);
+          results.schemesUpdated = schemeResult.schemesUpdated;
+          console.log(`[RetroEditorService] Schemes: ${results.schemesUpdated} updated`);
+        } catch (e) {
+          console.warn(`[RetroEditorService] Schemes failed:`, e);
+        }
+      }
+
+      // ===== 8. MOVE EXPANSION TEAM PLAYERS TO FA =====
+      // This must happen BEFORE expansion draft - clear the modern rosters of teams that will be filled via draft
+      diagnostics.steps.push(`Step 8 check: opts.expansion=${opts.expansion}, hasEvent=${!!config.expansionEvent}, hasTeams=${!!(config.expansionEvent?.teams)}`);
+      if (opts.expansion && config.expansionEvent && config.expansionEvent.teams) {
+        diagnostics.steps.push(`Step 8: ENTERING expansion move block`);
+        console.log(`[RetroEditorService] Step 8: Moving expansion team players to FA...`);
+        console.log(`[RetroEditorService] Expansion teams from event:`, config.expansionEvent.teams.map((t: any) => `${t.name} (${t.teamIndex})`).join(', '));
+        try {
+          // Get the team indices directly from the expansion event
+          const expansionTeamIndices = config.expansionEvent.teams.map((t: any) => t.teamIndex);
+          diagnostics.steps.push(`Calling moveExpansionPlayersToFAInternal with indices: ${expansionTeamIndices.join(', ')}`);
+          const moveResult = await this.moveExpansionPlayersToFAInternal(franchise, expansionTeamIndices, diagnostics);
+          results.playersMovedToFA = moveResult.playersMoved;
+          diagnostics.steps.push(`moveExpansionPlayersToFAInternal returned: ${moveResult.playersMoved} players moved`);
+          console.log(`[RetroEditorService] Moved ${results.playersMovedToFA} players to FA`);
+
+          // DIAGNOSTIC: Verify changes are in memory
+          let team16After = 0, team20After = 0, faAfter = 0;
+          for (const p of playerTable.records) {
+            if (p.isEmpty) continue;
+            const ti = Number(p.TeamIndex);
+            if (ti === 16) team16After++;
+            if (ti === 20) team20After++;
+            if (ti === 32) faAfter++;
+          }
+          diagnostics.afterMoveCounts = { team16: team16After, team20: team20After, fa: faAfter };
+          diagnostics.steps.push(`AFTER MOVE: Jaguars(16)=${team16After}, Panthers(20)=${team20After}, FA(32)=${faAfter}`);
+          console.log(`[RetroEditorService] DIAGNOSTIC - AFTER MOVE: Jaguars(16)=${team16After}, Panthers(20)=${team20After}, FA(32)=${faAfter}`);
+        } catch (e: any) {
+          diagnostics.steps.push(`Step 8 ERROR: ${e.message}`);
+          console.warn(`[RetroEditorService] Move to FA failed:`, e);
+        }
+      } else {
+        diagnostics.steps.push(`Step 8 SKIPPED: condition not met`);
+        console.log(`[RetroEditorService] DIAGNOSTIC - Step 8 SKIPPED: opts.expansion=${opts.expansion}, hasEvent=${!!config.expansionEvent}, hasTeams=${!!(config.expansionEvent?.teams)}`);
+      }
+
+      // ===== 9. EXECUTE EXPANSION/RELOCATION =====
+      if (opts.expansion && config.expansionEvent) {
+        console.log(`[RetroEditorService] Step 9: Processing expansion/relocation event...`);
+        console.log(`[RetroEditorService] Event type: ${config.expansionEvent.type}`);
+
+        if (config.expansionEvent.type === 'relocation') {
+          // Handle relocation: move all players from source team to destination team
+          console.log(`[RetroEditorService] Executing relocation: ${config.expansionEvent.sourceTeam?.teamIndex} → ${config.expansionEvent.destinationTeam?.teamIndex}`);
+          try {
+            const relocationResult = await this.executeRelocation(
+              sourcePath,
+              config.expansionEvent.sourceTeam?.teamIndex,
+              config.expansionEvent.destinationTeam?.teamIndex
+            );
+            if (relocationResult.success) {
+              results.expansionPlayersSelected = relocationResult.playersTransferred;
+              console.log(`[RetroEditorService] Relocation: ${results.expansionPlayersSelected} players transferred`);
+            }
+          } catch (e) {
+            console.warn(`[RetroEditorService] Relocation failed:`, e);
+          }
+        } else {
+          // Handle expansion draft
+          let selections = config.expansionDraftSelections || [];
+
+          // If no selections provided, auto-compute them
+          if (selections.length === 0) {
+            console.log(`[RetroEditorService] Auto-computing expansion draft selections...`);
+            try {
+              // Get eligible players
+              const eligibleResult = await this.getEligiblePlayersForExpansionDraft(sourcePath, config.expansionEvent);
+              if (eligibleResult.success && eligibleResult.players && eligibleResult.players.length > 0) {
+                // Auto-protect based on rules
+                const maxProtected = config.expansionEvent.protectionRules?.maxProtected || 32;
+                const protectedPlayers = this.autoProtectPlayers(eligibleResult.players, maxProtected);
+
+                // Select unprotected players
+                const unprotected = protectedPlayers.filter((p: any) => !p.isProtected);
+                const playersPerTeam = config.expansionEvent.rules?.playersPerTeam || 30;
+                const expansionTeams = config.expansionEvent.teams || [];
+
+                console.log(`[RetroEditorService] Auto-select: ${unprotected.length} unprotected, ${playersPerTeam} per team, ${expansionTeams.length} teams`);
+
+                for (let t = 0; t < expansionTeams.length; t++) {
+                  const team = expansionTeams[t];
+                  const startIdx = t * playersPerTeam;
+                  const endIdx = Math.min(startIdx + playersPerTeam, unprotected.length);
+
+                  for (let i = startIdx; i < endIdx; i++) {
+                    selections.push({
+                      playerRecordIndex: unprotected[i].recordIndex,
+                      newTeamIndex: team.teamIndex
+                    });
+                  }
+                }
+                console.log(`[RetroEditorService] Auto-computed ${selections.length} selections`);
+              }
+            } catch (e) {
+              console.warn(`[RetroEditorService] Auto-compute selections failed:`, e);
+            }
+          }
+
+          // Execute the draft with selections
+          if (selections.length > 0) {
+            console.log(`[RetroEditorService] Executing expansion draft with ${selections.length} selections...`);
+            try {
+              // Get expansion team indices: use config values if provided, otherwise extract from event
+              let expansionTeamIndices = config.expansionTeamIndices || [];
+              if (expansionTeamIndices.length === 0 && config.expansionEvent?.teams) {
+                expansionTeamIndices = config.expansionEvent.teams.map((t: any) => t.teamIndex);
+              }
+              console.log(`[RetroEditorService] Expansion team indices for draft: ${expansionTeamIndices.join(', ')}`);
+
+              const draftResult = await this.executeExpansionDraftInternal(franchise, selections, expansionTeamIndices);
+              results.expansionPlayersSelected = draftResult.playersSelected;
+              console.log(`[RetroEditorService] Expansion draft: ${results.expansionPlayersSelected} players selected`);
+            } catch (e) {
+              console.warn(`[RetroEditorService] Expansion draft failed:`, e);
+            }
+          }
+        }
+      }
+
+      // ===== 10. APPLY UNIFORMS (if enabled) =====
+      if (opts.uniforms) {
+        console.log(`[RetroEditorService] Step 10: Applying uniforms...`);
+        // Note: applyUniforms uses the currently loaded franchise from cache
+        try {
+          const uniformResult = await this.applyUniforms(year);
+          results.uniformsApplied = uniformResult.uniformsApplied;
+          console.log(`[RetroEditorService] Uniforms: ${results.uniformsApplied} applied`);
+        } catch (e) {
+          console.warn(`[RetroEditorService] Uniforms failed:`, e);
+        }
+      }
+
+      // ===== FINAL: LOG STATE BEFORE SAVE =====
+      // playerTable already loaded above, just check state
+      if (playerTable) {
+        let panthers = 0, jaguars = 0, fa = 0;
+        for (const p of playerTable.records) {
+          if (p.isEmpty) continue;
+          const ti = Number(p.TeamIndex);
+          if (ti === 20) panthers++;
+          if (ti === 16) jaguars++;
+          if (ti === 32) fa++;
+        }
+        diagnostics.finalCounts = { team16: jaguars, team20: panthers, fa };
+        diagnostics.steps.push(`FINAL STATE BEFORE SAVE: Panthers(20)=${panthers}, Jaguars(16)=${jaguars}, FA(32)=${fa}`);
+        diagnostics.steps.push(`Player table isChanged=${playerTable.isChanged}`);
+        console.log(`[RetroEditorService] FINAL STATE: Panthers=${panthers}, Jaguars=${jaguars}, FA=${fa}`);
+      }
+
+      // ===== SAVE =====
+      diagnostics.steps.push(`Calling franchise.save(${targetPath})`);
+      console.log(`[RetroEditorService] Saving to ${targetPath}...`);
+      await franchise.save(targetPath);
+      diagnostics.steps.push(`SAVE COMPLETED`);
+      console.log(`[RetroEditorService] SAVED SUCCESSFULLY`);
+
+      return { success: true, results, diagnostics };
+
+    } catch (err: any) {
+      console.error('[RetroEditorService] applyAllRetroChangesAndSave error:', err);
+      diagnostics.steps.push(`ERROR: ${err.message}`);
+      return { success: false, results, diagnostics, error: err.message };
+    }
+  }
+
+  /**
+   * Internal: Move expansion team players to FA (for use within single operation)
+   * Takes the expansion team indices directly from the expansion event.
+   *
+   * This method:
+   * 1. Sets TeamIndex = 32 (FA) for all players on expansion teams
+   * 2. Clears the roster arrays for expansion teams (removes player references)
+   * 3. Removes players from depth charts
+   */
+  private async moveExpansionPlayersToFAInternal(
+    franchise: any,
+    expansionTeamIndices: number[],
+    diagnostics?: { steps: string[] }
+  ): Promise<{ playersMoved: number }> {
+    const log = (msg: string) => {
+      console.log(`[RetroEditorService] moveExpansionPlayersToFAInternal: ${msg}`);
+      if (diagnostics) diagnostics.steps.push(`[moveFA] ${msg}`);
+    };
+
+    if (!expansionTeamIndices || expansionTeamIndices.length === 0) {
+      log(`No expansion team indices provided`);
+      return { playersMoved: 0 };
+    }
+
+    const expansionIndicesSet = new Set(expansionTeamIndices);
+    log(`Clearing teams ${expansionTeamIndices.join(', ')}`);
+
+    let playerTable = franchise.getTableByName('Player');
+    if (!playerTable) {
+      playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+      log(`Table found by uniqueId: ${!!playerTable}`);
+    } else {
+      log(`Table found by name`);
+    }
+
+    if (!playerTable) {
+      log(`ERROR: Could not find Player table`);
+      return { playersMoved: 0 };
+    }
+
+    await playerTable.readRecords();
+    log(`Records loaded: ${playerTable.records.length} total records`);
+
+    // Get team table for roster refs
+    const teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+    if (!teamTable) {
+      log(`ERROR: Could not find Team table`);
+      return { playersMoved: 0 };
+    }
+    await teamTable.readRecords();
+
+    // Build roster refs for expansion teams
+    const expansionRosterRefs = new Map<number, { tableId: number; rowNumber: number }>();
+    for (const team of teamTable.records) {
+      if (team.isEmpty) continue;
+      const teamIdx = Number(team.TeamIndex);
+      if (expansionIndicesSet.has(teamIdx)) {
+        const rosterRef = team.getReferenceDataByKey('Roster');
+        if (rosterRef) {
+          expansionRosterRefs.set(teamIdx, { tableId: rosterRef.tableId, rowNumber: rosterRef.rowNumber });
+          log(`Found roster ref for team ${teamIdx}: tableId=${rosterRef.tableId}, row=${rosterRef.rowNumber}`);
+        }
+      }
+    }
+
+    // Step 1: Clear roster arrays for expansion teams BEFORE changing TeamIndex
+    for (const [teamIdx, rosterRef] of expansionRosterRefs) {
+      log(`Clearing roster array for team ${teamIdx}`);
+      const rosterTable = franchise.getTableById(rosterRef.tableId);
+      await rosterTable.readRecords();
+      const rosterRecord = rosterTable.records[rosterRef.rowNumber];
+
+      if (rosterRecord) {
+        const originalSize = rosterRecord.arraySize || 0;
+        for (let i = 0; i < originalSize; i++) {
+          rosterRecord[`Player${i}`] = ZERO_REF;
+        }
+        rosterRecord.arraySize = 0;
+        rosterTable.arraySizes[rosterRef.rowNumber] = 0;
+        rosterRecord.isChanged = true;
+        rosterRecord._parent.onEvent('change', rosterRecord);
+        log(`Cleared ${originalSize} player slots from team ${teamIdx} roster array`);
+      }
+    }
+
+    // Step 1b: Clear depth charts for expansion teams
+    try {
+      const depthChartTable = franchise.getTableById(5879); // DepthChart table ID
+      if (depthChartTable) {
+        await depthChartTable.readRecords();
+        for (const depthChart of depthChartTable.records) {
+          if (depthChart.isEmpty) continue;
+          const dcTeamIndex = Number(depthChart.TeamIndex);
+          if (!expansionIndicesSet.has(dcTeamIndex)) continue;
+
+          log(`Clearing depth chart for team ${dcTeamIndex}`);
+          let slotsCleared = 0;
+
+          // Clear all Player fields in this depth chart
+          for (const field of depthChart.fieldsArray || []) {
+            if (!field.key?.startsWith('Player') || field.key === 'PlayerCount') continue;
+            if (field.value && field.value !== ZERO_REF) {
+              field.value = ZERO_REF;
+              slotsCleared++;
+            }
+          }
+
+          if (slotsCleared > 0) {
+            depthChart.isChanged = true;
+            depthChart._parent.onEvent('change', depthChart);
+            log(`Cleared ${slotsCleared} depth chart slots for team ${dcTeamIndex}`);
+          }
+        }
+      }
+    } catch (err: any) {
+      log(`Warning: Could not clear depth charts: ${err.message}`);
+    }
+
+    // Step 2: Move players to FA (set TeamIndex = 32)
+    const FA = 32;
+    let playersMoved = 0;
+    let firstFewChanges: string[] = [];
+
+    // Collect player references for adding to FA array
+    const playerRefsToAddToFA: string[] = [];
+
+    for (const player of playerTable.records) {
+      if (player.isEmpty) continue;
+      const beforeTi = Number(player.TeamIndex);
+      if (expansionIndicesSet.has(beforeTi)) {
+        // Log first few changes for debugging
+        if (firstFewChanges.length < 3) {
+          const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim() || `Record#${player._index}`;
+          firstFewChanges.push(`${playerName}: TeamIndex ${beforeTi} -> ${FA}`);
+        }
+
+        // Make the assignment
+        player.TeamIndex = FA;
+
+        // Also set ContractStatus to FreeAgent - the game may check this
+        try {
+          player.ContractStatus = 'FreeAgent';
+        } catch (e) {
+          // Field may not exist in all franchise versions
+        }
+
+        // CRITICAL: Clear contract fields - game won't show FA players with active contracts
+        // Players with ContractLength > 0 appear as "signed but no team" which is invalid
+        try {
+          const beforeLength = player.ContractLength;
+          player.ContractLength = 0;
+          player.ContractYear = 0;
+          // Clear all salary/bonus years
+          for (let i = 0; i < 8; i++) {
+            try {
+              player[`ContractSalary${i}`] = 0;
+              player[`ContractBonus${i}`] = 0;
+            } catch (e) {
+              // Some contract years may not exist
+            }
+          }
+          // CRITICAL: Clear consecutive years with team - FA players must have 0
+          // Research showed visible FA players have PLYR_CONSECYEARSWITHTEAM = 0
+          try {
+            player.PLYR_CONSECYEARSWITHTEAM = 0;
+          } catch (e) {
+            // Field may not exist
+          }
+          // Clear captain status - FA players are not team captains
+          try {
+            player.PLYR_ISCAPTAIN = false;
+          } catch (e) {
+            // Field may not exist
+          }
+          // Log the first few contract clears for debugging
+          if (firstFewChanges.length < 3) {
+            log(`Cleared contract for player: ContractLength ${beforeLength} -> 0, CONSECYEARS -> 0`);
+          }
+        } catch (e) {
+          log(`WARNING: Failed to clear contract: ${e}`);
+        }
+
+        // VERIFY: Check if the assignment actually changed the value
+        const afterTi = Number(player.TeamIndex);
+        if (afterTi !== FA) {
+          log(`WARNING: Assignment failed for player! Before=${beforeTi}, After=${afterTi}, Expected=${FA}`);
+        }
+
+        // Collect player reference for FA array
+        // Reference format: 15-bit tableId + 17-bit rowNumber = 32 bits
+        const tableId = playerTable.header.tableId;
+        const rowNumber = player.index;
+        const tableBits = tableId.toString(2).padStart(15, '0');
+        const rowBits = rowNumber.toString(2).padStart(17, '0');
+        const playerRef = tableBits + rowBits;
+        playerRefsToAddToFA.push(playerRef);
+
+        playersMoved++;
+      }
+    }
+
+    if (firstFewChanges.length > 0) {
+      log(`First changes: ${firstFewChanges.join('; ')}`);
+    }
+
+    // CRITICAL: Explicitly mark table as changed so save() writes the modifications
+    if (playersMoved > 0) {
+      playerTable.isChanged = true;
+      log(`Marked Player table as changed (isChanged=${playerTable.isChanged})`);
+    }
+
+    // CRITICAL: Add players to FA array (table 5930) for game visibility
+    // See RESEARCH_SUMMARY_FA_VISIBILITY.md - this is required for FA players to appear in-game
+    if (playerRefsToAddToFA.length > 0) {
+      const addedToFAArray = await this.addPlayersToFAArrayBulk(franchise, playerRefsToAddToFA);
+      log(`Added ${addedToFAArray} players to FA array (table 5930)`);
+    }
+
+    log(`Moved ${playersMoved} players to FA`);
+    return { playersMoved };
+  }
+
+  /**
+   * Internal: Execute expansion draft (for use within single operation)
+   * Properly handles roster arrays by:
+   * 1. Clearing expansion team rosters
+   * 2. Removing drafted players from source team rosters
+   * 3. Adding drafted players to expansion team rosters
+   * 4. Updating TeamIndex
+   *
+   * @param franchise - The loaded franchise instance
+   * @param selections - Array of player selections (playerRecordIndex + newTeamIndex)
+   * @param expansionTeamIndices - Array of team indices that should be cleared before draft
+   */
+  private async executeExpansionDraftInternal(
+    franchise: any,
+    selections: Array<{ playerRecordIndex: number; newTeamIndex: number }>,
+    expansionTeamIndices: number[] = []
+  ): Promise<{ playersSelected: number }> {
+    console.log(`[executeExpansionDraftInternal] Starting with ${selections.length} selections`);
+    console.log(`[executeExpansionDraftInternal] Expansion team indices: ${expansionTeamIndices.join(', ')}`);
+
+    // Get player table
+    let playerTable = franchise.getTableByName('Player');
+    if (!playerTable) {
+      playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+    }
+    if (!playerTable) {
+      console.error('[executeExpansionDraftInternal] Player table not found');
+      return { playersSelected: 0 };
+    }
+    await playerTable.readRecords();
+
+    // Get team table for roster refs
+    const teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+    if (!teamTable) {
+      console.error('[executeExpansionDraftInternal] Team table not found');
+      return { playersSelected: 0 };
+    }
+    await teamTable.readRecords();
+
+    // Build expansion team roster refs - include teams from selections and explicit indices
+    const expansionRosterRefs = new Map<number, { tableId: number; rowNumber: number }>();
+    const teamsToClear = new Set<number>(expansionTeamIndices);
+
+    // Also add teams from selections
+    for (const sel of selections) {
+      teamsToClear.add(sel.newTeamIndex);
+    }
+
+    for (const team of teamTable.records) {
+      if (team.isEmpty) continue;
+      const teamIdx = Number(team.TeamIndex);
+      // Get roster ref for any team that should be cleared
+      if (teamsToClear.has(teamIdx)) {
+        const rosterRef = team.getReferenceDataByKey('Roster');
+        if (rosterRef) {
+          expansionRosterRefs.set(teamIdx, { tableId: rosterRef.tableId, rowNumber: rosterRef.rowNumber });
+        }
+      }
+    }
+
+    console.log(`[executeExpansionDraftInternal] Teams to clear: ${Array.from(teamsToClear).join(', ')}`);
+
+    // Clear expansion team rosters before adding drafted players
+    for (const [teamIdx, rosterRef] of expansionRosterRefs) {
+      console.log(`[executeExpansionDraftInternal] Clearing roster for expansion team ${teamIdx}`);
+      const rosterTable = franchise.getTableById(rosterRef.tableId);
+      await rosterTable.readRecords();
+      const rosterRecord = rosterTable.records[rosterRef.rowNumber];
+
+      if (rosterRecord) {
+        // Clear all player slots
+        const originalSize = rosterRecord.arraySize || 0;
+        for (let i = 0; i < originalSize; i++) {
+          rosterRecord[`Player${i}`] = ZERO_REF;
+        }
+        // Reset array size to 0
+        rosterRecord.arraySize = 0;
+        rosterTable.arraySizes[rosterRef.rowNumber] = 0;
+        rosterRecord.isChanged = true;
+        rosterRecord._parent.onEvent('change', rosterRecord);
+        console.log(`[executeExpansionDraftInternal] Cleared ${originalSize} players from team ${teamIdx} roster`);
+      }
+    }
+
+    let playersSelected = 0;
+
+    for (const selection of selections) {
+      const player = playerTable.records[selection.playerRecordIndex];
+      if (!player || player.isEmpty) continue;
+
+      const playerName = `${player.FirstName || ''} ${player.LastName || ''}`.trim();
+      const oldTeamIndex = Number(player.TeamIndex);
+      const newTeamIndex = selection.newTeamIndex;
+
+      console.log(`[executeExpansionDraftInternal] Processing: ${playerName} (${oldTeamIndex} -> ${newTeamIndex})`);
+
+      // 1. Get player's reference string
+      const playerRef = await this.getPlayerReference(franchise, selection.playerRecordIndex);
+      if (!playerRef) {
+        console.log(`[executeExpansionDraftInternal] Could not get player ref for ${playerName}`);
+        continue;
+      }
+
+      // 2. Remove from source team (roster + depth chart)
+      if (oldTeamIndex >= 0 && oldTeamIndex < 32) {
+        await this.cleanupPlayerFromTeam(franchise, playerRef, oldTeamIndex);
+      }
+
+      // 3. Add to expansion team roster
+      const expansionRosterRef = expansionRosterRefs.get(newTeamIndex);
+      if (expansionRosterRef) {
+        await this.addPlayerToRoster(franchise, playerRef, expansionRosterRef);
+      } else {
+        console.log(`[executeExpansionDraftInternal] No roster ref for expansion team ${newTeamIndex}`);
+      }
+
+      // 4. Update player's TeamIndex
+      player.TeamIndex = newTeamIndex;
+
+      playersSelected++;
+      console.log(`[executeExpansionDraftInternal] Drafted "${playerName}" from team ${oldTeamIndex} to team ${newTeamIndex}`);
+    }
+
+    // CRITICAL: Explicitly mark player table as changed so save() writes the modifications
+    if (playersSelected > 0) {
+      playerTable.isChanged = true;
+    }
+
+    console.log(`[executeExpansionDraftInternal] Complete: ${playersSelected} players selected`);
+    return { playersSelected };
+  }
+
+  /**
+   * Set Super Bowl number and save - does NOT move players
+   * Player movements should be done by moveInactivePlayersToFA BEFORE expansion draft
+   */
+  async applyAndSave(filePath: string, year: number): Promise<{
+    success: boolean;
+    playersMoved: number;
+    superBowlSet: number;
+    error?: string;
+  }> {
+    console.log(`[RetroEditorService] ===== APPLY AND SAVE (year=${year}) =====`);
+
+    try {
+      // Get the franchise (must already be loaded)
+      const franchise = this.getFranchise(filePath);
+      if (!franchise) {
+        return { success: false, playersMoved: 0, superBowlSet: 0, error: 'File not loaded' };
+      }
+
+      // Set Super Bowl number
+      const superBowlNum = Math.max(0, year - 1965);
+      const seasonInfo = franchise.getTableByName('SeasonInfo');
+      if (seasonInfo) {
+        await seasonInfo.readRecords();
+        for (const rec of seasonInfo.records) {
+          if (rec.isEmpty) continue;
+          if (rec.BaseSuperBowlNumber !== undefined) {
+            rec.BaseSuperBowlNumber = superBowlNum;
+          }
+        }
+      }
+      console.log(`[RetroEditorService] Set Super Bowl to ${superBowlNum}`);
+
+      // Log current state before save
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+      }
+      if (playerTable) {
+        await playerTable.readRecords();
+        let panthers = 0, jaguars = 0, fa = 0;
+        for (const p of playerTable.records) {
+          if (p.isEmpty) continue;
+          const ti = Number(p.TeamIndex);
+          if (ti === 20) panthers++;
+          if (ti === 16) jaguars++;
+          if (ti === 32) fa++;
+        }
+        console.log(`[RetroEditorService] BEFORE SAVE: Panthers=${panthers}, Jaguars=${jaguars}, FA=${fa}`);
+      }
+
+      // Save
+      await franchise.save(filePath);
+      console.log(`[RetroEditorService] SAVED to ${filePath}`);
+
+      return { success: true, playersMoved: 0, superBowlSet: superBowlNum };
+
+    } catch (err: any) {
+      console.error('[RetroEditorService] applyAndSave error:', err);
+      return { success: false, playersMoved: 0, superBowlSet: 0, error: err.message };
+    }
+  }
+
+  /**
+   * Set Super Bowl number and save to a NEW location (Save As)
+   * Does NOT move players - that should be done by moveInactivePlayersToFA BEFORE expansion draft
+   */
+  async applyAndSaveAs(originalPath: string, newPath: string, year: number): Promise<{
+    success: boolean;
+    playersMoved: number;
+    superBowlSet: number;
+    newPath?: string;
+    error?: string;
+  }> {
+    console.log(`[RetroEditorService] ===== APPLY AND SAVE AS (year=${year}) =====`);
+    console.log(`[RetroEditorService] Original: ${originalPath}`);
+    console.log(`[RetroEditorService] New path: ${newPath}`);
+
+    try {
+      // Get the franchise (must already be loaded)
+      const franchise = this.getFranchise(originalPath);
+      if (!franchise) {
+        return { success: false, playersMoved: 0, superBowlSet: 0, error: 'File not loaded' };
+      }
+
+      // Set Super Bowl number
+      const superBowlNum = Math.max(0, year - 1965);
+      const seasonInfo = franchise.getTableByName('SeasonInfo');
+      if (seasonInfo) {
+        await seasonInfo.readRecords();
+        for (const rec of seasonInfo.records) {
+          if (rec.isEmpty) continue;
+          if (rec.BaseSuperBowlNumber !== undefined) {
+            rec.BaseSuperBowlNumber = superBowlNum;
+          }
+        }
+      }
+      console.log(`[RetroEditorService] Set Super Bowl to ${superBowlNum}`);
+
+      // Log current state before save
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+      }
+      if (playerTable) {
+        await playerTable.readRecords();
+        let panthers = 0, jaguars = 0, fa = 0;
+        for (const p of playerTable.records) {
+          if (p.isEmpty) continue;
+          const ti = Number(p.TeamIndex);
+          if (ti === 20) panthers++;
+          if (ti === 16) jaguars++;
+          if (ti === 32) fa++;
+        }
+        console.log(`[RetroEditorService] BEFORE SAVE: Panthers=${panthers}, Jaguars=${jaguars}, FA=${fa}`);
+      }
+
+      // Save to new path
+      await franchise.save(newPath);
+      console.log(`[RetroEditorService] SAVED to ${newPath}`);
+
+      // Update the instance map to use the new path
+      const normalizedOldPath = path.normalize(originalPath);
+      const normalizedNewPath = path.normalize(newPath);
+      if (normalizedOldPath !== normalizedNewPath) {
+        this.franchiseInstances.set(normalizedNewPath, franchise);
+        this.franchiseInstances.delete(normalizedOldPath);
+      }
+
+      return { success: true, playersMoved: 0, superBowlSet: superBowlNum, newPath };
+
+    } catch (err: any) {
+      console.error('[RetroEditorService] applyAndSaveAs error:', err);
+      return { success: false, playersMoved: 0, superBowlSet: 0, error: err.message };
+    }
   }
 }
 

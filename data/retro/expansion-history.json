@@ -4,27 +4,27 @@
   "expansions": [
     {
       "team": "Cowboys",
-      "teamIndex": 11,
+      "teamIndex": 10,
       "year": 1960,
-      "note": "Joined as expansion team"
+      "note": "Joined as expansion team - M26 TeamIndex 10 = Dallas"
     },
     {
       "team": "Vikings",
-      "teamIndex": 31,
+      "teamIndex": 30,
       "year": 1961,
-      "note": "Joined as expansion team"
+      "note": "Joined as expansion team - M26 TeamIndex 30 = Minnesota"
     },
     {
       "team": "Falcons",
-      "teamIndex": 14,
+      "teamIndex": 13,
       "year": 1966,
-      "note": "Joined as expansion team"
+      "note": "Joined as expansion team - M26 TeamIndex 13 = Atlanta"
     },
     {
       "team": "Dolphins",
-      "teamIndex": 12,
+      "teamIndex": 11,
       "year": 1966,
-      "note": "Joined as expansion team"
+      "note": "Joined as expansion team - M26 TeamIndex 11 = Miami"
     },
     {
       "team": "Saints",
@@ -52,27 +52,27 @@
     },
     {
       "team": "Panthers",
-      "teamIndex": 21,
+      "teamIndex": 20,
       "year": 1995,
-      "note": "Joined as expansion team"
+      "note": "Joined as expansion team - M26 TeamIndex 20 = Carolina"
     },
     {
       "team": "Jaguars",
-      "teamIndex": 17,
+      "teamIndex": 16,
       "year": 1995,
-      "note": "Joined as expansion team"
+      "note": "Joined as expansion team - M26 TeamIndex 16 = Jacksonville"
     },
     {
       "team": "Ravens",
-      "teamIndex": 25,
+      "teamIndex": 24,
       "year": 1996,
-      "note": "Former Cleveland Browns relocated - the Browns name/history stayed in Cleveland"
+      "note": "Former Cleveland Browns relocated - M26 TeamIndex 24 = Baltimore"
     },
     {
       "team": "Texans",
-      "teamIndex": 29,
+      "teamIndex": 31,
       "year": 2002,
-      "note": "Joined as expansion team in Houston"
+      "note": "Joined as expansion team in Houston - M26 TeamIndex 31 = Houston Texans"
     }
   ],
   "specialCases": {

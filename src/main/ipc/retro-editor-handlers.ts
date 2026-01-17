@@ -237,6 +237,25 @@ ipcMain.handle('retro:save-file-as', async (event, originalPath: string) => {
 });
 
 /**
+ * Handle: retro:create-backup
+ * Create a backup copy of the franchise file before making changes
+ */
+ipcMain.handle('retro:create-backup', async (event, filePath: string) => {
+  console.log('[retro-editor-handlers] ===== CREATE BACKUP =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+
+  try {
+    const backupPath = await retroEditorService.createBackup(filePath);
+    console.log('[retro-editor-handlers] Backup created:', backupPath);
+    return { success: true, backupPath };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error creating backup:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
  * Handle: retro:close-file
  * Close franchise file and release resources
  */
@@ -258,22 +277,38 @@ ipcMain.handle('retro:close-file', async (event, filePath: string) => {
 /**
  * Handle: retro:apply-all-changes
  * Apply all retro modifications at once (season year, team names, draft picks)
+ * Options allow selective application of changes
  */
-ipcMain.handle('retro:apply-all-changes', async (event, filePath: string, year: number) => {
+ipcMain.handle('retro:apply-all-changes', async (event, filePath: string, year: number, options?: { applyTeams?: boolean; applyAbbreviations?: boolean }) => {
   console.log('[retro-editor-handlers] ===== APPLY ALL CHANGES =====');
   console.log('[retro-editor-handlers] File:', filePath);
   console.log('[retro-editor-handlers] Year:', year);
+  console.log('[retro-editor-handlers] Options:', options);
+
+  // Default options if not provided
+  const applyTeams = options?.applyTeams !== false;
+  const applyAbbreviations = options?.applyAbbreviations !== false;
 
   try {
-    // Apply all changes in sequence
+    // Always apply season year
     await retroEditorService.setSeasonYear(filePath, year);
     console.log('[retro-editor-handlers] 1/3 Season year set');
 
-    const teamChanges = await retroEditorService.updateTeamNames(filePath, year);
-    console.log('[retro-editor-handlers] 2/3 Team names updated:', teamChanges.length);
+    let teamChangesCount = 0;
+    let draftReordered = false;
 
-    const draftReordered = await retroEditorService.reorderDraftPicks(filePath, year);
-    console.log('[retro-editor-handlers] 3/3 Draft picks reordered:', draftReordered);
+    // Apply team names/abbreviations if enabled
+    if (applyTeams) {
+      const teamChanges = await retroEditorService.updateTeamNames(filePath, year);
+      teamChangesCount = teamChanges.length;
+      console.log('[retro-editor-handlers] 2/3 Team names updated:', teamChangesCount);
+
+      draftReordered = await retroEditorService.reorderDraftPicks(filePath, year);
+      console.log('[retro-editor-handlers] 3/3 Draft picks reordered:', draftReordered);
+    } else {
+      console.log('[retro-editor-handlers] 2/3 Team names SKIPPED (disabled)');
+      console.log('[retro-editor-handlers] 3/3 Draft picks SKIPPED (disabled)');
+    }
 
     console.log('[retro-editor-handlers] All changes applied successfully');
 
@@ -281,13 +316,46 @@ ipcMain.handle('retro:apply-all-changes', async (event, filePath: string, year: 
       success: true,
       data: {
         seasonYearSet: true,
-        teamChanges: teamChanges.length,
+        teamChanges: teamChangesCount,
         draftPicksReordered: draftReordered
       }
     };
 
   } catch (error: any) {
     console.error('[retro-editor-handlers] Error applying changes:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:move-inactive-players-to-fa
+ * Move players from teams that don't exist in the target year to Free Agency
+ */
+ipcMain.handle('retro:move-inactive-players-to-fa', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] Move inactive players to FA for year', year);
+
+  try {
+    const result = await retroEditorService.moveInactiveTeamPlayersToFA(filePath, year);
+    console.log('[retro-editor-handlers] Moved', result.playersMoved, 'players');
+    return result;
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error moving inactive players:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:clear-league-history
+ * Clear Super Bowl and league history for historical mode
+ */
+ipcMain.handle('retro:clear-league-history', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] Clear league history for year', year);
+
+  try {
+    const result = await retroEditorService.clearLeagueHistory(filePath, year);
+    return result;
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error clearing history:', error);
     return { success: false, error: error.message };
   }
 });
@@ -566,7 +634,7 @@ ipcMain.handle('retro:get-schedule-preview', async (event, filePath: string, yea
     const preview = await retroEditorService.getSchedulePreview(filePath, year);
     console.log('[retro-editor-handlers] Schedule preview generated');
     console.log('[retro-editor-handlers] Total games:', preview.totalGames);
-    console.log('[retro-editor-handlers] Validation:', preview.validation);
+    console.log('[retro-editor-handlers] Weeks:', Object.keys(preview.gamesByWeek).length);
     return { success: true, data: preview };
 
   } catch (error: any) {
@@ -793,6 +861,458 @@ ipcMain.handle('retro:apply-team-schemes', async (event, filePath: string, year:
 
   } catch (error: any) {
     console.error('[retro-editor-handlers] Error applying team schemes:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ========================================
+// UNIFORM HANDLERS
+// ========================================
+
+/**
+ * Handle: retro:get-uniforms-for-year
+ * Get uniform configuration for all teams for a specific year
+ */
+ipcMain.handle('retro:get-uniforms-for-year', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET UNIFORMS FOR YEAR =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const uniforms = await retroEditorService.getUniformsForYear(year);
+    console.log('[retro-editor-handlers] Uniforms for year:', uniforms.teamCount, 'teams');
+    return { success: true, data: uniforms };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting uniforms:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:get-uniform-preview-summary
+ * Get simplified uniform preview for UI display
+ */
+ipcMain.handle('retro:get-uniform-preview-summary', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET UNIFORM PREVIEW SUMMARY =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const summary = await retroEditorService.getUniformPreviewSummary(year);
+    console.log('[retro-editor-handlers] Uniform summary:', summary.summary);
+    return { success: true, data: summary };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting uniform summary:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-uniforms
+ * Apply uniforms for a specific year to the loaded franchise
+ */
+ipcMain.handle('retro:apply-uniforms', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY UNIFORMS =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyUniforms(year);
+    console.log('[retro-editor-handlers] Uniforms applied');
+    console.log('[retro-editor-handlers] Teams updated:', result.uniformsApplied);
+    return { success: true, data: result };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying uniforms:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:get-expansion-event
+ * Get expansion/relocation event for a specific year
+ */
+ipcMain.handle('retro:get-expansion-event', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET EXPANSION EVENT =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const expansionEvent = retroEditorService.getExpansionEventForYear(year);
+    if (expansionEvent) {
+      console.log('[retro-editor-handlers] Found expansion event:', expansionEvent.name);
+    } else {
+      console.log('[retro-editor-handlers] No expansion event for year', year);
+    }
+    return { success: true, event: expansionEvent };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting expansion event:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:get-all-expansion-events
+ * Get all expansion/relocation events
+ */
+ipcMain.handle('retro:get-all-expansion-events', async () => {
+  console.log('[retro-editor-handlers] ===== GET ALL EXPANSION EVENTS =====');
+
+  try {
+    const events = retroEditorService.getAllExpansionEvents();
+    console.log('[retro-editor-handlers] Found', events.length, 'expansion events');
+    return { success: true, events };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting expansion events:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:execute-relocation
+ * Execute team relocation (move all players from source to destination team)
+ */
+ipcMain.handle('retro:execute-relocation', async (event, filePath: string, sourceTeamIndex: number, destTeamIndex: number) => {
+  console.log('[retro-editor-handlers] ===== EXECUTE RELOCATION =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Source team:', sourceTeamIndex, '→ Dest team:', destTeamIndex);
+
+  try {
+    const result = await retroEditorService.executeRelocation(filePath, sourceTeamIndex, destTeamIndex);
+    if (result.success) {
+      console.log('[retro-editor-handlers] Relocation complete:', result.playersTransferred, 'players moved');
+    }
+    return result;
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error executing relocation:', error);
+    return { success: false, playersTransferred: 0, playerNames: [], error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:prepare-expansion-draft
+ * Move existing expansion team players to FA before draft
+ */
+ipcMain.handle('retro:prepare-expansion-draft', async (event, filePath: string, expansionEvent: any) => {
+  console.log('[retro-editor-handlers] ===== PREPARE EXPANSION DRAFT =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Event:', expansionEvent?.name);
+
+  try {
+    const result = await retroEditorService.prepareExpansionDraft(filePath, expansionEvent);
+    console.log('[retro-editor-handlers] Prepare result:', result);
+    return result;
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error preparing expansion draft:', error);
+    return { success: false, movedCount: 0, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:get-eligible-players
+ * Get players eligible for expansion draft
+ */
+ipcMain.handle('retro:get-eligible-players', async (event, filePath: string, expansionEvent: any) => {
+  console.log('[retro-editor-handlers] ===== GET ELIGIBLE PLAYERS =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Event:', expansionEvent?.name);
+
+  try {
+    const result = await retroEditorService.getEligiblePlayersForExpansionDraft(filePath, expansionEvent);
+    if (result.success) {
+      console.log('[retro-editor-handlers] Found', result.players?.length, 'eligible players');
+    }
+    return result;
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting eligible players:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:auto-protect-players
+ * Auto-protect top N players per team
+ */
+ipcMain.handle('retro:auto-protect-players', async (event, players: any[], maxProtected: number) => {
+  console.log('[retro-editor-handlers] ===== AUTO PROTECT PLAYERS =====');
+  console.log('[retro-editor-handlers] Players:', players.length, 'Max protected:', maxProtected);
+
+  try {
+    const result = retroEditorService.autoProtectPlayers(players, maxProtected);
+    const protectedCount = result.filter((p: any) => p.isProtected).length;
+    console.log('[retro-editor-handlers] Protected', protectedCount, 'players');
+    return { success: true, players: result };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error auto-protecting players:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:execute-expansion-draft
+ * Execute expansion draft with selected players
+ * @param filePath - Path to the franchise file
+ * @param selections - Array of player selections
+ * @param expansionTeamIndices - Optional array of team indices to clear before draft
+ */
+ipcMain.handle('retro:execute-expansion-draft', async (event, filePath: string, selections: any[], expansionTeamIndices?: number[]) => {
+  console.log('[retro-editor-handlers] ===== EXECUTE EXPANSION DRAFT =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Selections:', selections.length);
+  if (expansionTeamIndices?.length) {
+    console.log('[retro-editor-handlers] Expansion teams to clear:', expansionTeamIndices);
+  }
+
+  try {
+    const result = await retroEditorService.executeExpansionDraft(filePath, selections, expansionTeamIndices);
+    if (result.success) {
+      console.log('[retro-editor-handlers] Expansion draft complete:', result.playersSelected, 'players selected');
+    }
+    return result;
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error executing expansion draft:', error);
+    return { success: false, playersSelected: 0, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-era-contracts
+ * Apply era-appropriate contracts to all players
+ */
+ipcMain.handle('retro:apply-era-contracts', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY ERA CONTRACTS =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyEraAppropriateContracts(filePath, year);
+    if (result.success) {
+      console.log('[retro-editor-handlers] Contracts applied to', result.playersUpdated, 'players');
+      console.log('[retro-editor-handlers] Average salary:', result.averageSalary, '(thousands)');
+    }
+    return result;
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying era contracts:', error);
+    return { success: false, playersUpdated: 0, averageSalary: 0, warnings: [], error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:set-placeholder-coaches
+ * Set placeholder coaches for inactive teams to prevent FA pool issues
+ */
+ipcMain.handle('retro:set-placeholder-coaches', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== SET PLACEHOLDER COACHES =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.setPlaceholderCoachesForInactiveTeams(filePath, year);
+    if (result.success) {
+      console.log('[retro-editor-handlers] Updated', result.coachesUpdated, 'coaches on inactive teams');
+      console.log('[retro-editor-handlers] Inactive teams:', result.inactiveTeams.join(', '));
+    }
+    return result;
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error setting placeholder coaches:', error);
+    return { success: false, coachesUpdated: 0, inactiveTeams: [], warnings: [], error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:replace-fa-coaches
+ * Replace free agent coaches with real historical coaches from the database
+ */
+ipcMain.handle('retro:replace-fa-coaches', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== REPLACE FA COACHES =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.replaceFACoachesWithRealCoaches(filePath, year);
+    if (result.success) {
+      console.log('[retro-editor-handlers] Replaced', result.coachesReplaced, 'FA coaches');
+      console.log('[retro-editor-handlers] Available real coaches:', result.availableRealCoaches);
+    }
+    return result;
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error replacing FA coaches:', error);
+    return { success: false, coachesReplaced: 0, faCoachCount: 0, availableRealCoaches: 0, warnings: [], error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-and-save
+ * Apply ALL retro changes AND save in ONE atomic operation.
+ * This prevents state loss between separate IPC calls.
+ */
+ipcMain.handle('retro:apply-and-save', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY AND SAVE =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyAndSave(filePath, year);
+    if (result.success) {
+      console.log('[retro-editor-handlers] Apply and save SUCCESS');
+      console.log('[retro-editor-handlers] Players moved:', result.playersMoved);
+      console.log('[retro-editor-handlers] Super Bowl set:', result.superBowlSet);
+    } else {
+      console.log('[retro-editor-handlers] Apply and save FAILED:', result.error);
+    }
+    return result;
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error in apply-and-save:', error);
+    return { success: false, playersMoved: 0, superBowlSet: 0, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-and-save-as
+ * Apply ALL retro changes AND save to a NEW location (Save As).
+ * Shows a file picker dialog then saves to the chosen location.
+ */
+ipcMain.handle('retro:apply-and-save-as', async (event, originalPath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY AND SAVE AS =====');
+  console.log('[retro-editor-handlers] Original file:', originalPath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    // Show save dialog
+    const result = await dialog.showSaveDialog({
+      title: 'Save Retro Franchise As',
+      defaultPath: originalPath,
+      filters: [
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) {
+      console.log('[retro-editor-handlers] Save As cancelled');
+      return { success: false, cancelled: true };
+    }
+
+    const saveResult = await retroEditorService.applyAndSaveAs(originalPath, result.filePath, year);
+    if (saveResult.success) {
+      console.log('[retro-editor-handlers] Apply and save as SUCCESS');
+      console.log('[retro-editor-handlers] Players moved:', saveResult.playersMoved);
+      console.log('[retro-editor-handlers] Super Bowl set:', saveResult.superBowlSet);
+      console.log('[retro-editor-handlers] New path:', saveResult.newPath);
+    } else {
+      console.log('[retro-editor-handlers] Apply and save as FAILED:', saveResult.error);
+    }
+    return saveResult;
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error in apply-and-save-as:', error);
+    return { success: false, playersMoved: 0, superBowlSet: 0, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-all-and-save
+ * THE CORRECT APPROACH: Gather all wizard data, then make ALL changes at once and save.
+ *
+ * This is called ONCE at the end of the wizard with all collected data.
+ * The renderer collects data during wizard steps but makes NO modifications.
+ * All modifications happen here in one atomic operation.
+ */
+ipcMain.handle('retro:apply-all-and-save', async (event, config: {
+  sourcePath: string;
+  saveAs: boolean; // true = show save dialog, false = overwrite source
+  year: number;
+  options: {
+    teams?: boolean;
+    abbreviations?: boolean;
+    schedule?: boolean;
+    coaches?: boolean;
+    salaryCap?: boolean;
+    stadiums?: boolean;
+    schemes?: boolean;
+    uniforms?: boolean;
+    expansion?: boolean;
+  };
+  expansionEvent?: any;
+  expansionDraftSelections?: Array<{ playerRecordIndex: number; newTeamIndex: number }>;
+  expansionTeamIndices?: number[]; // Team indices for clearing rosters before expansion draft
+}) => {
+  console.log('[retro-editor-handlers] ===== APPLY ALL AND SAVE (SINGLE OPERATION) =====');
+  console.log('[retro-editor-handlers] Source file:', config.sourcePath);
+  console.log('[retro-editor-handlers] Year:', config.year);
+  console.log('[retro-editor-handlers] Save as:', config.saveAs);
+  console.log('[retro-editor-handlers] Options:', config.options);
+  if (config.expansionEvent) {
+    console.log('[retro-editor-handlers] Expansion event:', config.expansionEvent.name);
+  }
+  if (config.expansionDraftSelections?.length) {
+    console.log('[retro-editor-handlers] Expansion draft selections:', config.expansionDraftSelections.length);
+  }
+  if (config.expansionTeamIndices?.length) {
+    console.log('[retro-editor-handlers] Expansion team indices:', config.expansionTeamIndices);
+  }
+
+  try {
+    let targetPath = config.sourcePath;
+
+    // If saveAs is true, show save dialog
+    if (config.saveAs) {
+      const result = await dialog.showSaveDialog({
+        title: 'Save Retro Franchise As',
+        defaultPath: config.sourcePath,
+        filters: [
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+
+      if (result.canceled || !result.filePath) {
+        console.log('[retro-editor-handlers] Save cancelled');
+        return { success: false, cancelled: true };
+      }
+
+      targetPath = result.filePath;
+    }
+
+    // Call the single service method that does everything
+    const result = await retroEditorService.applyAllRetroChangesAndSave(
+      config.sourcePath,
+      targetPath,
+      {
+        year: config.year,
+        options: config.options,
+        expansionEvent: config.expansionEvent,
+        expansionDraftSelections: config.expansionDraftSelections,
+        expansionTeamIndices: config.expansionTeamIndices
+      }
+    );
+
+    if (result.success) {
+      console.log('[retro-editor-handlers] ===== APPLY ALL SUCCESS =====');
+      console.log('[retro-editor-handlers] Results:', JSON.stringify(result.results, null, 2));
+      if (result.diagnostics) {
+        console.log('[retro-editor-handlers] Diagnostics steps:', result.diagnostics.steps);
+      }
+    } else {
+      console.log('[retro-editor-handlers] Apply all FAILED:', result.error);
+      if (result.diagnostics) {
+        console.log('[retro-editor-handlers] Diagnostics steps:', result.diagnostics.steps);
+      }
+    }
+
+    return {
+      ...result,
+      targetPath
+    };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error in apply-all-and-save:', error);
     return { success: false, error: error.message };
   }
 });
