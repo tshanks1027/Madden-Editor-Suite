@@ -1044,6 +1044,30 @@
                         <button class="db-btn db-btn-danger" id="cancelBatchFillBtn" style="margin-top: 8px;">Cancel</button>
                     </div>
                 </div>
+
+                <!-- Hidden Players Management -->
+                <div class="action-section">
+                    <div class="action-section-title">Hidden Players</div>
+                    <p style="color: #888; font-size: 11px; margin-bottom: 12px;">
+                        Manage players hidden from search. User-hidden can be unhidden. Bundled hidden are set by the developer.
+                    </p>
+                    <div class="action-buttons">
+                        <button class="db-btn db-btn-secondary" id="loadHiddenPlayersBtn">
+                            <span id="loadHiddenBtnText">View Hidden Players</span>
+                            <span id="loadHiddenSpinner" style="display: none;">Loading...</span>
+                        </button>
+                    </div>
+                    <div id="hiddenPlayersContainer" style="display: none; margin-top: 12px;">
+                        <div id="hiddenPlayersCount" style="color: #f59e0b; margin-bottom: 8px; font-size: 12px;"></div>
+                        <div id="hiddenPlayersList" style="max-height: 200px; overflow-y: auto; background: #1e1e1e; border-radius: 4px; padding: 8px;">
+                            <!-- Hidden players will be listed here -->
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 8px;">
+                            <button id="unhideSelectedBtn" class="db-btn db-btn-primary" style="flex: 1;" disabled>Unhide Selected</button>
+                            <button id="unhideAllUserBtn" class="db-btn db-btn-secondary" style="flex: 1;">Unhide All (User)</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="db-btn db-btn-secondary" id="closeDbManagementBtn">Close</button>
@@ -1793,8 +1817,14 @@
                         results = await window.electronAPI.database.getAllPlayers(options);
                     }
 
-                    currentResults = results.players || results || [];
-                    totalResults = results.total || currentResults.length;
+                    // Handle response format: { success, players, total } or { success: false, error }
+                    if (results && results.success === false) {
+                        throw new Error(results.error || 'Search failed');
+                    }
+
+                    // Extract players array from response
+                    currentResults = Array.isArray(results) ? results : (results?.players || []);
+                    totalResults = results?.total || currentResults.length;
                     // Log first 10 player IDs to see if hidden player is in results
                     const first10Ids = currentResults.slice(0, 10).map(p => p.internalId);
                     console.log('[DatabaseBrowser] First 10 result IDs:', JSON.stringify(first10Ids));

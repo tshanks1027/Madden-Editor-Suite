@@ -563,6 +563,97 @@ ipcMain.handle('database:get-hidden-players', async () => {
 });
 
 /**
+ * Handle: database:get-hidden-players-details
+ * Get detailed list of hidden players including names and source (user vs bundled)
+ */
+ipcMain.handle('database:get-hidden-players-details', async () => {
+  try {
+    await userDatabaseService.waitForReady();
+
+    // Get user-hidden and bundled-hidden separately
+    const userHidden = userDatabaseService.getUserHiddenPlayers();
+    const bundledHidden = lookupService.getBundledHiddenPlayers();
+
+    // Get players who have been unhidden by user (override for bundled)
+    const userUnhiddenIds = new Set<number>();
+    for (const pid of bundledHidden) {
+      if (userDatabaseService.hasUserUnhidden(pid)) {
+        userUnhiddenIds.add(pid);
+      }
+    }
+
+    // Build result with player details
+    const hiddenPlayers: {
+      internalId: number;
+      firstName: string;
+      lastName: string;
+      source: 'user' | 'bundled';
+      draftClass?: number;
+    }[] = [];
+
+    // Add user-hidden players
+    for (const pid of userHidden) {
+      const player = lookupService.getPlayerByInternalId(pid);
+      if (player) {
+        hiddenPlayers.push({
+          internalId: pid,
+          firstName: player.firstName || '',
+          lastName: player.lastName || '',
+          source: 'user',
+          draftClass: player.draftClass
+        });
+      } else {
+        // Player not found in lookup - might be PID-only entry
+        hiddenPlayers.push({
+          internalId: pid,
+          firstName: '',
+          lastName: `(ID: ${pid})`,
+          source: 'user'
+        });
+      }
+    }
+
+    // Add bundled-hidden players (excluding those user has unhidden)
+    for (const pid of bundledHidden) {
+      if (userUnhiddenIds.has(pid)) continue; // User has overridden
+
+      // Don't add duplicates (if somehow both user and bundled hidden)
+      if (userHidden.includes(pid)) continue;
+
+      const player = lookupService.getPlayerByInternalId(pid);
+      if (player) {
+        hiddenPlayers.push({
+          internalId: pid,
+          firstName: player.firstName || '',
+          lastName: player.lastName || '',
+          source: 'bundled',
+          draftClass: player.draftClass
+        });
+      } else {
+        hiddenPlayers.push({
+          internalId: pid,
+          firstName: '',
+          lastName: `(ID: ${pid})`,
+          source: 'bundled'
+        });
+      }
+    }
+
+    // Sort by name
+    hiddenPlayers.sort((a, b) => {
+      const nameA = `${a.lastName} ${a.firstName}`.toLowerCase();
+      const nameB = `${b.lastName} ${b.firstName}`.toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    return { success: true, players: hiddenPlayers };
+  } catch (error) {
+    console.error('[database-handlers] Error getting hidden players details:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
  * Handle: database:is-player-hidden
  * Check if a player is hidden
  */
@@ -796,6 +887,16 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       }
     }
 
+    // Check for bundled developer portrait if no PID is set
+    // Priority: user appearance edit > original player PID > bundled developer portrait
+    let bundledDevPortraitPid: number | null = null;
+    if (!appearanceEdit?.maddenPid && !original.pid) {
+      bundledDevPortraitPid = lookupService.getBundledDeveloperPortrait(internalId);
+      if (bundledDevPortraitPid) {
+        console.log(`[database-handlers] Found bundled developer portrait for player ${internalId}: PID ${bundledDevPortraitPid}`);
+      }
+    }
+
     // Merge edits over original data
     const merged = {
       ...original,
@@ -817,8 +918,9 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       ...(playerEdit?.draftPick !== undefined && { pick: String(playerEdit.draftPick) }),
       ...(playerEdit?.careerFrom !== undefined && { careerFrom: playerEdit.careerFrom }),
       ...(playerEdit?.careerTo !== undefined && { careerTo: playerEdit.careerTo }),
-      // Apply appearance edits
+      // Apply appearance edits - PID priority: user edit > original > bundled developer portrait
       ...(appearanceEdit?.maddenPid !== undefined && { pid: appearanceEdit.maddenPid }),
+      ...(!appearanceEdit?.maddenPid && bundledDevPortraitPid && { pid: bundledDevPortraitPid }),
       ...(appearanceEdit?.maddenPam && { pam: appearanceEdit.maddenPam }),
       ...(appearanceEdit?.maddenPlpo && { plpo: appearanceEdit.maddenPlpo }),
       // commID priority: user edit > auto-filled from lookup > original
@@ -832,7 +934,9 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       ...(appearanceEdit?.maddenCpvf !== undefined && { cpvf: appearanceEdit.maddenCpvf }),
       ...(appearanceEdit?.maddenSkinTone !== undefined && { skinTone: appearanceEdit.maddenSkinTone }),
       // Mark as edited
-      hasEdits: !!(playerEdit || appearanceEdit)
+      hasEdits: !!(playerEdit || appearanceEdit),
+      // Track if using bundled developer portrait
+      hasBundledDevPortrait: !!bundledDevPortraitPid
     };
 
     console.log('[database-handlers] get-merged-player: Final merged bodyType:', merged.bodyType, 'handedness:', merged.handedness);

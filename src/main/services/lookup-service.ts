@@ -932,6 +932,15 @@ export class LookupService {
     return rows.map(r => r.year);
   }
 
+  // PID-only entries have internalId >= 100000 (created from PID_lookup.csv with no matching player)
+  // These should be excluded from normal search results
+  private static readonly PID_ONLY_THRESHOLD = 100000;
+
+  // Check if an entry is a PID-only placeholder (not a real player)
+  public isPIDOnlyEntry(internalId: number): boolean {
+    return internalId >= LookupService.PID_ONLY_THRESHOLD;
+  }
+
   // Search players by name - returns all players matching query
   public searchPlayers(query: string, limit: number = 50): FullDataEntry[] {
     // Always use cache for search - it has all players loaded with all fields
@@ -940,6 +949,11 @@ export class LookupService {
     const queryParts = lowerQuery.split(/\s+/); // Split by whitespace for multi-word queries
 
     for (const entry of this.fullDataCache.values()) {
+      // Skip PID-only entries (these are placeholders, not real players)
+      if (entry.internalId >= LookupService.PID_ONLY_THRESHOLD) {
+        continue;
+      }
+
       const firstName = entry.firstName.toLowerCase();
       const lastName = entry.lastName.toLowerCase();
       const fullName = `${firstName} ${lastName}`;
@@ -973,7 +987,11 @@ export class LookupService {
   public getPlayersByDraftClass(draftYear: number): FullDataEntry[] {
     // Always use cache - it has all players with all fields
     return Array.from(this.fullDataCache.values())
-      .filter(e => e.draftClass === draftYear.toString())
+      .filter(e => {
+        // Skip PID-only entries
+        if (e.internalId >= LookupService.PID_ONLY_THRESHOLD) return false;
+        return e.draftClass === draftYear.toString();
+      })
       .sort((a, b) => {
         // Sort by round then pick
         const roundA = parseInt(a.round) || 99;
@@ -1550,6 +1568,65 @@ export class LookupService {
     } catch (e) {
       return [];
     }
+  }
+
+  // ========== BUNDLED DEVELOPER PORTRAITS ==========
+
+  /**
+   * Get bundled developer portrait PID for a player
+   * Developer portraits use PIDs in range 11000-11999
+   * @param playerId Internal player ID
+   * @returns PID if player has bundled developer portrait, null otherwise
+   */
+  public getBundledDeveloperPortrait(playerId: number): number | null {
+    if (!this.db) return null;
+    try {
+      const tableExists = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bundled_developer_portraits'"
+      ).get();
+      if (!tableExists) return null;
+
+      const row = this.db.prepare(
+        'SELECT pid FROM bundled_developer_portraits WHERE player_id = ?'
+      ).get(playerId) as { pid: number } | undefined;
+      return row?.pid ?? null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Get all bundled developer portraits
+   * @returns Array of {playerId, pid, playerName}
+   */
+  public getAllBundledDeveloperPortraits(): { playerId: number; pid: number; playerName: string | null }[] {
+    if (!this.db) return [];
+    try {
+      const tableExists = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bundled_developer_portraits'"
+      ).get();
+      if (!tableExists) return [];
+
+      const rows = this.db.prepare(
+        'SELECT player_id, pid, player_name FROM bundled_developer_portraits'
+      ).all() as { player_id: number; pid: number; player_name: string | null }[];
+      return rows.map(r => ({
+        playerId: r.player_id,
+        pid: r.pid,
+        playerName: r.player_name
+      }));
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /**
+   * Check if a player has a bundled developer portrait
+   * @param playerId Internal player ID
+   * @returns true if player has bundled developer portrait
+   */
+  public hasBundledDeveloperPortrait(playerId: number): boolean {
+    return this.getBundledDeveloperPortrait(playerId) !== null;
   }
 }
 

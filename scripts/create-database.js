@@ -190,6 +190,23 @@ async function createDatabase() {
   `);
   console.log('Created: bundled_hidden_players');
 
+  // Bundled developer portraits table
+  // Tracks custom portraits added by the developer that should be included in the bundled sprites
+  // These are used as default portraits for players when users haven't set their own
+  // PID range: 11000-11999 (reserved for developer portraits)
+  // Users can override by assigning their own portrait (PID >= 12000)
+  db.run(`
+    CREATE TABLE bundled_developer_portraits (
+      player_id INTEGER PRIMARY KEY,
+      pid INTEGER NOT NULL,
+      player_name TEXT,
+      added_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (player_id) REFERENCES players(id)
+    )
+  `);
+  db.run(`CREATE INDEX idx_dev_portraits_pid ON bundled_developer_portraits(pid)`);
+  console.log('Created: bundled_developer_portraits');
+
   // Create indexes for fast lookups
   db.run(`CREATE INDEX idx_players_name ON players(last_name, first_name)`);
   db.run(`CREATE INDEX idx_players_draft ON players(draft_class)`);

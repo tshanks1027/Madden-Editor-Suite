@@ -129,6 +129,35 @@ export default defineConfig({
             console.log(`Copied ${coachFiles.filter(f => f.endsWith('.png')).length} coach sprite sheets`);
           }
 
+          // Copy developer portrait atlas JSON (PIDs 11000-11999)
+          const devAtlasFile = path.join(srcDataDir, 'developer-portrait-atlas.json');
+          if (existsSync(devAtlasFile)) {
+            const destDevAtlasFile = path.join(destDataDir, 'developer-portrait-atlas.json');
+            copyFileSync(devAtlasFile, destDevAtlasFile);
+            console.log('Copied developer-portrait-atlas.json to build output');
+          }
+
+          // Copy developer sprites directory (PIDs 11000-11999)
+          const srcDevSpritesDir = path.join(srcDataDir, 'developer-sprites');
+          const destDevSpritesDir = path.join(destDataDir, 'developer-sprites');
+          if (existsSync(srcDevSpritesDir)) {
+            if (!existsSync(destDevSpritesDir)) {
+              mkdirSync(destDevSpritesDir, { recursive: true });
+            }
+            const devFiles = fs.readdirSync(srcDevSpritesDir);
+            devFiles.forEach(file => {
+              if (file.endsWith('.png')) {
+                const srcFile = path.join(srcDevSpritesDir, file);
+                const destFile = path.join(destDevSpritesDir, file);
+                copyFileSync(srcFile, destFile);
+              }
+            });
+            const devPngCount = devFiles.filter(f => f.endsWith('.png')).length;
+            if (devPngCount > 0) {
+              console.log(`Copied ${devPngCount} developer sprite sheets`);
+            }
+          }
+
           // Copy formulas directory
           const srcFormulasDir = path.join(srcDataDir, 'formulas');
           const destFormulasDir = path.join(destDataDir, 'formulas');
