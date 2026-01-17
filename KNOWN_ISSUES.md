@@ -16,47 +16,56 @@ This document records solutions to problems that have been solved before. Check 
 
 ## Retro Editor Issues
 
-### Issue: Game crashes after simming more than one week with historical schedule
+### Issue: Game crashes after simming with historical schedule
 
 **Symptoms:**
-- Apply historical schedule using Retro Editor (e.g., 1990 season)
-- Sim week 1 works fine
-- Sim week 2 or beyond causes Madden to crash
-- Crash happens during simulation, not immediately
+- Apply historical schedule using Retro Editor (e.g., 1995 season)
+- Loading the franchise file may work
+- Simulating ANY week causes Madden to crash
+- Crash happens during simulation
 
-**Root Cause:**
-- Historical eras had fewer games per season (14-16 games vs modern 17 games)
-- When applying schedule, extra game slots beyond historical data were set to null team references
-- Code was setting `HomeTeam` and `AwayTeam` to `'00000000000000000000000000000000'`
-- Madden crashes when trying to dereference these null team references during simulation
+**Root Cause (Updated 2025-01):**
+- Setting `SeasonWeekType` to `OffSeason` (8) causes Madden to crash
+- Setting team references to all zeros (`'00000000000000000000000000000000'`) also causes crashes
+- Any modification to game slots that Madden doesn't expect will cause instability
 
-**Locations in Code:**
-1. `RetroEditorService.ts` lines ~1040-1050: Weeks beyond historical season end
-2. `RetroEditorService.ts` lines ~1090-1100: Extra game slots within a week (when era had fewer games/week)
-
-**Solution:**
-Set `SeasonWeekType` to `PreSeason` (0) for unused game slots. This tells Madden to skip these games during regular season simulation.
-
+**What DOES NOT work:**
 ```typescript
-// WRONG - causes crash:
+// WRONG - OffSeason causes crash:
+setGameField(franchiseRecord, 'SeasonWeekType', 'OffSeason');
 franchiseRecord.HomeTeam = '00000000000000000000000000000000';
 franchiseRecord.AwayTeam = '00000000000000000000000000000000';
 
-// ALSO WRONG - record.empty() doesn't exist in the library:
-if (typeof franchiseRecord.empty === 'function') {
-  franchiseRecord.empty();  // Never runs - method doesn't exist!
-}
-
-// CORRECT - mark as PreSeason so Madden skips during regular season sim:
+// WRONG - PreSeason also doesn't help with extra regular season slots:
 setGameField(franchiseRecord, 'SeasonWeekType', SEASON_WEEK_TYPES.PreSeason);
 ```
 
-**Prevention:**
-- Never set team references to all-zeros in franchise files
-- Mark unused game slots as PreSeason (SeasonWeekType = 0)
-- Test sim beyond week 1 after any schedule-related changes
+**CORRECT Solution:**
+Do NOT modify extra game slots at all. Leave them untouched with their original matchups.
 
-**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` method
+```typescript
+// For weeks beyond historical season (e.g., week 18 when historical is 17 weeks):
+// Just SKIP these games - don't modify them at all
+if (historicalWeekNum > maxHistoricalWeek) {
+  console.log(`SKIPPING games beyond historical season - leaving untouched`);
+  // Do NOT modify these games
+  continue;
+}
+
+// For extra game slots within a week (when era had fewer games):
+if (franchiseGames.length > historicalGames.length) {
+  // Do NOT modify the extra slots - leave them as-is
+  console.log(`SKIPPING extra slots - leaving untouched`);
+}
+```
+
+**Prevention:**
+- Never set SeasonWeekType to OffSeason for regular season game slots
+- Never set team references to all-zeros
+- Leave extra game slots UNTOUCHED - don't modify them at all
+- Test sim at least 2 weeks after any schedule-related changes
+
+**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` method (Jan 2025)
 
 ---
 
@@ -167,6 +176,85 @@ The library will correctly look up the enum member by name and convert it to the
 - Add type checking/conversion for all enum-type fields
 
 **Fixed In:** RetroEditorService.ts `setGameField()` function - now converts numeric values to string enum names
+
+---
+
+### Issue: Expansion/Relocation "Player table not found" error
+
+**Symptoms:**
+- Apply 1996 Browns→Ravens relocation via Retro Editor
+- Console shows: `Relocation result: {"success":false,"playersTransferred":0,"playerNames":[],"error":"Player table not found"}`
+- Expansion drafts (1976, 1999, etc.) fail silently with same error
+
+**Root Cause:**
+- `TABLE_IDS.playerTable` was set to `432457634` (incorrect ID)
+- Actual Player table ID in M26 franchise files is `4222`
+- Found via `franchise-table-list.txt` dump: `Player ID: 4222 Records: 3043/3960`
+
+**Solution:**
+1. Fix the TABLE_ID:
+```typescript
+// In RetroEditorService.ts TABLE_IDS constant:
+playerTable: 4222,  // NOT 432457634
+```
+
+2. Use `getTableByName()` fallback for robustness:
+```typescript
+// Get player table - try by name first, then by ID
+let playerTable = franchise.getTableByName('Player');
+if (!playerTable) {
+  playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+}
+if (!playerTable) {
+  throw new Error('Player table not found');
+}
+```
+
+**Prevention:**
+- When adding new table IDs, verify against `franchise-table-list.txt` dump
+- Always use `getTableByName()` as primary lookup with ID as fallback
+- Pattern matches how Team, Coach, Stadium tables are accessed
+
+**Fixed In:** RetroEditorService.ts - TABLE_IDS.playerTable and all player table lookups
+
+---
+
+### Issue: Inactive teams (Browns 1996-98) still appear in preseason
+
+**Symptoms:**
+- Apply 1996 retro settings
+- Roster transfer works (74 players moved to Ravens)
+- Browns still appear in preseason schedule games
+- Browns should be completely inactive 1996-1998
+
+**Root Cause:**
+- Code to handle inactive teams in preseason exists (lines ~1838-1958)
+- BUT it was inside `if (!SKIP_PRESEASON)` guard
+- `SKIP_PRESEASON = true` (to not apply historical preseason data)
+- This accidentally skipped the inactive team handling too
+
+**Solution:**
+Remove the `if (!SKIP_PRESEASON)` guard from the inactive team handling section:
+```typescript
+// WRONG - skips inactive team handling:
+if (!SKIP_PRESEASON) {
+  // Get teams that didn't exist...
+  // Replace inactive teams in preseason...
+}
+
+// CORRECT - always handle inactive teams:
+{
+  // Get teams that didn't exist...
+  // Replace inactive teams in preseason...
+}
+```
+
+**Key Insight:**
+- SKIP_PRESEASON should only control applying historical preseason data
+- Inactive team handling must ALWAYS run, even with SKIP_PRESEASON=true
+- Browns 1996-98 are handled via `brownsSpecialCase.inactiveYears`
+
+**Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` - line ~1842
 
 ---
 
@@ -332,6 +420,208 @@ if (homeBad || awayBad) {
 - Test script: `check-high-index-games.js`
 
 **Fixed In:** RetroEditorService.ts `applyHistoricalSchedule()` method - added bad team ref detection
+
+---
+
+### Issue: Team relocation moves WRONG teams (Broncos instead of Browns)
+
+**Symptoms:**
+- Execute 1996 Browns→Ravens relocation via Retro Editor
+- Console shows "74 players transferred"
+- BUT the wrong teams are affected!
+- Broncos roster gets emptied (should be Browns)
+- Players end up on Rams (should be Ravens)
+
+**Root Cause:**
+The Team table and Player[] roster array table are NOT indexed by TeamIndex!
+
+```
+Team table record ordering (NOT sorted by TeamIndex):
+  records[0]: TeamIndex=14 (SF/49ers)
+  records[1]: TeamIndex=0 (CHI/Bears)
+  records[4]: TeamIndex=3 (DEN/Broncos)  ← We used records[4]!
+  records[5]: TeamIndex=4 (CLE/Browns)   ← Should have used this!
+  records[29]: TeamIndex=23 (STL/Rams)   ← We used records[24]!
+  records[30]: TeamIndex=24 (BAL/Ravens) ← Should have used this!
+```
+
+The code was doing `rosterArrayTable.records[teamIndex]` where teamIndex=4 (Browns).
+But records[4] = Broncos (TeamIndex=3), NOT Browns!
+
+**Solution:**
+Build a TeamIndex → record position mapping FIRST, then use it:
+
+```typescript
+// Build mapping from TeamIndex to actual record position
+const teamIndexToRecordPosition = new Map<number, number>();
+const teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+await teamTable.readRecords();
+
+for (let i = 0; i < teamTable.records.length; i++) {
+  const team = teamTable.records[i];
+  if (team && !team.isEmpty && team.TeamIndex !== undefined && team.TeamIndex < 32) {
+    teamIndexToRecordPosition.set(team.TeamIndex, i);
+  }
+}
+
+// Use the mapping for roster array access
+const sourceRecordIdx = teamIndexToRecordPosition.get(sourceTeamIndex);
+const destRecordIdx = teamIndexToRecordPosition.get(destTeamIndex);
+
+const sourceRoster = rosterArrayTable.records[sourceRecordIdx];
+const destRoster = rosterArrayTable.records[destRecordIdx];
+```
+
+**Key Discovery:**
+- Team table records are NOT sorted by TeamIndex
+- Roster array table (ID 5907) uses the SAME record ordering as Team table
+- Both tables have ~37 records with some EMPTY slots (records[20], records[24])
+- TeamIndex values 0-31 represent NFL teams, TeamIndex 32 = special (FA, AFC, NFC)
+
+**Prevention:**
+- NEVER use teamIndex directly as array index
+- Always build TeamIndex → record position mapping first
+- Test with debug-team-indices.js script before any relocation code changes
+
+**Debug Script:** `debug-team-indices.js` - Run this to verify team mappings
+
+**Fixed In:** RetroEditorService.ts `executeRelocation()` method - now uses proper index mapping
+
+---
+
+### Issue: Team relocation not actually moving rosters in-game
+
+**Symptoms:**
+- Execute 1996 Browns→Ravens relocation via Retro Editor
+- Console shows "74 players transferred"
+- In-game, Browns still have their original roster
+- Ravens still have their original roster
+- TeamIndex changes aren't reflected in actual gameplay
+
+**Root Cause:**
+Madden reads team rosters from the **Player[] array table (ID 5907)**, NOT from `player.TeamIndex`. Each team has a row in table 5907 containing Player0..Player99 reference fields pointing to actual player records.
+
+The original code only changed `player.TeamIndex` which is metadata that doesn't affect gameplay rosters.
+
+**Solution:**
+Rewrite `executeRelocation()` to manipulate BOTH:
+1. The Player[] roster array table (ID 5907) - this is what the game actually reads
+2. The player.TeamIndex field - for data consistency
+
+```typescript
+// Get Player[] roster array table
+const ROSTER_ARRAY_TABLE_ID = 5907;
+const rosterArrayTable = franchise.getTableById(ROSTER_ARRAY_TABLE_ID);
+await rosterArrayTable.readRecords();
+
+const sourceRoster = rosterArrayTable.records[sourceTeamIndex];
+const destRoster = rosterArrayTable.records[destTeamIndex];
+
+// Copy player refs from source to dest
+for (let i = 0; i < sourceOriginalSize; i++) {
+  const destField = destRoster._fieldsArray[i];
+  destField.value = sourcePlayerRefs[i];  // 32-bit binary ref
+}
+destRoster.arraySize = sourcePlayerRefs.length;
+
+// Clear source roster
+for (let i = 0; i < sourceOriginalSize; i++) {
+  const srcField = sourceRoster._fieldsArray[i];
+  srcField.value = '00000000000000000000000000000000';  // Empty ref
+}
+sourceRoster.arraySize = 0;
+```
+
+**Key Discovery:**
+- `field.value` has both getter and setter
+- `record.arraySize` is directly settable
+- Empty reference value is 32 bits of zeros
+- `playerTable.getBinaryReferenceToRecord(rowIndex)` creates valid reference values
+
+**Prevention:**
+- When moving players between teams, ALWAYS update the Player[] array table
+- TeamIndex alone does NOT affect gameplay rosters
+- Test roster changes in-game, not just via console logs
+
+**Fixed In:** RetroEditorService.ts `executeRelocation()` method - now manipulates table 5907
+
+---
+
+### Issue: Players moved to Free Agency don't appear in-game
+
+**Symptoms:**
+- Execute relocation (e.g., Browns→Ravens)
+- Original Ravens players should go to Free Agency
+- Set `TeamIndex = 32` for those players
+- In-game, players don't appear in Free Agent list
+- They're invisible/missing from the game
+
+**Root Cause:**
+Free Agency requires BOTH:
+1. `TeamIndex = 32` (marks player as free agent)
+2. `ContractStatus = "FreeAgent"` (enables player visibility in FA screens)
+
+The code was only setting `TeamIndex = 32` but leaving `ContractStatus = "Signed"`. Players with `ContractStatus = "Signed"` and `TeamIndex = 32` are essentially orphaned - they belong to no team but aren't visible as free agents either.
+
+**Schema Discovery:**
+```
+ContractStatus: PlayerContractStatus (enum)
+  Valid values: ["Drafted","FirstActive_","FirstOnTeam_","Signed","Expiring",
+                 "RestrictedFreeAgents","LastOnTeam_","PracticeSquad","Draft",
+                 "FreeAgent","LastActive_","Retired","Created","Deleted",
+                 "None","Extended","Restructured"]
+```
+
+**Evidence:**
+```
+Original file (working FA):
+  TeamIndex=32 + ContractStatus=Signed: 2 players
+  TeamIndex=32 + ContractStatus=FreeAgent: 1116 players
+
+After broken relocation:
+  TeamIndex=32 + ContractStatus=Signed: 66 players (64 Ravens + 2 original)
+  TeamIndex=32 + ContractStatus=FreeAgent: 1116 players (unchanged!)
+```
+
+**Solution (COMPLETE - all fields required):**
+```typescript
+// WRONG - players become invisible:
+player.TeamIndex = 32;
+
+// CORRECT - players appear in Free Agency:
+// Must set ALL of these fields to match actual FA players:
+player.TeamIndex = 32;
+player.ContractStatus = 'FreeAgent';
+player.ContractLength = 0;
+player.ContractYear = 0;
+player.PLYR_CONSECYEARSWITHTEAM = 0;  // CRITICAL - consecutive years with team must be 0
+player.PLYR_ISCAPTAIN = false;         // FA players are not captains
+// Clear all salary/bonus years
+for (let i = 0; i < 8; i++) {
+  player[`ContractSalary${i}`] = 0;
+  player[`ContractBonus${i}`] = 0;
+}
+```
+
+**Research Evidence (Jan 2025):**
+Compared visible FA players (Shaq Mason, Stephon Gilmore) vs invisible moved players (Bryce Young, Trevor Lawrence):
+- All had TeamIndex=32, ContractStatus=FreeAgent, ContractLength=0
+- DIFFERENCE: PLYR_CONSECYEARSWITHTEAM was 0 for visible, 2/4 for invisible
+- Clearing PLYR_CONSECYEARSWITHTEAM makes moved players visible in FA
+
+**How to find schema information:**
+1. Schema files are in `node_modules/madden-franchise/data/schemas/26/M26_677_0.gz`
+2. Extract with `gunzip -c M26_677_0.gz > M26_677_0.json`
+3. Parse JSON to find field definitions and enum values
+4. Schema contains 334 Player fields and 314 Team fields with all enums
+
+**Prevention:**
+- When moving players to FA, ALWAYS set BOTH TeamIndex AND ContractStatus
+- Check schema for any enum field before setting values
+- Test FA visibility in-game, not just by reading file data
+- Schema is the authoritative source for field definitions
+
+**Fixed In:** RetroEditorService.ts `executeRelocation()` method - now sets ContractStatus='FreeAgent'
 
 ---
 

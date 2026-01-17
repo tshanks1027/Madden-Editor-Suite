@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "description": "Team logo manifest for Frosty/MFT export. Logos should be DDS format.",
+  "logoTypes": {
+    "primary": {
+      "description": "Main team logo",
+      "frostyPath": "content/common/textures/logos"
+    },
+    "secondary": {
+      "description": "Alternate/secondary logo",
+      "frostyPath": "content/common/textures/logos"
+    },
+    "wordmark": {
+      "description": "Text-based team logo",
+      "frostyPath": "content/common/textures/logos"
+    },
+    "helmet": {
+      "description": "Helmet decal texture",
+      "frostyPath": "content/characters/player/parts/uniforms/helmets/NFL/partItems"
+    },
+    "endzone": {
+      "description": "End zone painting",
+      "frostyPath": "content/common/textures/logos"
+    },
+    "midfield": {
+      "description": "Midfield logo",
+      "frostyPath": "content/common/textures/logos"
+    }
+  },
+  "teams": {}
+}

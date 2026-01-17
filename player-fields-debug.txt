@@ -1,0 +1,19 @@
+Player: Kirk Cousins
+
+Contract fields:
+ContractLength: 4
+ContractYear: 1
+ContractSalary0: 50
+ContractSalary1: 50
+ContractSalary2: 4500
+ContractSalary3: 4500
+ContractBonus0: 2450
+ContractBonus1: 3950
+ContractBonus2: 1250
+ContractBonus3: 1250
+
+Calculated:
+Years Left: 3
+Current Year Index: 1
+Salary (raw * 0.01): 0.5
+Cap (sal+bonus * 0.01): 25

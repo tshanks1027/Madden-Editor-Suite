@@ -1,0 +1,1364 @@
+DUPLICATE PID REPORT
+====================
+Generated: 2025-12-03T19:50:26.393Z
+
+These PIDs are assigned to multiple players with the same name but different career dates.
+Each PID should be unique to ONE player. You need to decide which player keeps the PID.
+
+Total duplicate PIDs: 302
+Total players affected: 748
+
+================================================================================
+
+PID 7 (3 players):
+  Line 8681: Paul Krause | Draft: 1964 | Career: 1964-1979
+  Line 10032: Paul Krause | Draft: 1967 | Career: 1967-
+  Line 12668: Paul Krause | Draft: 1973 | Career: 1973-
+
+PID 53 (2 players):
+  Line 21837: Jon Runyan | Draft: 1996 | Career: 1996-2009
+  Line 29819: Jon Runyan Jr. | Draft: 2020 | Career: 2020-2025
+
+PID 269 (2 players):
+  Line 11950: Nate Allen | Draft: 1971 | Career: 1971-1979
+  Line 26265: Nate Allen | Draft: 2010 | Career: 2010-2017
+
+PID 274 (2 players):
+  Line 23327: Will Allen | Draft: 2001 | Career: 2001-2011
+  Line 24456: Will Allen | Draft: 2004 | Career: 2004-2015
+
+PID 291 (2 players):
+  Line 12954: James Anderson | Draft: 1973 | Career: 1973-
+  Line 25070: James Anderson | Draft: 2006 | Career: 2006-2015
+
+PID 331 (2 players):
+  Line 23425: Nick Harris | Draft: 2001 | Career: 2001-2012
+  Line 29787: Nick Harris | Draft: 2020 | Career: 2020-2024
+
+PID 336 (2 players):
+  Line 23741: Chris Baker | Draft: 2002 | Career: 2002-2010
+  Line 26158: Chris Baker | Draft: 2009 | Career: 2009-
+
+PID 344 (3 players):
+  Line 4164: Sam Baker | Draft: 1952 | Career: 1952-1969
+  Line 13304: Sam Baker | Draft: 1974 | Career: 1974-
+  Line 25603: Sam Baker | Draft: 2008 | Career: 2008-2013
+
+PID 372 (3 players):
+  Line 22847: Robert Hunt | Draft: 1999 | Career: 1999-
+  Line 24828: Robert Hunt | Draft: 2005 | Career: 2005-
+  Line 29666: Robert Hunt | Draft: 2020 | Career: 2020-2025
+
+PID 404 (2 players):
+  Line 24759: Brandon Jones | Draft: 2005 | Career: 2005-2009
+  Line 29697: Brandon Jones | Draft: 2020 | Career: 2020-2025
+
+PID 405 (2 players):
+  Line 28666: Josh Jones | Draft: 2017 | Career: 2017-2022
+  Line 29699: Josh Jones | Draft: 2020 | Career: 2020-2025
+
+PID 461 (3 players):
+  Line 18438: Chris Miller | Draft: 1987 | Career: 1987-1999
+  Line 22240: Chris Miller | Draft: 1997 | Career: 1997-
+  Line 29912: Chris Miller | Draft: 2020 | Career: 2020-
+
+PID 534 (2 players):
+  Line 19687: Andre Brown | Draft: 1989 | Career: 1989-
+  Line 26030: Andre Brown | Draft: 2009 | Career: 2009-2013
+
+PID 535 (2 players):
+  Line 24279: Antonio Brown | Draft: 2003 | Career: 2003-
+  Line 26423: Antonio Brown | Draft: 2010 | Career: 2010-2021
+
+PID 541 (2 players):
+  Line 11957: Joe Reed | Draft: 1971 | Career: 1971-1979
+  Line 29778: Joe Reed | Draft: 2020 | Career: 2020-2020
+
+PID 542 (2 players):
+  Line 24474: J.R. Reed | Draft: 2004 | Career: 2004-2008
+  Line 29917: J.R. Reed | Draft: 2020 | Career: 2020-
+
+PID 545 (2 players):
+  Line 18115: Donald Brown | Draft: 1986 | Career: 1986-1987
+  Line 25928: Donald Brown | Draft: 2009 | Career: 2009-2015
+
+PID 552 (2 players):
+  Line 12764: Josh Brown | Draft: 1973 | Career: 1973-
+  Line 24238: Josh Brown | Draft: 2003 | Career: 2003-2016
+
+PID 571 (2 players):
+  Line 19628: John Simpson | Draft: 1989 | Career: 1989-
+  Line 29736: John Simpson | Draft: 2020 | Career: 2020-2025
+
+PID 667 (2 players):
+  Line 20489: Darryl Williams | Draft: 1992 | Career: 1992-2001
+  Line 29930: Darryl Williams | Draft: 2020 | Career: 2020-
+
+PID 745 (2 players):
+  Line 24280: Chris Clemons | Draft: 2003 | Career: 2003-
+  Line 26066: Chris Clemons | Draft: 2009 | Career: 2009-2015
+
+PID 798 (2 players):
+  Line 17861: John Conner | Draft: 1985 | Career: 1985-
+  Line 26367: John Conner | Draft: 2010 | Career: 2010-2014
+
+PID 832 (2 players):
+  Line 9148: Mike Cox | Draft: 1965 | Career: 1965-
+  Line 25842: Mike Cox | Draft: 2008 | Career: 2008-
+
+PID 889 (4 players):
+  Line 13584: Anthony Davis | Draft: 1975 | Career: 1975-1978
+  Line 20762: Anthony Davis | Draft: 1992 | Career: 1992-2000
+  Line 24906: Anthony Davis | Draft: 2005 | Career: 2005-
+  Line 26239: Anthony Davis | Draft: 2010 | Career: 2010-2016
+
+PID 900 (4 players):
+  Line 739: Fred Davis | Draft: 1941 | Career: 1941-1951
+  Line 3524: Fred Davis | Draft: 1950 | Career: 1950-
+  Line 10512: Fred Davis | Draft: 1968 | Career: 1968-
+  Line 25630: Fred Davis | Draft: 2008 | Career: 2008-2013
+
+PID 933 (3 players):
+  Line 11495: Robert Jones | Draft: 1970 | Career: 1970-
+  Line 20485: Robert Jones | Draft: 1992 | Career: 1992-2001
+  Line 30364: Robert Jones | Draft: 2021 | Career: 2021-
+
+PID 946 (2 players):
+  Line 22352: Patrick Johnson | Draft: 1998 | Career: 1998-2005
+  Line 30332: Patrick Johnson | Draft: 2021 | Career: 2021-2025
+
+PID 1008 (2 players):
+  Line 10867: King Dunlap | Draft: 1969 | Career: 1969-
+  Line 25812: King Dunlap | Draft: 2008 | Career: 2008-2016
+
+PID 1057 (2 players):
+  Line 1149: Fred Evans | Draft: 1943 | Career: 1943-1948
+  Line 25194: Fred Evans | Draft: 2006 | Career: 2006-2013
+
+PID 1061 (5 players):
+  Line 9612: Jeff Smith | Draft: 1966 | Career: 1966-1966
+  Line 17419: Jeff Smith | Draft: 1984 | Career: 1984-
+  Line 17851: Jeff Smith | Draft: 1985 | Career: 1985-1988
+  Line 17875: Jeff Smith | Draft: 1985 | Career: 1985-1988
+  Line 21969: Jeff Smith | Draft: 1996 | Career: 1996-2001
+
+PID 1087 (2 players):
+  Line 5716: Jerry Jacobs | Draft: 1956 | Career: 1956-
+  Line 30375: Jerry Jacobs | Draft: 2021 | Career: 2021-
+
+PID 1143 (2 players):
+  Line 13763: Mike Strachan | Draft: 1975 | Career: 1975-1980
+  Line 30327: Mike Strachan | Draft: 2021 | Career: 2021-2023
+
+PID 1221 (2 players):
+  Line 14945: William Gay | Draft: 1978 | Career: 1978-1988
+  Line 25456: William Gay | Draft: 2007 | Career: 2007-2017
+
+PID 1223 (2 players):
+  Line 16112: Robert Geathers | Draft: 1981 | Career: 1981-
+  Line 24462: Robert Geathers | Draft: 2004 | Career: 2004-2014
+
+PID 1224 (3 players):
+  Line 17732: Eric Stokes | Draft: 1985 | Career: 1985-1987
+  Line 22169: Eric Stokes | Draft: 1997 | Career: 1997-1998
+  Line 30127: Eric Stokes | Draft: 2021 | Career: 2021-2025
+
+PID 1318 (2 players):
+  Line 12984: Charles Cross | Draft: 1973 | Career: 1973-
+  Line 30412: Charles Cross | Draft: 2022 | Career: 2022-2025
+
+PID 1356 (3 players):
+  Line 17317: Michael Carter | Draft: 1984 | Career: 1984-1992
+  Line 30205: Michael Carter | Draft: 2021 | Career: 2021-2025
+  Line 30252: Michael Carter II | Draft: 2021 | Career: 2021-2025
+
+PID 1459 (3 players):
+  Line 17877: Chris Jackson | Draft: 1985 | Career: 1985-
+  Line 22554: Chris Jackson | Draft: 1998 | Career: 1998-
+  Line 29870: Chris Jackson | Draft: 2020 | Career: 2020-2022
+
+PID 1595 (2 players):
+  Line 21235: Ernest Jones | Draft: 1994 | Career: 1994-1999
+  Line 30201: Ernest Jones | Draft: 2021 | Career: 2021-2025
+
+PID 1625 (2 players):
+  Line 11181: Robert James | Draft: 1969 | Career: 1969-
+  Line 25720: Robert James | Draft: 2008 | Career: 2008-2013
+
+PID 1629 (2 players):
+  Line 870: Jack Anderson | Draft: 1941 | Career: 1941-
+  Line 30334: Jack Anderson | Draft: 2021 | Career: 2021-2023
+
+PID 1654 (2 players):
+  Line 21758: Andre Johnson | Draft: 1996 | Career: 1996-1998
+  Line 24019: Andre Johnson | Draft: 2003 | Career: 2003-2016
+
+PID 1655 (2 players):
+  Line 25438: Antonio Johnson | Draft: 2007 | Career: 2007-2013
+  Line 30911: Antonio Johnson | Draft: 2023 | Career: 2023-2025
+
+PID 1662 (5 players):
+  Line 8583: Charlie Johnson | Draft: 1963 | Career: 1963-
+  Line 9514: Charlie Johnson | Draft: 1966 | Career: 1966-1968
+  Line 13313: Charlie Johnson | Draft: 1974 | Career: 1974-
+  Line 14692: Charlie Johnson | Draft: 1977 | Career: 1977-1984
+  Line 25181: Charlie Johnson | Draft: 2006 | Career: 2006-2014
+
+PID 1664 (2 players):
+  Line 24261: Chris Johnson | Draft: 2003 | Career: 2003-2012
+  Line 25606: Chris Johnson | Draft: 2008 | Career: 2008-2017
+
+PID 1667 (2 players):
+  Line 8839: Mike Brown | Draft: 1964 | Career: 1964-
+  Line 22991: Mike Brown | Draft: 2000 | Career: 2000-2009
+
+PID 1668 (2 players):
+  Line 24678: Derrick Johnson | Draft: 2005 | Career: 2005-2018
+  Line 24868: Derrick Johnson | Draft: 2005 | Career: 2005-2006
+
+PID 1670 (3 players):
+  Line 5706: Jim Brown | Draft: 1956 | Career: 1956-
+  Line 5866: Jim Brown | Draft: 1957 | Career: 1957-1965
+  Line 9677: Jim Brown | Draft: 1966 | Career: 1966-
+
+PID 1686 (2 players):
+  Line 25510: Michael Johnson | Draft: 2007 | Career: 2007-2010
+  Line 25971: Michael Johnson | Draft: 2009 | Career: 2009-2018
+
+PID 1687 (2 players):
+  Line 17987: Bo Jackson | Draft: 1986 | Career: 1986-1990
+  Line 18608: Bo Jackson | Draft: 1987 | Career: 1987-1990
+
+PID 1688 (3 players):
+  Line 9572: Mike Johnson | Draft: 1966 | Career: 1966-1969
+  Line 17424: Mike Johnson | Draft: 1984 | Career: 1984-1984
+  Line 26326: Mike Johnson | Draft: 2010 | Career: 2010-2012
+
+PID 1694 (2 players):
+  Line 8674: Jim Kelly | Draft: 1964 | Career: 1964-1967
+  Line 16816: Jim Kelly | Draft: 1983 | Career: 1983-1996
+
+PID 1696 (2 players):
+  Line 11053: John Lynch | Draft: 1969 | Career: 1969-
+  Line 20923: John Lynch | Draft: 1993 | Career: 1993-2007
+
+PID 1699 (2 players):
+  Line 22636: Anthony McFarland | Draft: 1999 | Career: 1999-2006
+  Line 29751: Anthony McFarland Jr. | Draft: 2020 | Career: 2020-2023
+
+PID 1717 (2 players):
+  Line 1099: Edgar Jones | Draft: 1942 | Career: 1942-1949
+  Line 25548: Edgar Jones | Draft: 2007 | Career: 2007-
+
+PID 1722 (7 players):
+  Line 7097: James Jones | Draft: 1960 | Career: 1960-
+  Line 9494: James Jones | Draft: 1966 | Career: 1966-
+  Line 14367: James Jones | Draft: 1976 | Career: 1976-
+  Line 15720: James Jones | Draft: 1980 | Career: 1980-1985
+  Line 16815: James Jones | Draft: 1983 | Career: 1983-1992
+  Line 20156: James Jones | Draft: 1991 | Career: 1991-2000
+  Line 25364: James Jones | Draft: 2007 | Career: 2007-2015
+
+PID 1757 (3 players):
+  Line 17870: Kevin Harris | Draft: 1985 | Career: 1985-
+  Line 20209: Kevin Harris | Draft: 1991 | Career: 1991-
+  Line 30586: Kevin Harris | Draft: 2022 | Career: 2022-2023
+
+PID 1768 (2 players):
+  Line 16806: Chris Hinton | Draft: 1983 | Career: 1983-1995
+  Line 30673: Chris Hinton | Draft: 2022 | Career: 2022-
+
+PID 1788 (2 players):
+  Line 3994: Jack Jones | Draft: 1951 | Career: 1951-
+  Line 30524: Jack Jones | Draft: 2022 | Career: 2022-2025
+
+PID 1789 (2 players):
+  Line 21750: Marcus Jones | Draft: 1996 | Career: 1996-2001
+  Line 30488: Marcus Jones | Draft: 2022 | Career: 2022-2025
+
+PID 1878 (2 players):
+  Line 30633: Chris Paul | Draft: 2022 | Career: 2022-2025
+  Line 31704: Chris Paul | Draft: 2025 | Career: 2025-
+
+PID 1902 (2 players):
+  Line 4744: Ray Lewis | Draft: 1953 | Career: 1953-
+  Line 21754: Ray Lewis | Draft: 1996 | Career: 1996-2012
+
+PID 1907 (3 players):
+  Line 7176: Jack Campbell | Draft: 1960 | Career: 1960-
+  Line 16570: Jack Campbell | Draft: 1982 | Career: 1982-1982
+  Line 30769: Jack Campbell | Draft: 2023 | Career: 2023-2025
+
+PID 1946 (2 players):
+  Line 30427: Tyler Smith | Draft: 2022 | Career: 2022-2025
+  Line 31343: Tyler Smith | Draft: 2024 | Career: 2024-
+
+PID 1982 (2 players):
+  Line 25101: Brandon Marshall | Draft: 2006 | Career: 2006-2018
+  Line 27011: Brandon Marshall | Draft: 2012 | Career: 2012-2018
+
+PID 2037 (4 players):
+  Line 5784: Sam Williams | Draft: 1956 | Career: 1956-1967
+  Line 13354: Sam Williams | Draft: 1974 | Career: 1974-1976
+  Line 24099: Sam Williams | Draft: 2003 | Career: 2003-2010
+  Line 30459: Sam Williams | Draft: 2022 | Career: 2022-2025
+
+PID 2056 (3 players):
+  Line 9802: Ray McDonald | Draft: 1967 | Career: 1967-1968
+  Line 18173: Ray McDonald | Draft: 1986 | Career: 1986-
+  Line 25383: Ray McDonald | Draft: 2007 | Career: 2007-2014
+
+PID 2104 (2 players):
+  Line 29306: Byron Murphy | Draft: 2019 | Career: 2019-2025
+  Line 31101: Byron Murphy | Draft: 2024 | Career: 2024-
+
+PID 2158 (2 players):
+  Line 17286: Mark Robinson | Draft: 1984 | Career: 1984-1990
+  Line 30628: Mark Robinson | Draft: 2022 | Career: 2022-2025
+
+PID 2215 (3 players):
+  Line 11605: Chris Myers | Draft: 1970 | Career: 1970-
+  Line 12084: Chris Myers | Draft: 1971 | Career: 1971-
+  Line 24863: Chris Myers | Draft: 2005 | Career: 2005-2014
+
+PID 2231 (2 players):
+  Line 19770: Anthony Johnson | Draft: 1990 | Career: 1990-2000
+  Line 30993: Anthony Johnson | Draft: 2023 | Career: 2023-2024
+
+PID 2234 (2 players):
+  Line 22762: Reggie Nelson | Draft: 1999 | Career: 1999-2000
+  Line 25307: Reggie Nelson | Draft: 2007 | Career: 2007-2018
+
+PID 2235 (2 players):
+  Line 19525: D.J. Johnson | Draft: 1989 | Career: 1989-1996
+  Line 30831: DJ Johnson | Draft: 2023 | Career: 2023-2025
+
+PID 2246 (2 players):
+  Line 21842: Charlie Jones | Draft: 1996 | Career: 1996-1999
+  Line 30882: Charlie Jones | Draft: 2023 | Career: 2023-2025
+
+PID 2320 (2 players):
+  Line 17139: Mike Morris | Draft: 1983 | Career: 1983-
+  Line 30902: Mike Morris | Draft: 2023 | Career: 2023-2025
+
+PID 2391 (2 players):
+  Line 23852: Adrian Peterson | Draft: 2002 | Career: 2002-2009
+  Line 25293: Adrian Peterson | Draft: 2007 | Career: 2007-2021
+
+PID 2400 (2 players):
+  Line 3887: John Phillips | Draft: 1951 | Career: 1951-
+  Line 26109: John Phillips | Draft: 2009 | Career: 2009-2018
+
+PID 2426 (2 players):
+  Line 20766: Cedric Tillman | Draft: 1992 | Career: 1992-1995
+  Line 30825: Cedric Tillman | Draft: 2023 | Career: 2023-2025
+
+PID 2439 (2 players):
+  Line 16128: Tracy Porter | Draft: 1981 | Career: 1981-1984
+  Line 25622: Tracy Porter | Draft: 2008 | Career: 2008-2016
+
+PID 2460 (2 players):
+  Line 12238: Eric Allen | Draft: 1972 | Career: 1972-
+  Line 19009: Eric Allen | Draft: 1988 | Career: 1988-2001
+
+PID 2491 (2 players):
+  Line 30821: Byron Young | Draft: 2023 | Career: 2023-2025
+  Line 30828: Byron Young | Draft: 2023 | Career: 2023-2025
+
+PID 2503 (3 players):
+  Line 7193: Steve Johnson | Draft: 1960 | Career: 1960-
+  Line 19133: Steve Johnson | Draft: 1988 | Career: 1988-1988
+  Line 22791: Steve Johnson | Draft: 1999 | Career: 1999-
+
+PID 2522 (2 players):
+  Line 26796: Daniel Hardy | Draft: 2011 | Career: 2011-
+  Line 30638: Daniel Hardy | Draft: 2022 | Career: 2022-2025
+
+PID 2561 (2 players):
+  Line 21028: Patrick Robinson | Draft: 1993 | Career: 1993-1994
+  Line 26260: Patrick Robinson | Draft: 2010 | Career: 2010-2020
+
+PID 2562 (2 players):
+  Line 30692: Jaylon Jones | Draft: 2022 | Career: 2022-
+  Line 30972: Jaylon Jones | Draft: 2023 | Career: 2023-2025
+
+PID 2600 (2 players):
+  Line 29996: Jaylon Moore | Draft: 2020 | Career: 2020-
+  Line 30253: Jaylon Moore | Draft: 2021 | Career: 2021-2025
+
+PID 2677 (2 players):
+  Line 17262: Chris Scott | Draft: 1984 | Career: 1984-1987
+  Line 26379: Chris Scott | Draft: 2010 | Career: 2010-2016
+
+PID 2723 (2 players):
+  Line 12939: Tony Adams | Draft: 1973 | Career: 1973-1987
+  Line 30700: Tony Adams | Draft: 2022 | Career: 2022-
+
+PID 2752 (2 players):
+  Line 24664: Alex Smith | Draft: 2005 | Career: 2005-2020
+  Line 24734: Alex Smith | Draft: 2005 | Career: 2005-2015
+
+PID 2754 (2 players):
+  Line 25907: Andre Smith | Draft: 2009 | Career: 2009-2021
+  Line 29162: Andre Smith | Draft: 2018 | Career: 2018-2023
+
+PID 2765 (2 players):
+  Line 17833: Daryl Smith | Draft: 1985 | Career: 1985-1989
+  Line 24384: Daryl Smith | Draft: 2004 | Career: 2004-2016
+
+PID 2772 (2 players):
+  Line 23309: Justin Smith | Draft: 2001 | Career: 2001-2014
+  Line 23920: Justin Smith | Draft: 2002 | Career: 2002-
+
+PID 2775 (3 players):
+  Line 3266: Clay Matthews | Draft: 1949 | Career: 1949-1955
+  Line 14902: Clay Matthews | Draft: 1978 | Career: 1978-1996
+  Line 25927: Clay Matthews | Draft: 2009 | Career: 2009-2019
+
+PID 2787 (3 players):
+  Line 18526: Sean Smith | Draft: 1987 | Career: 1987-1989
+  Line 20014: Sean Smith | Draft: 1990 | Career: 1990-1991
+  Line 25962: Sean Smith | Draft: 2009 | Career: 2009-2017
+
+PID 2796 (2 players):
+  Line 7194: Wade Smith | Draft: 1960 | Career: 1960-
+  Line 24094: Wade Smith | Draft: 2003 | Career: 2003-2014
+
+PID 2797 (2 players):
+  Line 24363: Will Smith | Draft: 2004 | Career: 2004-2012
+  Line 27817: Will Smith | Draft: 2014 | Career: 2014-
+
+PID 2889 (3 players):
+  Line 699: John Sullivan | Draft: 1940 | Career: 1940-
+  Line 15412: John Sullivan | Draft: 1979 | Career: 1979-1980
+  Line 25769: John Sullivan | Draft: 2008 | Career: 2008-2018
+
+PID 2907 (2 players):
+  Line 17089: Ben Tate | Draft: 1983 | Career: 1983-
+  Line 26286: Ben Tate | Draft: 2010 | Career: 2010-2014
+
+PID 2949 (2 players):
+  Line 18230: Joe Thomas | Draft: 1986 | Career: 1986-1987
+  Line 25289: Joe Thomas | Draft: 2007 | Career: 2007-2017
+
+PID 2962 (2 players):
+  Line 13966: Robert Smith | Draft: 1975 | Career: 1975-
+  Line 20862: Robert Smith | Draft: 1993 | Career: 1993-2000
+
+PID 2968 (2 players):
+  Line 11809: Earl Thomas | Draft: 1971 | Career: 1971-1976
+  Line 26242: Earl Thomas | Draft: 2010 | Career: 2010-2019
+
+PID 3078 (2 players):
+  Line 26176: Reggie Walker | Draft: 2009 | Career: 2009-
+  Line 30004: Reggie Walker | Draft: 2020 | Career: 2020-
+
+PID 3183 (2 players):
+  Line 4111: Joe Fortunato | Draft: 1952 | Career: 1952-1966
+  Line 28519: Joe Fortunato | Draft: 2016 | Career: 2016-
+
+PID 3186 (2 players):
+  Line 20852: Dan Williams | Draft: 1993 | Career: 1993-2000
+  Line 26254: Dan Williams | Draft: 2010 | Career: 2010-2016
+
+PID 3191 (2 players):
+  Line 24362: D.J. Williams | Draft: 2004 | Career: 2004-2014
+  Line 26699: D.J. Williams | Draft: 2011 | Career: 2011-2013
+
+PID 3207 (5 players):
+  Line 16196: Kevin Williams | Draft: 1981 | Career: 1981-1981
+  Line 20887: Kevin Williams | Draft: 1993 | Career: 1993-2000
+  Line 20967: Kevin Williams | Draft: 1993 | Career: 1993-1993
+  Line 22397: Kevin Williams | Draft: 1998 | Career: 1998-2002
+  Line 24025: Kevin Williams | Draft: 2003 | Career: 2003-2015
+
+PID 3227 (2 players):
+  Line 22734: Dexter Jackson | Draft: 1999 | Career: 1999-2008
+  Line 25640: Dexter Jackson | Draft: 2008 | Career: 2008-2008
+
+PID 3244 (3 players):
+  Line 185: George Wilson | Draft: 1937 | Career: 1937-
+  Line 9353: George Wilson | Draft: 1965 | Career: 1965-1966
+  Line 24608: George Wilson | Draft: 2004 | Career: 2004-
+
+PID 3280 (3 players):
+  Line 3312: Bob Sanders | Draft: 1950 | Career: 1950-
+  Line 9573: Bob Sanders | Draft: 1966 | Career: 1966-1967
+  Line 24389: Bob Sanders | Draft: 2004 | Career: 2004-2011
+
+PID 3299 (2 players):
+  Line 17025: Mark Clayton | Draft: 1983 | Career: 1983-1993
+  Line 24685: Mark Clayton | Draft: 2005 | Career: 2005-2011
+
+PID 3307 (2 players):
+  Line 20496: Rod Smith | Draft: 1992 | Career: 1992-1998
+  Line 21359: Rod Smith | Draft: 1994 | Career: 1994-
+
+PID 3312 (2 players):
+  Line 9772: Willie Young | Draft: 1966 | Career: 1966-
+  Line 26441: Willie Young | Draft: 2010 | Career: 2010-2017
+
+PID 3396 (2 players):
+  Line 14097: Reggie Williams | Draft: 1976 | Career: 1976-1989
+  Line 24354: Reggie Williams | Draft: 2004 | Career: 2004-2008
+
+PID 4345 (2 players):
+  Line 22116: Chris Carter | Draft: 1997 | Career: 1997-2002
+  Line 26720: Chris Carter | Draft: 2011 | Career: 2011-2017
+
+PID 4357 (2 players):
+  Line 26649: Akeem Dent | Draft: 2011 | Career: 2011-2016
+  Line 31344: Akeem Dent | Draft: 2024 | Career: 2024-
+
+PID 4369 (2 players):
+  Line 17053: Marcus Gilbert | Draft: 1983 | Career: 1983-
+  Line 26621: Marcus Gilbert | Draft: 2011 | Career: 2011-2018
+
+PID 4373 (2 players):
+  Line 18763: Alex Green | Draft: 1987 | Career: 1987-
+  Line 26654: Alex Green | Draft: 2011 | Career: 2011-2013
+
+PID 4395 (2 players):
+  Line 18453: Mark Ingram | Draft: 1987 | Career: 1987-1996
+  Line 26586: Mark Ingram | Draft: 2011 | Career: 2011-2022
+
+PID 4481 (5 players):
+  Line 10712: Jimmy Smith | Draft: 1968 | Career: 1968-
+  Line 10982: Jimmy Smith | Draft: 1969 | Career: 1969-1969
+  Line 17298: Jimmy Smith | Draft: 1984 | Career: 1984-1987
+  Line 20497: Jimmy Smith | Draft: 1992 | Career: 1992-2005
+  Line 26585: Jimmy Smith | Draft: 2011 | Career: 2011-2021
+
+PID 4491 (2 players):
+  Line 26620: Daniel Thomas | Draft: 2011 | Career: 2011-2014
+  Line 29784: Daniel Thomas | Draft: 2020 | Career: 2020-2025
+
+PID 4505 (2 players):
+  Line 17098: Aaron Williams | Draft: 1983 | Career: 1983-
+  Line 26592: Aaron Williams | Draft: 2011 | Career: 2011-2016
+
+PID 4509 (2 players):
+  Line 25124: Brandon Johnson | Draft: 2006 | Career: 2006-2012
+  Line 30719: Brandon Johnson | Draft: 2022 | Career: 2022-
+
+PID 4519 (2 players):
+  Line 14907: Doug Williams | Draft: 1978 | Career: 1978-1989
+  Line 18035: Doug Williams | Draft: 1986 | Career: 1986-1987
+
+PID 4553 (3 players):
+  Line 23332: Michael Bennett | Draft: 2001 | Career: 2001-2010
+  Line 26180: Michael Bennett | Draft: 2009 | Career: 2009-
+  Line 28114: Michael Bennett | Draft: 2015 | Career: 2015-2018
+
+PID 4572 (2 players):
+  Line 9930: Tim Jones | Draft: 1967 | Career: 1967-
+  Line 30392: Tim Jones | Draft: 2021 | Career: 2021-
+
+PID 4590 (2 players):
+  Line 22056: Chris Canty | Draft: 1997 | Career: 1997-2000
+  Line 24795: Chris Canty | Draft: 2005 | Career: 2005-2015
+
+PID 4715 (3 players):
+  Line 2303: George Johnson | Draft: 1946 | Career: 1946-
+  Line 6459: George Johnson | Draft: 1958 | Career: 1958-
+  Line 26499: George Johnson | Draft: 2010 | Career: 2010-
+
+PID 4717 (2 players):
+  Line 26617: Greg Little | Draft: 2011 | Career: 2011-2014
+  Line 29310: Greg Little | Draft: 2019 | Career: 2019-2022
+
+PID 4869 (2 players):
+  Line 14951: Mickey Shuler | Draft: 1978 | Career: 1978-1991
+  Line 26442: Mickey Shuler | Draft: 2010 | Career: 2010-2015
+
+PID 4884 (2 players):
+  Line 22878: Reggie Stephens | Draft: 1999 | Career: 1999-
+  Line 26456: Reggie Stephens | Draft: 2010 | Career: 2010-
+
+PID 4927 (3 players):
+  Line 25116: Kyle Williams | Draft: 2006 | Career: 2006-2018
+  Line 26434: Kyle Williams | Draft: 2010 | Career: 2010-2013
+  Line 31601: Kyle Williams | Draft: 2025 | Career: 2025-
+
+PID 4969 (2 players):
+  Line 13701: Henry Hynoski | Draft: 1975 | Career: 1975-1975
+  Line 26818: Henry Hynoski | Draft: 2011 | Career: 2011-
+
+PID 5020 (3 players):
+  Line 12003: Jeff Allen | Draft: 1971 | Career: 1971-1971
+  Line 15852: Jeff Allen | Draft: 1980 | Career: 1980-1982
+  Line 26913: Jeff Allen | Draft: 2012 | Career: 2012-2019
+
+PID 5074 (2 players):
+  Line 14576: Curtis Brown | Draft: 1977 | Career: 1977-1983
+  Line 26653: Curtis Brown | Draft: 2011 | Career: 2011-2013
+
+PID 5078 (2 players):
+  Line 19022: Vincent Brown | Draft: 1988 | Career: 1988-1995
+  Line 26640: Vincent Brown | Draft: 2011 | Career: 2011-2015
+
+PID 5268 (2 players):
+  Line 19579: A.J. Jenkins | Draft: 1989 | Career: 1989-1990
+  Line 26899: A.J. Jenkins | Draft: 2012 | Career: 2012-2014
+
+PID 5278 (2 players):
+  Line 16943: Trumaine Johnson | Draft: 1983 | Career: 1983-1988
+  Line 26934: Trumaine Johnson | Draft: 2012 | Career: 2012-2019
+
+PID 5280 (3 players):
+  Line 1867: Ben Jones | Draft: 1945 | Career: 1945-
+  Line 13855: Ben Jones | Draft: 1975 | Career: 1975-
+  Line 26968: Ben Jones | Draft: 2012 | Career: 2012-2022
+
+PID 5308 (2 players):
+  Line 5417: Joe Young | Draft: 1955 | Career: 1955-1961
+  Line 26843: Joe Young | Draft: 2011 | Career: 2011-
+
+PID 5332 (2 players):
+  Line 21646: Curtis Marsh | Draft: 1995 | Career: 1995-1997
+  Line 26648: Curtis Marsh | Draft: 2011 | Career: 2011-2013
+
+PID 5334 (2 players):
+  Line 15649: Doug Martin | Draft: 1980 | Career: 1980-1989
+  Line 26900: Doug Martin | Draft: 2012 | Career: 2012-2018
+
+PID 5338 (5 players):
+  Line 8073: Mike Martin | Draft: 1962 | Career: 1962-
+  Line 8187: Mike Martin | Draft: 1962 | Career: 1962-
+  Line 15134: Mike Martin | Draft: 1978 | Career: 1978-
+  Line 17023: Mike Martin | Draft: 1983 | Career: 1983-1989
+  Line 26951: Mike Martin | Draft: 2012 | Career: 2012-2015
+
+PID 5367 (2 players):
+  Line 10628: Charles Mitchell | Draft: 1968 | Career: 1968-
+  Line 27061: Charles Mitchell | Draft: 2012 | Career: 2012-2012
+
+PID 5374 (2 players):
+  Line 3176: Joe Morgan | Draft: 1949 | Career: 1949-1949
+  Line 26847: Joe Morgan | Draft: 2011 | Career: 2011-
+
+PID 5375 (3 players):
+  Line 8939: Mike Morgan | Draft: 1964 | Career: 1964-1970
+  Line 15225: Mike Morgan | Draft: 1978 | Career: 1978-
+  Line 26848: Mike Morgan | Draft: 2011 | Career: 2011-
+
+PID 5393 (2 players):
+  Line 23921: Josh Norman | Draft: 2002 | Career: 2002-
+  Line 27012: Josh Norman | Draft: 2012 | Career: 2012-2023
+
+PID 5488 (3 players):
+  Line 6681: Willie Smith | Draft: 1959 | Career: 1959-1961
+  Line 18251: Willie Smith | Draft: 1986 | Career: 1986-1987
+  Line 26853: Willie Smith | Draft: 2011 | Career: 2011-
+
+PID 5635 (2 players):
+  Line 18990: Michael Irvin | Draft: 1988 | Career: 1988-1999
+  Line 31346: Michael Irvin II | Draft: 2024 | Career: 2024-
+
+PID 5637 (2 players):
+  Line 20608: Reggie White | Draft: 1992 | Career: 1992-1995
+  Line 23553: Reggie White | Draft: 2001 | Career: 2001-
+
+PID 5641 (3 players):
+  Line 14076: Steve Young | Draft: 1976 | Career: 1976-1977
+  Line 15156: Steve Young | Draft: 1978 | Career: 1978-
+  Line 31884: Steve Young | Draft: 1984 | Career: 1985-1999
+
+PID 5721 (2 players):
+  Line 22413: Omar Brown | Draft: 1998 | Career: 1998-1999
+  Line 31347: Omar Brown | Draft: 2024 | Career: 2024-
+
+PID 5753 (2 players):
+  Line 26198: Jon Cooper | Draft: 2009 | Career: 2009-
+  Line 27206: Jonathan Cooper | Draft: 2013 | Career: 2013-2018
+
+PID 5811 (2 players):
+  Line 21483: Corey Fuller | Draft: 1995 | Career: 1995-2004
+  Line 27370: Corey Fuller | Draft: 2013 | Career: 2013-2015
+
+PID 5903 (3 players):
+  Line 18119: Matt Johnson | Draft: 1986 | Career: 1986-
+  Line 23090: Matt Johnson | Draft: 2000 | Career: 2000-
+  Line 27004: Matt Johnson | Draft: 2012 | Career: 2012-
+
+PID 5988 (3 players):
+  Line 9472: Sam Montgomery | Draft: 1966 | Career: 1966-
+  Line 9616: Sam Montgomery | Draft: 1966 | Career: 1966-
+  Line 27294: Sam Montgomery | Draft: 2013 | Career: 2013-
+
+PID 6072 (3 players):
+  Line 8721: John Simon | Draft: 1964 | Career: 1964-
+  Line 23922: John Simon | Draft: 2002 | Career: 2002-
+  Line 27328: John Simon | Draft: 2013 | Career: 2013-2021
+
+PID 6162 (2 players):
+  Line 8094: Jesse Williams | Draft: 1962 | Career: 1962-
+  Line 27336: Jesse Williams | Draft: 2013 | Career: 2013-
+
+PID 6180 (4 players):
+  Line 12634: Robert Woods | Draft: 1973 | Career: 1973-1980
+  Line 13258: Robert Woods | Draft: 1974 | Career: 1974-
+  Line 15024: Robert Woods | Draft: 1978 | Career: 1978-1979
+  Line 27240: Robert Woods | Draft: 2013 | Career: 2013-2024
+
+PID 6183 (2 players):
+  Line 12851: Larry Allen | Draft: 1973 | Career: 1973-
+  Line 21181: Larry Allen | Draft: 1994 | Career: 1994-2007
+
+PID 6222 (5 players):
+  Line 8260: Bob Brown | Draft: 1962 | Career: 1962-
+  Line 8657: Bob Brown | Draft: 1964 | Career: 1964-1973
+  Line 8661: Bob Brown | Draft: 1964 | Career: 1964-1973
+  Line 12377: Bob Brown | Draft: 1972 | Career: 1972-
+  Line 12481: Bob Brown | Draft: 1972 | Career: 1972-
+
+PID 6363 (3 players):
+  Line 7541: John Brown | Draft: 1961 | Career: 1961-1971
+  Line 20653: John Brown | Draft: 1992 | Career: 1992-
+  Line 27670: John Brown | Draft: 2014 | Career: 2014-2022
+
+PID 6366 (2 players):
+  Line 15800: Preston Brown | Draft: 1980 | Career: 1980-1984
+  Line 27652: Preston Brown | Draft: 2014 | Career: 2014-2019
+
+PID 6382 (2 players):
+  Line 27843: Brandon Coleman | Draft: 2014 | Career: 2014-
+  Line 31152: Brandon Coleman | Draft: 2024 | Career: 2024-
+
+PID 6390 (2 players):
+  Line 24181: Chris Davis | Draft: 2003 | Career: 2003-2003
+  Line 25414: Chris Davis | Draft: 2007 | Career: 2007-2008
+
+PID 6407 (3 players):
+  Line 10482: Mike Evans | Draft: 1968 | Career: 1968-1973
+  Line 20562: Mike Evans | Draft: 1992 | Career: 1992-1992
+  Line 27586: Mike Evans | Draft: 2014 | Career: 2014-2025
+
+PID 6434 (2 players):
+  Line 24940: Ryan Grant | Draft: 2005 | Career: 2005-
+  Line 27721: Ryan Grant | Draft: 2014 | Career: 2014-2019
+
+PID 6459 (3 players):
+  Line 18765: Andrew Jackson | Draft: 1987 | Career: 1987-
+  Line 26768: Andrew Jackson | Draft: 2011 | Career: 2011-
+  Line 27782: Andrew Jackson | Draft: 2014 | Career: 2014-2014
+
+PID 6473 (2 players):
+  Line 27852: Christian Jones | Draft: 2014 | Career: 2014-
+  Line 31247: Christian Jones | Draft: 2024 | Career: 2024-
+
+PID 6570 (2 players):
+  Line 8876: Allen Robinson | Draft: 1964 | Career: 1964-
+  Line 27640: Allen Robinson | Draft: 2014 | Career: 2014-2024
+
+PID 6571 (3 players):
+  Line 18123: Greg Robinson | Draft: 1986 | Career: 1986-1987
+  Line 21049: Greg Robinson | Draft: 1993 | Career: 1993-1996
+  Line 27581: Greg Robinson | Draft: 2014 | Career: 2014-2019
+
+PID 6588 (3 players):
+  Line 17922: Chris Smith | Draft: 1985 | Career: 1985-
+  Line 20394: Chris Smith | Draft: 1991 | Career: 1991-
+  Line 27738: Chris Smith | Draft: 2014 | Career: 2014-2021
+
+PID 6590 (2 players):
+  Line 25688: Marcus Smith | Draft: 2008 | Career: 2008-2010
+  Line 27605: Marcus Smith | Draft: 2014 | Career: 2014-2018
+
+PID 6611 (2 players):
+  Line 22557: Robert Thomas | Draft: 1998 | Career: 1998-
+  Line 23684: Robert Thomas | Draft: 2002 | Career: 2002-2008
+
+PID 6638 (2 players):
+  Line 14040: James White | Draft: 1976 | Career: 1976-1983
+  Line 27709: James White | Draft: 2014 | Career: 2014-2021
+
+PID 6648 (2 players):
+  Line 24854: C.J. Mosley | Draft: 2005 | Career: 2005-2015
+  Line 27596: C.J. Mosley | Draft: 2014 | Career: 2014-2024
+
+PID 6704 (5 players):
+  Line 15336: Charles Johnson | Draft: 1979 | Career: 1979-1983
+  Line 15366: Charles Johnson | Draft: 1979 | Career: 1979-1981
+  Line 21152: Charles Johnson | Draft: 1994 | Career: 1994-2002
+  Line 25369: Charles Johnson | Draft: 2007 | Career: 2007-2017
+  Line 27415: Charles Johnson | Draft: 2013 | Career: 2013-2016
+
+PID 6734 (3 players):
+  Line 2175: Mike Harris | Draft: 1946 | Career: 1946-
+  Line 15573: Mike Harris | Draft: 1979 | Career: 1979-
+  Line 27045: Mike Harris | Draft: 2012 | Career: 2012-2014
+
+PID 6760 (4 players):
+  Line 581: Don Jones | Draft: 1940 | Career: 1940-
+  Line 17423: Don Jones | Draft: 1984 | Career: 1984-
+  Line 20706: Don Jones | Draft: 1992 | Career: 1992-1993
+  Line 27449: Don Jones | Draft: 2013 | Career: 2013-2016
+
+PID 6794 (2 players):
+  Line 21678: Josh Evans | Draft: 1995 | Career: 1995-
+  Line 27368: Josh Evans | Draft: 2013 | Career: 2013-2016
+
+PID 6813 (2 players):
+  Line 16891: Michael Williams | Draft: 1983 | Career: 1983-1987
+  Line 27410: Michael Williams | Draft: 2013 | Career: 2013-2015
+
+PID 6861 (2 players):
+  Line 25595: Jonathan Stewart | Draft: 2008 | Career: 2008-2018
+  Line 27514: Jonathan Stewart | Draft: 2013 | Career: 2013-
+
+PID 6890 (2 players):
+  Line 16577: Vince Williams | Draft: 1982 | Career: 1982-1983
+  Line 27405: Vince Williams | Draft: 2013 | Career: 2013-2020
+
+PID 6915 (5 players):
+  Line 12933: Dennis Johnson | Draft: 1973 | Career: 1973-1978
+  Line 14949: Dennis Johnson | Draft: 1978 | Career: 1978-1980
+  Line 15732: Dennis Johnson | Draft: 1980 | Career: 1980-1985
+  Line 20429: Dennis Johnson | Draft: 1991 | Career: 1991-
+  Line 23751: Dennis Johnson | Draft: 2002 | Career: 2002-2004
+
+PID 6968 (2 players):
+  Line 15069: James Wright | Draft: 1978 | Career: 1978-1985
+  Line 27818: James Wright | Draft: 2014 | Career: 2014-2016
+
+PID 6978 (5 players):
+  Line 25066: Brandon Williams | Draft: 2006 | Career: 2006-2007
+  Line 26021: Brandon Williams | Draft: 2009 | Career: 2009-2010
+  Line 27178: Brandon Williams | Draft: 2012 | Career: 2012-
+  Line 27293: Brandon Williams | Draft: 2013 | Career: 2013-2022
+  Line 28355: Brandon Williams | Draft: 2016 | Career: 2016-2020
+
+PID 6984 (3 players):
+  Line 16338: Joe Adams | Draft: 1981 | Career: 1981-
+  Line 16351: Joe Adams | Draft: 1981 | Career: 1981-
+  Line 26973: Joe Adams | Draft: 2012 | Career: 2012-2012
+
+PID 7042 (2 players):
+  Line 17923: Alex Carter | Draft: 1985 | Career: 1985-
+  Line 28014: Alex Carter | Draft: 2015 | Career: 2015-2018
+
+PID 7074 (5 players):
+  Line 14552: Mike Davis | Draft: 1977 | Career: 1977-1987
+  Line 15786: Mike Davis | Draft: 1980 | Career: 1980-
+  Line 21254: Mike Davis | Draft: 1994 | Career: 1994-1995
+  Line 27885: Mike Davis | Draft: 2014 | Career: 2014-
+  Line 28060: Mike Davis | Draft: 2015 | Career: 2015-2022
+
+PID 7077 (2 players):
+  Line 26105: Will Davis | Draft: 2009 | Career: 2009-2010
+  Line 27292: Will Davis | Draft: 2013 | Career: 2013-2016
+
+PID 7163 (2 players):
+  Line 24532: Josh Harris | Draft: 2004 | Career: 2004-
+  Line 27180: Josh Harris | Draft: 2012 | Career: 2012-
+
+PID 7184 (2 players):
+  Line 21490: Jesse James | Draft: 1995 | Career: 1995-1996
+  Line 28094: Jesse James | Draft: 2015 | Career: 2015-2022
+
+PID 7190 (2 players):
+  Line 26142: David Johnson | Draft: 2009 | Career: 2009-2016
+  Line 28020: David Johnson | Draft: 2015 | Career: 2015-2022
+
+PID 7192 (3 players):
+  Line 20927: Kevin Johnson | Draft: 1993 | Career: 1993-1997
+  Line 22653: Kevin Johnson | Draft: 1999 | Career: 1999-2005
+  Line 27950: Kevin Johnson | Draft: 2015 | Career: 2015-2020
+
+PID 7196 (3 players):
+  Line 11142: Byron Jones | Draft: 1969 | Career: 1969-
+  Line 17894: Byron Jones | Draft: 1985 | Career: 1985-
+  Line 27961: Byron Jones | Draft: 2015 | Career: 2015-2021
+
+PID 7199 (2 players):
+  Line 24684: Matt Jones | Draft: 2005 | Career: 2005-2008
+  Line 28029: Matt Jones | Draft: 2015 | Career: 2015-2017
+
+PID 7203 (4 players):
+  Line 11417: David King | Draft: 1970 | Career: 1970-
+  Line 17848: David King | Draft: 1985 | Career: 1985-1987
+  Line 27438: David King | Draft: 2013 | Career: 2013-2017
+  Line 27525: David King | Draft: 2013 | Career: 2013-2017
+
+PID 7242 (4 players):
+  Line 8881: John Miller | Draft: 1964 | Career: 1964-
+  Line 17140: John Miller | Draft: 1983 | Career: 1983-
+  Line 19688: John Miller | Draft: 1989 | Career: 1989-
+  Line 28015: John Miller | Draft: 2015 | Career: 2015-2022
+
+PID 7243 (2 players):
+  Line 25324: Zach Miller | Draft: 2007 | Career: 2007-2014
+  Line 26081: Zach Miller | Draft: 2009 | Career: 2009-2017
+
+PID 7298 (2 players):
+  Line 26935: Josh Robinson | Draft: 2012 | Career: 2012-2019
+  Line 28139: Josh Robinson | Draft: 2015 | Career: 2015-2015
+
+PID 7300 (3 players):
+  Line 25466: Justin Rogers | Draft: 2007 | Career: 2007-2009
+  Line 26764: Justin Rogers | Draft: 2011 | Career: 2011-2015
+  Line 31329: Justin Rogers | Draft: 2024 | Career: 2024-
+
+PID 7317 (2 players):
+  Line 23825: Josh Shaw | Draft: 2002 | Career: 2002-2008
+  Line 28054: Josh Shaw | Draft: 2015 | Career: 2015-2018
+
+PID 7374 (4 players):
+  Line 18158: Chris White | Draft: 1986 | Career: 1986-
+  Line 22867: Chris White | Draft: 1999 | Career: 1999-2000
+  Line 24941: Chris White | Draft: 2005 | Career: 2005-
+  Line 26727: Chris White | Draft: 2011 | Career: 2011-2014
+
+PID 7377 (2 players):
+  Line 16078: Chris Williams | Draft: 1981 | Career: 1981-1983
+  Line 25596: Chris Williams | Draft: 2008 | Career: 2008-2014
+
+PID 7381 (2 players):
+  Line 17533: Leonard Williams | Draft: 1984 | Career: 1984-
+  Line 27940: Leonard Williams | Draft: 2015 | Career: 2015-2025
+
+PID 7386 (2 players):
+  Line 12386: Steve Williams | Draft: 1972 | Career: 1972-1974
+  Line 27344: Steve Williams | Draft: 2013 | Career: 2013-2016
+
+PID 7388 (2 players):
+  Line 25512: C.J. Wilson | Draft: 2007 | Career: 2007-2010
+  Line 26458: C.J. Wilson | Draft: 2010 | Career: 2010-2016
+
+PID 7507 (2 players):
+  Line 10266: Mike Hull | Draft: 1968 | Career: 1968-1974
+  Line 28209: Mike Hull | Draft: 2015 | Career: 2015-
+
+PID 7562 (2 players):
+  Line 20660: Roosevelt Nix | Draft: 1992 | Career: 1992-1994
+  Line 27906: Roosevelt Nix | Draft: 2014 | Career: 2014-
+
+PID 7605 (2 players):
+  Line 24418: Keith Smith | Draft: 2004 | Career: 2004-2009
+  Line 27909: Keith Smith | Draft: 2014 | Career: 2014-
+
+PID 7668 (2 players):
+  Line 14682: David Carter | Draft: 1977 | Career: 1977-1985
+  Line 26742: David Carter | Draft: 2011 | Career: 2011-2013
+
+PID 7689 (2 players):
+  Line 11256: George Farmer | Draft: 1970 | Career: 1970-1975
+  Line 15888: George Farmer | Draft: 1980 | Career: 1980-1987
+
+PID 7723 (2 players):
+  Line 28229: Isaiah Johnson | Draft: 2015 | Career: 2015-
+  Line 29402: Isaiah Johnson | Draft: 2019 | Career: 2019-2020
+
+PID 7725 (2 players):
+  Line 22787: Malcolm Johnson | Draft: 1999 | Career: 1999-2000
+  Line 28129: Malcolm Johnson | Draft: 2015 | Career: 2015-2016
+
+PID 7765 (2 players):
+  Line 23041: Corey Moore | Draft: 2000 | Career: 2000-2001
+  Line 28237: Corey Moore | Draft: 2015 | Career: 2015-
+
+PID 7767 (2 players):
+  Line 13500: James Morris | Draft: 1974 | Career: 1974-
+  Line 27916: James Morris | Draft: 2014 | Career: 2014-
+
+PID 7814 (3 players):
+  Line 20478: Kevin Smith | Draft: 1992 | Career: 1992-1999
+  Line 20646: Kevin Smith | Draft: 1992 | Career: 1992-1996
+  Line 25646: Kevin Smith | Draft: 2008 | Career: 2008-2012
+
+PID 7914 (2 players):
+  Line 21679: Anthony Brown | Draft: 1995 | Career: 1995-
+  Line 28452: Anthony Brown | Draft: 2016 | Career: 2016-2023
+
+PID 7947 (2 players):
+  Line 23555: Kenny Clark | Draft: 2001 | Career: 2001-
+  Line 28290: Kenny Clark | Draft: 2016 | Career: 2016-2025
+
+PID 8030 (2 players):
+  Line 21223: Jason Gildon | Draft: 1994 | Career: 1994-2004
+  Line 28314: Christian Hackenberg | Draft: 2016 | Career: 2016-
+
+PID 8089 (2 players):
+  Line 18766: Ted Karras Jr. | Draft: 1987 | Career: 1987-
+  Line 28484: Ted Karras | Draft: 2016 | Career: 2016-2025
+
+PID 8111 (2 players):
+  Line 24485: Alex Lewis | Draft: 2004 | Career: 2004-2008
+  Line 28393: Alex Lewis | Draft: 2016 | Career: 2016-2020
+
+PID 8156 (2 players):
+  Line 28463: Kyle Murphy | Draft: 2016 | Career: 2016-2021
+  Line 30010: Kyle Murphy | Draft: 2020 | Career: 2020-
+
+PID 8175 (2 players):
+  Line 19519: Kevin Peterson | Draft: 1989 | Career: 1989-
+  Line 28543: Kevin Peterson | Draft: 2016 | Career: 2016-
+
+PID 8231 (2 players):
+  Line 27183: Michael Thomas | Draft: 2012 | Career: 2012-
+  Line 28310: Michael Thomas | Draft: 2016 | Career: 2016-2023
+
+PID 8232 (3 players):
+  Line 13655: Mike Thomas | Draft: 1975 | Career: 1975-1980
+  Line 26008: Mike Thomas | Draft: 2009 | Career: 2009-2012
+  Line 28469: Mike Thomas | Draft: 2016 | Career: 2016-2022
+
+PID 8249 (3 players):
+  Line 10952: Joe Walker | Draft: 1969 | Career: 1969-
+  Line 23556: Joe Walker | Draft: 2001 | Career: 2001-
+  Line 28514: Joe Walker | Draft: 2016 | Career: 2016-2021
+
+PID 8250 (2 players):
+  Line 19771: Aaron Wallace | Draft: 1990 | Career: 1990-1998
+  Line 28485: Aaron Wallace | Draft: 2016 | Career: 2016-2018
+
+PID 8400 (2 players):
+  Line 26263: Brian Price | Draft: 2010 | Career: 2010-2011
+  Line 28577: Brian Price | Draft: 2016 | Career: 2016-
+
+PID 8489 (2 players):
+  Line 2015: Blair Brown | Draft: 1945 | Career: 1945-
+  Line 28753: Blair Brown | Draft: 2017 | Career: 2017-2018
+
+PID 8557 (2 players):
+  Line 27593: Kyle Fuller | Draft: 2014 | Career: 2014-2022
+  Line 28848: Kyle Fuller | Draft: 2017 | Career: 2017-2022
+
+PID 8606 (3 players):
+  Line 8389: John Johnson | Draft: 1963 | Career: 1963-1969
+  Line 20152: John Johnson | Draft: 1991 | Career: 1991-1995
+  Line 28696: John Johnson | Draft: 2017 | Career: 2017-2024
+
+PID 8609 (2 players):
+  Line 18997: Aaron Jones | Draft: 1988 | Career: 1988-1996
+  Line 28787: Aaron Jones | Draft: 2017 | Career: 2017-2025
+
+PID 8610 (4 players):
+  Line 13416: David Jones | Draft: 1974 | Career: 1974-
+  Line 17410: David Jones | Draft: 1984 | Career: 1984-1987
+  Line 20276: David Jones | Draft: 1991 | Career: 1991-1992
+  Line 25431: David Jones | Draft: 2007 | Career: 2007-2012
+
+PID 8709 (2 players):
+  Line 21199: Sam Rogers | Draft: 1994 | Career: 1994-2003
+  Line 28811: Sam Rogers | Draft: 2017 | Career: 2017-
+
+PID 8779 (2 players):
+  Line 27926: Marcus Williams | Draft: 2014 | Career: 2014-
+  Line 28647: Marcus Williams | Draft: 2017 | Career: 2017-2024
+
+PID 8780 (12 players):
+  Line 12443: Mike Williams | Draft: 1972 | Career: 1972-
+  Line 13569: Mike Williams | Draft: 1975 | Career: 1975-1983
+  Line 14371: Mike Williams | Draft: 1976 | Career: 1976-
+  Line 15187: Mike Williams | Draft: 1978 | Career: 1978-
+  Line 15460: Mike Williams | Draft: 1979 | Career: 1979-1981
+  Line 16559: Mike Williams | Draft: 1982 | Career: 1982-1984
+  Line 18300: Mike Williams | Draft: 1986 | Career: 1986-
+  Line 19620: Mike Williams | Draft: 1989 | Career: 1989-1995
+  Line 23657: Mike Williams | Draft: 2002 | Career: 2002-2009
+  Line 24673: Mike Williams | Draft: 2005 | Career: 2005-2011
+  Line 26329: Mike Williams | Draft: 2010 | Career: 2010-2014
+  Line 28612: Mike Williams | Draft: 2017 | Career: 2017-2024
+
+PID 8786 (2 players):
+  Line 24564: Quincy Wilson | Draft: 2004 | Career: 2004-2007
+  Line 28651: Quincy Wilson | Draft: 2017 | Career: 2017-2022
+
+PID 8787 (2 players):
+  Line 19221: Deatrich Wise | Draft: 1988 | Career: 1988-
+  Line 28736: Deatrich Wise Jr. | Draft: 2017 | Career: 2017-2025
+
+PID 8799 (4 players):
+  Line 23388: Brian Allen | Draft: 2001 | Career: 2001-2004
+  Line 23857: Brian Allen | Draft: 2002 | Career: 2002-2003
+  Line 28778: Brian Allen | Draft: 2017 | Career: 2017-2021
+  Line 29039: Brian Allen | Draft: 2018 | Career: 2018-2023
+
+PID 8801 (2 players):
+  Line 16436: Marcus Allen | Draft: 1982 | Career: 1982-1997
+  Line 29076: Marcus Allen | Draft: 2018 | Career: 2018-2022
+
+PID 8826 (2 players):
+  Line 21069: Orlando Brown | Draft: 1993 | Career: -
+  Line 29011: Orlando Brown Jr. | Draft: 2018 | Career: 2018-2025
+
+PID 8827 (3 players):
+  Line 18320: Tony Brown | Draft: 1986 | Career: 1986-
+  Line 20596: Tony Brown | Draft: 1992 | Career: 1992-1995
+  Line 29199: Tony Brown | Draft: 2018 | Career: 2018-
+
+PID 8859 (2 players):
+  Line 13727: James Daniels | Draft: 1975 | Career: 1975-
+  Line 28967: James Daniels | Draft: 2018 | Career: 2018-2025
+
+PID 8929 (2 players):
+  Line 14163: Mike Hughes | Draft: 1976 | Career: 1976-
+  Line 28958: Mike Hughes | Draft: 2018 | Career: 2018-2025
+
+PID 8947 (2 players):
+  Line 14975: Danny Johnson | Draft: 1978 | Career: 1978-1978
+  Line 29212: Danny Johnson | Draft: 2018 | Career: 2018-
+
+PID 8951 (6 players):
+  Line 18767: Chris Jones | Draft: 1987 | Career: 1987-
+  Line 21506: Chris Jones | Draft: 1995 | Career: 1995-1997
+  Line 22790: Chris Jones | Draft: 1999 | Career: 1999-
+  Line 26864: Chris Jones | Draft: 2011 | Career: 2011-
+  Line 27397: Chris Jones | Draft: 2013 | Career: 2013-2016
+  Line 28300: Chris Jones | Draft: 2016 | Career: 2016-2025
+
+PID 8959 (2 players):
+  Line 9763: John Kelly | Draft: 1966 | Career: 1966-1967
+  Line 29104: John Kelly | Draft: 2018 | Career: 2018-2024
+
+PID 8992 (2 players):
+  Line 18994: Anthony Miller | Draft: 1988 | Career: 1988-1997
+  Line 28979: Anthony Miller | Draft: 2018 | Career: 2018-2024
+
+PID 8995 (2 players):
+  Line 26020: D.J. Moore | Draft: 2009 | Career: 2009-2013
+  Line 28952: D.J. Moore | Draft: 2018 | Career: 2018-2025
+
+PID 9079 (3 players):
+  Line 12620: J.T. Thomas | Draft: 1973 | Career: 1973-1982
+  Line 21667: J.T. Thomas | Draft: 1995 | Career: 1995-1998
+  Line 26753: J.T. Thomas | Draft: 2011 | Career: 2011-2017
+
+PID 9103 (2 players):
+  Line 19116: James Washington | Draft: 1988 | Career: 1988-1995
+  Line 28988: James Washington | Draft: 2018 | Career: 2018-2022
+
+PID 9113 (3 players):
+  Line 12825: Mike White | Draft: 1973 | Career: 1973-
+  Line 15349: Mike White | Draft: 1979 | Career: 1979-1982
+  Line 29099: Mike White | Draft: 2018 | Career: 2018-2024
+
+PID 9119 (2 players):
+  Line 23474: Cedrick Wilson | Draft: 2001 | Career: 2001-2007
+  Line 29136: Cedrick Wilson Jr. | Draft: 2018 | Career: 2018-2024
+
+PID 9290 (3 players):
+  Line 15035: Eric Smith | Draft: 1978 | Career: 1978-
+  Line 19677: Eric Smith | Draft: 1989 | Career: 1989-
+  Line 25079: Eric Smith | Draft: 2006 | Career: 2006-2012
+
+PID 9299 (2 players):
+  Line 24495: Chris Thompson | Draft: 2004 | Career: 2004-2005
+  Line 27353: Chris Thompson | Draft: 2013 | Career: 2013-2020
+
+PID 9313 (2 players):
+  Line 23862: Chad Williams | Draft: 2002 | Career: 2002-2006
+  Line 28703: Chad Williams | Draft: 2017 | Career: 2017-2019
+
+PID 9318 (2 players):
+  Line 17755: Eric Wilson | Draft: 1985 | Career: 1985-1987
+  Line 28913: Eric Wilson | Draft: 2017 | Career: 2017-
+
+PID 9355 (2 players):
+  Line 22558: Justin Watson | Draft: 1998 | Career: 1998-
+  Line 29072: Justin Watson | Draft: 2018 | Career: 2018-2025
+
+PID 9408 (2 players):
+  Line 21454: Devin Bush Sr. | Draft: 1995 | Career: 1995-2002
+  Line 29283: Devin Bush Jr. | Draft: 2019 | Career: 2019-2025
+
+PID 9433 (2 players):
+  Line 26072: Nate Davis | Draft: 2009 | Career: 2009-
+  Line 29355: Nate Davis | Draft: 2019 | Career: 2019-2024
+
+PID 9448 (3 players):
+  Line 27540: Mike Edwards | Draft: 2013 | Career: 2013-
+  Line 29372: Mike Edwards | Draft: 2019 | Career: 2019-2024
+  Line 31348: Mike Edwards | Draft: 2024 | Career: 2024-
+
+PID 9464 (2 players):
+  Line 16362: Greg Gaines | Draft: 1981 | Career: 1981-
+  Line 29407: Greg Gaines | Draft: 2019 | Career: 2019-2025
+
+PID 9476 (2 players):
+  Line 20933: Derwin Gray | Draft: 1993 | Career: 1993-1998
+  Line 29492: Derwin Gray | Draft: 2019 | Career: 2019-2020
+
+PID 9517 (2 players):
+  Line 13803: Joe Jackson | Draft: 1975 | Career: 1975-
+  Line 29438: Joe Jackson | Draft: 2019 | Career: 2019-2021
+
+PID 9518 (3 players):
+  Line 15322: Michael Jackson | Draft: 1979 | Career: 1979-1986
+  Line 20240: Michael Jackson | Draft: 1991 | Career: 1991-1998
+  Line 29431: Michael Jackson | Draft: 2019 | Career: 2019-2025
+
+PID 9535 (3 players):
+  Line 16316: Lonnie Johnson | Draft: 1981 | Career: 1981-
+  Line 21196: Lonnie Johnson | Draft: 1994 | Career: 1994-1999
+  Line 29327: Lonnie Johnson Jr. | Draft: 2019 | Career: 2019-2024
+
+PID 9556 (2 players):
+  Line 29352: David Long | Draft: 2019 | Career: 2019-2024
+  Line 29461: David Long | Draft: 2019 | Career: 2019-2024
+
+PID 9565 (2 players):
+  Line 28407: Connor McGovern | Draft: 2016 | Career: 2016-2024
+  Line 29363: Connor McGovern | Draft: 2019 | Career: 2019-2025
+
+PID 9580 (2 players):
+  Line 14542: Stanley Morgan | Draft: 1977 | Career: 1977-1990
+  Line 29613: Stanley Morgan | Draft: 2019 | Career: 2019-
+
+PID 9633 (2 players):
+  Line 20861: Irv Smith | Draft: 1993 | Career: 1993-1999
+  Line 29323: Irv Smith Jr. | Draft: 2019 | Career: 2019-2024
+
+PID 9774 (2 players):
+  Line 16257: Mike Ford | Draft: 1981 | Career: 1981-
+  Line 29243: Mike Ford | Draft: 2018 | Career: 2018-
+
+PID 9824 (2 players):
+  Line 13990: J.J. Jones | Draft: 1975 | Career: 1975-
+  Line 23557: J.J. Jones | Draft: 2001 | Career: 2001-
+
+PID 9923 (2 players):
+  Line 25492: Ryan Smith | Draft: 2007 | Career: 2007-
+  Line 28371: Ryan Smith | Draft: 2016 | Career: 2016-2022
+
+PID 9956 (4 players):
+  Line 15106: David Williams | Draft: 1978 | Career: 1978-
+  Line 18068: David Williams | Draft: 1986 | Career: 1986-1987
+  Line 19374: David Williams | Draft: 1989 | Career: 1989-1997
+  Line 29154: David Williams | Draft: 2018 | Career: 2018-2018
+
+PID 9969 (2 players):
+  Line 22100: Jason Taylor | Draft: 1997 | Career: 1997-2011
+  Line 30985: Jason Taylor | Draft: 2023 | Career: 2023-2023
+
+PID 9975 (2 players):
+  Line 17035: Ricky Williams | Draft: 1983 | Career: 1983-1987
+  Line 22626: Ricky Williams | Draft: 1999 | Career: 1999-2011
+
+PID 9980 (2 players):
+  Line 18992: Keith Jackson | Draft: 1988 | Career: 1988-1996
+  Line 25534: Keith Jackson | Draft: 2007 | Career: 2007-
+
+PID 9982 (2 players):
+  Line 12577: Sam Adams | Draft: 1972 | Career: 1972-
+  Line 21143: Sam Adams | Draft: 1994 | Career: 1994-2007
+
+PID 9983 (2 players):
+  Line 12573: Ted Washington | Draft: 1972 | Career: 1972-1982
+  Line 20124: Ted Washington | Draft: 1991 | Career: 1991-2007
+
+PID 10124 (2 players):
+  Line 23349: Kris Jenkins | Draft: 2001 | Career: 2001-2010
+  Line 31134: Kris Jenkins | Draft: 2024 | Career: 2024-
+
+PID 10127 (2 players):
+  Line 9993: Cornelius Johnson | Draft: 1967 | Career: 1967-1973
+  Line 31338: Cornelius Johnson | Draft: 2024 | Career: 2024-
+
+PID 10186 (2 players):
+  Line 28752: Jordan Morgan | Draft: 2017 | Career: 2017-
+  Line 31110: Jordan Morgan | Draft: 2024 | Career: 2024-
+
+PID 10288 (2 players):
+  Line 10086: Eric Watts | Draft: 1967 | Career: 1967-
+  Line 31412: Eric Watts | Draft: 2024 | Career: 2024-
+
+PID 10295 (2 players):
+  Line 23096: Michael Wiley | Draft: 2000 | Career: 2000-2002
+  Line 31415: Michael Wiley | Draft: 2024 | Career: 2024-
+
+PID 10299 (8 players):
+  Line 16716: James Williams | Draft: 1982 | Career: 1982-
+  Line 17066: James Williams | Draft: 1983 | Career: 1983-
+  Line 17872: James Williams | Draft: 1985 | Career: 1985-
+  Line 19750: James Williams | Draft: 1990 | Career: 1990-1996
+  Line 19892: James Williams | Draft: 1990 | Career: 1990-1999
+  Line 20434: James Williams | Draft: 1991 | Career: 1991-
+  Line 23127: James Williams | Draft: 2000 | Career: 2000-2003
+  Line 31327: James Williams | Draft: 2024 | Career: 2024-
+
+PID 10380 (2 players):
+  Line 29833: Tyler Davis | Draft: 2020 | Career: 2020-2022
+  Line 31281: Tyler Davis | Draft: 2024 | Career: 2024-
+
+PID 10565 (2 players):
+  Line 23678: Charles Grant | Draft: 2002 | Career: 2002-2009
+  Line 31631: Charles Grant | Draft: 2025 | Career: 2025-
+
+PID 10568 (5 players):
+  Line 11607: Mike Green | Draft: 1970 | Career: 1970-
+  Line 14464: Mike Green | Draft: 1976 | Career: 1976-
+  Line 17047: Mike Green | Draft: 1983 | Career: 1983-1985
+  Line 23165: Mike Green | Draft: 2000 | Career: 2000-2002
+  Line 31591: Mike Green | Draft: 2025 | Career: 2025-
+
+PID 10574 (2 players):
+  Line 17444: Derrick Harmon | Draft: 1984 | Career: 1984-1986
+  Line 31553: Derrick Harmon | Draft: 2025 | Career: 2025-
+
+PID 10576 (3 players):
+  Line 22259: Marcus Harris | Draft: 1997 | Career: 1997-
+  Line 31332: Marcus Harris | Draft: 2024 | Career: 2024-
+  Line 31715: Marcus Harris | Draft: 2025 | Career: 2025-
+
+PID 10614 (2 players):
+  Line 18563: Will Johnson | Draft: 1987 | Career: 1987-1987
+  Line 31579: Will Johnson | Draft: 2025 | Career: 2025-
+
+PID 10647 (2 players):
+  Line 28313: Nick Martin | Draft: 2016 | Career: 2016-2022
+  Line 31607: Nick Martin | Draft: 2025 | Career: 2025-
+
+PID 10692 (2 players):
+  Line 27986: Jordan Phillips | Draft: 2015 | Career: 2015-2025
+  Line 31675: Jordan Phillips | Draft: 2025 | Career: 2025-
+
+PID 10737 (3 players):
+  Line 15719: Tim Smith | Draft: 1980 | Career: 1980-1986
+  Line 15839: Tim Smith | Draft: 1980 | Career: 1980-1986
+  Line 31722: Tim Smith | Draft: 2025 | Career: 2025-
+
+PID 10774 (2 players):
+  Line 3843: Clay Webb | Draft: 1951 | Career: 1951-
+  Line 31861: Clay Webb | Draft: 2025 | Career: 2025-
+
+PID 10780 (4 players):
+  Line 9963: John Williams | Draft: 1967 | Career: 1967-
+  Line 10273: John Williams | Draft: 1968 | Career: 1968-1979
+  Line 18001: John Williams | Draft: 1986 | Career: 1986-1995
+  Line 31782: John Williams | Draft: 2025 | Career: 2025-
+
+PID 10822 (8 players):
+  Line 7837: Mike Jones | Draft: 1961 | Career: 1961-
+  Line 14772: Mike Jones | Draft: 1977 | Career: 1977-
+  Line 16961: Mike Jones | Draft: 1983 | Career: 1983-1989
+  Line 17517: Mike Jones | Draft: 1984 | Career: 1984-
+  Line 17891: Mike Jones | Draft: 1985 | Career: 1985-
+  Line 19788: Mike Jones | Draft: 1990 | Career: 1990-1992
+  Line 20131: Mike Jones | Draft: 1991 | Career: 1991-1999
+  Line 20435: Mike Jones | Draft: 1991 | Career: 1991-1999
+
+PID 10852 (3 players):
+  Line 8314: Roy Williams | Draft: 1963 | Career: 1963-1963
+  Line 23661: Roy Williams | Draft: 2002 | Career: 2002-2010
+  Line 24352: Roy Williams | Draft: 2004 | Career: 2004-2011
+
+PID 10853 (2 players):
+  Line 22644: Antoine Winfield | Draft: 1999 | Career: 1999-2012
+  Line 29672: Antoine Winfield Jr. | Draft: 2020 | Career: 2020-2025
+
+PID 10945 (3 players):
+  Line 3313: Bill Murray | Draft: 1950 | Career: 1950-1952
+  Line 3789: Bill Murray | Draft: 1951 | Career: 1951-1952
+  Line 4667: Bill Murray | Draft: 1953 | Career: 1953-
+
+PID 11010 (2 players):
+  Line 11209: Mike Reid | Draft: 1970 | Career: 1970-1974
+  Line 20918: Mike Reid | Draft: 1993 | Career: 1993-1994
+
+PID 11034 (2 players):
+  Line 17355: Aaron Smith | Draft: 1984 | Career: 1984-1984
+  Line 22730: Aaron Smith | Draft: 1999 | Career: 1999-2011
+

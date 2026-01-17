@@ -1,0 +1,2642 @@
+[
+  {
+    "faceNum": 1,
+    "playerName": "Bob Avellini",
+    "pgid": 112,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_6_M_N_02",
+    "sknt": 6,
+    "asnm": ""
+  },
+  {
+    "faceNum": 2,
+    "playerName": "Vince Evans",
+    "pgid": 183,
+    "cnid": 183,
+    "gnhd": 183,
+    "genr": "gen_1_B_N_01",
+    "sknt": 1,
+    "asnm": "EvansVince_183"
+  },
+  {
+    "faceNum": 3,
+    "playerName": "Mike Phipps",
+    "pgid": 196,
+    "cnid": 196,
+    "gnhd": 212,
+    "genr": "gen_2_H_B_010",
+    "sknt": 2,
+    "asnm": "PhippsMike_196"
+  },
+  {
+    "faceNum": 4,
+    "playerName": "Walter Payton",
+    "pgid": 498,
+    "cnid": 498,
+    "gnhd": 257,
+    "genr": "gen_6_B_N_0010",
+    "sknt": 6,
+    "asnm": "PaytonWalter_498"
+  },
+  {
+    "faceNum": 5,
+    "playerName": "Robin Earl",
+    "pgid": 505,
+    "cnid": 505,
+    "gnhd": 146,
+    "genr": "gen_2_T_S_007",
+    "sknt": 2,
+    "asnm": "EarlRobin_505"
+  },
+  {
+    "faceNum": 6,
+    "playerName": "John Skibinski",
+    "pgid": 506,
+    "cnid": 506,
+    "gnhd": 290,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "SkibinskiJohn_506"
+  },
+  {
+    "faceNum": 7,
+    "playerName": "Tom Donchez",
+    "pgid": 521,
+    "cnid": 521,
+    "gnhd": 281,
+    "genr": "gen_2_B_N_0014",
+    "sknt": 2,
+    "asnm": "DonchezTom_521"
+  },
+  {
+    "faceNum": 8,
+    "playerName": "Dave Williams",
+    "pgid": 857,
+    "cnid": 857,
+    "gnhd": 70,
+    "genr": "gen_1_B_N_01",
+    "sknt": 1,
+    "asnm": "WilliamsDave_857"
+  },
+  {
+    "faceNum": 9,
+    "playerName": "James Scott",
+    "pgid": 890,
+    "cnid": 890,
+    "gnhd": 71,
+    "genr": "gen_2_M_N_007",
+    "sknt": 2,
+    "asnm": "ScottJames_890"
+  },
+  {
+    "faceNum": 10,
+    "playerName": "Bob Grim",
+    "pgid": 927,
+    "cnid": 927,
+    "gnhd": 53,
+    "genr": "gen_1_B_N_0012",
+    "sknt": 1,
+    "asnm": "GrimBob_927"
+  },
+  {
+    "faceNum": 11,
+    "playerName": "Bo Rather",
+    "pgid": 1069,
+    "cnid": 1069,
+    "gnhd": 34,
+    "genr": "gen_1_B_N_010",
+    "sknt": 1,
+    "asnm": "RatherBo_1069"
+  },
+  {
+    "faceNum": 12,
+    "playerName": "Brian Baschnagel",
+    "pgid": 1070,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_5_B_S_002",
+    "sknt": 5,
+    "asnm": ""
+  },
+  {
+    "faceNum": 13,
+    "playerName": "Steve Schubert",
+    "pgid": 1071,
+    "cnid": 1071,
+    "gnhd": 266,
+    "genr": "gen_2_H_N_009",
+    "sknt": 2,
+    "asnm": "SchubertSteve_1071"
+  },
+  {
+    "faceNum": 14,
+    "playerName": "Greg Latta",
+    "pgid": 1072,
+    "cnid": 1072,
+    "gnhd": 9,
+    "genr": "gen_1_B_N_02",
+    "sknt": 1,
+    "asnm": "LattaGreg_1072"
+  },
+  {
+    "faceNum": 15,
+    "playerName": "Bob Parsons",
+    "pgid": 1073,
+    "cnid": 1073,
+    "gnhd": 266,
+    "genr": "gen_2_BMH_S_003",
+    "sknt": 2,
+    "asnm": "ParsonsBob_1073"
+  },
+  {
+    "faceNum": 16,
+    "playerName": "Gary Butler",
+    "pgid": 1074,
+    "cnid": 1074,
+    "gnhd": 254,
+    "genr": "gen_2_M_B_01",
+    "sknt": 2,
+    "asnm": "ButlerGary_1074"
+  },
+  {
+    "faceNum": 17,
+    "playerName": "Bob Asher",
+    "pgid": 1076,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_7_BMH_S_008",
+    "sknt": 7,
+    "asnm": ""
+  },
+  {
+    "faceNum": 18,
+    "playerName": "Ted Albrecht",
+    "pgid": 1080,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_7_M_G_004",
+    "sknt": 7,
+    "asnm": ""
+  },
+  {
+    "faceNum": 19,
+    "playerName": "Noah Jackson",
+    "pgid": 1082,
+    "cnid": 1082,
+    "gnhd": 216,
+    "genr": "gen_2_H_N_009",
+    "sknt": 2,
+    "asnm": "JacksonNoah_1082"
+  },
+  {
+    "faceNum": 20,
+    "playerName": "Revie Sorey",
+    "pgid": 1083,
+    "cnid": 1083,
+    "gnhd": 59,
+    "genr": "gen_2_B_N_0011",
+    "sknt": 2,
+    "asnm": "SoreyRevie_1083"
+  },
+  {
+    "faceNum": 21,
+    "playerName": "Dan Neal",
+    "pgid": 1084,
+    "cnid": 1084,
+    "gnhd": 190,
+    "genr": "gen_1_B_S_002",
+    "sknt": 1,
+    "asnm": "NealDan_1084"
+  },
+  {
+    "faceNum": 22,
+    "playerName": "Dan Peiffer",
+    "pgid": 1087,
+    "cnid": 1087,
+    "gnhd": 158,
+    "genr": "gen_2_B_N_02",
+    "sknt": 2,
+    "asnm": "PeifferDan_1087"
+  },
+  {
+    "faceNum": 23,
+    "playerName": "Revie Sorey",
+    "pgid": 1088,
+    "cnid": 1088,
+    "gnhd": 186,
+    "genr": "gen_2_B_BD_03",
+    "sknt": 2,
+    "asnm": "SoreyRevie_1088"
+  },
+  {
+    "faceNum": 24,
+    "playerName": "Mark Nordquist",
+    "pgid": 1089,
+    "cnid": 1089,
+    "gnhd": 233,
+    "genr": "gen_1_B_S_001",
+    "sknt": 1,
+    "asnm": "NordquistMark_1089"
+  },
+  {
+    "faceNum": 25,
+    "playerName": "Dan Jiggetts",
+    "pgid": 1090,
+    "cnid": 1090,
+    "gnhd": 200,
+    "genr": "gen_1_B_S_002",
+    "sknt": 1,
+    "asnm": "JiggettsDan_1090"
+  },
+  {
+    "faceNum": 26,
+    "playerName": "Jeff Sevy",
+    "pgid": 1091,
+    "cnid": 1091,
+    "gnhd": 287,
+    "genr": "gen_2_M_B_02",
+    "sknt": 2,
+    "asnm": "SevyJeff_1091"
+  },
+  {
+    "faceNum": 27,
+    "playerName": "Dan Hampton",
+    "pgid": 1092,
+    "cnid": 1092,
+    "gnhd": 268,
+    "genr": "gen_2_B_N_0014",
+    "sknt": 2,
+    "asnm": "HamptonDan_1092"
+  },
+  {
+    "faceNum": 28,
+    "playerName": "Mike Hartenstine",
+    "pgid": 1095,
+    "cnid": 1095,
+    "gnhd": 228,
+    "genr": "gen_2_BMH_S_010",
+    "sknt": 2,
+    "asnm": "HartenstineMike_1095"
+  },
+  {
+    "faceNum": 29,
+    "playerName": "Billy Newsome",
+    "pgid": 1096,
+    "cnid": 1096,
+    "gnhd": 251,
+    "genr": "gen_2_B_N_0011",
+    "sknt": 2,
+    "asnm": "NewsomeBilly_1096"
+  },
+  {
+    "faceNum": 30,
+    "playerName": "Mel Tom",
+    "pgid": 1097,
+    "cnid": 1097,
+    "gnhd": 284,
+    "genr": "gen_2_M_B_01",
+    "sknt": 2,
+    "asnm": "TomMel_1097"
+  },
+  {
+    "faceNum": 31,
+    "playerName": "Wally Chambers",
+    "pgid": 1098,
+    "cnid": 1098,
+    "gnhd": 183,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": "ChambersWally_1098"
+  },
+  {
+    "faceNum": 32,
+    "playerName": "Jim Osborne",
+    "pgid": 1104,
+    "cnid": 1104,
+    "gnhd": 104,
+    "genr": "gen_2_BMH_S_002",
+    "sknt": 2,
+    "asnm": "OsborneJim_1104"
+  },
+  {
+    "faceNum": 33,
+    "playerName": "Roger Stillwell",
+    "pgid": 1106,
+    "cnid": 1106,
+    "gnhd": 219,
+    "genr": "gen_1_B_N_010",
+    "sknt": 1,
+    "asnm": "StillwellRoger_1106"
+  },
+  {
+    "faceNum": 34,
+    "playerName": "Ross Brupbacher",
+    "pgid": 1108,
+    "cnid": 1108,
+    "gnhd": 267,
+    "genr": "gen_2_M_B_02",
+    "sknt": 2,
+    "asnm": "BrupbacherRoss_1108"
+  },
+  {
+    "faceNum": 35,
+    "playerName": "Jerry Muckensturm",
+    "pgid": 1116,
+    "cnid": 1116,
+    "gnhd": 209,
+    "genr": "gen_1_H_B_009",
+    "sknt": 1,
+    "asnm": "MuckensturmJerry_1116"
+  },
+  {
+    "faceNum": 36,
+    "playerName": "Gary Campbell",
+    "pgid": 1118,
+    "cnid": 1118,
+    "gnhd": 9,
+    "genr": "gen_1_B_N_03",
+    "sknt": 1,
+    "asnm": "CampbellGary_1118"
+  },
+  {
+    "faceNum": 37,
+    "playerName": "Terry Schmidt",
+    "pgid": 1119,
+    "cnid": 1119,
+    "gnhd": 261,
+    "genr": "gen_2_B_N_0012",
+    "sknt": 2,
+    "asnm": "SchmidtTerry_1119"
+  },
+  {
+    "faceNum": 38,
+    "playerName": "Allan Ellis",
+    "pgid": 1120,
+    "cnid": 1120,
+    "gnhd": 223,
+    "genr": "gen_1_H_N_015",
+    "sknt": 1,
+    "asnm": "EllisAllan_1120"
+  },
+  {
+    "faceNum": 39,
+    "playerName": "Craig Clemons",
+    "pgid": 1122,
+    "cnid": 1122,
+    "gnhd": 9,
+    "genr": "gen_1_B_S_001",
+    "sknt": 1,
+    "asnm": "ClemonsCraig_1122"
+  },
+  {
+    "faceNum": 40,
+    "playerName": "Ted Vactor",
+    "pgid": 1124,
+    "cnid": 1124,
+    "gnhd": 244,
+    "genr": "gen_2_H_G_02",
+    "sknt": 2,
+    "asnm": "VactorTed_1124"
+  },
+  {
+    "faceNum": 41,
+    "playerName": "Virgil Livers",
+    "pgid": 1125,
+    "cnid": 1125,
+    "gnhd": 53,
+    "genr": "gen_2_H_N_006",
+    "sknt": 2,
+    "asnm": "LiversVirgil_1125"
+  },
+  {
+    "faceNum": 42,
+    "playerName": "Doug Plank",
+    "pgid": 1126,
+    "cnid": 1126,
+    "gnhd": 57,
+    "genr": "gen_1_H_BD_02",
+    "sknt": 1,
+    "asnm": "PlankDoug_1126"
+  },
+  {
+    "faceNum": 43,
+    "playerName": "Craig Clemons",
+    "pgid": 1130,
+    "cnid": 1130,
+    "gnhd": 180,
+    "genr": "gen_1_B_N_02",
+    "sknt": 1,
+    "asnm": "ClemonsCraig_1130"
+  },
+  {
+    "faceNum": 44,
+    "playerName": "Gary Fencik",
+    "pgid": 1134,
+    "cnid": 1134,
+    "gnhd": 261,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": "FencikGary_1134"
+  },
+  {
+    "faceNum": 45,
+    "playerName": "Doug Plank",
+    "pgid": 1137,
+    "cnid": 1137,
+    "gnhd": 177,
+    "genr": "gen_1_B_G_01",
+    "sknt": 1,
+    "asnm": "PlankDoug_1137"
+  },
+  {
+    "faceNum": 46,
+    "playerName": "Bob Thomas",
+    "pgid": 1138,
+    "cnid": 1138,
+    "gnhd": 212,
+    "genr": "gen_2_B_N_0011",
+    "sknt": 2,
+    "asnm": "ThomasBob_1138"
+  },
+  {
+    "faceNum": 47,
+    "playerName": "Bob Parsons",
+    "pgid": 1142,
+    "cnid": 1142,
+    "gnhd": 195,
+    "genr": "gen_2_B_N_0018",
+    "sknt": 2,
+    "asnm": "ParsonsBob_1142"
+  },
+  {
+    "faceNum": 48,
+    "playerName": "Waymond Bryant",
+    "pgid": 1149,
+    "cnid": 1149,
+    "gnhd": 15,
+    "genr": "gen_2_BMH_G_009",
+    "sknt": 2,
+    "asnm": "BryantWaymond_1149"
+  },
+  {
+    "faceNum": 49,
+    "playerName": "Johnny Musso",
+    "pgid": 1150,
+    "cnid": 1150,
+    "gnhd": 158,
+    "genr": "gen_1_B_G_01",
+    "sknt": 1,
+    "asnm": "MussoJohnny_1150"
+  },
+  {
+    "faceNum": 50,
+    "playerName": "Art Best",
+    "pgid": 1153,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": ""
+  },
+  {
+    "faceNum": 51,
+    "playerName": "Mike Morgan",
+    "pgid": 1157,
+    "cnid": 1157,
+    "gnhd": 9,
+    "genr": "gen_6_B_N_006",
+    "sknt": 6,
+    "asnm": "MorganMike_1157"
+  },
+  {
+    "faceNum": 52,
+    "playerName": "Willie McClendon",
+    "pgid": 1160,
+    "cnid": 1160,
+    "gnhd": 284,
+    "genr": "gen_1_B_G_01",
+    "sknt": 1,
+    "asnm": "McClendonWillie_1160"
+  },
+  {
+    "faceNum": 53,
+    "playerName": "Bruce Herron",
+    "pgid": 1161,
+    "cnid": 1161,
+    "gnhd": 53,
+    "genr": "gen_2_H_G_02",
+    "sknt": 2,
+    "asnm": "HerronBruce_1161"
+  },
+  {
+    "faceNum": 54,
+    "playerName": "Rickey Watts",
+    "pgid": 1163,
+    "cnid": 1163,
+    "gnhd": 162,
+    "genr": "gen_2_B_N_0012",
+    "sknt": 2,
+    "asnm": "WattsRickey_1163"
+  },
+  {
+    "faceNum": 55,
+    "playerName": "Richard Harris",
+    "pgid": 1164,
+    "cnid": 1164,
+    "gnhd": 9,
+    "genr": "gen_1_B_N_011",
+    "sknt": 1,
+    "asnm": "HarrisRichard_1164"
+  },
+  {
+    "faceNum": 56,
+    "playerName": "Don Rives",
+    "pgid": 1165,
+    "cnid": 1165,
+    "gnhd": 266,
+    "genr": "gen_2_B_S_005",
+    "sknt": 2,
+    "asnm": "RivesDon_1165"
+  },
+  {
+    "faceNum": 57,
+    "playerName": "Tom Hicks",
+    "pgid": 1166,
+    "cnid": 1166,
+    "gnhd": 9,
+    "genr": "gen_1_B_S_002",
+    "sknt": 1,
+    "asnm": "HicksTom_1166"
+  },
+  {
+    "faceNum": 58,
+    "playerName": "Ron Rydalch",
+    "pgid": 1169,
+    "cnid": 1169,
+    "gnhd": 19,
+    "genr": "gen_1_M_N_02",
+    "sknt": 1,
+    "asnm": "RydalchRon_1169"
+  },
+  {
+    "faceNum": 59,
+    "playerName": "Cid Edwards",
+    "pgid": 1170,
+    "cnid": 1170,
+    "gnhd": 224,
+    "genr": "gen_2_M_N_05",
+    "sknt": 2,
+    "asnm": "EdwardsCid_1170"
+  },
+  {
+    "faceNum": 60,
+    "playerName": "John Babinecz",
+    "pgid": 1171,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_6_H_MS_01",
+    "sknt": 6,
+    "asnm": ""
+  },
+  {
+    "faceNum": 61,
+    "playerName": "Ken Anderson",
+    "pgid": 1172,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_7_B_N_0011",
+    "sknt": 7,
+    "asnm": ""
+  },
+  {
+    "faceNum": 62,
+    "playerName": "Mike Wells",
+    "pgid": 1173,
+    "cnid": 1173,
+    "gnhd": 237,
+    "genr": "gen_1_B_N_02",
+    "sknt": 1,
+    "asnm": "WellsMike_1173"
+  },
+  {
+    "faceNum": 63,
+    "playerName": "Jack Thompson",
+    "pgid": 1210,
+    "cnid": 1210,
+    "gnhd": 36,
+    "genr": "gen_1_B_N_010",
+    "sknt": 1,
+    "asnm": "ThompsonJack_1210"
+  },
+  {
+    "faceNum": 64,
+    "playerName": "Nathan Poole",
+    "pgid": 1212,
+    "cnid": 1212,
+    "gnhd": 275,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": "PooleNathan_1212"
+  },
+  {
+    "faceNum": 65,
+    "playerName": "Archie Griffin",
+    "pgid": 1223,
+    "cnid": 1223,
+    "gnhd": 281,
+    "genr": "gen_1_M_N_02",
+    "sknt": 1,
+    "asnm": "GriffinArchie_1223"
+  },
+  {
+    "faceNum": 66,
+    "playerName": "Deacon Turner",
+    "pgid": 1226,
+    "cnid": 1226,
+    "gnhd": 237,
+    "genr": "gen_1_B_B_005",
+    "sknt": 1,
+    "asnm": "TurnerDeacon_1226"
+  },
+  {
+    "faceNum": 67,
+    "playerName": "Champ Henson",
+    "pgid": 1228,
+    "cnid": 1228,
+    "gnhd": 249,
+    "genr": "gen_1_H_N_010",
+    "sknt": 1,
+    "asnm": "HensonChamp_1228"
+  },
+  {
+    "faceNum": 68,
+    "playerName": "Pete Johnson",
+    "pgid": 1238,
+    "cnid": 1238,
+    "gnhd": 5,
+    "genr": "gen_1_H_N_010",
+    "sknt": 1,
+    "asnm": "JohnsonPete_1238"
+  },
+  {
+    "faceNum": 69,
+    "playerName": "Charlie Joiner",
+    "pgid": 1239,
+    "cnid": 1239,
+    "gnhd": 62,
+    "genr": "gen_6_N_MG_009",
+    "sknt": 6,
+    "asnm": "JoinerCharlie_1239"
+  },
+  {
+    "faceNum": 70,
+    "playerName": "Isaac Curtis",
+    "pgid": 1240,
+    "cnid": 1240,
+    "gnhd": 53,
+    "genr": "gen_2_BMH_S_003",
+    "sknt": 2,
+    "asnm": "CurtisIsaac_1240"
+  },
+  {
+    "faceNum": 71,
+    "playerName": "Chip Myers",
+    "pgid": 1242,
+    "cnid": 1242,
+    "gnhd": 9,
+    "genr": "gen_2_B_N_0014",
+    "sknt": 2,
+    "asnm": "MyersChip_1242"
+  },
+  {
+    "faceNum": 72,
+    "playerName": "Steve Kreider",
+    "pgid": 1243,
+    "cnid": 1243,
+    "gnhd": 138,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": "KreiderSteve_1243"
+  },
+  {
+    "faceNum": 73,
+    "playerName": "Don Bass",
+    "pgid": 1245,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_5_B_G_02",
+    "sknt": 5,
+    "asnm": ""
+  },
+  {
+    "faceNum": 74,
+    "playerName": "Bob Trumpy",
+    "pgid": 1247,
+    "cnid": 1247,
+    "gnhd": 184,
+    "genr": "gen_2_B_N_03",
+    "sknt": 2,
+    "asnm": "TrumpyBob_1247"
+  },
+  {
+    "faceNum": 75,
+    "playerName": "Dan Ross",
+    "pgid": 1248,
+    "cnid": 1248,
+    "gnhd": 245,
+    "genr": "gen_2_H_GM_004",
+    "sknt": 2,
+    "asnm": "RossDan_1248"
+  },
+  {
+    "faceNum": 76,
+    "playerName": "Don Bass",
+    "pgid": 1251,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_5_B_MS_02",
+    "sknt": 5,
+    "asnm": ""
+  },
+  {
+    "faceNum": 77,
+    "playerName": "Anthony Munoz",
+    "pgid": 1253,
+    "cnid": 1253,
+    "gnhd": 23,
+    "genr": "gen_4_B_MS_02",
+    "sknt": 4,
+    "asnm": "MunozAnthony_1253"
+  },
+  {
+    "faceNum": 78,
+    "playerName": "Rufus Mayes",
+    "pgid": 1259,
+    "cnid": 1259,
+    "gnhd": 244,
+    "genr": "gen_2_B_N_009",
+    "sknt": 2,
+    "asnm": "MayesRufus_1259"
+  },
+  {
+    "faceNum": 79,
+    "playerName": "Howard Fest",
+    "pgid": 1260,
+    "cnid": 1260,
+    "gnhd": 51,
+    "genr": "gen_2_BMH_S_010",
+    "sknt": 2,
+    "asnm": "FestHoward_1260"
+  },
+  {
+    "faceNum": 80,
+    "playerName": "Glenn Bujnoch",
+    "pgid": 1263,
+    "cnid": 1263,
+    "gnhd": 16,
+    "genr": "gen_1_H_N_010",
+    "sknt": 1,
+    "asnm": "BujnochGlenn_1263"
+  },
+  {
+    "faceNum": 81,
+    "playerName": "Bob Johnson",
+    "pgid": 1265,
+    "cnid": 1265,
+    "gnhd": 227,
+    "genr": "gen_1_H_S_003",
+    "sknt": 1,
+    "asnm": "JohnsonBob_1265"
+  },
+  {
+    "faceNum": 82,
+    "playerName": "Blake Moore",
+    "pgid": 1266,
+    "cnid": 1266,
+    "gnhd": 210,
+    "genr": "gen_2_H_B_005",
+    "sknt": 2,
+    "asnm": "MooreBlake_1266"
+  },
+  {
+    "faceNum": 83,
+    "playerName": "Dave Lapham",
+    "pgid": 1267,
+    "cnid": 1267,
+    "gnhd": 9,
+    "genr": "gen_2_H_G_02",
+    "sknt": 2,
+    "asnm": "LaphamDave_1267"
+  },
+  {
+    "faceNum": 84,
+    "playerName": "Max Montoya",
+    "pgid": 1268,
+    "cnid": 1268,
+    "gnhd": 268,
+    "genr": "gen_1_H_S_003",
+    "sknt": 1,
+    "asnm": "MontoyaMax_1268"
+  },
+  {
+    "faceNum": 85,
+    "playerName": "Vern Holland",
+    "pgid": 1272,
+    "cnid": 1272,
+    "gnhd": 286,
+    "genr": "gen_1_B_N_0012",
+    "sknt": 1,
+    "asnm": "HollandVern_1272"
+  },
+  {
+    "faceNum": 86,
+    "playerName": "Ron Hunt",
+    "pgid": 1275,
+    "cnid": 1275,
+    "gnhd": 9,
+    "genr": "gen_2_H_N_009",
+    "sknt": 2,
+    "asnm": "HuntRon_1275"
+  },
+  {
+    "faceNum": 87,
+    "playerName": "Ken Johnson",
+    "pgid": 1276,
+    "cnid": 1276,
+    "gnhd": 9,
+    "genr": "gen_2_H_N_006",
+    "sknt": 2,
+    "asnm": "JohnsonKen_1276"
+  },
+  {
+    "faceNum": 88,
+    "playerName": "Gary Burley",
+    "pgid": 1277,
+    "cnid": 1277,
+    "gnhd": 282,
+    "genr": "gen_2_M_B_02",
+    "sknt": 2,
+    "asnm": "BurleyGary_1277"
+  },
+  {
+    "faceNum": 89,
+    "playerName": "Ron Carpenter",
+    "pgid": 1278,
+    "cnid": 1278,
+    "gnhd": 271,
+    "genr": "gen_2_B_B_006",
+    "sknt": 2,
+    "asnm": "CarpenterRon_1278"
+  },
+  {
+    "faceNum": 90,
+    "playerName": "Coy Bacon",
+    "pgid": 1281,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_6_H_G_01",
+    "sknt": 6,
+    "asnm": ""
+  },
+  {
+    "faceNum": 91,
+    "playerName": "Sherman White",
+    "pgid": 1282,
+    "cnid": 1282,
+    "gnhd": 13,
+    "genr": "gen_1_M_N_02",
+    "sknt": 1,
+    "asnm": "WhiteSherman_1282"
+  },
+  {
+    "faceNum": 92,
+    "playerName": "Eddie Edwards",
+    "pgid": 1283,
+    "cnid": 1283,
+    "gnhd": 131,
+    "genr": "gen_1_H_B_009",
+    "sknt": 1,
+    "asnm": "EdwardsEddie_1283"
+  },
+  {
+    "faceNum": 93,
+    "playerName": "Robert Brown",
+    "pgid": 1284,
+    "cnid": 1284,
+    "gnhd": 227,
+    "genr": "gen_1_H_BD_02",
+    "sknt": 1,
+    "asnm": "BrownRobert_1284"
+  },
+  {
+    "faceNum": 94,
+    "playerName": "Wilson Whitley",
+    "pgid": 1290,
+    "cnid": 1290,
+    "gnhd": 200,
+    "genr": "gen_1_M_N_02",
+    "sknt": 1,
+    "asnm": "WhitleyWilson_1290"
+  },
+  {
+    "faceNum": 95,
+    "playerName": "Jim LeClair",
+    "pgid": 1317,
+    "cnid": 1317,
+    "gnhd": 71,
+    "genr": "gen_1_B_N_010",
+    "sknt": 1,
+    "asnm": "LeClairJim_1317"
+  },
+  {
+    "faceNum": 96,
+    "playerName": "Bo Harris",
+    "pgid": 1325,
+    "cnid": 1325,
+    "gnhd": 177,
+    "genr": "gen_2_M_B_01",
+    "sknt": 2,
+    "asnm": "HarrisBo_1325"
+  },
+  {
+    "faceNum": 97,
+    "playerName": "Glenn Cameron",
+    "pgid": 1326,
+    "cnid": 1326,
+    "gnhd": 286,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": "CameronGlenn_1326"
+  },
+  {
+    "faceNum": 98,
+    "playerName": "Reggie Williams",
+    "pgid": 1328,
+    "cnid": 1328,
+    "gnhd": 272,
+    "genr": "gen_6_B_N_0010",
+    "sknt": 6,
+    "asnm": "WilliamsReggie_1328"
+  },
+  {
+    "faceNum": 99,
+    "playerName": "Ken Riley",
+    "pgid": 1329,
+    "cnid": 1329,
+    "gnhd": 56,
+    "genr": "gen_2_B_S_001",
+    "sknt": 2,
+    "asnm": "RileyKen_1329"
+  },
+  {
+    "faceNum": 100,
+    "playerName": "Louis Breeden",
+    "pgid": 1330,
+    "cnid": 1330,
+    "gnhd": 34,
+    "genr": "gen_1_B_B_005",
+    "sknt": 1,
+    "asnm": "BreedenLouis_1330"
+  },
+  {
+    "faceNum": 101,
+    "playerName": "Ray Griffin",
+    "pgid": 1332,
+    "cnid": 1332,
+    "gnhd": 219,
+    "genr": "gen_2_H_N_007",
+    "sknt": 2,
+    "asnm": "GriffinRay_1332"
+  },
+  {
+    "faceNum": 102,
+    "playerName": "Dick Jauron",
+    "pgid": 1333,
+    "cnid": 1333,
+    "gnhd": 16,
+    "genr": "gen_1_H_BD_01",
+    "sknt": 1,
+    "asnm": "JauronDick_1333"
+  },
+  {
+    "faceNum": 103,
+    "playerName": "Melvin Morgan",
+    "pgid": 1334,
+    "cnid": 1334,
+    "gnhd": 67,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "MorganMelvin_1334"
+  },
+  {
+    "faceNum": 104,
+    "playerName": "Marvin Cobb",
+    "pgid": 1335,
+    "cnid": 1335,
+    "gnhd": 21,
+    "genr": "gen_2_B_S_001",
+    "sknt": 2,
+    "asnm": "CobbMarvin_1335"
+  },
+  {
+    "faceNum": 105,
+    "playerName": "Bryan Hicks",
+    "pgid": 1336,
+    "cnid": 1336,
+    "gnhd": 19,
+    "genr": "gen_2_H_MB_012",
+    "sknt": 2,
+    "asnm": "HicksBryan_1336"
+  },
+  {
+    "faceNum": 106,
+    "playerName": "Tommy Casanova",
+    "pgid": 1337,
+    "cnid": 1337,
+    "gnhd": 16,
+    "genr": "gen_1_B_S_001",
+    "sknt": 1,
+    "asnm": "CasanovaTommy_1337"
+  },
+  {
+    "faceNum": 107,
+    "playerName": "Greg Bright",
+    "pgid": 1338,
+    "cnid": 1338,
+    "gnhd": 62,
+    "genr": "gen_2_T_N_01",
+    "sknt": 2,
+    "asnm": "BrightGreg_1338"
+  },
+  {
+    "faceNum": 108,
+    "playerName": "Chris Bahr",
+    "pgid": 1339,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_6_H_BM_02",
+    "sknt": 6,
+    "asnm": ""
+  },
+  {
+    "faceNum": 109,
+    "playerName": "Pat McInally",
+    "pgid": 1341,
+    "cnid": 1341,
+    "gnhd": 233,
+    "genr": "gen_1_H_S_008",
+    "sknt": 1,
+    "asnm": "McInallyPat_1341"
+  },
+  {
+    "faceNum": 110,
+    "playerName": "Brad Cousino",
+    "pgid": 1343,
+    "cnid": 1343,
+    "gnhd": 287,
+    "genr": "gen_2_T_N_01",
+    "sknt": 2,
+    "asnm": "CousinoBrad_1343"
+  },
+  {
+    "faceNum": 111,
+    "playerName": "Tom DePaso",
+    "pgid": 1344,
+    "cnid": 1344,
+    "gnhd": 254,
+    "genr": "gen_1_B_N_011",
+    "sknt": 1,
+    "asnm": "DePasoTom_1344"
+  },
+  {
+    "faceNum": 112,
+    "playerName": "Lenvil Elliott",
+    "pgid": 1345,
+    "cnid": 1345,
+    "gnhd": 452,
+    "genr": "gen_2_B_N_02",
+    "sknt": 2,
+    "asnm": "ElliottLenvil_1345"
+  },
+  {
+    "faceNum": 113,
+    "playerName": "Billy Brooks",
+    "pgid": 1346,
+    "cnid": 1346,
+    "gnhd": 59,
+    "genr": "gen_2_M_S_001",
+    "sknt": 2,
+    "asnm": "BrooksBilly_1346"
+  },
+  {
+    "faceNum": 114,
+    "playerName": "Ray Phillips",
+    "pgid": 1347,
+    "cnid": 1347,
+    "gnhd": 210,
+    "genr": "gen_2_M_N_05",
+    "sknt": 2,
+    "asnm": "PhillipsRay_1347"
+  },
+  {
+    "faceNum": 115,
+    "playerName": "Ron Shumon",
+    "pgid": 1348,
+    "cnid": 1348,
+    "gnhd": 9,
+    "genr": "gen_1_H_N_015",
+    "sknt": 1,
+    "asnm": "ShumonRon_1348"
+  },
+  {
+    "faceNum": 116,
+    "playerName": "Howard Kurnick",
+    "pgid": 1350,
+    "cnid": 1350,
+    "gnhd": 154,
+    "genr": "gen_2_H_N_009",
+    "sknt": 2,
+    "asnm": "KurnickHoward_1350"
+  },
+  {
+    "faceNum": 117,
+    "playerName": "Ian Sunter",
+    "pgid": 1351,
+    "cnid": 1351,
+    "gnhd": 221,
+    "genr": "gen_1_M_N_02",
+    "sknt": 1,
+    "asnm": "SunterIan_1351"
+  },
+  {
+    "faceNum": 118,
+    "playerName": "Rick Razzano",
+    "pgid": 1355,
+    "cnid": 1355,
+    "gnhd": 9,
+    "genr": "gen_1_H_S_003",
+    "sknt": 1,
+    "asnm": "RazzanoRick_1355"
+  },
+  {
+    "faceNum": 119,
+    "playerName": "Ross Browner",
+    "pgid": 1356,
+    "cnid": 1356,
+    "gnhd": 135,
+    "genr": "gen_2_B_N_03",
+    "sknt": 2,
+    "asnm": "BrownerRoss_1356"
+  },
+  {
+    "faceNum": 120,
+    "playerName": "Marvin Cobb",
+    "pgid": 1362,
+    "cnid": 1362,
+    "gnhd": 251,
+    "genr": "gen_2_H_N_009",
+    "sknt": 2,
+    "asnm": "CobbMarvin_1362"
+  },
+  {
+    "faceNum": 121,
+    "playerName": "Joe Ferguson",
+    "pgid": 1365,
+    "cnid": 1365,
+    "gnhd": 51,
+    "genr": "gen_1_B_B_005",
+    "sknt": 1,
+    "asnm": "FergusonJoe_1365"
+  },
+  {
+    "faceNum": 122,
+    "playerName": "Gary Marangi",
+    "pgid": 1366,
+    "cnid": 1366,
+    "gnhd": 51,
+    "genr": "gen_1_B_N_010",
+    "sknt": 1,
+    "asnm": "MarangiGary_1366"
+  },
+  {
+    "faceNum": 123,
+    "playerName": "Dave Mays",
+    "pgid": 1369,
+    "cnid": 1369,
+    "gnhd": 157,
+    "genr": "gen_1_B_N_011",
+    "sknt": 1,
+    "asnm": "MaysDave_1369"
+  },
+  {
+    "faceNum": 124,
+    "playerName": "O.J. Simpson",
+    "pgid": 1371,
+    "cnid": 1371,
+    "gnhd": 272,
+    "genr": "gen_1_H_BD_01",
+    "sknt": 1,
+    "asnm": "SimpsonOJ_1371"
+  },
+  {
+    "faceNum": 125,
+    "playerName": "Joe Cribbs",
+    "pgid": 1372,
+    "cnid": 1372,
+    "gnhd": 67,
+    "genr": "gen_2_B_N_02",
+    "sknt": 2,
+    "asnm": "CribbsJoe_1372"
+  },
+  {
+    "faceNum": 126,
+    "playerName": "Andy Reid",
+    "pgid": 1374,
+    "cnid": 1374,
+    "gnhd": 67,
+    "genr": "gen_1_B_N_007",
+    "sknt": 1,
+    "asnm": "ReidAndy_1374"
+  },
+  {
+    "faceNum": 127,
+    "playerName": "Darnell Powell",
+    "pgid": 1376,
+    "cnid": 1376,
+    "gnhd": 9,
+    "genr": "gen_1_H_BD_01",
+    "sknt": 1,
+    "asnm": "PowellDarnell_1376"
+  },
+  {
+    "faceNum": 128,
+    "playerName": "Jim Braxton",
+    "pgid": 1378,
+    "cnid": 1378,
+    "gnhd": 132,
+    "genr": "gen_2_B_N_0018",
+    "sknt": 2,
+    "asnm": "BraxtonJim_1378"
+  },
+  {
+    "faceNum": 129,
+    "playerName": "J.D. Hill",
+    "pgid": 1379,
+    "cnid": 1379,
+    "gnhd": 9,
+    "genr": "gen_1_B_B_005",
+    "sknt": 1,
+    "asnm": "HillJD_1379"
+  },
+  {
+    "faceNum": 130,
+    "playerName": "Jerry Butler",
+    "pgid": 1381,
+    "cnid": 1381,
+    "gnhd": 23,
+    "genr": "gen_2_B_N_0013",
+    "sknt": 2,
+    "asnm": "ButlerJerry_1381"
+  },
+  {
+    "faceNum": 131,
+    "playerName": "Lou Piccone",
+    "pgid": 1382,
+    "cnid": 1382,
+    "gnhd": 196,
+    "genr": "gen_2_M_B_02",
+    "sknt": 2,
+    "asnm": "PicconeLou_1382"
+  },
+  {
+    "faceNum": 132,
+    "playerName": "John Holland",
+    "pgid": 1384,
+    "cnid": 1384,
+    "gnhd": 30,
+    "genr": "gen_2_B_N_0017",
+    "sknt": 2,
+    "asnm": "HollandJohn_1384"
+  },
+  {
+    "faceNum": 133,
+    "playerName": "Bob Gaddis",
+    "pgid": 1391,
+    "cnid": 1391,
+    "gnhd": 102,
+    "genr": "gen_1_B_N_010",
+    "sknt": 1,
+    "asnm": "GaddisBob_1391"
+  },
+  {
+    "faceNum": 134,
+    "playerName": "Reuben Gant",
+    "pgid": 1395,
+    "cnid": 1395,
+    "gnhd": 98,
+    "genr": "gen_1_B_N_02",
+    "sknt": 1,
+    "asnm": "GantReuben_1395"
+  },
+  {
+    "faceNum": 135,
+    "playerName": "Paul Seymour",
+    "pgid": 1396,
+    "cnid": 1396,
+    "gnhd": 212,
+    "genr": "gen_2_M_N_007",
+    "sknt": 2,
+    "asnm": "SeymourPaul_1396"
+  },
+  {
+    "faceNum": 136,
+    "playerName": "Mark Brammer",
+    "pgid": 1397,
+    "cnid": 1397,
+    "gnhd": 244,
+    "genr": "gen_2_B_N_0015",
+    "sknt": 2,
+    "asnm": "BrammerMark_1397"
+  },
+  {
+    "faceNum": 137,
+    "playerName": "Dave Foley",
+    "pgid": 1398,
+    "cnid": 1398,
+    "gnhd": 287,
+    "genr": "gen_2_H_N_006",
+    "sknt": 2,
+    "asnm": "FoleyDave_1398"
+  },
+  {
+    "faceNum": 138,
+    "playerName": "Jon Borchardt",
+    "pgid": 1399,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_1_H_BD_01",
+    "sknt": 1,
+    "asnm": ""
+  },
+  {
+    "faceNum": 139,
+    "playerName": "Reggie McKenzie",
+    "pgid": 1400,
+    "cnid": 1400,
+    "gnhd": 132,
+    "genr": "gen_1_H_BD_01",
+    "sknt": 1,
+    "asnm": "McKenzieReggie_1400"
+  },
+  {
+    "faceNum": 140,
+    "playerName": "Bill Adams",
+    "pgid": 1404,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_7_M_MG_025",
+    "sknt": 7,
+    "asnm": ""
+  },
+  {
+    "faceNum": 141,
+    "playerName": "Mike Montler",
+    "pgid": 1407,
+    "cnid": 1407,
+    "gnhd": 56,
+    "genr": "gen_1_H_S_008",
+    "sknt": 1,
+    "asnm": "MontlerMike_1407"
+  },
+  {
+    "faceNum": 142,
+    "playerName": "Will Grant",
+    "pgid": 1416,
+    "cnid": 1416,
+    "gnhd": 87,
+    "genr": "gen_2_BMH_S_002",
+    "sknt": 2,
+    "asnm": "GrantWill_1416"
+  },
+  {
+    "faceNum": 143,
+    "playerName": "Tim Vogler",
+    "pgid": 1418,
+    "cnid": 1418,
+    "gnhd": 255,
+    "genr": "gen_2_B_S_001",
+    "sknt": 2,
+    "asnm": "VoglerTim_1418"
+  },
+  {
+    "faceNum": 144,
+    "playerName": "Jim Ritcher",
+    "pgid": 1426,
+    "cnid": 1426,
+    "gnhd": 139,
+    "genr": "gen_1_H_S_008",
+    "sknt": 1,
+    "asnm": "RitcherJim_1426"
+  },
+  {
+    "faceNum": 145,
+    "playerName": "Donnie Green",
+    "pgid": 1427,
+    "cnid": 1427,
+    "gnhd": 245,
+    "genr": "gen_1_B_G_01",
+    "sknt": 1,
+    "asnm": "GreenDonnie_1427"
+  },
+  {
+    "faceNum": 146,
+    "playerName": "Joe Devlin",
+    "pgid": 1429,
+    "cnid": 1429,
+    "gnhd": 209,
+    "genr": "gen_2_H_G_02",
+    "sknt": 2,
+    "asnm": "DevlinJoe_1429"
+  },
+  {
+    "faceNum": 147,
+    "playerName": "Ben Williams",
+    "pgid": 1442,
+    "cnid": 1442,
+    "gnhd": 36,
+    "genr": "gen_2_H_G_01",
+    "sknt": 2,
+    "asnm": "WilliamsBen_1442"
+  },
+  {
+    "faceNum": 148,
+    "playerName": "Pat Toomay",
+    "pgid": 1444,
+    "cnid": 1444,
+    "gnhd": 247,
+    "genr": "gen_2_H_MB_012",
+    "sknt": 2,
+    "asnm": "ToomayPat_1444"
+  },
+  {
+    "faceNum": 149,
+    "playerName": "Fred Smerlas",
+    "pgid": 1446,
+    "cnid": 1446,
+    "gnhd": 1,
+    "genr": "gen_1_B_N_01",
+    "sknt": 1,
+    "asnm": "SmerlasFred_1446"
+  },
+  {
+    "faceNum": 150,
+    "playerName": "Jeff Yeates",
+    "pgid": 1448,
+    "cnid": 1448,
+    "gnhd": 9,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": "YeatesJeff_1448"
+  },
+  {
+    "faceNum": 151,
+    "playerName": "Halvor Hagen",
+    "pgid": 1488,
+    "cnid": 1488,
+    "gnhd": 177,
+    "genr": "gen_2_M_N_22",
+    "sknt": 2,
+    "asnm": "HagenHalvor_1488"
+  },
+  {
+    "faceNum": 152,
+    "playerName": "John Skorupan",
+    "pgid": 1489,
+    "cnid": 1489,
+    "gnhd": 50,
+    "genr": "gen_1_H_BD_02",
+    "sknt": 1,
+    "asnm": "SkorupanJohn_1489"
+  },
+  {
+    "faceNum": 153,
+    "playerName": "Jim Haslett",
+    "pgid": 1490,
+    "cnid": 1490,
+    "gnhd": 9,
+    "genr": "gen_2_B_S_006",
+    "sknt": 2,
+    "asnm": "HaslettJim_1490"
+  },
+  {
+    "faceNum": 154,
+    "playerName": "John McCrumbly",
+    "pgid": 1491,
+    "cnid": 1491,
+    "gnhd": 56,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "McCrumblyJohn_1491"
+  },
+  {
+    "faceNum": 155,
+    "playerName": "Tom Ehlers",
+    "pgid": 1492,
+    "cnid": 1492,
+    "gnhd": 189,
+    "genr": "gen_2_T_N_01",
+    "sknt": 2,
+    "asnm": "EhlersTom_1492"
+  },
+  {
+    "faceNum": 156,
+    "playerName": "Shane Nelson",
+    "pgid": 1495,
+    "cnid": 1495,
+    "gnhd": 62,
+    "genr": "gen_1_B_N_02",
+    "sknt": 1,
+    "asnm": "NelsonShane_1495"
+  },
+  {
+    "faceNum": 157,
+    "playerName": "Lucius Sanford",
+    "pgid": 1497,
+    "cnid": 1497,
+    "gnhd": 211,
+    "genr": "gen_2_H_GM_004",
+    "sknt": 2,
+    "asnm": "SanfordLucius_1497"
+  },
+  {
+    "faceNum": 158,
+    "playerName": "Mario Clark",
+    "pgid": 1499,
+    "cnid": 1499,
+    "gnhd": 247,
+    "genr": "gen_2_H_G_01",
+    "sknt": 2,
+    "asnm": "ClarkMario_1499"
+  },
+  {
+    "faceNum": 159,
+    "playerName": "Charlie Ford",
+    "pgid": 1535,
+    "cnid": 1535,
+    "gnhd": 189,
+    "genr": "gen_1_B_N_03",
+    "sknt": 1,
+    "asnm": "FordCharlie_1535"
+  },
+  {
+    "faceNum": 160,
+    "playerName": "Charles Romes",
+    "pgid": 1536,
+    "cnid": 1536,
+    "gnhd": 155,
+    "genr": "gen_2_BMH_S_002",
+    "sknt": 2,
+    "asnm": "RomesCharles_1536"
+  },
+  {
+    "faceNum": 161,
+    "playerName": "Jeff Nixon",
+    "pgid": 1537,
+    "cnid": 1537,
+    "gnhd": 279,
+    "genr": "gen_1_H_N_015",
+    "sknt": 1,
+    "asnm": "NixonJeff_1537"
+  },
+  {
+    "faceNum": 162,
+    "playerName": "Frank Oliver",
+    "pgid": 1538,
+    "cnid": 1538,
+    "gnhd": 132,
+    "genr": "gen_1_B_N_03",
+    "sknt": 1,
+    "asnm": "OliverFrank_1538"
+  },
+  {
+    "faceNum": 163,
+    "playerName": "Tony Greene",
+    "pgid": 1539,
+    "cnid": 1539,
+    "gnhd": 1,
+    "genr": "gen_2_M_N_22",
+    "sknt": 2,
+    "asnm": "GreeneTony_1539"
+  },
+  {
+    "faceNum": 164,
+    "playerName": "Jeff Nixon",
+    "pgid": 1569,
+    "cnid": 1569,
+    "gnhd": 177,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": "NixonJeff_1569"
+  },
+  {
+    "faceNum": 165,
+    "playerName": "Steve Freeman",
+    "pgid": 1599,
+    "cnid": 1599,
+    "gnhd": 48,
+    "genr": "gen_2_H_GM_004",
+    "sknt": 2,
+    "asnm": "FreemanSteve_1599"
+  },
+  {
+    "faceNum": 166,
+    "playerName": "Ed Jones",
+    "pgid": 1732,
+    "cnid": 1732,
+    "gnhd": 51,
+    "genr": "gen_2_H_B_004",
+    "sknt": 2,
+    "asnm": "JonesEd_1732"
+  },
+  {
+    "faceNum": 167,
+    "playerName": "George Jakowenko",
+    "pgid": 2002,
+    "cnid": 2002,
+    "gnhd": 41,
+    "genr": "gen_2_B_N_03",
+    "sknt": 2,
+    "asnm": "JakowenkoGeorge_2002"
+  },
+  {
+    "faceNum": 168,
+    "playerName": "Marv Bateman",
+    "pgid": 2091,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_5_B_G_01",
+    "sknt": 5,
+    "asnm": ""
+  },
+  {
+    "faceNum": 169,
+    "playerName": "Steve Powell",
+    "pgid": 2099,
+    "cnid": 2099,
+    "gnhd": 261,
+    "genr": "gen_1_BM_MB_005",
+    "sknt": 1,
+    "asnm": "PowellSteve_2099"
+  },
+  {
+    "faceNum": 170,
+    "playerName": "Terry Miller",
+    "pgid": 2109,
+    "cnid": 2109,
+    "gnhd": 71,
+    "genr": "gen_2_BMH_G_009",
+    "sknt": 2,
+    "asnm": "MillerTerry_2109"
+  },
+  {
+    "faceNum": 171,
+    "playerName": "Clint Haslerig",
+    "pgid": 2200,
+    "cnid": 2200,
+    "gnhd": 74,
+    "genr": "gen_2_T_S_007",
+    "sknt": 2,
+    "asnm": "HaslerigClint_2200"
+  },
+  {
+    "faceNum": 172,
+    "playerName": "Steven Schnarr",
+    "pgid": 2254,
+    "cnid": 2254,
+    "gnhd": 269,
+    "genr": "gen_2_B_S_006",
+    "sknt": 2,
+    "asnm": "SchnarrSteven_2254"
+  },
+  {
+    "faceNum": 173,
+    "playerName": "Gary Hayman",
+    "pgid": 2262,
+    "cnid": 2262,
+    "gnhd": 70,
+    "genr": "gen_2_M_B_02",
+    "sknt": 2,
+    "asnm": "HaymanGary_2262"
+  },
+  {
+    "faceNum": 174,
+    "playerName": "Vic Washington",
+    "pgid": 2276,
+    "cnid": 2276,
+    "gnhd": 186,
+    "genr": "gen_2_B_N_02",
+    "sknt": 2,
+    "asnm": "WashingtonVic_2276"
+  },
+  {
+    "faceNum": 175,
+    "playerName": "Curtis Brown",
+    "pgid": 2278,
+    "cnid": 2278,
+    "gnhd": 37,
+    "genr": "gen_6_B_N_009",
+    "sknt": 6,
+    "asnm": "BrownCurtis_2278"
+  },
+  {
+    "faceNum": 176,
+    "playerName": "Bo Cornell",
+    "pgid": 2279,
+    "cnid": 2279,
+    "gnhd": 1,
+    "genr": "gen_1_BM_MB_005",
+    "sknt": 1,
+    "asnm": "CornellBo_2279"
+  },
+  {
+    "faceNum": 177,
+    "playerName": "Roland Hooks",
+    "pgid": 2280,
+    "cnid": 2280,
+    "gnhd": 74,
+    "genr": "gen_1_B_N_0012",
+    "sknt": 1,
+    "asnm": "HooksRoland_2280"
+  },
+  {
+    "faceNum": 178,
+    "playerName": "Doug Becker",
+    "pgid": 2308,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_4_B_M_01",
+    "sknt": 4,
+    "asnm": ""
+  },
+  {
+    "faceNum": 179,
+    "playerName": "Chris Keating",
+    "pgid": 2335,
+    "cnid": 2335,
+    "gnhd": 41,
+    "genr": "gen_2_M_S_001",
+    "sknt": 2,
+    "asnm": "KeatingChris_2335"
+  },
+  {
+    "faceNum": 180,
+    "playerName": "Don Calhoun",
+    "pgid": 2366,
+    "cnid": 2366,
+    "gnhd": 284,
+    "genr": "gen_1_B_N_02",
+    "sknt": 1,
+    "asnm": "CalhounDon_2366"
+  },
+  {
+    "faceNum": 181,
+    "playerName": "Steve Ramsey",
+    "pgid": 2392,
+    "cnid": 2392,
+    "gnhd": 50,
+    "genr": "gen_2_H_N_009",
+    "sknt": 2,
+    "asnm": "RamseySteve_2392"
+  },
+  {
+    "faceNum": 182,
+    "playerName": "Craig Morton",
+    "pgid": 2402,
+    "cnid": 2402,
+    "gnhd": 237,
+    "genr": "gen_1_H_S_003",
+    "sknt": 1,
+    "asnm": "MortonCraig_2402"
+  },
+  {
+    "faceNum": 183,
+    "playerName": "John Hufnagel",
+    "pgid": 2431,
+    "cnid": 2431,
+    "gnhd": 16,
+    "genr": "gen_1_B_N_0012",
+    "sknt": 1,
+    "asnm": "HufnagelJohn_2431"
+  },
+  {
+    "faceNum": 184,
+    "playerName": "Floyd Little",
+    "pgid": 2442,
+    "cnid": 2442,
+    "gnhd": 278,
+    "genr": "gen_1_H_BD_02",
+    "sknt": 1,
+    "asnm": "LittleFloyd_2442"
+  },
+  {
+    "faceNum": 185,
+    "playerName": "Otis Armstrong",
+    "pgid": 2443,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_7_BTM_MG_006",
+    "sknt": 7,
+    "asnm": ""
+  },
+  {
+    "faceNum": 186,
+    "playerName": "Mike Franckowiak",
+    "pgid": 2448,
+    "cnid": 2448,
+    "gnhd": 203,
+    "genr": "gen_2_B_N_0015",
+    "sknt": 2,
+    "asnm": "FranckowiakMike_2448"
+  },
+  {
+    "faceNum": 187,
+    "playerName": "Larry Canada",
+    "pgid": 2450,
+    "cnid": 2450,
+    "gnhd": 274,
+    "genr": "gen_1_BM_MB_005",
+    "sknt": 1,
+    "asnm": "CanadaLarry_2450"
+  },
+  {
+    "faceNum": 188,
+    "playerName": "Jon Keyworth",
+    "pgid": 2454,
+    "cnid": 2454,
+    "gnhd": 237,
+    "genr": "gen_2_M_N_22",
+    "sknt": 2,
+    "asnm": "KeyworthJon_2454"
+  },
+  {
+    "faceNum": 189,
+    "playerName": "Haven Moses",
+    "pgid": 2457,
+    "cnid": 2457,
+    "gnhd": 166,
+    "genr": "gen_2_M_N_04",
+    "sknt": 2,
+    "asnm": "MosesHaven_2457"
+  },
+  {
+    "faceNum": 190,
+    "playerName": "Jack Dolbin",
+    "pgid": 2485,
+    "cnid": 2485,
+    "gnhd": 139,
+    "genr": "gen_1_H_N_010",
+    "sknt": 1,
+    "asnm": "DolbinJack_2485"
+  },
+  {
+    "faceNum": 191,
+    "playerName": "Rick Upchurch",
+    "pgid": 2496,
+    "cnid": 2496,
+    "gnhd": 119,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "UpchurchRick_2496"
+  },
+  {
+    "faceNum": 192,
+    "playerName": "Billy Van Heusen",
+    "pgid": 2498,
+    "cnid": 2498,
+    "gnhd": 110,
+    "genr": "gen_1_H_S_003",
+    "sknt": 1,
+    "asnm": "VanHeusenBilly_2498"
+  },
+  {
+    "faceNum": 193,
+    "playerName": "Steve Haggerty",
+    "pgid": 2499,
+    "cnid": 2499,
+    "gnhd": 145,
+    "genr": "gen_2_H_MB_012",
+    "sknt": 2,
+    "asnm": "HaggertySteve_2499"
+  },
+  {
+    "faceNum": 194,
+    "playerName": "Riley Odoms",
+    "pgid": 2500,
+    "cnid": 2500,
+    "gnhd": 265,
+    "genr": "gen_2_T_N_02",
+    "sknt": 2,
+    "asnm": "OdomsRiley_2500"
+  },
+  {
+    "faceNum": 195,
+    "playerName": "Boyd Brown",
+    "pgid": 2507,
+    "cnid": 2507,
+    "gnhd": 250,
+    "genr": "gen_1_H_B_009",
+    "sknt": 1,
+    "asnm": "BrownBoyd_2507"
+  },
+  {
+    "faceNum": 196,
+    "playerName": "Ron Egloff",
+    "pgid": 2512,
+    "cnid": 2512,
+    "gnhd": 57,
+    "genr": "gen_2_B_B_006",
+    "sknt": 2,
+    "asnm": "EgloffRon_2512"
+  },
+  {
+    "faceNum": 197,
+    "playerName": "Andy Maurer",
+    "pgid": 2520,
+    "cnid": 2520,
+    "gnhd": 16,
+    "genr": "gen_2_H_N_006",
+    "sknt": 2,
+    "asnm": "MaurerAndy_2520"
+  },
+  {
+    "faceNum": 198,
+    "playerName": "Claudie Minor",
+    "pgid": 2523,
+    "cnid": 2523,
+    "gnhd": 241,
+    "genr": "gen_1_B_N_011",
+    "sknt": 1,
+    "asnm": "MinorClaudie_2523"
+  },
+  {
+    "faceNum": 199,
+    "playerName": "Tommy Lyons",
+    "pgid": 2527,
+    "cnid": 2527,
+    "gnhd": 451,
+    "genr": "gen_2_H_B_005",
+    "sknt": 2,
+    "asnm": "LyonsTommy_2527"
+  },
+  {
+    "faceNum": 200,
+    "playerName": "Tom Glassic",
+    "pgid": 2528,
+    "cnid": 2528,
+    "gnhd": 287,
+    "genr": "gen_1_B_N_011",
+    "sknt": 1,
+    "asnm": "GlassicTom_2528"
+  },
+  {
+    "faceNum": 201,
+    "playerName": "Bill Bryan",
+    "pgid": 2532,
+    "cnid": 2532,
+    "gnhd": 284,
+    "genr": "gen_2_H_MB_012",
+    "sknt": 2,
+    "asnm": "BryanBill_2532"
+  },
+  {
+    "faceNum": 202,
+    "playerName": "Bobby Maples",
+    "pgid": 2533,
+    "cnid": 2533,
+    "gnhd": 146,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "MaplesBobby_2533"
+  },
+  {
+    "faceNum": 203,
+    "playerName": "Paul Howard",
+    "pgid": 2534,
+    "cnid": 2534,
+    "gnhd": 202,
+    "genr": "gen_1_H_S_003",
+    "sknt": 1,
+    "asnm": "HowardPaul_2534"
+  },
+  {
+    "faceNum": 204,
+    "playerName": "Carl Schaukowitch",
+    "pgid": 2537,
+    "cnid": 2537,
+    "gnhd": 287,
+    "genr": "gen_1_BM_MB_005",
+    "sknt": 1,
+    "asnm": "SchaukowitchCarl_2537"
+  },
+  {
+    "faceNum": 205,
+    "playerName": "Claudie Minor",
+    "pgid": 2540,
+    "cnid": 2540,
+    "gnhd": 176,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "MinorClaudie_2540"
+  },
+  {
+    "faceNum": 206,
+    "playerName": "Dave Studdard",
+    "pgid": 2546,
+    "cnid": 2546,
+    "gnhd": 264,
+    "genr": "gen_2_B_S_006",
+    "sknt": 2,
+    "asnm": "StuddardDave_2546"
+  },
+  {
+    "faceNum": 207,
+    "playerName": "Brison Manor",
+    "pgid": 2547,
+    "cnid": 2547,
+    "gnhd": 154,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "ManorBrison_2547"
+  },
+  {
+    "faceNum": 208,
+    "playerName": "Rulon Jones",
+    "pgid": 2548,
+    "cnid": 2548,
+    "gnhd": 287,
+    "genr": "gen_1_B_N_02",
+    "sknt": 1,
+    "asnm": "JonesRulon_2548"
+  },
+  {
+    "faceNum": 209,
+    "playerName": "Lyle Alzado",
+    "pgid": 2549,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_7_B_N_07",
+    "sknt": 7,
+    "asnm": ""
+  },
+  {
+    "faceNum": 210,
+    "playerName": "Martin Imhof",
+    "pgid": 2559,
+    "cnid": 2559,
+    "gnhd": 85,
+    "genr": "gen_1_BM_MB_005",
+    "sknt": 1,
+    "asnm": "ImhofMartin_2559"
+  },
+  {
+    "faceNum": 211,
+    "playerName": "Rubin Carter",
+    "pgid": 2560,
+    "cnid": 2560,
+    "gnhd": 196,
+    "genr": "gen_2_BMH_S_010",
+    "sknt": 2,
+    "asnm": "CarterRubin_2560"
+  },
+  {
+    "faceNum": 212,
+    "playerName": "Barney Chavous",
+    "pgid": 2562,
+    "cnid": 2562,
+    "gnhd": 128,
+    "genr": "gen_1_H_S_003",
+    "sknt": 1,
+    "asnm": "ChavousBarney_2562"
+  },
+  {
+    "faceNum": 213,
+    "playerName": "Paul Smith",
+    "pgid": 2567,
+    "cnid": 2567,
+    "gnhd": 197,
+    "genr": "gen_1_B_S_001",
+    "sknt": 1,
+    "asnm": "SmithPaul_2567"
+  },
+  {
+    "faceNum": 214,
+    "playerName": "Randy Gradishar",
+    "pgid": 2604,
+    "cnid": 2604,
+    "gnhd": 70,
+    "genr": "gen_2_H_N_006",
+    "sknt": 2,
+    "asnm": "GradisharRandy_2604"
+  },
+  {
+    "faceNum": 215,
+    "playerName": "Tom Jackson",
+    "pgid": 2605,
+    "cnid": 2605,
+    "gnhd": 1,
+    "genr": "gen_1_B_N_011",
+    "sknt": 1,
+    "asnm": "JacksonTom_2605"
+  },
+  {
+    "faceNum": 216,
+    "playerName": "Joe Rizzo",
+    "pgid": 2616,
+    "cnid": 2616,
+    "gnhd": 247,
+    "genr": "gen_1_B_N_010",
+    "sknt": 1,
+    "asnm": "RizzoJoe_2616"
+  },
+  {
+    "faceNum": 217,
+    "playerName": "Godwin Turk",
+    "pgid": 2629,
+    "cnid": 2629,
+    "gnhd": 245,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "TurkGodwin_2629"
+  },
+  {
+    "faceNum": 218,
+    "playerName": "Louis Wright",
+    "pgid": 2634,
+    "cnid": 2634,
+    "gnhd": 157,
+    "genr": "gen_1_B_N_03",
+    "sknt": 1,
+    "asnm": "WrightLouis_2634"
+  },
+  {
+    "faceNum": 219,
+    "playerName": "Steve Foley",
+    "pgid": 2658,
+    "cnid": 2658,
+    "gnhd": 262,
+    "genr": "gen_2_B_N_0011",
+    "sknt": 2,
+    "asnm": "FoleySteve_2658"
+  },
+  {
+    "faceNum": 220,
+    "playerName": "Charlie West",
+    "pgid": 2661,
+    "cnid": 2661,
+    "gnhd": 214,
+    "genr": "gen_2_B_N_006",
+    "sknt": 2,
+    "asnm": "WestCharlie_2661"
+  },
+  {
+    "faceNum": 221,
+    "playerName": "Bernard Jackson",
+    "pgid": 2680,
+    "cnid": 2680,
+    "gnhd": 1,
+    "genr": "gen_1_H_N_015",
+    "sknt": 1,
+    "asnm": "JacksonBernard_2680"
+  },
+  {
+    "faceNum": 222,
+    "playerName": "Randy Poltl",
+    "pgid": 2688,
+    "cnid": 2688,
+    "gnhd": 239,
+    "genr": "gen_2_B_N_0014",
+    "sknt": 2,
+    "asnm": "PoltlRandy_2688"
+  },
+  {
+    "faceNum": 223,
+    "playerName": "John Rowser",
+    "pgid": 2691,
+    "cnid": 2691,
+    "gnhd": 70,
+    "genr": "gen_2_BMH_S_003",
+    "sknt": 2,
+    "asnm": "RowserJohn_2691"
+  },
+  {
+    "faceNum": 224,
+    "playerName": "Charlie West",
+    "pgid": 2700,
+    "cnid": 2700,
+    "gnhd": 202,
+    "genr": "gen_1_B_S_002",
+    "sknt": 1,
+    "asnm": "WestCharlie_2700"
+  },
+  {
+    "faceNum": 225,
+    "playerName": "Bill Thompson",
+    "pgid": 2725,
+    "cnid": 2725,
+    "gnhd": 1,
+    "genr": "gen_1_BM_MB_005",
+    "sknt": 1,
+    "asnm": "ThompsonBill_2725"
+  },
+  {
+    "faceNum": 226,
+    "playerName": "Fred Steinfort",
+    "pgid": 2757,
+    "cnid": 2757,
+    "gnhd": 67,
+    "genr": "gen_1_H_N_010",
+    "sknt": 1,
+    "asnm": "SteinfortFred_2757"
+  },
+  {
+    "faceNum": 227,
+    "playerName": "Luke Prestridge",
+    "pgid": 2769,
+    "cnid": 2769,
+    "gnhd": 54,
+    "genr": "gen_1_H_BD_02",
+    "sknt": 1,
+    "asnm": "PrestridgeLuke_2769"
+  },
+  {
+    "faceNum": 228,
+    "playerName": "Jim Turner",
+    "pgid": 2772,
+    "cnid": 2772,
+    "gnhd": 74,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "TurnerJim_2772"
+  },
+  {
+    "faceNum": 229,
+    "playerName": "Al Haywood",
+    "pgid": 2780,
+    "cnid": 2780,
+    "gnhd": 250,
+    "genr": "gen_2_M_S_011",
+    "sknt": 2,
+    "asnm": "HaywoodAl_2780"
+  },
+  {
+    "faceNum": 230,
+    "playerName": "Ben Norman",
+    "pgid": 2798,
+    "cnid": 2798,
+    "gnhd": 15,
+    "genr": "gen_2_T_S_007",
+    "sknt": 2,
+    "asnm": "NormanBen_2798"
+  },
+  {
+    "faceNum": 231,
+    "playerName": "Rob Lytle",
+    "pgid": 2807,
+    "cnid": 2807,
+    "gnhd": 150,
+    "genr": "gen_1_B_N_007",
+    "sknt": 1,
+    "asnm": "LytleRob_2807"
+  },
+  {
+    "faceNum": 232,
+    "playerName": "Bob Swenson",
+    "pgid": 2816,
+    "cnid": 2816,
+    "gnhd": 281,
+    "genr": "gen_1_M_N_02",
+    "sknt": 1,
+    "asnm": "SwensonBob_2816"
+  },
+  {
+    "faceNum": 233,
+    "playerName": "Bill Bain",
+    "pgid": 2832,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_6_B_N_02",
+    "sknt": 6,
+    "asnm": ""
+  },
+  {
+    "faceNum": 234,
+    "playerName": "Jim Kiick",
+    "pgid": 2882,
+    "cnid": 2882,
+    "gnhd": 42,
+    "genr": "gen_1_H_B_009",
+    "sknt": 1,
+    "asnm": "KiickJim_2882"
+  },
+  {
+    "faceNum": 235,
+    "playerName": "Rich Baska",
+    "pgid": 2893,
+    "cnid": 0,
+    "gnhd": 0,
+    "genr": "gen_5_B_N_03",
+    "sknt": 5,
+    "asnm": ""
+  },
+  {
+    "faceNum": 236,
+    "playerName": "Rob Nairne",
+    "pgid": 2898,
+    "cnid": 2898,
+    "gnhd": 51,
+    "genr": "gen_1_B_N_01",
+    "sknt": 1,
+    "asnm": "NairneRob_2898"
+  },
+  {
+    "faceNum": 237,
+    "playerName": "Art Smith",
+    "pgid": 4601,
+    "cnid": 4601,
+    "gnhd": 53,
+    "genr": "gen_2_H_B_005",
+    "sknt": 2,
+    "asnm": "SmithArt_4601"
+  },
+  {
+    "faceNum": 238,
+    "playerName": "Lonnie Perrin",
+    "pgid": 4602,
+    "cnid": 4602,
+    "gnhd": 212,
+    "genr": "gen_1_M_S_011",
+    "sknt": 1,
+    "asnm": "PerrinLonnie_4602"
+  },
+  {
+    "faceNum": 239,
+    "playerName": "Dave Preston",
+    "pgid": 4603,
+    "cnid": 4603,
+    "gnhd": 48,
+    "genr": "gen_2_B_B_006",
+    "sknt": 2,
+    "asnm": "PrestonDave_4603"
+  },
+  {
+    "faceNum": 240,
+    "playerName": "Jim Ryan",
+    "pgid": 4604,
+    "cnid": 4604,
+    "gnhd": 9,
+    "genr": "gen_2_B_N_0012",
+    "sknt": 2,
+    "asnm": "RyanJim_4604"
+  },
+  {
+    "faceNum": 241,
+    "playerName": "Brian Sipe",
+    "pgid": 4605,
+    "cnid": 4605,
+    "gnhd": 56,
+    "genr": "gen_2_H_N_009",
+    "sknt": 2,
+    "asnm": "SipeBrian_4605"
+  },
+  {
+    "faceNum": 242,
+    "playerName": "Paul McDonald",
+    "pgid": 4606,
+    "cnid": 4606,
+    "gnhd": 110,
+    "genr": "gen_2_H_G_01",
+    "sknt": 2,
+    "asnm": "McDonaldPaul_4606"
+  },
+  {
+    "faceNum": 243,
+    "playerName": "Mark Miller",
+    "pgid": 4607,
+    "cnid": 4607,
+    "gnhd": 55,
+    "genr": "gen_2_B_N_03",
+    "sknt": 2,
+    "asnm": "MillerMark_4607"
+  },
+  {
+    "faceNum": 244,
+    "playerName": "Greg Pruitt",
+    "pgid": 4608,
+    "cnid": 4608,
+    "gnhd": 110,
+    "genr": "gen_1_B_S_002",
+    "sknt": 1,
+    "asnm": "PruittGreg_4608"
+  },
+  {
+    "faceNum": 245,
+    "playerName": "Henry Hynoski",
+    "pgid": 4609,
+    "cnid": 4609,
+    "gnhd": 5,
+    "genr": "gen_7_B_N_019",
+    "sknt": 7,
+    "asnm": "HynoskiHenry_4609"
+  },
+  {
+    "faceNum": 246,
+    "playerName": "Cleo Miller",
+    "pgid": 4610,
+    "cnid": 4610,
+    "gnhd": 24,
+    "genr": "gen_1_H_N_015",
+    "sknt": 1,
+    "asnm": "MillerCleo_4610"
+  },
+  {
+    "faceNum": 247,
+    "playerName": "Brian Duncan",
+    "pgid": 4611,
+    "cnid": 4611,
+    "gnhd": 34,
+    "genr": "gen_2_B_N_0014",
+    "sknt": 2,
+    "asnm": "DuncanBrian_4611"
+  },
+  {
+    "faceNum": 248,
+    "playerName": "Mike Pruitt",
+    "pgid": 4612,
+    "cnid": 4612,
+    "gnhd": 110,
+    "genr": "gen_1_B_N_007",
+    "sknt": 1,
+    "asnm": "PruittMike_4612"
+  },
+  {
+    "faceNum": 249,
+    "playerName": "Paul Warfield",
+    "pgid": 4613,
+    "cnid": 4613,
+    "gnhd": 212,
+    "genr": "gen_7_B_N_017",
+    "sknt": 7,
+    "asnm": "WarfieldPaul_4613"
+  },
+  {
+    "faceNum": 250,
+    "playerName": "Dave Logan",
+    "pgid": 4614,
+    "cnid": 4614,
+    "gnhd": 27,
+    "genr": "gen_2_B_N_0011",
+    "sknt": 2,
+    "asnm": "LoganDave_4614"
+  },
+  {
+    "faceNum": 251,
+    "playerName": "Reggie Rucker",
+    "pgid": 4615,
+    "cnid": 4615,
+    "gnhd": 27,
+    "genr": "gen_2_M_N_05",
+    "sknt": 2,
+    "asnm": "RuckerReggie_4615"
+  },
+  {
+    "faceNum": 252,
+    "playerName": "Ricky Feacher",
+    "pgid": 4616,
+    "cnid": 4616,
+    "gnhd": 9,
+    "genr": "gen_1_B_B_005",
+    "sknt": 1,
+    "asnm": "FeacherRicky_4616"
+  },
+  {
+    "faceNum": 253,
+    "playerName": "Reggie Craig",
+    "pgid": 4617,
+    "cnid": 4617,
+    "gnhd": 27,
+    "genr": "gen_1_H_BD_01",
+    "sknt": 1,
+    "asnm": "CraigReggie_4617"
+  },
+  {
+    "faceNum": 254,
+    "playerName": "Ozzie Newsome",
+    "pgid": 4618,
+    "cnid": 4618,
+    "gnhd": 67,
+    "genr": "gen_6_H_N_20",
+    "sknt": 6,
+    "asnm": "NewsomeOzzie_4618"
+  },
+  {
+    "faceNum": 255,
+    "playerName": "Milt Morin",
+    "pgid": 4619,
+    "cnid": 4619,
+    "gnhd": 9,
+    "genr": "gen_1_B_N_0012",
+    "sknt": 1,
+    "asnm": "MorinMilt_4619"
+  },
+  {
+    "faceNum": 256,
+    "playerName": "Curtis Weathers",
+    "pgid": 4620,
+    "cnid": 4620,
+    "gnhd": 286,
+    "genr": "gen_1_H_S_003",
+    "sknt": 1,
+    "asnm": "WeathersCurtis_4620"
+  },
+  {
+    "faceNum": 257,
+    "playerName": "Doug Dieken",
+    "pgid": 4621,
+    "cnid": 4621,
+    "gnhd": 207,
+    "genr": "gen_2_T_N_01",
+    "sknt": 2,
+    "asnm": "DiekenDoug_4621"
+  },
+  {
+    "faceNum": 258,
+    "playerName": "Joel Patten",
+    "pgid": 4622,
+    "cnid": 4622,
+    "gnhd": 26,
+    "genr": "gen_2_B_S_007",
+    "sknt": 2,
+    "asnm": "PattenJoel_4622"
+  },
+  {
+    "faceNum": 259,
+    "playerName": "Cody Risien",
+    "pgid": 4624,
+    "cnid": 4624,
+    "gnhd": 246,
+    "genr": "gen_1_H_N_015",
+    "sknt": 1,
+    "asnm": "RisienCody_4624"
+  },
+  {
+    "faceNum": 260,
+    "playerName": "Chuck Hutchison",
+    "pgid": 4625,
+    "cnid": 4625,
+    "gnhd": 272,
+    "genr": "gen_2_B_N_0010",
+    "sknt": 2,
+    "asnm": "HutchisonChuck_4625"
+  },
+  {
+    "faceNum": 261,
+    "playerName": "Tom DeLeone",
+    "pgid": 4626,
+    "cnid": 4626,
+    "gnhd": 227,
+    "genr": "gen_1_B_B_005",
+    "sknt": 1,
+    "asnm": "DeLeoneTom_4626"
+  },
+  {
+    "faceNum": 262,
+    "playerName": "Gerry Sullivan",
+    "pgid": 4627,
+    "cnid": 4627,
+    "gnhd": 233,
+    "genr": "gen_2_BMH_G_009",
+    "sknt": 2,
+    "asnm": "SullivanGerry_4627"
+  },
+  {
+    "faceNum": 263,
+    "playerName": "Joe DeLamielleure",
+    "pgid": 4628,
+    "cnid": 4628,
+    "gnhd": 164,
+    "genr": "gen_1_B_N_010",
+    "sknt": 1,
+    "asnm": "DeLamielleureJoe_4628"
+  },
+  {
+    "faceNum": 264,
+    "playerName": "Robert Jackson",
+    "pgid": 4629,
+    "cnid": 4629,
+    "gnhd": 244,
+    "genr": "gen_2_M_B_02",
+    "sknt": 2,
+    "asnm": "JacksonRobert_4629"
+  }
+]

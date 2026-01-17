@@ -1,0 +1,2650 @@
+{
+  "year": 1994,
+  "generatedAt": "2026-01-04T21:05:48.900Z",
+  "summary": {
+    "totalPlayers": 293,
+    "realPortraits": 21,
+    "recyclableAssigned": 272,
+    "unassigned": 0,
+    "recyclableRemaining": 1983
+  },
+  "draftClass": [
+    {
+      "historicalPlayer": "Sam Adams",
+      "position": "DT",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_AdamsSam",
+      "ddsFilename": "plpo_legends_AdamsSam.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Larry Allen",
+      "position": "LG",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_AllenLarry",
+      "ddsFilename": "plpo_legends_AllenLarry.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Isaac Bruce",
+      "position": "WR",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_Bruce_Isaac",
+      "ddsFilename": "plpo_legends_Bruce_Isaac.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Tony Carter",
+      "position": "RB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": null,
+      "ddsFilename": null,
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Mike Davis",
+      "position": "CB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_DavisMike",
+      "ddsFilename": "plpo_DavisMike.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Marshall Faulk",
+      "position": "HB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_MarshallFaulk_Profile",
+      "ddsFilename": "plpo_legends_MarshallFaulk_Profile.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Jason Gildon",
+      "position": "MLB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_HackenbergChristian",
+      "ddsFilename": "plpo_HackenbergChristian.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Aaron Glenn",
+      "position": "CB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_GlennAaron",
+      "ddsFilename": "plpo_legends_GlennAaron.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Rodney Harrison",
+      "position": "CB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_HarrisonRodney",
+      "ddsFilename": "plpo_legends_HarrisonRodney.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Charles Johnson",
+      "position": "WR",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_JohnsonCharles",
+      "ddsFilename": "plpo_JohnsonCharles.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Lonnie Johnson",
+      "position": "TE",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_JohnsonLonnie",
+      "ddsFilename": "plpo_JohnsonLonnie.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Ernest Jones",
+      "position": "DT",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_JonesErnest",
+      "ddsFilename": "plpo_JonesErnest.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Dorsey Levens",
+      "position": "HB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_LevensDorsey",
+      "ddsFilename": "plpo_legends_LevensDorsey.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Willie McGinest",
+      "position": "LE",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_McGinestWillie",
+      "ddsFilename": "plpo_legends_McGinestWillie.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Sam Rogers",
+      "position": "MLB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_RogersSamuel",
+      "ddsFilename": "plpo_RogersSamuel.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Jason Sehorn",
+      "position": "CB",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_SehornJason",
+      "ddsFilename": "plpo_legends_SehornJason.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Rod Smith",
+      "position": "WR",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": null,
+      "ddsFilename": null,
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Bryant Young",
+      "position": "DT",
+      "race": 7,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_YoungBryant",
+      "ddsFilename": "plpo_legends_YoungBryant.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Kevin Mawae",
+      "position": "C",
+      "race": 1,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_MawaeKevin",
+      "ddsFilename": "plpo_legends_MawaeKevin.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Tom Nalen",
+      "position": "C",
+      "race": 1,
+      "type": "REAL",
+      "recyclablePLPO": "plpo_legends_NalenTom",
+      "ddsFilename": "plpo_legends_NalenTom.dds",
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Kurt Warner",
+      "position": "QB",
+      "race": 1,
+      "type": "REAL",
+      "recyclablePLPO": null,
+      "ddsFilename": null,
+      "recycledFrom": "Has own portrait"
+    },
+    {
+      "historicalPlayer": "Anthony Abrams",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AaituiIsaako",
+      "ddsFilename": "plpo_AaituiIsaako.dds",
+      "recycledFrom": "Isaako Aaitui (R)"
+    },
+    {
+      "historicalPlayer": "Brice Abrams",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AbdesmadMehdi",
+      "ddsFilename": "plpo_AbdesmadMehdi.dds",
+      "recycledFrom": "Mehdi Abdesmad (R)"
+    },
+    {
+      "historicalPlayer": "Trev Alberts",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_Abdul",
+      "ddsFilename": "plpo_Abdul.dds",
+      "recycledFrom": "Quddus-Isa Abdul (R)"
+    },
+    {
+      "historicalPlayer": "Ethan Albright",
+      "position": "LS",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AbernathyMicah",
+      "ddsFilename": "plpo_AbernathyMicah.dds",
+      "recycledFrom": "Micah Abernathy (R)"
+    },
+    {
+      "historicalPlayer": "Allen Aldridge",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamJosh",
+      "ddsFilename": "plpo_AdamJosh.dds",
+      "recycledFrom": "Josh Adam (R)"
+    },
+    {
+      "historicalPlayer": "Brent Alexander",
+      "position": "S",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamsAaron",
+      "ddsFilename": "plpo_AdamsAaron.dds",
+      "recycledFrom": "Aaron Adams (R)"
+    },
+    {
+      "historicalPlayer": "Derrick Alexander",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamsJeff",
+      "ddsFilename": "plpo_AdamsJeff.dds",
+      "recycledFrom": "Jeff Adams (R)"
+    },
+    {
+      "historicalPlayer": "Dunstan Anderson",
+      "position": "DE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamsJohnny",
+      "ddsFilename": "plpo_AdamsJohnny.dds",
+      "recycledFrom": "Johnny Adams (R)"
+    },
+    {
+      "historicalPlayer": "Jamal Anderson",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamsKris",
+      "ddsFilename": "plpo_AdamsKris.dds",
+      "recycledFrom": "Kris Adams (R)"
+    },
+    {
+      "historicalPlayer": "Aaron Bailey",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamsKyle",
+      "ddsFilename": "plpo_AdamsKyle.dds",
+      "recycledFrom": "Kyle Adams (R)"
+    },
+    {
+      "historicalPlayer": "Romeo Bandison",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamsPaul",
+      "ddsFilename": "plpo_AdamsPaul.dds",
+      "recycledFrom": "Paul Adams (R)"
+    },
+    {
+      "historicalPlayer": "Bradford Banta",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamsTrey",
+      "ddsFilename": "plpo_AdamsTrey.dds",
+      "recycledFrom": "Trey Adams (R)"
+    },
+    {
+      "historicalPlayer": "Mario Bates",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdamsTyrell",
+      "ddsFilename": "plpo_AdamsTyrell.dds",
+      "recycledFrom": "Tyrell Adams (R)"
+    },
+    {
+      "historicalPlayer": "Aubrey Beavers",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AddisonBralon",
+      "ddsFilename": "plpo_AddisonBralon.dds",
+      "recycledFrom": "Bralon Addison (R)"
+    },
+    {
+      "historicalPlayer": "Zane Beehn",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdeboyejoQuincy",
+      "ddsFilename": "plpo_AdeboyejoQuincy.dds",
+      "recycledFrom": "Quincy Adeboyejo (R)"
+    },
+    {
+      "historicalPlayer": "Tom Beer",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdeyemiKenton",
+      "ddsFilename": "plpo_AdeyemiKenton.dds",
+      "recycledFrom": "Kenton Adeyemi (R)"
+    },
+    {
+      "historicalPlayer": "Myron Bell",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_Adjei",
+      "ddsFilename": "plpo_Adjei.dds",
+      "recycledFrom": "Jude Adjei-Barimah (R)"
+    },
+    {
+      "historicalPlayer": "Jay Bellamy",
+      "position": "S",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AdongoDaniel",
+      "ddsFilename": "plpo_AdongoDaniel.dds",
+      "recycledFrom": "Daniel Adongo (R)"
+    },
+    {
+      "historicalPlayer": "Lou Benfatti",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AfriyiePatrick",
+      "ddsFilename": "plpo_AfriyiePatrick.dds",
+      "recycledFrom": "Patrick Afriyie (R)"
+    },
+    {
+      "historicalPlayer": "Donnell Bennett",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AgudosiCarlton",
+      "ddsFilename": "plpo_AgudosiCarlton.dds",
+      "recycledFrom": "Carlton Agudosi (R)"
+    },
+    {
+      "historicalPlayer": "Pete Bercich",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AhmedRamiz",
+      "ddsFilename": "plpo_AhmedRamiz.dds",
+      "recycledFrom": "Ramiz Ahmed (R)"
+    },
+    {
+      "historicalPlayer": "Mitch Berger",
+      "position": "P",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AhmedShahbaz",
+      "ddsFilename": "plpo_AhmedShahbaz.dds",
+      "recycledFrom": "Shahbaz Ahmed (R)"
+    },
+    {
+      "historicalPlayer": "David Binn",
+      "position": "LS",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AjirotutuSeyi",
+      "ddsFilename": "plpo_AjirotutuSeyi.dds",
+      "recycledFrom": "Seyi Ajirotutu (R)"
+    },
+    {
+      "historicalPlayer": "Harold Bishop",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AkinmoladunFreedom",
+      "ddsFilename": "plpo_AkinmoladunFreedom.dds",
+      "recycledFrom": "Freedom Akinmoladun (R)"
+    },
+    {
+      "historicalPlayer": "John Bock",
+      "position": "C",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlakaOtaro",
+      "ddsFilename": "plpo_AlakaOtaro.dds",
+      "recycledFrom": "Otaro Alaka (R)"
+    },
+    {
+      "historicalPlayer": "Shane Bonham",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlbrightBryson",
+      "ddsFilename": "plpo_AlbrightBryson.dds",
+      "recycledFrom": "Bryson Albright (R)"
+    },
+    {
+      "historicalPlayer": "Chris Boniol",
+      "position": "K",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlecxihChas",
+      "ddsFilename": "plpo_AlecxihChas.dds",
+      "recycledFrom": "Chas Alecxih (R)"
+    },
+    {
+      "historicalPlayer": "Vaughn Booker",
+      "position": "DE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlexanderAdonis",
+      "ddsFilename": "plpo_AlexanderAdonis.dds",
+      "recycledFrom": "Adonis Alexander (R)"
+    },
+    {
+      "historicalPlayer": "Issac Booth",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlexanderAlvester",
+      "ddsFilename": "plpo_AlexanderAlvester.dds",
+      "recycledFrom": "Alvester Alexander (R)"
+    },
+    {
+      "historicalPlayer": "Jocelyn Borgella",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlexanderDanario",
+      "ddsFilename": "plpo_AlexanderDanario.dds",
+      "recycledFrom": "Danario Alexander (R)"
+    },
+    {
+      "historicalPlayer": "James Bostic",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlexanderDominique",
+      "ddsFilename": "plpo_AlexanderDominique.dds",
+      "recycledFrom": "Dominique Alexander (R)"
+    },
+    {
+      "historicalPlayer": "Tim Bowens",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlexanderMister",
+      "ddsFilename": "plpo_AlexanderMister.dds",
+      "recycledFrom": "Mister Alexander (R)"
+    },
+    {
+      "historicalPlayer": "Malik Boyd",
+      "position": "DB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AlexanderZy",
+      "ddsFilename": "plpo_AlexanderZy.dds",
+      "recycledFrom": "Zy Alexander (R)"
+    },
+    {
+      "historicalPlayer": "Brant Boyer",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AliJosh",
+      "ddsFilename": "plpo_AliJosh.dds",
+      "recycledFrom": "Josh Ali (R)"
+    },
+    {
+      "historicalPlayer": "Rickey Brady",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_Allen",
+      "ddsFilename": "plpo_Allen.dds",
+      "recycledFrom": "Bryson Allen-Williams (R)"
+    },
+    {
+      "historicalPlayer": "Rich Braham",
+      "position": "C",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenArmando",
+      "ddsFilename": "plpo_AllenArmando.dds",
+      "recycledFrom": "Armando Allen (R)"
+    },
+    {
+      "historicalPlayer": "Chris Brantley",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenAustin",
+      "ddsFilename": "plpo_AllenAustin.dds",
+      "recycledFrom": "Austin Allen (R)"
+    },
+    {
+      "historicalPlayer": "Chad Bratzke",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenAustin_TE",
+      "ddsFilename": "plpo_AllenAustin_TE.dds",
+      "recycledFrom": "Austin Allen (R)"
+    },
+    {
+      "historicalPlayer": "Doug Brien",
+      "position": "K",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenChase",
+      "ddsFilename": "plpo_AllenChase.dds",
+      "recycledFrom": "Chase Allen (R)"
+    },
+    {
+      "historicalPlayer": "Jeff Brohm",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenChase_TE",
+      "ddsFilename": "plpo_AllenChase_TE.dds",
+      "recycledFrom": "Chase Allen (R)"
+    },
+    {
+      "historicalPlayer": "Bucky Brooks",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenChristopher",
+      "ddsFilename": "plpo_AllenChristopher.dds",
+      "recycledFrom": "Christopher Allen (R)"
+    },
+    {
+      "historicalPlayer": "Gary Brown",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenDejon",
+      "ddsFilename": "plpo_AllenDejon.dds",
+      "recycledFrom": "Dejon Allen (R)"
+    },
+    {
+      "historicalPlayer": "Vaughn Bryant",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenDevon",
+      "ddsFilename": "plpo_AllenDevon.dds",
+      "recycledFrom": "Devon Allen (R)"
+    },
+    {
+      "historicalPlayer": "Brentson Buckner",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenJack",
+      "ddsFilename": "plpo_AllenJack.dds",
+      "recycledFrom": "Jack Allen (R)"
+    },
+    {
+      "historicalPlayer": "Joe Burch",
+      "position": "C",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenRaShaun",
+      "ddsFilename": "plpo_AllenRaShaun.dds",
+      "recycledFrom": "RaShaun Allen (R)"
+    },
+    {
+      "historicalPlayer": "John Burke",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllenTorrence",
+      "ddsFilename": "plpo_AllenTorrence.dds",
+      "recycledFrom": "Torrence Allen (R)"
+    },
+    {
+      "historicalPlayer": "Keith Burns",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AllisonJeff",
+      "ddsFilename": "plpo_AllisonJeff.dds",
+      "recycledFrom": "Jeff Allison (R)"
+    },
+    {
+      "historicalPlayer": "Jeff Burris",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AmosJaquan",
+      "ddsFilename": "plpo_AmosJaquan.dds",
+      "recycledFrom": "Jaquan Amos (R)"
+    },
+    {
+      "historicalPlayer": "James Burton",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AmosJohn",
+      "ddsFilename": "plpo_AmosJohn.dds",
+      "recycledFrom": "John Amos (R)"
+    },
+    {
+      "historicalPlayer": "Butler By'not'e",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonBruce",
+      "ddsFilename": "plpo_AndersonBruce.dds",
+      "recycledFrom": "Bruce Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Matt Campbell",
+      "position": "G",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonBusta",
+      "ddsFilename": "plpo_AndersonBusta.dds",
+      "recycledFrom": "Busta Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Brett Carolan",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonBusta",
+      "ddsFilename": "plpo_AndersonBusta.dds",
+      "recycledFrom": "Busta Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Herman Carroll",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonDemetris",
+      "ddsFilename": "plpo_AndersonDemetris.dds",
+      "recycledFrom": "Demetris Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Dwayne Carswell",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonDres",
+      "ddsFilename": "plpo_AndersonDres.dds",
+      "recycledFrom": "Dres Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Bernard Carter",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonJoe",
+      "ddsFilename": "plpo_AndersonJoe.dds",
+      "recycledFrom": "Joe Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Perry Carter",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonJonathan",
+      "ddsFilename": "plpo_AndersonJonathan.dds",
+      "recycledFrom": "Jonathan Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Shante Carver",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonMJ",
+      "ddsFilename": "plpo_AndersonMJ.dds",
+      "recycledFrom": "MJ Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Derrick Clark",
+      "position": "RB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonRyder",
+      "ddsFilename": "plpo_AndersonRyder.dds",
+      "recycledFrom": "Ryder Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Willie Clark",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonStephen",
+      "ddsFilename": "plpo_AndersonStephen.dds",
+      "recycledFrom": "Stephen Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Andre Coleman",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndersonZaire",
+      "ddsFilename": "plpo_AndersonZaire.dds",
+      "recycledFrom": "Zaire Anderson (R)"
+    },
+    {
+      "historicalPlayer": "Dennis Collier",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndrewsAntonio",
+      "ddsFilename": "plpo_AndrewsAntonio.dds",
+      "recycledFrom": "Antonio Andrews (R)"
+    },
+    {
+      "historicalPlayer": "Ervin Collier",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndrewsJosh",
+      "ddsFilename": "plpo_AndrewsJosh.dds",
+      "recycledFrom": "Josh Andrews (R)"
+    },
+    {
+      "historicalPlayer": "Jeff Cothran",
+      "position": "FB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AndriesBlaise",
+      "ddsFilename": "plpo_AndriesBlaise.dds",
+      "recycledFrom": "Blaise Andries (R)"
+    },
+    {
+      "historicalPlayer": "John Covington",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AnkrahJason",
+      "ddsFilename": "plpo_AnkrahJason.dds",
+      "recycledFrom": "Jason Ankrah (R)"
+    },
+    {
+      "historicalPlayer": "Sean Crocker",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AnnenBlake",
+      "ddsFilename": "plpo_AnnenBlake.dds",
+      "recycledFrom": "Blake Annen (R)"
+    },
+    {
+      "historicalPlayer": "Carlester Crumpler",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AnthropDaniel",
+      "ddsFilename": "plpo_AnthropDaniel.dds",
+      "recycledFrom": "Daniel Anthrop (R)"
+    },
+    {
+      "historicalPlayer": "Richie Cunningham",
+      "position": "K",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AnunikeKenny",
+      "ddsFilename": "plpo_AnunikeKenny.dds",
+      "recycledFrom": "Kenny Anunike (R)"
+    },
+    {
+      "historicalPlayer": "Anthony Daigle",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AnunobyChigbo",
+      "ddsFilename": "plpo_AnunobyChigbo.dds",
+      "recycledFrom": "Chigbo Anunoby (R)"
+    },
+    {
+      "historicalPlayer": "Isaac Davis",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_ArcherRJ",
+      "ddsFilename": "plpo_ArcherRJ.dds",
+      "recycledFrom": "RJ Archer (R)"
+    },
+    {
+      "historicalPlayer": "John Davis",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_ArchibongDaniel",
+      "ddsFilename": "plpo_ArchibongDaniel.dds",
+      "recycledFrom": "Daniel Archibong (R)"
+    },
+    {
+      "historicalPlayer": "Mitch Davis",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_ArmbristerThurston",
+      "ddsFilename": "plpo_ArmbristerThurston.dds",
+      "recycledFrom": "Thurston Armbrister (R)"
+    },
+    {
+      "historicalPlayer": "Lake Dawson",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_ArmstrongAnthony",
+      "ddsFilename": "plpo_ArmstrongAnthony.dds",
+      "recycledFrom": "Anthony Armstrong (R)"
+    },
+    {
+      "historicalPlayer": "Trent Dilfer",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_ArmstrongRay",
+      "ddsFilename": "plpo_ArmstrongRay.dds",
+      "recycledFrom": "Ray-Ray Armstrong (R)"
+    },
+    {
+      "historicalPlayer": "Nate Dingle",
+      "position": "LB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_ArnfeltBrian",
+      "ddsFilename": "plpo_ArnfeltBrian.dds",
+      "recycledFrom": "Brian Arnfelt (R)"
+    },
+    {
+      "historicalPlayer": "Ernest Dixon",
+      "position": "LB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AshRichard",
+      "ddsFilename": "plpo_AshRichard.dds",
+      "recycledFrom": "Richard Ash (R)"
+    },
+    {
+      "historicalPlayer": "Mark Dixon",
+      "position": "G",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AskewNate",
+      "ddsFilename": "plpo_AskewNate.dds",
+      "recycledFrom": "Nate Askew (R)"
+    },
+    {
+      "historicalPlayer": "DeWayne Dotson",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AtkinsonIIIGeorge",
+      "ddsFilename": "plpo_AtkinsonIIIGeorge.dds",
+      "recycledFrom": "George Atkinson III (R)"
+    },
+    {
+      "historicalPlayer": "Omar Douglas",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AubreyJosh",
+      "ddsFilename": "plpo_AubreyJosh.dds",
+      "recycledFrom": "Josh Aubrey (R)"
+    },
+    {
+      "historicalPlayer": "Gary Downs",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AuclairAntony",
+      "ddsFilename": "plpo_AuclairAntony.dds",
+      "recycledFrom": "Antony Auclair (R)"
+    },
+    {
+      "historicalPlayer": "Tyronne Drakeford",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AustellErik",
+      "ddsFilename": "plpo_AustellErik.dds",
+      "recycledFrom": "Erik Austell (R)"
+    },
+    {
+      "historicalPlayer": "Paul Duckworth",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AustinJrKevin",
+      "ddsFilename": "plpo_AustinJrKevin.dds",
+      "recycledFrom": "Kevin Austin Jr (R)"
+    },
+    {
+      "historicalPlayer": "Ronald Edwards",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AustinRodney",
+      "ddsFilename": "plpo_AustinRodney.dds",
+      "recycledFrom": "Rodney Austin (R)"
+    },
+    {
+      "historicalPlayer": "Keith Elias",
+      "position": "RB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AustinThomas",
+      "ddsFilename": "plpo_AustinThomas.dds",
+      "recycledFrom": "Thomas Austin (R)"
+    },
+    {
+      "historicalPlayer": "Jerry Ellison",
+      "position": "RB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AveryCJ",
+      "ddsFilename": "plpo_AveryCJ.dds",
+      "recycledFrom": "CJ Avery (R)"
+    },
+    {
+      "historicalPlayer": "Bert Emanuel",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_AweMicah",
+      "ddsFilename": "plpo_AweMicah.dds",
+      "recycledFrom": "Micah Awe (R)"
+    },
+    {
+      "historicalPlayer": "Greg Engel",
+      "position": "C",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaccelliaAndre",
+      "ddsFilename": "plpo_BaccelliaAndre.dds",
+      "recycledFrom": "Andre Baccellia (R)"
+    },
+    {
+      "historicalPlayer": "Eric England",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BadaDavid",
+      "ddsFilename": "plpo_BadaDavid.dds",
+      "recycledFrom": "David Bada (R)"
+    },
+    {
+      "historicalPlayer": "Greg Evans",
+      "position": "S",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BadetJeff",
+      "ddsFilename": "plpo_BadetJeff.dds",
+      "recycledFrom": "Jeff Badet (R)"
+    },
+    {
+      "historicalPlayer": "D'Marco Farr",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaileyAlvin",
+      "ddsFilename": "plpo_BaileyAlvin.dds",
+      "recycledFrom": "Alvin Bailey (R)"
+    },
+    {
+      "historicalPlayer": "Ta'ase Faumui",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaileySterling",
+      "ddsFilename": "plpo_BaileySterling.dds",
+      "recycledFrom": "Sterling Bailey (R)"
+    },
+    {
+      "historicalPlayer": "Jay Fiedler",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaileyZack",
+      "ddsFilename": "plpo_BaileyZack.dds",
+      "recycledFrom": "Zack Bailey (R)"
+    },
+    {
+      "historicalPlayer": "Jim Flanigan",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BainivaluHenry",
+      "ddsFilename": "plpo_BainivaluHenry.dds",
+      "recycledFrom": "Henry Bainivalu (R)"
+    },
+    {
+      "historicalPlayer": "Cory Fleming",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BairBrandon",
+      "ddsFilename": "plpo_BairBrandon.dds",
+      "recycledFrom": "Brandon Bair (R)"
+    },
+    {
+      "historicalPlayer": "Malcolm Floyd",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaityDerrick",
+      "ddsFilename": "plpo_BaityDerrick.dds",
+      "recycledFrom": "Derrick Baity (R)"
+    },
+    {
+      "historicalPlayer": "William Floyd",
+      "position": "FB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BakeJrDarrell",
+      "ddsFilename": "plpo_BakeJrDarrell.dds",
+      "recycledFrom": "Darrell Bake Jr (R)"
+    },
+    {
+      "historicalPlayer": "Glenn Foley",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BakerSean",
+      "ddsFilename": "plpo_BakerSean.dds",
+      "recycledFrom": "Sean Baker (R)"
+    },
+    {
+      "historicalPlayer": "James Folston",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BakerSteven",
+      "ddsFilename": "plpo_BakerSteven.dds",
+      "recycledFrom": "Steven Baker (R)"
+    },
+    {
+      "historicalPlayer": "Henry Ford",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BakerThomas",
+      "ddsFilename": "plpo_BakerThomas.dds",
+      "recycledFrom": "Thomas Baker (R)"
+    },
+    {
+      "historicalPlayer": "Rob Fredrickson",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BalducciAlex",
+      "ddsFilename": "plpo_BalducciAlex.dds",
+      "recycledFrom": "Alex Balducci (R)"
+    },
+    {
+      "historicalPlayer": "Gus Frerotte",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BallMarcus",
+      "ddsFilename": "plpo_BallMarcus.dds",
+      "recycledFrom": "Marcus Ball (R)"
+    },
+    {
+      "historicalPlayer": "Randy Fuller",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BandyTrajan",
+      "ddsFilename": "plpo_BandyTrajan.dds",
+      "recycledFrom": "Trajan Bandy (R)"
+    },
+    {
+      "historicalPlayer": "William Gaines",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BanjoChris",
+      "ddsFilename": "plpo_BanjoChris.dds",
+      "recycledFrom": "Chris Banjo (R)"
+    },
+    {
+      "historicalPlayer": "Wayne Gandy",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BanksJeremy",
+      "ddsFilename": "plpo_BanksJeremy.dds",
+      "recycledFrom": "Jeremy Banks (R)"
+    },
+    {
+      "historicalPlayer": "Jeff Garcia",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BanyardJoe",
+      "ddsFilename": "plpo_BanyardJoe.dds",
+      "recycledFrom": "Joe Banyard (R)"
+    },
+    {
+      "historicalPlayer": "Charlie Garner",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BarcooLuq",
+      "ddsFilename": "plpo_BarcooLuq.dds",
+      "recycledFrom": "Luq Barcoo (R)"
+    },
+    {
+      "historicalPlayer": "Lee Gissendaner",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BardenBrandon",
+      "ddsFilename": "plpo_BardenBrandon.dds",
+      "recycledFrom": "Brandon Barden (R)"
+    },
+    {
+      "historicalPlayer": "Marvin Goodwin",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BarkerChris",
+      "ddsFilename": "plpo_BarkerChris.dds",
+      "recycledFrom": "Chris Barker (R)"
+    },
+    {
+      "historicalPlayer": "Tracy Greene",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BarnesAlex",
+      "ddsFilename": "plpo_BarnesAlex.dds",
+      "recycledFrom": "Alex Barnes (R)"
+    },
+    {
+      "historicalPlayer": "Robert Griffith",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BarnesTavaris",
+      "ddsFilename": "plpo_BarnesTavaris.dds",
+      "recycledFrom": "Tavaris Barnes (R)"
+    },
+    {
+      "historicalPlayer": "Monty Grow",
+      "position": "S",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BarnesTJ",
+      "ddsFilename": "plpo_BarnesTJ.dds",
+      "recycledFrom": "TJ Barnes (R)"
+    },
+    {
+      "historicalPlayer": "Lemanski Hall",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BarneyTarow",
+      "ddsFilename": "plpo_BarneyTarow.dds",
+      "recycledFrom": "Tarow Barney (R)"
+    },
+    {
+      "historicalPlayer": "Bobby Hamilton",
+      "position": "DE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BartonKarim",
+      "ddsFilename": "plpo_BartonKarim.dds",
+      "recycledFrom": "Karim Barton (R)"
+    },
+    {
+      "historicalPlayer": "Ruffin Hamilton",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaskervilleMicah",
+      "ddsFilename": "plpo_BaskervilleMicah.dds",
+      "recycledFrom": "Micah Baskerville (R)"
+    },
+    {
+      "historicalPlayer": "Shelly Hammonds",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BassBen",
+      "ddsFilename": "plpo_BassBen.dds",
+      "recycledFrom": "Ben Bass (R)"
+    },
+    {
+      "historicalPlayer": "Bernardo Harris",
+      "position": "LB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BatesDaren",
+      "ddsFilename": "plpo_BatesDaren.dds",
+      "recycledFrom": "Daren Bates (R)"
+    },
+    {
+      "historicalPlayer": "Raymont Harris",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BatesHouston",
+      "ddsFilename": "plpo_BatesHouston.dds",
+      "recycledFrom": "Houston Bates (R)"
+    },
+    {
+      "historicalPlayer": "Frank Harvey",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BatesPhil",
+      "ddsFilename": "plpo_BatesPhil.dds",
+      "recycledFrom": "Phil Bates (R)"
+    },
+    {
+      "historicalPlayer": "Steve Hawkins",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BatsonCameron",
+      "ddsFilename": "plpo_BatsonCameron.dds",
+      "recycledFrom": "Cameron Batson (R)"
+    },
+    {
+      "historicalPlayer": "Kurt Haws",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BattleIsaiah",
+      "ddsFilename": "plpo_BattleIsaiah.dds",
+      "recycledFrom": "Isaiah Battle (R)"
+    },
+    {
+      "historicalPlayer": "George Hegamin",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BattleJohn",
+      "ddsFilename": "plpo_BattleJohn.dds",
+      "recycledFrom": "John Battle (R)"
+    },
+    {
+      "historicalPlayer": "Andre Hewitt",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaughMarcus",
+      "ddsFilename": "plpo_BaughMarcus.dds",
+      "recycledFrom": "Marcus Baugh (R)"
+    },
+    {
+      "historicalPlayer": "Greg Hill",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaumannWill",
+      "ddsFilename": "plpo_BaumannWill.dds",
+      "recycledFrom": "Will Baumann (R)"
+    },
+    {
+      "historicalPlayer": "Lloyd Hill",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BausbyDeVante",
+      "ddsFilename": "plpo_BausbyDeVante.dds",
+      "recycledFrom": "DeVante Bausby (R)"
+    },
+    {
+      "historicalPlayer": "Sean Hill",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BayerAlex",
+      "ddsFilename": "plpo_BayerAlex.dds",
+      "recycledFrom": "Alex Bayer (R)"
+    },
+    {
+      "historicalPlayer": "Corey Holliday",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaylessOmar",
+      "ddsFilename": "plpo_BaylessOmar.dds",
+      "recycledFrom": "Omar Bayless (R)"
+    },
+    {
+      "historicalPlayer": "Mike Hollis",
+      "position": "K",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BaylisEvan",
+      "ddsFilename": "plpo_BaylisEvan.dds",
+      "recycledFrom": "Evan Baylis (R)"
+    },
+    {
+      "historicalPlayer": "Rob Holmberg",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BealSam",
+      "ddsFilename": "plpo_BealSam.dds",
+      "recycledFrom": "Sam Beal (R)"
+    },
+    {
+      "historicalPlayer": "Harrison Houston",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BegeltonReggie",
+      "ddsFilename": "plpo_BegeltonReggie.dds",
+      "recycledFrom": "Reggie Begelton (R)"
+    },
+    {
+      "historicalPlayer": "Terry Irving",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BellamyDavin",
+      "ddsFilename": "plpo_BellamyDavin.dds",
+      "recycledFrom": "Davin Bellamy (R)"
+    },
+    {
+      "historicalPlayer": "Eric Jack",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BellamyJoshua",
+      "ddsFilename": "plpo_BellamyJoshua.dds",
+      "recycledFrom": "Joshua Bellamy (R)"
+    },
+    {
+      "historicalPlayer": "Calvin Jackson",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BellamyLevante",
+      "ddsFilename": "plpo_BellamyLevante.dds",
+      "recycledFrom": "Levante Bellamy (R)"
+    },
+    {
+      "historicalPlayer": "Sean Jackson",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BellBrandon",
+      "ddsFilename": "plpo_BellBrandon.dds",
+      "recycledFrom": "Brandon Bell (R)"
+    },
+    {
+      "historicalPlayer": "Tyoka Jackson",
+      "position": "DE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BellGreg",
+      "ddsFilename": "plpo_BellGreg.dds",
+      "recycledFrom": "Greg Bell (R)"
+    },
+    {
+      "historicalPlayer": "Willie Jackson",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BellJered",
+      "ddsFilename": "plpo_BellJered.dds",
+      "recycledFrom": "Jered Bell (R)"
+    },
+    {
+      "historicalPlayer": "Kevin Jefferson",
+      "position": "LB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BellMike",
+      "ddsFilename": "plpo_BellMike.dds",
+      "recycledFrom": "Mike Bell (R)"
+    },
+    {
+      "historicalPlayer": "Filmel Johnson",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BelloBJ",
+      "ddsFilename": "plpo_BelloBJ.dds",
+      "recycledFrom": "BJ Bello (R)"
+    },
+    {
+      "historicalPlayer": "Joe Johnson",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BenfordTim",
+      "ddsFilename": "plpo_BenfordTim.dds",
+      "recycledFrom": "Tim Benford (R)"
+    },
+    {
+      "historicalPlayer": "LeShon Johnson",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BenkertKurt",
+      "ddsFilename": "plpo_BenkertKurt.dds",
+      "recycledFrom": "Kurt Benkert (R)"
+    },
+    {
+      "historicalPlayer": "Pat Johnson",
+      "position": "S",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BennettBryan",
+      "ddsFilename": "plpo_BennettBryan.dds",
+      "recycledFrom": "Bryan Bennett (R)"
+    },
+    {
+      "historicalPlayer": "Tre' Johnson",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BensonTrinity",
+      "ddsFilename": "plpo_BensonTrinity.dds",
+      "recycledFrom": "Trinity Benson (R)"
+    },
+    {
+      "historicalPlayer": "Tyrone Johnson",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BenzschawelBeau",
+      "ddsFilename": "plpo_BenzschawelBeau.dds",
+      "recycledFrom": "Beau Benzschawel (R)"
+    },
+    {
+      "historicalPlayer": "Calvin Jones",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BercoviciMike",
+      "ddsFilename": "plpo_BercoviciMike.dds",
+      "recycledFrom": "Mike Bercovici (R)"
+    },
+    {
+      "historicalPlayer": "Andrew Jordan",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BerryEvan",
+      "ddsFilename": "plpo_BerryEvan.dds",
+      "recycledFrom": "Evan Berry (R)"
+    },
+    {
+      "historicalPlayer": "Dwayne Joseph",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BerryRashod",
+      "ddsFilename": "plpo_BerryRashod.dds",
+      "recycledFrom": "Rashod Berry (R)"
+    },
+    {
+      "historicalPlayer": "Matt Joyce",
+      "position": "OT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BersinBrenton",
+      "ddsFilename": "plpo_BersinBrenton.dds",
+      "recycledFrom": "Brenton Bersin (R)"
+    },
+    {
+      "historicalPlayer": "Alai Kalaniuvalu",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BertJones",
+      "ddsFilename": "plpo_BertJones.dds",
+      "recycledFrom": "Bert Jones (R)"
+    },
+    {
+      "historicalPlayer": "Jay Kearney",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BertoletTaylor",
+      "ddsFilename": "plpo_BertoletTaylor.dds",
+      "recycledFrom": "Taylor Bertolet (R)"
+    },
+    {
+      "historicalPlayer": "Perry Klein",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_Bethel",
+      "ddsFilename": "plpo_Bethel.dds",
+      "recycledFrom": "McLeod Bethel-Thompson (R)"
+    },
+    {
+      "historicalPlayer": "Alan Kline",
+      "position": "OT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BethuneYurik",
+      "ddsFilename": "plpo_BethuneYurik.dds",
+      "recycledFrom": "Yurik Bethune (R)"
+    },
+    {
+      "historicalPlayer": "Kevin Knox",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BibbsEJ",
+      "ddsFilename": "plpo_BibbsEJ.dds",
+      "recycledFrom": "EJ Bibbs (R)"
+    },
+    {
+      "historicalPlayer": "Darren Krein",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BighillAdam",
+      "ddsFilename": "plpo_BighillAdam.dds",
+      "recycledFrom": "Adam Bighill (R)"
+    },
+    {
+      "historicalPlayer": "Aaron Laing",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BillingsleyJace",
+      "ddsFilename": "plpo_BillingsleyJace.dds",
+      "recycledFrom": "Jace Billingsley (R)"
+    },
+    {
+      "historicalPlayer": "Max Lane",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BinnsArmon",
+      "ddsFilename": "plpo_BinnsArmon.dds",
+      "recycledFrom": "Armon Binns (R)"
+    },
+    {
+      "historicalPlayer": "Antonio Langham",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BishopFreddie",
+      "ddsFilename": "plpo_BishopFreddie.dds",
+      "recycledFrom": "Freddie Bishop (R)"
+    },
+    {
+      "historicalPlayer": "Kevin Lee",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BituliDaniel",
+      "ddsFilename": "plpo_BituliDaniel.dds",
+      "recycledFrom": "Daniel Bituli (R)"
+    },
+    {
+      "historicalPlayer": "Fred Lester",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlackHenry",
+      "ddsFilename": "plpo_BlackHenry.dds",
+      "recycledFrom": "Henry Black (R)"
+    },
+    {
+      "historicalPlayer": "Chuck Levy",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlacknallSaeed",
+      "ddsFilename": "plpo_BlacknallSaeed.dds",
+      "recycledFrom": "Saeed Blacknall (R)"
+    },
+    {
+      "historicalPlayer": "Roderick Lewis",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlackwellJosh",
+      "ddsFilename": "plpo_BlackwellJosh.dds",
+      "recycledFrom": "Josh Blackwell (R)"
+    },
+    {
+      "historicalPlayer": "Thomas Lewis",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlakeChristian",
+      "ddsFilename": "plpo_BlakeChristian.dds",
+      "recycledFrom": "Christian Blake (R)"
+    },
+    {
+      "historicalPlayer": "Corey Louchiey",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlanchardMatt",
+      "ddsFilename": "plpo_BlanchardMatt.dds",
+      "recycledFrom": "Matt Blanchard (R)"
+    },
+    {
+      "historicalPlayer": "Lance Lundberg",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlandingQuin",
+      "ddsFilename": "plpo_BlandingQuin.dds",
+      "recycledFrom": "Quin Blanding (R)"
+    },
+    {
+      "historicalPlayer": "Keith Lyle",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlantonKendall",
+      "ddsFilename": "plpo_BlantonKendall.dds",
+      "recycledFrom": "Kendall Blanton (R)"
+    },
+    {
+      "historicalPlayer": "Rick Lyle",
+      "position": "DE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BledsoeAmani",
+      "ddsFilename": "plpo_BledsoeAmani.dds",
+      "recycledFrom": "Amani Bledsoe (R)"
+    },
+    {
+      "historicalPlayer": "Eric Mahlum",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlewittChris",
+      "ddsFilename": "plpo_BlewittChris.dds",
+      "recycledFrom": "Chris Blewitt (R)"
+    },
+    {
+      "historicalPlayer": "Van Malone",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BlueJavess",
+      "ddsFilename": "plpo_BlueJavess.dds",
+      "recycledFrom": "Javess Blue (R)"
+    },
+    {
+      "historicalPlayer": "Anthony Marshall",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoardCJ",
+      "ddsFilename": "plpo_BoardCJ.dds",
+      "recycledFrom": "C.J. Board (R)"
+    },
+    {
+      "historicalPlayer": "Jason Mathews",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoffeliConor",
+      "ddsFilename": "plpo_BoffeliConor.dds",
+      "recycledFrom": "Conor Boffeli (R)"
+    },
+    {
+      "historicalPlayer": "Steve Matthews",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoggsTaylor",
+      "ddsFilename": "plpo_BoggsTaylor.dds",
+      "recycledFrom": "Taylor Boggs (R)"
+    },
+    {
+      "historicalPlayer": "Chris Maumalanga",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoldenBubba",
+      "ddsFilename": "plpo_BoldenBubba.dds",
+      "recycledFrom": "Bubba Bolden (R)"
+    },
+    {
+      "historicalPlayer": "Andy McCollum",
+      "position": "C",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoldenSlade",
+      "ddsFilename": "plpo_BoldenSlade.dds",
+      "recycledFrom": "Slade Bolden (R)"
+    },
+    {
+      "historicalPlayer": "Hurvin McCormack",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoldenVictor",
+      "ddsFilename": "plpo_BoldenVictor.dds",
+      "recycledFrom": "Victor Bolden (R)"
+    },
+    {
+      "historicalPlayer": "Ryan McCoy",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BonaniMaikon",
+      "ddsFilename": "plpo_BonaniMaikon.dds",
+      "recycledFrom": "Maikon Bonani (R)"
+    },
+    {
+      "historicalPlayer": "Lenny McGill",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BondAl",
+      "ddsFilename": "plpo_BondAl.dds",
+      "recycledFrom": "Al Bond (R)"
+    },
+    {
+      "historicalPlayer": "Toddrick McIntosh",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BondDeyshawn",
+      "ddsFilename": "plpo_BondDeyshawn.dds",
+      "recycledFrom": "Deyshawn Bond (R)"
+    },
+    {
+      "historicalPlayer": "James McKnight",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BondsTerrell",
+      "ddsFilename": "plpo_BondsTerrell.dds",
+      "recycledFrom": "Terrell Bonds (R)"
+    },
+    {
+      "historicalPlayer": "Terry Mickens",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BonnafonReggie",
+      "ddsFilename": "plpo_BonnafonReggie.dds",
+      "recycledFrom": "Reggie Bonnafon (R)"
+    },
+    {
+      "historicalPlayer": "Jamir Miller",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BonnerDetrick",
+      "ddsFilename": "plpo_BonnerDetrick.dds",
+      "recycledFrom": "Detrick Bonner (R)"
+    },
+    {
+      "historicalPlayer": "Jim Miller",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BooneAnthony",
+      "ddsFilename": "plpo_BooneAnthony.dds",
+      "recycledFrom": "Anthony Boone (R)"
+    },
+    {
+      "historicalPlayer": "Derrell Mitchell",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoothCody",
+      "ddsFilename": "plpo_BoothCody.dds",
+      "recycledFrom": "Cody Booth (R)"
+    },
+    {
+      "historicalPlayer": "Kevin Mitchell",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BootleDicaprio",
+      "ddsFilename": "plpo_BootleDicaprio.dds",
+      "recycledFrom": "Dicaprio Bootle (R)"
+    },
+    {
+      "historicalPlayer": "Shannon Mitchell",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoozerCole",
+      "ddsFilename": "plpo_BoozerCole.dds",
+      "recycledFrom": "Cole Boozer (R)"
+    },
+    {
+      "historicalPlayer": "Mark Montgomery",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BorderBreon",
+      "ddsFilename": "plpo_BorderBreon.dds",
+      "recycledFrom": "Breon Border (R)"
+    },
+    {
+      "historicalPlayer": "Marty Moore",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BorghiMax",
+      "ddsFilename": "plpo_BorghiMax.dds",
+      "recycledFrom": "Max Borghi (R)"
+    },
+    {
+      "historicalPlayer": "Bam Morris",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BorregalesJose",
+      "ddsFilename": "plpo_BorregalesJose.dds",
+      "recycledFrom": "Jose Borregales (R)"
+    },
+    {
+      "historicalPlayer": "Horace Morris",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BostickJrEarl",
+      "ddsFilename": "plpo_BostickJrEarl.dds",
+      "recycledFrom": "Earl Bostick Jr. (R)"
+    },
+    {
+      "historicalPlayer": "Johnnie Morton",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BosworthBrian",
+      "ddsFilename": "plpo_BosworthBrian.dds",
+      "recycledFrom": "Brian Bosworth (R)"
+    },
+    {
+      "historicalPlayer": "Quentin Neujahr",
+      "position": "C",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoulwareBenjamin",
+      "ddsFilename": "plpo_BoulwareBenjamin.dds",
+      "recycledFrom": "Benjamin Boulware (R)"
+    },
+    {
+      "historicalPlayer": "Dexter Nottage",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BowenBranden",
+      "ddsFilename": "plpo_BowenBranden.dds",
+      "recycledFrom": "Branden Bowen (R)"
+    },
+    {
+      "historicalPlayer": "Craig Novitsky",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BowersNick",
+      "ddsFilename": "plpo_BowersNick.dds",
+      "recycledFrom": "Nick Bowers (R)"
+    },
+    {
+      "historicalPlayer": "Jeremy Nunley",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BowmanBraedon",
+      "ddsFilename": "plpo_BowmanBraedon.dds",
+      "recycledFrom": "Braedon Bowman (R)"
+    },
+    {
+      "historicalPlayer": "Doug Nussmeier",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoydChris",
+      "ddsFilename": "plpo_BoydChris.dds",
+      "recycledFrom": "Chris Boyd (R)"
+    },
+    {
+      "historicalPlayer": "Brian O'Neal",
+      "position": "FB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoydDino",
+      "ddsFilename": "plpo_BoydDino.dds",
+      "recycledFrom": "Dino Boyd (R)"
+    },
+    {
+      "historicalPlayer": "Pat O'Neill",
+      "position": "P",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoyeDoeEkow",
+      "ddsFilename": "plpo_BoyeDoeEkow.dds",
+      "recycledFrom": "Ekow Boye-Doe (R)"
+    },
+    {
+      "historicalPlayer": "Kimo von Oelhoffen",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoyetteJrPaul",
+      "ddsFilename": "plpo_BoyetteJrPaul.dds",
+      "recycledFrom": "Paul Boyette Jr. (R)"
+    },
+    {
+      "historicalPlayer": "A.J. Ofodile",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoykinLance",
+      "ddsFilename": "plpo_BoykinLance.dds",
+      "recycledFrom": "Lance Boykin (R)"
+    },
+    {
+      "historicalPlayer": "Brad Ottis",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoykinsJeremy",
+      "ddsFilename": "plpo_BoykinsJeremy.dds",
+      "recycledFrom": "Jeremy Boykins (R)"
+    },
+    {
+      "historicalPlayer": "David Palmer",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoykoBrett",
+      "ddsFilename": "plpo_BoykoBrett.dds",
+      "recycledFrom": "Brett Boyko (R)"
+    },
+    {
+      "historicalPlayer": "Joe Panos",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BoykoBrett",
+      "ddsFilename": "plpo_BoykoBrett.dds",
+      "recycledFrom": "Brett Boyko (R)"
+    },
+    {
+      "historicalPlayer": "Orlando Parker",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrackettBrett",
+      "ddsFilename": "plpo_BrackettBrett.dds",
+      "recycledFrom": "Brett Brackett (R)"
+    },
+    {
+      "historicalPlayer": "Vaughn Parker",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BradenBen",
+      "ddsFilename": "plpo_BradenBen.dds",
+      "recycledFrom": "Ben Braden (R)"
+    },
+    {
+      "historicalPlayer": "Roosevelt Patterson",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BradleyBam",
+      "ddsFilename": "plpo_BradleyBam.dds",
+      "recycledFrom": "Bam Bradley (R)"
+    },
+    {
+      "historicalPlayer": "Joe Patton",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BradleyJaMarcus",
+      "ddsFilename": "plpo_BradleyJaMarcus.dds",
+      "recycledFrom": "JaMarcus Bradley (R)"
+    },
+    {
+      "historicalPlayer": "Chris Penn",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BradwellDarius",
+      "ddsFilename": "plpo_BradwellDarius.dds",
+      "recycledFrom": "Darius Bradwell (R)"
+    },
+    {
+      "historicalPlayer": "Marlo Perry",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BradyTyre",
+      "ddsFilename": "plpo_BradyTyre.dds",
+      "recycledFrom": "Tyre Brady (R)"
+    },
+    {
+      "historicalPlayer": "Tony Peterson",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BranchMarcelis",
+      "ddsFilename": "plpo_BranchMarcelis.dds",
+      "recycledFrom": "Marcelis Branch (R)"
+    },
+    {
+      "historicalPlayer": "Anthony Phillips",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrannonJohn",
+      "ddsFilename": "plpo_BrannonJohn.dds",
+      "recycledFrom": "John Brannon (R)"
+    },
+    {
+      "historicalPlayer": "Pete Pierson",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BreauxDelvin",
+      "ddsFilename": "plpo_BreauxDelvin.dds",
+      "recycledFrom": "Delvin Breaux (R)"
+    },
+    {
+      "historicalPlayer": "Trent Pollard",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BreelandJacob",
+      "ddsFilename": "plpo_BreelandJacob.dds",
+      "recycledFrom": "Jacob Breeland (R)"
+    },
+    {
+      "historicalPlayer": "Jim Pyne",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrennerSam",
+      "ddsFilename": "plpo_BrennerSam.dds",
+      "recycledFrom": "Sam Brenner (R)"
+    },
+    {
+      "historicalPlayer": "Shelton Quarles",
+      "position": "LB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrentJosh",
+      "ddsFilename": "plpo_BrentJosh.dds",
+      "recycledFrom": "Josh Brent (R)"
+    },
+    {
+      "historicalPlayer": "Thomas Randolph",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrentKJ",
+      "ddsFilename": "plpo_BrentKJ.dds",
+      "recycledFrom": "K.J. Brent (R)"
+    },
+    {
+      "historicalPlayer": "Walter Rasby",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrewerCJ",
+      "ddsFilename": "plpo_BrewerCJ.dds",
+      "recycledFrom": "C.J. Brewer (R)"
+    },
+    {
+      "historicalPlayer": "Eric Ravotti",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrewsterMichael",
+      "ddsFilename": "plpo_BrewsterMichael.dds",
+      "recycledFrom": "Michael Brewster (R)"
+    },
+    {
+      "historicalPlayer": "Anthony Redmon",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BriceKentrell",
+      "ddsFilename": "plpo_BriceKentrell.dds",
+      "recycledFrom": "Kentrell Brice (R)"
+    },
+    {
+      "historicalPlayer": "John Reece",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BridgeBrandon",
+      "ddsFilename": "plpo_BridgeBrandon.dds",
+      "recycledFrom": "Brandon Bridge (R)"
+    },
+    {
+      "historicalPlayer": "Bryan Reeves",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrightDave",
+      "ddsFilename": "plpo_BrightDave.dds",
+      "recycledFrom": "Dave Bright (R)"
+    },
+    {
+      "historicalPlayer": "Jim Reid",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrindzaKyle",
+      "ddsFilename": "plpo_BrindzaKyle.dds",
+      "recycledFrom": "Kyle Brindza (R)"
+    },
+    {
+      "historicalPlayer": "Jerry Reynolds",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrinkleyBeau",
+      "ddsFilename": "plpo_BrinkleyBeau.dds",
+      "recycledFrom": "Beau Brinkley (R)"
+    },
+    {
+      "historicalPlayer": "Errict Rhett",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BritzTravis",
+      "ddsFilename": "plpo_BritzTravis.dds",
+      "recycledFrom": "Travis Britz (R)"
+    },
+    {
+      "historicalPlayer": "Tony Richardson",
+      "position": "FB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrkicGabe",
+      "ddsFilename": "plpo_BrkicGabe.dds",
+      "recycledFrom": "Gabe Brkic (R)"
+    },
+    {
+      "historicalPlayer": "Ron Rivers",
+      "position": "RB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrockelRichie",
+      "ddsFilename": "plpo_BrockelRichie.dds",
+      "recycledFrom": "Richie Brockel (R)"
+    },
+    {
+      "historicalPlayer": "Austin Robbins",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrockKevin",
+      "ddsFilename": "plpo_BrockKevin.dds",
+      "recycledFrom": "Kevin Brock (R)"
+    },
+    {
+      "historicalPlayer": "Jermaine Ross",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrodineMason",
+      "ddsFilename": "plpo_BrodineMason.dds",
+      "recycledFrom": "Mason Brodine (R)"
+    },
+    {
+      "historicalPlayer": "Tim Ruddy",
+      "position": "C",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BronsonJosiah",
+      "ddsFilename": "plpo_BronsonJosiah.dds",
+      "recycledFrom": "Josiah Bronson (R)"
+    },
+    {
+      "historicalPlayer": "Terry Samuels",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BronsonMalcolm",
+      "ddsFilename": "plpo_BronsonMalcolm.dds",
+      "recycledFrom": "Malcolm Bronson (R)"
+    },
+    {
+      "historicalPlayer": "Cedric Saunders",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrooksJamesTony",
+      "ddsFilename": "plpo_BrooksJamesTony.dds",
+      "recycledFrom": "Tony Brooks-James (R)"
+    },
+    {
+      "historicalPlayer": "Corey Sawyer",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrooksKennedy",
+      "ddsFilename": "plpo_BrooksKennedy.dds",
+      "recycledFrom": "Kennedy Brooks (R)"
+    },
+    {
+      "historicalPlayer": "Bill Schroeder",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrooksMason",
+      "ddsFilename": "plpo_BrooksMason.dds",
+      "recycledFrom": "Mason Brooks (R)"
+    },
+    {
+      "historicalPlayer": "Darnay Scott",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrooksMyles",
+      "ddsFilename": "plpo_BrooksMyles.dds",
+      "recycledFrom": "Myles Brooks (R)"
+    },
+    {
+      "historicalPlayer": "Tony Semple",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrooksPaxton",
+      "ddsFilename": "plpo_BrooksPaxton.dds",
+      "recycledFrom": "Paxton Brooks (R)"
+    },
+    {
+      "historicalPlayer": "Steve Shine",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrossetteNick",
+      "ddsFilename": "plpo_BrossetteNick.dds",
+      "recycledFrom": "Nick Brossette (R)"
+    },
+    {
+      "historicalPlayer": "Heath Shuler",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownAlgernon",
+      "ddsFilename": "plpo_BrownAlgernon.dds",
+      "recycledFrom": "Algernon Brown (R)"
+    },
+    {
+      "historicalPlayer": "Fernando Smith",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownAnthony_QB",
+      "ddsFilename": "plpo_BrownAnthony_QB.dds",
+      "recycledFrom": "Anthony Brown (R)"
+    },
+    {
+      "historicalPlayer": "Lamar Smith",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownBeniquez",
+      "ddsFilename": "plpo_BrownBeniquez.dds",
+      "recycledFrom": "Beniquez Brown (R)"
+    },
+    {
+      "historicalPlayer": "Marcus Spears",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownBlace",
+      "ddsFilename": "plpo_BrownBlace.dds",
+      "recycledFrom": "Blace Brown (R)"
+    },
+    {
+      "historicalPlayer": "Ramondo Stallings",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownDeAngelo",
+      "ddsFilename": "plpo_BrownDeAngelo.dds",
+      "recycledFrom": "Angelo Brown (R)"
+    },
+    {
+      "historicalPlayer": "Todd Steussie",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownDominique",
+      "ddsFilename": "plpo_BrownDominique.dds",
+      "recycledFrom": "Dominique Brown (R)"
+    },
+    {
+      "historicalPlayer": "Robert Strait",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownDonatello",
+      "ddsFilename": "plpo_BrownDonatello.dds",
+      "recycledFrom": "Donatello Brown (R)"
+    },
+    {
+      "historicalPlayer": "Darren Studstill",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownDrew",
+      "ddsFilename": "plpo_BrownDrew.dds",
+      "recycledFrom": "Drew Brown (R)"
+    },
+    {
+      "historicalPlayer": "Aaron Taylor",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownDrew",
+      "ddsFilename": "plpo_BrownDrew.dds",
+      "recycledFrom": "Drew Brown (R)"
+    },
+    {
+      "historicalPlayer": "Lance Teichelman",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownerKeith",
+      "ddsFilename": "plpo_BrownerKeith.dds",
+      "recycledFrom": "Keith Browner (R)"
+    },
+    {
+      "historicalPlayer": "John Thierry",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownFadol",
+      "ddsFilename": "plpo_BrownFadol.dds",
+      "recycledFrom": "Fadol Brown (R)"
+    },
+    {
+      "historicalPlayer": "Damon Thomas",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownFred",
+      "ddsFilename": "plpo_BrownFred.dds",
+      "recycledFrom": "Fred Brown (R)"
+    },
+    {
+      "historicalPlayer": "Winfred Tubbs",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownJaron",
+      "ddsFilename": "plpo_BrownJaron.dds",
+      "recycledFrom": "Jaron Brown (R)"
+    },
+    {
+      "historicalPlayer": "Rich Tylski",
+      "position": "G",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownKeenen",
+      "ddsFilename": "plpo_BrownKeenen.dds",
+      "recycledFrom": "Keenen Brown (R)"
+    },
+    {
+      "historicalPlayer": "Tony Vinson",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownKourtnei",
+      "ddsFilename": "plpo_BrownKourtnei.dds",
+      "recycledFrom": "Kourtnei Brown (R)"
+    },
+    {
+      "historicalPlayer": "Rob Waldrop",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownKyron",
+      "ddsFilename": "plpo_BrownKyron.dds",
+      "recycledFrom": "Kyron Brown (R)"
+    },
+    {
+      "historicalPlayer": "Bracy Walker",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownLeddie",
+      "ddsFilename": "plpo_BrownLeddie.dds",
+      "recycledFrom": "Leddie Brown (R)"
+    },
+    {
+      "historicalPlayer": "Bruce Walker",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownMack",
+      "ddsFilename": "plpo_BrownMack.dds",
+      "recycledFrom": "Mack Brown (R)"
+    },
+    {
+      "historicalPlayer": "Jay Walker",
+      "position": "QB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownMarlon",
+      "ddsFilename": "plpo_BrownMarlon.dds",
+      "recycledFrom": "Marlon Brown (R)"
+    },
+    {
+      "historicalPlayer": "Lamont Warren",
+      "position": "HB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownMiles",
+      "ddsFilename": "plpo_BrownMiles.dds",
+      "recycledFrom": "Miles Brown (R)"
+    },
+    {
+      "historicalPlayer": "Dewayne Washington",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownRyan",
+      "ddsFilename": "plpo_BrownRyan.dds",
+      "recycledFrom": "Ryan Brown (R)"
+    },
+    {
+      "historicalPlayer": "Mike Wells",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownSergio",
+      "ddsFilename": "plpo_BrownSergio.dds",
+      "recycledFrom": "Sergio Brown (R)"
+    },
+    {
+      "historicalPlayer": "Larry Whigham",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownTanner",
+      "ddsFilename": "plpo_BrownTanner.dds",
+      "recycledFrom": "Tanner Brown (R)"
+    },
+    {
+      "historicalPlayer": "Bernard Whittington",
+      "position": "DE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownTony",
+      "ddsFilename": "plpo_BrownTony.dds",
+      "recycledFrom": "Tony Brown (R)"
+    },
+    {
+      "historicalPlayer": "Gabe Wilkins",
+      "position": "LE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownTre",
+      "ddsFilename": "plpo_BrownTre.dds",
+      "recycledFrom": "Tre Brown (R)"
+    },
+    {
+      "historicalPlayer": "Jeff Wilkins",
+      "position": "K",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrownWilliam",
+      "ddsFilename": "plpo_BrownWilliam.dds",
+      "recycledFrom": "William Brown (R)"
+    },
+    {
+      "historicalPlayer": "Dan Wilkinson",
+      "position": "DT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrumfieldGarrett",
+      "ddsFilename": "plpo_BrumfieldGarrett.dds",
+      "recycledFrom": "Garrett Brumfield (R)"
+    },
+    {
+      "historicalPlayer": "Bernard Williams",
+      "position": "LT",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BrutusLamarcus",
+      "ddsFilename": "plpo_BrutusLamarcus.dds",
+      "recycledFrom": "Lamarcus Brutus (R)"
+    },
+    {
+      "historicalPlayer": "Jay Williams",
+      "position": "DE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BryantBrandin",
+      "ddsFilename": "plpo_BryantBrandin.dds",
+      "recycledFrom": "Brandin Bryant (R)"
+    },
+    {
+      "historicalPlayer": "Mark Williams",
+      "position": "LB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BryantBrandon",
+      "ddsFilename": "plpo_BryantBrandon.dds",
+      "recycledFrom": "Brandon Bryant (R)"
+    },
+    {
+      "historicalPlayer": "Jeff Wilner",
+      "position": "TE",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BryantChristian",
+      "ddsFilename": "plpo_BryantChristian.dds",
+      "recycledFrom": "Christian Bryant (R)"
+    },
+    {
+      "historicalPlayer": "Ray Wilson",
+      "position": "S",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BryantHunter",
+      "ddsFilename": "plpo_BryantHunter.dds",
+      "recycledFrom": "Hunter Bryant (R)"
+    },
+    {
+      "historicalPlayer": "Tydus Winans",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BryantKelly",
+      "ddsFilename": "plpo_BryantKelly.dds",
+      "recycledFrom": "Kelly Bryant (R)"
+    },
+    {
+      "historicalPlayer": "Jason Winrow",
+      "position": "LG",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BryantVentell",
+      "ddsFilename": "plpo_BryantVentell.dds",
+      "recycledFrom": "Ventell Bryant (R)"
+    },
+    {
+      "historicalPlayer": "Lee Woodall",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BuchananCollin",
+      "ddsFilename": "plpo_BuchananCollin.dds",
+      "recycledFrom": "Collin Buchanan (R)"
+    },
+    {
+      "historicalPlayer": "Ronnie Woolfork",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BucknerDan",
+      "ddsFilename": "plpo_BucknerDan.dds",
+      "recycledFrom": "Dan Buckner (R)"
+    },
+    {
+      "historicalPlayer": "Tito Wooten",
+      "position": "S",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BuecheleShane",
+      "ddsFilename": "plpo_BuecheleShane.dds",
+      "recycledFrom": "Shane Buechele (R)"
+    },
+    {
+      "historicalPlayer": "Barron Wortham",
+      "position": "MLB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BulloughRiley",
+      "ddsFilename": "plpo_BulloughRiley.dds",
+      "recycledFrom": "Riley Bullough (R)"
+    },
+    {
+      "historicalPlayer": "Toby Wright",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BundyMarquis",
+      "ddsFilename": "plpo_BundyMarquis.dds",
+      "recycledFrom": "Marquis Bundy (R)"
+    },
+    {
+      "historicalPlayer": "Ryan Yarborough",
+      "position": "WR",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BuntingIan",
+      "ddsFilename": "plpo_BuntingIan.dds",
+      "recycledFrom": "Ian Bunting (R)"
+    },
+    {
+      "historicalPlayer": "Eric Zomalt",
+      "position": "CB",
+      "race": 0,
+      "type": "RECYCLABLE",
+      "recyclablePLPO": "plpo_BurksBrandon",
+      "ddsFilename": "plpo_BurksBrandon.dds",
+      "recycledFrom": "Brandon Burks (R)"
+    }
+  ]
+}

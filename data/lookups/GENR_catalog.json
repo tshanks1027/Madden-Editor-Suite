@@ -1,0 +1,94 @@
+{
+  "description": "Generic face model catalog extracted from game files. SKNT (skin tone) correlates with gen_X prefix.",
+  "gen_1": [
+    "gen_1_B_B_005", "gen_1_B_B_009",
+    "gen_1_b_ea_aj", "gen_1_b_ea_ca", "gen_1_b_ea_cc", "gen_1_B_EA_CM", "gen_1_b_ea_jo", "gen_1_B_EA_JR", "gen_1_B_EA_RR", "gen_1_B_EA_TK",
+    "gen_1_B_G_01",
+    "gen_1_B_N_0012", "gen_1_B_N_007", "gen_1_b_n_008", "gen_1_b_n_01", "gen_1_B_N_010", "gen_1_B_N_011", "gen_1_B_N_02", "gen_1_B_N_03", "gen_1_B_N_04",
+    "gen_1_B_S_001", "gen_1_B_S_002", "gen_1_b_s_003", "gen_1_B_S_004",
+    "gen_1_BM_MB_005", "gen_1_bm_mb_006",
+    "gen_1_H_B_009", "gen_1_H_BD_01", "gen_1_H_BD_02", "gen_1_h_bd_03",
+    "gen_1_H_N_010", "gen_1_H_N_015",
+    "gen_1_H_S_003", "gen_1_H_S_007", "gen_1_H_S_008",
+    "gen_1_M_N_02", "gen_1_M_S_011",
+    "gen_1_T_EA_JP", "gen_1_T_N_004", "gen_1_t_s_002", "gen_1_t_s_004"
+  ],
+  "gen_2": [
+    "gen_2_B_B_002", "gen_2_B_B_004", "gen_2_B_B_005", "gen_2_B_B_006",
+    "gen_2_B_BD_03", "gen_2_b_bd_04",
+    "gen_2_B_EA_CM", "gen_2_b_ea_co", "gen_2_B_EA_GW", "gen_2_B_EA_JD", "gen_2_B_EA_MD", "gen_2_b_ea_rb",
+    "gen_2_B_N_0010", "gen_2_B_N_0011", "gen_2_B_N_0012", "gen_2_B_N_0013", "gen_2_B_N_0014", "gen_2_B_N_0015", "gen_2_B_N_0016", "gen_2_B_N_0017", "gen_2_B_N_0018", "gen_2_B_N_006", "gen_2_B_N_007", "gen_2_b_n_008", "gen_2_B_N_009", "gen_2_B_N_01", "gen_2_B_N_02", "gen_2_B_N_03",
+    "gen_2_B_S_001", "gen_2_B_S_005", "gen_2_B_S_006", "gen_2_B_S_007", "gen_2_b_s_008", "gen_2_B_S_009",
+    "gen_2_BMH_G_009", "gen_2_BMH_S_002", "gen_2_BMH_S_003", "gen_2_BMH_S_004", "gen_2_BMH_S_010",
+    "gen_2_H_B_002", "gen_2_H_B_004", "gen_2_H_B_005", "gen_2_h_b_006", "gen_2_H_B_010",
+    "gen_2_H_BD_03",
+    "gen_2_H_G_01", "gen_2_H_G_02",
+    "gen_2_H_GM_004", "gen_2_h_gm_005",
+    "gen_2_H_MB_012", "gen_2_h_mb_013",
+    "gen_2_H_N_006", "gen_2_H_N_007", "gen_2_H_N_009", "gen_2_H_N_03",
+    "gen_2_M_B_01", "gen_2_M_B_02", "gen_2_M_N_007", "gen_2_M_N_04", "gen_2_M_N_05", "gen_2_M_N_22", "gen_2_M_S_001", "gen_2_m_s_002", "gen_2_M_S_011", "gen_2_m_s_012",
+    "gen_2_T_EA_JW", "gen_2_T_EA_SC", "gen_2_T_N_01", "gen_2_T_N_02", "gen_2_T_S_007", "gen_2_T_S_01"
+  ],
+  "gen_3": [
+    "gen_3_B_B_001", "gen_3_B_B_009", "gen_3_B_B_01",
+    "gen_3_B_BD_02",
+    "gen_3_b_n_003", "gen_3_b_n_004", "gen_3_B_N_006", "gen_3_B_N_007", "gen_3_B_N_01", "gen_3_B_N_02",
+    "gen_3_B_S_010", "gen_3_B_S_011",
+    "gen_3_BMT_S_003",
+    "gen_3_H_B_008", "gen_3_H_B_01", "gen_3_H_BD_01", "gen_3_H_MS_01", "gen_3_h_n_006", "gen_3_H_N_01", "gen_3_H_S_001",
+    "gen_3_M_N_01", "gen_3_M_N_21",
+    "gen_3_t_ea_kg", "gen_3_T_N_004", "gen_3_T_N_01"
+  ],
+  "gen_4": [
+    "gen_4_B_B_004", "gen_4_B_BM_01",
+    "gen_4_b_ea_ay",
+    "gen_4_B_G_003", "gen_4_B_G_004",
+    "gen_4_B_M_01", "gen_4_B_MS_01", "gen_4_B_MS_02", "gen_4_B_MS_03",
+    "gen_4_b_n_001", "gen_4_B_N_002", "gen_4_B_N_003", "gen_4_B_N_004", "gen_4_B_N_005", "gen_4_B_N_01", "gen_4_B_N_02",
+    "gen_4_BHM_S_01",
+    "gen_4_BM_B_001",
+    "gen_4_H_BD_01", "gen_4_H_N_001", "gen_4_h_n_002", "gen_4_H_N_003", "gen_4_H_N_004", "gen_4_H_N_005",
+    "gen_4_M_BD_02", "gen_4_M_M_005", "gen_4_m_n_002", "gen_4_M_N_01",
+    "gen_4_t_ea_rf", "gen_4_T_G_01", "gen_4_T_N_006", "gen_4_T_N_007", "gen_4_T_S_01", "gen_4_T_S_02"
+  ],
+  "gen_5": [
+    "gen_5_B_BD_02", "gen_5_B_BD_03", "gen_5_B_G_01", "gen_5_B_G_02", "gen_5_b_m_005", "gen_5_B_MS_02", "gen_5_B_N_01", "gen_5_B_N_02", "gen_5_b_n_03", "gen_5_B_N_04", "gen_5_B_S_002", "gen_5_B_S_003", "gen_5_B_S_008",
+    "gen_5_BHM_M_002", "gen_5_BHTM_GS_001", "gen_5_BTM_N_004",
+    "gen_5_H_BD_01", "gen_5_H_BD_02", "gen_5_H_G_01", "gen_5_H_MG_006", "gen_5_H_N_01", "gen_5_h_s_010",
+    "gen_5_M_B_001", "gen_5_M_BD_02", "gen_5_M_M_005", "gen_5_M_N_009", "gen_5_M_N_01", "gen_5_M_N_02",
+    "gen_5_T_G_01", "gen_5_T_GM_003"
+  ],
+  "gen_6": [
+    "gen_6_B_G_005", "gen_6_B_G_01", "gen_6_b_g_02", "gen_6_B_G_03", "gen_6_B_G_04", "gen_6_B_G_05", "gen_6_B_G_06", "gen_6_B_MS_01", "gen_6_B_N_0010", "gen_6_B_N_0011", "gen_6_B_N_003", "gen_6_B_N_004", "gen_6_B_N_005", "gen_6_B_N_006", "gen_6_B_N_007", "gen_6_B_N_008", "gen_6_B_N_009", "gen_6_B_N_01", "gen_6_B_N_02", "gen_6_B_N_03", "gen_6_B_S_01", "gen_6_B_S_02",
+    "gen_6_BHM_B_01", "gen_6_BHM_BM_004", "gen_6_BHM_G_002", "gen_6_BM_MG_008", "gen_6_BM_N_009", "gen_6_BM_S_01", "gen_6_BMH_G_010", "gen_6_BMH_N_003", "gen_6_BTM_BM_001",
+    "gen_6_H_B_002", "gen_6_H_BD_01", "gen_6_H_BM_02", "gen_6_H_G_01", "gen_6_H_G_012", "gen_6_H_MS_01", "gen_6_H_N_001", "gen_6_H_N_005", "gen_6_H_N_006", "gen_6_H_N_01", "gen_6_H_N_20",
+    "gen_6_M_G_01", "gen_6_M_MB_011", "gen_6_M_N_009", "gen_6_M_N_01", "gen_6_M_N_02", "gen_6_N_MG_009",
+    "gen_6_t_ea_rl", "gen_6_T_G_005", "gen_6_T_MG_006", "gen_6_T_N_009"
+  ],
+  "gen_7": [
+    "gen_7_B_B_001", "gen_7_B_B_002", "gen_7_B_B_005", "gen_7_B_B_009",
+    "gen_7_B_G_0010", "gen_7_B_G_004", "gen_7_B_G_005", "gen_7_B_G_007", "gen_7_B_G_008", "gen_7_B_G_009",
+    "gen_7_B_N_0010", "gen_7_B_N_0011", "gen_7_B_N_0012", "gen_7_B_N_0013", "gen_7_B_N_0014", "gen_7_B_N_003", "gen_7_B_N_007", "gen_7_B_N_009", "gen_7_B_N_011", "gen_7_B_N_012", "gen_7_B_N_013", "gen_7_B_N_014", "gen_7_B_N_015", "gen_7_B_N_016", "gen_7_B_N_017", "gen_7_B_N_018", "gen_7_B_N_019", "gen_7_B_N_06", "gen_7_B_N_07", "gen_7_B_N_08", "gen_7_B_N_09",
+    "gen_7_B_S_004", "gen_7_B_S_005",
+    "gen_7_BHM_MG_001", "gen_7_BHM_MG_007", "gen_7_BHM_MG_022", "gen_7_BHM_N_002", "gen_7_BHM_N_004", "gen_7_BHM_S_010", "gen_7_BMH_B_006", "gen_7_BMH_GS_005", "gen_7_BMH_GS_011", "gen_7_BMH_MB_019", "gen_7_BMH_MG_001", "gen_7_BMH_MG_003", "gen_7_BMH_MG_008", "gen_7_BMH_MG_020", "gen_7_BMH_S_008",
+    "gen_7_BMT_BM_012", "gen_7_BMT_M_009", "gen_7_bmt_m_010", "gen_7_BMT_MG_002", "gen_7_BMTH_N_003", "gen_7_BTM_B_021", "gen_7_BTM_MB_023", "gen_7_BTM_MG_006", "gen_7_BTM_N_007",
+    "gen_7_H_B_010", "gen_7_H_BD_03", "gen_7_H_BMS_013", "gen_7_H_G_001", "gen_7_H_G_004", "gen_7_H_G_006", "gen_7_H_G_008", "gen_7_H_G_009", "gen_7_H_G_02", "gen_7_H_N_006", "gen_7_H_N_009", "gen_7_H_N_01", "gen_7_H_N_02",
+    "gen_7_M_B_01", "gen_7_M_BD_01", "gen_7_M_BD_02", "gen_7_M_BM_014", "gen_7_M_G_004", "gen_7_M_G_005", "gen_7_M_GS_015", "gen_7_M_MB_009", "gen_7_M_MB_010", "gen_7_m_mb_011", "gen_7_M_MG_025", "gen_7_M_N_001", "gen_7_M_N_005", "gen_7_M_N_006", "gen_7_M_N_024",
+    "gen_7_T_B_006", "gen_7_T_G_004", "gen_7_T_G_007", "gen_7_T_G_008", "gen_7_T_N_001", "gen_7_T_N_009", "gen_7_T_S_004"
+  ],
+  "raceToSkinTone": {
+    "1": [1, 2],
+    "5": [3, 4, 5],
+    "7": [6, 7]
+  },
+  "notes": {
+    "format": "gen_X_Y_Z_NNN where X=skin tone (1-7), Y=body type, Z=modifier, NNN=number",
+    "bodyTypes": "B=Big, H=Huge, M=Medium, T=Tall, combinations like BM, BH, BMH, BTM etc.",
+    "modifiers": "N=Normal, S=Slim, B=Bald?, G=Goatee?, BD=Beard?, EA=EA special, MB=?, MG=?, etc.",
+    "payton_turner_test": {
+      "official_head_128": { "GENR": "gen_5_T_G_01", "SKNT": 5 },
+      "test1_head_034": { "GENR": "gen_7_B_N_019", "SKNT": 7 },
+      "test2_head_189": { "GENR": "gen_3_B_S_010", "SKNT": 3 }
+    }
+  }
+}

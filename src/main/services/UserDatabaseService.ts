@@ -2352,6 +2352,87 @@ class UserDatabaseService {
     }));
   }
 
+  /**
+   * Get coach PID/PAM and year-specific stats by exact name match - used by Retro Editor
+   * Searches custom_coaches table for a coach with matching first/last name
+   * If year is provided, also fetches season stats for that year
+   * Returns { pid, pam, seasonStats? } if found, null otherwise
+   */
+  public getCoachByNameForRetro(firstName: string, lastName: string, year?: number): {
+    pid: number | null;
+    pam: string;
+    seasonStats?: {
+      team: string;
+      position: string;
+      careerWins: number;
+      careerLosses: number;
+      careerTies: number;
+      playoffWins: number;
+      superBowlWins: number;
+    };
+  } | null {
+    if (!this.customDb) return null;
+
+    // Case-insensitive exact match - get coach ID and appearance data
+    const coachRow = this.customDb.prepare(`
+      SELECT id, madden_pid, madden_pam FROM custom_coaches
+      WHERE LOWER(first_name) = LOWER(?) AND LOWER(last_name) = LOWER(?)
+      LIMIT 1
+    `).get(firstName, lastName) as { id: number; madden_pid: number | null; madden_pam: string | null } | undefined;
+
+    if (!coachRow) {
+      return null;
+    }
+
+    const result: {
+      pid: number | null;
+      pam: string;
+      seasonStats?: {
+        team: string;
+        position: string;
+        careerWins: number;
+        careerLosses: number;
+        careerTies: number;
+        playoffWins: number;
+        superBowlWins: number;
+      };
+    } = {
+      pid: coachRow.madden_pid,
+      pam: coachRow.madden_pam || ''
+    };
+
+    // If year provided, get season stats for that year
+    if (year) {
+      const seasonRow = this.customDb.prepare(`
+        SELECT team, position, wins, losses, ties, playoff_wins, super_bowl_wins
+        FROM custom_coach_seasons
+        WHERE custom_coach_id = ? AND year = ?
+      `).get(coachRow.id, year) as {
+        team: string | null;
+        position: string | null;
+        wins: number | null;
+        losses: number | null;
+        ties: number | null;
+        playoff_wins: number | null;
+        super_bowl_wins: number | null;
+      } | undefined;
+
+      if (seasonRow) {
+        result.seasonStats = {
+          team: seasonRow.team || '',
+          position: seasonRow.position || 'HC',
+          careerWins: seasonRow.wins || 0,
+          careerLosses: seasonRow.losses || 0,
+          careerTies: seasonRow.ties || 0,
+          playoffWins: seasonRow.playoff_wins || 0,
+          superBowlWins: seasonRow.super_bowl_wins || 0
+        };
+      }
+    }
+
+    return result;
+  }
+
   // =============================================
   // CUSTOM COACH SEASON OPERATIONS
   // =============================================

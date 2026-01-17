@@ -1,0 +1,599 @@
+{
+  "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden NFL 26\\Saves\\CAREER-NOV23-05h38m58p-AUTOSAVE",
+  "inspectedAt": "2025-12-12T00:25:11.633Z",
+  "canClear": [
+    {
+      "name": "PlaycallHistoryConceptDetails",
+      "description": "Playcall concept details",
+      "tableId": 4294,
+      "recordCount": 20000,
+      "nonEmptyCount": 19752,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "ReceiveRushStatSnapShot",
+      "description": "Receive/rush stat snapshots",
+      "tableId": 4169,
+      "recordCount": 7000,
+      "nonEmptyCount": 3153,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "UnpublishedGameStats",
+      "description": "Unpublished/pending game stats",
+      "tableId": 4220,
+      "recordCount": 2400,
+      "nonEmptyCount": 1402,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "GameDefensiveStats",
+      "description": "Per-game defensive stats",
+      "tableId": 4163,
+      "recordCount": 13500,
+      "nonEmptyCount": 1326,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CareerDefensiveStats",
+      "description": "Player career defensive stats",
+      "tableId": 4164,
+      "recordCount": 2000,
+      "nonEmptyCount": 1108,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "GameOffensiveStats",
+      "description": "Per-game offensive stats",
+      "tableId": 4105,
+      "recordCount": 7700,
+      "nonEmptyCount": 744,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "SeasonDefensiveStats",
+      "description": "Player season defensive stats",
+      "tableId": 4202,
+      "recordCount": 7500,
+      "nonEmptyCount": 703,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PlayerTransactionHistoryEntry",
+      "description": "Player transaction history",
+      "tableId": 4127,
+      "recordCount": 742,
+      "nonEmptyCount": 657,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "GameOLineStats",
+      "description": "Per-game O-line stats",
+      "tableId": 4118,
+      "recordCount": 6120,
+      "nonEmptyCount": 644,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PlaycallHistoryAiGroupDetails",
+      "description": "AI playcall groups",
+      "tableId": 4141,
+      "recordCount": 600,
+      "nonEmptyCount": 564,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PassRushStatSnapShot",
+      "description": "Pass rush stat snapshots",
+      "tableId": 4103,
+      "recordCount": 1300,
+      "nonEmptyCount": 528,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CareerOffensiveStats",
+      "description": "Player career offensive stats",
+      "tableId": 4299,
+      "recordCount": 1100,
+      "nonEmptyCount": 485,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CareerOLineStats",
+      "description": "Player career O-line stats",
+      "tableId": 4192,
+      "recordCount": 750,
+      "nonEmptyCount": 470,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "SeasonOffensiveStats",
+      "description": "Player season offensive stats",
+      "tableId": 4259,
+      "recordCount": 4400,
+      "nonEmptyCount": 396,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "TeamStats",
+      "description": "Team accumulated statistics",
+      "tableId": 4107,
+      "recordCount": 920,
+      "nonEmptyCount": 350,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "SeasonOLineStats",
+      "description": "Player season O-line stats",
+      "tableId": 4244,
+      "recordCount": 3450,
+      "nonEmptyCount": 341,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "SeasonTalent",
+      "description": "Player season talent ratings",
+      "tableId": 4110,
+      "recordCount": 7680,
+      "nonEmptyCount": 328,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CareerOffensiveKPReturnStats",
+      "description": "Player career KP return stats (offense)",
+      "tableId": 4266,
+      "recordCount": 450,
+      "nonEmptyCount": 206,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "GameKickingStats",
+      "description": "Per-game kicking stats",
+      "tableId": 4178,
+      "recordCount": 1500,
+      "nonEmptyCount": 124,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CareerKickingStats",
+      "description": "Player career kicking stats",
+      "tableId": 4291,
+      "recordCount": 250,
+      "nonEmptyCount": 91,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "SeasonKickingStats",
+      "description": "Player season kicking stats",
+      "tableId": 4205,
+      "recordCount": 825,
+      "nonEmptyCount": 66,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CareerDefensiveKPReturnStats",
+      "description": "Player career KP return stats (defense)",
+      "tableId": 4153,
+      "recordCount": 275,
+      "nonEmptyCount": 57,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "GameOffensiveKPReturnStats",
+      "description": "Per-game KP return stats (offense)",
+      "tableId": 4102,
+      "recordCount": 1200,
+      "nonEmptyCount": 55,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PlayerAward",
+      "description": "Player awards history",
+      "tableId": 4229,
+      "recordCount": 989,
+      "nonEmptyCount": 55,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PlaycallHistory",
+      "description": "Playcall history",
+      "tableId": 4150,
+      "recordCount": 32,
+      "nonEmptyCount": 32,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "SeasonOffensiveKPReturnStats",
+      "description": "Player season KP return stats (offense)",
+      "tableId": 4115,
+      "recordCount": 950,
+      "nonEmptyCount": 30,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "DraftPickTransactionHistoryEntry",
+      "description": "Draft pick transaction history",
+      "tableId": 4274,
+      "recordCount": 250,
+      "nonEmptyCount": 12,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "GameDefensiveKPReturnStats",
+      "description": "Per-game KP return stats (defense)",
+      "tableId": 4279,
+      "recordCount": 550,
+      "nonEmptyCount": 11,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "SeasonDefensiveKPReturnStats",
+      "description": "Player season KP return stats (defense)",
+      "tableId": 4267,
+      "recordCount": 1000,
+      "nonEmptyCount": 7,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PlayerStatRecordScope",
+      "description": "Stat record scopes",
+      "tableId": 4281,
+      "recordCount": 5,
+      "nonEmptyCount": 5,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PositionStatRecords",
+      "description": "Position stat records",
+      "tableId": 4203,
+      "recordCount": 4,
+      "nonEmptyCount": 4,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PositionRecordTable",
+      "description": "Position record holders",
+      "tableId": 4252,
+      "recordCount": 6,
+      "nonEmptyCount": 4,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PlayerPositionChangeHistoryEntry",
+      "description": "Position change history",
+      "tableId": 4240,
+      "recordCount": 742,
+      "nonEmptyCount": 1,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PlayerEditTransactionHistoryEntry",
+      "description": "Player edit history",
+      "tableId": 4180,
+      "recordCount": 742,
+      "nonEmptyCount": 1,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PrologueGameStats",
+      "description": "Prologue game stats",
+      "tableId": 4426,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    }
+  ],
+  "cannotClear": [
+    {
+      "name": "Awards",
+      "description": "Awards configuration (not clear)",
+      "tableId": 4355,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": false
+    },
+    {
+      "name": "AwardsEval",
+      "description": "Awards evaluation state",
+      "tableId": 4356,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": false
+    },
+    {
+      "name": "SeasonInfo",
+      "description": "Season configuration (needed)",
+      "tableId": 4128,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": false
+    },
+    {
+      "name": "SeasonGame",
+      "description": "Season games schedule (needed)",
+      "tableId": 4156,
+      "recordCount": 429,
+      "nonEmptyCount": 335,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": false
+    },
+    {
+      "name": "League",
+      "description": "League configuration (needed)",
+      "tableId": 4270,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": false
+    },
+    {
+      "name": "HistoryEntry",
+      "description": "History entry config",
+      "tableId": 4171,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": false
+    }
+  ],
+  "noData": [
+    {
+      "name": "CoachAward",
+      "description": "Coach awards history",
+      "tableId": 4284,
+      "recordCount": 31,
+      "nonEmptyCount": 0,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CoachTransactionHistoryEntry",
+      "description": "Coach transaction history",
+      "tableId": 4245,
+      "recordCount": 140,
+      "nonEmptyCount": 0,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "PlayerStatSnapShot",
+      "description": "Player stat snapshots",
+      "tableId": 4207,
+      "recordCount": 5760,
+      "nonEmptyCount": 0,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CollegeImportStat",
+      "description": "College import stats",
+      "tableId": 4209,
+      "recordCount": 398,
+      "nonEmptyCount": 0,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    },
+    {
+      "name": "CollegeImportAward",
+      "description": "College import awards",
+      "tableId": 4217,
+      "recordCount": 30,
+      "nonEmptyCount": 0,
+      "fields": [],
+      "sampleValues": null,
+      "clearable": true
+    }
+  ],
+  "notFound": [],
+  "championshipTables": [
+    {
+      "name": "CareerFlow_HallOfFameAnnouncementReaction",
+      "matchedTerm": "HallOfFame",
+      "tableId": 4380,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "CareerFlow_TrophyEarnedReaction",
+      "matchedTerm": "Trophy",
+      "tableId": 4425,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "HallOfFameAnnouncementEvent",
+      "matchedTerm": "HallOfFame",
+      "tableId": 4711,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "InductHallOfFameCoachesDataFlow",
+      "matchedTerm": "HallOfFame",
+      "tableId": 4712,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "InductHallOfFamePlayersDataFlow",
+      "matchedTerm": "HallOfFame",
+      "tableId": 4713,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "FranchiseServer_HallOfFameFlow",
+      "matchedTerm": "HallOfFame",
+      "tableId": 4714,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "HallofFameInductionReaction",
+      "matchedTerm": "HallOfFame",
+      "tableId": 4715,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "InductHallOfFameOwnersDataFlow",
+      "matchedTerm": "HallOfFame",
+      "tableId": 4716,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "NewsManager_HallOfFameAnnounceEventReaction",
+      "matchedTerm": "HallOfFame",
+      "tableId": 4838,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "ProBowlEvent",
+      "matchedTerm": "ProBowl",
+      "tableId": 5017,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "ProBowlVotingEndEvent",
+      "matchedTerm": "ProBowl",
+      "tableId": 5019,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "ProBowlVotingEndReaction",
+      "matchedTerm": "ProBowl",
+      "tableId": 5020,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "ProBowlVotingMiddleEvent",
+      "matchedTerm": "ProBowl",
+      "tableId": 5021,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "ProBowlVotingMiddleReaction",
+      "matchedTerm": "ProBowl",
+      "tableId": 5022,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "ProBowlVotingStartEvent",
+      "matchedTerm": "ProBowl",
+      "tableId": 5023,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "ProBowlVotingStartReaction",
+      "matchedTerm": "ProBowl",
+      "tableId": 5024,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "TrophyEarnedEvent",
+      "matchedTerm": "Trophy",
+      "tableId": 5409,
+      "nonEmptyCount": 1,
+      "totalRecords": 1
+    },
+    {
+      "name": "ProBowlRosterRequest",
+      "matchedTerm": "ProBowl",
+      "tableId": 5557,
+      "nonEmptyCount": 0,
+      "totalRecords": 32
+    }
+  ]
+}

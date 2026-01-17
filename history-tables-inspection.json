@@ -1,0 +1,450 @@
+{
+  "file": "C:\\Users\\tshan\\OneDrive\\Documents\\Madden NFL 26\\Saves\\CAREER-NOV23-05h38m58p-AUTOSAVE",
+  "inspectedAt": "2025-12-12T00:22:33.144Z",
+  "tables": {
+    "Awards": {
+      "found": true,
+      "tableId": 4355,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "AwardsEval": {
+      "found": true,
+      "tableId": 4356,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlayerAward": {
+      "found": true,
+      "tableId": 4229,
+      "recordCount": 989,
+      "nonEmptyCount": 55,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CoachAward": {
+      "found": true,
+      "tableId": 4284,
+      "recordCount": 31,
+      "nonEmptyCount": 0,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "AwardEvent": {
+      "found": true,
+      "tableId": 4351,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "HistoryEntry": {
+      "found": true,
+      "tableId": 4171,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CareerDefensiveStats": {
+      "found": true,
+      "tableId": 4164,
+      "recordCount": 2000,
+      "nonEmptyCount": 1108,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CareerOffensiveStats": {
+      "found": true,
+      "tableId": 4299,
+      "recordCount": 1100,
+      "nonEmptyCount": 485,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CareerKickingStats": {
+      "found": true,
+      "tableId": 4291,
+      "recordCount": 250,
+      "nonEmptyCount": 91,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CareerOLineStats": {
+      "found": true,
+      "tableId": 4192,
+      "recordCount": 750,
+      "nonEmptyCount": 470,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CareerDefensiveKPReturnStats": {
+      "found": true,
+      "tableId": 4153,
+      "recordCount": 275,
+      "nonEmptyCount": 57,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CareerOffensiveKPReturnStats": {
+      "found": true,
+      "tableId": 4266,
+      "recordCount": 450,
+      "nonEmptyCount": 206,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonDefensiveStats": {
+      "found": true,
+      "tableId": 4202,
+      "recordCount": 7500,
+      "nonEmptyCount": 703,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonOffensiveStats": {
+      "found": true,
+      "tableId": 4259,
+      "recordCount": 4400,
+      "nonEmptyCount": 396,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonKickingStats": {
+      "found": true,
+      "tableId": 4205,
+      "recordCount": 825,
+      "nonEmptyCount": 66,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonOLineStats": {
+      "found": true,
+      "tableId": 4244,
+      "recordCount": 3450,
+      "nonEmptyCount": 341,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonDefensiveKPReturnStats": {
+      "found": true,
+      "tableId": 4267,
+      "recordCount": 1000,
+      "nonEmptyCount": 7,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonOffensiveKPReturnStats": {
+      "found": true,
+      "tableId": 4115,
+      "recordCount": 950,
+      "nonEmptyCount": 30,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonTalent": {
+      "found": true,
+      "tableId": 4110,
+      "recordCount": 7680,
+      "nonEmptyCount": 328,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "GameDefensiveStats": {
+      "found": true,
+      "tableId": 4163,
+      "recordCount": 13500,
+      "nonEmptyCount": 1326,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "GameOffensiveStats": {
+      "found": true,
+      "tableId": 4105,
+      "recordCount": 7700,
+      "nonEmptyCount": 744,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "GameKickingStats": {
+      "found": true,
+      "tableId": 4178,
+      "recordCount": 1500,
+      "nonEmptyCount": 124,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "GameOLineStats": {
+      "found": true,
+      "tableId": 4118,
+      "recordCount": 6120,
+      "nonEmptyCount": 644,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "GameDefensiveKPReturnStats": {
+      "found": true,
+      "tableId": 4279,
+      "recordCount": 550,
+      "nonEmptyCount": 11,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "GameOffensiveKPReturnStats": {
+      "found": true,
+      "tableId": 4102,
+      "recordCount": 1200,
+      "nonEmptyCount": 55,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "TeamStats": {
+      "found": true,
+      "tableId": 4107,
+      "recordCount": 920,
+      "nonEmptyCount": 350,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "TeamSeasonStats": {
+      "found": false
+    },
+    "PositionStatRecords": {
+      "found": true,
+      "tableId": 4203,
+      "recordCount": 4,
+      "nonEmptyCount": 4,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PositionRecordTable": {
+      "found": true,
+      "tableId": 4252,
+      "recordCount": 6,
+      "nonEmptyCount": 4,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlayerStatRecordScope": {
+      "found": true,
+      "tableId": 4281,
+      "recordCount": 5,
+      "nonEmptyCount": 5,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlayerTransactionHistoryEntry": {
+      "found": true,
+      "tableId": 4127,
+      "recordCount": 742,
+      "nonEmptyCount": 657,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CoachTransactionHistoryEntry": {
+      "found": true,
+      "tableId": 4245,
+      "recordCount": 140,
+      "nonEmptyCount": 0,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "DraftPickTransactionHistoryEntry": {
+      "found": true,
+      "tableId": 4274,
+      "recordCount": 250,
+      "nonEmptyCount": 12,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlayerPositionChangeHistoryEntry": {
+      "found": true,
+      "tableId": 4240,
+      "recordCount": 742,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlayerEditTransactionHistoryEntry": {
+      "found": true,
+      "tableId": 4180,
+      "recordCount": 742,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonInfo": {
+      "found": true,
+      "tableId": 4128,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "SeasonGame": {
+      "found": true,
+      "tableId": 4156,
+      "recordCount": 429,
+      "nonEmptyCount": 335,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PendingSeasonGame": {
+      "found": true,
+      "tableId": 4272,
+      "recordCount": 32,
+      "nonEmptyCount": 16,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "League": {
+      "found": true,
+      "tableId": 4270,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "LeagueHistoryRequest": {
+      "found": true,
+      "tableId": 4256,
+      "recordCount": 32,
+      "nonEmptyCount": 0,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlaycallHistory": {
+      "found": true,
+      "tableId": 4150,
+      "recordCount": 32,
+      "nonEmptyCount": 32,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlaycallHistoryAiGroupDetails": {
+      "found": true,
+      "tableId": 4141,
+      "recordCount": 600,
+      "nonEmptyCount": 564,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlaycallHistoryConceptDetails": {
+      "found": true,
+      "tableId": 4294,
+      "recordCount": 20000,
+      "nonEmptyCount": 19752,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "UnpublishedGameStats": {
+      "found": true,
+      "tableId": 4220,
+      "recordCount": 2400,
+      "nonEmptyCount": 1402,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PlayerStatSnapShot": {
+      "found": true,
+      "tableId": 4207,
+      "recordCount": 5760,
+      "nonEmptyCount": 0,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PassRushStatSnapShot": {
+      "found": true,
+      "tableId": 4103,
+      "recordCount": 1300,
+      "nonEmptyCount": 528,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "ReceiveRushStatSnapShot": {
+      "found": true,
+      "tableId": 4169,
+      "recordCount": 7000,
+      "nonEmptyCount": 3153,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CollegeImportStat": {
+      "found": true,
+      "tableId": 4209,
+      "recordCount": 398,
+      "nonEmptyCount": 0,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "CollegeImportAward": {
+      "found": true,
+      "tableId": 4217,
+      "recordCount": 30,
+      "nonEmptyCount": 0,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    },
+    "PrologueGameStats": {
+      "found": true,
+      "tableId": 4426,
+      "recordCount": 1,
+      "nonEmptyCount": 1,
+      "schemaFields": [],
+      "sampleFields": [],
+      "sampleValues": null
+    }
+  }
+}

@@ -1,0 +1,338 @@
+{
+  "plpo_generic_6_B_N_0010": {
+    "genr": "gen_1_M_N_02",
+    "sknt": 1
+  },
+  "plpo_generic_1_B_N_0012": {
+    "genr": "gen_6_B_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_7_B_G_004": {
+    "genr": "gen_5_H_N_01",
+    "sknt": 5
+  },
+  "plpo_generic_5_079": {
+    "genr": "gen_7_H_N_01",
+    "sknt": 7
+  },
+  "plpo_generic_5_085": {
+    "genr": "gen_2_T_N_01",
+    "sknt": 2
+  },
+  "plpo_generic_7_H_G_02": {
+    "genr": "gen_3_B_B_001",
+    "sknt": 3
+  },
+  "plpo_generic_6_042": {
+    "genr": "gen_1_T_N_004",
+    "sknt": 1
+  },
+  "plpo_generic_6_045": {
+    "genr": "gen_2_B_N_01",
+    "sknt": 2
+  },
+  "plpo_generic_7_T_G_007": {
+    "genr": "gen_2_T_N_01",
+    "sknt": 2
+  },
+  "plpo_generic_7_B_N_007": {
+    "genr": "gen_6_B_S_01",
+    "sknt": 6
+  },
+  "plpo_generic_7_B_N_009": {
+    "genr": "gen_7_M_N_001",
+    "sknt": 7
+  },
+  "plpo_generic_7_B_S_004": {
+    "genr": "gen_6_M_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_7_M_N_001": {
+    "genr": "gen_6_B_N_02",
+    "sknt": 6
+  },
+  "plpo_generic_7_M_S_004": {
+    "genr": "gen_2_T_N_01",
+    "sknt": 2
+  },
+  "plpo_generic_7_M_MB_010": {
+    "genr": "gen_6_B_N_02",
+    "sknt": 6
+  },
+  "plpo_generic_7_T_N_001": {
+    "genr": "gen_1_H_B_009",
+    "sknt": 1
+  },
+  "plpo_generic_7_BHM_MG_001": {
+    "genr": "gen_6_T_G_005",
+    "sknt": 6
+  },
+  "plpo_generic_7_T_G_004": {
+    "genr": "gen_6_B_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_3_H_B_01": {
+    "genr": "gen_1_B_N_011",
+    "sknt": 1
+  },
+  "plpo_generic_3_H_N_01": {
+    "genr": "gen_7_B_G_004",
+    "sknt": 7
+  },
+  "plpo_generic_3_T_N_01": {
+    "genr": "gen_7_B_N_07",
+    "sknt": 7
+  },
+  "plpo_generic_7_BHM_MG_022": {
+    "genr": "gen_7_B_G_004",
+    "sknt": 7
+  },
+  "plpo_generic_7_BMH_B_006": {
+    "genr": "gen_7_B_N_011",
+    "sknt": 7
+  },
+  "plpo_generic_7_BTM_B_021": {
+    "genr": "gen_6_B_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_7_BTM_MG_006": {
+    "genr": "gen_2_T_N_01",
+    "sknt": 2
+  },
+  "plpo_generic_7_BTM_N_007": {
+    "genr": "gen_2_H_N_006",
+    "sknt": 2
+  },
+  "plpo_generic_7_BHM_N_002": {
+    "genr": "gen_6_M_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_7_M_N_024": {
+    "genr": "gen_1_B_B_005",
+    "sknt": 1
+  },
+  "plpo_generic_4_H_N_002": {
+    "genr": "gen_6_B_N_02",
+    "sknt": 6
+  },
+  "plpo_generic_4_H_N_004": {
+    "genr": "gen_7_B_G_004",
+    "sknt": 7
+  },
+  "plpo_generic_5_002": {
+    "genr": "gen_7_B_N_019",
+    "sknt": 7
+  },
+  "plpo_generic_4_M_M_005": {
+    "genr": "gen_2_B_N_01",
+    "sknt": 2
+  },
+  "plpo_generic_3_M_N_01": {
+    "genr": "gen_6_H_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_003": {
+    "genr": "gen_7_M_N_001",
+    "sknt": 7
+  },
+  "plpo_generic_5_004": {
+    "genr": "gen_7_B_N_07",
+    "sknt": 7
+  },
+  "plpo_generic_3_H_B_008": {
+    "genr": "gen_6_B_S_01",
+    "sknt": 6
+  },
+  "plpo_generic_3_H_BD_01": {
+    "genr": "gen_3_B_S_010",
+    "sknt": 3
+  },
+  "plpo_generic_3_H_MS_01": {
+    "genr": "gen_7_H_BD_03",
+    "sknt": 7
+  },
+  "plpo_generic_4_B_G_003": {
+    "genr": "gen_2_B_S_001",
+    "sknt": 2
+  },
+  "plpo_generic_4_B_G_004": {
+    "genr": "gen_6_T_G_005",
+    "sknt": 6
+  },
+  "plpo_generic_4_B_M_01": {
+    "genr": "gen_6_B_N_02",
+    "sknt": 6
+  },
+  "plpo_generic_5_009": {
+    "genr": "gen_6_M_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_010": {
+    "genr": "gen_1_B_N_011",
+    "sknt": 1
+  },
+  "plpo_generic_5_011": {
+    "genr": "gen_6_B_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_012": {
+    "genr": "gen_6_B_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_013": {
+    "genr": "gen_7_B_N_019",
+    "sknt": 7
+  },
+  "plpo_generic_5_015": {
+    "genr": "gen_7_B_B_001",
+    "sknt": 7
+  },
+  "plpo_generic_5_018": {
+    "genr": "gen_6_M_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_019": {
+    "genr": "gen_7_H_N_01",
+    "sknt": 7
+  },
+  "plpo_generic_5_020": {
+    "genr": "gen_4_H_N_001",
+    "sknt": 4
+  },
+  "plpo_generic_5_021": {
+    "genr": "gen_2_H_B_002",
+    "sknt": 2
+  },
+  "plpo_generic_4_B_N_002": {
+    "genr": "gen_7_B_B_001",
+    "sknt": 7
+  },
+  "plpo_generic_4_B_MS_03": {
+    "genr": "gen_7_B_G_004",
+    "sknt": 7
+  },
+  "plpo_generic_4_H_BD_01": {
+    "genr": "gen_6_B_N_02",
+    "sknt": 6
+  },
+  "plpo_generic_4_BM_B_001": {
+    "genr": "gen_6_B_G_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_023": {
+    "genr": "gen_7_T_N_001",
+    "sknt": 7
+  },
+  "plpo_generic_4_M_N_001": {
+    "genr": "gen_1_B_N_011",
+    "sknt": 1
+  },
+  "plpo_generic_4_M_N_01": {
+    "genr": "gen_6_B_G_01",
+    "sknt": 6
+  },
+  "plpo_generic_4_B_N_02": {
+    "genr": "gen_6_T_G_005",
+    "sknt": 6
+  },
+  "plpo_generic_4_T_N_006": {
+    "genr": "gen_7_B_N_011",
+    "sknt": 7
+  },
+  "plpo_generic_4_BHM_S_01": {
+    "genr": "gen_7_M_N_001",
+    "sknt": 7
+  },
+  "plpo_generic_4_B_MS_02": {
+    "genr": "gen_7_B_G_004",
+    "sknt": 7
+  },
+  "plpo_generic_4_H_N_005": {
+    "genr": "gen_1_B_N_011",
+    "sknt": 1
+  },
+  "plpo_generic_4_B_N_01": {
+    "genr": "gen_2_B_B_002",
+    "sknt": 2
+  },
+  "plpo_generic_5_028": {
+    "genr": "gen_7_T_N_001",
+    "sknt": 7
+  },
+  "plpo_generic_3_H_S_001": {
+    "genr": "gen_6_B_G_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_029": {
+    "genr": "gen_7_B_N_07",
+    "sknt": 7
+  },
+  "plpo_generic_5_M_N_02": {
+    "genr": "gen_6_B_S_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_030": {
+    "genr": "gen_1_H_N_010",
+    "sknt": 1
+  },
+  "plpo_generic_5_031": {
+    "genr": "gen_7_B_N_019",
+    "sknt": 7
+  },
+  "plpo_generic_5_032": {
+    "genr": "gen_2_H_B_002",
+    "sknt": 2
+  },
+  "plpo_generic_5_033": {
+    "genr": "gen_1_B_N_010",
+    "sknt": 1
+  },
+  "plpo_generic_5_034": {
+    "genr": "gen_2_B_S_001",
+    "sknt": 2
+  },
+  "plpo_generic_5_B_G_02": {
+    "genr": "gen_1_B_S_001",
+    "sknt": 1
+  },
+  "plpo_generic_5_036": {
+    "genr": "gen_7_T_N_001",
+    "sknt": 7
+  },
+  "plpo_generic_5_B_N_02": {
+    "genr": "gen_7_B_N_011",
+    "sknt": 7
+  },
+  "plpo_generic_5_038": {
+    "genr": "gen_4_B_N_01",
+    "sknt": 4
+  },
+  "plpo_generic_5_039": {
+    "genr": "gen_7_B_G_004",
+    "sknt": 7
+  },
+  "plpo_generic_5_040": {
+    "genr": "gen_6_M_N_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_041": {
+    "genr": "gen_6_B_S_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_042": {
+    "genr": "gen_7_B_B_001",
+    "sknt": 7
+  },
+  "plpo_generic_5_043": {
+    "genr": "gen_6_B_G_01",
+    "sknt": 6
+  },
+  "plpo_generic_5_044": {
+    "genr": "gen_6_T_G_005",
+    "sknt": 6
+  },
+  "plpo_generic_1_003": {
+    "genr": "gen_7_H_N_01",
+    "sknt": 7
+  }
+}
