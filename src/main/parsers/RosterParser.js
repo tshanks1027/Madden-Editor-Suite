@@ -218,6 +218,42 @@ async function parseRosterFile(filePath) {
       }
     }
 
+    // Load INJY (Injury) table to identify injured players
+    // Injuries are stored in separate table, linked by PGID
+    let injuredPGIDs = [];
+    try {
+      const injyTable = file.INJY;
+      if (injyTable && injyTable.records) {
+        console.log('[RosterParser] Found INJY table with', injyTable.records.length, 'injury records');
+
+        for (const record of injyTable.records) {
+          const pgid = record.fields?.PGID?.value;
+          if (pgid !== undefined && pgid !== null) {
+            injuredPGIDs.push(pgid);
+          }
+        }
+
+        console.log('[RosterParser] Extracted', injuredPGIDs.length, 'injured player PGIDs');
+
+        // Debug: Show first 5 injured players
+        if (injuredPGIDs.length > 0) {
+          console.log('[RosterParser] First 5 injured PGIDs:', injuredPGIDs.slice(0, 5).join(', '));
+          // Find their names
+          for (let i = 0; i < Math.min(5, injuredPGIDs.length); i++) {
+            const injuredPlayer = players.find(p => p.PGID === injuredPGIDs[i]);
+            if (injuredPlayer) {
+              console.log(`  PGID ${injuredPGIDs[i]}: ${injuredPlayer.PFNA} ${injuredPlayer.PLNA}`);
+            }
+          }
+        }
+      } else {
+        console.log('[RosterParser] No INJY table found - no injuries to track');
+      }
+    } catch (injyErr) {
+      console.warn('[RosterParser] Failed to load INJY table:', injyErr.message);
+      // Non-fatal - continue without injury data
+    }
+
     // Store file and helper in a map keyed by file path
     // This allows multiple files to be open and prevents data loss when saving
     if (!global.rosterFiles) {
@@ -233,6 +269,7 @@ async function parseRosterFile(filePath) {
       version: 2026, // Madden 26
       playerCount: players.length,
       players: players,
+      injuredPGIDs: injuredPGIDs, // Array of injured player PGIDs from INJY table
       teams: [], // TODO: Extract team data from TEAM table
       filePath: filePath // Store file path to retrieve helper/file later
     };

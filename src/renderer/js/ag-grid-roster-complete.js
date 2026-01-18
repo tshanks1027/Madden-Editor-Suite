@@ -107,16 +107,16 @@ class PortraitCellRenderer {
             this.eGui.innerHTML = '<div style="width:64px;height:64px;background:#333;display:flex;align-items:center;justify-content:center;font-size:32px;">👤</div>';
         }
 
-        // Check for injury status and add indicator overlay
-        const pcsa = player ? (player.PCSA || player.pcsa) : null;
-        const injuryStatuses = ['InjuredReserve', 'InactiveList', 'SuspendedList'];
-        const isInjured = pcsa && injuryStatuses.includes(pcsa);
+        // Check for injury status by looking up PGID in the INJY table
+        // Injuries are stored in separate INJY table, linked by PGID field
+        const pgid = player ? player.PGID : null;
+        const isInjured = pgid && app.injuredPGIDs && app.injuredPGIDs.has(pgid);
 
         if (isInjured) {
             const injuryIcon = document.createElement('div');
             injuryIcon.className = 'injury-indicator';
             injuryIcon.innerHTML = '🏥';
-            injuryIcon.title = `Status: ${pcsa}`;
+            injuryIcon.title = `Injured (PGID: ${pgid})`;
             injuryIcon.style.cssText = `
                 position: absolute;
                 bottom: 4px;

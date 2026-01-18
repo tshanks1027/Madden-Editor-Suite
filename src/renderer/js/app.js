@@ -106,6 +106,7 @@ class MaddenEditorApp {
         this.currentFile = null;
         this.players = [];
         this.filteredPlayers = []; // Filtered/sorted view of players
+        this.injuredPGIDs = new Set(); // Set of injured player PGIDs from INJY table
         this.lookupReady = false;
         this.selectedPosition = '';
         this.selectedTeamId = null; // null = all teams, number = specific team
@@ -734,6 +735,11 @@ class MaddenEditorApp {
                     // Extract players from the parse result
                     this.players = result.data.players || [];
                     this.originalData = result.data; // Store for saving
+
+                    // Store injured player PGIDs as a Set for quick lookup
+                    // Injuries are tracked in separate INJY table, linked by PGID
+                    this.injuredPGIDs = new Set(result.data.injuredPGIDs || []);
+                    console.log(`[app.js] Loaded ${this.injuredPGIDs.size} injured player PGIDs`);
 
                     // Pre-process calculated fields (Archetype) to avoid [object Promise] in grid
                     this.updateLoadingProgress('Converting archetypes...', 80);
@@ -5103,8 +5109,8 @@ class MaddenEditorApp {
     }
 
     /**
-     * Remove all injuries - sets PCSA to "Signed" for all injured players
-     * Removes InjuredReserve, InactiveList, and SuspendedList statuses
+     * Remove all injuries - clears the INJY table records
+     * Injuries are tracked in separate INJY table, linked by PGID
      */
     removeAllInjuries() {
         if (!this.players || this.players.length === 0) {
@@ -5112,29 +5118,31 @@ class MaddenEditorApp {
             return;
         }
 
-        const injuryStatuses = ['InjuredReserve', 'InactiveList', 'SuspendedList'];
-        let count = 0;
+        // Count how many injured players we have
+        const count = this.injuredPGIDs ? this.injuredPGIDs.size : 0;
 
-        // Update all players in the main array
-        this.players.forEach((player, index) => {
-            const pcsa = player.PCSA || player.pcsa;
-            if (pcsa && injuryStatuses.includes(pcsa)) {
-                player.PCSA = 'Signed';
-                count++;
+        if (count === 0) {
+            this.showToast('No injured players found', 'info');
+            console.log('[RemoveAllInjuries] No injured players found');
+            return;
+        }
+
+        // Log which players we're removing injuries from
+        console.log(`[RemoveAllInjuries] Removing injuries from ${count} players:`);
+        this.injuredPGIDs.forEach(pgid => {
+            const player = this.players.find(p => p.PGID === pgid);
+            if (player) {
+                console.log(`  - ${player.PFNA} ${player.PLNA} (PGID: ${pgid})`);
             }
         });
 
-        // Also update filteredPlayers if it exists
-        if (this.filteredPlayers && this.filteredPlayers.length > 0) {
-            this.filteredPlayers.forEach((player) => {
-                const pcsa = player.PCSA || player.pcsa;
-                if (pcsa && injuryStatuses.includes(pcsa)) {
-                    player.PCSA = 'Signed';
-                }
-            });
-        }
+        // Clear the injured PGIDs Set
+        this.injuredPGIDs.clear();
 
-        // Refresh the grid
+        // Mark that INJY table needs to be cleared on save
+        this._injuriesModified = true;
+
+        // Refresh the grid to remove injury indicators
         if (window.agGridApi) {
             window.agGridApi.refreshCells({ force: true });
         } else if (this.agGrid) {
@@ -5143,13 +5151,8 @@ class MaddenEditorApp {
             this.hot.render();
         }
 
-        if (count > 0) {
-            this.showToast(`Removed injuries from ${count} player(s). SAVE to apply changes!`, 'success');
-            console.log(`[RemoveAllInjuries] Removed injuries from ${count} players`);
-        } else {
-            this.showToast('No injured players found', 'info');
-            console.log('[RemoveAllInjuries] No injured players found');
-        }
+        this.showToast(`Removed injuries from ${count} player(s). SAVE to apply changes!`, 'success');
+        console.log(`[RemoveAllInjuries] Removed injuries from ${count} players`);
     }
 
     /**
@@ -8915,12 +8918,15 @@ class MaddenEditorApp {
         this.setupPlayerCardScrollWheelEditing();
 
         // Show/hide Remove Injury button based on injury status
-        const pcsa = playerData.PCSA || playerData.pcsa;
-        const injuryStatuses = ['InjuredReserve', 'InactiveList', 'SuspendedList'];
-        const isInjured = pcsa && injuryStatuses.includes(pcsa);
+        // Injuries are tracked in INJY table, linked by PGID
+        const pgid = playerData.PGID;
+        const isInjured = pgid && this.injuredPGIDs && this.injuredPGIDs.has(pgid);
         const removeInjuryBtn = document.getElementById('removeInjuryBtn');
         if (removeInjuryBtn) {
             removeInjuryBtn.style.display = isInjured ? 'inline-block' : 'none';
+        }
+        if (isInjured) {
+            console.log('[PlayerCard] Player is injured:', playerData.PFNA, playerData.PLNA, 'PGID:', pgid);
         }
 
         // Show modal
@@ -9623,44 +9629,31 @@ document.addEventListener('DOMContentLoaded', () => {
     if (removeInjuryBtn) {
         removeInjuryBtn.addEventListener('click', () => {
             if (window.app && window.app.currentPlayerCardData) {
-                // Set PCSA to "Signed" to remove injury status
-                window.app.currentPlayerCardData.PCSA = 'Signed';
+                // Get the player's PGID to remove from injured set
+                const pgid = window.app.currentPlayerCardData.PGID;
 
-                // Update in filteredPlayers
-                const playerIndex = window.app.paginatedPlayerIndices
-                    ? window.app.paginatedPlayerIndices[window.app.currentPlayerCardRow]
-                    : window.app.currentPlayerCardRow;
+                if (pgid && window.app.injuredPGIDs && window.app.injuredPGIDs.has(pgid)) {
+                    // Remove from injuredPGIDs Set
+                    window.app.injuredPGIDs.delete(pgid);
 
-                if (window.app.filteredPlayers && window.app.filteredPlayers[playerIndex]) {
-                    window.app.filteredPlayers[playerIndex].PCSA = 'Signed';
-                }
+                    // Mark injuries as modified so they can be saved
+                    window.app._injuriesModified = true;
 
-                // Update in main players array
-                const mainIndex = window.app.players.findIndex(p =>
-                    p.PFNA === window.app.currentPlayerCardData.PFNA &&
-                    p.PLNA === window.app.currentPlayerCardData.PLNA &&
-                    p.Year === window.app.currentPlayerCardData.Year
-                );
-                if (mainIndex !== -1) {
-                    window.app.players[mainIndex].PCSA = 'Signed';
-                }
-
-                // Update AG-Grid
-                if (window.agGridApi) {
-                    const rowNode = window.agGridApi.getRowNode(String(playerIndex));
-                    if (rowNode) {
-                        rowNode.setData(window.app.currentPlayerCardData);
-                    } else {
-                        window.agGridApi.refreshCells();
+                    // Update AG-Grid to refresh the injury indicator
+                    if (window.agGridApi) {
+                        window.agGridApi.refreshCells({ force: true });
                     }
+
+                    // Hide the button and show toast
+                    removeInjuryBtn.style.display = 'none';
+                    const playerName = `${window.app.currentPlayerCardData.PFNA || ''} ${window.app.currentPlayerCardData.PLNA || ''}`.trim();
+                    window.app.showToast(`Injury removed for ${playerName}`, 'success');
+
+                    // Close the modal
+                    window.app.closePlayerCard();
+                } else {
+                    window.app.showToast('Player is not injured', 'info');
                 }
-
-                // Hide the button and show toast
-                removeInjuryBtn.style.display = 'none';
-                window.app.showToast('Injury removed - player status set to Signed', 'success');
-
-                // Close the modal
-                window.app.closePlayerCard();
             }
         });
     }
