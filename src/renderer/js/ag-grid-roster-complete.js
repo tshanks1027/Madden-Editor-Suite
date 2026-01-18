@@ -71,6 +71,7 @@ class PortraitCellRenderer {
             height: 100%;
             cursor: pointer;
             padding: 2px;
+            position: relative;
         `;
 
         const player = data;
@@ -104,6 +105,34 @@ class PortraitCellRenderer {
             }
         } else {
             this.eGui.innerHTML = '<div style="width:64px;height:64px;background:#333;display:flex;align-items:center;justify-content:center;font-size:32px;">👤</div>';
+        }
+
+        // Check for injury status and add indicator overlay
+        const pcsa = player ? (player.PCSA || player.pcsa) : null;
+        const injuryStatuses = ['InjuredReserve', 'InactiveList', 'SuspendedList'];
+        const isInjured = pcsa && injuryStatuses.includes(pcsa);
+
+        if (isInjured) {
+            const injuryIcon = document.createElement('div');
+            injuryIcon.className = 'injury-indicator';
+            injuryIcon.innerHTML = '🏥';
+            injuryIcon.title = `Status: ${pcsa}`;
+            injuryIcon.style.cssText = `
+                position: absolute;
+                bottom: 4px;
+                right: 4px;
+                background: rgba(220, 53, 69, 0.9);
+                border-radius: 50%;
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                cursor: help;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            `;
+            this.eGui.appendChild(injuryIcon);
         }
 
         // Click handler to show player card

@@ -377,6 +377,14 @@ class MaddenEditorApp {
             });
         }
 
+        // Remove All Injuries button - removes IR/Inactive/Suspended statuses
+        const removeAllInjuriesBtn = document.getElementById('removeAllInjuriesBtn');
+        if (removeAllInjuriesBtn) {
+            removeAllInjuriesBtn.addEventListener('click', () => {
+                this.removeAllInjuries();
+            });
+        }
+
         // Draft editor buttons
         const fixDraftFacesBtn = document.getElementById('fixDraftFacesBtn');
         if (fixDraftFacesBtn) {
@@ -756,7 +764,7 @@ class MaddenEditorApp {
                     this.renderRoster();
                     this.setStatus(`Loaded ${this.players.length} players from ${fileName}`);
 
-                    // Enable Fix Faces and Fix Commentary buttons when roster is loaded
+                    // Enable Fix Faces, Fix Commentary, and Remove All Injuries buttons when roster is loaded
                     const fixFacesBtn = document.getElementById('fixGenericFacesBtn');
                     if (fixFacesBtn) {
                         fixFacesBtn.style.display = 'inline-flex';
@@ -764,6 +772,10 @@ class MaddenEditorApp {
                     const fixCommentaryBtn = document.getElementById('fixCommentaryBtn');
                     if (fixCommentaryBtn) {
                         fixCommentaryBtn.style.display = 'inline-flex';
+                    }
+                    const removeAllInjuriesBtn = document.getElementById('removeAllInjuriesBtn');
+                    if (removeAllInjuriesBtn) {
+                        removeAllInjuriesBtn.style.display = 'inline-flex';
                     }
                 } else {
                     throw new Error(result.error || 'Unknown parsing error');
@@ -5091,6 +5103,56 @@ class MaddenEditorApp {
     }
 
     /**
+     * Remove all injuries - sets PCSA to "Signed" for all injured players
+     * Removes InjuredReserve, InactiveList, and SuspendedList statuses
+     */
+    removeAllInjuries() {
+        if (!this.players || this.players.length === 0) {
+            this.showToast('No roster loaded', 'error');
+            return;
+        }
+
+        const injuryStatuses = ['InjuredReserve', 'InactiveList', 'SuspendedList'];
+        let count = 0;
+
+        // Update all players in the main array
+        this.players.forEach((player, index) => {
+            const pcsa = player.PCSA || player.pcsa;
+            if (pcsa && injuryStatuses.includes(pcsa)) {
+                player.PCSA = 'Signed';
+                count++;
+            }
+        });
+
+        // Also update filteredPlayers if it exists
+        if (this.filteredPlayers && this.filteredPlayers.length > 0) {
+            this.filteredPlayers.forEach((player) => {
+                const pcsa = player.PCSA || player.pcsa;
+                if (pcsa && injuryStatuses.includes(pcsa)) {
+                    player.PCSA = 'Signed';
+                }
+            });
+        }
+
+        // Refresh the grid
+        if (window.agGridApi) {
+            window.agGridApi.refreshCells({ force: true });
+        } else if (this.agGrid) {
+            this.agGrid.refreshCells({ force: true });
+        } else if (this.hot) {
+            this.hot.render();
+        }
+
+        if (count > 0) {
+            this.showToast(`Removed injuries from ${count} player(s). SAVE to apply changes!`, 'success');
+            console.log(`[RemoveAllInjuries] Removed injuries from ${count} players`);
+        } else {
+            this.showToast('No injured players found', 'info');
+            console.log('[RemoveAllInjuries] No injured players found');
+        }
+    }
+
+    /**
      * Reload portraits for the current page of players
      * Used after Fix Faces to show updated generic faces
      */
@@ -8852,6 +8914,15 @@ class MaddenEditorApp {
         // Setup scroll wheel editing for player card
         this.setupPlayerCardScrollWheelEditing();
 
+        // Show/hide Remove Injury button based on injury status
+        const pcsa = playerData.PCSA || playerData.pcsa;
+        const injuryStatuses = ['InjuredReserve', 'InactiveList', 'SuspendedList'];
+        const isInjured = pcsa && injuryStatuses.includes(pcsa);
+        const removeInjuryBtn = document.getElementById('removeInjuryBtn');
+        if (removeInjuryBtn) {
+            removeInjuryBtn.style.display = isInjured ? 'inline-block' : 'none';
+        }
+
         // Show modal
         document.getElementById('playerCardModal').style.display = 'flex';
     }
@@ -9543,6 +9614,53 @@ document.addEventListener('DOMContentLoaded', () => {
         savePlayerCardBtn.addEventListener('click', () => {
             if (window.app) {
                 window.app.savePlayerCard();
+            }
+        });
+    }
+
+    // Remove Injury button
+    const removeInjuryBtn = document.getElementById('removeInjuryBtn');
+    if (removeInjuryBtn) {
+        removeInjuryBtn.addEventListener('click', () => {
+            if (window.app && window.app.currentPlayerCardData) {
+                // Set PCSA to "Signed" to remove injury status
+                window.app.currentPlayerCardData.PCSA = 'Signed';
+
+                // Update in filteredPlayers
+                const playerIndex = window.app.paginatedPlayerIndices
+                    ? window.app.paginatedPlayerIndices[window.app.currentPlayerCardRow]
+                    : window.app.currentPlayerCardRow;
+
+                if (window.app.filteredPlayers && window.app.filteredPlayers[playerIndex]) {
+                    window.app.filteredPlayers[playerIndex].PCSA = 'Signed';
+                }
+
+                // Update in main players array
+                const mainIndex = window.app.players.findIndex(p =>
+                    p.PFNA === window.app.currentPlayerCardData.PFNA &&
+                    p.PLNA === window.app.currentPlayerCardData.PLNA &&
+                    p.Year === window.app.currentPlayerCardData.Year
+                );
+                if (mainIndex !== -1) {
+                    window.app.players[mainIndex].PCSA = 'Signed';
+                }
+
+                // Update AG-Grid
+                if (window.agGridApi) {
+                    const rowNode = window.agGridApi.getRowNode(String(playerIndex));
+                    if (rowNode) {
+                        rowNode.setData(window.app.currentPlayerCardData);
+                    } else {
+                        window.agGridApi.refreshCells();
+                    }
+                }
+
+                // Hide the button and show toast
+                removeInjuryBtn.style.display = 'none';
+                window.app.showToast('Injury removed - player status set to Signed', 'success');
+
+                // Close the modal
+                window.app.closePlayerCard();
             }
         });
     }

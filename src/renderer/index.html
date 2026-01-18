@@ -1088,6 +1088,10 @@
                             <span class="fix-icon">🎙️</span>
                             Fix Commentary
                         </button>
+                        <button id="removeAllInjuriesBtn" class="btn-fix-faces" title="Remove all player injuries (IR, Inactive, Suspended)" style="display: none;">
+                            <span class="fix-icon">🏥</span>
+                            Remove All Injuries
+                        </button>
                         <button id="reportBugBtn" class="btn-report" title="Report a bug or request a feature">
                             <span class="report-icon">🐛</span>
                             Report Bug / Request Feature
@@ -2839,6 +2843,7 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                     <h3 class="player-card-section-title">
                         Player Info
                         <button id="savePlayerCardBtn" class="btn btn-primary btn-small" style="float: right;">Save Changes</button>
+                        <button id="removeInjuryBtn" class="btn btn-danger btn-small" style="float: right; margin-right: 8px; display: none;">🏥 Remove Injury</button>
                     </h3>
                     <div class="player-card-info-grid">
                         <div class="player-info-item">
@@ -3901,6 +3906,30 @@ Madden Mode- This takes real Madden ratings for real archetypes for a real histo
                                 <div id="batchFillProgressBar" style="height: 100%; background: #4caf50; width: 0%; transition: width 0.3s;"></div>
                             </div>
                             <button id="cancelBatchFillBtn" class="db-btn db-btn-danger" style="width: 100%; margin-top: 8px;">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden Players Management Section -->
+                <div style="margin-top: 20px;">
+                    <h4 style="margin: 0 0 12px 0; color: #ccc;">Hidden Players</h4>
+                    <p style="color: #888; font-size: 11px; margin-bottom: 12px;">
+                        Manage players that are hidden from search results. User-hidden players can be unhidden. Bundled hidden players are set by the app developer.
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button id="loadHiddenPlayersBtn" class="db-btn db-btn-info" style="width: 100%;">
+                            <span id="loadHiddenBtnText">View Hidden Players</span>
+                            <span id="loadHiddenSpinner" style="display: none;">Loading...</span>
+                        </button>
+                        <div id="hiddenPlayersContainer" style="display: none;">
+                            <div id="hiddenPlayersCount" style="color: #f59e0b; margin-bottom: 8px; font-size: 12px;"></div>
+                            <div id="hiddenPlayersList" style="max-height: 200px; overflow-y: auto; background: #1e1e1e; border-radius: 4px; padding: 8px;">
+                                <!-- Hidden players will be listed here -->
+                            </div>
+                            <div style="margin-top: 10px; display: flex; gap: 8px;">
+                                <button id="unhideSelectedBtn" class="db-btn db-btn-primary" style="flex: 1;" disabled>Unhide Selected</button>
+                                <button id="unhideAllUserBtn" class="db-btn db-btn-secondary" style="flex: 1;">Unhide All (User)</button>
+                            </div>
                         </div>
                     </div>
                 </div>

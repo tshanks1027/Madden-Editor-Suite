@@ -103,6 +103,22 @@
     if (window.electronAPI && window.electronAPI.playerFill) {
       window.electronAPI.playerFill.onProgress(handleBatchFillProgress);
     }
+
+    // Hidden players management buttons
+    var loadHiddenBtn = document.getElementById('loadHiddenPlayersBtn');
+    if (loadHiddenBtn) {
+      loadHiddenBtn.addEventListener('click', loadHiddenPlayers);
+    }
+
+    var unhideSelectedBtn = document.getElementById('unhideSelectedBtn');
+    if (unhideSelectedBtn) {
+      unhideSelectedBtn.addEventListener('click', unhideSelectedPlayers);
+    }
+
+    var unhideAllUserBtn = document.getElementById('unhideAllUserBtn');
+    if (unhideAllUserBtn) {
+      unhideAllUserBtn.addEventListener('click', unhideAllUserPlayers);
+    }
   }
 
   /**
@@ -672,6 +688,204 @@
       }
     }
   }
+
+  // ==================== Hidden Players Management Functions ====================
+
+  // Track currently loaded hidden players
+  var hiddenPlayersData = [];
+
+  /**
+   * Load and display hidden players
+   */
+  async function loadHiddenPlayers() {
+    console.log('[DbManagement] Loading hidden players...');
+
+    var btn = document.getElementById('loadHiddenPlayersBtn');
+    var btnText = document.getElementById('loadHiddenBtnText');
+    var spinner = document.getElementById('loadHiddenSpinner');
+    var container = document.getElementById('hiddenPlayersContainer');
+    var countDiv = document.getElementById('hiddenPlayersCount');
+    var listDiv = document.getElementById('hiddenPlayersList');
+
+    // Show loading state
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.style.display = 'none';
+    if (spinner) spinner.style.display = 'inline';
+
+    try {
+      if (!window.electronAPI || !window.electronAPI.database) {
+        throw new Error('Database API not available');
+      }
+
+      var result = await window.electronAPI.database.getHiddenPlayersDetails();
+      console.log('[DbManagement] Hidden players result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load hidden players');
+      }
+
+      hiddenPlayersData = result.players || [];
+
+      if (hiddenPlayersData.length === 0) {
+        if (countDiv) countDiv.innerHTML = '<span style="color: #4caf50;">No hidden players</span>';
+        if (listDiv) listDiv.innerHTML = '<div style="color: #888; text-align: center; padding: 20px;">No players are currently hidden.</div>';
+        if (container) container.style.display = 'block';
+        return;
+      }
+
+      // Count by source
+      var userCount = hiddenPlayersData.filter(function(p) { return p.source === 'user'; }).length;
+      var bundledCount = hiddenPlayersData.filter(function(p) { return p.source === 'bundled'; }).length;
+
+      if (countDiv) {
+        countDiv.innerHTML = 'Total: <strong>' + hiddenPlayersData.length + '</strong> hidden players ' +
+          '(<span style="color: #f59e0b;">' + userCount + ' user</span>, ' +
+          '<span style="color: #888;">' + bundledCount + ' bundled</span>)';
+      }
+
+      // Build list HTML
+      if (listDiv) {
+        var listHtml = '';
+        for (var i = 0; i < hiddenPlayersData.length; i++) {
+          var p = hiddenPlayersData[i];
+          var displayName = (p.firstName + ' ' + p.lastName).trim() || '(Unknown)';
+          var sourceColor = p.source === 'user' ? '#f59e0b' : '#666';
+          var sourceLabel = p.source === 'user' ? 'User' : 'Bundled';
+          var draftInfo = p.draftClass ? ' (' + p.draftClass + ')' : '';
+
+          listHtml += '<div style="display: flex; align-items: center; padding: 6px 4px; border-bottom: 1px solid #333;">';
+          listHtml += '<input type="checkbox" data-player-id="' + p.internalId + '" data-source="' + p.source + '" style="margin-right: 10px;" onchange="window.updateUnhideButton()">';
+          listHtml += '<span style="flex: 1; color: #ccc;">' + displayName + draftInfo + '</span>';
+          listHtml += '<span style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ' + sourceColor + '; color: white;">' + sourceLabel + '</span>';
+          listHtml += '</div>';
+        }
+        listDiv.innerHTML = listHtml;
+      }
+
+      if (container) container.style.display = 'block';
+
+    } catch (error) {
+      console.error('[DbManagement] Error loading hidden players:', error);
+      if (countDiv) countDiv.innerHTML = '<span style="color: #e94560;">Error: ' + error.message + '</span>';
+      if (container) container.style.display = 'block';
+    } finally {
+      // Reset button state
+      if (btn) btn.disabled = false;
+      if (btnText) btnText.style.display = 'inline';
+      if (spinner) spinner.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update the unhide button state based on selection
+   */
+  function updateUnhideButton() {
+    var listDiv = document.getElementById('hiddenPlayersList');
+    var unhideBtn = document.getElementById('unhideSelectedBtn');
+
+    if (!listDiv || !unhideBtn) return;
+
+    var checkboxes = listDiv.querySelectorAll('input[type="checkbox"]:checked');
+    unhideBtn.disabled = checkboxes.length === 0;
+
+    if (checkboxes.length > 0) {
+      unhideBtn.textContent = 'Unhide Selected (' + checkboxes.length + ')';
+    } else {
+      unhideBtn.textContent = 'Unhide Selected';
+    }
+  }
+
+  /**
+   * Unhide selected players
+   */
+  async function unhideSelectedPlayers() {
+    var listDiv = document.getElementById('hiddenPlayersList');
+    if (!listDiv) return;
+
+    var checkboxes = listDiv.querySelectorAll('input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+      alert('No players selected');
+      await forceWindowFocus();
+      return;
+    }
+
+    var playerIds = [];
+    for (var i = 0; i < checkboxes.length; i++) {
+      playerIds.push(parseInt(checkboxes[i].getAttribute('data-player-id')));
+    }
+
+    console.log('[DbManagement] Unhiding players:', playerIds);
+
+    try {
+      for (var j = 0; j < playerIds.length; j++) {
+        await window.electronAPI.database.unhidePlayer(playerIds[j]);
+      }
+
+      alert('Unhid ' + playerIds.length + ' player(s)');
+      await forceWindowFocus();
+
+      // Refresh the list
+      await loadHiddenPlayers();
+
+      // Refresh player browser if open
+      if (typeof window.refreshPlayerBrowser === 'function') {
+        window.refreshPlayerBrowser();
+      }
+
+    } catch (error) {
+      console.error('[DbManagement] Error unhiding players:', error);
+      alert('Error: ' + error.message);
+      await forceWindowFocus();
+    }
+  }
+
+  /**
+   * Unhide all user-hidden players (not bundled)
+   */
+  async function unhideAllUserPlayers() {
+    var userPlayers = hiddenPlayersData.filter(function(p) { return p.source === 'user'; });
+
+    if (userPlayers.length === 0) {
+      alert('No user-hidden players to unhide');
+      await forceWindowFocus();
+      return;
+    }
+
+    var confirmed = confirm(
+      'Unhide all ' + userPlayers.length + ' user-hidden players?\n\n' +
+      'This will not affect bundled hidden players.'
+    );
+    await forceWindowFocus();
+
+    if (!confirmed) return;
+
+    console.log('[DbManagement] Unhiding all user players:', userPlayers.length);
+
+    try {
+      for (var i = 0; i < userPlayers.length; i++) {
+        await window.electronAPI.database.unhidePlayer(userPlayers[i].internalId);
+      }
+
+      alert('Unhid ' + userPlayers.length + ' user-hidden player(s)');
+      await forceWindowFocus();
+
+      // Refresh the list
+      await loadHiddenPlayers();
+
+      // Refresh player browser if open
+      if (typeof window.refreshPlayerBrowser === 'function') {
+        window.refreshPlayerBrowser();
+      }
+
+    } catch (error) {
+      console.error('[DbManagement] Error unhiding all user players:', error);
+      alert('Error: ' + error.message);
+      await forceWindowFocus();
+    }
+  }
+
+  // Expose the updateUnhideButton function globally for inline onchange
+  window.updateUnhideButton = updateUnhideButton;
 
   // Expose public functions
   window.initDbManagement = initDbManagement;

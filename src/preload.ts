@@ -526,6 +526,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('database:unhide-player', playerId),
     getHiddenPlayers: () =>
       ipcRenderer.invoke('database:get-hidden-players'),
+    getHiddenPlayersDetails: () =>
+      ipcRenderer.invoke('database:get-hidden-players-details'),
     isPlayerHidden: (playerId: number) =>
       ipcRenderer.invoke('database:is-player-hidden', playerId),
     hideAllBlankPlayers: () =>

@@ -9,6 +9,7 @@
  */
 
 import * as path from 'path';
+import * as os from 'os';
 
 // Import draft class parser functions
 import * as fs from 'fs';
@@ -238,35 +239,126 @@ export class DraftClassService {
         buffer = writeM25(draftClassData);
       }
 
-      // Use atomic write: write to temp file, then rename
-      // This prevents corruption if write fails and handles locked files better
-      const tempPath = `${filePath}.tmp`;
+      // Validate buffer before writing
+      if (!buffer) {
+        throw new Error('Buffer is undefined or null - M26Writer/M25Writer failed to produce output');
+      }
+      if (!Buffer.isBuffer(buffer)) {
+        console.error('[DraftClassService] Buffer is not a Buffer instance:', typeof buffer, buffer);
+        throw new Error(`Invalid buffer type: ${typeof buffer}. Expected Buffer.`);
+      }
+      console.log('[DraftClassService] Buffer validated - size:', buffer.length, 'bytes');
+
+      // Pre-flight diagnostics - check write permissions before attempting save
+      const tempDir = os.tmpdir();
+      const targetDir = path.dirname(filePath);
+      console.log('[DraftClassService] ===== PRE-FLIGHT CHECKS =====');
+      console.log('[DraftClassService] Temp directory:', tempDir);
+      console.log('[DraftClassService] Target directory:', targetDir);
+      console.log('[DraftClassService] Target file:', filePath);
+
+      // Test 1: Can we write to temp directory?
+      const testTempPath = path.join(tempDir, `mes_test_${Date.now()}.tmp`);
+      try {
+        fs.writeFileSync(testTempPath, 'test');
+        fs.unlinkSync(testTempPath);
+        console.log('[DraftClassService] ✓ Temp directory is writable');
+      } catch (tempTestError: any) {
+        console.error('[DraftClassService] ✗ Cannot write to temp directory:', tempTestError.code);
+        throw new Error(
+          `Cannot write to system temp directory (${tempDir}).\n\n` +
+          `This suggests your antivirus is blocking the app entirely.\n` +
+          `Try adding Madden Editor Suite to your antivirus exclusions.\n\n` +
+          `Error: ${tempTestError.code}`
+        );
+      }
+
+      // Test 2: Does target directory exist?
+      if (!fs.existsSync(targetDir)) {
+        console.error('[DraftClassService] ✗ Target directory does not exist');
+        throw new Error(`Target directory does not exist: ${targetDir}`);
+      }
+      console.log('[DraftClassService] ✓ Target directory exists');
+
+      // Test 3: Can we write to target directory?
+      const testTargetPath = path.join(targetDir, `mes_test_${Date.now()}.tmp`);
+      try {
+        fs.writeFileSync(testTargetPath, 'test');
+        fs.unlinkSync(testTargetPath);
+        console.log('[DraftClassService] ✓ Target directory is writable');
+      } catch (targetTestError: any) {
+        console.error('[DraftClassService] ✗ Cannot write to target directory:', targetTestError.code);
+        // Don't throw yet - we'll try the save and let it fail with a proper message
+        console.warn('[DraftClassService] Will attempt save anyway - may need elevated permissions');
+      }
+      console.log('[DraftClassService] ===== END PRE-FLIGHT =====');
+
+      // Use atomic write with system temp directory
+      // This avoids Controlled Folder Access blocking writes to protected folders like Documents
+      const tempFileName = `draftclass_${Date.now()}_${Math.random().toString(36).substring(7)}.tmp`;
+      const tempPath = path.join(tempDir, tempFileName);
+      console.log('[DraftClassService] Writing to system temp path:', tempPath);
 
       try {
-        // Write to temp file first
+        // Write to system temp directory (typically not protected by Controlled Folder Access)
         fs.writeFileSync(tempPath, buffer);
+        console.log('[DraftClassService] Temp file written successfully');
 
         // Delete original file if it exists (handle locked file case)
         if (fs.existsSync(filePath)) {
           try {
             fs.unlinkSync(filePath);
+            console.log('[DraftClassService] Original file deleted');
           } catch (unlinkError: any) {
             // If we can't delete, try to force close handles (Windows)
             if (unlinkError.code === 'EPERM' || unlinkError.code === 'EBUSY') {
-              console.warn('[DraftClassService] File is locked, attempting to overwrite directly');
-              // Try direct overwrite as fallback
-              fs.writeFileSync(filePath, buffer);
+              console.warn('[DraftClassService] Original file is locked, attempting direct overwrite');
+              // Try direct copy as fallback
+              fs.copyFileSync(tempPath, filePath);
               // Clean up temp file
               try { fs.unlinkSync(tempPath); } catch (e) { /* ignore */ }
-              console.log('[DraftClassService] Successfully saved draft class (direct overwrite)');
+              console.log('[DraftClassService] Successfully saved draft class (direct copy over locked file)');
               return true;
             }
             throw unlinkError;
           }
         }
 
-        // Rename temp to final
-        fs.renameSync(tempPath, filePath);
+        // Copy from temp to final location (use copyFile for cross-drive support)
+        // Then delete temp file - this avoids rename issues across drives
+        try {
+          fs.copyFileSync(tempPath, filePath);
+          console.log('[DraftClassService] File copied to final location');
+          fs.unlinkSync(tempPath);
+          console.log('[DraftClassService] Temp file cleaned up');
+        } catch (copyError: any) {
+          // If copy fails due to permissions, try rename as fallback
+          if (copyError.code === 'EPERM') {
+            console.warn('[DraftClassService] Copy failed with EPERM, trying rename fallback');
+            try {
+              fs.renameSync(tempPath, filePath);
+              console.log('[DraftClassService] Rename fallback succeeded');
+            } catch (renameError: any) {
+              // Both copy and rename failed - something is blocking access
+              // Clean up temp and throw detailed error
+              try { fs.unlinkSync(tempPath); } catch (e) { /* ignore */ }
+              throw new Error(
+                `Cannot save to this location. The file was saved to temp but cannot be copied to the target folder.\n\n` +
+                `Possible fixes:\n` +
+                `1. Try running the app as Administrator (right-click → Run as administrator)\n` +
+                `2. Check if antivirus is blocking the app (add to exclusions)\n` +
+                `3. If using Windows Security, check Controlled folder access settings\n` +
+                `4. Save to a different location (e.g., C:\\MaddenFiles\\)\n` +
+                `5. Make sure the app is fully extracted (not running from inside a ZIP)\n\n` +
+                `Target: ${filePath}\n` +
+                `Temp file was created successfully at: ${tempPath}`
+              );
+            }
+          } else {
+            throw copyError;
+          }
+        }
+
         console.log('[DraftClassService] Successfully saved draft class');
         return true;
 
@@ -283,17 +375,28 @@ export class DraftClassService {
       }
 
     } catch (error: any) {
-      console.error('[DraftClassService] Error saving draft class:', error);
+      console.error('[DraftClassService] ====== SAVE ERROR DETAILS ======');
+      console.error('[DraftClassService] Error message:', error.message);
+      console.error('[DraftClassService] Error code:', error.code);
+      console.error('[DraftClassService] Error errno:', error.errno);
+      console.error('[DraftClassService] Error syscall:', error.syscall);
+      console.error('[DraftClassService] Error path:', error.path);
+      console.error('[DraftClassService] Full error:', error);
+      console.error('[DraftClassService] Stack:', error.stack);
+      console.error('[DraftClassService] ================================');
 
       // Provide specific error messages for common issues
       if (error.code === 'EPERM') {
         throw new Error(
-          `Permission denied when saving file. Possible causes:\n` +
-          `• The file is open in another program (close it and try again)\n` +
-          `• The directory is read-only\n` +
-          `• Antivirus is blocking the file\n` +
-          `• You don't have write permissions for this location\n\n` +
-          `File: ${filePath}`
+          `Permission denied when saving file.\n\n` +
+          `Try these fixes:\n` +
+          `1. Run app as Administrator (right-click → Run as administrator)\n` +
+          `2. Add app to antivirus exclusions\n` +
+          `3. Save to a different folder (e.g., C:\\MaddenFiles\\)\n` +
+          `4. Close any programs that have this file open\n` +
+          `5. Make sure app is fully extracted (not in ZIP)\n\n` +
+          `File: ${filePath}\n` +
+          `Technical: ${error.syscall || 'unknown'} failed on ${error.path || filePath}`
         );
       } else if (error.code === 'EBUSY') {
         throw new Error(
