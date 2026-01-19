@@ -959,75 +959,53 @@ export async function initializeDraftAGGrid(app, container, prospects) {
         };
     });
 
-    // Pre-load portraits - Draft prospects use PEPS (PAM), not PID!
-    // PEPS comes from visuals.genericHeadName (like "gen_5_M_M_005")
+    // Pre-load portraits for prospects with verified PIDs or generic PAM
+    // Developer portraits (11000-11999) are skipped by the backend automatically
     let portraitsToLoad = 0;
     let portraitsLoaded = 0;
-
-    // Log first few PEPS values for debugging
-    const samplePeps = [];
-    transformedProspects.slice(0, 5).forEach(prospect => {
-        samplePeps.push({
-            name: `${prospect.firstName} ${prospect.lastName}`,
-            PEPS: prospect.PEPS,
-            'visuals.genericHeadName': prospect.visuals?.genericHeadName,
-            assetName: prospect.assetName
-        });
-    });
-    console.log('[Draft AG-Grid] Sample PEPS values:', samplePeps);
 
     transformedProspects.forEach(prospect => {
         const pid = prospect.PID || 0;
         const peps = prospect.PEPS || prospect.visuals?.genericHeadName || prospect.assetName;
 
-        // Real players (PID > 0): use PID for portrait lookup
-        // Generic players (PID == 0): use PEPS/PAM for portrait lookup
         if (pid > 0) {
+            // Real player PID - backend will skip developer portraits automatically
             const cacheKey = `pid_${pid}`;
             if (!app.portraitCache.has(cacheKey)) {
                 app.portraitCache.set(cacheKey, 'loading');
                 portraitsToLoad++;
 
                 window.electronAPI.portrait.getByPID(pid).then(imageData => {
-                    if (!imageData) {
-                        console.warn(`[Draft AG-Grid] Portrait returned null for PID: ${pid} (${prospect.firstName} ${prospect.lastName})`);
-                    }
-                    app.portraitCache.set(cacheKey, imageData);
+                    app.portraitCache.set(cacheKey, imageData || null);
                     portraitsLoaded++;
                     if (portraitsLoaded === portraitsToLoad && app.draftAgGrid) {
                         app.draftAgGrid.refreshCells({ columns: ['_portrait'], force: true });
                     }
-                }).catch((err) => {
-                    console.error(`[Draft AG-Grid] Portrait load error for PID ${pid}:`, err);
+                }).catch(() => {
                     app.portraitCache.set(cacheKey, null);
                     portraitsLoaded++;
                 });
             }
         } else if (peps && typeof peps === 'string') {
+            // Generic face - load by PAM
             const cacheKey = `pam_${peps}`;
             if (!app.portraitCache.has(cacheKey)) {
                 app.portraitCache.set(cacheKey, 'loading');
                 portraitsToLoad++;
 
                 window.electronAPI.portrait.getImageDataByPam(peps).then(imageData => {
-                    if (!imageData) {
-                        console.warn(`[Draft AG-Grid] Portrait returned null for PEPS: ${peps}`);
-                    }
-                    app.portraitCache.set(cacheKey, imageData);
+                    app.portraitCache.set(cacheKey, imageData || null);
                     portraitsLoaded++;
                     if (portraitsLoaded === portraitsToLoad && app.draftAgGrid) {
                         app.draftAgGrid.refreshCells({ columns: ['_portrait'], force: true });
                     }
-                }).catch((err) => {
-                    console.error(`[Draft AG-Grid] Portrait load error for PEPS ${peps}:`, err);
+                }).catch(() => {
                     app.portraitCache.set(cacheKey, null);
                     portraitsLoaded++;
                 });
             }
         }
     });
-
-    console.log(`[Draft AG-Grid] Pre-loading ${portraitsToLoad} portraits via PEPS/PAM`);
 
     // Create column definitions
     const columnDefs = createDraftColumnDefs(app, archetypeData);

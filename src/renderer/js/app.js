@@ -1118,7 +1118,9 @@ class MaddenEditorApp {
             this.filteredPlayers.indexOf(player)
         );
 
-        // Pre-load all portraits for this page in batch
+        // Pre-load portraits for players with verified PIDs in our database
+        // Only load portraits for PIDs that are in PID_Portrait_Mapping.csv
+        // PIDs not in our database get placeholder - no random assignment
         const psxpIndex = fieldCodes.indexOf('PSXP');
         let portraitsToLoad = 0;
         let portraitsLoaded = 0;
@@ -1126,103 +1128,52 @@ class MaddenEditorApp {
         if (psxpIndex !== -1) {
             paginatedPlayers.forEach((player) => {
                 const pid = this.getPlayerFieldValue(player, 'PSXP');
-                const pam = this.getPlayerFieldValue(player, 'PEPS'); // PAM/PEPS for generic face
-                const plpl = this.getPlayerFieldValue(player, 'PLPL'); // 0=generic, 100=real
+                const pam = this.getPlayerFieldValue(player, 'PEPS');
 
                 // Check if this is a generic face based on PAM
                 const isGenericPam = pam && typeof pam === 'string' &&
                     (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
 
-                // Allow PID 0 (blank silhouette)
                 if (pid !== null && pid !== undefined) {
-                    // Use PAM as cache key for generic faces, PID for real faces
-                    // This ensures we show the correct generic portrait when PAM is updated
                     const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
 
                     if (!this.portraitCache.has(cacheKey)) {
-                        // Mark as loading and fetch
                         this.portraitCache.set(cacheKey, 'loading');
                         portraitsToLoad++;
 
-                        // For generic faces, load by PAM directly
                         if (isGenericPam) {
-                            // PAM is already in gen_ format
-                            window.electronAPI.portrait.getImageDataByPam(pam).then((pamImageData) => {
-                                if (pamImageData && pamImageData.length > 0) {
-                                    this.portraitCache.set(cacheKey, pamImageData);
-                                } else {
-                                    this.portraitCache.set(cacheKey, null);
-                                }
+                            // Generic faces - load by PAM
+                            window.electronAPI.portrait.getImageDataByPam(pam).then((imageData) => {
+                                this.portraitCache.set(cacheKey, imageData || null);
                                 portraitsLoaded++;
-                                if (portraitsLoaded === portraitsToLoad) {
-                                    if (this.agGrid) {
-                                        this.agGrid.refreshCells({ force: true });
-                                    } else if (this.hotTable) {
-                                        this.hotTable.render();
-                                    }
+                                if (portraitsLoaded === portraitsToLoad && this.agGrid) {
+                                    this.agGrid.refreshCells({ force: true });
                                 }
-                            }).catch((error) => {
-                                console.error(`Error loading PAM portrait for ${pam}:`, error);
+                            }).catch(() => {
                                 this.portraitCache.set(cacheKey, null);
                                 portraitsLoaded++;
-                                if (portraitsLoaded === portraitsToLoad) {
-                                    if (this.agGrid) {
-                                        this.agGrid.refreshCells({ force: true });
-                                    } else if (this.hotTable) {
-                                        this.hotTable.render();
-                                    }
+                            });
+                        } else if (pid > 0) {
+                            // Real faces - only load from verified PID mapping (not developer portraits)
+                            // getByPID will return null if PID isn't in verified database
+                            window.electronAPI.portrait.getByPID(pid).then((imageData) => {
+                                this.portraitCache.set(cacheKey, imageData || null);
+                                portraitsLoaded++;
+                                if (portraitsLoaded === portraitsToLoad && this.agGrid) {
+                                    this.agGrid.refreshCells({ force: true });
                                 }
+                            }).catch(() => {
+                                this.portraitCache.set(cacheKey, null);
+                                portraitsLoaded++;
                             });
                         } else {
-                            // For real faces, load by PID
-                            // Custom portraits (PID >= 12000) use getImageDataByPid directly
-                            const CUSTOM_PORTRAIT_PID_START = 12000;
-                            const isCustomPortrait = parseInt(pid) >= CUSTOM_PORTRAIT_PID_START;
-                            const loadPromise = isCustomPortrait
-                                ? window.electronAPI.portrait.getImageDataByPid(pid)
-                                : window.electronAPI.portrait.getByPID(pid);
-
-                            loadPromise.then(async (imageData) => {
-                                if (imageData && imageData.length > 0) {
-                                    this.portraitCache.set(cacheKey, imageData);
-                                } else {
-                                    this.portraitCache.set(cacheKey, null);
-                                }
-                                portraitsLoaded++;
-                                if (portraitsLoaded === portraitsToLoad) {
-                                    if (this.agGrid) {
-                                        this.agGrid.refreshCells({ force: true });
-                                    } else if (this.hotTable) {
-                                        this.hotTable.render();
-                                    }
-                                }
-                            }).catch((error) => {
-                                console.error(`Error loading portrait for PID ${pid}:`, error);
-                                this.portraitCache.set(cacheKey, null);
-                                portraitsLoaded++;
-                                if (portraitsLoaded === portraitsToLoad) {
-                                    if (this.agGrid) {
-                                        this.agGrid.refreshCells({ force: true });
-                                    } else if (this.hotTable) {
-                                        this.hotTable.render();
-                                    }
-                                }
-                            });
+                            // PID 0 - show placeholder
+                            this.portraitCache.set(cacheKey, null);
+                            portraitsLoaded++;
                         }
                     }
                 }
             });
-
-            // If all portraits already in cache, trigger re-render after table init
-            if (portraitsToLoad === 0) {
-                setTimeout(() => {
-                    if (this.agGrid) {
-                        this.agGrid.refreshCells({ force: true });
-                    } else if (this.hotTable) {
-                        this.hotTable.render();
-                    }
-                }, 100);
-            }
         }
 
         // Initialize AG-Grid roster table

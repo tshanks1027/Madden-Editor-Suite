@@ -501,39 +501,35 @@ export class PortraitSpriteService {
   /**
    * Get sprite portrait info by PID
    * @param pid Player ID (Photo ID)
+   * @param includeDevPortraits If true, also return developer portraits (default false)
    * @returns Sprite sheet info or null
+   *
+   * NOTE: Developer portraits (PIDs 11000-11999) are NOT returned by default.
+   * They should only be used when explicitly assigned by generators.
+   * This prevents random developer portraits from showing for unrelated players.
    */
-  public getPortraitByPID(pid: number): SpritePortraitInfo | null {
-    const debugLog = (msg: string) => {
-      try {
-        const logPath = path.join(process.cwd(), 'portrait-service-debug.log');
-        fs.appendFileSync(logPath, `${new Date().toISOString()} ${msg}\n`);
-      } catch (e) {
-        // Ignore
-      }
-    };
-
-    debugLog(`[GetByPID] Called with PID ${pid}`);
-    debugLog(`[GetByPID] Initialized: ${this.initialized}, Has Atlas: ${!!this.atlas}, PID Map Size: ${this.pidMap.size}`);
-    console.log(`[PortraitSpriteService] getPortraitByPID(${pid}) - initialized=${this.initialized}, pidMap.size=${this.pidMap.size}`);
-
+  public getPortraitByPID(pid: number, includeDevPortraits: boolean = false): SpritePortraitInfo | null {
     if (!this.initialized || !this.atlas) {
       console.warn('[PortraitSpriteService] Service not initialized');
-      debugLog('[GetByPID] Service not initialized, returning null');
       return null;
     }
 
     const entry = this.pidMap.get(pid);
-    debugLog(`[GetByPID] PID Map lookup result: ${entry ? entry.id : 'NOT FOUND'}`);
     console.log(`[PortraitSpriteService] PID ${pid} -> ${entry ? entry.id : 'NOT FOUND'}`);
 
     if (!entry) {
-      debugLog(`[GetByPID] No entry found for PID ${pid}`);
+      return null;
+    }
+
+    // Skip developer portraits unless explicitly requested
+    // This prevents PIDs like 11096 from getting random developer portraits
+    const isDevPortrait = entry.category === 'developer';
+    if (isDevPortrait && !includeDevPortraits) {
+      console.log(`[PortraitSpriteService] Skipping developer portrait for PID ${pid} (not explicitly requested)`);
       return null;
     }
 
     // Use correct sprite directory based on portrait category
-    const isDevPortrait = entry.category === 'developer';
     const spritesDirectory = isDevPortrait ? this.devSpritesDir : this.spritesDir;
     const sheetPrefix = isDevPortrait ? 'developer-sheet' : 'portraits-sheet';
 
