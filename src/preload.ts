@@ -603,7 +603,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('database:send-player-to-main', internalId, target),
     onPlayerFromBrowser: (callback: (internalId: number, target: 'roster' | 'draft') => void) => {
       ipcRenderer.on('database:player-from-browser', (_event, internalId, target) => callback(internalId, target));
-    }
+    },
+
+    // Debug handler for Warren Moon issue
+    debugWarrenMoon: () => ipcRenderer.invoke('database:debug-warren-moon')
   },
 
   // Coach Database APIs (Edit coach database, custom coaches)

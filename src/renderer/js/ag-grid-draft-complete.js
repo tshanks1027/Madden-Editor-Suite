@@ -1330,7 +1330,11 @@ export async function initializeDraftAGGrid(app, container, prospects) {
             }
 
             // Copy/paste handlers for spreadsheet-like functionality
-            document.addEventListener('keydown', (e) => {
+            // Store handler reference so it can be removed on grid destroy
+            if (app._draftAgGridKeyHandler) {
+                document.removeEventListener('keydown', app._draftAgGridKeyHandler);
+            }
+            app._draftAgGridKeyHandler = (e) => {
                 // Guard against destroyed grid
                 if (!params.api || params.api.isDestroyed?.()) return;
 
@@ -1447,7 +1451,8 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                     app.hasUnsavedChanges = true;
                     app.updateSaveButton();
                 }
-            });
+            };
+            document.addEventListener('keydown', app._draftAgGridKeyHandler);
         },
 
         onColumnResized: (params) => {
@@ -1519,6 +1524,12 @@ export function getDraftDataFromGrid(app) {
  * Destroy draft AG-Grid
  */
 export function destroyDraftAGGrid(app) {
+    // CRITICAL: Remove document-level event listeners to prevent accumulation
+    if (app._draftAgGridKeyHandler) {
+        document.removeEventListener('keydown', app._draftAgGridKeyHandler);
+        app._draftAgGridKeyHandler = null;
+    }
+
     if (app.draftAgGrid) {
         app.draftAgGrid.destroy();
         app.draftAgGrid = null;

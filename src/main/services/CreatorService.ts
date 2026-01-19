@@ -3400,7 +3400,13 @@ export class CreatorService {
         // Get all teams that existed in this year from the scraper service
         const allTeams = scraperService.getTeamsForYear(year);
         teams = allTeams;
-        console.log(`[CreatorService] Auto-populated ${teams.length} teams: ${teams.slice(0, 5).join(', ')}...`);
+        console.log(`[CreatorService] Auto-populated ${teams.length} teams: ${teams.join(', ')}`);
+        // Explicitly check for OTI
+        const hasOTI = teams.some(t => t.toLowerCase() === 'oti');
+        console.log(`[CreatorService] *** OTI (Oilers/Titans) in team list: ${hasOTI ? 'YES' : 'NO'} ***`);
+        if (!hasOTI) {
+          console.error(`[CreatorService] ⚠️ CRITICAL: OTI is MISSING from teams list!`);
+        }
       }
 
       // Step 1: Get HOF players active in this year
@@ -3448,6 +3454,23 @@ export class CreatorService {
             console.log(`[CreatorService]   ${i + 1}. ${roster[i].name} (${roster[i].position})`);
           }
           console.log(`[CreatorService] ====================================================================`);
+
+          // DEBUG: Special logging for OTI (Titans/Oilers) to help diagnose roster issues
+          if (teamAbbr.toLowerCase() === 'oti') {
+            console.log(`\n[CreatorService] ========== OTI DEBUG (TITANS/OILERS) ==========`);
+            console.log(`[CreatorService] Year: ${year}`);
+            console.log(`[CreatorService] Players scraped: ${roster.length}`);
+            if (roster.length > 0) {
+              console.log(`[CreatorService] First 10 players:`);
+              for (let i = 0; i < Math.min(10, roster.length); i++) {
+                const p = roster[i];
+                console.log(`[CreatorService]   ${i + 1}. ${p.name} (${p.position}) - Age: ${p.age}, College: ${p.college}`);
+              }
+            } else {
+              console.log(`[CreatorService] ⚠️ NO PLAYERS SCRAPED FOR OTI!`);
+            }
+            console.log(`[CreatorService] =====================================================\n`);
+          }
 
           if (roster.length === 0) {
             console.warn(`[CreatorService] ⚠️ WARNING: ${teamAbbr} scraper returned ZERO players, generating fictional roster instead!`);
@@ -4147,6 +4170,65 @@ export class CreatorService {
       } else {
         scraperDebugLogger.log(`No free agents needed (already have ${teamPlayerCount} players)\n`);
       }
+
+      // FINAL TEAM SUMMARY - Count players per team before returning
+      console.log(`[CreatorService] ========== FINAL TEAM PLAYER COUNTS ==========`);
+      const finalTeamCounts = new Map<string, number>();
+      for (const p of generatedPlayers) {
+        const team = p.team || 'UNDEFINED';
+        finalTeamCounts.set(team, (finalTeamCounts.get(team) || 0) + 1);
+      }
+      const sortedFinalTeams = Array.from(finalTeamCounts.entries()).sort((a, b) => b[1] - a[1]);
+      for (const [team, count] of sortedFinalTeams) {
+        console.log(`[CreatorService]   ${team}: ${count} players`);
+      }
+      const finalOTICount = finalTeamCounts.get('OTI') || 0;
+      console.log(`[CreatorService] *** FINAL OTI (Oilers/Titans) count: ${finalOTICount} ***`);
+      if (finalOTICount === 0 && year <= 2023) {
+        console.error(`[CreatorService] ⚠️ CRITICAL: OTI has 0 players - FORCING GENERATION!`);
+        // OTI (Houston Oilers/Tennessee Titans) existed from 1960. Generate 53 players.
+        const otiRoster = this.generateFictionalRoster('oti', 53);
+        for (const playerStats of otiRoster) {
+          const nameParts = playerStats.name.split(' ');
+          const firstName = nameParts[0] || 'John';
+          const lastName = nameParts.slice(1).join(' ') || 'Doe';
+          const mappedPosition = this.mapPosition(playerStats.position);
+          const heightParts = playerStats.height.split('-');
+          const heightInches = (parseInt(heightParts[0]) * 12) + parseInt(heightParts[1] || '0');
+          const maddenWeight = this.convertWeightToMaddenFormat(playerStats.weight);
+          const matchedCollege = this.matchCollege(playerStats.college || 'Unknown');
+          const homeStateId = this.matchHomeState(this.generateHomeState());
+          const ratings = this.generateFillerRatings(mappedPosition.name);
+          const genericPID = this.assignGenericFace(firstName, lastName, mappedPosition.name);
+          const asset = this.assignGenericAsset(genericPID, undefined);
+          const pgheValue = this.lastAssignedPgheEntry?.psxp === genericPID ? this.lastAssignedPgheEntry.pghe : undefined;
+
+          const otiPlayer: GeneratedPlayer = {
+            firstName,
+            lastName,
+            position: mappedPosition.name,
+            positionCode: mappedPosition.code,
+            team: 'OTI', // FORCE OTI TEAM
+            jerseyNum: Math.floor(Math.random() * 100),
+            yearsPro: Math.floor(Math.random() * 8),
+            college: matchedCollege,
+            age: playerStats.age || 25,
+            heightInches,
+            weight: maddenWeight,
+            homeState: homeStateId,
+            devTrait: 0,
+            ratings,
+            PID: genericPID,
+            PEPS: asset,
+            PGHE: pgheValue,
+            bodyType: this.determineBodyType(mappedPosition.name, playerStats.weight, heightInches),
+            _sourceStats: playerStats
+          };
+          generatedPlayers.push(otiPlayer);
+        }
+        console.log(`[CreatorService] ✓ Force-generated 53 OTI players`);
+      }
+      console.log(`[CreatorService] =====================================================`);
 
       // Close browser when done
       await scraperService.closeBrowser();

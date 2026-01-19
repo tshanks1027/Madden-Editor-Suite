@@ -953,25 +953,33 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
  */
 ipcMain.handle('database:get-merged-player-season', async (event, internalId: number, year: number) => {
   try {
+    console.log(`[database-handlers] get-merged-player-season called: internalId=${internalId}, year=${year}`);
+
     await userDatabaseService.waitForReady();
     await lookupService.waitForReady();
 
     // Get original player first to get the PID
     const player = lookupService.getPlayerByInternalId(internalId);
+    console.log(`[database-handlers] Player lookup result:`, player ? `${player.firstName} ${player.lastName}` : 'NOT FOUND');
     if (!player) {
       return { success: false, error: 'Player not found' };
     }
 
     // Check if seasons have been cleared for this player
     const seasonsCleared = userDatabaseService.areSeasonsCleared(internalId);
+    console.log(`[database-handlers] Seasons cleared for player: ${seasonsCleared}`);
 
     // Get original season data from lookup service (only if not cleared)
-    const originalSeason = seasonsCleared ? null : lookupService.getPlayerRatingsForYear(player.pid, year);
+    // Use internalId directly - works for ALL players including roster-only players without PIDs
+    const originalSeason = seasonsCleared ? null : lookupService.getPlayerSeasonByInternalId(internalId, year);
+    console.log(`[database-handlers] Original season data:`, originalSeason ? { team: originalSeason.team, position: originalSeason.position, POVR: originalSeason.ratings?.POVR } : 'NULL');
 
     // Get user edits for this season
     const seasonEdit = userDatabaseService.getSeasonEdit(internalId, year);
+    console.log(`[database-handlers] Season edit:`, seasonEdit ? 'EXISTS' : 'NULL');
 
     if (!originalSeason && !seasonEdit) {
+      console.log(`[database-handlers] No season data found for internalId=${internalId}, year=${year}`);
       return { success: false, error: 'No season data found' };
     }
 
@@ -3271,6 +3279,63 @@ ipcMain.handle('database:save-player-bio', async (event, playerData: {
     return { success: true, playerId: player.internalId };
   } catch (error) {
     console.error('[database-handlers] Error saving player bio:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:debug-warren-moon
+ * Debug handler to test Warren Moon's lookup specifically
+ */
+ipcMain.handle('database:debug-warren-moon', async () => {
+  try {
+    await lookupService.waitForReady();
+    await userDatabaseService.waitForReady();
+
+    const results: any = {};
+
+    // Search for Warren Moon
+    const searchResults = lookupService.searchPlayers('Warren Moon', 5);
+    results.searchResults = searchResults.map(p => ({
+      internalId: p.internalId,
+      firstName: p.firstName,
+      lastName: p.lastName,
+      position: p.position,
+      pid: p.pid
+    }));
+
+    // Find Warren Moon specifically
+    const warrenMoon = searchResults.find(p =>
+      p.firstName === 'Warren' && p.lastName === 'Moon' && p.position === 'QB'
+    );
+
+    if (warrenMoon) {
+      results.warrenMoonId = warrenMoon.internalId;
+
+      // Get season years
+      const years = lookupService.getPlayerSeasonYears(warrenMoon.internalId);
+      results.seasonYears = years;
+
+      // Get 1992 season data
+      const season1992 = lookupService.getPlayerSeasonByInternalId(warrenMoon.internalId, 1992);
+      results.season1992 = season1992 ? {
+        playerId: season1992.playerId,
+        year: season1992.year,
+        team: season1992.team,
+        position: season1992.position,
+        jersey: season1992.jersey,
+        age: season1992.age,
+        POVR: season1992.ratings?.POVR
+      } : null;
+
+      // Check if seasons are cleared
+      results.seasonsCleared = userDatabaseService.areSeasonsCleared(warrenMoon.internalId);
+    }
+
+    console.log('[database-handlers] debug-warren-moon result:', JSON.stringify(results, null, 2));
+    return { success: true, data: results };
+  } catch (error) {
+    console.error('[database-handlers] debug-warren-moon error:', error);
     return { success: false, error: String(error) };
   }
 });

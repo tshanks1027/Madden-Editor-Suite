@@ -619,6 +619,7 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             colDef.type = 'numericColumn';
             colDef.filter = 'agNumberColumnFilter';
             colDef.cellEditor = 'agNumberCellEditor';
+            colDef.editable = true; // Enable editing for numeric columns
             colDef.cellEditorParams = {
                 min: fieldDef.min,
                 max: fieldDef.max,
@@ -1134,7 +1135,11 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             applyHeaderColors(app, container);
 
             // Click-to-deselect: clicking anywhere outside a grid row deselects
-            document.addEventListener('click', (e) => {
+            // Store handler reference so it can be removed on grid destroy
+            if (app._agGridClickHandler) {
+                document.removeEventListener('click', app._agGridClickHandler);
+            }
+            app._agGridClickHandler = (e) => {
                 // Guard against destroyed grid
                 if (!params.api || params.api.isDestroyed?.()) {
                     return;
@@ -1146,15 +1151,22 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                 const clickedMenu = e.target.closest('.ag-menu, .context-menu, #grid-context-menu');
                 const clickedPopup = e.target.closest('.ag-popup, .modal, .dialog, [role="dialog"]');
                 const clickedButton = e.target.closest('button, .btn');
+                // CRITICAL: Don't deselect when clicking on cell editing elements
+                const clickedEdit = e.target.closest('.ag-cell-edit-wrapper, .ag-cell-inline-editing, .fast-select-editor, .fast-select-editor__dropdown, .ag-text-field-input, .ag-cell-editor, input, select, textarea');
 
-                // If click was NOT on a row, header, menu, popup, or button, deselect all
-                if (!clickedRow && !clickedHeader && !clickedMenu && !clickedPopup && !clickedButton) {
+                // If click was NOT on a row, header, menu, popup, button, or edit element, deselect all
+                if (!clickedRow && !clickedHeader && !clickedMenu && !clickedPopup && !clickedButton && !clickedEdit) {
                     params.api.deselectAll();
                 }
-            });
+            };
+            document.addEventListener('click', app._agGridClickHandler);
 
             // Copy/Paste handlers for spreadsheet-like functionality
-            document.addEventListener('keydown', (e) => {
+            // Store handler reference so it can be removed on grid destroy
+            if (app._agGridKeyHandler) {
+                document.removeEventListener('keydown', app._agGridKeyHandler);
+            }
+            app._agGridKeyHandler = (e) => {
                 // Only handle if grid container is focused or contains active element
                 if (!container.contains(document.activeElement) &&
                     document.activeElement !== document.body) {
@@ -1330,7 +1342,8 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                         }, 200);
                     }
                 }
-            });
+            };
+            document.addEventListener('keydown', app._agGridKeyHandler);
 
             // Restore saved column widths if available
             const savedState = localStorage.getItem('rosterGridColumnState');
@@ -1550,6 +1563,16 @@ export function updateAGGridData(app, newPlayers) {
  * Destroy AG-Grid
  */
 export function destroyAGGrid(app) {
+    // CRITICAL: Remove document-level event listeners to prevent accumulation
+    if (app._agGridClickHandler) {
+        document.removeEventListener('click', app._agGridClickHandler);
+        app._agGridClickHandler = null;
+    }
+    if (app._agGridKeyHandler) {
+        document.removeEventListener('keydown', app._agGridKeyHandler);
+        app._agGridKeyHandler = null;
+    }
+
     if (app.agGrid) {
         app.agGrid.destroy();
         app.agGrid = null;

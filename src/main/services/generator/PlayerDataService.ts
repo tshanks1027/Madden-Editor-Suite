@@ -178,9 +178,46 @@ export class PlayerDataService {
   private historicalPlayersCache: Map<number, HistoricalPlayer[]> = new Map();
   private futureProspectsCache: Map<number, FutureProspect[]> = new Map();
   private rosterLookupCache: Map<string, RookieStats[]> = new Map(); // Key: "PlayerName_Year"
+  private teamYearCache: Map<string, RookieStats[]> = new Map(); // Key: "Team_Year" e.g. "Oilers_1992"
   private allHistoricalPlayers: HistoricalPlayer[] = [];
   private allFutureProspects: FutureProspect[] = [];
   private isInitialized: boolean = false;
+
+  // Map PFR team abbreviations to team names in ROSTER_lookup.csv
+  private static readonly TEAM_NAME_MAP: { [key: string]: string } = {
+    'oti': 'Oilers',     // Houston Oilers (1960-1996) -> Tennessee Titans
+    'crd': 'Cardinals',  // Arizona Cardinals
+    'atl': 'Falcons',
+    'rav': 'Ravens',
+    'buf': 'Bills',
+    'car': 'Panthers',
+    'chi': 'Bears',
+    'cin': 'Bengals',
+    'cle': 'Browns',
+    'dal': 'Cowboys',
+    'den': 'Broncos',
+    'det': 'Lions',
+    'gnb': 'Packers',
+    'htx': 'Texans',     // Houston Texans (2002+)
+    'clt': 'Colts',
+    'jax': 'Jaguars',
+    'kan': 'Chiefs',
+    'sdg': 'Chargers',
+    'ram': 'Rams',
+    'rai': 'Raiders',
+    'mia': 'Dolphins',
+    'min': 'Vikings',
+    'nwe': 'Patriots',
+    'nor': 'Saints',
+    'nyg': 'Giants',
+    'nyj': 'Jets',
+    'phi': 'Eagles',
+    'pit': 'Steelers',
+    'sea': 'Seahawks',
+    'sfo': '49ers',
+    'tam': 'Buccaneers',
+    'was': 'Commanders', // Also handles 'Redskins' via getTeamNameVariants
+  };
 
   constructor() {
     // Do NOT initialize here - initialization is async and must be awaited
@@ -465,10 +502,17 @@ export class PlayerDataService {
   private async loadRosterLookup(): Promise<void> {
     const filePath = this.resolveDataPath('ROSTER_lookup.csv');
 
+    console.log(`[PlayerDataService] ======= LOADING ROSTER_LOOKUP.CSV =======`);
+    console.log(`[PlayerDataService] Attempting to load from: ${filePath}`);
+    console.log(`[PlayerDataService] app.getAppPath(): ${app.getAppPath()}`);
+
     if (!fs.existsSync(filePath)) {
-      console.warn(`[PlayerDataService] ROSTER_lookup.csv not found at ${filePath}`);
+      console.error(`[PlayerDataService] ❌ ROSTER_lookup.csv NOT FOUND at ${filePath}`);
+      console.error(`[PlayerDataService] This is the reason ROSTER_lookup data is not available!`);
       return; // Not fatal - can continue without rookie stats
     }
+
+    console.log(`[PlayerDataService] ✅ ROSTER_lookup.csv EXISTS at ${filePath}`);
 
     const csvContent = fs.readFileSync(filePath, 'utf-8');
 
@@ -607,11 +651,68 @@ export class PlayerDataService {
       }
       this.rosterLookupCache.get(key)!.push(stats);
 
+      // Also cache by team+year for getPlayersByTeamYear()
+      if (stats.seasonTeam && stats.year) {
+        const teamYearKey = `${stats.seasonTeam}_${stats.year}`;
+        if (!this.teamYearCache.has(teamYearKey)) {
+          this.teamYearCache.set(teamYearKey, []);
+        }
+        this.teamYearCache.get(teamYearKey)!.push(stats);
+      }
+
       parsedCount++;
     }
 
     console.log(`[PlayerDataService] Loaded ${parsedCount} roster lookup entries`);
-    console.log(`[PlayerDataService] Cache has ${this.rosterLookupCache.size} unique keys`);
+    console.log(`[PlayerDataService] Cache has ${this.rosterLookupCache.size} unique player-year keys`);
+    console.log(`[PlayerDataService] Cache has ${this.teamYearCache.size} unique team-year keys`);
+
+    // DEBUG: Check for 1992 teams specifically
+    const teams1992 = Array.from(this.teamYearCache.keys()).filter(k => k.endsWith('_1992'));
+    console.log(`[PlayerDataService] ======= 1992 TEAMS IN CACHE =======`);
+    console.log(`[PlayerDataService] Found ${teams1992.length} teams for 1992`);
+    teams1992.forEach(key => {
+      const count = this.teamYearCache.get(key)?.length || 0;
+      console.log(`[PlayerDataService]   ${key}: ${count} players`);
+    });
+
+    // Specifically verify Oilers_1992
+    const oilers1992 = this.teamYearCache.get('Oilers_1992');
+    if (oilers1992 && oilers1992.length > 0) {
+      console.log(`[PlayerDataService] ✅ Oilers_1992 FOUND with ${oilers1992.length} players`);
+      const warrenMoon = oilers1992.find(p => p.lastName === 'Moon' && p.firstName === 'Warren');
+      if (warrenMoon) {
+        console.log(`[PlayerDataService] ✅ Warren Moon FOUND in Oilers_1992: ${JSON.stringify({name: warrenMoon.playerName, pos: warrenMoon.position, age: warrenMoon.age})}`);
+      } else {
+        console.log(`[PlayerDataService] ❌ Warren Moon NOT FOUND in Oilers_1992`);
+      }
+    } else {
+      console.log(`[PlayerDataService] ❌ Oilers_1992 NOT FOUND in cache!`);
+    }
+    console.log(`[PlayerDataService] ======================================`);
+
+    // Write debug info to file for easy access
+    try {
+      const debugPath = path.join(app.getPath('temp'), 'roster-lookup-debug.log');
+      const debugInfo = [
+        `=== ROSTER_LOOKUP DEBUG LOG - ${new Date().toISOString()} ===`,
+        `CSV path: ${filePath}`,
+        `File exists: ${fs.existsSync(filePath)}`,
+        `app.getAppPath(): ${app.getAppPath()}`,
+        `Parsed entries: ${parsedCount}`,
+        `teamYearCache.size: ${this.teamYearCache.size}`,
+        `Teams for 1992: ${teams1992.join(', ')}`,
+        `Oilers_1992 count: ${oilers1992 ? oilers1992.length : 0}`,
+        oilers1992 && oilers1992.length > 0
+          ? `Warren Moon found: ${!!oilers1992.find(p => p.lastName === 'Moon' && p.firstName === 'Warren')}`
+          : 'Warren Moon: N/A (no Oilers data)',
+        ''
+      ].join('\n');
+      fs.writeFileSync(debugPath, debugInfo);
+      console.log(`[PlayerDataService] Debug log written to: ${debugPath}`);
+    } catch (err) {
+      console.error(`[PlayerDataService] Failed to write debug log:`, err);
+    }
 
     // Verify Andrew Luck 2013 is in the cache
     const testKey = 'andrew luck_2013';
@@ -759,6 +860,102 @@ export class PlayerDataService {
     }
 
     return decades;
+  }
+
+  /**
+   * Get team name variants for historical teams
+   * Handles name changes like Redskins -> Commanders, Oilers -> Titans
+   */
+  private getTeamNameVariants(teamName: string): string[] {
+    const variants: string[] = [teamName];
+
+    // Handle historical name changes
+    if (teamName === 'Commanders') {
+      variants.push('Redskins', 'Washington');
+    } else if (teamName === 'Redskins') {
+      variants.push('Commanders', 'Washington');
+    } else if (teamName === 'Titans') {
+      variants.push('Oilers');
+    } else if (teamName === 'Oilers') {
+      variants.push('Titans');
+    } else if (teamName === 'Raiders') {
+      variants.push('Oakland Raiders', 'Las Vegas Raiders', 'LA Raiders');
+    } else if (teamName === 'Chargers') {
+      variants.push('San Diego Chargers', 'Los Angeles Chargers');
+    } else if (teamName === 'Rams') {
+      variants.push('St. Louis Rams', 'Los Angeles Rams');
+    } else if (teamName === 'Cardinals') {
+      variants.push('Phoenix Cardinals', 'St. Louis Cardinals', 'Arizona Cardinals');
+    }
+
+    return variants;
+  }
+
+  /**
+   * Get all players for a specific team and year from ROSTER_lookup.csv
+   * @param teamAbbr - PFR team abbreviation (e.g., 'oti' for Titans/Oilers)
+   * @param year - Season year
+   * @returns Array of RookieStats for players on that team in that year
+   */
+  public async getPlayersByTeamYear(teamAbbr: string, year: number): Promise<RookieStats[]> {
+    await this.initialize();
+
+    console.log(`[PlayerDataService] getPlayersByTeamYear called: teamAbbr='${teamAbbr}', year=${year}`);
+    console.log(`[PlayerDataService]   teamYearCache.size = ${this.teamYearCache.size}`);
+
+    // Get team name from abbreviation
+    const teamName = PlayerDataService.TEAM_NAME_MAP[teamAbbr.toLowerCase()];
+    if (!teamName) {
+      console.warn(`[PlayerDataService] ❌ Unknown team abbreviation: ${teamAbbr}`);
+      return [];
+    }
+
+    console.log(`[PlayerDataService]   Mapped '${teamAbbr}' -> '${teamName}'`);
+
+    // Try all name variants for historical teams
+    const variants = this.getTeamNameVariants(teamName);
+    console.log(`[PlayerDataService]   Variants to try: ${variants.join(', ')}`);
+
+    for (const variant of variants) {
+      const key = `${variant}_${year}`;
+      const players = this.teamYearCache.get(key);
+      console.log(`[PlayerDataService]   Checking key '${key}': ${players ? players.length + ' players' : 'NOT FOUND'}`);
+      if (players && players.length > 0) {
+        console.log(`[PlayerDataService] ✅ getPlayersByTeamYear: Found ${players.length} players for ${variant} in ${year}`);
+        return [...players]; // Return copy to prevent mutations
+      }
+    }
+
+    console.log(`[PlayerDataService] ❌ getPlayersByTeamYear: No players found for ${teamAbbr} (${teamName}) in ${year}`);
+    console.log(`[PlayerDataService]   Tried variants: ${variants.join(', ')}`);
+
+    // Debug: Show available team-year keys for this year
+    const keysForYear = Array.from(this.teamYearCache.keys())
+      .filter(k => k.endsWith(`_${year}`))
+      .slice(0, 10);
+    console.log(`[PlayerDataService]   Available teams in ${year}: ${keysForYear.map(k => k.split('_')[0]).join(', ')}`);
+
+    return [];
+  }
+
+  /**
+   * Get all available teams for a specific year from ROSTER_lookup.csv
+   * @param year - Season year
+   * @returns Array of team names available in that year
+   */
+  public async getAvailableTeamsForYear(year: number): Promise<string[]> {
+    await this.initialize();
+
+    const teams: string[] = [];
+
+    for (const key of this.teamYearCache.keys()) {
+      if (key.endsWith(`_${year}`)) {
+        const teamName = key.replace(`_${year}`, '');
+        teams.push(teamName);
+      }
+    }
+
+    return teams.sort();
   }
 
   /**

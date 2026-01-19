@@ -2422,12 +2422,12 @@ export class ScraperService {
       'car': 1995, // Carolina Panthers
       'chi': 1920, // Chicago Bears
       'cin': 1968, // Cincinnati Bengals
-      'cle': 1999, // Cleveland Browns (reactivated 1999, original team moved to Baltimore 1996)
+      'cle': 1946, // Cleveland Browns (original 1946-1995, moved to Baltimore as Ravens 1996, reactivated 1999)
       'dal': 1960, // Dallas Cowboys
       'den': 1960, // Denver Broncos
       'det': 1930, // Detroit Lions
       'gnb': 1921, // Green Bay Packers
-      'htx': 2002, // Houston Texans (NEW franchise, NOT the Oilers)
+      'htx': 2002, // Houston Texans (NEW franchise, NOT the Oilers) - PFR uses 'htx'
       'clt': 1953, // Indianapolis Colts (Baltimore Colts 1953-1983, Indianapolis 1984+)
       'jax': 1995, // Jacksonville Jaguars
       'kan': 1960, // Kansas City Chiefs (Dallas Texans 1960-1962, Kansas City 1963+)
@@ -2475,12 +2475,12 @@ export class ScraperService {
       'car': 1995, // Carolina Panthers
       'chi': 1920, // Chicago Bears
       'cin': 1968, // Cincinnati Bengals
-      'cle': 1999, // Cleveland Browns (reactivated)
+      'cle': 1946, // Cleveland Browns (original 1946-1995, moved to Baltimore as Ravens 1996, reactivated 1999)
       'dal': 1960, // Dallas Cowboys
       'den': 1960, // Denver Broncos
       'det': 1930, // Detroit Lions
       'gnb': 1921, // Green Bay Packers
-      'htx': 2002, // Houston Texans
+      'htx': 2002, // Houston Texans - PFR uses 'htx'
       'clt': 1953, // Indianapolis Colts
       'jax': 1995, // Jacksonville Jaguars
       'kan': 1960, // Kansas City Chiefs

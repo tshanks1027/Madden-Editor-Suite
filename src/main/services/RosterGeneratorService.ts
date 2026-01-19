@@ -2630,6 +2630,15 @@ export class RosterGeneratorService {
       'RAI': 'Raiders',     // Oakland/LA Raiders
       'RAV': 'Ravens',      // Baltimore Ravens
 
+      // Historical team names (full and short)
+      'Oilers': 'Titans',           // Houston Oilers → Tennessee Titans
+      'Houston Oilers': 'Titans',   // Houston Oilers → Tennessee Titans
+      'Phoenix Cardinals': 'Cards', // Phoenix Cardinals → Arizona Cardinals
+      'St. Louis Cardinals': 'Cards', // St. Louis Cardinals → Arizona Cardinals
+      'Baltimore Colts': 'Colts',   // Baltimore Colts → Indianapolis Colts
+      'Los Angeles Raiders': 'Raiders', // LA Raiders → Las Vegas Raiders
+      'St. Louis Rams': 'Rams',     // St. Louis Rams → Los Angeles Rams
+
       // Full names with city
       'Arizona Cardinals': 'Cards',
       'Arizona Cardinals (1)': 'Cards',

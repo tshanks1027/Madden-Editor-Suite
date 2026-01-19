@@ -61,10 +61,31 @@ ipcMain.handle('roster-creator:generate', async (event, year: number, templatePa
     });
     console.log('[roster-creator-handlers] ===========================');
 
+    // DEBUG: Team distribution - count players per TGID
+    const teamDistribution: { [key: number]: number } = {};
+    players.forEach((p: any) => {
+      const tgid = p.TGID || 0;
+      teamDistribution[tgid] = (teamDistribution[tgid] || 0) + 1;
+    });
+    console.log('[roster-creator-handlers] ===== TEAM DISTRIBUTION =====');
+    Object.entries(teamDistribution)
+      .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+      .forEach(([tgid, count]) => {
+        console.log(`[roster-creator-handlers] TGID ${tgid}: ${count} players`);
+      });
+    // Specifically check for Titans (TGID=30)
+    const titansCount = teamDistribution[30] || 0;
+    console.log(`[roster-creator-handlers] *** TITANS (TGID=30): ${titansCount} players ***`);
+    if (titansCount === 0) {
+      console.error('[roster-creator-handlers] ⚠️ WARNING: NO TITANS/OILERS PLAYERS!');
+    }
+    console.log('[roster-creator-handlers] =============================');
+
     return {
       success: true,
       players,
-      stats
+      stats,
+      teamDistribution // Include in response for renderer debugging
     };
 
   } catch (error: any) {

@@ -932,6 +932,53 @@ export class LookupService {
     return rows.map(r => r.year);
   }
 
+  // Get player season data by internal player_id (NOT madden_pid)
+  // This works for ALL players including roster-only players without PIDs
+  public getPlayerSeasonByInternalId(internalId: number, year: number): PlayerSeasonEntry | null {
+    console.log(`[lookup-service] getPlayerSeasonByInternalId called: internalId=${internalId}, year=${year}, db=${this.db ? 'READY' : 'NULL'}`);
+
+    if (!this.db) {
+      console.log('[lookup-service] Database not initialized!');
+      return null;
+    }
+
+    const row = this.db.prepare(`
+      SELECT * FROM player_seasons WHERE player_id = ? AND year = ?
+    `).get(internalId, year) as any;
+
+    console.log(`[lookup-service] Query result:`, row ? `Found team=${row.team}, POVR=${row.POVR}` : 'NO ROW');
+
+    if (!row) return null;
+
+    return {
+      playerId: row.player_id,
+      year: row.year,
+      team: row.team || '',
+      jersey: row.jersey || 0,
+      age: row.age || 0,
+      position: row.position || '',
+      archetype: row.archetype || '',
+      games: row.games || 0,
+      gamesStarted: row.games_started || 0,
+      av: row.av || 0,
+      devTrait: row.dev_trait || '',
+      ratings: {
+        POVR: row.POVR, PSPD: row.PSPD, PACC: row.PACC, PSTR: row.PSTR, PAGI: row.PAGI,
+        PAWR: row.PAWR, PCTH: row.PCTH, PCAR: row.PCAR, PTHP: row.PTHP, PKPW: row.PKPW,
+        PKAC: row.PKAC, PRBK: row.PRBK, PPBK: row.PPBK, PTAK: row.PTAK, PBTK: row.PBTK,
+        PJMP: row.PJMP, PINJ: row.PINJ, PSTA: row.PSTA, PTGH: row.PTGH, PTRK: row.PTRK,
+        PCOD: row.PCOD, PBCV: row.PBCV, PSTF: row.PSTF, PSPM: row.PSPM, PJUM: row.PJUM,
+        PIBL: row.PIBL, PRBP: row.PRBP, PRBF: row.PRBF, PPBP: row.PPBP, PPBF: row.PPBF,
+        PLDB: row.PLDB, PBRS: row.PBRS, PTUP: row.PTUP, PPWM: row.PPWM, PFNM: row.PFNM,
+        PBSH: row.PBSH, PPUR: row.PPUR, PPRC: row.PPRC, PMCV: row.PMCV, PZCV: row.PZCV,
+        PSPC: row.PSPC, PCIT: row.PCIT, PSRR: row.PSRR, PMRR: row.PMRR, PDRR: row.PDRR,
+        PHTP: row.PHTP, PPRS: row.PPRS, PREL: row.PREL, PTAS: row.PTAS, PTAM: row.PTAM,
+        PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT, PLTR: row.PLTR,
+        PELU: row.PELU
+      }
+    };
+  }
+
   // PID-only entries have internalId >= 100000 (created from PID_lookup.csv with no matching player)
   // These should be excluded from normal search results
   private static readonly PID_ONLY_THRESHOLD = 100000;

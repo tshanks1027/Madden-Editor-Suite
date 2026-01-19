@@ -21,6 +21,7 @@ import { mapStatsToAttributes, MaddenAttributes } from '../lib/roster/AttributeM
 import { generateRandomRoster, RandomPlayer } from '../lib/roster/RandomPlayerGenerator';
 import { scraperDebugLogger } from '../utils/DebugLogger';
 import { rosterGeneratorService } from './RosterGeneratorService';
+import { playerDataService, RookieStats } from './generator/PlayerDataService';
 import { app } from 'electron';
 import Papa from 'papaparse';
 import * as fs from 'fs';
@@ -74,6 +75,7 @@ const NFL_TEAMS = [
   { abbr: 'det', name: 'Detroit Lions', id: 19 },
   { abbr: 'gnb', name: 'Green Bay Packers', id: 20 },   // GB in Madden
   { abbr: 'hou', name: 'Houston Texans', id: 32 },      // HOU in Madden
+  { abbr: 'htx', name: 'Houston Texans', id: 32 },      // PFR uses 'htx' for Texans
   { abbr: 'clt', name: 'Indianapolis Colts', id: 10 },  // IND in Madden
   { abbr: 'jax', name: 'Jacksonville Jaguars', id: 17 },
   { abbr: 'kan', name: 'Kansas City Chiefs', id: 9 },   // KC in Madden
@@ -504,6 +506,161 @@ export class RosterCreatorService {
   }
 
   /**
+   * Convert RookieStats from ROSTER_lookup.csv to RosterPlayer format
+   * Uses pre-calculated ratings from the lookup file
+   */
+  private convertRookieStatsToRosterPlayer(
+    stats: RookieStats,
+    teamId: number,
+    idx: number
+  ): RosterPlayer {
+    // Get race from lookup or default
+    const race = 7; // Default to black (most common in NFL)
+
+    // Generate generic face for players without PID
+    let pid = stats.pid || 0;
+    let pam = stats.pam || '';
+    let pghe = 0;
+    let pski = this.mapRaceToPSKI(race);
+
+    // If no valid PID/PAM, assign generic face
+    if (!pid || pid === 0 || !pam || pam === '0') {
+      const genericFace = this.selectGenericFace(race, stats.position || 'HB');
+      pid = genericFace.pid;
+      pam = genericFace.pam;
+      pghe = genericFace.pghe;
+      pski = this.getPSKIFromPAM(pam);
+    }
+
+    const bodyType = this.getBodyType(stats.position || 'HB', stats.weight || 220, stats.height || 72);
+
+    // Build the RosterPlayer object with all ratings from lookup
+    const rosterPlayer: RosterPlayer = {
+      // Basic Info
+      PFNA: stats.firstName,
+      PLNA: stats.lastName,
+      PPOS: stats.position || 'HB',
+      TGID: teamId,
+      PAGE: stats.age || 25,
+      PJEN: stats.jersey || Math.floor(Math.random() * 99) + 1,
+
+      // Physical
+      PHGT: stats.height || 72,
+      PWGT: (stats.weight || 220) - 160, // Madden offset format
+
+      // College/Background
+      PCOL: stats.college || 'Unknown',
+
+      // Portrait/Appearance
+      PLPL: pid,       // PhotoID/Portrait
+      PEPS: pam,       // Player Assets
+      PGHE: pghe,      // Head mesh
+      PSKI: pski,      // Skin tone
+      PLBD: bodyType,  // Body type
+
+      // All ratings from lookup (already calculated)
+      POVR: stats.povr || 65,
+      PSPD: stats.pspd || 70,
+      PACC: stats.pacc || 70,
+      PSTR: stats.pstr || 70,
+      PAGI: stats.pagi || 70,
+      PAWR: stats.pawr || 65,
+      PCTH: stats.pcth || 50,
+      PCAR: stats.pcar || 50,
+      PTHP: stats.pthp || 30,
+      PKPW: stats.pkpw || 30,
+      PKAC: stats.pkac || 30,
+      PRBK: stats.prbk || 50,
+      PPBK: stats.ppbk || 50,
+      PTAK: stats.ptak || 50,
+      PBTK: stats.pbtk || 50,
+      PJMP: stats.pjmp || 70,
+      PINJ: stats.pinj || 90,
+      PSTA: stats.psta || 90,
+      PTGH: stats.ptgh || 85,
+      PTRK: stats.ptrk || 50,
+      PCOD: stats.pcod || 50,
+      PBCV: stats.pbcv || 50,
+      PSTF: stats.pstf || 50,
+      PSPM: stats.pspm || 50,
+      PJUM: stats.pjum || 50,
+      PIBL: stats.pibl || 50,
+      PRBP: stats.prbp || 50,
+      PRBF: stats.prbf || 50,
+      PPBP: stats.ppbp || 50,
+      PPBF: stats.ppbf || 50,
+      PLDB: stats.pldb || 50,
+      PBRS: stats.pbrs || 50,
+      PTUP: stats.ptup || 50,
+      PPWM: stats.ppwm || 50,
+      PFNM: stats.pfnm || 50,
+      PBSH: stats.pbsh || 50,
+      PPUR: stats.ppur || 50,
+      PPRC: stats.pprc || 50,
+      PMCV: stats.pmcv || 50,
+      PZCV: stats.pzcv || 50,
+      PSPC: stats.pspc || 50,
+      PCIT: stats.pcit || 50,
+      PSRR: stats.psrr || 50,
+      PMRR: stats.pmrr || 50,
+      PDRR: stats.pdrr || 50,
+      PHTP: stats.phtp || 50,
+      PPRS: stats.pprs || 50,
+      PREL: stats.prel || 50,
+      PTAS: stats.ptas || 50,
+      PTAM: stats.ptam || 50,
+      PTAD: stats.ptad || 50,
+      PPLA: stats.ppla || 50,
+      PTOR: stats.ptor || 50,
+      PKRT: 30, // Kick return (not in lookup)
+
+      // Dev trait from lookup
+      PDEV: this.mapDevTraitToId(stats.devTrait || 'Normal'),
+    };
+
+    return rosterPlayer;
+  }
+
+  /**
+   * Map dev trait string to Madden ID
+   */
+  private mapDevTraitToId(devTrait: string): number {
+    switch (devTrait?.toLowerCase()) {
+      case 'x-factor': return 3;
+      case 'superstar': return 2;
+      case 'star': return 1;
+      default: return 0; // Normal
+    }
+  }
+
+  /**
+   * Get players from ROSTER_lookup.csv for a specific team and year
+   * Returns RosterPlayer array with pre-calculated ratings
+   */
+  private async getPlayersFromLookup(
+    teamAbbr: string,
+    year: number,
+    teamId: number
+  ): Promise<RosterPlayer[]> {
+    const rookieStats = await playerDataService.getPlayersByTeamYear(teamAbbr, year);
+
+    if (rookieStats.length === 0) {
+      console.log(`[RosterCreatorService] No ROSTER_lookup data for ${teamAbbr} in ${year}`);
+      return [];
+    }
+
+    console.log(`[RosterCreatorService] Found ${rookieStats.length} players for ${teamAbbr} in ${year} from ROSTER_lookup`);
+
+    const players: RosterPlayer[] = [];
+    for (let i = 0; i < rookieStats.length; i++) {
+      const player = this.convertRookieStatsToRosterPlayer(rookieStats[i], teamId, i);
+      players.push(player);
+    }
+
+    return players;
+  }
+
+  /**
    * Generate a historical roster for a given year
    * Uses CreatorService for proper college lookup, position mapping, dev traits, and stat minimums
    * @param year - Season year (1920-2025)
@@ -547,7 +704,108 @@ export class RosterCreatorService {
       console.log(`[RosterCreatorService] Template has ${maxPlayers} player slots available`);
       scraperDebugLogger.log(`Template roster loaded: ${maxPlayers} player slots available\n`);
 
-      progressCallback?.(30, `Generating roster using scraper service...`);
+      // Initialize PlayerDataService for ROSTER_lookup access
+      await playerDataService.initialize();
+
+      progressCallback?.(20, `Checking ROSTER_lookup for ${year} data...`);
+
+      // First, try to get data from ROSTER_lookup.csv (years 1970-2024)
+      const availableTeams = await playerDataService.getAvailableTeamsForYear(year);
+      const hasLookupData = availableTeams.length > 0;
+
+      console.log(`[RosterCreatorService] ROSTER_lookup has ${availableTeams.length} teams for ${year}`);
+
+      let allRosterPlayers: RosterPlayer[] = [];
+
+      console.log(`[RosterCreatorService] ======= ROSTER_LOOKUP DECISION =======`);
+      console.log(`[RosterCreatorService] hasLookupData=${hasLookupData}, year=${year}`);
+      console.log(`[RosterCreatorService] availableTeams=${availableTeams.length > 0 ? availableTeams.join(',') : 'EMPTY'}`);
+      console.log(`[RosterCreatorService] Condition check: hasLookupData=${hasLookupData} && year >= 1970 (${year >= 1970}) && year <= 2024 (${year <= 2024})`);
+      console.log(`[RosterCreatorService] Will use ROSTER_lookup: ${hasLookupData && year >= 1970 && year <= 2024}`);
+      console.log(`[RosterCreatorService] ======================================`);
+
+      if (hasLookupData && year >= 1970 && year <= 2024) {
+        // Use ROSTER_lookup data (pre-calculated ratings)
+        progressCallback?.(30, `Loading roster data from database for ${year}...`);
+        console.log(`[RosterCreatorService] ✅ Using ROSTER_lookup data for ${year}`);
+
+        // Get all teams that existed in the year
+        const teamsForYear = scraperService.getTeamsForYear(year);
+        console.log(`[RosterCreatorService] Teams for ${year}: ${teamsForYear.join(', ')}`);
+
+        // Specifically check for 'oti' (Titans/Oilers)
+        const hasOti = teamsForYear.includes('oti');
+        console.log(`[RosterCreatorService] 'oti' (Titans/Oilers) in teamsForYear: ${hasOti}`);
+
+        let teamIndex = 0;
+        for (const teamAbbr of teamsForYear) {
+          const teamObj = NFL_TEAMS.find(t => t.abbr === teamAbbr);
+          const teamId = teamObj ? teamObj.id : 1009;
+
+          // Extra logging for 'oti' specifically
+          if (teamAbbr === 'oti') {
+            console.log(`[RosterCreatorService] >>> Processing OTI (Titans/Oilers):`);
+            console.log(`[RosterCreatorService]     teamObj found: ${!!teamObj}`);
+            console.log(`[RosterCreatorService]     teamId: ${teamId} (should be 30 for Titans)`);
+          }
+
+          const players = await this.getPlayersFromLookup(teamAbbr, year, teamId);
+
+          if (players.length > 0) {
+            console.log(`[RosterCreatorService] ${teamAbbr}: ${players.length} players from ROSTER_lookup (TGID=${teamId})`);
+            allRosterPlayers.push(...players);
+          } else {
+            console.log(`[RosterCreatorService] ❌ ${teamAbbr}: NO players from ROSTER_lookup`);
+          }
+
+          teamIndex++;
+          const progress = 30 + Math.floor((teamIndex / teamsForYear.length) * 40);
+          progressCallback?.(progress, `Loaded ${teamAbbr.toUpperCase()} roster...`);
+        }
+
+        console.log(`[RosterCreatorService] Total players from ROSTER_lookup: ${allRosterPlayers.length}`);
+
+      } else {
+        console.log(`[RosterCreatorService] ❌ ROSTER_lookup NOT used - falling through to web scraper`);
+      }
+
+      // If we got data from ROSTER_lookup, use it directly
+      if (allRosterPlayers.length > 0) {
+        console.log(`[RosterCreatorService] Using ${allRosterPlayers.length} players from ROSTER_lookup`);
+
+        // Log team distribution
+        const teamCounts = new Map<string, number>();
+        for (const p of allRosterPlayers) {
+          const tgid = p.TGID || 0;
+          const teamKey = tgid.toString();
+          teamCounts.set(teamKey, (teamCounts.get(teamKey) || 0) + 1);
+        }
+        console.log(`[RosterCreatorService] Team distribution from ROSTER_lookup:`);
+        for (const [team, count] of Array.from(teamCounts.entries()).sort()) {
+          console.log(`[RosterCreatorService]   TGID ${team}: ${count} players`);
+        }
+
+        // Check for Titans (TGID 30)
+        const titansCount = allRosterPlayers.filter(p => p.TGID === 30).length;
+        console.log(`[RosterCreatorService] *** TITANS (TGID=30): ${titansCount} players ***`);
+
+        progressCallback?.(85, `Collecting free agents to fill roster...`);
+
+        // Collect free agents to fill remaining roster slots
+        const freeAgents = await this.collectFreeAgents(year, allRosterPlayers, maxPlayers);
+        console.log(`[RosterCreatorService] Free agents collected: ${freeAgents.length}`);
+
+        // Combine team rosters with free agents
+        const finalRoster = [...allRosterPlayers, ...freeAgents];
+        console.log(`[RosterCreatorService] Final roster size: ${finalRoster.length} (team: ${allRosterPlayers.length}, FA: ${freeAgents.length})`);
+
+        progressCallback?.(100, `Roster generation complete! ${finalRoster.length} players created.`);
+
+        return finalRoster;
+      }
+
+      // Fall back to web scraping for years not in ROSTER_lookup
+      progressCallback?.(30, `Generating roster using web scraper...`);
 
       // Generate roster using the creator service (web scraping)
       // NOTE: generateRoster signature is (year, teams, maxPlayers, league, progressCallback, ratingMode)
@@ -630,20 +888,63 @@ export class RosterCreatorService {
         console.error(`[RosterCreatorService] Failed to write debug log:`, err);
       }
 
+      // DEBUG: Team distribution BEFORE conversion
+      console.log(`[RosterCreatorService] ========== TEAM DISTRIBUTION IN GENERATED PLAYERS ==========`);
+      const teamCounts = new Map<string, number>();
+      for (const p of generatedPlayers) {
+        const team = p.team || 'UNDEFINED';
+        teamCounts.set(team, (teamCounts.get(team) || 0) + 1);
+      }
+      // Sort by count descending
+      const sortedTeams = Array.from(teamCounts.entries()).sort((a, b) => b[1] - a[1]);
+      for (const [team, count] of sortedTeams) {
+        console.log(`[RosterCreatorService]   ${team}: ${count} players`);
+      }
+      // Specifically check for OTI
+      const otiCount = teamCounts.get('OTI') || teamCounts.get('oti') || 0;
+      console.log(`[RosterCreatorService] *** OTI (Oilers/Titans) player count: ${otiCount} ***`);
+      if (otiCount === 0) {
+        console.log(`[RosterCreatorService] ⚠️ WARNING: NO OTI PLAYERS IN GENERATED DATA!`);
+        console.log(`[RosterCreatorService] This means the scraper did not return any OTI players.`);
+      }
+      console.log(`[RosterCreatorService] ============================================================`);
+
       // Convert GeneratedPlayer format to RosterPlayer format
       const rosterPlayers: RosterPlayer[] = generatedPlayers.map((player: GeneratedPlayer, idx: number) => {
         // Find team ID from team abbreviation (Pro Football Reference abbr -> Madden team ID)
-        const teamObj = NFL_TEAMS.find(t => t.abbr === player.team?.toLowerCase());
-        const teamId = teamObj ? teamObj.id : 1009; // 1009 = Free Agent (team_lookup.csv uses IDs 1-32, 1009 for FA)
+        const teamAbbr = player.team?.toLowerCase() || '';
+
+        // DIRECT TEAM ID MAPPING - bypass lookup for known teams
+        // This is the guaranteed fix for historical teams like OTI (Oilers -> Titans)
+        let teamId: number;
+
+        if (teamAbbr === 'oti') {
+          // Houston Oilers -> Tennessee Titans (TGID 30)
+          teamId = 30;
+        } else if (teamAbbr === 'htx') {
+          // Houston Texans (TGID 32)
+          teamId = 32;
+        } else {
+          // Standard lookup for other teams
+          const teamObj = NFL_TEAMS.find(t => t.abbr === teamAbbr);
+          teamId = teamObj ? teamObj.id : 1009; // 1009 = Free Agent
+        }
 
         // DEBUG: Log team mapping for first 5 players
         if (idx < 5) {
-          console.log(`[RosterCreatorService] Player ${idx + 1} team mapping: "${player.team}" -> ID ${teamId} (found: ${!!teamObj}, teamObj: ${teamObj?.name})`);
+          console.log(`[RosterCreatorService] Player ${idx + 1} team mapping: "${player.team}" -> TGID ${teamId}`);
         }
 
-        // Warn about unmapped teams
-        if (!teamObj && player.team) {
+        // Warn about unmapped teams (went to Free Agent)
+        if (teamId === 1009 && player.team) {
           console.warn(`[RosterCreatorService] ⚠️ Unmapped team abbreviation: "${player.team}" for player ${player.PFNA || player.firstName} ${player.PLNA || player.lastName}`);
+        }
+
+        // DEBUG: Track OTI (Titans/Oilers) players specifically
+        if (player.team?.toLowerCase() === 'oti') {
+          if (idx < 10) {
+            console.log(`[RosterCreatorService] OTI player: ${player.firstName || player.PFNA} ${player.lastName || player.PLNA} -> Team ID ${teamId}`);
+          }
         }
 
         // Convert GeneratedPlayer to RosterPlayer format
@@ -858,6 +1159,20 @@ export class RosterCreatorService {
           console.warn(`  - ${p.PFNA} ${p.PLNA} (${p.PPOS}) - TGID=${p.TGID} (expected 1-32 or 1009)`);
         });
       }
+
+      // DEBUG: Count OTI (Titans/Oilers) players
+      const otiPlayers = rosterPlayers.filter(p => p.TGID === 30);
+      console.log(`[RosterCreatorService] ========== OTI/TITANS SUMMARY ==========`);
+      console.log(`[RosterCreatorService] Total players with TGID=30 (Titans): ${otiPlayers.length}`);
+      if (otiPlayers.length > 0) {
+        console.log(`[RosterCreatorService] Sample OTI players:`);
+        otiPlayers.slice(0, 5).forEach(p => {
+          console.log(`[RosterCreatorService]   - ${p.PFNA} ${p.PLNA} (${p.PPOS})`);
+        });
+      } else {
+        console.log(`[RosterCreatorService] ⚠️ NO PLAYERS ASSIGNED TO TITANS (TGID=30)!`);
+      }
+      console.log(`[RosterCreatorService] =========================================`);
 
       progressCallback?.(85, `Collecting free agents to fill roster...`);
 

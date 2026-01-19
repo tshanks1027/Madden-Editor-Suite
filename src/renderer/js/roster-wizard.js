@@ -334,6 +334,25 @@ async function generateRoster() {
       console.log('[RosterWizard] Generation successful');
       console.log('[RosterWizard] Players:', result.data.players.length);
 
+      // DEBUG: Team distribution analysis
+      const teamCounts = {};
+      result.data.players.forEach(p => {
+        const tgid = p.TGID || 0;
+        teamCounts[tgid] = (teamCounts[tgid] || 0) + 1;
+      });
+      console.log('[RosterWizard] ===== TEAM DISTRIBUTION =====');
+      Object.entries(teamCounts)
+        .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+        .forEach(([tgid, count]) => {
+          console.log(`[RosterWizard] TGID ${tgid}: ${count} players`);
+        });
+      const titansCount = teamCounts[30] || 0;
+      console.log(`[RosterWizard] *** TITANS (TGID=30): ${titansCount} players ***`);
+      if (titansCount === 0) {
+        console.error('[RosterWizard] ⚠️ WARNING: NO TITANS/OILERS PLAYERS! Check main process logs.');
+      }
+      console.log('[RosterWizard] ==============================');
+
       rosterWizardState.generatedRoster = result.data;
 
       // Show results

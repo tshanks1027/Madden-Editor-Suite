@@ -420,8 +420,31 @@ async function createDatabase() {
     }
 
     if (!matchedPlayerId) {
-      unmatchedSeasons++;
-      continue;
+      // Create a new player entry for this roster-only player
+      const firstNameRaw = row['First_Name'] || '';
+      const lastNameRaw = row['Last_Name'] || '';
+      const position = row['Position'] || null;
+      const draftYearVal = parseInt(row['Draft_Year']) || null;
+
+      // Insert new player
+      db.run(`
+        INSERT INTO players (
+          id, first_name, last_name, draft_class, position, league
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `, [playerId, firstNameRaw, lastNameRaw, draftYearVal, position, 'NFL']);
+
+      // Store in lookup for future seasons of this player
+      const lookupKey = `${firstName}|${lastName}|${draftYearVal}`;
+      playerLookup.set(lookupKey, playerId);
+      // Also store name-only key
+      const nameOnlyKey = `${firstName}|${lastName}|`;
+      if (!playerLookup.has(nameOnlyKey)) {
+        playerLookup.set(nameOnlyKey, playerId);
+      }
+
+      matchedPlayerId = playerId;
+      playerId++;
+      importedPlayers++;
     }
 
     // Parse all the rating fields
