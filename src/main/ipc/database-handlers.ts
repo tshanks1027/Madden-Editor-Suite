@@ -5,7 +5,7 @@
  * Provides access to edit/create player data in the user overlay database.
  */
 
-import { ipcMain } from 'electron';
+import { ipcMain, BrowserWindow } from 'electron';
 import {
   userDatabaseService,
   PlayerEdit,
@@ -3336,6 +3336,44 @@ ipcMain.handle('database:debug-warren-moon', async () => {
     return { success: true, data: results };
   } catch (error) {
     console.error('[database-handlers] debug-warren-moon error:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// =============================================
+// INTER-WINDOW COMMUNICATION
+// =============================================
+
+/**
+ * Handle: database:send-player-to-main
+ * Send a player from the database browser to the main editor window
+ * This enables the bulk add feature when database browser is a separate window
+ */
+ipcMain.handle('database:send-player-to-main', async (event, internalId: number, target: 'roster' | 'draft', options?: { teamId?: number; year?: number | null }) => {
+  try {
+    console.log(`[database-handlers] Sending player ${internalId} to ${target} with options:`, options);
+
+    // Find the main window (the one that's not the database browser)
+    const allWindows = BrowserWindow.getAllWindows();
+    const senderWindow = BrowserWindow.fromWebContents(event.sender);
+
+    // Find the main window - it's the one with index.html loaded (not database-browser.html)
+    const mainWindow = allWindows.find(win => {
+      const url = win.webContents.getURL();
+      return win !== senderWindow && (url.includes('index.html') || (!url.includes('database-browser') && !url.includes('franchise-editor')));
+    });
+
+    if (!mainWindow) {
+      console.warn('[database-handlers] Main window not found');
+      return { success: false, error: 'Main editor window not found. Please open the editor first.' };
+    }
+
+    // Send the player to the main window
+    mainWindow.webContents.send('database:player-from-browser', internalId, target, options);
+
+    return { success: true };
+  } catch (error) {
+    console.error('[database-handlers] Error sending player to main:', error);
     return { success: false, error: String(error) };
   }
 });
