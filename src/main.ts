@@ -83,9 +83,9 @@ let mainWindow: BrowserWindow | null = null;
 let databaseWindow: BrowserWindow | null = null;
 
 // Handler to send player from database browser to main window
-ipcMain.handle('database:send-player-to-main', async (_event, internalId: number, target: 'roster' | 'draft') => {
+ipcMain.handle('database:send-player-to-main', async (_event, internalId: number, target: 'roster' | 'draft', options?: { teamId?: number; year?: number | null }) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('database:player-from-browser', internalId, target);
+    mainWindow.webContents.send('database:player-from-browser', internalId, target, options);
     mainWindow.focus();
     return { success: true };
   }
@@ -93,11 +93,15 @@ ipcMain.handle('database:send-player-to-main', async (_event, internalId: number
 });
 
 // Handler to open database browser in separate window
-ipcMain.handle('window:open-database', async () => {
+ipcMain.handle('window:open-database', async (_event, mode?: 'roster' | 'draft') => {
 
-  // If window already exists and is not destroyed, focus it
+  // If window already exists and is not destroyed, focus it and send mode
   if (databaseWindow && !databaseWindow.isDestroyed()) {
     databaseWindow.focus();
+    // Send the mode to the existing window
+    if (mode) {
+      databaseWindow.webContents.send('database:set-mode', mode);
+    }
     return { success: true, alreadyOpen: true };
   }
 
@@ -116,18 +120,20 @@ ipcMain.handle('window:open-database', async () => {
     },
   });
 
-  // Load the database browser page
+  // Load the database browser page with mode as query param
+  const modeParam = mode ? `?mode=${mode}` : '';
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     // In dev mode, load from vite server
     // The dev server URL is like http://localhost:3000/ - append the page name
     const baseUrl = MAIN_WINDOW_VITE_DEV_SERVER_URL.endsWith('/')
       ? MAIN_WINDOW_VITE_DEV_SERVER_URL
       : MAIN_WINDOW_VITE_DEV_SERVER_URL + '/';
-    databaseWindow.loadURL(baseUrl + 'database-browser.html');
+    databaseWindow.loadURL(baseUrl + 'database-browser.html' + modeParam);
   } else {
     // In production, load from file
     databaseWindow.loadFile(
-      path.join(__dirname, '../renderer/database-browser.html')
+      path.join(__dirname, '../renderer/database-browser.html'),
+      { query: mode ? { mode } : {} }
     );
   }
 

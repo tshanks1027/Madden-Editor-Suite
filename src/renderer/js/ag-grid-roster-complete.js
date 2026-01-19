@@ -1671,7 +1671,7 @@ function showAGGridOVRAdjustmentDialog(node, player, playerName, oldOVR, newOVR,
             <div class="modal-content ovr-adjustment-modal">
                 <div class="modal-header">
                     <h2>Adjust Ratings for OVR Change?</h2>
-                    <button class="close-btn" onclick="document.getElementById('ag-ovr-adjustment-modal').remove()">×</button>
+                    <button id="ag-ovr-close-btn" class="close-btn">×</button>
                 </div>
                 <div class="modal-body">
                     <p class="player-info">
@@ -1717,12 +1717,32 @@ function showAGGridOVRAdjustmentDialog(node, player, playerName, oldOVR, newOVR,
 
     const modal = document.getElementById('ag-ovr-adjustment-modal');
 
+    // Helper to restore focus to grid after modal closes
+    const restoreFocusToGrid = () => {
+        setTimeout(() => {
+            const gridContainer = document.querySelector('.ag-root-wrapper');
+            if (gridContainer) {
+                gridContainer.focus();
+                console.log('[AG-Grid] Focus restored to grid after modal close');
+            }
+        }, 50);
+    };
+
+    // Close button (X) handler
+    document.getElementById('ag-ovr-close-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        modal.remove();
+        restoreFocusToGrid();
+    });
+
     // Apply adjustments handler
     document.getElementById('ag-apply-adjustments-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
         applyAGGridOVRAdjustments(node, player, adjustments, app, gridApi);
         modal.remove();
+        restoreFocusToGrid();
     });
 
     // Keep OVR only handler (just close - OVR already changed)
@@ -1730,6 +1750,7 @@ function showAGGridOVRAdjustmentDialog(node, player, playerName, oldOVR, newOVR,
         e.stopPropagation();
         e.preventDefault();
         modal.remove();
+        restoreFocusToGrid();
     });
 
     // Cancel handler - revert OVR to old value
@@ -1744,12 +1765,14 @@ function showAGGridOVRAdjustmentDialog(node, player, playerName, oldOVR, newOVR,
             app.players[playerIndex].POVR = oldOVR;
         }
         modal.remove();
+        restoreFocusToGrid();
     });
 
     // Close on overlay click
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
+            restoreFocusToGrid();
         }
     });
 }

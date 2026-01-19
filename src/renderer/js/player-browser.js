@@ -15,6 +15,7 @@
   let pageSize = 50;
   let totalResults = 0;
   let isLoading = false;
+  let selectedPlayerIds = new Set(); // Track selected players for batch operations
 
   /**
    * Initialize the player browser module
@@ -208,6 +209,35 @@
         }
       }
     });
+
+    // Selection handlers - "Select All" checkbox
+    const selectAllCheckbox = document.getElementById('selectAllPlayers');
+    if (selectAllCheckbox) {
+      selectAllCheckbox.addEventListener('change', (e) => {
+        handleSelectAllChange(e.target.checked);
+      });
+    }
+
+    // Selection handlers - individual checkboxes (using event delegation)
+    const resultsContainer = document.getElementById('playerBrowserResults');
+    if (resultsContainer) {
+      resultsContainer.addEventListener('change', (e) => {
+        if (e.target.classList.contains('player-select-checkbox')) {
+          handleCheckboxChange(e.target);
+        }
+      });
+    }
+
+    // Batch add buttons
+    const addSelectedToRosterBtn = document.getElementById('addSelectedToRosterBtn');
+    if (addSelectedToRosterBtn) {
+      addSelectedToRosterBtn.addEventListener('click', addSelectedToRoster);
+    }
+
+    const addSelectedToDraftBtn = document.getElementById('addSelectedToDraftBtn');
+    if (addSelectedToDraftBtn) {
+      addSelectedToDraftBtn.addEventListener('click', addSelectedToDraft);
+    }
   }
 
   /**
@@ -304,13 +334,14 @@
 
   /**
    * Open the player browser in a separate window
+   * @param {string} mode - Optional mode: 'roster' or 'draft' (default: 'roster')
    */
-  async function openPlayerBrowser() {
-    console.log('[PlayerBrowser] Opening browser in separate window');
+  async function openPlayerBrowser(mode) {
+    console.log('[PlayerBrowser] Opening browser in separate window, mode:', mode || 'roster');
 
     try {
       if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.openDatabase) {
-        const result = await window.electronAPI.window.openDatabase();
+        const result = await window.electronAPI.window.openDatabase(mode || 'roster');
         console.log('[PlayerBrowser] Open database window result:', result);
       } else {
         console.error('[PlayerBrowser] window.openDatabase API not available');
@@ -487,6 +518,24 @@
         }
       }
 
+      // Filter out placeholder entries (blank names, position+jersey patterns like "FS #26")
+      const positionAbbreviations = new Set([
+        'QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT',
+        'LE', 'RE', 'DT', 'LOLB', 'MLB', 'ROLB', 'CB', 'FS', 'SS', 'K', 'P', 'LS',
+        'OL', 'DL', 'LB', 'DB', 'EDGE', 'LEDG', 'REDG', 'SAM', 'MIKE', 'WILL'
+      ]);
+      currentResults = currentResults.filter(player => {
+        const fn = (player.firstName || '').trim().toUpperCase();
+        const ln = (player.lastName || '').trim();
+        // Both empty = placeholder
+        if (!fn && !ln) return false;
+        // Last name is just a number or starts with # = placeholder
+        if (/^#?\d+$/.test(ln)) return false;
+        // First name is a position abbreviation AND last name is empty or number = placeholder
+        if (positionAbbreviations.has(fn) && (!ln || /^#?\d+$/.test(ln))) return false;
+        return true;
+      });
+
       // Apply client-side college filter (exact match from dropdown)
       if (collegeFilter) {
         currentResults = currentResults.filter(player => {
@@ -571,9 +620,11 @@
       const hofBadge = player.isHof ? '<span class="player-hof-badge">HOF</span>' : '';
 
       const isCustom = player.isCustom ? 'true' : 'false';
+      const isSelected = selectedPlayerIds.has(player.internalId);
       console.log('[PlayerBrowser] Rendering player:', player.firstName, player.lastName, 'internalId:', player.internalId, 'isCustom:', player.isCustom);
       html +=
         '<div class="player-browser-row" data-internal-id="' + player.internalId + '" data-is-custom="' + isCustom + '">' +
+        '<div class="player-browser-select"><input type="checkbox" class="player-select-checkbox" data-id="' + player.internalId + '"' + (isSelected ? ' checked' : '') + '></div>' +
         '<div class="player-browser-name">' + fullName + ' ' + hofBadge + '</div>' +
         '<div class="player-browser-position">' + (player.position || '-') + '</div>' +
         '<div class="player-browser-college">' + (player.college || '-') + '</div>' +
@@ -589,6 +640,360 @@
 
     container.innerHTML = html;
     updatePagination(startIdx + 1, endIdx, totalResults);
+    updateSelectAllCheckbox();
+    updateSelectionUI();
+  }
+
+  /**
+   * Update the "select all" checkbox state based on current page selection
+   */
+  function updateSelectAllCheckbox() {
+    const selectAllCheckbox = document.getElementById('selectAllPlayers');
+    if (!selectAllCheckbox) return;
+
+    const checkboxes = document.querySelectorAll('.player-select-checkbox');
+    if (checkboxes.length === 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+      return;
+    }
+
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    if (checkedCount === 0) {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    } else if (checkedCount === checkboxes.length) {
+      selectAllCheckbox.checked = true;
+      selectAllCheckbox.indeterminate = false;
+    } else {
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = true;
+    }
+  }
+
+  /**
+   * Update the selection UI (count display and batch buttons visibility)
+   */
+  function updateSelectionUI() {
+    const countSpan = document.getElementById('selectedPlayerCount');
+    const rosterBtn = document.getElementById('addSelectedToRosterBtn');
+    const draftBtn = document.getElementById('addSelectedToDraftBtn');
+
+    const count = selectedPlayerIds.size;
+
+    if (countSpan) {
+      if (count > 0) {
+        countSpan.textContent = count + ' selected';
+        countSpan.style.display = 'inline';
+      } else {
+        countSpan.style.display = 'none';
+      }
+    }
+
+    if (rosterBtn) {
+      rosterBtn.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+
+    if (draftBtn) {
+      draftBtn.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+  }
+
+  /**
+   * Handle individual checkbox change
+   */
+  function handleCheckboxChange(checkbox) {
+    const playerId = parseInt(checkbox.dataset.id, 10);
+    if (checkbox.checked) {
+      selectedPlayerIds.add(playerId);
+    } else {
+      selectedPlayerIds.delete(playerId);
+    }
+    updateSelectAllCheckbox();
+    updateSelectionUI();
+  }
+
+  /**
+   * Handle "select all" checkbox change
+   */
+  function handleSelectAllChange(checked) {
+    const checkboxes = document.querySelectorAll('.player-select-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = checked;
+      const playerId = parseInt(cb.dataset.id, 10);
+      if (checked) {
+        selectedPlayerIds.add(playerId);
+      } else {
+        selectedPlayerIds.delete(playerId);
+      }
+    });
+    updateSelectionUI();
+  }
+
+  /**
+   * Clear all selections
+   */
+  function clearSelection() {
+    selectedPlayerIds.clear();
+    const checkboxes = document.querySelectorAll('.player-select-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateSelectAllCheckbox();
+    updateSelectionUI();
+  }
+
+  /**
+   * Add selected players to roster (batch operation)
+   */
+  async function addSelectedToRoster() {
+    if (selectedPlayerIds.size === 0) {
+      alert('No players selected');
+      return;
+    }
+
+    // Check if roster is loaded
+    if (!window.app || !window.app.agGrid) {
+      alert('Please load or create a roster first.\n\nUse "Open Roster" to load an existing file, or "New Roster" to start fresh.');
+      return;
+    }
+
+    const count = selectedPlayerIds.size;
+    const confirmed = confirm('Add ' + count + ' selected player(s) to roster as Free Agents?\n\n(Uses each player\'s default/best year)');
+    if (!confirmed) return;
+
+    // Default to Free Agent team
+    const teamId = 1009;
+
+    const playerIds = Array.from(selectedPlayerIds);
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Show progress
+    console.log('[PlayerBrowser] Adding', playerIds.length, 'players to roster...');
+
+    for (const internalId of playerIds) {
+      try {
+        // Get available years for the player
+        const yearsResult = await window.electronAPI.database.getPlayerAvailableYears(internalId);
+        if (!yearsResult.success) {
+          console.error('[PlayerBrowser] Failed to get years for player', internalId);
+          errorCount++;
+          continue;
+        }
+
+        const year = yearsResult.defaultYear;
+
+        // Get player data formatted for roster
+        const result = await window.electronAPI.database.getPlayerForRoster(internalId, year);
+        if (!result.success) {
+          console.error('[PlayerBrowser] Failed to get player data:', internalId, result.error);
+          errorCount++;
+          continue;
+        }
+
+        const playerData = result.player;
+        playerData.TGID = teamId;
+
+        // Generate unique PGID
+        const maxPGID = window.app.players.reduce((max, p) => Math.max(max, p.PGID || 0), 0);
+        playerData.PGID = maxPGID + 1 + successCount;
+        if (!playerData.POID) {
+          playerData.POID = playerData.PGID;
+        }
+
+        // Add to grid and data
+        if (window.app.agGrid) {
+          window.app.agGrid.applyTransaction({ add: [playerData] });
+        }
+        window.app.players.push(playerData);
+
+        successCount++;
+      } catch (error) {
+        console.error('[PlayerBrowser] Error adding player', internalId, ':', error);
+        errorCount++;
+      }
+    }
+
+    // Update filtered players
+    if (window.app.filteredPlayers) {
+      window.app.filteredPlayers = window.app.players.slice();
+    }
+
+    // Mark roster as modified
+    if (window.app.rosterModified !== undefined) {
+      window.app.rosterModified = true;
+    }
+
+    // Update stats
+    if (window.app.updateStats) {
+      window.app.updateStats();
+    }
+
+    // Clear selection
+    clearSelection();
+
+    // Show result
+    let resultMsg = 'Added ' + successCount + ' player(s) to roster.';
+    if (errorCount > 0) {
+      resultMsg += '\n' + errorCount + ' player(s) failed to add.';
+    }
+    alert(resultMsg);
+    restoreFocusToSearch();
+  }
+
+  /**
+   * Add selected players to draft class (batch operation)
+   */
+  async function addSelectedToDraft() {
+    if (selectedPlayerIds.size === 0) {
+      alert('No players selected');
+      return;
+    }
+
+    // Check if draft class is loaded
+    if (!window.app || (!window.app.draftAgGrid && !window.app.draftGrid)) {
+      alert('Please load or create a draft class first.\n\nUse "Open Draft Class" to load an existing file, or "New Draft Class" to start fresh.');
+      return;
+    }
+
+    const count = selectedPlayerIds.size;
+    const confirmed = confirm('Add ' + count + ' selected player(s) to draft class?\n\n(Uses each player\'s default/draft year)');
+    if (!confirmed) return;
+
+    const playerIds = Array.from(selectedPlayerIds);
+    let successCount = 0;
+    let errorCount = 0;
+
+    // Get current draft data
+    let draftData = [];
+    const isAgGrid = !!window.app.draftAgGrid;
+
+    if (isAgGrid) {
+      window.app.draftAgGrid.forEachNode(node => {
+        if (node.data) draftData.push({ ...node.data });
+      });
+    } else if (window.app.draftGrid && window.app.draftGrid.getSourceData) {
+      draftData = window.app.draftGrid.getSourceData().slice();
+    }
+
+    console.log('[PlayerBrowser] Adding', playerIds.length, 'players to draft class...');
+
+    for (const internalId of playerIds) {
+      try {
+        // Get available years for the player
+        const yearsResult = await window.electronAPI.database.getPlayerAvailableYears(internalId);
+        if (!yearsResult.success) {
+          console.error('[PlayerBrowser] Failed to get years for player', internalId);
+          errorCount++;
+          continue;
+        }
+
+        const year = yearsResult.defaultYear;
+
+        // Get player data formatted for draft
+        const result = await window.electronAPI.database.getPlayerForDraft(internalId, year);
+        if (!result.success) {
+          console.error('[PlayerBrowser] Failed to get player data:', internalId, result.error);
+          errorCount++;
+          continue;
+        }
+
+        const prospectData = result.prospect;
+
+        // Add at end of draft class
+        const targetSlot = draftData.length;
+        const roundNum = Math.floor(targetSlot / 32) + 1;
+
+        const newRow = {
+          draftPosition: targetSlot,
+          round: roundNum <= 7 ? roundNum : 8,
+          playerPic: prospectData.playerPic || 'Generic Face',
+          lastName: prospectData.lastName,
+          firstName: prospectData.firstName,
+          position: prospectData.positionName || prospectData.position,
+          archetype: prospectData.archetypeName || prospectData.archetype || 0,
+          college: prospectData.collegeName || prospectData.college || 0,
+          homeState: prospectData.homeStateName || prospectData.homeState || '',
+          age: prospectData.age,
+          PID: prospectData.PID,
+          PEPS: prospectData.PEPS,
+          race: prospectData.race,
+          skinTone: prospectData.skinTone,
+          devTrait: prospectData.devTrait !== undefined ? prospectData.devTrait : 0,
+          overall: prospectData.overall || 70,
+          speed: prospectData.speed || 70,
+          acceleration: prospectData.acceleration || 70,
+          strength: prospectData.strength || 70,
+          agility: prospectData.agility || 70,
+          awareness: prospectData.awareness || 70,
+          jumping: prospectData.jumping || 70,
+          stamina: prospectData.stamina || 70,
+          changeOfDirection: prospectData.changeOfDirection || 70,
+          injury: prospectData.injury || 70,
+          carrying: prospectData.carrying || 70,
+          catching: prospectData.catching || 70,
+          throwPower: prospectData.throwPower || 70,
+          throwAccuracyShort: prospectData.throwAccuracyShort || 70,
+          throwAccuracyMid: prospectData.throwAccuracyMid || 70,
+          throwAccuracyDeep: prospectData.throwAccuracyDeep || 70,
+          tackle: prospectData.tackle || 70,
+          hitPower: prospectData.hitPower || 70,
+          blockShedding: prospectData.blockShedding || 70,
+          manCoverage: prospectData.manCoverage || 70,
+          zoneCoverage: prospectData.zoneCoverage || 70,
+          kickPower: prospectData.kickPower || 70,
+          kickAccuracy: prospectData.kickAccuracy || 70,
+          heightInches: prospectData.heightInches || 72,
+          weight: prospectData.weight || 200,
+          PGHE: prospectData.PGHE,
+          visuals: prospectData.visuals,
+          commentaryId: prospectData.commentaryId || 0
+        };
+
+        draftData.push(newRow);
+        successCount++;
+      } catch (error) {
+        console.error('[PlayerBrowser] Error adding player to draft', internalId, ':', error);
+        errorCount++;
+      }
+    }
+
+    // Renumber draft positions
+    for (let i = 0; i < draftData.length; i++) {
+      draftData[i].draftPosition = i;
+      draftData[i].round = i < 224 ? Math.floor(i / 32) + 1 : 8;
+    }
+
+    // Reload grid with new data
+    if (isAgGrid) {
+      window.app.draftAgGrid.setGridOption('rowData', draftData);
+    } else if (window.app.draftGrid && window.app.draftGrid.loadData) {
+      window.app.draftGrid.loadData(draftData);
+    }
+
+    // Update currentDraftClass.prospects if it exists
+    if (window.app.currentDraftClass && window.app.currentDraftClass.prospects) {
+      window.app.currentDraftClass.prospects = draftData;
+    }
+
+    // Update draft file stats
+    if (window.app.currentDraftClass) {
+      const statsEl = document.getElementById('draft-file-stats');
+      if (statsEl) {
+        const count = draftData.length;
+        statsEl.textContent = count + ' prospects | Year: ' + window.app.currentDraftClass.header.year;
+      }
+    }
+
+    // Clear selection
+    clearSelection();
+
+    // Show result
+    let resultMsg = 'Added ' + successCount + ' player(s) to draft class.';
+    if (errorCount > 0) {
+      resultMsg += '\n' + errorCount + ' player(s) failed to add.';
+    }
+    alert(resultMsg);
+    restoreFocusToSearch();
   }
 
   /**
@@ -1326,6 +1731,116 @@
     }
   };
 
+  // Direct add to roster without modal (for batch operations from database browser)
+  window.directAddToRoster = async function(internalId, teamId, year) {
+    console.log('[PlayerBrowser] Direct add to roster:', internalId, 'teamId:', teamId, 'year:', year);
+
+    try {
+      // Check if roster is loaded or created
+      if (!window.app || !window.app.agGrid) {
+        console.error('[PlayerBrowser] Roster not loaded');
+        return { success: false, error: 'Roster not loaded' };
+      }
+
+      // Get available years for the player (to get default year if not specified)
+      const yearsResult = await window.electronAPI.database.getPlayerAvailableYears(internalId);
+      if (!yearsResult.success) {
+        console.error('[PlayerBrowser] Failed to get player years:', yearsResult.error);
+        return { success: false, error: yearsResult.error };
+      }
+
+      const selectedYear = year || yearsResult.defaultYear;
+      const selectedTeamId = teamId || 1009; // Default to Free Agent
+
+      // Get player data formatted for roster
+      const result = await window.electronAPI.database.getPlayerForRoster(internalId, selectedYear);
+      if (!result.success) {
+        console.error('[PlayerBrowser] Failed to get player data:', result.error);
+        return { success: false, error: result.error };
+      }
+
+      const playerData = result.player;
+
+      // Set the selected team
+      playerData.TGID = selectedTeamId;
+
+      // Add to grid (normal add - no replacement handling for batch operations)
+      if (window.app.agGrid) {
+        window.app.agGrid.applyTransaction({
+          add: [playerData]
+        });
+      }
+
+      if (window.app.players) {
+        // Generate a unique PGID for the new player
+        const maxPGID = window.app.players.reduce((max, p) => Math.max(max, p.PGID || 0), 0);
+        playerData.PGID = maxPGID + 1;
+        if (!playerData.POID) {
+          playerData.POID = playerData.PGID;
+        }
+        console.log('[PlayerBrowser] Assigned new PGID:', playerData.PGID, 'POID:', playerData.POID);
+
+        window.app.players.push(playerData);
+        window.app.filteredPlayers = window.app.players.slice();
+      }
+
+      // Mark roster as modified
+      if (window.app.rosterModified !== undefined) {
+        window.app.rosterModified = true;
+      }
+
+      // Track the player
+      if (window.electronAPI.editorTracking) {
+        await window.electronAPI.editorTracking.trackPlayer({
+          firstName: playerData.PFNA || '',
+          lastName: playerData.PLNA || '',
+          position: playerData.position || '',
+          internalId: internalId,
+          year: selectedYear,
+          povr: playerData.POVR || 0
+        }, 'roster');
+      }
+
+      // Pre-load portrait
+      const pid = playerData.PSXP;
+      const pam = playerData.PEPS;
+      const isGenericPam = pam && typeof pam === 'string' &&
+          (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
+      const hasValidPid = pid && pid > 0;
+      const cacheKey = isGenericPam ? `pam_${pam}` : (hasValidPid ? `pid_${pid}` : null);
+
+      console.log('[PlayerBrowser] Portrait pre-load: PID=' + pid + ', PAM=' + pam + ', cacheKey=' + cacheKey);
+
+      if (cacheKey && !window.app.portraitCache.has(cacheKey)) {
+        if (hasValidPid && window.electronAPI?.portrait?.getByPID) {
+          window.electronAPI.portrait.getByPID(pid).then(imageData => {
+            if (imageData && imageData.length > 0) {
+              window.app.portraitCache.set(cacheKey, imageData);
+              console.log('[PlayerBrowser] Portrait cached:', cacheKey, 'data length:', imageData.length);
+              if (window.app.agGrid) {
+                window.app.agGrid.redrawRows();
+              }
+            }
+          }).catch(err => console.error('[PlayerBrowser] Error loading portrait:', err));
+        }
+      }
+
+      // Update stats display
+      if (window.app.updateStats) {
+        window.app.updateStats();
+      }
+
+      const playerName = (playerData.PFNA || '') + ' ' + (playerData.PLNA || '');
+      console.log('[PlayerBrowser] Added player to roster:', playerName.trim(), 'Team:', selectedTeamId);
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('[PlayerBrowser] Error in directAddToRoster:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   window.addToDraft = async function(internalId) {
     console.log('[PlayerBrowser] Add to draft:', internalId);
 
@@ -1447,6 +1962,174 @@
       console.error('[PlayerBrowser] Error adding to draft:', error);
       alert('Failed to add player to draft class: ' + error.message);
       restoreFocusToSearch();
+    }
+  };
+
+  // Direct add to draft without modal (for batch operations from database browser)
+  window.directAddToDraft = async function(internalId, year) {
+    console.log('[PlayerBrowser] Direct add to draft:', internalId, 'year:', year);
+
+    try {
+      // Check if draft class is loaded or created
+      const isAgGrid = !!window.app.draftAgGrid;
+      if (!window.app || (!isAgGrid && !window.app.draftGrid)) {
+        console.error('[PlayerBrowser] Draft class not loaded');
+        return { success: false, error: 'Draft class not loaded' };
+      }
+
+      // Get available years if year not specified
+      let selectedYear = year;
+      if (!selectedYear) {
+        const yearsResult = await window.electronAPI.database.getPlayerAvailableYears(internalId);
+        if (!yearsResult.success) {
+          console.error('[PlayerBrowser] Failed to get player years:', yearsResult.error);
+          return { success: false, error: yearsResult.error };
+        }
+        selectedYear = yearsResult.defaultYear;
+      }
+
+      // Get player data formatted for draft class
+      const result = await window.electronAPI.database.getPlayerForDraft(internalId, selectedYear);
+      if (!result.success) {
+        console.error('[PlayerBrowser] Failed to get player data:', result.error);
+        return { success: false, error: result.error };
+      }
+
+      const prospectData = result.prospect;
+
+      // Get current draft data
+      let draftData = [];
+      if (isAgGrid) {
+        window.app.draftAgGrid.forEachNode(node => {
+          if (node.data) draftData.push({ ...node.data });
+        });
+      } else if (window.app.draftGrid && window.app.draftGrid.getSourceData) {
+        draftData = window.app.draftGrid.getSourceData();
+      }
+
+      // Add at end of draft class
+      let targetSlot = draftData.length;
+      const roundNum = Math.floor(targetSlot / 32) + 1;
+      const pickInRound = (targetSlot % 32) + 1;
+
+      // Helper function for value/fallback
+      const getValueOrFallback = (name, id, defaultVal = '') => {
+        if (name !== undefined && name !== null && name !== '') return name;
+        return id !== undefined && id !== null ? id : defaultVal;
+      };
+
+      // Build the row object
+      const newRow = {
+        draftPosition: targetSlot,
+        round: roundNum <= 7 ? roundNum : 8,
+        playerPic: prospectData.playerPic || 'Generic Face',
+        lastName: prospectData.lastName,
+        firstName: prospectData.firstName,
+        position: getValueOrFallback(prospectData.positionName, prospectData.position, ''),
+        archetype: getValueOrFallback(prospectData.archetypeName, prospectData.archetype, 0),
+        college: getValueOrFallback(prospectData.collegeName, prospectData.college, 0),
+        homeState: getValueOrFallback(prospectData.homeStateName, prospectData.homeState, ''),
+        age: prospectData.age,
+        PID: prospectData.PID,
+        PEPS: prospectData.PEPS,
+        race: prospectData.race,
+        skinTone: prospectData.skinTone,
+        devTrait: prospectData.devTrait !== undefined && prospectData.devTrait !== null ? prospectData.devTrait : 0,
+        overall: prospectData.overall || 70,
+        speed: prospectData.speed || 70,
+        acceleration: prospectData.acceleration || 70,
+        strength: prospectData.strength || 70,
+        agility: prospectData.agility || 70,
+        awareness: prospectData.awareness || 70,
+        jumping: prospectData.jumping || 70,
+        stamina: prospectData.stamina || 70,
+        changeOfDirection: prospectData.changeOfDirection || 70,
+        injury: prospectData.injury || 70,
+        carrying: prospectData.carrying || 70,
+        ballCarrierVision: prospectData.ballCarrierVision || 70,
+        stiffArm: prospectData.stiffArm || 70,
+        trucking: prospectData.trucking || 70,
+        jukeMove: prospectData.jukeMove || 70,
+        spinMove: prospectData.spinMove || 70,
+        breakTackle: prospectData.breakTackle || 70,
+        catching: prospectData.catching || 70,
+        catchInTraffic: prospectData.catchInTraffic || 70,
+        spectacularCatch: prospectData.spectacularCatch || 70,
+        shortRouteRunning: prospectData.shortRouteRunning || 70,
+        mediumRouteRunning: prospectData.mediumRouteRunning || 70,
+        deepRouteRunning: prospectData.deepRouteRunning || 70,
+        release: prospectData.release || 70,
+        passBlock: prospectData.passBlock || 70,
+        runBlock: prospectData.runBlock || 70,
+        leadBlock: prospectData.leadBlock || 70,
+        impactBlocking: prospectData.impactBlocking || 70,
+        passBlockPower: prospectData.passBlockPower || 70,
+        passBlockFinesse: prospectData.passBlockFinesse || 70,
+        runBlockPower: prospectData.runBlockPower || 70,
+        runBlockFinesse: prospectData.runBlockFinesse || 70,
+        throwPower: prospectData.throwPower || 70,
+        throwAccuracyShort: prospectData.throwAccuracyShort || 70,
+        throwAccuracyMedium: prospectData.throwAccuracyMedium || 70,
+        throwAccuracyDeep: prospectData.throwAccuracyDeep || 70,
+        throwOnTheRun: prospectData.throwOnTheRun || 70,
+        throwUnderPressure: prospectData.throwUnderPressure || 70,
+        playAction: prospectData.playAction || 70,
+        tackle: prospectData.tackle || 70,
+        hitPower: prospectData.hitPower || 70,
+        pursuit: prospectData.pursuit || 70,
+        playRecognition: prospectData.playRecognition || 70,
+        finesseMoves: prospectData.finesseMoves || 70,
+        powerMoves: prospectData.powerMoves || 70,
+        blockShedding: prospectData.blockShedding || 70,
+        manCoverage: prospectData.manCoverage || 70,
+        zoneCoverage: prospectData.zoneCoverage || 70,
+        press: prospectData.press || 70,
+        kickPower: prospectData.kickPower || 70,
+        kickAccuracy: prospectData.kickAccuracy || 70,
+        kickReturn: prospectData.kickReturn || 70,
+        height: prospectData.height,
+        weight: prospectData.weight
+      };
+
+      // Add to grid
+      if (isAgGrid && window.app.draftAgGrid) {
+        window.app.draftAgGrid.applyTransaction({ add: [newRow] });
+        draftData.push(newRow);
+      } else if (window.app.draftGrid) {
+        draftData.push(newRow);
+        window.app.draftGrid.loadData(draftData);
+      }
+
+      // Update draft class data structure
+      if (window.app.currentDraftClass && window.app.currentDraftClass.prospects) {
+        window.app.currentDraftClass.prospects.push(newRow);
+      }
+
+      // Mark draft class as modified
+      if (window.app.draftClassModified !== undefined) {
+        window.app.draftClassModified = true;
+      }
+
+      // Track the player
+      if (window.electronAPI.editorTracking) {
+        await window.electronAPI.editorTracking.trackPlayer({
+          firstName: prospectData.firstName,
+          lastName: prospectData.lastName,
+          position: prospectData.positionName || '',
+          internalId: internalId,
+          year: selectedYear,
+          povr: prospectData.overall || 70
+        }, 'draft');
+      }
+
+      const playerName = prospectData.firstName + ' ' + prospectData.lastName;
+      console.log('[PlayerBrowser] Added player to draft class:', playerName, selectedYear, 'at slot', targetSlot);
+
+      return { success: true };
+
+    } catch (error) {
+      console.error('[PlayerBrowser] Error in directAddToDraft:', error);
+      return { success: false, error: error.message };
     }
   };
 

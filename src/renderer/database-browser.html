@@ -484,6 +484,7 @@
             </div>
             <div class="player-browser-content">
                 <div class="player-browser-results-header">
+                    <div class="player-browser-select"><input type="checkbox" id="selectAllPlayers" title="Select All"></div>
                     <div>Name</div>
                     <div>Position</div>
                     <div>College</div>
@@ -499,6 +500,9 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <button id="addNewPlayerBtn" class="db-btn db-btn-primary" style="padding: 6px 12px;">+ Add Player</button>
+                        <button id="addSelectedToRosterBtn" class="db-btn db-btn-primary" style="padding: 6px 12px; display: none;" title="Add selected players to roster">+ Selected to Roster</button>
+                        <button id="addSelectedToDraftBtn" class="db-btn db-btn-primary" style="padding: 6px 12px; display: none;" title="Add selected players to draft class">+ Selected to Draft</button>
+                        <span id="selectedPlayerCount" style="color: #0078d4; font-size: 12px; font-weight: 500; display: none;"></span>
                         <button id="fillCurrentResultsBtn" class="db-btn db-btn-success" style="padding: 6px 12px; background: #2e7d32; border-color: #2e7d32;" title="Fill missing data from PFR for current search results">Fill from PFR</button>
                         <span id="batchFillStatusInline" style="color: #888; font-size: 12px; display: none;"></span>
                         <button id="hideAllBlankBtn" class="db-btn db-btn-warning" style="padding: 6px 12px; background: #f57c00; border-color: #f57c00;" title="Hide all players with blank/empty names">Hide All Blank</button>
@@ -1399,6 +1403,55 @@
         </div>
     </div>
 
+    <!-- Batch Add Modal -->
+    <div id="batchAddModal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 700px; max-width: 95%; max-height: 80vh;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="batchAddModalTitle">Add Selected Players</h3>
+                <button class="modal-close" id="closeBatchAddModal">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p id="batchAddPlayerCount" style="margin-bottom: 12px; color: #aaa;"></p>
+
+                <!-- Roster-specific: Set all teams at once -->
+                <div id="batchAddRosterOptions" style="display: none; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #252525; border-radius: 4px;">
+                        <label style="color: #aaa; font-size: 13px; white-space: nowrap;">Set all to:</label>
+                        <select id="batchAddSetAllTeam" style="flex: 1; padding: 6px 10px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 13px;">
+                            <option value="">-- Choose team --</option>
+                            <option value="1009">Free Agent</option>
+                        </select>
+                        <button id="batchAddApplyAllTeam" class="db-btn db-btn-secondary" style="padding: 6px 12px; font-size: 12px;">Apply</button>
+                    </div>
+                </div>
+
+                <!-- Player list with individual team dropdowns -->
+                <div id="batchAddPlayerList" style="max-height: 350px; overflow-y: auto; background: #1a1a1a; border-radius: 4px; border: 1px solid #333;">
+                    <!-- Header row -->
+                    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 10px; padding: 10px 12px; background: #252525; border-bottom: 1px solid #333; font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; position: sticky; top: 0;">
+                        <div>Player</div>
+                        <div>Position</div>
+                        <div id="batchAddTeamHeader">Team</div>
+                    </div>
+                    <!-- Player rows will be inserted here -->
+                    <div id="batchAddPlayerRows"></div>
+                </div>
+
+                <!-- Draft-specific options -->
+                <div id="batchAddDraftOptions" style="display: none; margin-top: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #252525; border-radius: 4px;">
+                        <label style="color: #aaa; font-size: 13px; white-space: nowrap;">Draft Year (optional):</label>
+                        <input type="number" id="batchAddDraftYear" min="1920" max="2030" placeholder="Leave blank for default" style="flex: 1; padding: 6px 10px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 13px;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="db-btn db-btn-secondary" id="batchAddCancelBtn">Cancel</button>
+                <button class="db-btn db-btn-primary" id="batchAddConfirmBtn">Add Players</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/database-player-card.js"></script>
     <script src="js/database-coach-card.js"></script>
@@ -1419,6 +1472,7 @@
             let pageSize = 50;
             let totalResults = 0;
             let isLoading = false;
+            let browserMode = 'roster'; // 'roster' or 'draft' - determines which batch add buttons are visible
 
             /**
              * Initialize the standalone browser
@@ -1426,8 +1480,28 @@
             async function init() {
                 console.log('[DatabaseBrowser] Initializing standalone window...');
 
+                // Read mode from URL parameters
+                const urlParams = new URLSearchParams(window.location.search);
+                const modeParam = urlParams.get('mode');
+                if (modeParam === 'draft' || modeParam === 'roster') {
+                    browserMode = modeParam;
+                    console.log('[DatabaseBrowser] Mode from URL:', browserMode);
+                }
+
+                // Listen for mode changes from main process (when window is already open)
+                if (window.electronAPI?.window?.onSetMode) {
+                    window.electronAPI.window.onSetMode(function(mode) {
+                        console.log('[DatabaseBrowser] Mode changed via IPC:', mode);
+                        browserMode = mode;
+                        updateBatchButtonsVisibility();
+                    });
+                }
+
                 // Set up event listeners
                 setupEventListeners();
+
+                // Update batch buttons based on initial mode
+                updateBatchButtonsVisibility();
 
                 // Wait for lookup service to be ready before loading filters
                 if (window.electronAPI?.lookup?.isReady) {
@@ -1558,6 +1632,53 @@
                 const hideAllBlankBtn = document.getElementById('hideAllBlankBtn');
                 if (hideAllBlankBtn) {
                     hideAllBlankBtn.addEventListener('click', hideAllBlankPlayers);
+                }
+
+                // Selection handlers - "Select All" checkbox
+                const selectAllCheckbox = document.getElementById('selectAllPlayers');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', (e) => {
+                        handleSelectAllChange(e.target.checked);
+                    });
+                }
+
+                // Selection handlers - individual checkboxes (using event delegation)
+                const resultsContainer = document.getElementById('playerBrowserResults');
+                if (resultsContainer) {
+                    resultsContainer.addEventListener('change', (e) => {
+                        if (e.target.classList.contains('player-select-checkbox')) {
+                            handleCheckboxChange(e.target);
+                        }
+                    });
+                }
+
+                // Batch add buttons
+                const addSelectedToRosterBtn = document.getElementById('addSelectedToRosterBtn');
+                if (addSelectedToRosterBtn) {
+                    addSelectedToRosterBtn.addEventListener('click', addSelectedToRoster);
+                }
+
+                const addSelectedToDraftBtn = document.getElementById('addSelectedToDraftBtn');
+                if (addSelectedToDraftBtn) {
+                    addSelectedToDraftBtn.addEventListener('click', addSelectedToDraft);
+                }
+
+                // Batch add modal buttons
+                const closeBatchAddModal = document.getElementById('closeBatchAddModal');
+                if (closeBatchAddModal) {
+                    closeBatchAddModal.addEventListener('click', hideBatchAddModal);
+                }
+                const batchAddCancelBtn = document.getElementById('batchAddCancelBtn');
+                if (batchAddCancelBtn) {
+                    batchAddCancelBtn.addEventListener('click', hideBatchAddModal);
+                }
+                const batchAddConfirmBtn = document.getElementById('batchAddConfirmBtn');
+                if (batchAddConfirmBtn) {
+                    batchAddConfirmBtn.addEventListener('click', executeBatchAdd);
+                }
+                const batchAddApplyAllBtn = document.getElementById('batchAddApplyAllTeam');
+                if (batchAddApplyAllBtn) {
+                    batchAddApplyAllBtn.addEventListener('click', applyAllTeam);
                 }
 
                 // Set up progress listener for batch fill
@@ -1825,6 +1946,14 @@
                     // Extract players array from response
                     currentResults = Array.isArray(results) ? results : (results?.players || []);
                     totalResults = results?.total || currentResults.length;
+
+                    // Filter out players with blank names by default (entries like "FS #26", "CB #27")
+                    currentResults = currentResults.filter(p => {
+                        const hasFirstName = p.firstName && p.firstName.trim() !== '';
+                        const hasLastName = p.lastName && p.lastName.trim() !== '';
+                        return hasFirstName || hasLastName; // Keep if at least one name exists
+                    });
+
                     // Log first 10 player IDs to see if hidden player is in results
                     const first10Ids = currentResults.slice(0, 10).map(p => p.internalId);
                     console.log('[DatabaseBrowser] First 10 result IDs:', JSON.stringify(first10Ids));
@@ -1856,6 +1985,9 @@
                 }
             }
 
+            // Selection state for batch operations
+            let selectedPlayerIds = new Set();
+
             function displayResults() {
                 const resultsDiv = document.getElementById('playerBrowserResults');
                 if (!resultsDiv) return;
@@ -1863,6 +1995,7 @@
                 if (currentResults.length === 0) {
                     resultsDiv.innerHTML = '<div class="player-browser-empty"><p>No players found</p><p class="player-browser-empty-hint">Try adjusting your search or filters</p></div>';
                     updatePagination();
+                    updateSelectionUI();
                     return;
                 }
 
@@ -1871,11 +2004,13 @@
                     const hofBadge = player.isHof ? '<span class="player-hof-badge">HOF</span>' : '';
                     const draftInfo = player.draftClass ? (player.draftRound ? `${player.draftClass} R${player.draftRound}` : player.draftClass) : '-';
                     const careerInfo = player.careerFrom && player.careerTo ? `${player.careerFrom}-${player.careerTo}` : (player.careerFrom || '-');
+                    const isSelected = selectedPlayerIds.has(player.internalId);
 
                     const isCustom = player.isCustom ? 'true' : 'false';
                     html += `
                         <div class="player-browser-row" data-player-id="${player.internalId}" data-is-custom="${isCustom}">
-                            <div class="player-browser-name">${player.firstName} ${player.lastName} ${hofBadge}</div>
+                            <div class="player-browser-select"><input type="checkbox" class="player-select-checkbox" data-id="${player.internalId}" ${isSelected ? 'checked' : ''}></div>
+                            <div class="player-browser-name">${player.firstName || ''} ${player.lastName || ''} ${hofBadge}</div>
                             <div class="player-browser-position">${player.position || '-'}</div>
                             <div class="player-browser-college">${player.college || '-'}</div>
                             <div class="player-browser-draft">${draftInfo}</div>
@@ -1891,6 +2026,292 @@
 
                 resultsDiv.innerHTML = html;
                 updatePagination();
+                updateSelectAllCheckbox();
+                updateSelectionUI();
+            }
+
+            function updateSelectAllCheckbox() {
+                const selectAllCheckbox = document.getElementById('selectAllPlayers');
+                if (!selectAllCheckbox) return;
+                const checkboxes = document.querySelectorAll('.player-select-checkbox');
+                if (checkboxes.length === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                    return;
+                }
+                const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                if (checkedCount === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (checkedCount === checkboxes.length) {
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
+                } else {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = true;
+                }
+            }
+
+            function updateSelectionUI() {
+                const countSpan = document.getElementById('selectedPlayerCount');
+                const rosterBtn = document.getElementById('addSelectedToRosterBtn');
+                const draftBtn = document.getElementById('addSelectedToDraftBtn');
+                const count = selectedPlayerIds.size;
+                if (countSpan) {
+                    countSpan.textContent = count > 0 ? count + ' selected' : '';
+                    countSpan.style.display = count > 0 ? 'inline' : 'none';
+                }
+                // Show only the relevant button based on browserMode
+                if (rosterBtn) {
+                    rosterBtn.style.display = (count > 0 && browserMode === 'roster') ? 'inline-block' : 'none';
+                }
+                if (draftBtn) {
+                    draftBtn.style.display = (count > 0 && browserMode === 'draft') ? 'inline-block' : 'none';
+                }
+            }
+
+            function updateBatchButtonsVisibility() {
+                // Update button labels to indicate mode
+                const rosterBtn = document.getElementById('addSelectedToRosterBtn');
+                const draftBtn = document.getElementById('addSelectedToDraftBtn');
+                console.log('[DatabaseBrowser] Updating batch buttons for mode:', browserMode);
+                // Refresh the selection UI which now respects browserMode
+                updateSelectionUI();
+            }
+
+            function handleCheckboxChange(checkbox) {
+                const playerId = parseInt(checkbox.dataset.id, 10);
+                if (checkbox.checked) {
+                    selectedPlayerIds.add(playerId);
+                } else {
+                    selectedPlayerIds.delete(playerId);
+                }
+                updateSelectAllCheckbox();
+                updateSelectionUI();
+            }
+
+            function handleSelectAllChange(checked) {
+                const checkboxes = document.querySelectorAll('.player-select-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = checked;
+                    const playerId = parseInt(cb.dataset.id, 10);
+                    if (checked) {
+                        selectedPlayerIds.add(playerId);
+                    } else {
+                        selectedPlayerIds.delete(playerId);
+                    }
+                });
+                updateSelectionUI();
+            }
+
+            function clearSelection() {
+                selectedPlayerIds.clear();
+                const checkboxes = document.querySelectorAll('.player-select-checkbox');
+                checkboxes.forEach(cb => cb.checked = false);
+                updateSelectAllCheckbox();
+                updateSelectionUI();
+            }
+
+            // Batch add modal state
+            let batchAddMode = null; // 'roster' or 'draft'
+            let batchAddTeamsLoaded = false;
+            let batchAddTeamOptions = []; // Cached team options for building dropdowns
+            let batchAddSelectedPlayers = []; // Players currently in the batch add modal
+
+            async function showBatchAddModal(mode) {
+                batchAddMode = mode;
+                const modal = document.getElementById('batchAddModal');
+                const title = document.getElementById('batchAddModalTitle');
+                const playerCount = document.getElementById('batchAddPlayerCount');
+                const playerRows = document.getElementById('batchAddPlayerRows');
+                const rosterOptions = document.getElementById('batchAddRosterOptions');
+                const draftOptions = document.getElementById('batchAddDraftOptions');
+                const teamHeader = document.getElementById('batchAddTeamHeader');
+
+                // Get selected players
+                batchAddSelectedPlayers = currentResults.filter(p => selectedPlayerIds.has(p.internalId));
+
+                // Set title and options based on mode
+                if (mode === 'roster') {
+                    title.textContent = 'Add Selected Players to Roster';
+                    rosterOptions.style.display = 'block';
+                    draftOptions.style.display = 'none';
+                    teamHeader.textContent = 'Team';
+                    // Load teams if not already loaded
+                    if (!batchAddTeamsLoaded) {
+                        await loadBatchAddTeams();
+                    }
+                } else {
+                    title.textContent = 'Add Selected Players to Draft Class';
+                    rosterOptions.style.display = 'none';
+                    draftOptions.style.display = 'block';
+                    teamHeader.textContent = 'Year';
+                }
+
+                // Show player count
+                const count = batchAddSelectedPlayers.length;
+                playerCount.textContent = count + ' player(s) selected';
+
+                // Build player rows with individual team/year selectors
+                let rowsHtml = '';
+                batchAddSelectedPlayers.forEach((p) => {
+                    const name = ((p.firstName || '') + ' ' + (p.lastName || '')).trim();
+                    const pos = p.position || '-';
+
+                    if (mode === 'roster') {
+                        // Build team dropdown for this player
+                        let teamOptionsHtml = '<option value="1009">Free Agent</option>';
+                        batchAddTeamOptions.forEach(team => {
+                            teamOptionsHtml += '<option value="' + team.id + '">' + team.name + '</option>';
+                        });
+                        rowsHtml += '<div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #2a2a2a; align-items: center;">' +
+                            '<div style="color: #fff; font-size: 13px;">' + name + '</div>' +
+                            '<div style="color: #0078d4; font-size: 13px;">' + pos + '</div>' +
+                            '<select class="batch-add-team-select" data-player-id="' + p.internalId + '" style="padding: 5px 8px; background: #252525; border: 1px solid #444; border-radius: 3px; color: #fff; font-size: 12px;">' + teamOptionsHtml + '</select>' +
+                            '</div>';
+                    } else {
+                        // For draft, just show the player info (year is set globally)
+                        rowsHtml += '<div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #2a2a2a; align-items: center;">' +
+                            '<div style="color: #fff; font-size: 13px;">' + name + '</div>' +
+                            '<div style="color: #0078d4; font-size: 13px;">' + pos + '</div>' +
+                            '<div style="color: #888; font-size: 12px;">' + (p.draftYear || 'Default') + '</div>' +
+                            '</div>';
+                    }
+                });
+                playerRows.innerHTML = rowsHtml;
+
+                // Show modal
+                modal.style.display = 'flex';
+            }
+
+            async function loadBatchAddTeams() {
+                try {
+                    const teams = await window.electronAPI.lookup.getDropdownOptions('team_lookup.csv');
+                    if (teams && teams.length > 0) {
+                        // Store team options for building dropdowns
+                        batchAddTeamOptions = teams.map(team => ({
+                            id: team.id || team.value || team.label,
+                            name: team.label || team.name
+                        }));
+
+                        // Also populate the "Set all" dropdown
+                        const setAllSelect = document.getElementById('batchAddSetAllTeam');
+                        if (setAllSelect) {
+                            setAllSelect.innerHTML = '<option value="">-- Choose team --</option><option value="1009">Free Agent</option>';
+                            batchAddTeamOptions.forEach(team => {
+                                const opt = document.createElement('option');
+                                opt.value = team.id;
+                                opt.textContent = team.name;
+                                setAllSelect.appendChild(opt);
+                            });
+                        }
+
+                        batchAddTeamsLoaded = true;
+                        console.log('[DatabaseBrowser] Loaded', teams.length, 'teams for batch add');
+                    }
+                } catch (e) {
+                    console.error('[DatabaseBrowser] Failed to load teams for batch add:', e);
+                }
+            }
+
+            function applyAllTeam() {
+                const setAllSelect = document.getElementById('batchAddSetAllTeam');
+                const selectedTeam = setAllSelect?.value;
+                if (!selectedTeam) return;
+
+                // Set all individual team dropdowns to this value
+                const teamSelects = document.querySelectorAll('.batch-add-team-select');
+                teamSelects.forEach(select => {
+                    select.value = selectedTeam;
+                });
+            }
+
+            function hideBatchAddModal() {
+                const modal = document.getElementById('batchAddModal');
+                if (modal) modal.style.display = 'none';
+                batchAddMode = null;
+                batchAddSelectedPlayers = [];
+            }
+
+            async function executeBatchAdd() {
+                if (!batchAddMode || batchAddSelectedPlayers.length === 0) {
+                    hideBatchAddModal();
+                    return;
+                }
+
+                let successCount = 0;
+                const confirmBtn = document.getElementById('batchAddConfirmBtn');
+
+                if (confirmBtn) {
+                    confirmBtn.disabled = true;
+                    confirmBtn.textContent = 'Adding...';
+                }
+
+                if (batchAddMode === 'roster') {
+                    // Get individual team selections for each player
+                    const teamSelects = document.querySelectorAll('.batch-add-team-select');
+                    const playerTeamMap = {};
+                    teamSelects.forEach(select => {
+                        const playerId = parseInt(select.dataset.playerId, 10);
+                        const teamId = parseInt(select.value, 10) || 1009;
+                        playerTeamMap[playerId] = teamId;
+                    });
+
+                    console.log('[DatabaseBrowser] Batch adding', batchAddSelectedPlayers.length, 'players to roster with individual teams');
+
+                    for (const player of batchAddSelectedPlayers) {
+                        try {
+                            const teamId = playerTeamMap[player.internalId] || 1009;
+                            if (window.electronAPI?.database?.sendPlayerToMainWindow) {
+                                await window.electronAPI.database.sendPlayerToMainWindow(player.internalId, 'roster', { teamId: teamId, year: null });
+                                successCount++;
+                                console.log('[DatabaseBrowser] Added', player.firstName, player.lastName, 'to team', teamId);
+                            }
+                        } catch (error) {
+                            console.error('[DatabaseBrowser] Error adding player', player.internalId, ':', error);
+                        }
+                    }
+                } else if (batchAddMode === 'draft') {
+                    const yearInput = document.getElementById('batchAddDraftYear')?.value;
+                    const year = yearInput ? parseInt(yearInput, 10) : null;
+                    console.log('[DatabaseBrowser] Batch adding', batchAddSelectedPlayers.length, 'players to draft with year:', year);
+
+                    for (const player of batchAddSelectedPlayers) {
+                        try {
+                            if (window.electronAPI?.database?.sendPlayerToMainWindow) {
+                                await window.electronAPI.database.sendPlayerToMainWindow(player.internalId, 'draft', { year: year });
+                                successCount++;
+                            }
+                        } catch (error) {
+                            console.error('[DatabaseBrowser] Error adding player', player.internalId, ':', error);
+                        }
+                    }
+                }
+
+                if (confirmBtn) {
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = 'Add Players';
+                }
+
+                hideBatchAddModal();
+                clearSelection();
+                alert('Sent ' + successCount + ' player(s) to ' + (batchAddMode === 'roster' ? 'roster' : 'draft class') + '.\nOpen the main editor to see them added.');
+            }
+
+            function addSelectedToRoster() {
+                if (selectedPlayerIds.size === 0) {
+                    alert('No players selected');
+                    return;
+                }
+                showBatchAddModal('roster');
+            }
+
+            function addSelectedToDraft() {
+                if (selectedPlayerIds.size === 0) {
+                    alert('No players selected');
+                    return;
+                }
+                showBatchAddModal('draft');
             }
 
             function updatePagination() {

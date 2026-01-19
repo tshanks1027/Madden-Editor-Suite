@@ -1287,6 +1287,42 @@
                     });
                 </script>
 
+                <!-- Info Tooltips and Action Buttons for Draft -->
+                <div class="info-tooltips">
+                    <div class="info-tips-left">
+                        <div class="info-tip">
+                            <span class="info-icon">ℹ️</span>
+                            <span class="info-text">Click column headers to sort. Shift+click to sort by multiple columns.</span>
+                        </div>
+                    </div>
+                    <div class="info-tips-right">
+                        <button id="openDraftPlayerBrowserBtn2" class="btn-browse-db" title="Browse player database to add players">
+                            <span class="browse-icon">📚</span>
+                            Browse Players
+                        </button>
+                        <button id="fixDraftFacesBtn2" class="btn-fix-faces" title="Fix generic faces to use verified GENR values" style="display: none;">
+                            <span class="fix-icon">🎭</span>
+                            Fix Faces
+                        </button>
+                        <button id="fixDraftCommentaryBtn2" class="btn-fix-faces" title="Auto-fill commentary IDs by last name" style="display: none;">
+                            <span class="fix-icon">🎙️</span>
+                            Fix Commentary
+                        </button>
+                    </div>
+                </div>
+                <script>
+                    // Handler for Draft Class Browse Players button (info-tooltips version)
+                    document.getElementById('openDraftPlayerBrowserBtn2').addEventListener('click', function() {
+                        console.log('[Draft] Browse Players (top bar) clicked');
+                        if (typeof window.openPlayerBrowser === 'function') {
+                            window.openPlayerBrowser('draft');
+                        } else {
+                            var modal = document.getElementById('playerBrowserModal');
+                            if (modal) modal.style.display = 'flex';
+                        }
+                    });
+                </script>
+
                 <div class="filter-controls" style="padding: 10px; background-color: #2a2a2a; border-bottom: 1px solid #444; display: flex; gap: 15px; align-items: center;">
                     <div class="control-group">
                         <label for="draftRoundFilter" class="control-label">Round:</label>

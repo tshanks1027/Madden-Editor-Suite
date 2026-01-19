@@ -1645,7 +1645,7 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
             <div class="modal-content ovr-adjustment-modal">
                 <div class="modal-header">
                     <h2>Adjust Ratings for OVR Change?</h2>
-                    <button class="close-btn" onclick="document.getElementById('draft-ovr-adjustment-modal').remove()">×</button>
+                    <button id="draft-ovr-close-btn" class="close-btn">×</button>
                 </div>
                 <div class="modal-body">
                     <p class="player-info">
@@ -1691,12 +1691,32 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
 
     const modal = document.getElementById('draft-ovr-adjustment-modal');
 
+    // Helper to restore focus to grid after modal closes
+    const restoreFocusToGrid = () => {
+        setTimeout(() => {
+            const gridContainer = document.querySelector('.ag-root-wrapper');
+            if (gridContainer) {
+                gridContainer.focus();
+                console.log('[AG-Grid Draft] Focus restored to grid after modal close');
+            }
+        }, 50);
+    };
+
+    // Close button (X) handler
+    document.getElementById('draft-ovr-close-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        modal.remove();
+        restoreFocusToGrid();
+    });
+
     // Apply adjustments handler
     document.getElementById('draft-apply-adjustments-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
         applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi);
         modal.remove();
+        restoreFocusToGrid();
     });
 
     // Keep OVR only handler (just close - OVR already changed)
@@ -1704,6 +1724,7 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
         e.stopPropagation();
         e.preventDefault();
         modal.remove();
+        restoreFocusToGrid();
     });
 
     // Cancel handler - revert OVR to old value
@@ -1713,12 +1734,14 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
         prospect.overall = oldOVR;
         node.setDataValue('overall', oldOVR);
         modal.remove();
+        restoreFocusToGrid();
     });
 
     // Close on overlay click
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
+            restoreFocusToGrid();
         }
     });
 }

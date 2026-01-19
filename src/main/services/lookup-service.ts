@@ -1001,6 +1001,11 @@ export class LookupService {
         continue;
       }
 
+      // Skip placeholder entries (blank names, position+jersey patterns like "FS #26")
+      if (this.isPlaceholderEntry(entry.firstName, entry.lastName)) {
+        continue;
+      }
+
       const firstName = entry.firstName.toLowerCase();
       const lastName = entry.lastName.toLowerCase();
       const fullName = `${firstName} ${lastName}`;
@@ -1037,6 +1042,8 @@ export class LookupService {
       .filter(e => {
         // Skip PID-only entries
         if (e.internalId >= LookupService.PID_ONLY_THRESHOLD) return false;
+        // Skip placeholder entries (blank names, position+jersey patterns)
+        if (this.isPlaceholderEntry(e.firstName, e.lastName)) return false;
         return e.draftClass === draftYear.toString();
       })
       .sort((a, b) => {
@@ -1151,9 +1158,39 @@ export class LookupService {
     return this.fullDataCache.get(internalId);
   }
 
-  // Get all players from the cache
+  // Position abbreviations that might appear as fake "first names"
+  private static readonly POSITION_ABBREVIATIONS = new Set([
+    'QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT',
+    'LE', 'RE', 'DT', 'LOLB', 'MLB', 'ROLB', 'CB', 'FS', 'SS', 'K', 'P', 'LS',
+    'OL', 'DL', 'LB', 'DB', 'EDGE', 'LEDG', 'REDG', 'SAM', 'MIKE', 'WILL'
+  ]);
+
+  // Check if a name looks like a placeholder (position + jersey number)
+  private isPlaceholderEntry(firstName: string | undefined, lastName: string | undefined): boolean {
+    const fn = (firstName || '').trim().toUpperCase();
+    const ln = (lastName || '').trim();
+
+    // Both empty = placeholder
+    if (!fn && !ln) return true;
+
+    // Last name is just a number or starts with # = placeholder
+    if (/^#?\d+$/.test(ln)) return true;
+
+    // First name is a position abbreviation AND last name is empty or number = placeholder
+    if (LookupService.POSITION_ABBREVIATIONS.has(fn) && (!ln || /^#?\d+$/.test(ln))) return true;
+
+    return false;
+  }
+
+  // Get all players from the cache (excludes PID-only entries and blank name placeholders)
   public getAllPlayers(): FullDataEntry[] {
-    return Array.from(this.fullDataCache.values());
+    return Array.from(this.fullDataCache.values()).filter(e => {
+      // Skip PID-only entries
+      if (e.internalId >= LookupService.PID_ONLY_THRESHOLD) return false;
+      // Skip placeholder entries (blank names, position+jersey patterns)
+      if (this.isPlaceholderEntry(e.firstName, e.lastName)) return false;
+      return true;
+    });
   }
 
   // Get player(s) by PID - returns array since PIDs may be duplicated

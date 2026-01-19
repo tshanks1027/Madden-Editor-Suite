@@ -401,6 +401,21 @@ class MaddenEditorApp {
             });
         }
 
+        // Draft editor buttons (info-tooltips version)
+        const fixDraftFacesBtn2 = document.getElementById('fixDraftFacesBtn2');
+        if (fixDraftFacesBtn2) {
+            fixDraftFacesBtn2.addEventListener('click', () => {
+                this.fixGenericFaces();
+            });
+        }
+
+        const fixDraftCommentaryBtn2 = document.getElementById('fixDraftCommentaryBtn2');
+        if (fixDraftCommentaryBtn2) {
+            fixDraftCommentaryBtn2.addEventListener('click', () => {
+                this.fixCommentary();
+            });
+        }
+
         // Pagination controls
         document.getElementById('firstPageBtn').addEventListener('click', () => {
             this.firstPage();
@@ -2091,11 +2106,13 @@ class MaddenEditorApp {
         document.getElementById('apply-adjustments-btn').addEventListener('click', () => {
             this.applyOVRAdjustments(row, playerIndex, adjustments);
             modal.remove();
+            this.restoreFocusToGrid();
         });
 
         // Keep OVR only handler (just close - OVR already changed)
         document.getElementById('keep-ovr-only-btn').addEventListener('click', () => {
             modal.remove();
+            this.restoreFocusToGrid();
         });
 
         // Cancel handler - revert OVR to old value
@@ -2103,12 +2120,14 @@ class MaddenEditorApp {
             this.players[playerIndex]['POVR'] = oldOVR;
             this.updateGridCell(row, 'POVR', oldOVR);
             modal.remove();
+            this.restoreFocusToGrid();
         });
 
         // Close on overlay click
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.remove();
+                this.restoreFocusToGrid();
             }
         });
     }
@@ -5292,6 +5311,9 @@ class MaddenEditorApp {
             document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
             document.getElementById('fixDraftFacesBtn').disabled = false;
             document.getElementById('fixDraftCommentaryBtn').disabled = false;
+            // Show info-tooltips version buttons
+            document.getElementById('fixDraftFacesBtn2').style.display = 'inline-flex';
+            document.getElementById('fixDraftCommentaryBtn2').style.display = 'inline-flex';
 
             // Create grid (await to ensure it completes)
             await this.createDraftGrid(result.data.prospects);
@@ -5339,6 +5361,9 @@ class MaddenEditorApp {
         document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
         document.getElementById('fixDraftFacesBtn').disabled = false;
         document.getElementById('fixDraftCommentaryBtn').disabled = false;
+        // Show info-tooltips version buttons
+        document.getElementById('fixDraftFacesBtn2').style.display = 'inline-flex';
+        document.getElementById('fixDraftCommentaryBtn2').style.display = 'inline-flex';
 
         // Create empty grid
         this.createDraftGrid([]);
@@ -8465,6 +8490,9 @@ class MaddenEditorApp {
             document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
             document.getElementById('fixDraftFacesBtn').disabled = false;
             document.getElementById('fixDraftCommentaryBtn').disabled = false;
+            // Show info-tooltips version buttons
+            document.getElementById('fixDraftFacesBtn2').style.display = 'inline-flex';
+            document.getElementById('fixDraftCommentaryBtn2').style.display = 'inline-flex';
 
             // Pre-calculate round for ALL prospects immediately
             prospects.forEach((prospect, index) => {
@@ -9567,10 +9595,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listen for players sent from database browser window
     if (window.electronAPI?.database?.onPlayerFromBrowser) {
-        window.electronAPI.database.onPlayerFromBrowser(async (internalId, target) => {
-            console.log('[App] Received player from database browser:', internalId, 'target:', target);
-            // Use existing player browser functions which handle the modal flow
-            if (target === 'roster' && typeof window.addToRoster === 'function') {
+        window.electronAPI.database.onPlayerFromBrowser(async (internalId, target, options) => {
+            console.log('[App] Received player from database browser:', internalId, 'target:', target, 'options:', options);
+
+            // If options provided (batch add from database browser), use direct add without modal
+            if (options && target === 'roster' && typeof window.directAddToRoster === 'function') {
+                window.directAddToRoster(internalId, options.teamId, options.year);
+            } else if (options && target === 'draft' && typeof window.directAddToDraft === 'function') {
+                window.directAddToDraft(internalId, options.year);
+            }
+            // Otherwise use existing functions with modal flow
+            else if (target === 'roster' && typeof window.addToRoster === 'function') {
                 window.addToRoster(internalId);
             } else if (target === 'draft' && typeof window.addToDraft === 'function') {
                 window.addToDraft(internalId);

@@ -599,10 +599,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }) => ipcRenderer.invoke('database:save-player-bio', playerData),
 
     // Cross-window communication (database browser -> main window)
-    sendPlayerToMainWindow: (internalId: number, target: 'roster' | 'draft') =>
-      ipcRenderer.invoke('database:send-player-to-main', internalId, target),
-    onPlayerFromBrowser: (callback: (internalId: number, target: 'roster' | 'draft') => void) => {
-      ipcRenderer.on('database:player-from-browser', (_event, internalId, target) => callback(internalId, target));
+    sendPlayerToMainWindow: (internalId: number, target: 'roster' | 'draft', options?: { teamId?: number; year?: number | null }) =>
+      ipcRenderer.invoke('database:send-player-to-main', internalId, target, options),
+    onPlayerFromBrowser: (callback: (internalId: number, target: 'roster' | 'draft', options?: { teamId?: number; year?: number | null }) => void) => {
+      ipcRenderer.on('database:player-from-browser', (_event, internalId, target, options) => callback(internalId, target, options));
     },
 
     // Debug handler for Warren Moon issue
@@ -722,7 +722,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window APIs (focus restoration after native dialogs, multi-window support)
   window: {
     focus: () => ipcRenderer.invoke('window:focus'),
-    openDatabase: () => ipcRenderer.invoke('window:open-database')
+    openDatabase: (mode?: 'roster' | 'draft') => ipcRenderer.invoke('window:open-database', mode),
+    onSetMode: (callback: (mode: 'roster' | 'draft') => void) => {
+      ipcRenderer.on('database:set-mode', (_event, mode) => callback(mode));
+    }
   },
 
   // Editor Tracking APIs (duplicate prevention for roster/draft building)
