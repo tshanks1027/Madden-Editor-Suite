@@ -20,10 +20,12 @@
   let searchTimeout = null;
   let savedScrollPosition = 0; // For preserving scroll when modal opens
   let viewMode = 'unassigned'; // 'all' or 'unassigned' (workspace mode)
+  let sortBy = 'pid'; // 'pid', 'year', or 'name'
 
   // DOM Elements
   let grid = null;
   let yearFilter = null;
+  let sortBySelect = null;
   let countDisplay = null;
   let importBtn = null;
   let importAndAssignBtn = null;
@@ -62,6 +64,7 @@
     assignBtn = document.getElementById('assignPortraitBtn');
     importAndAssignBtn = document.getElementById('importAndAssignBtn');
     viewModeToggle = document.getElementById('portraitViewModeToggle');
+    sortBySelect = document.getElementById('portraitSortBy');
 
     // Get assignment modal elements
     assignModal = document.getElementById('portraitAssignModal');
@@ -121,6 +124,10 @@
 
     if (yearFilter) {
       yearFilter.addEventListener('change', handleYearFilterChange);
+    }
+
+    if (sortBySelect) {
+      sortBySelect.addEventListener('change', handleSortByChange);
     }
 
     // View mode toggle (workspace vs all)
@@ -223,6 +230,46 @@
   }
 
   /**
+   * Sort portraits based on current sort option
+   */
+  function sortPortraits(portraitArray) {
+    const sorted = [...portraitArray]; // Don't mutate original
+
+    switch (sortBy) {
+      case 'year':
+        // Sort by year (descending - newest first), then by PID
+        sorted.sort((a, b) => {
+          const yearA = a.year || 0;
+          const yearB = b.year || 0;
+          if (yearB !== yearA) return yearB - yearA; // Descending
+          return a.pid - b.pid; // Secondary sort by PID
+        });
+        break;
+
+      case 'name':
+        // Sort by player name alphabetically (unassigned last)
+        sorted.sort((a, b) => {
+          const nameA = a.playerName || '';
+          const nameB = b.playerName || '';
+          // Unassigned (empty names) go last
+          if (!nameA && nameB) return 1;
+          if (nameA && !nameB) return -1;
+          if (!nameA && !nameB) return a.pid - b.pid; // Both unassigned, sort by PID
+          return nameA.localeCompare(nameB);
+        });
+        break;
+
+      case 'pid':
+      default:
+        // Sort by PID (ascending)
+        sorted.sort((a, b) => a.pid - b.pid);
+        break;
+    }
+
+    return sorted;
+  }
+
+  /**
    * Render the portrait grid
    */
   async function renderGrid() {
@@ -238,6 +285,9 @@
     if (viewMode === 'unassigned') {
       filtered = filtered.filter(p => !p.playerName);
     }
+
+    // Sort portraits based on selected sort option
+    filtered = sortPortraits(filtered);
 
     // Clear grid
     grid.innerHTML = '';
@@ -628,6 +678,15 @@
    * Handle year filter change
    */
   async function handleYearFilterChange() {
+    await renderGrid();
+  }
+
+  /**
+   * Handle sort by change
+   */
+  async function handleSortByChange() {
+    sortBy = sortBySelect?.value || 'pid';
+    console.log('[PortraitManager] Sort changed to:', sortBy);
     await renderGrid();
   }
 

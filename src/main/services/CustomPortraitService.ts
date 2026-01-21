@@ -195,6 +195,19 @@ class CustomPortraitService {
   }
 
   /**
+   * Get custom portrait PID by player name
+   * Searches for portraits with matching player_name (case-insensitive)
+   * Used by generators to find custom portraits when loading historical players
+   *
+   * @param firstName Player first name
+   * @param lastName Player last name
+   * @returns Custom portrait PID (12000+) if found, null otherwise
+   */
+  getPortraitByName(firstName: string, lastName: string): number | null {
+    return userDatabaseService.getCustomPortraitByName(firstName, lastName);
+  }
+
+  /**
    * Export a portrait as DDS file (DXT5/BC3 format)
    */
   async exportAsDds(pid: number, outputPath: string): Promise<ExportResult> {

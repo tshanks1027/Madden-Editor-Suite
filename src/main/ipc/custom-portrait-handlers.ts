@@ -250,6 +250,21 @@ export function registerCustomPortraitHandlers(): void {
   });
 
   /**
+   * Get custom portrait PID by player name
+   * Searches for portraits with matching player_name (case-insensitive)
+   * Used by generators to find custom portraits when loading historical players
+   */
+  ipcMain.handle('custom-portrait:get-by-name', async (_, firstName: string, lastName: string) => {
+    try {
+      const pid = customPortraitService.getPortraitByName(firstName, lastName);
+      return pid;
+    } catch (error) {
+      console.error('[CustomPortraitHandlers] Error getting portrait by name:', error);
+      return null;
+    }
+  });
+
+  /**
    * Generate sprite sheets from custom portraits
    * Creates PNG sprite sheets and atlas JSON for distribution
    */

@@ -260,6 +260,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('custom-portrait:count'),
     getByPlayerId: (playerId: number) =>
       ipcRenderer.invoke('custom-portrait:get-by-player-id', playerId),
+    getByName: (firstName: string, lastName: string) =>
+      ipcRenderer.invoke('custom-portrait:get-by-name', firstName, lastName),
     generateSpriteSheets: (options?: { year?: number; prefix?: string }) =>
       ipcRenderer.invoke('custom-portrait:generate-sprite-sheets', options),
     getAvailableYears: () =>

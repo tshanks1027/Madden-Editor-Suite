@@ -1758,6 +1758,39 @@ class UserDatabaseService {
   }
 
   /**
+   * Get custom portrait PID by player name
+   * Searches for portraits with matching player_name (case-insensitive)
+   * Used by generators to find custom portraits when loading historical players
+   *
+   * @param firstName Player first name
+   * @param lastName Player last name
+   * @returns Custom portrait PID (12000+) if found, null otherwise
+   */
+  public getCustomPortraitByName(firstName: string, lastName: string): number | null {
+    if (!this.customDb) return null;
+
+    const fullName = `${firstName} ${lastName}`;
+
+    // Try exact match first (case-insensitive)
+    const exactRow = this.customDb.prepare(`
+      SELECT pid FROM custom_portraits
+      WHERE LOWER(player_name) = LOWER(?)
+    `).get(fullName) as { pid: number } | undefined;
+
+    if (exactRow) {
+      return exactRow.pid;
+    }
+
+    // Try partial match (last name only, for "Budde" matching "Ed Budde")
+    const partialRow = this.customDb.prepare(`
+      SELECT pid FROM custom_portraits
+      WHERE LOWER(player_name) LIKE LOWER(?)
+    `).get(`%${lastName}`) as { pid: number } | undefined;
+
+    return partialRow?.pid ?? null;
+  }
+
+  /**
    * Get all custom portraits (metadata only, no image data for list view)
    */
   public getAllCustomPortraits(): Omit<CustomPortrait, 'imageData'>[] {

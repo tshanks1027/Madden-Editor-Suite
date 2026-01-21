@@ -1971,6 +1971,15 @@ export class CreatorService {
           matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
         }
 
+        // Check for custom portrait by player name (user-imported portraits)
+        if (matchedPID === 0) {
+          const customPID = userDatabaseService.getCustomPortraitByName(firstName, lastName);
+          if (customPID) {
+            matchedPID = customPID;
+            console.log(`[CreatorService] Using custom portrait for ${firstName} ${lastName}: PID ${customPID}`);
+          }
+        }
+
         // Get race data from MASTER_LOOKUP for generic face assignment
         const raceData = lookupEntry ? lookupEntry['Race'] : undefined;
 
@@ -2424,6 +2433,15 @@ export class CreatorService {
           matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
         }
 
+        // Check for custom portrait by player name (user-imported portraits)
+        if (matchedPID === 0) {
+          const customPID = userDatabaseService.getCustomPortraitByName(firstName, lastName);
+          if (customPID) {
+            matchedPID = customPID;
+            console.log(`[CreatorService] Using custom portrait for ${firstName} ${lastName}: PID ${customPID}`);
+          }
+        }
+
         // Get race data from MASTER_LOOKUP for generic face assignment
         const raceData = lookupEntry ? lookupEntry['Race'] : undefined;
 
@@ -2548,6 +2566,14 @@ export class CreatorService {
           }
           if (matchedPID > 0) {
             matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
+          }
+          // Check for custom portrait by player name (user-imported portraits)
+          if (matchedPID === 0) {
+            const customPID = userDatabaseService.getCustomPortraitByName(firstName, lastName);
+            if (customPID) {
+              matchedPID = customPID;
+              console.log(`[CreatorService] Using custom portrait for UFA ${firstName} ${lastName}: PID ${customPID}`);
+            }
           }
           if (matchedPID === 0) {
             matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
@@ -3778,6 +3804,15 @@ export class CreatorService {
             matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
           }
 
+          // Check for custom portrait by player name (user-imported portraits)
+          if (matchedPID === 0) {
+            const customPID = userDatabaseService.getCustomPortraitByName(firstName, lastName);
+            if (customPID) {
+              matchedPID = customPID;
+              console.log(`[CreatorService] Using custom portrait for ${firstName} ${lastName}: PID ${customPID}`);
+            }
+          }
+
           // If no real portrait found, assign generic face with race data
           if (matchedPID === 0) {
             console.log(`[CreatorService] ⚠️ NO PID FOUND for ${firstName} ${lastName} - assigning generic face (raceData=${raceData})`);
@@ -4052,6 +4087,15 @@ export class CreatorService {
           // Check for (R) tag and replace with preferred non-(R) version
           if (matchedPID > 0) {
             matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
+          }
+
+          // Check for custom portrait by player name (user-imported portraits)
+          if (matchedPID === 0) {
+            const customPID = userDatabaseService.getCustomPortraitByName(firstName, lastName);
+            if (customPID) {
+              matchedPID = customPID;
+              console.log(`[CreatorService] Using custom portrait for UFA ${firstName} ${lastName}: PID ${customPID}`);
+            }
           }
 
           if (matchedPID === 0) {
