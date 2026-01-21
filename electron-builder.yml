@@ -14,6 +14,7 @@ asar: false
 
 files:
   - ".vite/build/**/*"
+  - ".vite/renderer/**/*"
   - "package.json"
   - "node_modules/**/*"
   - "!node_modules/**/test"
