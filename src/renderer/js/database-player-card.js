@@ -304,6 +304,24 @@
       console.warn('[DbPlayerCard] OVR input NOT found during setup');
     }
 
+    // Dynamic OVR recalculation when rating attributes change
+    var OVR_AFFECTING_FIELDS = ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
+      'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
+      'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
+      'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
+      'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
+      'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
+      'PSTA', 'PINJ', 'PTGH'];
+
+    OVR_AFFECTING_FIELDS.forEach(function(fieldCode) {
+      var input = document.getElementById('dbRating_' + fieldCode);
+      if (input) {
+        input.addEventListener('change', function() {
+          recalculateDbOVR();
+        });
+      }
+    });
+
     // Career date change listeners - refresh year selector when career dates change
     var careerFromInput = document.getElementById('dbPlayerCareerFrom');
     var careerToInput = document.getElementById('dbPlayerCareerTo');
@@ -2246,6 +2264,107 @@
     }
   }
 
+  // Map database player card field names to OVR calculator field codes
+  var DB_TO_OVR_FIELD_MAP = {
+    'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI', 'PJMP': 'PJMP',
+    'PSTM': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',
+    'PCOD': 'PELU', 'PELU': 'PELU', 'PBCV': 'PBCV',
+    'PBTK': 'PBKT', 'PTRK': 'PLTR', 'PSFA': 'PLSA', 'PSPN': 'PLSM', 'PJKM': 'PLJM',
+    'PCAR': 'PCAR', 'PTAS': 'PTAS', 'PTAM': 'PTAM', 'PTAD': 'PTAD',
+    'PTOR': 'PTOR', 'PTUP': 'PTUP', 'PPWR': 'PTHP', 'PTHP': 'PTHP',
+    'PCTH': 'PCTH', 'PSPC': 'PLSC', 'PCIT': 'PLCI',
+    'PSRR': 'SRRN', 'SRRN': 'SRRN', 'PMRR': 'PMRR', 'PDRR': 'PDRR', 'PREL': 'PLRL', 'PLRL': 'PLRL',
+    'PRBK': 'PRBK', 'PPBK': 'PPBK', 'PIBK': 'PLIB', 'PLIB': 'PLIB', 'PLBK': 'PLBK',
+    'PFMS': 'PFMS', 'PRNS': 'PRBS', 'PRBS': 'PRBS', 'PPBS': 'PPBF', 'PPBF': 'PPBF', 'PPBP': 'PPBS',
+    'PRBF': 'PRBF', 'PTAK': 'PTAK', 'PHIT': 'PLHT', 'PLHT': 'PLHT',
+    'PFMV': 'PFMS', 'PPWM': 'PLPM', 'PLPM': 'PLPM', 'PBSH': 'PBSG', 'PBSG': 'PBSG',
+    'PPRC': 'PLPU', 'PLPU': 'PLPU', 'PPLA': 'PLPR', 'PLPR': 'PLPR',
+    'PMCV': 'PLMC', 'PLMC': 'PLMC', 'PZCV': 'PLZC', 'PLZC': 'PLZC',
+    'PPRS': 'PLPE', 'PLPE': 'PLPE', 'PBSK': 'PBSK',
+    'PKAC': 'PKAC', 'PKPR': 'PKPR', 'PKRT': 'PKRT'
+  };
+
+  // Reverse map: OVR calculator field codes to database player card field names
+  var OVR_TO_DB_FIELD_MAP = {
+    'PSTA': 'PSTM', 'PELU': 'PCOD', 'PBKT': 'PBTK', 'PLTR': 'PTRK',
+    'PLSA': 'PSFA', 'PLSM': 'PSPN', 'PLJM': 'PJKM', 'PTHP': 'PPWR',
+    'PLSC': 'PSPC', 'PLCI': 'PCIT', 'SRRN': 'PSRR', 'PLRL': 'PREL',
+    'PLIB': 'PIBK', 'PRBS': 'PRNS', 'PPBF': 'PPBS', 'PPBS': 'PPBP',
+    'PLHT': 'PHIT', 'PLPM': 'PPWM', 'PBSG': 'PBSH', 'PLPU': 'PPRC',
+    'PLPR': 'PPLA', 'PLMC': 'PMCV', 'PLZC': 'PZCV', 'PLPE': 'PPRS'
+  };
+
+  /**
+   * Recalculate OVR dynamically when rating attributes change
+   * Also finds the best archetype and updates it if different
+   */
+  async function recalculateDbOVR() {
+    try {
+      // Skip if we're programmatically updating
+      if (window._skipOvrRecalc) return;
+
+      // Get current position
+      var positionSelect = document.getElementById('dbPlayerSeasonPosition');
+      var position = positionSelect ? positionSelect.value : '';
+      if (!position) {
+        var mainPositionSelect = document.getElementById('dbPlayerPosition');
+        position = mainPositionSelect ? mainPositionSelect.value : 'QB';
+      }
+
+      // Get current archetype
+      var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
+      var currentArchetype = archetypeSelect ? parseInt(archetypeSelect.value) : undefined;
+
+      // Build attributes object from the rating inputs, mapping to OVR calculator field codes
+      var attributes = {};
+      RATING_FIELDS.forEach(function(item) {
+        var val = getIntValue('dbRating_' + item.field);
+        if (val !== null) {
+          // Map to the OVR calculator's expected field code
+          var ovrFieldCode = DB_TO_OVR_FIELD_MAP[item.field] || item.field;
+          attributes[ovrFieldCode] = val;
+        }
+      });
+
+      console.log('[DbPlayerCard] Recalculating OVR with attributes:', Object.keys(attributes).length);
+
+      // Get OVR for all archetypes to find the best one
+      var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+
+      if (archetypeResults && archetypeResults.length > 0) {
+        // The first result is the best archetype (sorted by OVR descending)
+        var bestArchetype = archetypeResults[0];
+
+        // Calculate OVR using the current archetype
+        var newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, currentArchetype);
+        var ovrInput = document.getElementById('dbRating_POVR');
+        var oldOVR = ovrInput ? parseInt(ovrInput.value) || 50 : 50;
+
+        // Set flag to skip recursive recalculation
+        window._skipOvrRecalc = true;
+
+        // Update OVR if changed
+        if (newOVR !== oldOVR) {
+          setValue('dbRating_POVR', newOVR);
+          console.log('[DbPlayerCard] OVR recalculated: ' + oldOVR + ' → ' + newOVR);
+        }
+
+        // Update archetype if a different one gives better OVR
+        if (archetypeSelect && currentArchetype !== bestArchetype.id && bestArchetype.ovr > newOVR) {
+          archetypeSelect.value = bestArchetype.id;
+          // Recalculate OVR with the new best archetype
+          setValue('dbRating_POVR', bestArchetype.ovr);
+          console.log('[DbPlayerCard] Updated archetype to ' + bestArchetype.name + ' (' + bestArchetype.id + '), OVR: ' + newOVR + ' → ' + bestArchetype.ovr);
+        }
+
+        window._skipOvrRecalc = false;
+      }
+    } catch (error) {
+      window._skipOvrRecalc = false;
+      console.error('[DbPlayerCard] Error recalculating OVR:', error);
+    }
+  }
+
   /**
    * Handle OVR change in database player card - prompt to adjust ratings
    * @param {number} oldOVR - Previous OVR value
@@ -2270,26 +2389,31 @@
     var playerName = (firstName + ' ' + lastName).trim() || 'Unknown Player';
     console.log('[DbPlayerCard] Player:', playerName);
 
-    // Build attributes object from the rating inputs
+    // Build attributes object from the rating inputs, mapping to OVR calculator field codes
     var attributes = {};
     RATING_FIELDS.forEach(function(item) {
       var val = getIntValue('dbRating_' + item.field);
       if (val !== null) {
-        attributes[item.field] = val;
+        // Map to the OVR calculator's expected field code
+        var ovrFieldCode = DB_TO_OVR_FIELD_MAP[item.field] || item.field;
+        attributes[ovrFieldCode] = val;
       }
     });
     console.log('[DbPlayerCard] Attributes count:', Object.keys(attributes).length);
 
-    // Get archetype if available
+    // Get current archetype if available
     var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
-    var archetype = archetypeSelect ? archetypeSelect.value : undefined;
-    console.log('[DbPlayerCard] Archetype:', archetype);
+    var currentArchetype = archetypeSelect ? archetypeSelect.value : undefined;
+    console.log('[DbPlayerCard] Current Archetype:', currentArchetype);
 
     try {
+      // Get all archetypes with their calculated OVR for current attributes
+      var archetypeOptions = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+
       // Call the backend to calculate adjustments
       console.log('[DbPlayerCard] Calling calculateOVRAdjustments...');
       var result = await window.electronAPI.rating.calculateOVRAdjustments(
-        attributes, newOVR, position, archetype
+        attributes, newOVR, position, currentArchetype
       );
       console.log('[DbPlayerCard] Result:', result);
 
@@ -2298,8 +2422,8 @@
         return;
       }
 
-      // Show the adjustment dialog
-      showDbOVRAdjustmentDialog(playerName, oldOVR, newOVR, result);
+      // Show the adjustment dialog with archetype options
+      showDbOVRAdjustmentDialog(playerName, oldOVR, newOVR, result, archetypeOptions, currentArchetype, attributes, position);
 
     } catch (error) {
       console.error('[DbPlayerCard] Error calculating adjustments:', error);
@@ -2309,12 +2433,30 @@
   /**
    * Show dialog asking user if they want to apply rating adjustments in database player card
    */
-  function showDbOVRAdjustmentDialog(playerName, oldOVR, newOVR, result) {
+  function showDbOVRAdjustmentDialog(playerName, oldOVR, newOVR, result, archetypeOptions, currentArchetype, attributes, position) {
     var adjustments = result.adjustments;
     var achievedOVR = result.newOVR;
     var archetype = result.archetype;
     var delta = newOVR - oldOVR;
     var direction = delta > 0 ? 'increase' : 'decrease';
+
+    // Store context for archetype change handler
+    window._dbOvrDialogContext = {
+      newOVR: newOVR,
+      attributes: attributes,
+      position: position,
+      oldOVR: oldOVR
+    };
+
+    // Build archetype dropdown options
+    var archetypeOptionsHTML = '';
+    archetypeOptions = archetypeOptions || [];
+    archetypeOptions.forEach(function(opt, idx) {
+      var isSelected = currentArchetype !== undefined && opt.id == currentArchetype;
+      var isBest = idx === 0;
+      var label = opt.name + ' (' + opt.ovr + ' OVR)' + (isBest ? ' ★' : '');
+      archetypeOptionsHTML += '<option value="' + opt.id + '"' + (isSelected ? ' selected' : '') + '>' + label + '</option>';
+    });
 
     // Build the adjustment list HTML
     var adjustmentHTML = '';
@@ -2337,7 +2479,7 @@
         '</tr>';
     });
 
-    // Create modal HTML - use z-index 100001 to be above player browser (which is 10000)
+    // Create modal HTML with archetype selector - use z-index 100001 to be above player browser (which is 10000)
     var modalHTML =
       '<div id="db-ovr-adjustment-modal" class="modal-overlay" style="z-index: 100001;">' +
         '<div class="modal-content ovr-adjustment-modal">' +
@@ -2347,8 +2489,14 @@
           '</div>' +
           '<div class="modal-body">' +
             '<p class="player-info">' +
-              '<strong>' + playerName + '</strong> - ' + (archetype || 'Default Archetype') +
+              '<strong>' + playerName + '</strong>' +
             '</p>' +
+            '<div class="archetype-selector" style="margin: 10px 0; display: flex; align-items: center; gap: 10px;">' +
+              '<label for="db-archetype-select" style="font-weight: bold;">Archetype:</label>' +
+              '<select id="db-archetype-select" style="padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; min-width: 200px;">' +
+                archetypeOptionsHTML +
+              '</select>' +
+            '</div>' +
             '<p class="ovr-change">' +
               'OVR: <span class="old-ovr">' + oldOVR + '</span>' +
               '<span class="arrow">→</span>' +
@@ -2357,7 +2505,7 @@
                 '(' + (delta > 0 ? '+' : '') + delta + ')' +
               '</span>' +
             '</p>' +
-            '<p class="achieved-ovr">Achieved OVR with these adjustments: <strong>' + achievedOVR + '</strong></p>' +
+            '<p class="achieved-ovr">Achieved OVR with these adjustments: <strong id="db-achieved-ovr-value">' + achievedOVR + '</strong></p>' +
             '<div class="adjustment-table-container">' +
               '<table class="adjustment-table">' +
                 '<thead>' +
@@ -2369,7 +2517,7 @@
                     '<th>Change</th>' +
                   '</tr>' +
                 '</thead>' +
-                '<tbody>' +
+                '<tbody id="db-adjustment-table-body">' +
                   adjustmentHTML +
                 '</tbody>' +
               '</table>' +
@@ -2388,11 +2536,64 @@
 
     var modal = document.getElementById('db-ovr-adjustment-modal');
 
+    // Store current adjustments and archetype for apply handler
+    window._dbCurrentAdjustments = adjustments;
+    window._dbSelectedArchetypeId = currentArchetype;
+
+    // Archetype change handler
+    var archetypeSelect = document.getElementById('db-archetype-select');
+    archetypeSelect.addEventListener('change', async function(e) {
+      var newArchetypeId = parseInt(e.target.value);
+      window._dbSelectedArchetypeId = newArchetypeId;
+
+      try {
+        // Recalculate adjustments with new archetype
+        var newResult = await window.electronAPI.rating.calculateOVRAdjustments(
+          window._dbOvrDialogContext.attributes,
+          window._dbOvrDialogContext.newOVR,
+          window._dbOvrDialogContext.position,
+          newArchetypeId
+        );
+
+        if (newResult && Object.keys(newResult.adjustments).length > 0) {
+          window._dbCurrentAdjustments = newResult.adjustments;
+
+          // Update achieved OVR display
+          document.getElementById('db-achieved-ovr-value').textContent = newResult.newOVR;
+
+          // Rebuild adjustment table
+          var newAdjustmentHTML = '';
+          var newSortedAdjustments = Object.entries(newResult.adjustments)
+            .sort(function(a, b) { return b[1].weight - a[1].weight; });
+
+          newSortedAdjustments.forEach(function(entry) {
+            var fieldCode = entry[0];
+            var adj = entry[1];
+            var change = adj.suggested - adj.current;
+            var changeStr = change > 0 ? '+' + change : '' + change;
+            var changeClass = change > 0 ? 'positive-change' : 'negative-change';
+            newAdjustmentHTML +=
+              '<tr>' +
+                '<td>' + adj.name + '</td>' +
+                '<td class="current-value">' + adj.current + '</td>' +
+                '<td class="arrow">→</td>' +
+                '<td class="suggested-value">' + adj.suggested + '</td>' +
+                '<td class="' + changeClass + '">' + changeStr + '</td>' +
+              '</tr>';
+          });
+
+          document.getElementById('db-adjustment-table-body').innerHTML = newAdjustmentHTML;
+        }
+      } catch (error) {
+        console.error('[DbPlayerCard] Error recalculating for archetype:', error);
+      }
+    });
+
     // Apply adjustments handler
     document.getElementById('db-apply-adjustments-btn').addEventListener('click', function(e) {
       e.stopPropagation();
       e.preventDefault();
-      applyDbOVRAdjustments(adjustments);
+      applyDbOVRAdjustments(window._dbCurrentAdjustments, window._dbSelectedArchetypeId);
       modal.remove();
       // Note: ratings are now set in the form, user needs to click Save to persist
     });
@@ -2423,18 +2624,31 @@
   /**
    * Apply the calculated rating adjustments to the database player card inputs
    */
-  function applyDbOVRAdjustments(adjustments) {
+  function applyDbOVRAdjustments(adjustments, selectedArchetypeId) {
     var changes = [];
 
     Object.entries(adjustments).forEach(function(entry) {
-      var fieldCode = entry[0];
+      var ovrFieldCode = entry[0];
       var adj = entry[1];
 
+      // Map OVR calculator field code back to database player card field code
+      var dbFieldCode = OVR_TO_DB_FIELD_MAP[ovrFieldCode] || ovrFieldCode;
+
       // Update the input field
-      setValue('dbRating_' + fieldCode, adj.suggested);
+      setValue('dbRating_' + dbFieldCode, adj.suggested);
 
       changes.push(adj.name + ': ' + adj.current + ' → ' + adj.suggested);
     });
+
+    // Update archetype if selected
+    if (selectedArchetypeId !== undefined) {
+      var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
+      if (archetypeSelect) {
+        var oldArchetype = archetypeSelect.value;
+        archetypeSelect.value = selectedArchetypeId;
+        console.log('[DbPlayerCard] Updated archetype:', oldArchetype, '->', selectedArchetypeId);
+      }
+    }
 
     console.log('[DbPlayerCard] Applied ' + changes.length + ' rating changes:', changes);
 

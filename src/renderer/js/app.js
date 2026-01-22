@@ -1506,7 +1506,7 @@ class MaddenEditorApp {
                 // Hook for validation if needed
             },
             afterChange: (changes, source) => {
-                if (source !== 'loadData' && source !== 'GenericFacePicker' && source !== 'ovrAdjustment' && changes) {
+                if (source !== 'loadData' && source !== 'GenericFacePicker' && source !== 'ovrAdjustment' && source !== 'internal' && source !== 'ovrRecalc' && changes) {
                     this.handlePlayerDataChange(changes);
 
                     // Handle OVR changes - prompt to adjust ratings
@@ -1522,6 +1522,24 @@ class MaddenEditorApp {
                             }
                         }
                     });
+
+                    // Dynamic OVR recalculation when rating attributes change
+                    const OVR_AFFECTING_FIELDS = ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
+                        'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
+                        'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
+                        'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
+                        'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
+                        'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
+                        'PSTA', 'PINJ', 'PTGH'];
+
+                    // Process OVR recalculations (async but don't block)
+                    for (const [row, col, oldValue, newValue] of changes) {
+                        const fieldName = this.currentFieldMapping[col];
+                        if (OVR_AFFECTING_FIELDS.includes(fieldName) && newValue !== oldValue) {
+                            console.log('[OVR Recalc] Rating changed:', fieldName, oldValue, '->', newValue);
+                            this.recalculateOVRForRow(row);
+                        }
+                    }
 
                     // Re-render portrait when PID (PSXP) changes
                     changes.forEach(([row, col, oldValue, newValue]) => {
@@ -1950,13 +1968,16 @@ class MaddenEditorApp {
             }
         }
 
-        // Get archetype if available
-        const archetype = player['PLTY'] !== undefined ? player['PLTY'] : undefined;
+        // Get current archetype if available
+        const currentArchetype = player['PLTY'] !== undefined ? player['PLTY'] : undefined;
 
         try {
-            // Call the backend to calculate adjustments
+            // Get all archetypes with their calculated OVR for current attributes
+            const archetypeOptions = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+
+            // Call the backend to calculate adjustments using current archetype
             const result = await window.electronAPI.rating.calculateOVRAdjustments(
-                attributes, targetOVR, position, archetype
+                attributes, targetOVR, position, currentArchetype
             );
 
             if (!result || Object.keys(result.adjustments).length === 0) {
@@ -1965,8 +1986,8 @@ class MaddenEditorApp {
                 return;
             }
 
-            // Show the adjustment dialog
-            this.showOVRAdjustmentDialog(row, actualPlayerIndex, playerName, oldOVR, targetOVR, result);
+            // Show the adjustment dialog with archetype options
+            this.showOVRAdjustmentDialog(row, actualPlayerIndex, playerName, oldOVR, targetOVR, result, archetypeOptions, currentArchetype, attributes, position);
 
         } catch (error) {
             console.error('[OVR Change] Error calculating adjustments:', error);
@@ -1976,10 +1997,25 @@ class MaddenEditorApp {
     /**
      * Show dialog asking user if they want to apply rating adjustments
      */
-    showOVRAdjustmentDialog(row, playerIndex, playerName, oldOVR, targetOVR, result) {
+    showOVRAdjustmentDialog(row, playerIndex, playerName, oldOVR, targetOVR, result, archetypeOptions = [], currentArchetype = undefined, attributes = {}, position = 'QB') {
         const { adjustments, newOVR, archetype } = result;
         const delta = targetOVR - oldOVR;
         const direction = delta > 0 ? 'increase' : 'decrease';
+
+        // Store context for archetype change handler
+        this._ovrDialogContext = {
+            row, playerIndex, targetOVR, attributes, position, oldOVR
+        };
+
+        // Build archetype dropdown options
+        let archetypeOptionsHTML = '';
+        for (const opt of archetypeOptions) {
+            // Determine if this is the current/selected archetype
+            const isSelected = currentArchetype !== undefined && opt.id === currentArchetype;
+            const isBest = archetypeOptions.indexOf(opt) === 0; // First one is highest OVR
+            const label = `${opt.name} (${opt.ovr} OVR)${isBest ? ' ★' : ''}`;
+            archetypeOptionsHTML += `<option value="${opt.id}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+        }
 
         // Build the adjustment list HTML
         let adjustmentHTML = '';
@@ -2001,7 +2037,7 @@ class MaddenEditorApp {
             `;
         }
 
-        // Create modal HTML
+        // Create modal HTML with archetype selector
         const modalHTML = `
             <div id="ovr-adjustment-modal" class="modal-overlay">
                 <div class="modal-content ovr-adjustment-modal">
@@ -2011,8 +2047,14 @@ class MaddenEditorApp {
                     </div>
                     <div class="modal-body">
                         <p class="player-info">
-                            <strong>${playerName}</strong> - ${archetype || 'Default Archetype'}
+                            <strong>${playerName}</strong>
                         </p>
+                        <div class="archetype-selector" style="margin: 10px 0; display: flex; align-items: center; gap: 10px;">
+                            <label for="ovr-archetype-select" style="font-weight: bold;">Archetype:</label>
+                            <select id="ovr-archetype-select" style="padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; min-width: 200px;">
+                                ${archetypeOptionsHTML}
+                            </select>
+                        </div>
                         <p class="ovr-change">
                             OVR: <span class="old-ovr">${oldOVR}</span>
                             <span class="arrow">→</span>
@@ -2021,7 +2063,7 @@ class MaddenEditorApp {
                                 (${delta > 0 ? '+' : ''}${delta})
                             </span>
                         </p>
-                        <p class="achieved-ovr">Achieved OVR with these adjustments: <strong>${newOVR}</strong></p>
+                        <p class="achieved-ovr">Achieved OVR with these adjustments: <strong id="achieved-ovr-value">${newOVR}</strong></p>
                         <div class="adjustment-table-container">
                             <table class="adjustment-table">
                                 <thead>
@@ -2033,7 +2075,7 @@ class MaddenEditorApp {
                                         <th>Change</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="adjustment-table-body">
                                     ${adjustmentHTML}
                                 </tbody>
                             </table>
@@ -2053,9 +2095,61 @@ class MaddenEditorApp {
 
         const modal = document.getElementById('ovr-adjustment-modal');
 
+        // Store current adjustments for apply handler
+        this._currentAdjustments = adjustments;
+        this._selectedArchetypeId = currentArchetype;
+
+        // Archetype change handler
+        const archetypeSelect = document.getElementById('ovr-archetype-select');
+        archetypeSelect.addEventListener('change', async (e) => {
+            const newArchetypeId = parseInt(e.target.value);
+            this._selectedArchetypeId = newArchetypeId;
+
+            try {
+                // Recalculate adjustments with new archetype
+                const newResult = await window.electronAPI.rating.calculateOVRAdjustments(
+                    this._ovrDialogContext.attributes,
+                    this._ovrDialogContext.targetOVR,
+                    this._ovrDialogContext.position,
+                    newArchetypeId
+                );
+
+                if (newResult && Object.keys(newResult.adjustments).length > 0) {
+                    this._currentAdjustments = newResult.adjustments;
+
+                    // Update achieved OVR display
+                    document.getElementById('achieved-ovr-value').textContent = newResult.newOVR;
+
+                    // Rebuild adjustment table
+                    let newAdjustmentHTML = '';
+                    const newSortedAdjustments = Object.entries(newResult.adjustments)
+                        .sort((a, b) => b[1].weight - a[1].weight);
+
+                    for (const [fieldCode, adj] of newSortedAdjustments) {
+                        const change = adj.suggested - adj.current;
+                        const changeStr = change > 0 ? `+${change}` : `${change}`;
+                        const changeClass = change > 0 ? 'positive-change' : 'negative-change';
+                        newAdjustmentHTML += `
+                            <tr>
+                                <td>${adj.name}</td>
+                                <td class="current-value">${adj.current}</td>
+                                <td class="arrow">→</td>
+                                <td class="suggested-value">${adj.suggested}</td>
+                                <td class="${changeClass}">${changeStr}</td>
+                            </tr>
+                        `;
+                    }
+
+                    document.getElementById('adjustment-table-body').innerHTML = newAdjustmentHTML;
+                }
+            } catch (error) {
+                console.error('[OVR Dialog] Error recalculating for archetype:', error);
+            }
+        });
+
         // Apply adjustments handler
         document.getElementById('apply-adjustments-btn').addEventListener('click', () => {
-            this.applyOVRAdjustments(row, playerIndex, adjustments);
+            this.applyOVRAdjustments(row, playerIndex, this._currentAdjustments, this._selectedArchetypeId);
             modal.remove();
             this.restoreFocusToGrid();
         });
@@ -2084,11 +2178,86 @@ class MaddenEditorApp {
     }
 
     /**
+     * Recalculate OVR for a row when rating attributes change
+     * Also finds the best archetype and updates PLTY if it differs
+     * @param {number} row - Grid row index
+     */
+    async recalculateOVRForRow(row) {
+        try {
+            // Get the actual player
+            const filteredIndex = this.paginatedPlayerIndices[row];
+            const actualPlayer = this.filteredPlayers[filteredIndex];
+            const actualPlayerIndex = this.players.indexOf(actualPlayer);
+
+            if (actualPlayerIndex === -1 || !this.players[actualPlayerIndex]) {
+                console.warn('[OVR Recalc] Could not find player for row', row);
+                return;
+            }
+
+            const player = this.players[actualPlayerIndex];
+            const position = player['PPOS'] !== undefined ?
+                this.getPositionNameFromId(player['PPOS']) :
+                (player['position'] || 'QB');
+            const currentArchetype = player['PLTY'] !== undefined ? player['PLTY'] : undefined;
+
+            // Build attributes object
+            const attributes = {};
+            const ratingFields = ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
+                'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
+                'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
+                'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
+                'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
+                'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
+                'PSTA', 'PINJ', 'PTGH'];
+
+            for (const field of ratingFields) {
+                if (player[field] !== undefined) {
+                    attributes[field] = parseInt(player[field]) || 50;
+                }
+            }
+
+            // Get OVR for all archetypes to find the best one
+            const archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+
+            if (archetypeResults && archetypeResults.length > 0) {
+                // The first result is the best archetype (sorted by OVR descending)
+                const bestArchetype = archetypeResults[0];
+
+                // Calculate OVR using the current archetype
+                const newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, currentArchetype);
+                const oldOVR = parseInt(player['POVR']) || 50;
+
+                // Update OVR if changed
+                if (newOVR !== oldOVR) {
+                    player['POVR'] = newOVR;
+                    this.updateGridCell(row, 'POVR', newOVR, 'ovrRecalc');
+                    console.log(`[OVR Recalc] Updated OVR: ${oldOVR} → ${newOVR}`);
+                }
+
+                // Update archetype if a different one gives better OVR
+                if (currentArchetype !== bestArchetype.id && bestArchetype.ovr > newOVR) {
+                    player['PLTY'] = bestArchetype.id;
+                    this.updateGridCell(row, 'PLTY', bestArchetype.id, 'ovrRecalc');
+
+                    // Recalculate OVR with the new best archetype
+                    const betterOVR = bestArchetype.ovr;
+                    player['POVR'] = betterOVR;
+                    this.updateGridCell(row, 'POVR', betterOVR, 'ovrRecalc');
+                    console.log(`[OVR Recalc] Updated archetype to ${bestArchetype.name} (${bestArchetype.id}), OVR: ${newOVR} → ${betterOVR}`);
+                }
+            }
+        } catch (error) {
+            console.error('[OVR Recalc] Error recalculating OVR:', error);
+        }
+    }
+
+    /**
      * Apply the calculated rating adjustments to the player
      */
-    applyOVRAdjustments(row, playerIndex, adjustments) {
+    applyOVRAdjustments(row, playerIndex, adjustments, selectedArchetypeId = undefined) {
         const changes = [];
 
+        // Apply rating adjustments
         for (const [fieldCode, adj] of Object.entries(adjustments)) {
             // Update player data
             this.players[playerIndex][fieldCode] = adj.suggested;
@@ -2097,6 +2266,14 @@ class MaddenEditorApp {
             this.updateGridCell(row, fieldCode, adj.suggested);
 
             changes.push(`${adj.name}: ${adj.current} → ${adj.suggested}`);
+        }
+
+        // Update archetype if selected
+        if (selectedArchetypeId !== undefined) {
+            const oldArchetype = this.players[playerIndex]['PLTY'];
+            this.players[playerIndex]['PLTY'] = selectedArchetypeId;
+            this.updateGridCell(row, 'PLTY', selectedArchetypeId);
+            console.log(`[OVR Adjustment] Updated archetype: ${oldArchetype} → ${selectedArchetypeId}`);
         }
 
         console.log(`[OVR Adjustment] Applied ${changes.length} rating changes:`, changes);
