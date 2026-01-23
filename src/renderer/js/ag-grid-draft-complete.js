@@ -826,6 +826,25 @@ export function createDraftColumnDefs(app, archetypeData = null) {
  * Initialize AG-Grid for draft class
  */
 export async function initializeDraftAGGrid(app, container, prospects) {
+    // CRITICAL: Clean up any orphaned FastSelectEditor dropdowns
+    // These can block clicks if not properly removed when the editor is destroyed
+    const orphanedDropdowns = document.querySelectorAll('.fast-select-editor__dropdown');
+    if (orphanedDropdowns.length > 0) {
+        console.log('[Draft AG-Grid] Cleaning up', orphanedDropdowns.length, 'orphaned dropdown(s)');
+        orphanedDropdowns.forEach(dropdown => {
+            if (dropdown.parentNode) {
+                dropdown.parentNode.removeChild(dropdown);
+            }
+        });
+    }
+
+    // Also clean up any orphaned OVR modals that might be blocking
+    const orphanedModals = document.querySelectorAll('#draft-ovr-adjustment-modal');
+    if (orphanedModals.length > 0) {
+        console.log('[Draft AG-Grid] Cleaning up', orphanedModals.length, 'orphaned modal(s)');
+        orphanedModals.forEach(modal => modal.remove());
+    }
+
     // Clear container
     container.innerHTML = '';
 
@@ -1029,12 +1048,30 @@ export async function initializeDraftAGGrid(app, container, prospects) {
         suppressRowClickSelection: false,
         enableCellTextSelection: true,
         enableBrowserTooltips: true,
-        singleClickEdit: false,
+        // CRITICAL: Use singleClickEdit: true globally for consistent behavior
+        // This prevents the timing issue where clicking cell B while editing cell A
+        // causes the edit stop to interfere with the new edit start
+        singleClickEdit: true,
         stopEditingWhenCellsLoseFocus: true,
 
         // Row dragging for reordering
         rowDragManaged: true,
         rowDragEntireRow: true,
+
+        // Handle cell editing stopped - ensure focus returns to grid for seamless editing flow
+        onCellEditingStopped: (event) => {
+            console.log('[Draft AG-Grid] Cell editing stopped:', event.colDef?.field);
+            // Use setTimeout to allow the click event to complete before potentially
+            // restoring focus. This prevents the "can't click another cell" issue.
+            const gridContainer = document.querySelector('#draft-class-grid .ag-root-wrapper');
+            setTimeout(() => {
+                const activeEl = document.activeElement;
+                // Only log - don't force focus as it can interfere with new edits
+                if (activeEl === document.body) {
+                    console.log('[Draft AG-Grid] Focus was outside grid, ready for next edit');
+                }
+            }, 10);
+        },
 
         onCellEditingStarted: (event) => {
             // Capture OVR before editing so we can detect changes
@@ -1562,14 +1599,17 @@ async function handleDraftOVRChange(node, prospect, oldOVR, newOVR, app, gridApi
         }
     }
 
-    // Get archetype if available
-    const archetype = prospect.archetypeId !== undefined ? prospect.archetypeId : undefined;
+    // Get current archetype if available
+    const currentArchetype = prospect.archetypeId !== undefined ? prospect.archetypeId : undefined;
 
     try {
+        // Get all archetypes with their calculated OVR for current attributes
+        const archetypeOptions = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+
         // Call the backend to calculate adjustments
         console.log('[Draft OVR] Calling calculateOVRAdjustments...');
         const result = await window.electronAPI.rating.calculateOVRAdjustments(
-            attributes, newOVR, position, archetype
+            attributes, newOVR, position, currentArchetype
         );
         console.log('[Draft OVR] Result:', result);
 
@@ -1578,8 +1618,8 @@ async function handleDraftOVRChange(node, prospect, oldOVR, newOVR, app, gridApi
             return;
         }
 
-        // Show the adjustment dialog
-        showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR, result, app, gridApi);
+        // Show the adjustment dialog with archetype options
+        showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR, result, app, gridApi, archetypeOptions, currentArchetype, attributes, position);
 
     } catch (error) {
         console.error('[Draft OVR] Error calculating adjustments:', error);
@@ -1589,10 +1629,24 @@ async function handleDraftOVRChange(node, prospect, oldOVR, newOVR, app, gridApi
 /**
  * Show dialog asking user if they want to apply rating adjustments for draft
  */
-function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR, result, app, gridApi) {
+function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR, result, app, gridApi, archetypeOptions = [], currentArchetype = undefined, attributes = {}, position = 'QB') {
     const { adjustments, newOVR: achievedOVR, archetype } = result;
     const delta = newOVR - oldOVR;
     const direction = delta > 0 ? 'increase' : 'decrease';
+
+    // Store context for archetype change handler
+    window._draftOvrDialogContext = {
+        node, prospect, newOVR, attributes, position, oldOVR, app, gridApi
+    };
+
+    // Build archetype dropdown options
+    let archetypeOptionsHTML = '';
+    for (const opt of archetypeOptions) {
+        const isSelected = currentArchetype !== undefined && opt.id === currentArchetype;
+        const isBest = archetypeOptions.indexOf(opt) === 0;
+        const label = `${opt.name} (${opt.ovr} OVR)${isBest ? ' ★' : ''}`;
+        archetypeOptionsHTML += `<option value="${opt.id}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+    }
 
     // Build the adjustment list HTML - convert roster field codes to friendly names
     let adjustmentHTML = '';
@@ -1617,7 +1671,7 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
         `;
     }
 
-    // Create modal HTML
+    // Create modal HTML with archetype selector
     const modalHTML = `
         <div id="draft-ovr-adjustment-modal" class="modal-overlay" style="z-index: 100001;">
             <div class="modal-content ovr-adjustment-modal">
@@ -1627,8 +1681,14 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
                 </div>
                 <div class="modal-body">
                     <p class="player-info">
-                        <strong>${playerName}</strong> - ${archetype || prospect.archetype || 'Default Archetype'}
+                        <strong>${playerName}</strong>
                     </p>
+                    <div class="archetype-selector" style="margin: 10px 0; display: flex; align-items: center; gap: 10px;">
+                        <label for="draft-archetype-select" style="font-weight: bold;">Archetype:</label>
+                        <select id="draft-archetype-select" style="padding: 5px 10px; border-radius: 4px; border: 1px solid #ccc; min-width: 200px;">
+                            ${archetypeOptionsHTML}
+                        </select>
+                    </div>
                     <p class="ovr-change">
                         OVR: <span class="old-ovr">${oldOVR}</span>
                         <span class="arrow">→</span>
@@ -1637,7 +1697,7 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
                             (${delta > 0 ? '+' : ''}${delta})
                         </span>
                     </p>
-                    <p class="achieved-ovr">Achieved OVR with these adjustments: <strong>${achievedOVR}</strong></p>
+                    <p class="achieved-ovr">Achieved OVR with these adjustments: <strong id="draft-achieved-ovr-value">${achievedOVR}</strong></p>
                     <div class="adjustment-table-container">
                         <table class="adjustment-table">
                             <thead>
@@ -1649,7 +1709,7 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
                                     <th>Change</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="draft-adjustment-table-body">
                                 ${adjustmentHTML}
                             </tbody>
                         </table>
@@ -1669,6 +1729,10 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
 
     const modal = document.getElementById('draft-ovr-adjustment-modal');
 
+    // Store current adjustments and archetype for apply handler
+    window._draftCurrentAdjustments = adjustments;
+    window._draftSelectedArchetypeId = currentArchetype;
+
     // Helper to restore focus to grid after modal closes
     const restoreFocusToGrid = () => {
         setTimeout(() => {
@@ -1679,6 +1743,56 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
             }
         }, 50);
     };
+
+    // Archetype change handler
+    const archetypeSelect = document.getElementById('draft-archetype-select');
+    archetypeSelect.addEventListener('change', async (e) => {
+        const newArchetypeId = parseInt(e.target.value);
+        window._draftSelectedArchetypeId = newArchetypeId;
+
+        try {
+            // Recalculate adjustments with new archetype
+            const newResult = await window.electronAPI.rating.calculateOVRAdjustments(
+                window._draftOvrDialogContext.attributes,
+                window._draftOvrDialogContext.newOVR,
+                window._draftOvrDialogContext.position,
+                newArchetypeId
+            );
+
+            if (newResult && Object.keys(newResult.adjustments).length > 0) {
+                window._draftCurrentAdjustments = newResult.adjustments;
+
+                // Update achieved OVR display
+                document.getElementById('draft-achieved-ovr-value').textContent = newResult.newOVR;
+
+                // Rebuild adjustment table
+                let newAdjustmentHTML = '';
+                const newSortedAdjustments = Object.entries(newResult.adjustments)
+                    .sort((a, b) => b[1].weight - a[1].weight);
+
+                for (const [rosterFieldCode, adj] of newSortedAdjustments) {
+                    const change = adj.suggested - adj.current;
+                    const changeStr = change > 0 ? `+${change}` : `${change}`;
+                    const changeClass = change > 0 ? 'positive-change' : 'negative-change';
+                    const draftField = ROSTER_TO_DRAFT_FIELDS[rosterFieldCode] || rosterFieldCode;
+                    const displayName = adj.name || draftField;
+                    newAdjustmentHTML += `
+                        <tr>
+                            <td>${displayName}</td>
+                            <td class="current-value">${adj.current}</td>
+                            <td class="arrow">→</td>
+                            <td class="suggested-value">${adj.suggested}</td>
+                            <td class="${changeClass}">${changeStr}</td>
+                        </tr>
+                    `;
+                }
+
+                document.getElementById('draft-adjustment-table-body').innerHTML = newAdjustmentHTML;
+            }
+        } catch (error) {
+            console.error('[Draft OVR Dialog] Error recalculating for archetype:', error);
+        }
+    });
 
     // Close button (X) handler
     document.getElementById('draft-ovr-close-btn').addEventListener('click', (e) => {
@@ -1692,7 +1806,7 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
     document.getElementById('draft-apply-adjustments-btn').addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
-        applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi);
+        applyDraftOVRAdjustments(node, prospect, window._draftCurrentAdjustments, app, gridApi, window._draftSelectedArchetypeId);
         modal.remove();
         restoreFocusToGrid();
     });
@@ -1727,7 +1841,7 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
 /**
  * Apply the calculated rating adjustments to the prospect in Draft AG-Grid
  */
-function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi) {
+function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, selectedArchetypeId = undefined) {
     const changes = [];
 
     for (const [rosterFieldCode, adj] of Object.entries(adjustments)) {
@@ -1745,6 +1859,14 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi) {
         node.setDataValue(draftField, adj.suggested);
 
         changes.push(`${adj.name}: ${adj.current} → ${adj.suggested}`);
+    }
+
+    // Update archetype if selected
+    if (selectedArchetypeId !== undefined) {
+        const oldArchetype = prospect.archetypeId;
+        prospect.archetypeId = selectedArchetypeId;
+        node.setDataValue('archetypeId', selectedArchetypeId);
+        console.log('[Draft OVR] Updated archetype:', oldArchetype, '->', selectedArchetypeId);
     }
 
     console.log('[Draft OVR] Applied adjustments:', changes.join(', '));

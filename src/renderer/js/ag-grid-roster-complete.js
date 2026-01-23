@@ -676,6 +676,25 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
  * Initialize AG-Grid roster table
  */
 export function initializeAGGridRoster(app, container, players, visibleFields, displayNames, fieldCodes) {
+    // CRITICAL: Clean up any orphaned FastSelectEditor dropdowns
+    // These can block clicks if not properly removed when the editor is destroyed
+    const orphanedDropdowns = document.querySelectorAll('.fast-select-editor__dropdown');
+    if (orphanedDropdowns.length > 0) {
+        console.log('[AG-Grid] Cleaning up', orphanedDropdowns.length, 'orphaned dropdown(s)');
+        orphanedDropdowns.forEach(dropdown => {
+            if (dropdown.parentNode) {
+                dropdown.parentNode.removeChild(dropdown);
+            }
+        });
+    }
+
+    // Also clean up any orphaned OVR modals that might be blocking
+    const orphanedModals = document.querySelectorAll('#ag-ovr-adjustment-modal');
+    if (orphanedModals.length > 0) {
+        console.log('[AG-Grid] Cleaning up', orphanedModals.length, 'orphaned modal(s)');
+        orphanedModals.forEach(modal => modal.remove());
+    }
+
     // Clear container
     container.innerHTML = '';
 
@@ -733,10 +752,32 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
         enableBrowserTooltips: true,
 
         // Editing
-        singleClickEdit: false,
+        // CRITICAL: Use singleClickEdit: true globally for consistent behavior
+        // This prevents the timing issue where clicking cell B while editing cell A
+        // causes the edit stop to interfere with the new edit start
+        singleClickEdit: true,
         stopEditingWhenCellsLoseFocus: true,
 
         // Events
+
+        // Handle cell editing stopped - ensure focus returns to grid for seamless editing flow
+        onCellEditingStopped: (event) => {
+            console.log('[AG-Grid] Cell editing stopped:', event.colDef?.field);
+            // Use setTimeout to allow the click event to complete before potentially
+            // restoring focus. This prevents the "can't click another cell" issue.
+            setTimeout(() => {
+                const activeEl = document.activeElement;
+                const gridEl = container.querySelector('.ag-root-wrapper');
+                // Only restore focus if nothing else has captured it (like another editor)
+                if (activeEl === document.body || !container.contains(activeEl)) {
+                    if (gridEl) {
+                        // Don't use gridEl.focus() directly as it can interfere
+                        // Just ensure the grid is ready for the next click
+                        console.log('[AG-Grid] Focus was outside grid, ready for next edit');
+                    }
+                }
+            }, 10);
+        },
 
         // Handle header click for sorting - use app's sort mechanism which handles paginated data
         onCellClicked: (event) => {

@@ -580,10 +580,12 @@
       // Check if player has edits
       updateEditedIndicator();
 
-      // Show the modal
+      // Show the modal - CRITICAL: Reset visibility and pointer-events that were set on close
       var modal = document.getElementById('dbPlayerCardModal');
       if (modal) {
         modal.style.display = 'flex';
+        modal.style.visibility = 'visible';
+        modal.style.pointerEvents = 'auto';
       }
 
       // Always show delete button - user has full control over their database
@@ -2204,8 +2206,7 @@
       }
 
       modal.style.display = 'none';
-      modal.style.visibility = 'hidden';
-      modal.style.pointerEvents = 'none';
+      // Note: visibility and pointerEvents are reset in openDbPlayerCard when modal is shown again
 
       // Use centralized focus restoration for player browser
       // Use requestAnimationFrame + setTimeout to ensure the modal display change has been processed
