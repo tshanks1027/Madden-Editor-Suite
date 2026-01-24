@@ -12,8 +12,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   parser: {
     parseRosterFile: (filePath: string) =>
       ipcRenderer.invoke('parser:parse-roster-file', filePath),
-    saveRosterFile: (filePath: string, players: any[], originalData: any) =>
-      ipcRenderer.invoke('parser:save-roster-file', filePath, players, originalData)
+    saveRosterFile: (filePath: string, players: any[], originalData: any, options?: { clearInjuries?: boolean }) =>
+      ipcRenderer.invoke('parser:save-roster-file', filePath, players, originalData, options)
   },
 
   // File APIs
@@ -159,6 +159,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('rating:get-archetype-name', id, position),
     getArchetypeId: (name: string, position: string) =>
       ipcRenderer.invoke('rating:get-archetype-id', name, position),
+    calculateOVRForArchetypes: (attributes: any, position: string) =>
+      ipcRenderer.invoke('rating:calculate-ovr-for-archetypes', attributes, position),
     birthdayToDisplay: (encoded: number) =>
       ipcRenderer.invoke('rating:birthday-to-display', encoded),
     birthdayToEncoded: (display: string) =>

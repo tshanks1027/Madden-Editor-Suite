@@ -49,10 +49,11 @@ ipcMain.handle('parser:parse-roster-file', async (event, filePath: string) => {
  * Handle: parser:save-roster-file
  * Save modified player data back to roster file
  */
-ipcMain.handle('parser:save-roster-file', async (event, filePath: string, players: any[], originalData: any) => {
+ipcMain.handle('parser:save-roster-file', async (event, filePath: string, players: any[], originalData: any, options?: { clearInjuries?: boolean }) => {
   try {
     console.log('[parser-handlers] Saving roster file:', filePath);
     console.log('[parser-handlers] Player count:', players.length);
+    console.log('[parser-handlers] Options:', options);
 
     // DEBUG: Check if assignedGenr and assignedSknt are being passed through IPC
     // NOTE: Using non-underscore property names because IPC strips underscore-prefixed properties!
@@ -65,7 +66,7 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
     }
 
     // Save the file - this also runs GenericFaceService.updateBLBMForGenericFaces
-    const result = await saveRosterFile(filePath, players, originalData);
+    const result = await saveRosterFile(filePath, players, originalData, options);
 
     console.log('[parser-handlers] Save successful, result:', result);
 
@@ -73,7 +74,9 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
       success: true,
       genericFaceServiceLoaded: result?.genericFaceServiceLoaded ?? false,
       blbmUpdated: result?.blbmUpdated ?? 0,
-      blbmError: result?.blbmError ?? null
+      btypSynced: result?.btypSynced ?? 0,
+      blbmError: result?.blbmError ?? null,
+      injuriesCleared: result?.injuriesCleared ?? 0
     };
 
   } catch (error: any) {

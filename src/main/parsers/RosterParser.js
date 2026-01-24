@@ -289,11 +289,14 @@ async function parseRosterFile(filePath) {
  * @param {string} filePath - Path to save the roster file
  * @param {Array} players - Array of player data
  * @param {Object} originalData - Original parsed data (contains filePath to retrieve helper/file)
+ * @param {Object} options - Save options
+ * @param {boolean} options.clearInjuries - If true, clears all INJY table records
  */
-async function saveRosterFile(filePath, players, originalData) {
+async function saveRosterFile(filePath, players, originalData, options = {}) {
   console.log('[RosterParser] ===== START ROSTER SAVE =====');
   console.log('[RosterParser] Output path:', filePath);
   console.log('[RosterParser] Original data:', originalData ? `filePath: ${originalData.filePath}` : 'none');
+  console.log('[RosterParser] Options:', JSON.stringify(options));
 
   try {
     const sourcePath = originalData?.filePath;
@@ -456,6 +459,33 @@ async function saveRosterFile(filePath, players, originalData) {
       console.error('[RosterParser] *** CRITICAL: GenericFaceService is NULL - BLBM will NOT be updated! ***');
     }
 
+    // Clear injuries if requested
+    let injuriesCleared = 0;
+    if (options.clearInjuries) {
+      console.log('[RosterParser] Clearing INJY table (injuries)...');
+      const injyTable = file.INJY;
+      if (injyTable && injyTable.records) {
+        for (const record of injyTable.records) {
+          // Clear all injury fields
+          if (record.fields['PGID']?.value) {
+            record.fields['PGID'].value = 0;
+            injuriesCleared++;
+          }
+          if (record.fields['TGID']) record.fields['TGID'].value = 0;
+          if (record.fields['INJL']) record.fields['INJL'].value = 0;
+          if (record.fields['INJR']) record.fields['INJR'].value = 0;
+          if (record.fields['INJS']) record.fields['INJS'].value = 0;
+          if (record.fields['INJT']) record.fields['INJT'].value = 0;
+          if (record.fields['INIR']) record.fields['INIR'].value = 0;
+          if (record.fields['INSI']) record.fields['INSI'].value = 0;
+          if (record.fields['INTW']) record.fields['INTW'].value = 0;
+        }
+        console.log(`[RosterParser] Cleared ${injuriesCleared} injury records`);
+      } else {
+        console.log('[RosterParser] No INJY table found to clear');
+      }
+    }
+
     // Save using MaddenRosterHelper
     await helper.save(filePath);
 
@@ -478,7 +508,8 @@ async function saveRosterFile(filePath, players, originalData) {
       genericFaceServiceLoaded,
       blbmUpdated,
       btypSynced,
-      blbmError
+      blbmError,
+      injuriesCleared
     };
 
   } catch (error) {

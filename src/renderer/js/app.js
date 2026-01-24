@@ -3660,7 +3660,8 @@ class MaddenEditorApp {
                 const saveResult = await window.electronAPI.parser.saveRosterFile(
                     saveFilePath,
                     this.players,
-                    this.originalData
+                    this.originalData,
+                    { clearInjuries: this._injuriesModified || false }
                 );
 
                 if (saveResult.success) {
@@ -3672,11 +3673,17 @@ class MaddenEditorApp {
                     console.log('[SAVE DEBUG] GenericFaceService loaded:', saveResult.genericFaceServiceLoaded);
                     console.log('[SAVE DEBUG] BLBM players updated:', saveResult.blbmUpdated);
                     console.log('[SAVE DEBUG] BTYP synced:', saveResult.btypSynced);
+                    console.log('[SAVE DEBUG] Injuries cleared:', saveResult.injuriesCleared);
                     if (saveResult.blbmError) {
                         console.error('[SAVE DEBUG] BLBM error:', saveResult.blbmError);
                     }
                     if (!saveResult.genericFaceServiceLoaded) {
                         console.error('[SAVE DEBUG] *** WARNING: GenericFaceService failed to load! Generic faces NOT fixed! ***');
+                    }
+                    // Reset injuries modified flag after successful save
+                    if (this._injuriesModified) {
+                        this._injuriesModified = false;
+                        console.log('[SAVE DEBUG] Reset _injuriesModified flag');
                     }
                 } else {
                     throw new Error(saveResult.error || 'Unknown save error');
