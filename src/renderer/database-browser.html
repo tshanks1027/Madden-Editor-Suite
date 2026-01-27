@@ -2000,34 +2000,76 @@
                 }
 
                 let html = '';
-                currentResults.forEach(player => {
+                let playersWithMissingId = 0;
+                currentResults.forEach((player, index) => {
+                    // Validate internalId at render time
+                    const playerId = player.internalId;
+                    if (playerId === undefined || playerId === null || isNaN(Number(playerId))) {
+                        console.error('[DatabaseBrowser] WARNING: Player at index', index, 'has invalid internalId:', playerId, 'Name:', player.firstName, player.lastName);
+                        playersWithMissingId++;
+                    }
+
                     const hofBadge = player.isHof ? '<span class="player-hof-badge">HOF</span>' : '';
                     const draftInfo = player.draftClass ? (player.draftRound ? `${player.draftClass} R${player.draftRound}` : player.draftClass) : '-';
                     const careerInfo = player.careerFrom && player.careerTo ? `${player.careerFrom}-${player.careerTo}` : (player.careerFrom || '-');
-                    const isSelected = selectedPlayerIds.has(player.internalId);
+                    const isSelected = selectedPlayerIds.has(playerId);
 
                     const isCustom = player.isCustom ? 'true' : 'false';
                     html += `
-                        <div class="player-browser-row" data-player-id="${player.internalId}" data-is-custom="${isCustom}">
-                            <div class="player-browser-select"><input type="checkbox" class="player-select-checkbox" data-id="${player.internalId}" ${isSelected ? 'checked' : ''}></div>
+                        <div class="player-browser-row" data-player-id="${playerId}" data-is-custom="${isCustom}">
+                            <div class="player-browser-select"><input type="checkbox" class="player-select-checkbox" data-id="${playerId}" ${isSelected ? 'checked' : ''}></div>
                             <div class="player-browser-name">${player.firstName || ''} ${player.lastName || ''} ${hofBadge}</div>
                             <div class="player-browser-position">${player.position || '-'}</div>
                             <div class="player-browser-college">${player.college || '-'}</div>
                             <div class="player-browser-draft">${draftInfo}</div>
                             <div class="player-browser-career">${careerInfo}</div>
                             <div class="player-browser-actions">
-                                <button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(${player.internalId}, ${isCustom})">View</button>
-                                <button class="pb-btn pb-btn-add" onclick="window.addToRoster(${player.internalId})" title="Add to Roster">+Roster</button>
-                                <button class="pb-btn pb-btn-add" onclick="window.addToDraft(${player.internalId})" title="Add to Draft Class">+Draft</button>
+                                <button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(${playerId}, ${isCustom})">View</button>
+                                <button class="pb-btn pb-btn-add" onclick="window.addToRoster(${playerId})" title="Add to Roster">+Roster</button>
+                                <button class="pb-btn pb-btn-add" onclick="window.addToDraft(${playerId})" title="Add to Draft Class">+Draft</button>
                             </div>
                         </div>
                     `;
                 });
 
+                if (playersWithMissingId > 0) {
+                    console.error('[DatabaseBrowser] CRITICAL:', playersWithMissingId, 'players have missing/invalid internalId values!');
+                }
+
                 resultsDiv.innerHTML = html;
+
+                // DEBUG: Log the actual onclick values from the rendered buttons to verify IDs are correct
+                const renderedButtons = resultsDiv.querySelectorAll('.pb-btn-add[title="Add to Roster"]');
+                if (renderedButtons.length > 0) {
+                    console.log('[DatabaseBrowser] DEBUG - First 5 rendered +Roster button onclick values:');
+                    for (let i = 0; i < Math.min(5, renderedButtons.length); i++) {
+                        const btn = renderedButtons[i];
+                        const row = btn.closest('.player-browser-row');
+                        const dataPlayerId = row ? row.getAttribute('data-player-id') : 'no-row';
+                        const onclick = btn.getAttribute('onclick');
+                        const playerName = row ? row.querySelector('.player-browser-name')?.textContent?.trim() : 'unknown';
+                        console.log(`  [${i}] ${playerName}: onclick="${onclick}", data-player-id="${dataPlayerId}"`);
+                    }
+                }
+
                 updatePagination();
                 updateSelectAllCheckbox();
                 updateSelectionUI();
+
+                // DEBUG: Add click listener to log exactly what button is clicked
+                resultsDiv.querySelectorAll('.pb-btn-add[title="Add to Roster"]').forEach(btn => {
+                    btn.addEventListener('click', function(e) {
+                        const row = this.closest('.player-browser-row');
+                        const dataPlayerId = row ? row.getAttribute('data-player-id') : 'no-row';
+                        const onclick = this.getAttribute('onclick');
+                        const playerName = row ? row.querySelector('.player-browser-name')?.textContent?.trim() : 'unknown';
+                        console.log('[DatabaseBrowser] CLICK DEBUG - Button clicked:');
+                        console.log('  Player name:', playerName);
+                        console.log('  data-player-id:', dataPlayerId);
+                        console.log('  onclick attr:', onclick);
+                        console.log('  Event target:', e.target.tagName, e.target.className);
+                    }, true); // Use capture phase to log before onclick fires
+                });
             }
 
             function updateSelectAllCheckbox() {
@@ -2342,20 +2384,68 @@
             };
 
             window.addToRoster = function(internalId) {
-                console.log('[DatabaseBrowser] Add to roster:', internalId);
+                console.log('[DatabaseBrowser] Add to roster called with:', internalId, 'type:', typeof internalId);
+
+                // Validate internalId to catch potential issues
+                if (internalId === undefined || internalId === null) {
+                    console.error('[DatabaseBrowser] ERROR: internalId is undefined/null!');
+                    alert('Error: Player ID is missing. Please try searching again.');
+                    return;
+                }
+
+                // Convert to number and validate
+                const numericId = Number(internalId);
+                if (isNaN(numericId) || numericId <= 0) {
+                    console.error('[DatabaseBrowser] ERROR: Invalid internalId:', internalId, '-> numericId:', numericId);
+                    alert('Error: Invalid player ID (' + internalId + '). Please try searching again.');
+                    return;
+                }
+
+                // Find player in current results to log their name
+                const player = currentResults.find(p => p.internalId === numericId);
+                if (player) {
+                    console.log('[DatabaseBrowser] Adding player:', player.firstName, player.lastName, 'ID:', numericId);
+                } else {
+                    console.warn('[DatabaseBrowser] Player ID', numericId, 'not found in currentResults - may be from stale view');
+                }
+
                 // Send to main window via IPC
                 if (window.electronAPI?.database?.sendPlayerToMainWindow) {
-                    window.electronAPI.database.sendPlayerToMainWindow(internalId, 'roster');
+                    window.electronAPI.database.sendPlayerToMainWindow(numericId, 'roster');
                 } else {
                     alert('Cannot add to roster from standalone window.\nPlease use the Player Browser in the main editor.');
                 }
             };
 
             window.addToDraft = function(internalId) {
-                console.log('[DatabaseBrowser] Add to draft:', internalId);
+                console.log('[DatabaseBrowser] Add to draft called with:', internalId, 'type:', typeof internalId);
+
+                // Validate internalId to catch potential issues
+                if (internalId === undefined || internalId === null) {
+                    console.error('[DatabaseBrowser] ERROR: internalId is undefined/null!');
+                    alert('Error: Player ID is missing. Please try searching again.');
+                    return;
+                }
+
+                // Convert to number and validate
+                const numericId = Number(internalId);
+                if (isNaN(numericId) || numericId <= 0) {
+                    console.error('[DatabaseBrowser] ERROR: Invalid internalId:', internalId, '-> numericId:', numericId);
+                    alert('Error: Invalid player ID (' + internalId + '). Please try searching again.');
+                    return;
+                }
+
+                // Find player in current results to log their name
+                const player = currentResults.find(p => p.internalId === numericId);
+                if (player) {
+                    console.log('[DatabaseBrowser] Adding player:', player.firstName, player.lastName, 'ID:', numericId);
+                } else {
+                    console.warn('[DatabaseBrowser] Player ID', numericId, 'not found in currentResults - may be from stale view');
+                }
+
                 // Send to main window via IPC
                 if (window.electronAPI?.database?.sendPlayerToMainWindow) {
-                    window.electronAPI.database.sendPlayerToMainWindow(internalId, 'draft');
+                    window.electronAPI.database.sendPlayerToMainWindow(numericId, 'draft');
                 } else {
                     alert('Cannot add to draft from standalone window.\nPlease use the Player Browser in the main editor.');
                 }

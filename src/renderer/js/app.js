@@ -9153,6 +9153,27 @@ class MaddenEditorApp {
             }
         }
 
+        // Prorate signing bonus across contract years (PSB0-PSB6)
+        // Total bonus is PSBO, prorated evenly across PCON years
+        const totalBonus = this.currentPlayerCardData.PSBO || 0;
+        const numYears = contractYears || 1;
+        const proratedBonus = Math.round(totalBonus / numYears);
+        for (let i = 0; i <= 6; i++) {
+            this.currentPlayerCardData[`PSB${i}`] = (i < numYears) ? proratedBonus : 0;
+        }
+        // Adjust first year to absorb rounding
+        if (numYears > 0 && totalBonus > 0) {
+            this.currentPlayerCardData.PSB0 = totalBonus - (proratedBonus * (numYears - 1));
+        }
+
+        // Calculate PCSA (Cap Salary) - CRITICAL for in-game cap calculations
+        // Formula: PCSA = PSA[Year] + PSB[Year] where Year = PCON - PCYL
+        const yearIndex = Math.max(0, Math.min(6, contractYears - yearsLeft));
+        const currentYearSalary = this.currentPlayerCardData[`PSA${yearIndex}`] || 0;
+        const currentYearBonus = this.currentPlayerCardData[`PSB${yearIndex}`] || 0;
+        this.currentPlayerCardData.PCSA = currentYearSalary + currentYearBonus;
+        console.log(`[Player Card] Calculated PCSA: PSA${yearIndex}(${currentYearSalary}) + PSB${yearIndex}(${currentYearBonus}) = ${this.currentPlayerCardData.PCSA}`);
+
         // Update ratings from editable inputs
         if (this.currentPlayerCardRatings) {
             Object.keys(this.originalPlayerCardRatings).forEach(fieldCode => {
@@ -9731,19 +9752,36 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listen for players sent from database browser window
     if (window.electronAPI?.database?.onPlayerFromBrowser) {
         window.electronAPI.database.onPlayerFromBrowser(async (internalId, target, options) => {
-            console.log('[App] Received player from database browser:', internalId, 'target:', target, 'options:', options);
+            console.log('[App] Received player from database browser:', internalId, 'type:', typeof internalId, 'target:', target, 'options:', options);
+
+            // Validate internalId received from IPC
+            if (internalId === undefined || internalId === null) {
+                console.error('[App] ERROR: Received undefined/null internalId from database browser!');
+                alert('Error: No player ID received from database browser.');
+                return;
+            }
+
+            // Convert and validate
+            const numericId = Number(internalId);
+            if (isNaN(numericId) || numericId <= 0) {
+                console.error('[App] ERROR: Received invalid internalId from database browser:', internalId);
+                alert('Error: Invalid player ID received (' + internalId + ').');
+                return;
+            }
+
+            console.log('[App] Validated player ID:', numericId, 'Forwarding to', target);
 
             // If options provided (batch add from database browser), use direct add without modal
             if (options && target === 'roster' && typeof window.directAddToRoster === 'function') {
-                window.directAddToRoster(internalId, options.teamId, options.year);
+                window.directAddToRoster(numericId, options.teamId, options.year);
             } else if (options && target === 'draft' && typeof window.directAddToDraft === 'function') {
-                window.directAddToDraft(internalId, options.year);
+                window.directAddToDraft(numericId, options.year);
             }
             // Otherwise use existing functions with modal flow
             else if (target === 'roster' && typeof window.addToRoster === 'function') {
-                window.addToRoster(internalId);
+                window.addToRoster(numericId);
             } else if (target === 'draft' && typeof window.addToDraft === 'function') {
-                window.addToDraft(internalId);
+                window.addToDraft(numericId);
             } else {
                 console.error('[App] addToRoster/addToDraft functions not available');
             }

@@ -3351,7 +3351,20 @@ ipcMain.handle('database:debug-warren-moon', async () => {
  */
 ipcMain.handle('database:send-player-to-main', async (event, internalId: number, target: 'roster' | 'draft', options?: { teamId?: number; year?: number | null }) => {
   try {
-    console.log(`[database-handlers] Sending player ${internalId} to ${target} with options:`, options);
+    console.log(`[database-handlers] Sending player ${internalId} (type: ${typeof internalId}) to ${target} with options:`, options);
+
+    // Validate internalId
+    if (internalId === undefined || internalId === null) {
+      console.error('[database-handlers] ERROR: Received undefined/null internalId from database browser!');
+      return { success: false, error: 'Invalid player ID: no ID provided' };
+    }
+
+    // Ensure it's a valid number
+    const numericId = Number(internalId);
+    if (isNaN(numericId) || numericId <= 0) {
+      console.error('[database-handlers] ERROR: Invalid internalId received:', internalId, '-> numericId:', numericId);
+      return { success: false, error: `Invalid player ID: ${internalId}` };
+    }
 
     // Find the main window (the one that's not the database browser)
     const allWindows = BrowserWindow.getAllWindows();
@@ -3368,8 +3381,9 @@ ipcMain.handle('database:send-player-to-main', async (event, internalId: number,
       return { success: false, error: 'Main editor window not found. Please open the editor first.' };
     }
 
-    // Send the player to the main window
-    mainWindow.webContents.send('database:player-from-browser', internalId, target, options);
+    // Send the player to the main window using validated numeric ID
+    console.log(`[database-handlers] Forwarding validated player ID ${numericId} to main window`);
+    mainWindow.webContents.send('database:player-from-browser', numericId, target, options);
 
     return { success: true };
   } catch (error) {

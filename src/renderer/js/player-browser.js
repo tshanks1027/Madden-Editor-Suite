@@ -613,30 +613,41 @@
 
     // Build results HTML
     let html = '';
-    pageResults.forEach(player => {
+    let playersWithMissingId = 0;
+    pageResults.forEach((player, index) => {
+      // Validate internalId at render time
+      const playerId = player.internalId;
+      if (playerId === undefined || playerId === null || isNaN(Number(playerId))) {
+        console.error('[PlayerBrowser] WARNING: Player at index', index, 'has invalid internalId:', playerId, 'Name:', player.firstName, player.lastName);
+        playersWithMissingId++;
+      }
+
       const fullName = (player.firstName || '') + ' ' + (player.lastName || '');
       const draftInfo = player.draftClass ? player.draftClass + ' Rd ' + (player.draftRound || '?') : 'N/A';
       const careerSpan = player.careerFrom && player.careerTo ? player.careerFrom + '-' + player.careerTo : (player.careerFrom || 'N/A');
       const hofBadge = player.isHof ? '<span class="player-hof-badge">HOF</span>' : '';
 
       const isCustom = player.isCustom ? 'true' : 'false';
-      const isSelected = selectedPlayerIds.has(player.internalId);
-      console.log('[PlayerBrowser] Rendering player:', player.firstName, player.lastName, 'internalId:', player.internalId, 'isCustom:', player.isCustom);
+      const isSelected = selectedPlayerIds.has(playerId);
       html +=
-        '<div class="player-browser-row" data-internal-id="' + player.internalId + '" data-is-custom="' + isCustom + '">' +
-        '<div class="player-browser-select"><input type="checkbox" class="player-select-checkbox" data-id="' + player.internalId + '"' + (isSelected ? ' checked' : '') + '></div>' +
+        '<div class="player-browser-row" data-internal-id="' + playerId + '" data-is-custom="' + isCustom + '">' +
+        '<div class="player-browser-select"><input type="checkbox" class="player-select-checkbox" data-id="' + playerId + '"' + (isSelected ? ' checked' : '') + '></div>' +
         '<div class="player-browser-name">' + fullName + ' ' + hofBadge + '</div>' +
         '<div class="player-browser-position">' + (player.position || '-') + '</div>' +
         '<div class="player-browser-college">' + (player.college || '-') + '</div>' +
         '<div class="player-browser-draft">' + draftInfo + '</div>' +
         '<div class="player-browser-career">' + careerSpan + '</div>' +
         '<div class="player-browser-actions">' +
-        '<button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(' + player.internalId + ', ' + isCustom + ')" title="View/Edit">View</button>' +
-        '<button class="pb-btn pb-btn-add" onclick="window.addToRoster(' + player.internalId + ', ' + isCustom + ')" title="Add to Roster">+Roster</button>' +
-        '<button class="pb-btn pb-btn-add" onclick="window.addToDraft(' + player.internalId + ', ' + isCustom + ')" title="Add to Draft Class">+Draft</button>' +
+        '<button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(' + playerId + ', ' + isCustom + ')" title="View/Edit">View</button>' +
+        '<button class="pb-btn pb-btn-add" onclick="window.addToRoster(' + playerId + ', ' + isCustom + ')" title="Add to Roster">+Roster</button>' +
+        '<button class="pb-btn pb-btn-add" onclick="window.addToDraft(' + playerId + ', ' + isCustom + ')" title="Add to Draft Class">+Draft</button>' +
         '</div>' +
         '</div>';
     });
+
+    if (playersWithMissingId > 0) {
+      console.error('[PlayerBrowser] CRITICAL:', playersWithMissingId, 'players have missing/invalid internalId values!');
+    }
 
     container.innerHTML = html;
     updatePagination(startIdx + 1, endIdx, totalResults);
@@ -1602,7 +1613,24 @@
   }
 
   window.addToRoster = async function(internalId) {
-    console.log('[PlayerBrowser] Add to roster:', internalId);
+    console.log('[PlayerBrowser] Add to roster called with:', internalId, 'type:', typeof internalId);
+
+    // Validate internalId
+    if (internalId === undefined || internalId === null) {
+      console.error('[PlayerBrowser] ERROR: internalId is undefined/null!');
+      alert('Error: Player ID is missing. Please try selecting the player again.');
+      restoreFocusToSearch();
+      return;
+    }
+
+    // Convert to number and validate
+    const numericId = Number(internalId);
+    if (isNaN(numericId) || numericId <= 0) {
+      console.error('[PlayerBrowser] ERROR: Invalid internalId:', internalId, '-> numericId:', numericId);
+      alert('Error: Invalid player ID (' + internalId + '). Please try selecting the player again.');
+      restoreFocusToSearch();
+      return;
+    }
 
     try {
       // Check if roster is loaded or created
@@ -1613,7 +1641,8 @@
       }
 
       // Get available years for the player
-      const yearsResult = await window.electronAPI.database.getPlayerAvailableYears(internalId);
+      console.log('[PlayerBrowser] Fetching available years for player ID:', numericId);
+      const yearsResult = await window.electronAPI.database.getPlayerAvailableYears(numericId);
       if (!yearsResult.success) {
         alert('Failed to get player data: ' + yearsResult.error);
         restoreFocusToSearch();
@@ -1623,9 +1652,10 @@
       const years = yearsResult.years;
       const defaultYear = yearsResult.defaultYear;
       const playerName = yearsResult.playerName;
+      console.log('[PlayerBrowser] Player:', playerName, 'Years:', years.length > 3 ? years.slice(0, 3).join(', ') + '...' : years.join(', '));
 
       // Get player basic info for duplicate check
-      const playerInfo = currentResults.find(p => p.internalId === internalId);
+      const playerInfo = currentResults.find(p => p.internalId === numericId);
       const firstName = playerInfo ? playerInfo.firstName : '';
       const lastName = playerInfo ? playerInfo.lastName : '';
       const position = playerInfo ? playerInfo.position : '';
