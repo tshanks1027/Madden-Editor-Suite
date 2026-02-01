@@ -774,9 +774,10 @@ class MaddenEditorApp {
                         return player;
                     }));
 
-                    // Normalize body types based on weights on load
-                    this.updateLoadingProgress('Normalizing body types...', 85);
-                    this.normalizeBodyTypes();
+                    // NOTE: Body types are synced from BTYP (BLBM table) in RosterParser.js
+                    // We do NOT normalize here because BTYP is authoritative - users may
+                    // intentionally set non-standard body types for their position/weight
+                    this.updateLoadingProgress('Processing body types...', 85);
 
                     // Reset pagination
                     this.currentPage = 1;
@@ -1007,6 +1008,12 @@ class MaddenEditorApp {
     /**
      * Normalize body types based on weights for all players
      * This ensures body types match weights when a roster is loaded
+     */
+    /**
+     * Normalize body types based on weight and position.
+     * NOTE: This should only be called on user request, NOT during roster loading.
+     * The authoritative body type comes from BTYP in BLBM (synced to PCBT by RosterParser).
+     * Users may intentionally set non-standard body types for their players.
      */
     normalizeBodyTypes() {
         let updatedCount = 0;
@@ -1924,6 +1931,17 @@ class MaddenEditorApp {
 
                     // Update the player data
                     this.players[actualPlayerIndex][fieldName] = convertedValue;
+
+                    // CRITICAL FIX: If body type was changed, clear the Player Geometry ID.
+                    // This forces the game to use the generic body shape (BSHP) instead of a
+                    // specific 3D scan for real players.
+                    if (fieldName === 'BSHP') {
+                        const player = this.players[actualPlayerIndex];
+                        if (player.PGID && player.PGID !== 0) {
+                            console.log(`[Body Type Fix] Player ${player.PFNA} ${player.PLNA} has PGID ${player.PGID}. Clearing to apply body type change.`);
+                            player.PGID = 0;
+                        }
+                    }
                 }
             }
         });
@@ -3779,7 +3797,7 @@ class MaddenEditorApp {
 
     async importRosterCSV() {
         if (!this.players || this.players.length === 0) {
-            this.showError('Please load a roster file before importing CSV');
+            this.showError('Please load a roster file first (use File > Load Roster, or load a template roster). CSV import updates existing players in the loaded roster.');
             return;
         }
 
@@ -5464,8 +5482,24 @@ class MaddenEditorApp {
      * Create a new empty draft class from scratch
      * Allows users to build a draft class entirely from the database
      */
-    createNewDraftClass() {
+    async createNewDraftClass() {
         console.log('[app.js] Creating new empty draft class');
+
+        // Load template to get _originalBuffer (required for saving)
+        let templateBuffer = null;
+        let templateVersion = 'M26';
+        try {
+            const templateResult = await window.electronAPI.draftClass.loadTemplate();
+            if (templateResult.success && templateResult.data) {
+                templateBuffer = templateResult.data._originalBuffer;
+                templateVersion = templateResult.data._version || 'M26';
+                console.log('[app.js] Template loaded for new draft class, buffer size:', templateBuffer?.length || 0);
+            } else {
+                console.warn('[app.js] Could not load template - saving may fail');
+            }
+        } catch (err) {
+            console.warn('[app.js] Failed to load template:', err);
+        }
 
         // Create default header with current year
         const currentYear = new Date().getFullYear();
@@ -5475,7 +5509,9 @@ class MaddenEditorApp {
                 version: 26,
                 prospectCount: 0
             },
-            prospects: []
+            prospects: [],
+            _originalBuffer: templateBuffer,
+            _version: templateVersion
         };
         this.currentDraftFilePath = null;
 
@@ -6767,11 +6803,23 @@ class MaddenEditorApp {
                     devTrait: devTraitId,
                     // Archetype ID
                     archetype: archetypeId,
-                    // Keep body type as string (M26Writer expects strings: "Thin", "Muscular", "Heavy", or null for Standard)
-                    // "Standard" maps to null (don't write bodyType field, uses Standard_BodyType in loadouts)
-                    bodyType: prospect.bodyType === 'Standard' ? null
-                        : ['Thin', 'Muscular', 'Heavy'].includes(prospect.bodyType) ? prospect.bodyType
-                        : originalProspect.bodyType ?? null,
+                    // Keep body type as string (M26Writer expects strings: "Thin", "Muscular", "Heavy")
+                    // "Standard" is NOT a valid Madden bodyType - must use one of the three above
+                    bodyType: (() => {
+                        const bt = prospect.bodyType;
+                        console.log(`[Save] Prospect ${index}: bodyType from grid = "${bt}"`);
+                        if (bt === 'Standard' || bt === null || bt === undefined) {
+                            // Standard means no specific bodyType - use template default
+                            console.log(`[Save] Prospect ${index}: Using template default (Standard/null)`);
+                            return originalProspect.bodyType ?? null;
+                        }
+                        if (['Thin', 'Muscular', 'Heavy'].includes(bt)) {
+                            console.log(`[Save] Prospect ${index}: Using bodyType "${bt}"`);
+                            return bt;
+                        }
+                        console.log(`[Save] Prospect ${index}: Unknown bodyType "${bt}", using template default`);
+                        return originalProspect.bodyType ?? null;
+                    })(),
                     // Explicitly preserve PEPS from grid
                     PEPS: prospect.PEPS
                 };
@@ -6791,9 +6839,26 @@ class MaddenEditorApp {
                     console.log(`[Save] Updated visuals.genericHeadName for prospect ${index + 1}: ${updated.visuals.genericHeadName}`);
 
                     // Update bodyType from grid or original
-                    if (prospect.bodyType !== undefined) {
+                    // Must update BOTH: top-level bodyType AND the loadout itemAssetName
+                    if (prospect.bodyType !== undefined && prospect.bodyType !== 'Standard') {
                         updated.visuals.bodyType = prospect.bodyType;
                         console.log(`[Save] Updated visuals.bodyType for prospect ${index + 1}: ${prospect.bodyType}`);
+
+                        // Also update loadout itemAssetName if loadouts exist
+                        const bodyTypeAssetName = `${prospect.bodyType}_BodyType`;
+                        if (updated.visuals.loadouts && Array.isArray(updated.visuals.loadouts)) {
+                            for (const loadout of updated.visuals.loadouts) {
+                                if (loadout.loadoutElements && Array.isArray(loadout.loadoutElements)) {
+                                    for (const element of loadout.loadoutElements) {
+                                        if (element.slotType === 'CharacterBodyType' ||
+                                            (element.itemAssetName && element.itemAssetName.endsWith('_BodyType'))) {
+                                            element.itemAssetName = bodyTypeAssetName;
+                                            console.log(`[Save] Updated loadout bodyType for prospect ${index + 1}: ${bodyTypeAssetName}`);
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -7182,10 +7247,37 @@ class MaddenEditorApp {
                                 if (node.data) currentData.push(node.data);
                             });
                         } else {
-                            currentData = this.draftGrid.getSourceData();
+                            currentData = this.draftGrid.getSourceData() || [];
                         }
+
+                        console.log('[Draft Import] Current grid data count:', currentData.length);
+                        if (currentData.length > 0) {
+                            console.log('[Draft Import] Sample grid data:', currentData[0]);
+                        }
+
+                        // Numeric fields that should be parsed as numbers
+                        const numericFields = ['overall', 'acceleration', 'agility', 'awareness', 'speed', 'strength',
+                            'catching', 'carrying', 'tackle', 'injury', 'stamina', 'jumping',
+                            'throwPower', 'kickPower', 'kickAccuracy', 'age', 'jerseyNum',
+                            'draftPosition', 'draftRound', 'heightInches', 'weight', 'PID',
+                            'blockShedding', 'breakTackle', 'ballCarrierVision', 'breakSack',
+                            'catchInTraffic', 'deepRouteRunning', 'changeOfDirection', 'finesseMoves',
+                            'hitPower', 'impactBlocking', 'jukeMove', 'kickReturn', 'longSnap',
+                            'leadBlock', 'manCoverage', 'mediumRouteRunning', 'passBlock',
+                            'passBlockFinesse', 'passBlockPower', 'playAction', 'powerMoves',
+                            'pressCoverage', 'pursuit', 'playRecognition', 'release', 'runBlock',
+                            'runBlockFinesse', 'runBlockPower', 'shortRouteRunning', 'spectacularCatch',
+                            'spinMove', 'stiffArm', 'throwAccuracyDeep', 'throwAccuracyMid',
+                            'throwAccuracyShort', 'throwOnTheRun', 'throwUnderPressure', 'toughness',
+                            'trucking', 'zoneCoverage'];
+
                         let updatedCount = 0;
+                        let createdCount = 0;
                         let errors = [];
+
+                        // Determine mode: create new data if grid is empty, otherwise update
+                        const isCreateMode = currentData.length === 0;
+                        console.log('[Draft Import] Mode:', isCreateMode ? 'CREATE (grid empty)' : 'UPDATE (grid has data)');
 
                         // Process each data row
                         for (let i = 1; i < lines.length; i++) {
@@ -7196,34 +7288,34 @@ class MaddenEditorApp {
                             const draftPosIdx = headerIndex['draftPosition'];
                             const draftPos = draftPosIdx !== undefined ? parseInt(values[draftPosIdx]) : i - 1;
 
-                            // Find matching row in grid by draft position
-                            const rowIndex = currentData.findIndex(p => p.draftPosition === draftPos);
-                            if (rowIndex === -1) {
-                                errors.push(`Row ${i}: No matching draft position ${draftPos}`);
-                                continue;
-                            }
+                            let prospect;
 
-                            const prospect = currentData[rowIndex];
+                            if (isCreateMode) {
+                                // Create new prospect object from CSV data
+                                prospect = {};
+                                currentData.push(prospect);
+                                createdCount++;
+                            } else {
+                                // Find matching row in grid by draft position (numeric comparison)
+                                const rowIndex = currentData.findIndex(p => parseInt(p.draftPosition) === draftPos);
+                                if (rowIndex === -1) {
+                                    // Try to create new entry if no match found
+                                    prospect = { draftPosition: draftPos };
+                                    currentData.push(prospect);
+                                    createdCount++;
+                                    console.log(`[Draft Import] Row ${i}: Created new entry for draft position ${draftPos}`);
+                                } else {
+                                    prospect = currentData[rowIndex];
+                                    updatedCount++;
+                                }
+                            }
 
                             // Update each field
                             Object.entries(headerIndex).forEach(([prop, colIdx]) => {
                                 const value = values[colIdx];
                                 if (value !== undefined && value !== '') {
                                     // Convert numeric fields
-                                    if (['overall', 'acceleration', 'agility', 'awareness', 'speed', 'strength',
-                                         'catching', 'carrying', 'tackle', 'injury', 'stamina', 'jumping',
-                                         'throwPower', 'kickPower', 'kickAccuracy', 'age', 'jerseyNum',
-                                         'draftPosition', 'draftRound', 'heightInches', 'weight', 'PID',
-                                         'blockShedding', 'breakTackle', 'ballCarrierVision', 'breakSack',
-                                         'catchInTraffic', 'deepRouteRunning', 'changeOfDirection', 'finesseMoves',
-                                         'hitPower', 'impactBlocking', 'jukeMove', 'kickReturn', 'longSnap',
-                                         'leadBlock', 'manCoverage', 'mediumRouteRunning', 'passBlock',
-                                         'passBlockFinesse', 'passBlockPower', 'playAction', 'powerMoves',
-                                         'pressCoverage', 'pursuit', 'playRecognition', 'release', 'runBlock',
-                                         'runBlockFinesse', 'runBlockPower', 'shortRouteRunning', 'spectacularCatch',
-                                         'spinMove', 'stiffArm', 'throwAccuracyDeep', 'throwAccuracyMid',
-                                         'throwAccuracyShort', 'throwOnTheRun', 'throwUnderPressure', 'toughness',
-                                         'trucking', 'zoneCoverage'].includes(prop)) {
+                                    if (numericFields.includes(prop)) {
                                         const numVal = parseFloat(value);
                                         if (!isNaN(numVal)) {
                                             prospect[prop] = numVal;
@@ -7233,9 +7325,10 @@ class MaddenEditorApp {
                                     }
                                 }
                             });
-
-                            updatedCount++;
                         }
+
+                        // Sort by draft position to maintain order
+                        currentData.sort((a, b) => (parseInt(a.draftPosition) || 0) - (parseInt(b.draftPosition) || 0));
 
                         // Update the grid (support AG-Grid and Handsontable)
                         if (this.draftAgGrid) {
@@ -7248,8 +7341,11 @@ class MaddenEditorApp {
                             console.warn('[Draft Import] Errors:', errors);
                         }
 
-                        this.setStatus(`Imported ${updatedCount} prospects from CSV`);
-                        console.log(`[Draft Import] Updated ${updatedCount} prospects`);
+                        const statusMsg = createdCount > 0
+                            ? `Imported ${updatedCount + createdCount} prospects (${updatedCount} updated, ${createdCount} created)`
+                            : `Updated ${updatedCount} prospects from CSV`;
+                        this.setStatus(statusMsg);
+                        console.log(`[Draft Import] ${statusMsg}`);
 
                     } catch (error) {
                         console.error('[Draft Import] Error:', error);
@@ -8482,8 +8578,24 @@ class MaddenEditorApp {
                 const templateVisuals = templateData.prospects[index]?.visuals || null;
 
                 // CRITICAL: Update template visuals' bodyType to match our generated bodyType
+                // Must update BOTH: top-level bodyType AND the loadout itemAssetName
                 if (templateVisuals && player.bodyType) {
                     templateVisuals.bodyType = player.bodyType;
+
+                    // Also update loadout itemAssetName (game reads body type from here!)
+                    const bodyTypeAssetName = `${player.bodyType}_BodyType`;
+                    if (templateVisuals.loadouts && Array.isArray(templateVisuals.loadouts)) {
+                        for (const loadout of templateVisuals.loadouts) {
+                            if (loadout.loadoutElements && Array.isArray(loadout.loadoutElements)) {
+                                for (const element of loadout.loadoutElements) {
+                                    if (element.slotType === 'CharacterBodyType' ||
+                                        (element.itemAssetName && element.itemAssetName.endsWith('_BodyType'))) {
+                                        element.itemAssetName = bodyTypeAssetName;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 return {

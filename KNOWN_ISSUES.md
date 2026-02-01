@@ -625,6 +625,205 @@ Compared visible FA players (Shaq Mason, Stephon Gilmore) vs invisible moved pla
 
 ---
 
+### Issue: Body Type shows wrong value in editor (display bug)
+
+**Symptoms:**
+- File data shows PCBT=4 (Lean) for a player
+- Editor UI shows "Heavy" (value 3) instead
+- Sorting the grid causes values to appear misaligned
+- Body type doesn't match what you set in-game
+
+**Root Cause:**
+The `normalizeBodyTypes()` function was called during roster loading, which recalculated body types based on weight and position - overwriting the authoritative BTYP value from the BLBM table.
+
+For example, Quinnen Williams (DT):
+- BTYP in BLBM = 4 (Lean) - what the game uses
+- RosterParser synced PCBT = 4 (Lean) - correct!
+- `normalizeBodyTypes()` saw DT position → forced PCBT = 3 (Heavy) - WRONG!
+
+The function at line 921-923 always returns Heavy (3) for linemen regardless of weight:
+```javascript
+if (heavyPositions.includes(position)) {
+    return 3; // Always Heavy for OL/DT
+}
+```
+
+**Solution:**
+Remove the `normalizeBodyTypes()` call during roster loading. The BTYP value from BLBM (synced to PCBT by RosterParser) is the **authoritative source** - users may intentionally set non-standard body types.
+
+```javascript
+// In app.js loadRosterFile() - REMOVED:
+// this.normalizeBodyTypes();
+
+// REPLACED WITH:
+// NOTE: Body types are synced from BTYP (BLBM table) in RosterParser.js
+// We do NOT normalize here because BTYP is authoritative
+```
+
+**Key Insight:**
+- BTYP in BLBM table = what the game actually reads for body type
+- PCBT in PLAY table = display value only, synced from BTYP on load
+- Missing BTYP = Standard (0) body type (game default)
+- User edits should be preserved, not overwritten by "smart" normalization
+
+**Fixed In:** app.js `loadRosterFile()` method - removed normalizeBodyTypes() call
+
+---
+
+### Issue: Body Type visual doesn't change in-game (ITAN field)
+
+**Symptoms:**
+- Change body type in editor (e.g., Lean to Heavy)
+- Save file - BTYP and PCBT values are correct
+- In-game UI shows "Heavy" but **3D body model is still Lean**
+- The label changed but the actual visual didn't
+
+**Root Cause:**
+The 3D body mesh is controlled by `ITAN` field in a nested subtable, NOT by BTYP:
+```
+BLBM → LOUT[1] (LDTY=0) → PINS → SLOT=129 → ITAN
+```
+
+Body type ITAN values:
+- `Standard_BodyType`
+- `Thin_BodyType`
+- `Muscular_BodyType`
+- `Heavy_BodyType`
+- `Lean_BodyType`
+
+**Solution:**
+When changing body type, update ALL of these:
+1. `PLAY.PCBT` - The body type code (0-4)
+2. `BLBM.BTYP` - Body type in appearance data
+3. `BLBM.WLBS` - Weight for body sizing
+4. `BLBM.LOUT[].PINS.SLOT=129.ITAN` - **The actual 3D mesh control**
+
+```javascript
+// In GenericFaceService.js syncBodyTypeForAllPlayers():
+const BODY_TYPE_NAMES = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+const bodyTypeName = BODY_TYPE_NAMES[pcbt] || 'Standard';
+const targetITAN = `${bodyTypeName}_BodyType`;
+
+// Find LOUT → PINS → SLOT=129 and update ITAN
+const lout = fields['LOUT']?.value;
+for (const loutRec of lout._records) {
+  const pins = loutFields?.PINS?.value;
+  for (const pinRec of pins._records) {
+    if (pinFields?.SLOT?.value === 129) {
+      pinFields.ITAN.value = targetITAN;
+    }
+  }
+}
+```
+
+**Key Discovery (Jan 2025):**
+- BTYP controls the UI label only
+- ITAN in LOUT→PINS→SLOT=129 controls the actual 3D body mesh
+- Both must be updated for body type to work correctly
+
+**Fixed In:** GenericFaceService.js `syncBodyTypeForAllPlayers()` method
+
+---
+
+### Issue: Body Type changes don't persist for players without BTYP field
+
+**Symptoms:**
+- Change body type from Standard (0) to Heavy (3) for Dak Prescott
+- Save file
+- Reload file - body type is back to Standard
+- In-game, body type unchanged
+
+**Root Cause:**
+The BLBM table has **variable structure** - different players have different fields:
+
+| Player | Has BTYP? | Original Fields |
+|--------|-----------|-----------------|
+| Dak Prescott | NO | 12 fields |
+| George Pickens | YES | 13 fields |
+| In-game edited | YES | 16 fields |
+
+Players without BTYP in BLBM default to Standard (0). The GenericFaceService only updated BTYP if the field already existed:
+```javascript
+// WRONG - only updates existing BTYP:
+if (fields['BTYP']) {
+  fields['BTYP'].value = pcbt;
+}
+```
+
+**Solution:**
+Create the BTYP field when it doesn't exist and user sets a non-Standard body type:
+
+```javascript
+// In GenericFaceService.js syncBTYP():
+if (fields['BTYP']) {
+  // Update existing field
+  fields['BTYP'].value = pcbt;
+} else if (pcbt !== 0) {
+  // CREATE new BTYP field for non-Standard body types
+  const newField = new TDB2Field();
+  newField.key = 'BTYP';
+  newField.type = FIELD_TYPE_INT;
+  newField.rawKey = Buffer.from([...utilService.compress6BitString('BTYP'), FIELD_TYPE_INT]);
+  newField.value = pcbt;
+  newField._isChanged = true;
+  fields['BTYP'] = newField;
+}
+```
+
+**Key Pattern:**
+- BTYP only exists for NON-Standard body types in original files
+- Missing BTYP = Standard (0) is the game default
+- We only need to create BTYP when setting non-Standard values
+
+**Fixed In:** GenericFaceService.js `syncBTYP()` method - now creates BTYP field when needed
+
+---
+
+### Issue: Body Type edits not applying in-game for real players
+
+**Symptoms:**
+- Setting a player with a real-life headscan (e.g., Quinnen Williams) to "Heavy" in the editor.
+- In-game, the player's body type appears unchanged (e.g., "Lean" or "Standard").
+- Edits to created players or players without a headscan work correctly.
+
+**Root Cause:**
+Real NFL players have a non-zero `PGID` (Player Geometry ID) field in the `Player` table, which links them to their specific 3D-scanned body model. When this `PGID` is set to any value other than `0`, the game engine **ignores** the `BSHP` (Body Shape) field and renders the scanned model instead.
+
+**Solution:**
+To force a body type change on a real player, you must "detach" them from their scanned model by clearing the `PGID`. This logic works for both real and generic players (generic players already have `PGID=0`).
+
+Use this helper function logic when saving body type changes:
+
+```typescript
+/**
+ * Updates a player's body type ensuring it renders in-game.
+ * Handles both Real (scanned) and Generic players correctly.
+ */
+function updatePlayerBodyType(playerRecord, newBodyType) {
+  // 1. Set the Body Shape (BSHP)
+  playerRecord.BSHP = newBodyType; // e.g., 'Heavy'
+
+  // 2. CRITICAL: Clear PGID to force the game to use the BSHP value.
+  // - For Real Players (PGID != 0): This removes the face scan but allows body editing.
+  // - For Generic Players (PGID == 0): This is a no-op and safe.
+  if (playerRecord.PGID !== 0) {
+    console.log(`Clearing PGID for ${playerRecord.FirstName} ${playerRecord.LastName} to apply body type.`);
+    playerRecord.PGID = 0;
+  }
+}
+```
+
+**Important Trade-off:**
+Clearing `PGID` will cause real players to **lose their real-life face scan** and revert to a generic face (defined by `PGHE`). This is unavoidable because scanned meshes have fixed body geometry that cannot be modified dynamically.
+
+**Impact on Generic Players:**
+This fix is safe for generic players (draft classes, created players). They already have `PGID = 0`, so this logic simply ensures they remain editable.
+
+**Prevention:**
+- Any UI component that allows editing `PlayerBodyType` (`BSHP`) must also set `PGID` to `0`.
+
+---
+
 ## M26 Draft Class Save Errors
 
 ### Issue: M26 draft files fail to save with "argument must be a string" error

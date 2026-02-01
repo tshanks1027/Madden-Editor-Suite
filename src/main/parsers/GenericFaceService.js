@@ -13,6 +13,13 @@
 const path = require('path');
 const fs = require('fs');
 
+// Import TDB2Field for creating new BLBM fields (e.g., BTYP when missing)
+const TDB2Field = require(path.join(__dirname, '..', 'lib', 'filetypes', 'TDB2', 'TDB2Field'));
+const utilService = require(path.join(__dirname, '..', 'lib', 'services', 'utilService'));
+
+// Field type constants (must match TDB2Field.js)
+const FIELD_TYPE_INT = 0;
+
 console.log('[GenericFaceService] Module loading...');
 
 // Load GENR catalog for validating face values
@@ -1036,12 +1043,33 @@ class GenericFaceService {
       let updated = false;
       const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
 
-      // Update BTYP to match PCBT (if BTYP field exists)
+      // Update BTYP to match PCBT (create field if it doesn't exist)
       if (fields['BTYP']) {
         const currentBtyp = fields['BTYP'].value;
         if (currentBtyp !== pcbt) {
           fields['BTYP'].value = pcbt;
           updated = true;
+        }
+      } else if (pcbt !== 0) {
+        // BTYP field doesn't exist - need to CREATE it for non-Standard body types
+        // Players without BTYP default to Standard (0) in-game, so only add if non-standard
+        try {
+          const newField = new TDB2Field();
+          newField.key = 'BTYP';
+          newField.type = FIELD_TYPE_INT;
+          newField.rawKey = Buffer.from([...utilService.compress6BitString('BTYP'), FIELD_TYPE_INT]);
+          newField.value = pcbt;
+          newField._isChanged = true;
+
+          // Add to the record's fields
+          fields['BTYP'] = newField;
+          updated = true;
+
+          if (updatedCount < 10) {
+            console.log(`[GenericFaceService] ${playerName}: CREATED BTYP field with value ${pcbt}`);
+          }
+        } catch (e) {
+          console.error(`[GenericFaceService] Failed to create BTYP field for ${playerName}:`, e.message);
         }
       }
 
@@ -1062,6 +1090,51 @@ class GenericFaceService {
             }
           }
         }
+      }
+
+      // CRITICAL: Update ITAN in LOUT→PINS→SLOT=129 - this controls the actual 3D body mesh!
+      // Body type names: Standard_BodyType, Thin_BodyType, Muscular_BodyType, Heavy_BodyType, Lean_BodyType
+      const BODY_TYPE_NAMES = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+      const bodyTypeName = BODY_TYPE_NAMES[pcbt] || 'Standard';
+      const targetITAN = `${bodyTypeName}_BodyType`;
+
+      try {
+        const lout = fields['LOUT']?.value;
+        if (lout && lout._records) {
+          // Find LOUT record with body type PINS (typically LDTY=0)
+          for (const loutRec of lout._records) {
+            const loutFields = loutRec?.fields || loutRec?._fields;
+            const pins = loutFields?.PINS?.value;
+
+            if (pins && pins._records) {
+              // Find PINS record with SLOT=129 (body type slot)
+              for (const pinRec of pins._records) {
+                const pinFields = pinRec?.fields || pinRec?._fields;
+                const slot = pinFields?.SLOT?.value ?? pinFields?.SLOT?._value;
+
+                if (slot === 129) {
+                  const currentITAN = pinFields?.ITAN?.value ?? pinFields?.ITAN?._value;
+
+                  if (currentITAN !== targetITAN) {
+                    // Update ITAN to new body type
+                    if (pinFields?.ITAN) {
+                      pinFields.ITAN.value = targetITAN;
+                      pinFields.ITAN._isChanged = true;
+                      updated = true;
+
+                      if (updatedCount < 10) {
+                        console.log(`[GenericFaceService] ${playerName}: ITAN ${currentITAN} -> ${targetITAN}`);
+                      }
+                    }
+                  }
+                  break; // Found SLOT=129, done with this player
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[GenericFaceService] Failed to update ITAN for ${playerName}:`, e.message);
       }
 
       if (updated) {
