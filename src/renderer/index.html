@@ -1744,6 +1744,11 @@
                                                             <option value="manual">Manual Selection</option>
                                                         </select>
                                                     </div>
+                                                    <div class="retro-change-item" style="margin-bottom: 8px;">
+                                                        <span class="change-label">Roster File (for OVR):</span>
+                                                        <button id="select-roster-for-draft-btn" class="btn btn-secondary btn-sm" style="margin-left: 8px;">Select...</button>
+                                                        <span id="roster-for-draft-name" style="margin-left: 8px; font-size: 0.85rem; color: var(--text-secondary);">Not selected</span>
+                                                    </div>
                                                     <div class="retro-change-item">
                                                         <span class="change-label">Protected per team:</span>
                                                         <span id="expansion-protected-count" class="change-value">--</span>
@@ -1790,6 +1795,14 @@
                                     <div id="retro-salary-cap-info" class="retro-changes-list">
                                         <div id="retro-salary-cap-status" class="salary-cap-status">
                                             <p class="no-changes">Checking salary cap data...</p>
+                                        </div>
+                                        <div class="salary-cap-edit" style="margin-top: 12px; display: flex; align-items: center; gap: 10px;">
+                                            <label for="retro-salary-cap-custom" style="flex-shrink: 0;">Custom Cap ($M):</label>
+                                            <input type="number" id="retro-salary-cap-custom" min="0" max="999" step="0.1"
+                                                   placeholder="255.4" style="width: 100px; padding: 6px;">
+                                            <span style="font-size: 0.85em; color: var(--text-secondary);">
+                                                (Leave blank to use historical value)
+                                            </span>
                                         </div>
                                     </div>
                                 </div>

@@ -14,6 +14,7 @@ let retroState = {
   currentStep: 1,
   filePath: null,
   fileMetadata: null,
+  rosterPath: null,     // Optional roster file path for OVR lookup in expansion draft
   targetYear: null,
   previewData: null,
   schedulePreview: null,
@@ -785,6 +786,8 @@ async function loadCoachPreview() {
 async function loadSalaryCapPreview() {
   try {
     const salaryCapStatusDiv = document.getElementById('retro-salary-cap-status');
+    const customCapInput = document.getElementById('retro-salary-cap-custom');
+
     if (!salaryCapStatusDiv) {
       console.log('[RetroEditor] Salary cap status div not found, skipping');
       return;
@@ -800,12 +803,17 @@ async function loadSalaryCapPreview() {
 
       salaryCapStatusDiv.innerHTML = `
         <div class="salary-cap-available" style="color: var(--success-color);">
-          <strong>Salary Cap: ${formattedCap}</strong>
+          <strong>Historical Cap: ${formattedCap}</strong>
           ${capData.note ? `<br><span style="font-size: 0.85em; color: var(--text-secondary);">${capData.note}</span>` : ''}
         </div>
       `;
 
       retroState.salaryCapData = capData;
+
+      // Set placeholder to historical value (in millions)
+      if (customCapInput && capData.value > 0) {
+        customCapInput.placeholder = (capData.value / 1000000).toFixed(1);
+      }
     } else {
       salaryCapStatusDiv.innerHTML = `
         <p class="no-changes">Unable to load salary cap data</p>
@@ -822,6 +830,23 @@ async function loadSalaryCapPreview() {
       `;
     }
   }
+}
+
+/**
+ * Get the effective salary cap (custom or historical)
+ * Returns value in dollars (not millions)
+ */
+function getEffectiveSalaryCap() {
+  const customCapInput = document.getElementById('retro-salary-cap-custom');
+  const customValue = customCapInput ? parseFloat(customCapInput.value) : NaN;
+
+  if (!isNaN(customValue) && customValue > 0) {
+    // Custom cap entered (in millions), convert to dollars
+    return customValue * 1000000;
+  }
+
+  // Use historical cap
+  return retroState.salaryCapData?.value || 0;
 }
 
 /**
@@ -1013,6 +1038,10 @@ async function applyChanges() {
     const expansionCheckbox = document.getElementById('retro-opt-expansion');
     const expansionEnabled = expansionCheckbox && expansionCheckbox.checked;
 
+    // Get the effective salary cap (custom or historical)
+    const effectiveSalaryCap = getEffectiveSalaryCap();
+    const hasValidSalaryCap = effectiveSalaryCap > 0;
+
     const config = {
       sourcePath: retroState.filePath,
       saveAs: false, // Will be set based on user choice
@@ -1022,12 +1051,14 @@ async function applyChanges() {
         abbreviations: opts.abbreviations || false,
         schedule: opts.schedule && retroState.schedulePreview !== null,
         coaches: opts.coaches && retroState.coachPreview !== null,
-        salaryCap: retroState.salaryCapData !== null,
+        salaryCap: hasValidSalaryCap, // Enable if we have a valid cap (custom or historical)
         stadiums: retroState.stadiumPreview !== null,
         schemes: retroState.schemePreview !== null,
         uniforms: true, // Always apply uniforms
         expansion: expansionEnabled && retroState.expansionEvent !== null
       },
+      // Pass the custom salary cap value (in dollars) if set, null otherwise
+      customSalaryCap: hasValidSalaryCap ? effectiveSalaryCap : null,
       expansionEvent: (expansionEnabled && retroState.expansionEvent) ? retroState.expansionEvent : null,
       expansionDraftSelections: retroState.expansionDraftSelections || [], // Manual selections from draft board
       expansionTeamIndices: retroState.expansionTeamIndices || [] // Team indices for clearing rosters
@@ -2596,9 +2627,11 @@ async function proceedToExpansionDraft() {
 
     // Get eligible players
     console.log('[ExpansionDraft] Calling getEligiblePlayers for file:', retroState.filePath);
+    console.log('[ExpansionDraft] Roster path for OVR lookup:', retroState.rosterPath || 'not set');
     const eligibleResult = await window.electronAPI.retro.getEligiblePlayers(
       retroState.filePath,
-      event
+      event,
+      retroState.rosterPath  // Optional roster file for correct OVR values
     );
 
     console.log('[ExpansionDraft] getEligiblePlayers result:', eligibleResult?.success, 'count:', eligibleResult?.players?.length);
@@ -3231,6 +3264,27 @@ async function executeExpansionDraftFromBoard() {
 
 // Wire up expansion draft board handlers
 document.addEventListener('DOMContentLoaded', () => {
+  // Select roster file for OVR lookup
+  const selectRosterBtn = document.getElementById('select-roster-for-draft-btn');
+  if (selectRosterBtn) {
+    selectRosterBtn.onclick = async () => {
+      try {
+        const result = await window.electronAPI.retro.selectFile();
+        if (result.cancelled) return;
+        if (!result.success) {
+          alert('Error selecting file: ' + result.error);
+          return;
+        }
+        retroState.rosterPath = result.filePath;
+        const fileName = result.filePath.split(/[\\/]/).pop();
+        document.getElementById('roster-for-draft-name').textContent = fileName || 'Selected';
+        console.log('[RetroEditor] Roster file for OVR lookup:', result.filePath);
+      } catch (e) {
+        console.error('[RetroEditor] Error selecting roster file:', e);
+      }
+    };
+  }
+
   // Open draft board button
   const openBtn = document.getElementById('open-expansion-draft-btn');
   if (openBtn) {

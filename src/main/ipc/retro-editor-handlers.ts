@@ -1012,14 +1012,18 @@ ipcMain.handle('retro:prepare-expansion-draft', async (event, filePath: string, 
 /**
  * Handle: retro:get-eligible-players
  * Get players eligible for expansion draft
+ * @param filePath - Path to the franchise file
+ * @param expansionEvent - The expansion event details
+ * @param rosterPath - Optional path to roster file to read correct OVR values from
  */
-ipcMain.handle('retro:get-eligible-players', async (event, filePath: string, expansionEvent: any) => {
+ipcMain.handle('retro:get-eligible-players', async (event, filePath: string, expansionEvent: any, rosterPath?: string) => {
   console.log('[retro-editor-handlers] ===== GET ELIGIBLE PLAYERS =====');
   console.log('[retro-editor-handlers] File:', filePath);
   console.log('[retro-editor-handlers] Event:', expansionEvent?.name);
+  console.log('[retro-editor-handlers] Roster path:', rosterPath || 'not provided');
 
   try {
-    const result = await retroEditorService.getEligiblePlayersForExpansionDraft(filePath, expansionEvent);
+    const result = await retroEditorService.getEligiblePlayersForExpansionDraft(filePath, expansionEvent, rosterPath);
     if (result.success) {
       console.log('[retro-editor-handlers] Found', result.players?.length, 'eligible players');
     }
@@ -1289,7 +1293,8 @@ ipcMain.handle('retro:apply-all-and-save', async (event, config: {
         options: config.options,
         expansionEvent: config.expansionEvent,
         expansionDraftSelections: config.expansionDraftSelections,
-        expansionTeamIndices: config.expansionTeamIndices
+        expansionTeamIndices: config.expansionTeamIndices,
+        customSalaryCap: config.customSalaryCap // Custom cap in dollars, or undefined to use historical
       }
     );
 

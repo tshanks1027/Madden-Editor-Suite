@@ -1227,10 +1227,14 @@ export class RetroEditorService {
   /**
    * Get players eligible for an expansion draft
    * Returns all players from existing teams that can be drafted
+   * @param filePath - Path to the franchise file
+   * @param event - The expansion event details
+   * @param rosterPath - Optional path to roster file to read correct OVR values from
    */
   async getEligiblePlayersForExpansionDraft(
     filePath: string,
-    event: ExpansionEvent
+    event: ExpansionEvent,
+    rosterPath?: string
   ): Promise<{ success: boolean; players?: PlayerForDraft[]; error?: string }> {
     try {
       const franchise = this.getFranchise(filePath);
@@ -1248,6 +1252,16 @@ export class RetroEditorService {
       }
       await playerTable.readRecords();
 
+      // Debug: Log table field definitions to find OVR field name
+      if (playerTable.fieldDefinitions && playerTable.fieldDefinitions.length > 0) {
+        const ovrFieldDefs = playerTable.fieldDefinitions.filter((f: any) =>
+          (f.name || f.key || '').toLowerCase().includes('overall') ||
+          (f.name || f.key || '').toLowerCase().includes('ovr') ||
+          (f.name || f.key || '').toLowerCase().includes('rating')
+        );
+        console.log(`[getEligiblePlayers] TABLE FIELD DEFINITIONS with OVR:`, ovrFieldDefs.map((f: any) => f.name || f.key));
+      }
+
       // Get team table for team names
       let teamTable = franchise.getTableByName('Team');
       if (!teamTable) {
@@ -1257,6 +1271,63 @@ export class RetroEditorService {
         throw new Error('Team table not found');
       }
       await teamTable.readRecords();
+
+      // Build OVR lookup from roster file if provided (has correct OVR values)
+      // The roster file uses POVR field for OVR, while franchise file has garbage values
+      const rosterOvrMap = new Map<string, number>();
+      if (rosterPath) {
+        try {
+          const RosterParser = require(require('path').join(__dirname, 'parsers', 'RosterParser.js'));
+          const { parseRosterFile } = RosterParser;
+          const rosterData = await parseRosterFile(rosterPath);
+          console.log(`[getEligiblePlayersForExpansionDraft] Loaded roster file with ${rosterData.playerCount} players`);
+
+          // Build lookup by firstName_lastName
+          for (const player of rosterData.players || []) {
+            if (!player.PFNA || !player.PLNA) continue;
+            const key = `${player.PFNA}_${player.PLNA}`.toLowerCase();
+            const ovr = player.POVR || 0;
+            if (ovr > 0) {
+              // Keep highest OVR if duplicates
+              const existing = rosterOvrMap.get(key) || 0;
+              if (ovr > existing) {
+                rosterOvrMap.set(key, ovr);
+              }
+            }
+          }
+          console.log(`[getEligiblePlayersForExpansionDraft] Built roster OVR lookup with ${rosterOvrMap.size} players`);
+        } catch (e: any) {
+          console.warn(`[getEligiblePlayersForExpansionDraft] Failed to load roster file: ${e.message}`);
+        }
+      }
+
+      // Fallback: Load player OVR data from database for this year
+      const year = event.year;
+      const dbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
+      console.log(`[getEligiblePlayersForExpansionDraft] Loaded ${dbPlayers.length} players from database for year ${year}`);
+
+      // Build lookup map by firstName_lastName for OVR lookup
+      const ovrLookupMap = new Map<string, number>();
+      for (const dbPlayer of dbPlayers) {
+        const key = `${dbPlayer.firstName}_${dbPlayer.lastName}`.toLowerCase();
+        const ovr = dbPlayer.ratings?.POVR || 0;
+        if (ovr > 0) {
+          // Keep the highest OVR if there are duplicates
+          const existing = ovrLookupMap.get(key) || 0;
+          if (ovr > existing) {
+            ovrLookupMap.set(key, ovr);
+          }
+        }
+      }
+      console.log(`[getEligiblePlayersForExpansionDraft] Built OVR lookup map with ${ovrLookupMap.size} players`);
+
+      // Debug: Log some sample entries from the map
+      const sampleKeys = Array.from(ovrLookupMap.keys()).slice(0, 10);
+      console.log(`[getEligiblePlayersForExpansionDraft] Sample DB names: ${sampleKeys.join(', ')}`);
+
+      // Track stats for debugging
+      let dbMatchCount = 0;
+      let dbMissCount = 0;
 
       // Build team name map from historicalTeams (already loaded from historical-teams.json)
       const teamNameMap = new Map<number, string>();
@@ -1291,46 +1362,56 @@ export class RetroEditorService {
       for (const player of playerTable.records) {
         if (player.isEmpty) continue;
 
-        // Log field names once to discover contract field names
+        // Look for first non-empty player to dump ALL fields (for debugging OVR)
         if (!loggedFields) {
-          const fieldNames = Object.keys(player).filter(k => !k.startsWith('_'));
-          // Look specifically for contract-related fields
-          const contractFields = fieldNames.filter(f =>
-            f.toLowerCase().includes('contract') ||
-            f.toLowerCase().includes('salary') ||
-            f.toLowerCase().includes('cap') ||
-            f.toLowerCase().includes('year') ||
-            f.startsWith('PS') ||
-            f.startsWith('PC')
-          );
+          console.log(`[RetroEditorService] *** DEBUG: First player found: ${player.FirstName} ${player.LastName}, OverallRating=${player.OverallRating}, Age=${player.Age}`);
+          try {
+            const fs = require('fs');
+            const debugPath = require('path').join(process.cwd(), 'player-fields-debug.txt');
+            console.log(`[RetroEditorService] *** DEBUG: Writing to ${debugPath}`);
+            // Get all field names from _fields (the internal field object)
+            const fieldsObj = player._fields || player.fields || {};
+            const allFieldNames = Object.keys(fieldsObj).filter(k => !k.startsWith('_')).sort();
+            // Also try Object.keys on player directly to catch proxy properties
+            const proxyKeys = Object.keys(player).filter(k => !k.startsWith('_')).sort();
+
+            // Build comprehensive debug content
+            const ovrRelatedFields = allFieldNames.filter(f =>
+              f.toLowerCase().includes('overall') ||
+              f.toLowerCase().includes('ovr') ||
+              f.toLowerCase().includes('rating')
+            );
+
+            let debugContent = `=== PLAYER FIELDS DEBUG (from first player) ===
+Player: ${player.FirstName} ${player.LastName}
+
+OVR-RELATED FIELDS: ${ovrRelatedFields.join(', ') || 'NONE FOUND'}
+
+FIELD ACCESS TESTS:
+  player.OverallRating = ${player.OverallRating}
+  player.Overall = ${player.Overall}
+  player.POVR = ${player.POVR}
+  player.PlayerOverall = ${player.PlayerOverall}
+  player.OverallValue = ${player.OverallValue}
+  player.Age = ${player.Age}
+  player.Position = ${player.Position}
+  player.TeamIndex = ${player.TeamIndex}
+
+ALL FIELD NAMES (${allFieldNames.length} fields from _fields):
+${allFieldNames.join('\n')}
+
+PROXY KEYS (${proxyKeys.length} keys from Object.keys):
+${proxyKeys.join('\n')}
+
+ALL FIELD VALUES (first 100 fields):
+${allFieldNames.slice(0, 100).map(f => `  ${f}: ${player[f]}`).join('\n')}
+`;
+            fs.writeFileSync(debugPath, debugContent);
+            console.log('[RetroEditorService] COMPLETE PLAYER FIELDS DEBUG written successfully');
+          } catch (err: any) {
+            console.error('[RetroEditorService] *** DEBUG: FAILED to write debug file:', err.message);
+          }
           loggedFields = true;
-        }
-
-        // Look for Kirk Cousins specifically to debug contract values
-        if (player.LastName === 'Cousins' && player.FirstName === 'Kirk') {
-          const fs = require('fs');
-          const debugPath = require('path').join(process.cwd(), 'player-fields-debug.txt');
-          const debugContent = `Player: ${player.FirstName} ${player.LastName}
-
-Contract fields:
-ContractLength: ${player.ContractLength}
-ContractYear: ${player.ContractYear}
-ContractSalary0: ${player.ContractSalary0}
-ContractSalary1: ${player.ContractSalary1}
-ContractSalary2: ${player.ContractSalary2}
-ContractSalary3: ${player.ContractSalary3}
-ContractBonus0: ${player.ContractBonus0}
-ContractBonus1: ${player.ContractBonus1}
-ContractBonus2: ${player.ContractBonus2}
-ContractBonus3: ${player.ContractBonus3}
-
-Calculated:
-Years Left: ${(player.ContractLength || 0) - (player.ContractYear || 0)}
-Current Year Index: ${player.ContractYear || 0}
-Salary (raw * 0.01): ${(player.ContractSalary0 || 0) * 0.01}
-Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus0 || 0)) * 0.01}`;
-          fs.writeFileSync(debugPath, debugContent);
-          console.log('[RetroEditorService] Kirk Cousins debug written');
         }
 
         const teamIndex = player.TeamIndex;
@@ -1379,9 +1460,63 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
           mappedPosition = stringPositionMap[cleanPosition] || cleanPosition;
         }
 
-        // Debug: Log first few positions to see what we're getting
+        // Debug: Log first player to see all available fields - write to file for certainty
+        if (players.length === 0) {
+          // The player record is a Proxy - access _fields directly if available, or fields property
+          const fieldsObj = player._fields || player.fields || {};
+          const allFields = Object.keys(fieldsObj).filter(k => !k.startsWith('_'));
+          const ovrFields = allFields.filter(f => f.toLowerCase().includes('over') || f.toLowerCase().includes('ovr') || f.toLowerCase().includes('rating'));
+          console.log(`[getEligiblePlayers] AVAILABLE OVR-RELATED FIELDS:`, ovrFields);
+          console.log(`[getEligiblePlayers] Sample player field values:`, {
+            OverallRating: player.OverallRating,
+            Overall: player.Overall,
+            POVR: player.POVR,
+            PlayerOverall: player.PlayerOverall,
+          });
+          // Write debug info to file
+          const fs = require('fs');
+          const debugPath = require('path').join(process.cwd(), 'expansion-ovr-debug.txt');
+          const fieldsList = allFields.sort().map(f => `  ${f}: ${player[f]}`).join('\n');
+          const debugContent = `Player: ${player.FirstName} ${player.LastName}
+
+OVR-RELATED FIELDS: ${ovrFields.join(', ')}
+
+ALL PLAYER FIELDS (${allFields.length} total):
+${fieldsList}
+`;
+          fs.writeFileSync(debugPath, debugContent);
+          console.log(`[getEligiblePlayers] DEBUG: Wrote field names to ${debugPath}`);
+        }
+        // Debug: Log first few players with detailed OVR info
         if (players.length < 5) {
-          console.log(`[getEligiblePlayers] Player ${player.FirstName} ${player.LastName}: rawPosition=${rawPosition} (${typeof rawPosition}) -> ${mappedPosition}`);
+          console.log(`[getEligiblePlayers] Player ${player.FirstName} ${player.LastName}: rawPosition=${rawPosition} (${typeof rawPosition}) -> ${mappedPosition}, OverallRating=${player.OverallRating} (type: ${typeof player.OverallRating}), Age=${player.Age}`);
+        }
+
+        // Look up OVR - prioritize roster file (has correct values), then database
+        const playerKey = `${player.FirstName}_${player.LastName}`.toLowerCase();
+
+        // Try roster file first (if provided)
+        let overall: number | undefined = rosterOvrMap.get(playerKey);
+        let ovrSource = 'roster';
+
+        // Fall back to database
+        if (overall === undefined || overall <= 0) {
+          overall = ovrLookupMap.get(playerKey);
+          ovrSource = 'database';
+        }
+
+        // If still no OVR found, skip this player
+        if (overall === undefined || overall <= 0) {
+          dbMissCount++;
+          if (dbMissCount <= 10) {
+            console.log(`[getEligiblePlayers] SKIPPING: ${player.FirstName} ${player.LastName} (${mappedPosition}) - not in roster or ${year} database`);
+          }
+          continue;
+        }
+
+        dbMatchCount++;
+        if (players.length < 5) {
+          console.log(`[getEligiblePlayers] ${player.FirstName} ${player.LastName}: OVR=${overall} (from ${ovrSource})`);
         }
 
         const playerData: PlayerForDraft = {
@@ -1389,7 +1524,7 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
           firstName: player.FirstName || '',
           lastName: player.LastName || '',
           position: mappedPosition,
-          overall: player.OverallRating || player.Overall || 0,
+          overall: overall,
           age: player.Age || 0,
           teamIndex: teamIndex,
           teamName: teamNameMap.get(teamIndex) || `Team ${teamIndex}`,
@@ -1416,6 +1551,7 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
       }
       console.log(`[RetroEditorService] Found ${players.length} eligible players for expansion draft`);
       console.log(`[RetroEditorService] Position breakdown:`, Object.fromEntries(positionCounts));
+      console.log(`[RetroEditorService] DB OVR lookup: ${dbMatchCount} matched, ${dbMissCount} missed (${((dbMatchCount / (dbMatchCount + dbMissCount)) * 100).toFixed(1)}% match rate)`);
 
       return { success: true, players };
     } catch (error: any) {
@@ -3670,36 +3806,72 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
   }
 
   /**
+   * Madden's minimum salary cap floor in dollars
+   * The game engine enforces this as the minimum cap regardless of what's set in save files
+   */
+  private readonly MADDEN_MIN_CAP = 157000000; // $157M minimum cap enforced by game
+
+  /**
    * Get salary cap for a specific year
+   * Applies Madden's $157M minimum floor - years with lower historical caps
+   * will use $157M to ensure game compatibility
    */
   getSalaryCapForYear(year: number): { value: number; note?: string } {
     const data = this.loadSalaryCapData();
     if (!data) {
-      return { value: 0, note: 'No salary cap data available' };
+      // Return minimum cap if no data available
+      return {
+        value: this.MADDEN_MIN_CAP,
+        note: 'No salary cap data available - using Madden minimum ($157M)'
+      };
     }
+
+    let historicalCap = 0;
+    let baseNote: string | undefined;
 
     // Check if pre-cap era (before 1994)
     if (data.preCap && year >= data.preCap.startYear && year <= data.preCap.endYear) {
-      return { value: 0, note: data.preCap.note || 'No salary cap in this era' };
+      historicalCap = 0;
+      baseNote = data.preCap.note || 'No salary cap in this era';
+    } else {
+      // Get specific year cap
+      const yearStr = year.toString();
+      if (data.caps && data.caps[yearStr]) {
+        historicalCap = data.caps[yearStr];
+        baseNote = data.notes && data.notes[yearStr] ? data.notes[yearStr] : undefined;
+      }
     }
 
-    // Get specific year cap
-    const yearStr = year.toString();
-    if (data.caps && data.caps[yearStr]) {
-      const note = data.notes && data.notes[yearStr] ? data.notes[yearStr] : undefined;
-      return { value: data.caps[yearStr], note };
+    // Apply Madden's minimum cap floor
+    if (historicalCap < this.MADDEN_MIN_CAP) {
+      const effectiveCap = this.MADDEN_MIN_CAP;
+      const note = historicalCap === 0
+        ? `${baseNote || 'Pre-cap era'} - Madden minimum $157M applied`
+        : `Historical cap $${(historicalCap / 1000000).toFixed(1)}M below Madden minimum - using $157M`;
+      return { value: effectiveCap, note };
     }
 
-    return { value: 0, note: `No salary cap data for ${year}` };
+    return { value: historicalCap, note: baseNote };
+  }
+
+  /**
+   * Get Madden's minimum salary cap in dollars
+   */
+  getMaddenMinCap(): number {
+    return this.MADDEN_MIN_CAP;
   }
 
   /**
    * Apply salary cap to franchise file
    *
    * IMPORTANT: Salary cap is stored in the SalaryInfo table, NOT the League table.
-   * Fields: TeamSalaryCap, InitialSalaryCap (both in thousands, e.g., 255000 = $255M)
+   * Fields: TeamSalaryCap, InitialSalaryCap (both in ten-thousands, e.g., 25540 = $255.4M)
+   *
+   * @param filePath - Path to the franchise file
+   * @param year - The year to use for historical salary cap lookup (if no custom cap)
+   * @param customCapValue - Optional custom salary cap in dollars (e.g., 255400000 for $255.4M)
    */
-  async applySalaryCap(filePath: string, year: number): Promise<{
+  async applySalaryCap(filePath: string, year: number, customCapValue?: number): Promise<{
     success: boolean;
     previousCap: number;
     newCap: number;
@@ -3716,8 +3888,20 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
       };
     }
 
-    const capInfo = this.getSalaryCapForYear(year);
-    console.log(`[RetroEditorService] Setting salary cap for ${year}: $${capInfo.value.toLocaleString()}`);
+    // Use custom cap if provided, otherwise look up historical cap
+    let capValue: number;
+    let note: string | undefined;
+
+    if (customCapValue && customCapValue > 0) {
+      capValue = customCapValue;
+      note = `Custom salary cap: $${(customCapValue / 1000000).toFixed(1)}M`;
+      console.log(`[RetroEditorService] Using custom salary cap: $${capValue.toLocaleString()}`);
+    } else {
+      const capInfo = this.getSalaryCapForYear(year);
+      capValue = capInfo.value;
+      note = capInfo.note;
+      console.log(`[RetroEditorService] Using historical salary cap for ${year}: $${capValue.toLocaleString()}`);
+    }
 
     // Salary cap is in SalaryInfo table (ID: 3759217828), NOT League table!
     const SALARY_INFO_TABLE_ID = 3759217828;
@@ -3730,7 +3914,7 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
       return {
         success: false,
         previousCap: 0,
-        newCap: capInfo.value,
+        newCap: capValue,
         error: 'Could not find SalaryInfo table in franchise file'
       };
     }
@@ -3744,7 +3928,7 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
       return {
         success: false,
         previousCap: 0,
-        newCap: capInfo.value,
+        newCap: capValue,
         error: 'No active SalaryInfo record found'
       };
     }
@@ -3760,8 +3944,8 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
     // Madden stores salary cap in TEN-THOUSANDS (NOT thousands!)
     // e.g., $159,200,000 is stored as 15920 (159200000 / 10000 = 15920)
     // e.g., $37,100,000 is stored as 3710 (37100000 / 10000 = 3710)
-    const capInTenThousands = Math.round(capInfo.value / 10000);
-    console.log(`[RetroEditorService] Converting cap: $${capInfo.value.toLocaleString()} -> ${capInTenThousands} (in ten-thousands)`);
+    const capInTenThousands = Math.round(capValue / 10000);
+    console.log(`[RetroEditorService] Converting cap: $${capValue.toLocaleString()} -> ${capInTenThousands} (in ten-thousands)`);
 
     // Set salary cap on the correct fields
     // NOTE: Don't use 'X' in obj check - properties are on prototype, not own properties
@@ -3789,7 +3973,7 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
       return {
         success: false,
         previousCap,
-        newCap: capInfo.value,
+        newCap: capValue,
         error: 'Could not set TeamSalaryCap or InitialSalaryCap fields'
       };
     }
@@ -3798,9 +3982,9 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
 
     return {
       success: true,
-      previousCap: previousCap * 1000, // Convert back to full dollars for display
-      newCap: capInfo.value,
-      note: capInfo.note
+      previousCap: previousCap * 10000, // Convert ten-thousands back to full dollars for display
+      newCap: capValue,
+      note
     };
   }
 
@@ -4751,7 +4935,13 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
 
       // Get player info
       const position = player.Position;
-      const overall = player.OverallRating || player.Overall || 70;
+      // Use explicit null/undefined checks - OverallRating is the correct field name per M26 schema
+      let overall: number;
+      if (player.OverallRating !== undefined && player.OverallRating !== null) {
+        overall = player.OverallRating;
+      } else {
+        overall = 70;
+      }
       const teamIndex = player.TeamIndex;
       const yearsOfService = player.YearsPro || 0;
 
@@ -5423,6 +5613,7 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
     expansionEvent?: any;
     expansionDraftSelections?: Array<{ playerRecordIndex: number; newTeamIndex: number }>;
     expansionTeamIndices?: number[]; // Team indices for clearing rosters before expansion draft
+    customSalaryCap?: number; // Custom salary cap in dollars (e.g., 255400000 for $255.4M)
   }): Promise<{
     success: boolean;
     results: {
@@ -5592,10 +5783,15 @@ Cap (sal+bonus * 0.01): ${((player.ContractSalary0 || 0) + (player.ContractBonus
       // ===== 5. APPLY SALARY CAP (if enabled) =====
       if (opts.salaryCap) {
         console.log(`[RetroEditorService] Step 5: Applying salary cap...`);
+        console.log(`[RetroEditorService] Custom salary cap value: ${config.customSalaryCap ? `$${(config.customSalaryCap / 1000000).toFixed(1)}M` : 'not set (using historical)'}`);
         try {
-          await this.applySalaryCap(sourcePath, year);
-          results.salaryCapSet = true;
-          console.log(`[RetroEditorService] Salary cap set`);
+          const capResult = await this.applySalaryCap(sourcePath, year, config.customSalaryCap);
+          results.salaryCapSet = capResult.success;
+          if (capResult.success) {
+            console.log(`[RetroEditorService] Salary cap set: $${(capResult.newCap / 1000000).toFixed(1)}M (was $${(capResult.previousCap / 1000000).toFixed(1)}M)`);
+          } else {
+            console.warn(`[RetroEditorService] Salary cap failed: ${capResult.error}`);
+          }
         } catch (e) {
           console.warn(`[RetroEditorService] Salary cap failed:`, e);
         }

@@ -419,8 +419,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('retro:execute-relocation', filePath, sourceTeamIndex, destTeamIndex),
     prepareExpansionDraft: (filePath: string, expansionEvent: any) =>
       ipcRenderer.invoke('retro:prepare-expansion-draft', filePath, expansionEvent),
-    getEligiblePlayers: (filePath: string, expansionEvent: any) =>
-      ipcRenderer.invoke('retro:get-eligible-players', filePath, expansionEvent),
+    getEligiblePlayers: (filePath: string, expansionEvent: any, rosterPath?: string) =>
+      ipcRenderer.invoke('retro:get-eligible-players', filePath, expansionEvent, rosterPath),
     autoProtectPlayers: (players: any[], maxProtected: number) =>
       ipcRenderer.invoke('retro:auto-protect-players', players, maxProtected),
     executeExpansionDraft: (filePath: string, selections: any[], expansionTeamIndices?: number[]) =>
