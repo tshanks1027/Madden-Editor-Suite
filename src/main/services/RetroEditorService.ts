@@ -3860,13 +3860,21 @@ ${fieldsList}
   /**
    * Madden's minimum salary cap floor in dollars
    * The game engine enforces this as the minimum cap regardless of what's set in save files
+   *
+   * FORMULA DISCOVERED:
+   *   Display Cap = $120M + (TeamSalaryCap × $10,000)
+   *   TeamSalaryCap = (Target Cap - $120M) / $10,000
+   *
+   * Minimum: TeamSalaryCap = 0 → Display = $120M
    */
-  private readonly MADDEN_MIN_CAP = 157000000; // $157M minimum cap enforced by game
+  private readonly MADDEN_MIN_CAP = 120000000; // $120M minimum cap (TeamSalaryCap=0)
+  private readonly MADDEN_BASE_CAP = 120000000; // $120M base for display formula
+  private readonly MADDEN_DEFAULT_CAP = 277000000; // $277M default M26 cap
 
   /**
    * Get salary cap for a specific year
-   * Applies Madden's $157M minimum floor - years with lower historical caps
-   * will use $157M to ensure game compatibility
+   * Applies Madden's $120M minimum floor - years with lower historical caps
+   * will use $120M to ensure game compatibility
    */
   getSalaryCapForYear(year: number): { value: number; note?: string } {
     const data = this.loadSalaryCapData();
@@ -3874,7 +3882,7 @@ ${fieldsList}
       // Return minimum cap if no data available
       return {
         value: this.MADDEN_MIN_CAP,
-        note: 'No salary cap data available - using Madden minimum ($157M)'
+        note: 'No salary cap data available - using Madden minimum ($120M)'
       };
     }
 
@@ -3898,8 +3906,8 @@ ${fieldsList}
     if (historicalCap < this.MADDEN_MIN_CAP) {
       const effectiveCap = this.MADDEN_MIN_CAP;
       const note = historicalCap === 0
-        ? `${baseNote || 'Pre-cap era'} - Madden minimum $157M applied`
-        : `Historical cap $${(historicalCap / 1000000).toFixed(1)}M below Madden minimum - using $157M`;
+        ? `${baseNote || 'Pre-cap era'} - Madden minimum $120M applied`
+        : `Historical cap $${(historicalCap / 1000000).toFixed(1)}M below Madden minimum - using $120M`;
       return { value: effectiveCap, note };
     }
 
@@ -3916,8 +3924,14 @@ ${fieldsList}
   /**
    * Apply salary cap to franchise file
    *
-   * IMPORTANT: Salary cap is stored in the SalaryInfo table, NOT the League table.
-   * Fields: TeamSalaryCap, InitialSalaryCap (both in ten-thousands, e.g., 25540 = $255.4M)
+   * FORMULA DISCOVERED:
+   *   Display Cap = $120M + (TeamSalaryCap × $10,000)
+   *   TeamSalaryCap = (Target Cap - $120M) / $10,000
+   *
+   * Fields to update:
+   *   - SalaryInfo: TeamSalaryCap, InitialSalaryCap
+   *   - Player: PLYR_CAPSALARY, ContractSalary0-7, ContractBonus0-7 (scaled)
+   *   - Team: TEAM_SALARY, SalCapRosterReserve, SalCapCapRoom, ThisYearCapPenalties (scaled)
    *
    * @param filePath - Path to the franchise file
    * @param year - The year to use for historical salary cap lookup (if no custom cap)
@@ -3955,7 +3969,26 @@ ${fieldsList}
       console.log(`[RetroEditorService] Using historical salary cap for ${year}: $${capValue.toLocaleString()}`);
     }
 
-    // Salary cap is in SalaryInfo table (ID: 3759217828), NOT League table!
+    // Enforce minimum cap
+    if (capValue < this.MADDEN_MIN_CAP) {
+      capValue = this.MADDEN_MIN_CAP;
+      note = `${note || ''} (enforced $120M minimum)`.trim();
+    }
+
+    // ===== FORMULA: Display Cap = $120M + (TeamSalaryCap × $10,000) =====
+    // TeamSalaryCap = (Target Cap - $120M) / $10,000
+    const teamSalaryCapValue = Math.round((capValue - this.MADDEN_BASE_CAP) / 10000);
+    console.log(`[RetroEditorService] Target display cap: $${(capValue / 1000000).toFixed(1)}M`);
+    console.log(`[RetroEditorService] TeamSalaryCap value: ${teamSalaryCapValue}`);
+
+    // Calculate scale factor for contracts: target/default
+    const scaleFactor = capValue / this.MADDEN_DEFAULT_CAP;
+    console.log(`[RetroEditorService] Contract scale factor: ${(scaleFactor * 100).toFixed(1)}%`);
+
+    // Internal cap for team calculations (in $10k units)
+    const internalCapUnits = Math.round(capValue / 10000);
+
+    // ===== 1. UPDATE SALARYINFO TABLE =====
     const SALARY_INFO_TABLE_ID = 3759217828;
     let salaryInfoTable = franchise.getTableByUniqueId(SALARY_INFO_TABLE_ID);
     if (!salaryInfoTable) {
@@ -3972,9 +4005,6 @@ ${fieldsList}
     }
 
     await salaryInfoTable.readRecords();
-    console.log(`[RetroEditorService] Found ${salaryInfoTable.records.length} SalaryInfo records`);
-
-    // Find the active salary info record
     const salaryRecord = salaryInfoTable.records.find((r: any) => !r.isEmpty);
     if (!salaryRecord) {
       return {
@@ -3985,56 +4015,137 @@ ${fieldsList}
       };
     }
 
-    // Log available fields for debugging
-    const fieldNames = Object.keys(salaryRecord).filter(k => !k.startsWith('_') && typeof salaryRecord[k] !== 'function');
-    console.log('[RetroEditorService] SalaryInfo table fields:', fieldNames);
-
-    // Get previous cap value
     const previousCap = salaryRecord.TeamSalaryCap || salaryRecord.InitialSalaryCap || 0;
-    console.log(`[RetroEditorService] Previous cap value: ${previousCap} (in thousands = $${(previousCap * 1000).toLocaleString()})`);
-
-    // Madden stores salary cap in TEN-THOUSANDS (NOT thousands!)
-    // e.g., $159,200,000 is stored as 15920 (159200000 / 10000 = 15920)
-    // e.g., $37,100,000 is stored as 3710 (37100000 / 10000 = 3710)
-    const capInTenThousands = Math.round(capValue / 10000);
-    console.log(`[RetroEditorService] Converting cap: $${capValue.toLocaleString()} -> ${capInTenThousands} (in ten-thousands)`);
-
-    // Set salary cap on the correct fields
-    // NOTE: Don't use 'X' in obj check - properties are on prototype, not own properties
-    let setCount = 0;
-    try {
-      console.log(`[RetroEditorService] Setting TeamSalaryCap: ${salaryRecord.TeamSalaryCap} -> ${capInTenThousands}`);
-      salaryRecord.TeamSalaryCap = capInTenThousands;
-      console.log(`[RetroEditorService] TeamSalaryCap after set: ${salaryRecord.TeamSalaryCap}`);
-      setCount++;
-    } catch (e: any) {
-      console.error(`[RetroEditorService] Failed to set TeamSalaryCap: ${e.message}`);
-    }
 
     try {
-      console.log(`[RetroEditorService] Setting InitialSalaryCap: ${salaryRecord.InitialSalaryCap} -> ${capInTenThousands}`);
-      salaryRecord.InitialSalaryCap = capInTenThousands;
-      console.log(`[RetroEditorService] InitialSalaryCap after set: ${salaryRecord.InitialSalaryCap}`);
-      setCount++;
+      salaryRecord.TeamSalaryCap = teamSalaryCapValue;
+      salaryRecord.InitialSalaryCap = teamSalaryCapValue;
+      console.log(`[RetroEditorService] Set TeamSalaryCap/InitialSalaryCap to ${teamSalaryCapValue}`);
     } catch (e: any) {
-      console.error(`[RetroEditorService] Failed to set InitialSalaryCap: ${e.message}`);
-    }
-
-    if (setCount === 0) {
-      console.error('[RetroEditorService] Could not set any salary cap fields!');
+      console.error(`[RetroEditorService] Failed to set salary cap fields: ${e.message}`);
       return {
         success: false,
-        previousCap,
+        previousCap: previousCap * 10000,
         newCap: capValue,
         error: 'Could not set TeamSalaryCap or InitialSalaryCap fields'
       };
     }
 
-    console.log(`[RetroEditorService] Successfully set ${setCount} salary cap field(s)`);
+    // ===== 2. SCALE PLAYER CONTRACTS =====
+    let playerTable: any = null;
+    for (const table of franchise.tables) {
+      if (table.name === 'Player') {
+        playerTable = table;
+        break;
+      }
+    }
+
+    let playersScaled = 0;
+    if (playerTable) {
+      await playerTable.readRecords();
+
+      for (const player of playerTable.records) {
+        if (player.isEmpty) continue;
+
+        let modified = false;
+
+        // Scale ContractSalary0-7
+        for (let i = 0; i <= 7; i++) {
+          const field = `ContractSalary${i}`;
+          const val = player[field] || 0;
+          if (val > 0) {
+            player[field] = Math.round(val * scaleFactor);
+            modified = true;
+          }
+        }
+
+        // Scale ContractBonus0-7
+        for (let i = 0; i <= 7; i++) {
+          const field = `ContractBonus${i}`;
+          const val = player[field] || 0;
+          if (val > 0) {
+            player[field] = Math.round(val * scaleFactor);
+            modified = true;
+          }
+        }
+
+        // Scale PLYR_CAPSALARY
+        const capSalary = player.PLYR_CAPSALARY || 0;
+        if (capSalary > 0) {
+          player.PLYR_CAPSALARY = Math.round(capSalary * scaleFactor);
+          modified = true;
+        }
+
+        if (modified) playersScaled++;
+      }
+
+      console.log(`[RetroEditorService] Scaled contracts for ${playersScaled} players`);
+    } else {
+      console.warn('[RetroEditorService] Could not find Player table to scale contracts');
+    }
+
+    // ===== 3. UPDATE TEAM SALARY AND CAP FIELDS =====
+    const TEAM_TABLE_ID = 637929298;
+    let teamTable = franchise.getTableByUniqueId(TEAM_TABLE_ID);
+    if (!teamTable) {
+      teamTable = franchise.getTableByName('Team');
+    }
+
+    let teamsUpdated = 0;
+    if (teamTable) {
+      await teamTable.readRecords();
+
+      for (const team of teamTable.records) {
+        if (team.isEmpty) continue;
+        const name = team.DisplayName || team.ShortName;
+        if (!name || name === 'Free Agents' || name === 'AFC' || name === 'NFC') continue;
+
+        try {
+          // Scale salary fields
+          const oldTeamSalary = team.TEAM_SALARY || 0;
+          const oldRosterReserve = team.SalCapRosterReserve || 0;
+          const oldPenalties = team.ThisYearCapPenalties || 0;
+          const oldNextYearReserve = team.SalCapNextYearSalaryReserve || 0;
+
+          const newTeamSalary = Math.round(oldTeamSalary * scaleFactor);
+          const newRosterReserve = Math.round(oldRosterReserve * scaleFactor);
+          const newPenalties = Math.round(oldPenalties * scaleFactor);
+          const newNextYearReserve = Math.round(oldNextYearReserve * scaleFactor);
+
+          // Calculate cap room: Internal cap - displayed salary - penalties
+          const newCapRoom = internalCapUnits - newRosterReserve - newPenalties;
+
+          // Update all fields
+          team.TEAM_SALARY = newTeamSalary;
+          team.SalCapRosterReserve = newRosterReserve;
+          team.ThisYearCapPenalties = newPenalties;
+          team.SalCapCapRoom = Math.max(0, newCapRoom);
+          team.SalCapSpendingMoney = Math.max(0, newCapRoom);
+          team.SalCapNextYearSalaryReserve = newNextYearReserve;
+
+          // Clear rollover cap for historical accuracy
+          if (team.RolloverCap && team.RolloverCap > 0) {
+            team.RolloverCap = 0;
+          }
+
+          if (teamsUpdated < 3) {
+            console.log(`[RetroEditorService] ${name}: Salary $${(newRosterReserve * 10000 / 1000000).toFixed(1)}M, CapRoom $${(newCapRoom * 10000 / 1000000).toFixed(1)}M`);
+          }
+
+          teamsUpdated++;
+        } catch (e: any) {
+          console.error(`[RetroEditorService] Failed to update team cap fields: ${e.message}`);
+        }
+      }
+
+      console.log(`[RetroEditorService] Updated cap fields for ${teamsUpdated} teams`);
+    } else {
+      console.warn('[RetroEditorService] Could not find Team table to update per-team cap fields');
+    }
 
     return {
       success: true,
-      previousCap: previousCap * 10000, // Convert ten-thousands back to full dollars for display
+      previousCap: previousCap * 10000,
       newCap: capValue,
       note
     };
