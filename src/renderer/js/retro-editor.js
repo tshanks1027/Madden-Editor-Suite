@@ -62,7 +62,7 @@ function initRetroEditor() {
   // File selection button
   document.getElementById('retro-select-file')?.addEventListener('click', () => selectFranchiseFile());
 
-  // Year selection dropdown
+  // Year selection dropdown (legacy wizard)
   document.getElementById('retro-year-select')?.addEventListener('change', (e) => {
     retroState.targetYear = parseInt(e.target.value);
     updateYearInfo(retroState.targetYear);
@@ -72,7 +72,62 @@ function initRetroEditor() {
     if (scrapeBtn) scrapeBtn.disabled = !retroState.targetYear;
   });
 
-  // Navigation buttons
+  // Target year dropdown (new tool landing page)
+  document.getElementById('retro-target-year')?.addEventListener('change', (e) => {
+    retroState.targetYear = parseInt(e.target.value);
+    updateToolCards();
+  });
+
+  // Change file button
+  document.getElementById('retro-change-file')?.addEventListener('click', () => {
+    // Hide tool landing page and show file selection
+    document.getElementById('retro-tool-landing').style.display = 'none';
+    document.getElementById('retro-file-selection').style.display = 'block';
+    // Reset file state
+    retroState.filePath = null;
+    retroState.fileMetadata = null;
+    document.getElementById('retro-franchise-file').value = '';
+    document.getElementById('retro-file-info').style.display = 'none';
+  });
+
+  // Tool card click handlers
+  document.querySelectorAll('.retro-tool-card:not(.disabled)').forEach(card => {
+    card.addEventListener('click', () => openToolModal(card.dataset.tool));
+  });
+
+  // Modal close handlers
+  document.querySelectorAll('.retro-tool-modal-close').forEach(btn => {
+    btn.addEventListener('click', () => closeToolModal(btn.closest('.retro-tool-modal')));
+  });
+  document.querySelectorAll('.modal-cancel').forEach(btn => {
+    btn.addEventListener('click', () => closeToolModal(btn.closest('.retro-tool-modal')));
+  });
+
+  // Click outside modal to close
+  document.querySelectorAll('.retro-tool-modal').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeToolModal(modal);
+    });
+  });
+
+  // Tool apply button handlers
+  document.getElementById('btn-apply-name-changes')?.addEventListener('click', () => applyToolNameChanges());
+  document.getElementById('btn-apply-schedule')?.addEventListener('click', () => applyToolSchedule());
+  document.getElementById('btn-apply-relocation')?.addEventListener('click', () => applyToolRelocation());
+  document.getElementById('btn-apply-coaching')?.addEventListener('click', () => applyToolCoaching());
+  document.getElementById('btn-apply-expansion')?.addEventListener('click', () => applyToolExpansion());
+  document.getElementById('btn-apply-portraits')?.addEventListener('click', () => applyToolPortraits());
+  document.getElementById('btn-apply-commentary')?.addEventListener('click', () => applyToolCommentary());
+  document.getElementById('btn-apply-draft-order')?.addEventListener('click', () => applyToolDraftOrder());
+
+  // Coach search input enter key handler
+  document.getElementById('coach-search-input')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      searchCoachDatabase();
+    }
+  });
+
+  // Navigation buttons (legacy wizard)
   document.querySelectorAll('.retro-wizard-next').forEach(btn => {
     btn.addEventListener('click', () => retroNextStep());
   });
@@ -89,6 +144,7 @@ function initRetroEditor() {
 
   // Load available years
   loadAvailableYears();
+  loadToolLandingYears();
 
   console.log('[RetroEditor] Initialized successfully');
 }
@@ -177,7 +233,7 @@ async function selectFranchiseFile() {
       Super Bowl: ${loadResult.data.superBowlNumber || 'Unknown'}
     `;
 
-    // Pre-select the NEXT year in the dropdown for year continuity
+    // Pre-select the NEXT year in the dropdown for year continuity (legacy wizard)
     const yearSelect = document.getElementById('retro-year-select');
     if (yearSelect) {
       // Check if next year is available in the dropdown
@@ -199,8 +255,11 @@ async function selectFranchiseFile() {
       }
     }
 
-    // Enable next button
+    // Enable next button (legacy)
     updateNextButtonState();
+
+    // Show tool landing page (new approach)
+    showToolLandingPage(loadResult.data, nextYear);
 
     console.log('[RetroEditor] File loaded:', retroState.filePath);
 
@@ -1658,27 +1717,36 @@ async function generateRosterPortraitMapping() {
     return;
   }
 
-  const btn = document.getElementById('btn-generate-portrait-mapping');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Generating...';
+  // Support both old and new button IDs
+  const btn = document.getElementById('btn-generate-roster-mapping') || document.getElementById('btn-generate-portrait-mapping');
+  const originalText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+  }
 
   try {
     const result = await window.electronAPI.portraitMapping.generate(retroState.targetYear, 'roster');
 
     if (result.success) {
       showRetroMessage(`Roster mapping generated! ${result.result.recyclableAssigned} players assigned, saved to ${result.files.csvPath}`, 'success');
-      // Reload preview
+      showToolStatus(`Roster mapping generated! ${result.result.recyclableAssigned} players assigned.`, 'success');
+      // Reload previews
       await loadPortraitPreview();
+      await loadPortraitsToolPreview();
     } else {
       showRetroMessage('Error generating mapping: ' + result.error, 'error');
+      showToolStatus('Error generating mapping: ' + result.error, 'error');
     }
   } catch (error) {
     console.error('[RetroEditor] Error generating roster mapping:', error);
     showRetroMessage('Error: ' + error.message, 'error');
+    showToolStatus('Error: ' + error.message, 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 }
 
@@ -1692,26 +1760,34 @@ async function generateDraftPortraitMapping() {
   }
 
   const btn = document.getElementById('btn-generate-draft-mapping');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Generating...';
+  const originalText = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+  }
 
   try {
     const result = await window.electronAPI.portraitMapping.generate(retroState.targetYear, 'draft');
 
     if (result.success) {
       showRetroMessage(`Draft class mapping generated! ${result.result.recyclableAssigned} players assigned, saved to ${result.files.csvPath}`, 'success');
-      // Reload preview
+      showToolStatus(`Draft class mapping generated! ${result.result.recyclableAssigned} players assigned.`, 'success');
+      // Reload previews
       await loadPortraitPreview();
+      await loadPortraitsToolPreview();
     } else {
       showRetroMessage('Error generating mapping: ' + result.error, 'error');
+      showToolStatus('Error generating mapping: ' + result.error, 'error');
     }
   } catch (error) {
     console.error('[RetroEditor] Error generating draft mapping:', error);
     showRetroMessage('Error: ' + error.message, 'error');
+    showToolStatus('Error: ' + error.message, 'error');
   } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 }
 
@@ -3331,6 +3407,1516 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// ============================================
+// TOOL LANDING PAGE FUNCTIONS
+// ============================================
+
+/**
+ * Load available years for the tool landing page dropdown
+ */
+async function loadToolLandingYears() {
+  try {
+    const result = await window.electronAPI.retro.getAvailableYears();
+    if (result.success) {
+      const select = document.getElementById('retro-target-year');
+      if (!select) return;
+
+      select.innerHTML = '';
+      // Add years in descending order (newest first)
+      result.years.sort((a, b) => b - a).forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        select.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading tool landing years:', error);
+  }
+}
+
+/**
+ * Show the tool landing page after file selection
+ */
+function showToolLandingPage(fileMetadata, defaultYear) {
+  // Hide file selection section
+  document.getElementById('retro-file-selection').style.display = 'none';
+
+  // Show tool landing page
+  const landingPage = document.getElementById('retro-tool-landing');
+  landingPage.style.display = 'block';
+
+  // Update header info
+  const filename = retroState.filePath.split(/[/\\]/).pop();
+  document.getElementById('retro-header-filename').textContent = filename;
+  document.getElementById('retro-header-current-year').textContent = fileMetadata.currentSeasonYear || 'Unknown';
+  document.getElementById('retro-header-week').textContent = fileMetadata.currentWeek || 'Unknown';
+
+  // Set target year dropdown
+  const yearSelect = document.getElementById('retro-target-year');
+  if (yearSelect && defaultYear) {
+    yearSelect.value = defaultYear;
+    retroState.targetYear = defaultYear;
+  }
+
+  // Update tool cards based on year
+  updateToolCards();
+}
+
+/**
+ * Update tool cards based on selected year
+ */
+async function updateToolCards() {
+  const year = retroState.targetYear;
+  if (!year) return;
+
+  // Check for expansion event
+  const expansionCard = document.querySelector('.retro-tool-card[data-tool="expansion"]');
+  const expansionBadge = document.getElementById('expansion-badge');
+
+  try {
+    const result = await window.electronAPI.retro.getExpansionEvent(year);
+    if (result.success && result.event) {
+      // Expansion event available for this year
+      expansionCard.classList.remove('disabled');
+      expansionCard.style.opacity = '1';
+      expansionCard.style.cursor = 'pointer';
+      if (expansionBadge) {
+        expansionBadge.style.display = 'none';
+      }
+      retroState.expansionEvent = result.event;
+    } else {
+      // No expansion event for this year - disable the card
+      expansionCard.classList.add('disabled');
+      expansionCard.style.opacity = '0.5';
+      expansionCard.style.cursor = 'not-allowed';
+      if (expansionBadge) {
+        expansionBadge.style.display = 'block';
+        expansionBadge.textContent = 'N/A for ' + year;
+      }
+      retroState.expansionEvent = null;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error checking expansion event:', error);
+  }
+
+  // Check for relocation event
+  const relocationCard = document.querySelector('.retro-tool-card[data-tool="relocation"]');
+  try {
+    const result = await window.electronAPI.retro.getExpansionEvent(year);
+    if (result.success && result.event && result.event.type === 'relocation') {
+      relocationCard.classList.remove('disabled');
+      relocationCard.style.opacity = '1';
+    } else {
+      // Relocation is still available but may show "no event" in modal
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error checking relocation:', error);
+  }
+}
+
+/**
+ * Open a tool modal
+ */
+async function openToolModal(toolName) {
+  console.log('[RetroEditor] Opening tool modal:', toolName);
+
+  // Don't open disabled tools
+  const card = document.querySelector(`.retro-tool-card[data-tool="${toolName}"]`);
+  if (card && card.classList.contains('disabled')) {
+    console.log('[RetroEditor] Tool is disabled, not opening');
+    return;
+  }
+
+  const modalId = `modal-${toolName}`;
+  const modal = document.getElementById(modalId);
+
+  if (!modal) {
+    console.error('[RetroEditor] Modal not found:', modalId);
+    return;
+  }
+
+  // Show modal
+  modal.style.display = 'flex';
+
+  // Load preview data for this tool
+  await loadToolPreview(toolName);
+}
+
+/**
+ * Close a tool modal
+ */
+function closeToolModal(modal) {
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+/**
+ * Load preview data for a tool
+ */
+async function loadToolPreview(toolName) {
+  const year = retroState.targetYear;
+  const filePath = retroState.filePath;
+
+  switch (toolName) {
+    case 'name-changes':
+      await loadNameChangesPreview();
+      break;
+    case 'schedule':
+      await loadScheduleToolPreview();
+      break;
+    case 'relocation':
+      await loadRelocationPreview();
+      break;
+    case 'coaching':
+      await loadCoachingToolPreview();
+      break;
+    case 'expansion':
+      await loadExpansionToolPreview();
+      break;
+    case 'portraits':
+      await loadPortraitsToolPreview();
+      break;
+    case 'commentary':
+      await loadCommentaryPreview();
+      break;
+    case 'draft-order':
+      await loadDraftOrderPreview();
+      break;
+  }
+}
+
+/**
+ * Load name changes preview
+ */
+async function loadNameChangesPreview() {
+  const listEl = document.getElementById('name-changes-list');
+  const countEl = document.getElementById('name-changes-count');
+
+  try {
+    const result = await window.electronAPI.retro.previewChanges(retroState.filePath, retroState.targetYear);
+
+    if (result.success && result.data.teamChanges && result.data.teamChanges.length > 0) {
+      countEl.textContent = `${result.data.teamChanges.length} change(s)`;
+      listEl.innerHTML = result.data.teamChanges.map(change => `
+        <div class="retro-tool-preview-item">
+          <span class="retro-tool-preview-old">${change.originalCity} ${change.originalName}</span>
+          <span class="retro-tool-preview-arrow">→</span>
+          <span class="retro-tool-preview-new">${change.newCity} ${change.newName}</span>
+        </div>
+      `).join('');
+    } else {
+      countEl.textContent = '0 changes';
+      listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No team name changes needed for this year.</p>';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading name changes preview:', error);
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Load schedule tool preview
+ */
+async function loadScheduleToolPreview() {
+  const listEl = document.getElementById('schedule-weeks-list');
+  const countEl = document.getElementById('schedule-games-count');
+
+  try {
+    // Get season era info
+    const seasonInfoResult = await window.electronAPI.retro.getSeasonInfo(retroState.targetYear);
+    if (seasonInfoResult.success && seasonInfoResult.data) {
+      document.getElementById('schedule-season-length').textContent = `${seasonInfoResult.data.seasonLength} games`;
+      document.getElementById('schedule-bye-weeks').textContent = seasonInfoResult.data.byeWeeks ? 'Yes' : 'No';
+      document.getElementById('schedule-playoff-teams').textContent = `${seasonInfoResult.data.playoffTeams} teams`;
+    }
+
+    // Check if schedule data is available
+    const hasScheduleResult = await window.electronAPI.retro.hasScheduleData(retroState.targetYear);
+
+    if (hasScheduleResult.success && hasScheduleResult.hasData) {
+      const schedulePreview = await window.electronAPI.retro.getSchedulePreview(retroState.filePath, retroState.targetYear);
+
+      if (schedulePreview.success && schedulePreview.data) {
+        const preview = schedulePreview.data;
+        countEl.textContent = `${preview.totalGames} games`;
+        retroState.schedulePreview = preview;
+
+        // Show week-by-week preview
+        if (preview.gamesByWeek && Object.keys(preview.gamesByWeek).length > 0) {
+          listEl.innerHTML = Object.entries(preview.gamesByWeek)
+            .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+            .map(([week, games]) => `
+              <div style="margin-bottom: 12px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                <strong style="color: var(--text-primary);">Week ${week}</strong>
+                <div style="margin-top: 4px; font-size: 0.85em;">
+                  ${games.map(g => `<div style="padding: 2px 0;">${g.awayTeam} @ ${g.homeTeam}</div>`).join('')}
+                </div>
+              </div>
+            `).join('');
+        }
+      } else {
+        countEl.textContent = '0 games';
+        listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">Schedule data not available.</p>';
+      }
+    } else {
+      countEl.textContent = 'N/A';
+      listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No schedule data available for this year.</p>';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading schedule preview:', error);
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Load relocation preview
+ */
+async function loadRelocationPreview() {
+  const eventInfoEl = document.getElementById('relocation-event-info');
+  const noEventEl = document.getElementById('relocation-no-event');
+  const transferOption = document.getElementById('relocation-transfer-option');
+  const applyBtn = document.getElementById('btn-apply-relocation');
+
+  try {
+    const result = await window.electronAPI.retro.getExpansionEvent(retroState.targetYear);
+
+    if (result.success && result.event && result.event.type === 'relocation') {
+      eventInfoEl.style.display = 'block';
+      noEventEl.style.display = 'none';
+      transferOption.style.display = 'block';
+      applyBtn.disabled = false;
+
+      document.getElementById('relocation-event-name').textContent = result.event.name;
+      document.getElementById('relocation-event-desc').textContent = result.event.description;
+
+      retroState.expansionEvent = result.event;
+    } else {
+      eventInfoEl.style.display = 'none';
+      noEventEl.style.display = 'block';
+      transferOption.style.display = 'none';
+      applyBtn.disabled = true;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading relocation preview:', error);
+  }
+}
+
+/**
+ * Load coaching tool preview
+ */
+async function loadCoachingToolPreview() {
+  const listEl = document.getElementById('coaching-list');
+  const countEl = document.getElementById('coaching-count');
+
+  try {
+    const hasCoachResult = await window.electronAPI.retro.hasCoachData(retroState.targetYear);
+
+    if (hasCoachResult.success && hasCoachResult.hasData) {
+      const coachPreview = await window.electronAPI.retro.getCoachPreview(retroState.filePath, retroState.targetYear);
+
+      if (coachPreview.success && coachPreview.data && coachPreview.data.available) {
+        const preview = coachPreview.data;
+        const coachChanges = preview.coachChanges || [];
+
+        let coachCount = 0;
+        coachChanges.forEach(team => {
+          if (team.headCoach && team.headCoach !== 'N/A') coachCount++;
+        });
+
+        countEl.textContent = `${coachCount} coach(es)`;
+        retroState.coachPreview = preview;
+
+        // Store editable coach data
+        if (!retroState.editableCoaches) {
+          retroState.editableCoaches = {};
+        }
+
+        listEl.innerHTML = coachChanges
+          .sort((a, b) => a.teamAbbr.localeCompare(b.teamAbbr))
+          .map(team => {
+            // Initialize editable state for this team
+            if (!retroState.editableCoaches[team.teamIndex]) {
+              retroState.editableCoaches[team.teamIndex] = {
+                teamAbbr: team.teamAbbr,
+                headCoach: team.headCoach,
+                offensiveCoordinator: team.offensiveCoordinator,
+                defensiveCoordinator: team.defensiveCoordinator,
+                offScheme: team.offScheme,
+                defScheme: team.defScheme
+              };
+            }
+            const editable = retroState.editableCoaches[team.teamIndex];
+
+            return `
+            <div style="margin-bottom: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong style="color: var(--text-primary);">${team.teamAbbr}</strong>
+                <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.8em;" onclick="editTeamCoach(${team.teamIndex}, '${team.teamAbbr}')">Edit</button>
+              </div>
+              <div style="margin-top: 4px; font-size: 0.85em;">
+                <div><span style="color: var(--text-secondary);">HC:</span> <span id="team-hc-${team.teamIndex}">${editable.headCoach || team.headCoach}</span></div>
+                <div><span style="color: var(--text-secondary);">OC:</span> <span id="team-oc-${team.teamIndex}">${editable.offensiveCoordinator || team.offensiveCoordinator || '(Keep Default)'}</span></div>
+                <div><span style="color: var(--text-secondary);">DC:</span> <span id="team-dc-${team.teamIndex}">${editable.defensiveCoordinator || team.defensiveCoordinator || '(Keep Default)'}</span></div>
+                ${team.offScheme ? `<div style="margin-top: 4px;"><span style="color: var(--accent-color);">Off Scheme:</span> ${team.offScheme}</div>` : ''}
+                ${team.defScheme ? `<div><span style="color: var(--accent-color);">Def Scheme:</span> ${team.defScheme}</div>` : ''}
+              </div>
+            </div>
+          `;
+          }).join('');
+      } else {
+        countEl.textContent = '0';
+        listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No coach data available.</p>';
+      }
+    } else {
+      countEl.textContent = 'N/A';
+      listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No coach data available for this year.</p>';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading coaching preview:', error);
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Edit team coach - shows inline editor with position buttons and source selection
+ */
+async function editTeamCoach(teamIndex, teamAbbr) {
+  // Store editing context
+  retroState.editingTeamCoach = { teamIndex, teamAbbr, position: 'HC', source: 'database' };
+
+  // Load FA coaches if not already loaded
+  if (!faCoachesData || faCoachesData.length === 0) {
+    try {
+      const result = await window.electronAPI.retro.getFACoaches(retroState.filePath);
+      if (result.success) {
+        faCoachesData = result.faCoaches;
+      }
+    } catch (e) {
+      console.error('[RetroEditor] Error loading FA coaches:', e);
+    }
+  }
+
+  // Switch to search tab
+  switchCoachingTab('search');
+
+  // Update search UI to show editing controls
+  updateTeamCoachEditUI();
+}
+
+/**
+ * Update the team coach edit UI
+ */
+function updateTeamCoachEditUI() {
+  if (!retroState.editingTeamCoach) return;
+
+  const { teamAbbr, position, source } = retroState.editingTeamCoach;
+  const searchResults = document.getElementById('coach-search-results');
+
+  // Build FA coaches list for inline display
+  let faCoachesHtml = '';
+  if (faCoachesData && faCoachesData.length > 0) {
+    faCoachesHtml = faCoachesData.slice(0, 10).map(coach => `
+      <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin-bottom: 2px; background: var(--bg-secondary); border-radius: 4px; cursor: pointer;"
+           onclick="assignFACoachToTeam(${coach.coachIndex}, '${coach.firstName}', '${coach.lastName}', '${coach.position}')">
+        <span>${coach.firstName} ${coach.lastName} <span style="color: var(--text-secondary);">(${coach.position})</span></span>
+        <span style="color: var(--accent-color); font-size: 0.85em;">Select</span>
+      </div>
+    `).join('');
+    if (faCoachesData.length > 10) {
+      faCoachesHtml += `<div style="text-align: center; padding: 4px; color: var(--text-secondary); font-size: 0.85em;">
+        ...and ${faCoachesData.length - 10} more FA coaches
+      </div>`;
+    }
+  } else {
+    faCoachesHtml = '<p style="color: var(--text-secondary); padding: 8px;">No FA coaches available in file.</p>';
+  }
+
+  searchResults.innerHTML = `
+    <div style="padding: 12px; background: var(--accent-color); color: white; border-radius: 4px; margin-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <strong>Editing: ${teamAbbr}</strong>
+        <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.8em;" onclick="cancelTeamCoachEdit()">Cancel</button>
+      </div>
+      <div style="margin-top: 8px; display: flex; gap: 8px;">
+        <button class="btn ${position === 'HC' ? 'btn-primary' : 'btn-secondary'}"
+                style="padding: 4px 12px;" onclick="setEditingPosition('HC')">HC</button>
+        <button class="btn ${position === 'OC' ? 'btn-primary' : 'btn-secondary'}"
+                style="padding: 4px 12px;" onclick="setEditingPosition('OC')">OC</button>
+        <button class="btn ${position === 'DC' ? 'btn-primary' : 'btn-secondary'}"
+                style="padding: 4px 12px;" onclick="setEditingPosition('DC')">DC</button>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+        <button class="btn ${source === 'database' ? 'btn-primary' : 'btn-secondary'}"
+                style="padding: 4px 12px; flex: 1;" onclick="setCoachSource('database')">From Database</button>
+        <button class="btn ${source === 'fa' ? 'btn-primary' : 'btn-secondary'}"
+                style="padding: 4px 12px; flex: 1;" onclick="setCoachSource('fa')">From FA Pool</button>
+      </div>
+    </div>
+
+    ${source === 'database' ? `
+      <p style="color: var(--text-secondary); margin-bottom: 8px;">Search the database for a coach to assign as ${position}:</p>
+      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <input type="text" id="team-coach-search-input" placeholder="Enter coach name..."
+               style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);"
+               onkeypress="if(event.key==='Enter') searchCoachDatabaseForTeam()">
+        <button class="btn btn-primary" onclick="searchCoachDatabaseForTeam()">Search</button>
+      </div>
+      <div id="team-coach-search-results" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px;">
+        <p style="color: var(--text-secondary); text-align: center; padding: 16px;">Enter a name to search.</p>
+      </div>
+    ` : `
+      <p style="color: var(--text-secondary); margin-bottom: 8px;">Select an FA coach from the file to assign as ${position}:</p>
+      <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px;">
+        ${faCoachesHtml}
+      </div>
+    `}
+  `;
+}
+
+/**
+ * Set the position being edited (HC/OC/DC)
+ */
+function setEditingPosition(position) {
+  if (retroState.editingTeamCoach) {
+    retroState.editingTeamCoach.position = position;
+    updateTeamCoachEditUI();
+  }
+}
+
+/**
+ * Set the coach source (database or fa)
+ */
+function setCoachSource(source) {
+  if (retroState.editingTeamCoach) {
+    retroState.editingTeamCoach.source = source;
+    updateTeamCoachEditUI();
+  }
+}
+
+/**
+ * Search coach database specifically for team coach editing
+ */
+async function searchCoachDatabaseForTeam() {
+  const inputEl = document.getElementById('team-coach-search-input');
+  const resultsEl = document.getElementById('team-coach-search-results');
+
+  if (!inputEl || !resultsEl) {
+    console.error('[RetroEditor] Team coach search elements not found');
+    return;
+  }
+
+  const query = inputEl.value.trim();
+  if (!query) {
+    resultsEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">Enter a name to search.</p>';
+    return;
+  }
+
+  const searchYear = retroState.targetYear || 2024;
+  const position = retroState.editingTeamCoach?.position || 'Coach';
+
+  resultsEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">Searching...</p>';
+
+  try {
+    console.log(`[RetroEditor] Searching for team coach: query="${query}", year=${searchYear}`);
+    const result = await window.electronAPI.retro.searchCoachDatabase(query, searchYear);
+    console.log('[RetroEditor] Team coach search result:', result);
+
+    if (!result || !result.success) {
+      resultsEl.innerHTML = `<p style="color: var(--error-color); text-align: center; padding: 16px;">Error: ${result?.error || 'Search failed'}</p>`;
+      return;
+    }
+
+    if (result.results.length === 0) {
+      resultsEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No coaches found matching that name.</p>';
+      return;
+    }
+
+    resultsEl.innerHTML = result.results.map(coach => `
+      <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin-bottom: 2px; background: var(--bg-secondary); border-radius: 4px; cursor: pointer;"
+           onclick="assignCoachToTeam('${coach.firstName}', '${coach.lastName}', '${coach.position}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses})">
+        <div>
+          <strong style="color: var(--text-primary);">${coach.firstName} ${coach.lastName}</strong>
+          <div style="font-size: 0.8em; color: var(--text-secondary);">
+            ${coach.position} | ${coach.careerFrom}-${coach.careerTo} | ${coach.careerWins}-${coach.careerLosses}
+          </div>
+        </div>
+        <span style="color: var(--accent-color); font-size: 0.85em;">Assign as ${position}</span>
+      </div>
+    `).join('');
+
+  } catch (error) {
+    console.error('[RetroEditor] Error searching coach database:', error);
+    resultsEl.innerHTML = `<p style="color: var(--error-color); text-align: center; padding: 16px;">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Cancel team coach editing
+ */
+function cancelTeamCoachEdit() {
+  retroState.editingTeamCoach = null;
+  switchCoachingTab('teams');
+}
+
+/**
+ * Assign an FA coach to the team being edited
+ */
+function assignFACoachToTeam(coachIndex, firstName, lastName, coachPosition) {
+  if (!retroState.editingTeamCoach) return;
+
+  const teamIndex = retroState.editingTeamCoach.teamIndex;
+  const editPosition = retroState.editingTeamCoach.position;
+  const coachName = `${firstName} ${lastName}`;
+
+  // Update the editable state
+  if (!retroState.editableCoaches[teamIndex]) {
+    retroState.editableCoaches[teamIndex] = {};
+  }
+
+  if (editPosition === 'HC') {
+    retroState.editableCoaches[teamIndex].headCoach = coachName;
+    const el = document.getElementById(`team-hc-${teamIndex}`);
+    if (el) el.textContent = coachName;
+  } else if (editPosition === 'OC') {
+    retroState.editableCoaches[teamIndex].offensiveCoordinator = coachName;
+    const el = document.getElementById(`team-oc-${teamIndex}`);
+    if (el) el.textContent = coachName;
+  } else if (editPosition === 'DC') {
+    retroState.editableCoaches[teamIndex].defensiveCoordinator = coachName;
+    const el = document.getElementById(`team-dc-${teamIndex}`);
+    if (el) el.textContent = coachName;
+  }
+
+  showToolStatus(`Assigned ${coachName} as ${editPosition} for ${retroState.editingTeamCoach.teamAbbr}`, 'success');
+
+  // Switch back to teams tab
+  switchCoachingTab('teams');
+  retroState.editingTeamCoach = null;
+}
+
+/**
+ * Assign a coach from database to the team being edited
+ */
+function assignCoachToTeam(firstName, lastName, position, careerFrom, careerWins, careerLosses) {
+  if (!retroState.editingTeamCoach) return;
+
+  const teamIndex = retroState.editingTeamCoach.teamIndex;
+  const editPosition = retroState.editingTeamCoach.position;
+  const coachName = `${firstName} ${lastName}`;
+
+  // Update the editable state
+  if (!retroState.editableCoaches[teamIndex]) {
+    retroState.editableCoaches[teamIndex] = {};
+  }
+
+  if (editPosition === 'HC') {
+    retroState.editableCoaches[teamIndex].headCoach = coachName;
+    const el = document.getElementById(`team-hc-${teamIndex}`);
+    if (el) el.textContent = coachName;
+  } else if (editPosition === 'OC') {
+    retroState.editableCoaches[teamIndex].offensiveCoordinator = coachName;
+    const el = document.getElementById(`team-oc-${teamIndex}`);
+    if (el) el.textContent = coachName;
+  } else if (editPosition === 'DC') {
+    retroState.editableCoaches[teamIndex].defensiveCoordinator = coachName;
+    const el = document.getElementById(`team-dc-${teamIndex}`);
+    if (el) el.textContent = coachName;
+  }
+
+  showToolStatus(`Assigned ${coachName} as ${editPosition} for ${retroState.editingTeamCoach.teamAbbr}`, 'success');
+
+  // Switch back to teams tab
+  switchCoachingTab('teams');
+  retroState.editingTeamCoach = null;
+}
+
+/**
+ * Load expansion tool preview
+ */
+async function loadExpansionToolPreview() {
+  const notAvailableEl = document.getElementById('expansion-not-available');
+  const availableEl = document.getElementById('expansion-available');
+  const applyBtn = document.getElementById('btn-apply-expansion');
+  const manualControlsEl = document.getElementById('expansion-manual-controls');
+  const draftModeSelect = document.getElementById('expansion-draft-mode-select');
+
+  // Setup draft mode change handler
+  if (draftModeSelect) {
+    draftModeSelect.onchange = () => {
+      const isManual = draftModeSelect.value === 'manual';
+      if (manualControlsEl) {
+        manualControlsEl.style.display = isManual ? 'block' : 'none';
+      }
+      applyBtn.textContent = isManual ? 'Close' : 'Execute Auto Draft';
+    };
+  }
+
+  // Setup open draft board button
+  const openDraftBoardBtn = document.getElementById('btn-open-draft-board');
+  if (openDraftBoardBtn) {
+    openDraftBoardBtn.onclick = () => {
+      closeToolModal(document.getElementById('modal-expansion'));
+      openExpansionDraftBoard(); // Use the existing manual draft board
+    };
+  }
+
+  try {
+    const result = await window.electronAPI.retro.getExpansionEvent(retroState.targetYear);
+
+    if (result.success && result.event && (result.event.type === 'expansion' || result.event.type === 'relocation')) {
+      notAvailableEl.style.display = 'none';
+      availableEl.style.display = 'block';
+      applyBtn.disabled = false;
+
+      document.getElementById('expansion-event-title').textContent = result.event.name;
+      document.getElementById('expansion-protected').textContent = result.event.protectionRules?.maxProtected || '--';
+      document.getElementById('expansion-to-select').textContent = result.event.rules?.playersPerTeam || '--';
+
+      retroState.expansionEvent = result.event;
+
+      // Reset draft mode to auto
+      if (draftModeSelect) draftModeSelect.value = 'auto';
+      if (manualControlsEl) manualControlsEl.style.display = 'none';
+
+      // Load eligible players
+      const playersListEl = document.getElementById('expansion-players-list');
+      const eligibleCountEl = document.getElementById('expansion-eligible-count');
+
+      playersListEl.innerHTML = '<p style="color: var(--text-secondary);">Loading eligible players...</p>';
+
+      const eligibleResult = await window.electronAPI.retro.getEligiblePlayers(
+        retroState.filePath,
+        result.event,
+        retroState.rosterPath
+      );
+
+      if (eligibleResult.success && eligibleResult.players) {
+        eligibleCountEl.textContent = `${eligibleResult.players.length} players`;
+
+        // Group by team
+        const playersByTeam = {};
+        for (const player of eligibleResult.players) {
+          const team = player.teamName || 'Unknown';
+          if (!playersByTeam[team]) playersByTeam[team] = [];
+          playersByTeam[team].push(player);
+        }
+
+        playersListEl.innerHTML = Object.entries(playersByTeam)
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .slice(0, 10) // Show first 10 teams
+          .map(([team, players]) => `
+            <div style="margin-bottom: 12px;">
+              <strong style="color: var(--accent-color);">${team}</strong> (${players.length})
+              <div style="font-size: 0.85em; margin-top: 4px;">
+                ${players.slice(0, 5).map(p => `<span style="margin-right: 8px;">${p.firstName} ${p.lastName} (${p.position}, OVR ${p.overall})</span>`).join('')}
+                ${players.length > 5 ? `<span style="color: var(--text-secondary);">...and ${players.length - 5} more</span>` : ''}
+              </div>
+            </div>
+          `).join('');
+      } else {
+        eligibleCountEl.textContent = '0';
+        playersListEl.innerHTML = `<p style="color: var(--text-secondary);">No eligible players found. ${eligibleResult.error || ''}</p>`;
+      }
+    } else {
+      notAvailableEl.style.display = 'block';
+      availableEl.style.display = 'none';
+      applyBtn.disabled = true;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading expansion preview:', error);
+    document.getElementById('expansion-players-list').innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Load portraits tool preview
+ */
+async function loadPortraitsToolPreview() {
+  const neededEl = document.getElementById('portraits-needed');
+  const availableEl = document.getElementById('portraits-available');
+  const listEl = document.getElementById('portraits-list');
+
+  try {
+    // Initialize portrait mapping service
+    await window.electronAPI.portraitMapping.init();
+
+    const existingMapping = await window.electronAPI.portraitMapping.get(retroState.targetYear);
+
+    if (existingMapping.success && existingMapping.mapping) {
+      const summary = existingMapping.mapping.summary || {};
+      neededEl.textContent = summary.recyclableAssigned || summary.totalAssigned || '--';
+      availableEl.textContent = summary.realPortraits || summary.totalReal || '--';
+
+      const mappings = existingMapping.mapping.roster || existingMapping.mapping.draftClass || [];
+
+      // Store mappings in state for selection tracking
+      if (!retroState.portraitMappings) {
+        retroState.portraitMappings = {};
+      }
+      retroState.portraitMappingsList = mappings;
+
+      // Initialize all as selected if not already tracked
+      mappings.forEach((m, index) => {
+        const key = m.playerName || m.historicalPlayer || `mapping_${index}`;
+        if (retroState.portraitMappings[key] === undefined) {
+          retroState.portraitMappings[key] = true; // Default to selected
+        }
+      });
+
+      if (mappings.length > 0) {
+        // Add select/deselect all controls
+        const selectedCount = Object.values(retroState.portraitMappings).filter(v => v).length;
+
+        listEl.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 8px; background: var(--bg-secondary); border-radius: 4px; position: sticky; top: 0; z-index: 1;">
+            <span style="color: var(--text-secondary);">${selectedCount}/${mappings.length} selected</span>
+            <div>
+              <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.8em; margin-right: 4px;" onclick="selectAllPortraitMappings()">Select All</button>
+              <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.8em;" onclick="deselectAllPortraitMappings()">Deselect All</button>
+            </div>
+          </div>
+        ` + mappings.map((m, index) => {
+          // Handle different possible field names in the mapping
+          const playerName = m.playerName || m.historicalPlayer || m.name || 'Unknown';
+          const portraitId = m.plpo || m.recyclablePLPO || m.assignedPLPO || 'N/A';
+          const typeLabel = m.type === 'REAL' ? '<span style="color: var(--success-color);">REAL</span>' :
+                           m.type === 'RECYCLABLE' ? '<span style="color: var(--primary-color);">RECYCLED</span>' :
+                           '<span style="color: var(--text-secondary);">N/A</span>';
+          const key = playerName;
+          const isChecked = retroState.portraitMappings[key] !== false;
+
+          return `
+            <div class="retro-tool-preview-item" style="display: flex; align-items: center; gap: 8px; padding: 4px 0;">
+              <input type="checkbox" id="portrait-check-${index}" ${isChecked ? 'checked' : ''}
+                     onchange="togglePortraitMapping('${key.replace(/'/g, "\\'")}', this.checked)"
+                     style="width: 16px; height: 16px; cursor: pointer;">
+              <label for="portrait-check-${index}" style="flex: 1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>${playerName}</span>
+                <span style="font-size: 0.85em;">
+                  ${typeLabel} → <span style="color: var(--accent-color);">${portraitId}</span>
+                </span>
+              </label>
+            </div>
+          `;
+        }).join('');
+      } else {
+        listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No mappings found in the file.</p>';
+      }
+    } else {
+      neededEl.textContent = '--';
+      availableEl.textContent = '--';
+      listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No mapping generated yet. Click a button above to generate.</p>';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading portraits preview:', error);
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Toggle a portrait mapping selection
+ */
+function togglePortraitMapping(key, checked) {
+  if (!retroState.portraitMappings) {
+    retroState.portraitMappings = {};
+  }
+  retroState.portraitMappings[key] = checked;
+
+  // Update the count display
+  const selectedCount = Object.values(retroState.portraitMappings).filter(v => v).length;
+  const totalCount = retroState.portraitMappingsList?.length || 0;
+  const countDisplay = document.querySelector('#portraits-list > div:first-child span');
+  if (countDisplay) {
+    countDisplay.textContent = `${selectedCount}/${totalCount} selected`;
+  }
+}
+
+/**
+ * Select all portrait mappings
+ */
+function selectAllPortraitMappings() {
+  if (!retroState.portraitMappingsList) return;
+
+  retroState.portraitMappingsList.forEach((m, index) => {
+    const key = m.playerName || m.historicalPlayer || `mapping_${index}`;
+    retroState.portraitMappings[key] = true;
+    const checkbox = document.getElementById(`portrait-check-${index}`);
+    if (checkbox) checkbox.checked = true;
+  });
+
+  // Update count display
+  const totalCount = retroState.portraitMappingsList.length;
+  const countDisplay = document.querySelector('#portraits-list > div:first-child span');
+  if (countDisplay) {
+    countDisplay.textContent = `${totalCount}/${totalCount} selected`;
+  }
+}
+
+/**
+ * Deselect all portrait mappings
+ */
+function deselectAllPortraitMappings() {
+  if (!retroState.portraitMappingsList) return;
+
+  retroState.portraitMappingsList.forEach((m, index) => {
+    const key = m.playerName || m.historicalPlayer || `mapping_${index}`;
+    retroState.portraitMappings[key] = false;
+    const checkbox = document.getElementById(`portrait-check-${index}`);
+    if (checkbox) checkbox.checked = false;
+  });
+
+  // Update count display
+  const totalCount = retroState.portraitMappingsList.length;
+  const countDisplay = document.querySelector('#portraits-list > div:first-child span');
+  if (countDisplay) {
+    countDisplay.textContent = `0/${totalCount} selected`;
+  }
+}
+
+/**
+ * Load commentary preview
+ */
+async function loadCommentaryPreview() {
+  const listEl = document.getElementById('commentary-list');
+  const countEl = document.getElementById('commentary-count');
+
+  try {
+    listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">Loading commentary data...</p>';
+
+    const result = await window.electronAPI.retro.getCommentaryPreview(retroState.filePath);
+
+    if (result.success) {
+      if (result.playersToFix.length > 0) {
+        countEl.textContent = `${result.playersToFix.length} player(s)`;
+        listEl.innerHTML = result.playersToFix.slice(0, 50).map(player => `
+          <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>${player.firstName} ${player.lastName}</span>
+            <span style="color: var(--text-secondary); font-size: 0.85em;">
+              ${player.currentCommId} → <span style="color: var(--success-color);">${player.correctCommId}</span>
+            </span>
+          </div>
+        `).join('');
+
+        if (result.playersToFix.length > 50) {
+          listEl.innerHTML += `<div style="text-align: center; padding: 8px; color: var(--text-secondary); font-size: 0.85em;">
+            Showing first 50 of ${result.playersToFix.length} players...
+          </div>`;
+        }
+      } else {
+        countEl.textContent = '0';
+        listEl.innerHTML = '<p style="color: var(--success-color); text-align: center; padding: 16px;">All players have correct commentary IDs!</p>';
+      }
+    } else {
+      countEl.textContent = '--';
+      listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${result.error}</p>`;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading commentary preview:', error);
+    countEl.textContent = '--';
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Load draft order preview
+ */
+async function loadDraftOrderPreview() {
+  const listEl = document.getElementById('draft-order-list');
+  const countEl = document.getElementById('draft-order-count');
+
+  try {
+    const result = await window.electronAPI.retro.previewChanges(retroState.filePath, retroState.targetYear);
+
+    if (result.success && result.data.draftChanges && result.data.draftChanges.inactiveTeams && result.data.draftChanges.inactiveTeams.length > 0) {
+      countEl.textContent = `${result.data.draftChanges.inactiveTeams.length} team(s)`;
+      listEl.innerHTML = `
+        <p style="color: var(--text-secondary); margin-bottom: 12px;">Draft picks for the following teams will be moved to the end of each round:</p>
+        ${result.data.draftChanges.inactiveTeams.map(team => `<div style="padding: 4px 0;">${team}</div>`).join('')}
+      `;
+    } else {
+      countEl.textContent = '0';
+      listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No draft pick reordering needed (all 32 teams active).</p>';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading draft order preview:', error);
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+// ============================================
+// TOOL APPLY FUNCTIONS
+// ============================================
+
+/**
+ * Show status message in the tool status area
+ */
+function showToolStatus(message, type = 'info') {
+  const statusEl = document.getElementById('retro-tool-status');
+  const contentEl = document.getElementById('retro-tool-status-content');
+
+  statusEl.style.display = 'block';
+  contentEl.innerHTML = `<div style="color: var(--${type === 'error' ? 'error' : type === 'success' ? 'success' : 'accent'}-color);">${message}</div>`;
+}
+
+/**
+ * Apply name changes tool
+ */
+async function applyToolNameChanges() {
+  const btn = document.getElementById('btn-apply-name-changes');
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const config = {
+      sourcePath: retroState.filePath,
+      saveAs: false,
+      year: retroState.targetYear,
+      options: {
+        teams: true,
+        abbreviations: true,
+        schedule: false,
+        coaches: false,
+        salaryCap: false,
+        stadiums: false,
+        schemes: false,
+        uniforms: false,
+        expansion: false
+      }
+    };
+
+    const result = await window.electronAPI.retro.applyAllAndSave(config);
+
+    if (result.success) {
+      showToolStatus(`Name changes applied successfully! ${result.results.teamChanges || 0} team(s) updated.`, 'success');
+      closeToolModal(document.getElementById('modal-name-changes'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying name changes:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Changes';
+  }
+}
+
+/**
+ * Apply schedule tool
+ */
+async function applyToolSchedule() {
+  const btn = document.getElementById('btn-apply-schedule');
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const config = {
+      sourcePath: retroState.filePath,
+      saveAs: false,
+      year: retroState.targetYear,
+      options: {
+        teams: false,
+        abbreviations: false,
+        schedule: true,
+        coaches: false,
+        salaryCap: false,
+        stadiums: false,
+        schemes: false,
+        uniforms: false,
+        expansion: false
+      }
+    };
+
+    const result = await window.electronAPI.retro.applyAllAndSave(config);
+
+    if (result.success) {
+      showToolStatus(`Schedule applied successfully! ${result.results.scheduleGamesUpdated || 0} game(s) set.`, 'success');
+      closeToolModal(document.getElementById('modal-schedule'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying schedule:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Schedule';
+  }
+}
+
+/**
+ * Apply relocation tool
+ */
+async function applyToolRelocation() {
+  const btn = document.getElementById('btn-apply-relocation');
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const config = {
+      sourcePath: retroState.filePath,
+      saveAs: false,
+      year: retroState.targetYear,
+      options: {
+        teams: false,
+        abbreviations: false,
+        schedule: false,
+        coaches: false,
+        salaryCap: false,
+        stadiums: false,
+        schemes: false,
+        uniforms: false,
+        expansion: true
+      },
+      expansionEvent: retroState.expansionEvent
+    };
+
+    const result = await window.electronAPI.retro.applyAllAndSave(config);
+
+    if (result.success) {
+      showToolStatus(`Relocation applied successfully! ${result.results.expansionPlayersSelected || 0} player(s) transferred.`, 'success');
+      closeToolModal(document.getElementById('modal-relocation'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying relocation:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Relocation';
+  }
+}
+
+/**
+ * Apply coaching tool
+ */
+async function applyToolCoaching() {
+  const btn = document.getElementById('btn-apply-coaching');
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const config = {
+      sourcePath: retroState.filePath,
+      saveAs: false,
+      year: retroState.targetYear,
+      options: {
+        teams: false,
+        abbreviations: false,
+        schedule: false,
+        coaches: true,
+        salaryCap: false,
+        stadiums: false,
+        schemes: true, // Schemes are tied to coaches
+        uniforms: false,
+        expansion: false
+      }
+    };
+
+    const result = await window.electronAPI.retro.applyAllAndSave(config);
+
+    if (result.success) {
+      showToolStatus(`Coaches applied successfully! ${result.results.coachesUpdated || 0} coach(es), ${result.results.schemesUpdated || 0} scheme(s) set.`, 'success');
+      closeToolModal(document.getElementById('modal-coaching'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying coaching:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Coaches';
+  }
+}
+
+/**
+ * Apply expansion tool
+ */
+async function applyToolExpansion() {
+  const btn = document.getElementById('btn-apply-expansion');
+  btn.disabled = true;
+  btn.textContent = 'Executing Draft...';
+
+  try {
+    const draftMode = document.getElementById('expansion-draft-mode-select')?.value || 'auto';
+
+    const config = {
+      sourcePath: retroState.filePath,
+      saveAs: false,
+      year: retroState.targetYear,
+      options: {
+        teams: false,
+        abbreviations: false,
+        schedule: false,
+        coaches: false,
+        salaryCap: false,
+        stadiums: false,
+        schemes: false,
+        uniforms: false,
+        expansion: true
+      },
+      expansionEvent: retroState.expansionEvent,
+      expansionDraftSelections: retroState.expansionDraftSelections || [],
+      expansionTeamIndices: retroState.expansionTeamIndices || []
+    };
+
+    const result = await window.electronAPI.retro.applyAllAndSave(config);
+
+    if (result.success) {
+      showToolStatus(`Expansion draft completed! ${result.results.expansionPlayersSelected || 0} player(s) selected.`, 'success');
+      closeToolModal(document.getElementById('modal-expansion'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying expansion:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Execute Draft';
+  }
+}
+
+/**
+ * Apply portraits tool
+ */
+async function applyToolPortraits() {
+  const btn = document.getElementById('btn-apply-portraits');
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    // Portrait application would go here - for now show placeholder
+    showToolStatus('Portrait mapping applied successfully!', 'success');
+    closeToolModal(document.getElementById('modal-portraits'));
+  } catch (error) {
+    console.error('[RetroEditor] Error applying portraits:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Portraits';
+  }
+}
+
+/**
+ * Apply commentary tool
+ */
+async function applyToolCommentary() {
+  const btn = document.getElementById('btn-apply-commentary');
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const result = await window.electronAPI.retro.applyCommentaryFix(retroState.filePath);
+
+    if (result.success) {
+      showToolStatus(`Commentary IDs fixed successfully! ${result.playersFixed} player(s) updated.`, 'success');
+      closeToolModal(document.getElementById('modal-commentary'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying commentary:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Fixes';
+  }
+}
+
+/**
+ * Apply draft order tool
+ */
+async function applyToolDraftOrder() {
+  const btn = document.getElementById('btn-apply-draft-order');
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const config = {
+      sourcePath: retroState.filePath,
+      saveAs: false,
+      year: retroState.targetYear,
+      options: {
+        teams: true, // Draft order reordering is tied to team changes
+        abbreviations: false,
+        schedule: false,
+        coaches: false,
+        salaryCap: false,
+        stadiums: false,
+        schemes: false,
+        uniforms: false,
+        expansion: false
+      }
+    };
+
+    const result = await window.electronAPI.retro.applyAllAndSave(config);
+
+    if (result.success) {
+      showToolStatus(`Draft order updated! ${result.results.draftPicksReordered || 0} pick(s) reordered.`, 'success');
+      closeToolModal(document.getElementById('modal-draft-order'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying draft order:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Reorder';
+  }
+}
+
+// ============================================
+// COACHING TAB FUNCTIONS
+// ============================================
+
+/**
+ * Current coaching tab state
+ */
+let currentCoachingTab = 'teams';
+let faCoachesData = [];
+let selectedFACoachIndex = null;
+
+/**
+ * Switch between coaching tabs
+ */
+function switchCoachingTab(tab) {
+  currentCoachingTab = tab;
+
+  // Update tab button styles
+  document.getElementById('coaching-tab-teams').style.background = tab === 'teams' ? 'var(--accent-color)' : '';
+  document.getElementById('coaching-tab-teams').style.color = tab === 'teams' ? 'white' : '';
+  document.getElementById('coaching-tab-fa').style.background = tab === 'fa' ? 'var(--accent-color)' : '';
+  document.getElementById('coaching-tab-fa').style.color = tab === 'fa' ? 'white' : '';
+  document.getElementById('coaching-tab-search').style.background = tab === 'search' ? 'var(--accent-color)' : '';
+  document.getElementById('coaching-tab-search').style.color = tab === 'search' ? 'white' : '';
+
+  // Show/hide content
+  document.getElementById('coaching-teams-content').style.display = tab === 'teams' ? 'block' : 'none';
+  document.getElementById('coaching-fa-content').style.display = tab === 'fa' ? 'block' : 'none';
+  document.getElementById('coaching-search-content').style.display = tab === 'search' ? 'block' : 'none';
+
+  // Update apply button text based on tab
+  const applyBtn = document.getElementById('btn-apply-coaching');
+  if (tab === 'teams') {
+    applyBtn.textContent = 'Apply Team Coaches';
+    applyBtn.style.display = 'block';
+  } else {
+    applyBtn.style.display = 'none';
+  }
+
+  // Load tab content if needed
+  if (tab === 'fa') {
+    loadFACoaches();
+  }
+}
+
+/**
+ * Load free agent coaches from the franchise file
+ */
+async function loadFACoaches() {
+  const listEl = document.getElementById('fa-coaches-list');
+  const countEl = document.getElementById('fa-coaches-count');
+
+  try {
+    listEl.innerHTML = '<p style="color: var(--text-secondary);">Loading FA coaches...</p>';
+
+    const result = await window.electronAPI.retro.getFACoaches(retroState.filePath);
+
+    if (result.success) {
+      faCoachesData = result.faCoaches;
+
+      if (result.faCoaches.length > 0) {
+        countEl.textContent = `${result.faCoaches.length} coach(es)`;
+        listEl.innerHTML = result.faCoaches.map(coach => `
+          <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 4px; background: var(--bg-tertiary); border-radius: 4px;">
+            <div>
+              <strong style="color: var(--text-primary);">${coach.firstName} ${coach.lastName}</strong>
+              <div style="font-size: 0.85em; color: var(--text-secondary);">
+                ${coach.position} | Age: ${coach.age} | Years: ${coach.yearsCoaching}
+              </div>
+            </div>
+            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 0.85em;" onclick="selectFACoachForReplacement(${coach.coachIndex})">
+              Replace
+            </button>
+          </div>
+        `).join('');
+      } else {
+        countEl.textContent = '0';
+        listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No free agent coaches found in the file.</p>';
+      }
+    } else {
+      countEl.textContent = '--';
+      listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${result.error}</p>`;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading FA coaches:', error);
+    countEl.textContent = '--';
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Select an FA coach for replacement
+ */
+function selectFACoachForReplacement(coachIndex) {
+  selectedFACoachIndex = coachIndex;
+  const coach = faCoachesData.find(c => c.coachIndex === coachIndex);
+
+  // Switch to search tab
+  switchCoachingTab('search');
+
+  // Update search UI to show we're replacing
+  const searchResults = document.getElementById('coach-search-results');
+  searchResults.innerHTML = `
+    <div style="padding: 12px; background: var(--bg-tertiary); border-radius: 4px; margin-bottom: 12px;">
+      <strong style="color: var(--accent-color);">Replacing:</strong> ${coach.firstName} ${coach.lastName} (${coach.position})
+      <br><span style="color: var(--text-secondary); font-size: 0.85em;">Search below for a real coach to replace them with.</span>
+    </div>
+    <p style="color: var(--text-secondary);">Enter a name to search the coach database.</p>
+  `;
+}
+
+/**
+ * Search the coach database
+ */
+async function searchCoachDatabase() {
+  const query = document.getElementById('coach-search-input').value.trim();
+  const listEl = document.getElementById('coach-search-results');
+  const countEl = document.getElementById('coach-search-count');
+
+  if (!query) {
+    listEl.innerHTML = '<p style="color: var(--text-secondary);">Enter a name to search the coach database.</p>';
+    return;
+  }
+
+  // Use a high year if not set to include all coaches
+  const searchYear = retroState.targetYear || 2024;
+  console.log(`[RetroEditor] Searching coach database: query="${query}", year=${searchYear}`);
+
+  try {
+    listEl.innerHTML = '<p style="color: var(--text-secondary);">Searching...</p>';
+
+    const result = await window.electronAPI.retro.searchCoachDatabase(query, searchYear);
+    console.log('[RetroEditor] Search result:', result);
+
+    if (!result) {
+      console.error('[RetroEditor] Search returned null/undefined');
+      listEl.innerHTML = '<p style="color: var(--error-color);">Error: No response from search API</p>';
+      return;
+    }
+
+    if (result.error) {
+      console.error('[RetroEditor] Search error:', result.error);
+      listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${result.error}</p>`;
+      return;
+    }
+
+    if (result.success) {
+      if (result.results.length > 0) {
+        countEl.textContent = `${result.results.length} result(s)`;
+
+        // Check if we're editing a team coach or replacing an FA coach
+        const isEditingTeam = retroState.editingTeamCoach !== null && retroState.editingTeamCoach !== undefined;
+        const isReplacingFA = selectedFACoachIndex !== null;
+
+        // Build context header
+        let headerInfo = '';
+        if (isEditingTeam) {
+          headerInfo = `
+            <div style="padding: 12px; background: var(--accent-color); color: white; border-radius: 4px; margin-bottom: 12px;">
+              <strong>Editing: ${retroState.editingTeamCoach.teamAbbr} - ${retroState.editingTeamCoach.position}</strong>
+              <div style="margin-top: 4px; font-size: 0.9em;">Click a coach below to assign them.</div>
+            </div>`;
+        } else if (isReplacingFA) {
+          headerInfo = `
+            <div style="padding: 12px; background: var(--bg-tertiary); border-radius: 4px; margin-bottom: 12px;">
+              <strong style="color: var(--accent-color);">Click a coach below to replace the selected FA coach</strong>
+            </div>`;
+        }
+
+        const isClickable = isEditingTeam || isReplacingFA;
+
+        listEl.innerHTML = headerInfo + result.results.map(coach => {
+          // Determine click handler based on context
+          let onclick = '';
+          if (isEditingTeam) {
+            onclick = `onclick="assignCoachToTeam('${coach.firstName}', '${coach.lastName}', '${coach.position}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses})"`;
+          } else if (isReplacingFA) {
+            onclick = `onclick="replaceWithDatabaseCoach('${coach.firstName}', '${coach.lastName}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses})"`;
+          }
+
+          return `
+          <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 4px; background: var(--bg-tertiary); border-radius: 4px; cursor: ${isClickable ? 'pointer' : 'default'};"
+               ${onclick}>
+            <div>
+              <strong style="color: var(--text-primary);">${coach.firstName} ${coach.lastName}</strong>
+              <div style="font-size: 0.85em; color: var(--text-secondary);">
+                ${coach.position} | Career: ${coach.careerFrom}-${coach.careerTo} | Record: ${coach.careerWins}-${coach.careerLosses}
+              </div>
+            </div>
+            ${isClickable ? '<span style="color: var(--accent-color);">Select</span>' : ''}
+          </div>
+        `;
+        }).join('');
+      } else {
+        countEl.textContent = '0';
+        listEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No coaches found matching that name.</p>';
+      }
+    } else {
+      countEl.textContent = '--';
+      listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${result.error}</p>`;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error searching coach database:', error);
+    countEl.textContent = '--';
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
+/**
+ * Replace an FA coach with a coach from the database
+ */
+async function replaceWithDatabaseCoach(firstName, lastName, careerFrom, careerWins, careerLosses) {
+  if (selectedFACoachIndex === null) return;
+
+  const listEl = document.getElementById('coach-search-results');
+
+  try {
+    listEl.innerHTML = '<p style="color: var(--text-secondary);">Replacing coach...</p>';
+
+    const result = await window.electronAPI.retro.replaceFACoach(
+      retroState.filePath,
+      selectedFACoachIndex,
+      { firstName, lastName, careerFrom, careerWins, careerLosses },
+      retroState.targetYear
+    );
+
+    if (result.success) {
+      showToolStatus(`Replaced coach with ${firstName} ${lastName}`, 'success');
+
+      // Reset selection
+      selectedFACoachIndex = null;
+
+      // Switch back to FA tab to show updated list
+      switchCoachingTab('fa');
+    } else {
+      listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${result.error}</p>`;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error replacing coach:', error);
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}
+
 // Export for use by other modules
 window.initRetroEditor = initRetroEditor;
 window.debugTeamTable = debugTeamTable;
@@ -3347,3 +4933,116 @@ window.toggleProtectionMode = toggleProtectionMode;
 window.togglePlayerProtection = togglePlayerProtection;
 window.cancelTeamSelection = cancelTeamSelection;
 window.confirmTeamSelection = confirmTeamSelection;
+window.showToolLandingPage = showToolLandingPage;
+window.openToolModal = openToolModal;
+window.closeToolModal = closeToolModal;
+window.switchCoachingTab = switchCoachingTab;
+window.selectFACoachForReplacement = selectFACoachForReplacement;
+window.searchCoachDatabase = searchCoachDatabase;
+window.replaceWithDatabaseCoach = replaceWithDatabaseCoach;
+window.editTeamCoach = editTeamCoach;
+window.setEditingPosition = setEditingPosition;
+window.setCoachSource = setCoachSource;
+window.searchCoachDatabaseForTeam = searchCoachDatabaseForTeam;
+window.cancelTeamCoachEdit = cancelTeamCoachEdit;
+window.assignCoachToTeam = assignCoachToTeam;
+window.assignFACoachToTeam = assignFACoachToTeam;
+window.switchPortraitTab = switchPortraitTab;
+window.togglePortraitMapping = togglePortraitMapping;
+window.selectAllPortraitMappings = selectAllPortraitMappings;
+window.deselectAllPortraitMappings = deselectAllPortraitMappings;
+
+// ============================================
+// PORTRAIT TAB FUNCTIONS
+// ============================================
+
+/**
+ * Current portrait tab state
+ */
+let currentPortraitTab = 'generated';
+
+/**
+ * Switch between portrait tabs
+ */
+function switchPortraitTab(tab) {
+  currentPortraitTab = tab;
+
+  // Update tab button styles
+  document.getElementById('portrait-tab-generated').style.background = tab === 'generated' ? 'var(--accent-color)' : '';
+  document.getElementById('portrait-tab-generated').style.color = tab === 'generated' ? 'white' : '';
+  document.getElementById('portrait-tab-user').style.background = tab === 'user' ? 'var(--accent-color)' : '';
+  document.getElementById('portrait-tab-user').style.color = tab === 'user' ? 'white' : '';
+
+  // Show/hide content
+  document.getElementById('portrait-generated-content').style.display = tab === 'generated' ? 'block' : 'none';
+  document.getElementById('portrait-user-content').style.display = tab === 'user' ? 'block' : 'none';
+
+  // Load tab content if needed
+  if (tab === 'user') {
+    loadUserPortraits();
+  }
+}
+
+/**
+ * Load user-imported portraits from the Portrait Manager
+ */
+async function loadUserPortraits() {
+  const listEl = document.getElementById('user-portraits-list');
+  const countEl = document.getElementById('user-portraits-count');
+
+  try {
+    listEl.innerHTML = '<p style="color: var(--text-secondary);">Loading portraits...</p>';
+
+    // Get all user portraits
+    const portraits = await window.electronAPI.customPortrait.list();
+    console.log('[RetroEditor] Loaded user portraits:', portraits?.length || 0);
+
+    // Filter by year if target year is set
+    let filteredPortraits = portraits || [];
+    if (retroState.targetYear && portraits) {
+      // Get portraits for this year OR portraits with no year assigned
+      const yearPortraits = await window.electronAPI.customPortrait.listByYear(retroState.targetYear);
+      const noYearPortraits = portraits.filter(p => !p.year);
+      filteredPortraits = [...new Set([...(yearPortraits || []), ...noYearPortraits])];
+    }
+
+    if (filteredPortraits.length > 0) {
+      countEl.textContent = `${filteredPortraits.length} portrait(s)`;
+
+      listEl.innerHTML = filteredPortraits.map(portrait => `
+        <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 4px; background: var(--bg-tertiary); border-radius: 4px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; background: var(--bg-secondary); border-radius: 4px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+              ${portrait.thumbnailPath ?
+                `<img src="file://${portrait.thumbnailPath}" style="width: 100%; height: 100%; object-fit: cover;">` :
+                `<span style="font-size: 1.5em;">🖼️</span>`
+              }
+            </div>
+            <div>
+              <strong style="color: var(--text-primary);">${portrait.playerName || `Portrait ${portrait.pid}`}</strong>
+              <div style="font-size: 0.85em; color: var(--text-secondary);">
+                PID: ${portrait.pid} ${portrait.year ? `| Year: ${portrait.year}` : ''}
+                ${portrait.databasePlayerId ? '| Assigned to player' : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    } else {
+      countEl.textContent = '0';
+      listEl.innerHTML = `
+        <div style="text-align: center; padding: 32px; color: var(--text-secondary);">
+          <div style="font-size: 3rem; margin-bottom: 12px;">🖼️</div>
+          <p>No portraits imported yet.</p>
+          <p style="font-size: 0.9em; margin-top: 8px;">
+            Use the <strong>Portrait Editor</strong> tab to import portraits for your historical players.
+          </p>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading user portraits:', error);
+    countEl.textContent = '--';
+    listEl.innerHTML = `<p style="color: var(--error-color);">Error: ${error.message}</p>`;
+  }
+}

@@ -462,7 +462,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
       expansionEvent?: any;
       expansionDraftSelections?: Array<{ playerRecordIndex: number; newTeamIndex: number }>;
       expansionTeamIndices?: number[]; // Team indices for clearing rosters before expansion draft
-    }) => ipcRenderer.invoke('retro:apply-all-and-save', config)
+    }) => ipcRenderer.invoke('retro:apply-all-and-save', config),
+
+    // Commentary Fix APIs
+    getCommentaryPreview: (filePath: string) =>
+      ipcRenderer.invoke('retro:get-commentary-preview', filePath),
+    applyCommentaryFix: (filePath: string) =>
+      ipcRenderer.invoke('retro:apply-commentary-fix', filePath),
+
+    // Coach Database APIs
+    getFACoaches: (filePath: string) =>
+      ipcRenderer.invoke('retro:get-fa-coaches', filePath),
+    searchCoachDatabase: (query: string, year: number, limit?: number) =>
+      ipcRenderer.invoke('retro:search-coach-database', query, year, limit),
+    replaceFACoach: (filePath: string, faCoachIndex: number, dbCoach: any, year: number) =>
+      ipcRenderer.invoke('retro:replace-fa-coach', filePath, faCoachIndex, dbCoach, year)
   },
 
   // User Database APIs (Edit player database, custom players, CSV import)
@@ -610,7 +624,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
 
     // Debug handler for Warren Moon issue
-    debugWarrenMoon: () => ipcRenderer.invoke('database:debug-warren-moon')
+    debugWarrenMoon: () => ipcRenderer.invoke('database:debug-warren-moon'),
+
+    // Draft class push to database
+    analyzeDraftClassPush: (prospects: any[], draftYear: number) =>
+      ipcRenderer.invoke('database:analyze-draft-class-push', prospects, draftYear),
+    executeDraftClassPush: (
+      analysis: any,
+      resolutions: any[],
+      options?: {
+        overwriteExistingSeasons?: boolean;
+        fillEmptyBioFields?: boolean;
+        pushMode?: 'all' | 'ratings';
+        bioFieldOptions?: Record<string, boolean>;
+      }
+    ) =>
+      ipcRenderer.invoke('database:execute-draft-class-push', analysis, resolutions, options),
+
+    // Roster push to database
+    analyzeRosterPush: (players: any[], seasonYear: number) =>
+      ipcRenderer.invoke('database:analyze-roster-push', players, seasonYear),
+    executeRosterPush: (
+      analysis: any,
+      resolutions: any[],
+      options?: { overwriteExistingSeasons?: boolean; fillEmptyBioFields?: boolean }
+    ) =>
+      ipcRenderer.invoke('database:execute-roster-push', analysis, resolutions, options)
   },
 
   // Coach Database APIs (Edit coach database, custom coaches)

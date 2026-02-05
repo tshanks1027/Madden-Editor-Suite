@@ -1322,4 +1322,79 @@ ipcMain.handle('retro:apply-all-and-save', async (event, config: {
   }
 });
 
+// ============================================
+// Commentary Fix Handlers
+// ============================================
+
+/**
+ * Get commentary preview - shows players with incorrect commentary IDs
+ */
+ipcMain.handle('retro:get-commentary-preview', async (event, filePath: string) => {
+  try {
+    console.log('[retro-editor-handlers] Getting commentary preview');
+    return await retroEditorService.getCommentaryPreview(filePath);
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting commentary preview:', error);
+    return { success: false, playersToFix: [], totalPlayers: 0, error: error.message };
+  }
+});
+
+/**
+ * Apply commentary fix - updates CommentaryId for all players
+ */
+ipcMain.handle('retro:apply-commentary-fix', async (event, filePath: string) => {
+  try {
+    console.log('[retro-editor-handlers] Applying commentary fix');
+    return await retroEditorService.applyCommentaryFix(filePath);
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying commentary fix:', error);
+    return { success: false, playersFixed: 0, error: error.message };
+  }
+});
+
+// ============================================
+// Coach Database Handlers
+// ============================================
+
+/**
+ * Get free agent coaches from the franchise file
+ */
+ipcMain.handle('retro:get-fa-coaches', async (event, filePath: string) => {
+  try {
+    console.log('[retro-editor-handlers] Getting FA coaches');
+    return await retroEditorService.getFreeAgentCoaches(filePath);
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting FA coaches:', error);
+    return { success: false, faCoaches: [], error: error.message };
+  }
+});
+
+/**
+ * Search the coach database
+ */
+ipcMain.handle('retro:search-coach-database', async (event, query: string, year: number, limit?: number) => {
+  try {
+    console.log(`[retro-editor-handlers] Searching coach database for "${query}" (year=${year})`);
+    const result = retroEditorService.searchCoachDatabase(query, year, limit || 20);
+    console.log(`[retro-editor-handlers] Search returned ${result.results.length} results`);
+    return result;
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error searching coach database:', error);
+    return { success: false, results: [], error: error.message };
+  }
+});
+
+/**
+ * Replace an FA coach with a coach from the database
+ */
+ipcMain.handle('retro:replace-fa-coach', async (event, filePath: string, faCoachIndex: number, dbCoach: any, year: number) => {
+  try {
+    console.log(`[retro-editor-handlers] Replacing FA coach at index ${faCoachIndex}`);
+    return await retroEditorService.replaceCoachWithDatabaseCoach(filePath, faCoachIndex, dbCoach, year);
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error replacing FA coach:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 console.log('[retro-editor-handlers] Retro Editor IPC handlers registered');

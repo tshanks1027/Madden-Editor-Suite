@@ -1200,6 +1200,11 @@
                             FILL FROM DATABASE
                         </button>
 
+                        <button id="pushRosterToDbBtn" class="btn btn-secondary" style="display: none;" title="Push roster players to user database">
+                            <span class="btn-icon">📤</span>
+                            PUSH TO DATABASE
+                        </button>
+
                         <button id="saveRosterBtn" class="btn btn-success" style="display: none;">
                             <span class="btn-icon">💾</span>
                             SAVE ROSTER
@@ -1271,6 +1276,10 @@
                         <button id="fixDraftCommentaryBtn" class="btn btn-secondary" disabled title="Auto-fill commentary IDs by last name">
                             <span class="btn-icon">🎙️</span>
                             Fix Commentary
+                        </button>
+                        <button id="pushDraftToDbBtn" class="btn btn-secondary" disabled title="Push draft class players to user database">
+                            <span class="btn-icon">📤</span>
+                            Push to Database
                         </button>
                     </div>
                 </div>
@@ -1495,16 +1504,8 @@
                         <!-- Message area -->
                         <div id="retro-wizard-message" class="wizard-message" style="display: none;"></div>
 
-                        <!-- Step Indicators -->
-                        <div class="wizard-steps">
-                            <div class="retro-step-indicator active">1. Load File</div>
-                            <div class="retro-step-indicator">2. Select Year</div>
-                            <div class="retro-step-indicator">3. Preview</div>
-                            <div class="retro-step-indicator">4. Apply & Save</div>
-                        </div>
-
-                        <!-- Step 1: Load Franchise File -->
-                        <div class="wizard-step active" id="retro-wizard-step-1">
+                        <!-- File Selection Section (always visible initially) -->
+                        <div id="retro-file-selection" class="wizard-step active">
                             <div class="step-header">
                                 <span class="step-number">1</span>
                                 <h3 class="step-title">Load Franchise File</h3>
@@ -1528,11 +1529,123 @@
                                         <p id="retro-file-details"></p>
                                     </div>
                                 </div>
-                                <div class="wizard-nav">
-                                    <button class="btn btn-primary retro-wizard-next" disabled>Next: Select Year</button>
-                                </div>
                             </div>
                         </div>
+
+                        <!-- Tool Landing Page (shown after file selection) -->
+                        <div id="retro-tool-landing" style="display: none;">
+                            <!-- Header Bar with File/Year Info -->
+                            <div class="retro-tool-header" style="background: var(--bg-secondary); border-radius: 8px; padding: 16px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                                <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="color: var(--text-secondary); font-size: 0.85rem;">File:</span>
+                                            <span id="retro-header-filename" style="color: var(--accent-color); font-weight: 500;"></span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="color: var(--text-secondary); font-size: 0.85rem;">Current Year:</span>
+                                            <span id="retro-header-current-year" style="color: var(--text-primary); font-weight: 500;"></span>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="color: var(--text-secondary); font-size: 0.85rem;">Week:</span>
+                                            <span id="retro-header-week" style="color: var(--text-primary); font-weight: 500;"></span>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <label for="retro-target-year" style="color: var(--text-secondary); font-size: 0.85rem;">Target Year:</label>
+                                        <select id="retro-target-year" class="form-input" style="width: 100px; padding: 6px 10px;">
+                                            <option value="">Loading...</option>
+                                        </select>
+                                        <button id="retro-change-file" class="btn btn-secondary btn-sm">Change File</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tool Cards Grid -->
+                            <div class="retro-tool-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
+                                <!-- Name Changes Tool -->
+                                <div class="retro-tool-card" data-tool="name-changes" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">📝</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Name Changes</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Pre-season / Offseason W1</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Update team names, cities, abbreviations</p>
+                                </div>
+
+                                <!-- Schedule Tool -->
+                                <div class="retro-tool-card" data-tool="schedule" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">📅</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Schedule</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Pre-season</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Apply real NFL schedule for selected year</p>
+                                </div>
+
+                                <!-- Relocation Tool -->
+                                <div class="retro-tool-card" data-tool="relocation" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">🏟️</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Relocation</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Pre-season</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Handle team relocations (e.g., Oilers→Titans)</p>
+                                </div>
+
+                                <!-- Coaching Tool -->
+                                <div class="retro-tool-card" data-tool="coaching" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">🎯</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Coaching</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">After Offseason W1</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Assign historical coaches & schemes</p>
+                                </div>
+
+                                <!-- Expansion Tool -->
+                                <div class="retro-tool-card" data-tool="expansion" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">🏈</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Expansion</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">1976, 1995, 1999, 2002</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Expansion draft for new teams</p>
+                                    <span id="expansion-badge" class="tool-badge" style="display: none; position: absolute; top: 8px; right: 8px; background: var(--warning-color); color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;">N/A</span>
+                                </div>
+
+                                <!-- Portraits Tool -->
+                                <div class="retro-tool-card" data-tool="portraits" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">🖼️</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Portraits</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Anytime</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Apply portrait mappings for players</p>
+                                </div>
+
+                                <!-- Commentary Tool -->
+                                <div class="retro-tool-card" data-tool="commentary" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">🎙️</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Commentary</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Anytime</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Fix commentary IDs for players</p>
+                                </div>
+
+                                <!-- Draft Order Tool -->
+                                <div class="retro-tool-card" data-tool="draft-order" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">📋</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Draft Order</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Offseason W1</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Reorder draft picks for expansion teams</p>
+                                </div>
+
+                                <!-- Salary Cap Tool (Disabled) -->
+                                <div class="retro-tool-card disabled" data-tool="salary-cap" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); opacity: 0.5; cursor: not-allowed; position: relative;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">💰</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Salary Cap</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--text-secondary);">Coming Soon</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Set historical salary cap values</p>
+                                    <span class="tool-badge" style="position: absolute; top: 8px; right: 8px; background: var(--text-secondary); color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;">Coming Soon</span>
+                                </div>
+                            </div>
+
+                            <!-- Status/Results Area -->
+                            <div id="retro-tool-status" style="margin-top: 20px; padding: 16px; background: var(--bg-tertiary); border-radius: 8px; display: none;">
+                                <div id="retro-tool-status-content"></div>
+                            </div>
+                        </div>
+
+                        <!-- Hidden: Legacy wizard steps (for backwards compatibility with existing modals) -->
+                        <div id="retro-wizard-step-1" style="display: none;"></div>
 
                         <!-- Step 2: Select Year -->
                         <div class="wizard-step" id="retro-wizard-step-2" style="display: none;">
@@ -2116,6 +2229,396 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ============================================
+                         RETRO TOOL MODALS
+                         ============================================ -->
+
+                    <!-- Name Changes Modal -->
+                    <div id="modal-name-changes" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content">
+                            <div class="retro-tool-modal-header">
+                                <h3>📝 Team Name Changes</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Updates team names, cities, and abbreviations to match the selected year.
+                                    <br><strong>When to use:</strong> Pre-season of a new season OR Week 1 of offseason.
+                                </p>
+                                <div id="name-changes-preview" class="retro-tool-preview">
+                                    <div class="retro-tool-preview-header">
+                                        <h4 class="retro-tool-preview-title">Changes Preview</h4>
+                                        <span id="name-changes-count" class="retro-tool-preview-count"></span>
+                                    </div>
+                                    <div id="name-changes-list" class="retro-tool-preview-list">
+                                        <p style="color: var(--text-secondary);">Loading preview...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-name-changes" class="btn btn-primary">Apply Changes</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Schedule Modal -->
+                    <div id="modal-schedule" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content">
+                            <div class="retro-tool-modal-header">
+                                <h3>📅 Season Schedule</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Applies the real NFL schedule for the selected year.
+                                    <br><strong>When to use:</strong> Pre-season only.
+                                </p>
+                                <div id="schedule-era-info" style="margin-bottom: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                                    <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                                        <div>
+                                            <span style="color: var(--text-secondary);">Season Length:</span>
+                                            <span id="schedule-season-length" style="color: var(--text-primary); margin-left: 8px;">--</span>
+                                        </div>
+                                        <div>
+                                            <span style="color: var(--text-secondary);">Bye Weeks:</span>
+                                            <span id="schedule-bye-weeks" style="color: var(--text-primary); margin-left: 8px;">--</span>
+                                        </div>
+                                        <div>
+                                            <span style="color: var(--text-secondary);">Playoff Teams:</span>
+                                            <span id="schedule-playoff-teams" style="color: var(--text-primary); margin-left: 8px;">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="schedule-preview" class="retro-tool-preview">
+                                    <div class="retro-tool-preview-header">
+                                        <h4 class="retro-tool-preview-title">Schedule Preview</h4>
+                                        <span id="schedule-games-count" class="retro-tool-preview-count"></span>
+                                    </div>
+                                    <div id="schedule-weeks-list" class="retro-tool-preview-list" style="max-height: 400px;">
+                                        <p style="color: var(--text-secondary);">Loading preview...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-schedule" class="btn btn-primary">Apply Schedule</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Relocation Modal -->
+                    <div id="modal-relocation" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content">
+                            <div class="retro-tool-modal-header">
+                                <h3>🏟️ Team Relocation</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Handles team relocations by transferring all players and staff.
+                                    <br><strong>When to use:</strong> Pre-season only.
+                                </p>
+                                <div id="relocation-preview" class="retro-tool-preview">
+                                    <div id="relocation-event-info" style="display: none; margin-bottom: 16px;">
+                                        <h4 style="color: var(--text-primary); margin: 0 0 8px 0;" id="relocation-event-name"></h4>
+                                        <p id="relocation-event-desc" style="color: var(--text-secondary); margin: 0;"></p>
+                                    </div>
+                                    <div id="relocation-no-event" style="padding: 24px; text-align: center; color: var(--text-secondary);">
+                                        No relocation event for the selected year.
+                                    </div>
+                                    <label id="relocation-transfer-option" style="display: none; margin-top: 16px; cursor: pointer;">
+                                        <input type="checkbox" id="relocation-transfer-checkbox" checked style="margin-right: 8px;">
+                                        Transfer all players from source team to destination
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-relocation" class="btn btn-primary" disabled>Apply Relocation</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coaching Modal -->
+                    <div id="modal-coaching" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content" style="max-width: 1000px;">
+                            <div class="retro-tool-modal-header">
+                                <h3>🎯 Coaching Staff</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Assign historical coaches to teams. Schemes are automatically set when a coach is assigned.
+                                    <br><strong>When to use:</strong> After offseason Week 1 (recommended for new franchise setup).
+                                </p>
+
+                                <!-- Coaching Tabs -->
+                                <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                                    <button id="coaching-tab-teams" class="btn btn-secondary" onclick="switchCoachingTab('teams')" style="background: var(--accent-color); color: white;">
+                                        Team Coaches
+                                    </button>
+                                    <button id="coaching-tab-fa" class="btn btn-secondary" onclick="switchCoachingTab('fa')">
+                                        Free Agent Coaches
+                                    </button>
+                                    <button id="coaching-tab-search" class="btn btn-secondary" onclick="switchCoachingTab('search')">
+                                        Search Database
+                                    </button>
+                                </div>
+
+                                <!-- Team Coaches Tab -->
+                                <div id="coaching-teams-content" class="coaching-tab-content">
+                                    <div id="coaching-preview" class="retro-tool-preview">
+                                        <div class="retro-tool-preview-header">
+                                            <h4 class="retro-tool-preview-title">Historical Coach Assignments</h4>
+                                            <span id="coaching-count" class="retro-tool-preview-count"></span>
+                                        </div>
+                                        <div id="coaching-list" class="retro-tool-preview-list" style="max-height: 350px;">
+                                            <p style="color: var(--text-secondary);">Loading preview...</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- FA Coaches Tab -->
+                                <div id="coaching-fa-content" class="coaching-tab-content" style="display: none;">
+                                    <div class="retro-tool-preview">
+                                        <div class="retro-tool-preview-header">
+                                            <h4 class="retro-tool-preview-title">Free Agent Coaches in File</h4>
+                                            <span id="fa-coaches-count" class="retro-tool-preview-count"></span>
+                                        </div>
+                                        <p style="color: var(--text-secondary); font-size: 0.9em; margin-bottom: 12px;">
+                                            These are coaches not assigned to any team. You can replace them with historical coaches from the database.
+                                        </p>
+                                        <div id="fa-coaches-list" class="retro-tool-preview-list" style="max-height: 350px;">
+                                            <p style="color: var(--text-secondary);">Loading FA coaches...</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Search Database Tab -->
+                                <div id="coaching-search-content" class="coaching-tab-content" style="display: none;">
+                                    <div class="retro-tool-preview">
+                                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                            <input type="text" id="coach-search-input" placeholder="Search by name..." style="flex: 1; padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary);">
+                                            <button id="btn-search-coaches" class="btn btn-primary" onclick="searchCoachDatabase()">Search</button>
+                                        </div>
+                                        <div class="retro-tool-preview-header">
+                                            <h4 class="retro-tool-preview-title">Search Results</h4>
+                                            <span id="coach-search-count" class="retro-tool-preview-count"></span>
+                                        </div>
+                                        <div id="coach-search-results" class="retro-tool-preview-list" style="max-height: 300px;">
+                                            <p style="color: var(--text-secondary);">Enter a name to search the coach database.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-coaching" class="btn btn-primary">Apply Team Coaches</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expansion Modal -->
+                    <div id="modal-expansion" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content" style="max-width: 1000px;">
+                            <div class="retro-tool-modal-header">
+                                <h3>🏈 Expansion Draft</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <div id="expansion-not-available" style="padding: 32px; text-align: center; display: none;">
+                                    <div style="font-size: 3rem; margin-bottom: 16px;">🏈</div>
+                                    <h4 style="color: var(--text-primary); margin: 0 0 8px 0;">No Expansion Event</h4>
+                                    <p style="color: var(--text-secondary);">
+                                        Expansion drafts are only available for: <strong>1976, 1995, 1999, 2002</strong>
+                                    </p>
+                                </div>
+                                <div id="expansion-available" style="display: none;">
+                                    <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                        <span id="expansion-event-title" style="color: var(--accent-color); font-weight: 500;"></span>
+                                    </p>
+                                    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                                        <div style="flex: 1; min-width: 200px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                                            <span style="color: var(--text-secondary);">Protected per team:</span>
+                                            <span id="expansion-protected" style="color: var(--text-primary); margin-left: 8px;">--</span>
+                                        </div>
+                                        <div style="flex: 1; min-width: 200px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                                            <span style="color: var(--text-secondary);">Players to select:</span>
+                                            <span id="expansion-to-select" style="color: var(--text-primary); margin-left: 8px;">--</span>
+                                        </div>
+                                        <div style="flex: 1; min-width: 200px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                                            <label style="color: var(--text-secondary);">Draft Mode:</label>
+                                            <select id="expansion-draft-mode-select" style="margin-left: 8px; padding: 4px 8px; border-radius: 4px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-primary);">
+                                                <option value="auto">Auto-Select (Historical)</option>
+                                                <option value="manual">Manual Selection</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div id="expansion-draft-board" class="retro-tool-preview">
+                                        <div class="retro-tool-preview-header">
+                                            <h4 class="retro-tool-preview-title">Eligible Players</h4>
+                                            <span id="expansion-eligible-count" class="retro-tool-preview-count"></span>
+                                        </div>
+                                        <div id="expansion-players-list" class="retro-tool-preview-list" style="max-height: 300px;">
+                                            <p style="color: var(--text-secondary);">Loading eligible players...</p>
+                                        </div>
+                                    </div>
+                                    <!-- Manual Draft Board Button -->
+                                    <div id="expansion-manual-controls" style="margin-top: 16px; padding: 16px; background: var(--bg-tertiary); border-radius: 8px; display: none;">
+                                        <p style="color: var(--text-secondary); margin: 0 0 12px 0;">
+                                            Manual mode allows you to pick players individually. Click below to open the full draft board.
+                                        </p>
+                                        <button id="btn-open-draft-board" class="btn btn-primary" style="width: 100%;">
+                                            Open Manual Draft Board
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-expansion" class="btn btn-primary" disabled>Execute Auto Draft</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Portraits Modal -->
+                    <div id="modal-portraits" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content" style="max-width: 800px;">
+                            <div class="retro-tool-modal-header">
+                                <h3>🖼️ Portrait Mapping</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Generate portrait mappings or use your imported portraits.
+                                    <br><strong>When to use:</strong> Anytime after loading a roster/draft class for this year.
+                                </p>
+
+                                <!-- Portrait Tabs -->
+                                <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                                    <button id="portrait-tab-generated" class="btn btn-secondary" onclick="switchPortraitTab('generated')" style="background: var(--accent-color); color: white;">
+                                        Generated Mappings
+                                    </button>
+                                    <button id="portrait-tab-user" class="btn btn-secondary" onclick="switchPortraitTab('user')">
+                                        User Portraits
+                                    </button>
+                                </div>
+
+                                <!-- Generated Mappings Tab -->
+                                <div id="portrait-generated-content" class="portrait-tab-content">
+                                    <!-- Generate Mapping Buttons -->
+                                    <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                                        <button id="btn-generate-roster-mapping" class="btn btn-secondary" onclick="generateRosterPortraitMapping()">
+                                            Generate Roster Mapping
+                                        </button>
+                                        <button id="btn-generate-draft-mapping" class="btn btn-secondary" onclick="generateDraftPortraitMapping()">
+                                            Generate Draft Class Mapping
+                                        </button>
+                                    </div>
+
+                                    <div id="portraits-preview" class="retro-tool-preview">
+                                        <div style="display: flex; gap: 24px; margin-bottom: 16px; flex-wrap: wrap;">
+                                            <div>
+                                                <span style="color: var(--text-secondary);">Players Assigned:</span>
+                                                <span id="portraits-needed" style="color: var(--text-primary); margin-left: 8px;">--</span>
+                                            </div>
+                                            <div>
+                                                <span style="color: var(--text-secondary);">Real Portraits:</span>
+                                                <span id="portraits-available" style="color: var(--success-color); margin-left: 8px;">--</span>
+                                            </div>
+                                        </div>
+                                        <div class="retro-tool-preview-header">
+                                            <h4 class="retro-tool-preview-title">Portrait Assignments</h4>
+                                        </div>
+                                        <div id="portraits-list" class="retro-tool-preview-list" style="max-height: 450px; overflow-y: auto;">
+                                            <p style="color: var(--text-secondary);">No mapping generated yet. Click a button above to generate.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- User Portraits Tab -->
+                                <div id="portrait-user-content" class="portrait-tab-content" style="display: none;">
+                                    <div class="retro-tool-preview">
+                                        <div class="retro-tool-preview-header">
+                                            <h4 class="retro-tool-preview-title">Your Imported Portraits</h4>
+                                            <span id="user-portraits-count" class="retro-tool-preview-count"></span>
+                                        </div>
+                                        <p style="color: var(--text-secondary); font-size: 0.9em; margin-bottom: 12px;">
+                                            Portraits you've imported through the Portrait Editor are shown here.
+                                            To add more portraits, use the Portrait Editor tab.
+                                        </p>
+                                        <div id="user-portraits-list" class="retro-tool-preview-list" style="max-height: 350px;">
+                                            <p style="color: var(--text-secondary);">Loading portraits...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Close</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Commentary Modal -->
+                    <div id="modal-commentary" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content">
+                            <div class="retro-tool-modal-header">
+                                <h3>🎙️ Commentary Fix</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Fixes commentary IDs so announcers say player names correctly.
+                                    <br><strong>When to use:</strong> Anytime.
+                                </p>
+                                <div id="commentary-preview" class="retro-tool-preview">
+                                    <div class="retro-tool-preview-header">
+                                        <h4 class="retro-tool-preview-title">Players to Fix</h4>
+                                        <span id="commentary-count" class="retro-tool-preview-count"></span>
+                                    </div>
+                                    <div id="commentary-list" class="retro-tool-preview-list" style="max-height: 300px;">
+                                        <p style="color: var(--text-secondary);">Loading commentary data...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-commentary" class="btn btn-primary">Apply Fixes</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Draft Order Modal -->
+                    <div id="modal-draft-order" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content">
+                            <div class="retro-tool-modal-header">
+                                <h3>📋 Draft Pick Reorder</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Reorders draft picks based on expansion/relocation events.
+                                    <br><strong>When to use:</strong> Week 1 of offseason.
+                                </p>
+                                <div id="draft-order-preview" class="retro-tool-preview">
+                                    <div class="retro-tool-preview-header">
+                                        <h4 class="retro-tool-preview-title">Draft Pick Changes</h4>
+                                        <span id="draft-order-count" class="retro-tool-preview-count"></span>
+                                    </div>
+                                    <div id="draft-order-list" class="retro-tool-preview-list" style="max-height: 300px;">
+                                        <p style="color: var(--text-secondary);">Loading draft order data...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-draft-order" class="btn btn-primary">Apply Reorder</button>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 

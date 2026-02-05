@@ -1492,24 +1492,43 @@ ${fieldsList}
           console.log(`[getEligiblePlayers] Player ${player.FirstName} ${player.LastName}: rawPosition=${rawPosition} (${typeof rawPosition}) -> ${mappedPosition}, OverallRating=${player.OverallRating} (type: ${typeof player.OverallRating}), Age=${player.Age}`);
         }
 
-        // Look up OVR - prioritize roster file (has correct values), then database
+        // Look up OVR - NEW PRIORITY ORDER:
+        // 1. Franchise file (player.OverallRating) - source of truth
+        // 2. Roster file (if provided)
+        // 3. Database fallback
         const playerKey = `${player.FirstName}_${player.LastName}`.toLowerCase();
 
-        // Try roster file first (if provided)
-        let overall: number | undefined = rosterOvrMap.get(playerKey);
-        let ovrSource = 'roster';
+        // Priority 1: Try franchise file's OverallRating first
+        let overall: number | undefined = undefined;
+        let ovrSource = 'unknown';
 
-        // Fall back to database
+        const franchiseOVR = player.OverallRating;
+        if (franchiseOVR !== undefined && franchiseOVR > 0 && franchiseOVR <= 99) {
+          overall = franchiseOVR;
+          ovrSource = 'franchise';
+        }
+
+        // Priority 2: Try roster file (if provided and franchise OVR not available)
+        if ((overall === undefined || overall <= 0) && rosterOvrMap.size > 0) {
+          overall = rosterOvrMap.get(playerKey);
+          if (overall !== undefined && overall > 0) {
+            ovrSource = 'roster';
+          }
+        }
+
+        // Priority 3: Fall back to database
         if (overall === undefined || overall <= 0) {
           overall = ovrLookupMap.get(playerKey);
-          ovrSource = 'database';
+          if (overall !== undefined && overall > 0) {
+            ovrSource = 'database';
+          }
         }
 
         // If still no OVR found, skip this player
         if (overall === undefined || overall <= 0) {
           dbMissCount++;
           if (dbMissCount <= 10) {
-            console.log(`[getEligiblePlayers] SKIPPING: ${player.FirstName} ${player.LastName} (${mappedPosition}) - not in roster or ${year} database`);
+            console.log(`[getEligiblePlayers] SKIPPING: ${player.FirstName} ${player.LastName} (${mappedPosition}) - no valid OVR (franchise=${franchiseOVR}, roster=${rosterOvrMap.get(playerKey)}, db=${ovrLookupMap.get(playerKey)})`);
           }
           continue;
         }
@@ -2995,19 +3014,31 @@ ${fieldsList}
     if (!SKIP_PRESEASON && preseasonByWeek.size > 0) {
       console.log(`[RetroEditorService] ====== APPLYING PRESEASON SCHEDULE ======`);
 
-      // Flatten all historical preseason games into a single array
-      const allHistoricalPreseasonGames: typeof schedule.games = [];
-      const sortedWeeks = [...preseasonByWeek.keys()].sort((a, b) => a - b);
-      for (const week of sortedWeeks) {
-        const gamesThisWeek = preseasonByWeek.get(week) || [];
-        allHistoricalPreseasonGames.push(...gamesThisWeek);
-      }
-      console.log(`[RetroEditorService] Total historical preseason games: ${allHistoricalPreseasonGames.length}`);
-      console.log(`[RetroEditorService] Historical preseason weeks: ${sortedWeeks.join(', ')}`);
-
       // Madden 26 preseason structure: 3 weeks (0, 1, 2), max 16 games per week = 48 total slots
       const MADDEN_PRESEASON_WEEKS = 3;
       const MAX_PRESEASON_GAMES = 48;
+
+      // Flatten all historical preseason games into a single array
+      // FIX: Skip week 4+ games to prevent teams playing twice in a week
+      // Historical preseasons often had 4 weeks but Madden only supports 3
+      const allHistoricalPreseasonGames: typeof schedule.games = [];
+      const sortedWeeks = [...preseasonByWeek.keys()].sort((a, b) => a - b);
+      let skippedWeek4Games = 0;
+      for (const week of sortedWeeks) {
+        const gamesThisWeek = preseasonByWeek.get(week) || [];
+        // Skip week 4+ games to avoid teams playing twice in week 3
+        if (week > MADDEN_PRESEASON_WEEKS) {
+          skippedWeek4Games += gamesThisWeek.length;
+          console.log(`[RetroEditorService] Skipping week ${week} games (${gamesThisWeek.length} games) - beyond Madden's 3-week preseason`);
+          continue;
+        }
+        allHistoricalPreseasonGames.push(...gamesThisWeek);
+      }
+      console.log(`[RetroEditorService] Total historical preseason games: ${allHistoricalPreseasonGames.length} (skipped ${skippedWeek4Games} week 4+ games)`);
+      console.log(`[RetroEditorService] Historical preseason weeks used: ${sortedWeeks.filter(w => w <= MADDEN_PRESEASON_WEEKS).join(', ')}`);
+      if (skippedWeek4Games > 0) {
+        warnings.push(`Skipped ${skippedWeek4Games} preseason week 4+ games to fit Madden's 3-week format`);
+      }
 
       // Calculate actual games per week from the schedule (may be less than 16 for years with fewer teams)
       const gamesPerHistoricalWeek = sortedWeeks.length > 0
@@ -3423,6 +3454,8 @@ ${fieldsList}
       headCoach: string;
       offensiveCoordinator: string;
       defensiveCoordinator: string;
+      offScheme?: string;
+      defScheme?: string;
     }>;
     warnings: string[];
   }> {
@@ -3437,6 +3470,18 @@ ${fieldsList}
       };
     }
 
+    // Also get scheme preview to include scheme info with coaches
+    const schemePreview = await this.getSchemePreview(filePath, year);
+    const schemeByTeamIndex = new Map<number, { offense: string; defense: string }>();
+    if (schemePreview.available && schemePreview.schemeChanges) {
+      for (const sc of schemePreview.schemeChanges) {
+        schemeByTeamIndex.set(sc.teamIndex, {
+          offense: sc.newOffense || sc.currentOffense,
+          defense: sc.newDefense || sc.currentDefense
+        });
+      }
+    }
+
     const warnings: string[] = [];
     const coachChanges: Array<{
       teamAbbr: string;
@@ -3444,6 +3489,8 @@ ${fieldsList}
       headCoach: string;
       offensiveCoordinator: string;
       defensiveCoordinator: string;
+      offScheme?: string;
+      defScheme?: string;
     }> = [];
 
     for (const team of coachData.teams) {
@@ -3457,12 +3504,17 @@ ${fieldsList}
         ? `${team.defensiveCoordinator.firstName} ${team.defensiveCoordinator.lastName}`
         : '(Keep Default)';
 
+      // Get scheme info for this team
+      const schemes = schemeByTeamIndex.get(team.teamIndex);
+
       coachChanges.push({
         teamAbbr: team.teamAbbr,
         teamIndex: team.teamIndex,
         headCoach: hcName,
         offensiveCoordinator: ocName,
-        defensiveCoordinator: dcName
+        defensiveCoordinator: dcName,
+        offScheme: schemes?.offense,
+        defScheme: schemes?.defense
       });
     }
 
@@ -5142,13 +5194,28 @@ ${fieldsList}
   private loadCoachDatabase(): any | null {
     try {
       const appPath = app.getAppPath();
-      const dataPath = app.isPackaged
-        ? path.join(appPath, '.vite', 'build', 'data', 'lookups')
-        : path.join(appPath, 'data', 'lookups');
+      console.log(`[RetroEditorService] app.getAppPath() = ${appPath}`);
+      console.log(`[RetroEditorService] app.isPackaged = ${app.isPackaged}`);
 
-      const coachDbPath = path.join(dataPath, 'retro-coaches-database.json');
-      if (!fs.existsSync(coachDbPath)) {
-        console.log('[RetroEditorService] No coach database file found');
+      // Try multiple potential paths
+      const possiblePaths = [
+        path.join(appPath, 'data', 'lookups', 'retro-coaches-database.json'),
+        path.join(appPath, '.vite', 'build', 'data', 'lookups', 'retro-coaches-database.json'),
+        path.join(process.cwd(), 'data', 'lookups', 'retro-coaches-database.json'),
+      ];
+
+      let coachDbPath = null;
+      for (const p of possiblePaths) {
+        console.log(`[RetroEditorService] Checking path: ${p}`);
+        if (fs.existsSync(p)) {
+          coachDbPath = p;
+          console.log(`[RetroEditorService] FOUND at: ${p}`);
+          break;
+        }
+      }
+
+      if (!coachDbPath) {
+        console.log('[RetroEditorService] No coach database file found at any path');
         return null;
       }
 
@@ -6475,6 +6542,401 @@ ${fieldsList}
     } catch (err: any) {
       console.error('[RetroEditorService] applyAndSaveAs error:', err);
       return { success: false, playersMoved: 0, superBowlSet: 0, error: err.message };
+    }
+  }
+
+  /**
+   * Get commentary preview - shows players with incorrect or missing commentary IDs
+   * Uses lookupService to check what the correct commentary ID should be based on last name
+   */
+  async getCommentaryPreview(filePath: string): Promise<{
+    success: boolean;
+    playersToFix: Array<{
+      playerIndex: number;
+      firstName: string;
+      lastName: string;
+      currentCommId: number;
+      correctCommId: number;
+      teamIndex: number;
+    }>;
+    totalPlayers: number;
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        playersToFix: [],
+        totalPlayers: 0,
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log('[RetroEditorService] Getting commentary preview...');
+
+    // Get Player table
+    let playerTable = franchise.getTableByName('Player');
+    if (!playerTable) {
+      playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+    }
+    if (!playerTable) {
+      return {
+        success: false,
+        playersToFix: [],
+        totalPlayers: 0,
+        error: 'Could not find Player table'
+      };
+    }
+
+    await playerTable.readRecords();
+    console.log(`[RetroEditorService] Found ${playerTable.records.length} player records`);
+
+    const playersToFix: Array<{
+      playerIndex: number;
+      firstName: string;
+      lastName: string;
+      currentCommId: number;
+      correctCommId: number;
+      teamIndex: number;
+    }> = [];
+
+    let totalPlayers = 0;
+
+    for (const player of playerTable.records) {
+      if (player.isEmpty) continue;
+
+      const firstName = player.FirstName || '';
+      const lastName = player.LastName || '';
+
+      // Skip placeholder names
+      if (!lastName || lastName === 'Player' || lastName.startsWith('Empty')) continue;
+
+      totalPlayers++;
+
+      // Get current commentary ID
+      const currentCommId = player.CommentaryId !== undefined ? Number(player.CommentaryId) : 0;
+
+      // Lookup correct commentary ID from the lookup service
+      const correctCommId = lookupService.getCommentaryId(lastName) || 0;
+
+      // If they don't match, add to the list
+      if (currentCommId !== correctCommId && correctCommId > 0) {
+        playersToFix.push({
+          playerIndex: player.index,
+          firstName,
+          lastName,
+          currentCommId,
+          correctCommId,
+          teamIndex: Number(player.TeamIndex) || 32
+        });
+      }
+    }
+
+    console.log(`[RetroEditorService] Commentary preview: ${playersToFix.length} players need fixing out of ${totalPlayers}`);
+
+    return {
+      success: true,
+      playersToFix,
+      totalPlayers
+    };
+  }
+
+  /**
+   * Apply commentary fix - updates CommentaryId for all players based on their last name
+   */
+  async applyCommentaryFix(filePath: string): Promise<{
+    success: boolean;
+    playersFixed: number;
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        playersFixed: 0,
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log('[RetroEditorService] Applying commentary fix...');
+
+    // Get Player table
+    let playerTable = franchise.getTableByName('Player');
+    if (!playerTable) {
+      playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+    }
+    if (!playerTable) {
+      return {
+        success: false,
+        playersFixed: 0,
+        error: 'Could not find Player table'
+      };
+    }
+
+    await playerTable.readRecords();
+    let playersFixed = 0;
+
+    for (const player of playerTable.records) {
+      if (player.isEmpty) continue;
+
+      const lastName = player.LastName || '';
+      if (!lastName || lastName === 'Player' || lastName.startsWith('Empty')) continue;
+
+      // Get current and correct commentary IDs
+      const currentCommId = player.CommentaryId !== undefined ? Number(player.CommentaryId) : 0;
+      const correctCommId = lookupService.getCommentaryId(lastName) || 0;
+
+      // If they don't match and we have a correct ID, update it
+      if (currentCommId !== correctCommId && correctCommId > 0) {
+        try {
+          player.CommentaryId = correctCommId;
+          playersFixed++;
+        } catch (err: any) {
+          console.warn(`[RetroEditorService] Failed to update CommentaryId for ${player.FirstName} ${lastName}: ${err.message}`);
+        }
+      }
+    }
+
+    console.log(`[RetroEditorService] Commentary fix applied: ${playersFixed} players updated`);
+
+    // Save the file
+    await franchise.save();
+    console.log('[RetroEditorService] File saved after commentary fix');
+
+    return {
+      success: true,
+      playersFixed
+    };
+  }
+
+  /**
+   * Get list of free agent coaches in the franchise file
+   * These are coaches not assigned to any team (team index >= 32)
+   */
+  async getFreeAgentCoaches(filePath: string): Promise<{
+    success: boolean;
+    faCoaches: Array<{
+      coachIndex: number;
+      firstName: string;
+      lastName: string;
+      position: string;
+      age: number;
+      yearsCoaching: number;
+    }>;
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        faCoaches: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log('[RetroEditorService] Getting free agent coaches...');
+
+    // Get Coach table
+    let coachTable = franchise.getTableByUniqueId(TABLE_IDS.coachTable);
+    if (!coachTable) {
+      coachTable = franchise.getTableByName('Coach');
+    }
+    if (!coachTable) {
+      return {
+        success: false,
+        faCoaches: [],
+        error: 'Could not find Coach table'
+      };
+    }
+
+    await coachTable.readRecords();
+    console.log(`[RetroEditorService] Found ${coachTable.records.length} coach records`);
+
+    const FREE_AGENT_COACH_TEAM = 32;
+    const faCoaches: Array<{
+      coachIndex: number;
+      firstName: string;
+      lastName: string;
+      position: string;
+      age: number;
+      yearsCoaching: number;
+    }> = [];
+
+    for (const coach of coachTable.records) {
+      if (coach.isEmpty) continue;
+
+      const teamIndex = Number(coach.TeamIndex);
+      const contractStatus = coach.ContractStatus;
+
+      // FA coaches have team index >= 32 or FreeAgent contract status
+      if (teamIndex >= FREE_AGENT_COACH_TEAM || contractStatus === 'FreeAgent') {
+        faCoaches.push({
+          coachIndex: coach.index,
+          firstName: coach.FirstName || '',
+          lastName: coach.LastName || '',
+          position: coach.Position || 'Unknown',
+          age: Number(coach.Age) || 0,
+          yearsCoaching: Number(coach.YearsCoaching) || 0
+        });
+      }
+    }
+
+    console.log(`[RetroEditorService] Found ${faCoaches.length} free agent coaches`);
+
+    return {
+      success: true,
+      faCoaches
+    };
+  }
+
+  /**
+   * Search the coach database for coaches matching a query
+   * Searches by first name, last name, or full name
+   */
+  searchCoachDatabase(query: string, year: number, limit: number = 20): {
+    success: boolean;
+    results: Array<{
+      firstName: string;
+      lastName: string;
+      position: string;
+      careerFrom: number;
+      careerTo: number;
+      careerWins: number;
+      careerLosses: number;
+    }>;
+    error?: string;
+  } {
+    console.log(`[RetroEditorService] searchCoachDatabase called: query="${query}", year=${year}, limit=${limit}`);
+
+    const coachDb = this.loadCoachDatabase();
+    if (!coachDb) {
+      console.warn('[RetroEditorService] Could not load coach database');
+      return { success: false, results: [], error: 'Could not load coach database file' };
+    }
+
+    console.log(`[RetroEditorService] Coach database loaded with ${coachDb.coaches?.length || 0} coaches`);
+
+    const queryLower = query.toLowerCase().trim();
+    if (!queryLower) {
+      console.log('[RetroEditorService] Empty query, returning empty results');
+      return { success: true, results: [] };
+    }
+
+    const results: Array<{
+      firstName: string;
+      lastName: string;
+      position: string;
+      careerFrom: number;
+      careerTo: number;
+      careerWins: number;
+      careerLosses: number;
+    }> = [];
+
+    for (const coach of coachDb.coaches) {
+      // Skip if coach started after the target year
+      if (coach.careerFrom > year) continue;
+
+      const fullName = `${coach.firstName} ${coach.lastName}`.toLowerCase();
+      const firstName = coach.firstName.toLowerCase();
+      const lastName = coach.lastName.toLowerCase();
+
+      if (fullName.includes(queryLower) || firstName.includes(queryLower) || lastName.includes(queryLower)) {
+        // Get primary position
+        const positions = coach.positions || [];
+        const position = positions.includes('HC') ? 'HC' : positions[0] || 'Unknown';
+
+        results.push({
+          firstName: coach.firstName,
+          lastName: coach.lastName,
+          position,
+          careerFrom: coach.careerFrom,
+          careerTo: coach.careerTo,
+          careerWins: coach.careerWins || 0,
+          careerLosses: coach.careerLosses || 0
+        });
+
+        if (results.length >= limit) break;
+      }
+    }
+
+    console.log(`[RetroEditorService] Search found ${results.length} results for query "${query}"`);
+    return { success: true, results };
+  }
+
+  /**
+   * Replace a specific FA coach in the franchise with a coach from the database
+   */
+  async replaceCoachWithDatabaseCoach(
+    filePath: string,
+    faCoachIndex: number,
+    dbCoach: { firstName: string; lastName: string; careerFrom?: number; careerWins?: number; careerLosses?: number },
+    year: number
+  ): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log(`[RetroEditorService] Replacing FA coach at index ${faCoachIndex} with ${dbCoach.firstName} ${dbCoach.lastName}`);
+
+    // Get Coach table
+    let coachTable = franchise.getTableByUniqueId(TABLE_IDS.coachTable);
+    if (!coachTable) {
+      coachTable = franchise.getTableByName('Coach');
+    }
+    if (!coachTable) {
+      return {
+        success: false,
+        error: 'Could not find Coach table'
+      };
+    }
+
+    await coachTable.readRecords();
+
+    // Find the FA coach by index
+    const faCoach = coachTable.records.find((c: any) => c.index === faCoachIndex);
+    if (!faCoach) {
+      return {
+        success: false,
+        error: `Coach with index ${faCoachIndex} not found`
+      };
+    }
+
+    try {
+      // Update the coach's info
+      faCoach.FirstName = dbCoach.firstName;
+      faCoach.LastName = dbCoach.lastName;
+
+      // Set career stats if available
+      if (dbCoach.careerWins !== undefined) {
+        try { faCoach.CareerWins = dbCoach.careerWins; } catch (e) { /* field may not exist */ }
+      }
+      if (dbCoach.careerLosses !== undefined) {
+        try { faCoach.CareerLosses = dbCoach.careerLosses; } catch (e) { /* field may not exist */ }
+      }
+
+      // Calculate years coaching
+      if (dbCoach.careerFrom !== undefined) {
+        try {
+          const yearsCoaching = Math.max(1, year - dbCoach.careerFrom + 1);
+          faCoach.YearsCoaching = yearsCoaching;
+        } catch (e) { /* field may not exist */ }
+      }
+
+      console.log(`[RetroEditorService] Successfully replaced coach with ${dbCoach.firstName} ${dbCoach.lastName}`);
+
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: `Failed to update coach: ${err.message}`
+      };
     }
   }
 }
