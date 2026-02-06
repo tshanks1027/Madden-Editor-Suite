@@ -1,5 +1,9 @@
 {
-  "description": "NFL salary cap history by year (in dollars). No cap before 1994.",
+  "description": "NFL salary cap history by year (in dollars). No cap before 1994. NOTE: Madden 26 enforces a minimum cap of $120M regardless of historical values.",
+  "maddenMinimum": {
+    "value": 120000000,
+    "note": "Madden 26 game engine enforces this as the minimum salary cap. Years below this will use $120M in-game."
+  },
   "preCap": {
     "startYear": 1966,
     "endYear": 1993,
@@ -37,7 +41,9 @@
     "2021": 182500000,
     "2022": 208200000,
     "2023": 224800000,
-    "2024": 255400000
+    "2024": 255400000,
+    "2025": 272500000,
+    "2026": 277000000
   },
   "notes": {
     "2010": "Uncapped year due to CBA negotiations",

@@ -755,17 +755,38 @@ ipcMain.handle('retro:get-salary-cap', async (event, year: number) => {
 /**
  * Handle: retro:apply-salary-cap
  * Apply historical salary cap to franchise file
+ * @param filePath - Path to the franchise file
+ * @param year - The year to use for salary cap lookup
+ * @param options - Optional: { createBackup: boolean }
  */
-ipcMain.handle('retro:apply-salary-cap', async (event, filePath: string, year: number) => {
+ipcMain.handle('retro:apply-salary-cap', async (event, filePath: string, year: number, options?: { createBackup?: boolean }) => {
   console.log('[retro-editor-handlers] ===== APPLY SALARY CAP =====');
   console.log('[retro-editor-handlers] File:', filePath);
   console.log('[retro-editor-handlers] Year:', year);
+  console.log('[retro-editor-handlers] Options:', options);
 
   try {
+    // Create backup if requested
+    let backupPath: string | undefined;
+    if (options?.createBackup) {
+      console.log('[retro-editor-handlers] Creating backup before applying salary cap...');
+      const fs = await import('fs/promises');
+      const path = await import('path');
+
+      const dir = path.dirname(filePath);
+      const ext = path.extname(filePath);
+      const base = path.basename(filePath, ext);
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      backupPath = path.join(dir, `${base}.backup-before-cap.${timestamp}${ext}`);
+
+      await fs.copyFile(filePath, backupPath);
+      console.log('[retro-editor-handlers] Backup created:', backupPath);
+    }
+
     const result = await retroEditorService.applySalaryCap(filePath, year);
     console.log('[retro-editor-handlers] Salary cap applied');
     console.log('[retro-editor-handlers] Previous:', result.previousCap, 'New:', result.newCap);
-    return { success: true, data: result };
+    return { success: true, data: { ...result, backupPath } };
 
   } catch (error: any) {
     console.error('[retro-editor-handlers] Error applying salary cap:', error);

@@ -119,6 +119,7 @@ function initRetroEditor() {
   document.getElementById('btn-apply-portraits')?.addEventListener('click', () => applyToolPortraits());
   document.getElementById('btn-apply-commentary')?.addEventListener('click', () => applyToolCommentary());
   document.getElementById('btn-apply-draft-order')?.addEventListener('click', () => applyToolDraftOrder());
+  document.getElementById('btn-apply-salary-cap')?.addEventListener('click', () => applyToolSalaryCap());
 
   // Coach search input enter key handler
   document.getElementById('coach-search-input')?.addEventListener('keypress', (e) => {
@@ -3584,6 +3585,9 @@ async function loadToolPreview(toolName) {
     case 'draft-order':
       await loadDraftOrderPreview();
       break;
+    case 'salary-cap':
+      await loadSalaryCapToolPreview();
+      break;
   }
 }
 
@@ -4348,6 +4352,61 @@ async function loadDraftOrderPreview() {
   }
 }
 
+/**
+ * Load salary cap tool preview (for modal)
+ */
+async function loadSalaryCapToolPreview() {
+  const currentEl = document.getElementById('salary-cap-current');
+  const historicalEl = document.getElementById('salary-cap-historical');
+  const yearEl = document.getElementById('salary-cap-year');
+  const noteEl = document.getElementById('salary-cap-note');
+
+  // Reset display
+  currentEl.textContent = 'Loading...';
+  historicalEl.textContent = 'Loading...';
+  yearEl.textContent = retroState.targetYear || '--';
+  noteEl.textContent = '';
+
+  try {
+    // Get historical salary cap for the target year
+    const capResult = await window.electronAPI.retro.getSalaryCap(retroState.targetYear);
+
+    if (capResult.success && capResult.data) {
+      const capValue = capResult.data.value;
+      const note = capResult.data.note;
+
+      // Format as currency
+      const formattedCap = capValue > 0
+        ? `$${(capValue / 1000000).toFixed(1)}M`
+        : 'No Cap';
+
+      historicalEl.textContent = formattedCap;
+      yearEl.textContent = retroState.targetYear;
+
+      if (note) {
+        noteEl.textContent = note;
+        noteEl.style.display = 'block';
+      } else {
+        noteEl.style.display = 'none';
+      }
+
+      // Try to get current cap from franchise file
+      // Note: For now we show "Unknown" since we'd need to read it from the file
+      currentEl.textContent = 'From franchise file';
+    } else {
+      historicalEl.textContent = 'Error loading';
+      noteEl.textContent = capResult.error || 'Failed to load salary cap data';
+      noteEl.style.display = 'block';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading salary cap preview:', error);
+    currentEl.textContent = 'Error';
+    historicalEl.textContent = 'Error';
+    noteEl.textContent = `Error: ${error.message}`;
+    noteEl.style.display = 'block';
+  }
+}
+
 // ============================================
 // TOOL APPLY FUNCTIONS
 // ============================================
@@ -4671,6 +4730,104 @@ async function applyToolDraftOrder() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Apply Reorder';
+  }
+}
+
+/**
+ * Prompt user to create backup before modifying file
+ * Returns true if user wants to proceed, false to cancel
+ */
+async function promptForBackup(toolName) {
+  return new Promise((resolve) => {
+    const result = confirm(
+      `You are about to modify the franchise file with the ${toolName} tool.\n\n` +
+      `Do you want to create a backup before proceeding?\n\n` +
+      `Click OK to create backup and continue.\n` +
+      `Click Cancel to proceed without backup.`
+    );
+
+    if (result) {
+      // User wants backup - create it
+      createBackupBeforeApply().then(() => resolve(true)).catch(() => resolve(true));
+    } else {
+      // User doesn't want backup, proceed anyway
+      resolve(true);
+    }
+  });
+}
+
+/**
+ * Create backup of current franchise file
+ */
+async function createBackupBeforeApply() {
+  if (!retroState.filePath) return;
+
+  try {
+    console.log('[RetroEditor] Creating backup of franchise file...');
+    const result = await window.electronAPI.file.createBackup(retroState.filePath);
+    if (result.success) {
+      console.log('[RetroEditor] Backup created:', result.backupPath);
+      showToolStatus(`Backup created: ${result.backupPath}`, 'success');
+    } else {
+      console.warn('[RetroEditor] Backup failed:', result.error);
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error creating backup:', error);
+  }
+}
+
+/**
+ * Apply salary cap tool
+ */
+async function applyToolSalaryCap() {
+  const btn = document.getElementById('btn-apply-salary-cap');
+
+  // Prompt for backup first
+  const proceed = await promptForBackup('Salary Cap');
+  if (!proceed) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const config = {
+      sourcePath: retroState.filePath,
+      saveAs: false,
+      year: retroState.targetYear,
+      options: {
+        teams: false,
+        abbreviations: false,
+        schedule: false,
+        coaches: false,
+        salaryCap: true,
+        stadiums: false,
+        schemes: false,
+        uniforms: false,
+        expansion: false
+      }
+    };
+
+    console.log('[RetroEditor] Applying salary cap with config:', JSON.stringify(config, null, 2));
+    const result = await window.electronAPI.retro.applyAllAndSave(config);
+    console.log('[RetroEditor] Salary cap apply result:', JSON.stringify(result, null, 2));
+
+    if (result.success) {
+      // Get the new cap value for display
+      const capResult = await window.electronAPI.retro.getSalaryCap(retroState.targetYear);
+      const capValue = capResult.success && capResult.data ? capResult.data.value : 0;
+      const formattedCap = capValue > 0 ? `$${(capValue / 1000000).toFixed(1)}M` : 'N/A';
+
+      showToolStatus(`Salary cap set to ${formattedCap} for ${retroState.targetYear}!`, 'success');
+      closeToolModal(document.getElementById('modal-salary-cap'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying salary cap:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Salary Cap';
   }
 }
 

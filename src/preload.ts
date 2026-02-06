@@ -381,8 +381,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Salary Cap APIs
     getSalaryCap: (year: number) =>
       ipcRenderer.invoke('retro:get-salary-cap', year),
-    applySalaryCap: (filePath: string, year: number) =>
-      ipcRenderer.invoke('retro:apply-salary-cap', filePath, year),
+    applySalaryCap: (filePath: string, year: number, options?: { createBackup?: boolean }) =>
+      ipcRenderer.invoke('retro:apply-salary-cap', filePath, year, options),
     applyEraContracts: (filePath: string, year: number) =>
       ipcRenderer.invoke('retro:apply-era-contracts', filePath, year),
     setPlaceholderCoaches: (filePath: string, year: number) =>
