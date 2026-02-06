@@ -795,6 +795,49 @@ ipcMain.handle('retro:apply-salary-cap', async (event, filePath: string, year: n
 });
 
 // ========================================
+// NFL RECORDS HANDLERS
+// ========================================
+
+/**
+ * Handle: retro:get-nfl-records-preview
+ * Get NFL records preview for a specific year
+ */
+ipcMain.handle('retro:get-nfl-records-preview', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET NFL RECORDS PREVIEW =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const preview = retroEditorService.getNFLRecordsPreview(year);
+    console.log('[retro-editor-handlers] NFL records preview generated');
+    return { success: true, data: preview };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting NFL records preview:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-nfl-records
+ * Apply historical NFL records to franchise file
+ */
+ipcMain.handle('retro:apply-nfl-records', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY NFL RECORDS =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyNFLRecords(filePath, year);
+    console.log('[retro-editor-handlers] NFL records applied');
+    return { success: true, data: result };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying NFL records:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ========================================
 // STADIUM HANDLERS
 // ========================================
 

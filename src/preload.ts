@@ -390,6 +390,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     replaceFACoaches: (filePath: string, year: number) =>
       ipcRenderer.invoke('retro:replace-fa-coaches', filePath, year),
 
+    // NFL Records APIs
+    getNFLRecordsPreview: (year: number) =>
+      ipcRenderer.invoke('retro:get-nfl-records-preview', year),
+    applyNFLRecords: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-nfl-records', filePath, year),
+
     // Stadium APIs
     getStadiumPreview: (filePath: string, year: number) =>
       ipcRenderer.invoke('retro:get-stadium-preview', filePath, year),

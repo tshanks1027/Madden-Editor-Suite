@@ -120,6 +120,7 @@ function initRetroEditor() {
   document.getElementById('btn-apply-commentary')?.addEventListener('click', () => applyToolCommentary());
   document.getElementById('btn-apply-draft-order')?.addEventListener('click', () => applyToolDraftOrder());
   document.getElementById('btn-apply-salary-cap')?.addEventListener('click', () => applyToolSalaryCap());
+  document.getElementById('btn-apply-nfl-records')?.addEventListener('click', () => applyToolNFLRecords());
 
   // Coach search input enter key handler
   document.getElementById('coach-search-input')?.addEventListener('keypress', (e) => {
@@ -3588,6 +3589,9 @@ async function loadToolPreview(toolName) {
     case 'salary-cap':
       await loadSalaryCapToolPreview();
       break;
+    case 'nfl-records':
+      await loadNFLRecordsPreview();
+      break;
   }
 }
 
@@ -4739,20 +4743,48 @@ async function applyToolDraftOrder() {
  */
 async function promptForBackup(toolName) {
   return new Promise((resolve) => {
-    const result = confirm(
-      `You are about to modify the franchise file with the ${toolName} tool.\n\n` +
-      `Do you want to create a backup before proceeding?\n\n` +
-      `Click OK to create backup and continue.\n` +
-      `Click Cancel to proceed without backup.`
-    );
+    const modal = document.getElementById('modal-backup-confirm');
+    const toolNameEl = document.getElementById('backup-tool-name');
+    const backupBtn = document.getElementById('btn-backup-create');
+    const continueBtn = document.getElementById('btn-backup-continue');
+    const closeBtn = modal.querySelector('.retro-tool-modal-close');
 
-    if (result) {
-      // User wants backup - create it
-      createBackupBeforeApply().then(() => resolve(true)).catch(() => resolve(true));
-    } else {
-      // User doesn't want backup, proceed anyway
+    // Set the tool name
+    toolNameEl.textContent = toolName;
+
+    // Show modal
+    modal.style.display = 'flex';
+
+    // Clean up function
+    const cleanup = () => {
+      modal.style.display = 'none';
+      backupBtn.removeEventListener('click', onBackup);
+      continueBtn.removeEventListener('click', onContinue);
+      closeBtn.removeEventListener('click', onClose);
+    };
+
+    // Handler for "Back Up" button
+    const onBackup = async () => {
+      cleanup();
+      await createBackupBeforeApply();
       resolve(true);
-    }
+    };
+
+    // Handler for "Continue" button (no backup)
+    const onContinue = () => {
+      cleanup();
+      resolve(true);
+    };
+
+    // Handler for close button (cancel)
+    const onClose = () => {
+      cleanup();
+      resolve(false);
+    };
+
+    backupBtn.addEventListener('click', onBackup);
+    continueBtn.addEventListener('click', onContinue);
+    closeBtn.addEventListener('click', onClose);
   });
 }
 
@@ -4828,6 +4860,118 @@ async function applyToolSalaryCap() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Apply Salary Cap';
+  }
+}
+
+// ============================================
+// NFL RECORDS FUNCTIONS
+// ============================================
+
+/**
+ * Load NFL Records preview for modal
+ */
+async function loadNFLRecordsPreview() {
+  const yearEl = document.getElementById('nfl-records-year');
+  const loadingEl = document.getElementById('nfl-records-loading');
+  const contentEl = document.getElementById('nfl-records-content');
+  const errorEl = document.getElementById('nfl-records-error');
+  const careerEl = document.getElementById('nfl-records-career');
+  const seasonEl = document.getElementById('nfl-records-season');
+  const gameEl = document.getElementById('nfl-records-game');
+
+  // Reset display
+  yearEl.textContent = retroState.targetYear;
+  loadingEl.style.display = 'block';
+  contentEl.style.display = 'none';
+  errorEl.style.display = 'none';
+
+  try {
+    const result = await window.electronAPI.retro.getNFLRecordsPreview(retroState.targetYear);
+
+    if (result.success && result.data) {
+      const data = result.data;
+
+      // Helper to render a record category
+      const renderCategory = (records, container) => {
+        container.innerHTML = '';
+        const statLabels = {
+          PassYards: 'Pass Yards',
+          PassTds: 'Pass TDs',
+          RushYards: 'Rush Yards',
+          RushTds: 'Rush TDs',
+          ReceiveYards: 'Rec Yards',
+          ReceiveTDs: 'Rec TDs',
+          ReceiveCatches: 'Receptions',
+          DefensiveInts: 'INTs',
+          DefensiveSacks: 'Sacks'
+        };
+
+        for (const [stat, record] of Object.entries(records)) {
+          if (!record) continue;
+          const label = statLabels[stat] || stat;
+          const value = typeof record.value === 'number' ? record.value.toLocaleString() : record.value;
+          const div = document.createElement('div');
+          div.style.cssText = 'padding: 6px 8px; background: var(--bg-tertiary); border-radius: 4px;';
+          div.innerHTML = `
+            <div style="color: var(--text-secondary); font-size: 0.75rem;">${label}</div>
+            <div style="color: var(--text-primary); font-weight: 500;">${record.firstName} ${record.lastName}</div>
+            <div style="color: var(--accent-color); font-size: 0.8rem;">${value}</div>
+          `;
+          container.appendChild(div);
+        }
+      };
+
+      // Render each category
+      if (data.career) renderCategory(data.career, careerEl);
+      if (data.season) renderCategory(data.season, seasonEl);
+      if (data.game) renderCategory(data.game, gameEl);
+
+      loadingEl.style.display = 'none';
+      contentEl.style.display = 'block';
+    } else {
+      loadingEl.style.display = 'none';
+      errorEl.style.display = 'block';
+      errorEl.textContent = result.error || 'Failed to load records data';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading NFL records preview:', error);
+    loadingEl.style.display = 'none';
+    errorEl.style.display = 'block';
+    errorEl.textContent = `Error: ${error.message}`;
+  }
+}
+
+/**
+ * Apply NFL Records tool
+ */
+async function applyToolNFLRecords() {
+  const btn = document.getElementById('btn-apply-nfl-records');
+
+  // Prompt for backup first
+  const proceed = await promptForBackup('NFL Records');
+  if (!proceed) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const result = await window.electronAPI.retro.applyNFLRecords(
+      retroState.filePath,
+      retroState.targetYear
+    );
+
+    if (result.success) {
+      showToolStatus(`NFL records set to historical values for ${retroState.targetYear}!`, 'success');
+      closeToolModal(document.getElementById('modal-nfl-records'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying NFL records:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply NFL Records';
   }
 }
 

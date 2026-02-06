@@ -1628,13 +1628,20 @@
                                     <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Reorder draft picks for expansion teams</p>
                                 </div>
 
-                                <!-- Salary Cap Tool (Disabled) -->
-                                <div class="retro-tool-card disabled" data-tool="salary-cap" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); opacity: 0.5; cursor: not-allowed; position: relative;">
+                                <!-- Salary Cap Tool -->
+                                <div class="retro-tool-card" data-tool="salary-cap" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
                                     <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">💰</div>
                                     <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Salary Cap</h4>
-                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--text-secondary);">Coming Soon</p>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Pre-season</p>
                                     <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Set historical salary cap values</p>
-                                    <span class="tool-badge" style="position: absolute; top: 8px; right: 8px; background: var(--text-secondary); color: #fff; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px;">Coming Soon</span>
+                                </div>
+
+                                <!-- NFL Records Tool -->
+                                <div class="retro-tool-card" data-tool="nfl-records" style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">🏆</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">NFL Records</h4>
+                                    <p class="tool-timing" style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Pre-season</p>
+                                    <p class="tool-desc" style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Set historical NFL record holders</p>
                                 </div>
                             </div>
 
@@ -2615,6 +2622,112 @@
                             <div class="retro-tool-modal-footer">
                                 <button class="btn btn-secondary modal-cancel">Cancel</button>
                                 <button id="btn-apply-draft-order" class="btn btn-primary">Apply Reorder</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Salary Cap Modal -->
+                    <div id="modal-salary-cap" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content">
+                            <div class="retro-tool-modal-header">
+                                <h3>💰 Salary Cap</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Sets the league salary cap to the historical value for the selected year.
+                                    <br><strong>When to use:</strong> Pre-season, before advancing.
+                                </p>
+                                <div id="salary-cap-preview" class="retro-tool-preview">
+                                    <div class="retro-tool-preview-header">
+                                        <h4 class="retro-tool-preview-title">Salary Cap Values</h4>
+                                    </div>
+                                    <div id="salary-cap-info" style="padding: 16px;">
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                                            <div style="padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Current Cap</div>
+                                                <div id="salary-cap-current" style="font-size: 1.2rem; font-weight: 600; color: var(--text-primary);">Loading...</div>
+                                            </div>
+                                            <div style="padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                                                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Historical Cap (<span id="salary-cap-year">--</span>)</div>
+                                                <div id="salary-cap-historical" style="font-size: 1.2rem; font-weight: 600; color: var(--accent-color);">Loading...</div>
+                                            </div>
+                                        </div>
+                                        <div id="salary-cap-note" style="padding: 12px; background: var(--bg-tertiary); border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-salary-cap" class="btn btn-primary">Apply Salary Cap</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NFL Records Modal -->
+                    <div id="modal-nfl-records" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content">
+                            <div class="retro-tool-modal-header">
+                                <h3>🏆 NFL Records</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Sets all NFL record holders to their historical values for the selected year.
+                                    <br><strong>When to use:</strong> Pre-season, before advancing.
+                                </p>
+                                <div id="nfl-records-preview" class="retro-tool-preview">
+                                    <div class="retro-tool-preview-header">
+                                        <h4 class="retro-tool-preview-title">Historical Records for <span id="nfl-records-year">--</span></h4>
+                                    </div>
+                                    <div id="nfl-records-info" style="padding: 16px;">
+                                        <div id="nfl-records-loading" style="text-align: center; color: var(--text-secondary);">Loading records...</div>
+                                        <div id="nfl-records-content" style="display: none;">
+                                            <!-- Career Records -->
+                                            <div style="margin-bottom: 16px;">
+                                                <h5 style="color: var(--accent-color); margin-bottom: 8px; font-size: 0.9rem;">Career Records</h5>
+                                                <div id="nfl-records-career" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;"></div>
+                                            </div>
+                                            <!-- Season Records -->
+                                            <div style="margin-bottom: 16px;">
+                                                <h5 style="color: var(--accent-color); margin-bottom: 8px; font-size: 0.9rem;">Season Records</h5>
+                                                <div id="nfl-records-season" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;"></div>
+                                            </div>
+                                            <!-- Game Records -->
+                                            <div style="margin-bottom: 16px;">
+                                                <h5 style="color: var(--accent-color); margin-bottom: 8px; font-size: 0.9rem;">Game Records</h5>
+                                                <div id="nfl-records-game" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;"></div>
+                                            </div>
+                                        </div>
+                                        <div id="nfl-records-error" style="display: none; color: var(--error-color);"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-nfl-records" class="btn btn-primary">Apply NFL Records</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Backup Confirmation Modal -->
+                    <div id="modal-backup-confirm" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content" style="max-width: 450px;">
+                            <div class="retro-tool-modal-header">
+                                <h3>Create Backup?</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    You are about to modify the franchise file with the <strong id="backup-tool-name">tool</strong>.
+                                </p>
+                                <p style="color: var(--text-secondary);">
+                                    Would you like to create a backup before proceeding?
+                                </p>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button id="btn-backup-continue" class="btn btn-secondary">Continue</button>
+                                <button id="btn-backup-create" class="btn btn-primary">Back Up</button>
                             </div>
                         </div>
                     </div>

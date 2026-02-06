@@ -1,0 +1,461 @@
+{
+  "description": "NFL record holders by year and scope. Records as they stood at the END of each season.",
+  "note": "Sacks not officially tracked until 1982 - using unofficial estimates for earlier years",
+  "scopes": {
+    "career": "All-time career records",
+    "season": "Single-season records",
+    "game": "Single-game records",
+    "rookieSeason": "Single-season rookie records",
+    "rookieGame": "Single-game rookie records"
+  },
+  "career": {
+    "1976": {
+      "PassYards": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 41801, "team": "vikings", "year": 1976 },
+      "PassTds": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 342, "team": "vikings", "year": 1976 },
+      "RushYards": { "firstName": "Jim", "lastName": "Brown", "position": "HB", "value": 12312, "team": "browns", "year": 1965 },
+      "RushTds": { "firstName": "Jim", "lastName": "Brown", "position": "HB", "value": 106, "team": "browns", "year": 1965 },
+      "ReceiveYards": { "firstName": "Don", "lastName": "Maynard", "position": "WR", "value": 11834, "team": "jets", "year": 1973 },
+      "ReceiveTDs": { "firstName": "Don", "lastName": "Hutson", "position": "WR", "value": 99, "team": "packers", "year": 1945 },
+      "ReceiveCatches": { "firstName": "Charley", "lastName": "Taylor", "position": "WR", "value": 649, "team": "washington", "year": 1976 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 81, "team": "vikings", "year": 1976 },
+      "DefensiveSacks": { "firstName": "Deacon", "lastName": "Jones", "position": "LE", "value": 173, "team": "rams", "year": 1974 }
+    },
+    "1980": {
+      "PassYards": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 47003, "team": "vikings", "year": 1978 },
+      "PassTds": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 342, "team": "vikings", "year": 1978 },
+      "RushYards": { "firstName": "Jim", "lastName": "Brown", "position": "HB", "value": 12312, "team": "browns", "year": 1965 },
+      "RushTds": { "firstName": "Jim", "lastName": "Brown", "position": "HB", "value": 106, "team": "browns", "year": 1965 },
+      "ReceiveYards": { "firstName": "Don", "lastName": "Maynard", "position": "WR", "value": 11834, "team": "jets", "year": 1973 },
+      "ReceiveTDs": { "firstName": "Don", "lastName": "Hutson", "position": "WR", "value": 99, "team": "packers", "year": 1945 },
+      "ReceiveCatches": { "firstName": "Charley", "lastName": "Taylor", "position": "WR", "value": 649, "team": "washington", "year": 1977 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 81, "team": "vikings", "year": 1979 },
+      "DefensiveSacks": { "firstName": "Deacon", "lastName": "Jones", "position": "LE", "value": 173, "team": "rams", "year": 1974 }
+    },
+    "1985": {
+      "PassYards": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 47003, "team": "vikings", "year": 1978 },
+      "PassTds": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 342, "team": "vikings", "year": 1978 },
+      "RushYards": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 14860, "team": "bears", "year": 1985 },
+      "RushTds": { "firstName": "Jim", "lastName": "Brown", "position": "HB", "value": 106, "team": "browns", "year": 1965 },
+      "ReceiveYards": { "firstName": "Charlie", "lastName": "Joiner", "position": "WR", "value": 12146, "team": "chargers", "year": 1985 },
+      "ReceiveTDs": { "firstName": "Don", "lastName": "Hutson", "position": "WR", "value": 99, "team": "packers", "year": 1945 },
+      "ReceiveCatches": { "firstName": "Charlie", "lastName": "Joiner", "position": "WR", "value": 750, "team": "chargers", "year": 1985 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 81, "team": "vikings", "year": 1979 },
+      "DefensiveSacks": { "firstName": "Deacon", "lastName": "Jones", "position": "LE", "value": 173, "team": "rams", "year": 1974 }
+    },
+    "1990": {
+      "PassYards": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 47003, "team": "vikings", "year": 1978 },
+      "PassTds": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 342, "team": "vikings", "year": 1978 },
+      "RushYards": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 16726, "team": "bears", "year": 1987 },
+      "RushTds": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 110, "team": "bears", "year": 1987 },
+      "ReceiveYards": { "firstName": "Steve", "lastName": "Largent", "position": "WR", "value": 13089, "team": "seahawks", "year": 1989 },
+      "ReceiveTDs": { "firstName": "Steve", "lastName": "Largent", "position": "WR", "value": 100, "team": "seahawks", "year": 1989 },
+      "ReceiveCatches": { "firstName": "Art", "lastName": "Monk", "position": "WR", "value": 801, "team": "washington", "year": 1990 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 81, "team": "vikings", "year": 1979 },
+      "DefensiveSacks": { "firstName": "Reggie", "lastName": "White", "position": "LE", "value": 124, "team": "eagles", "year": 1990 }
+    },
+    "1995": {
+      "PassYards": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 51636, "team": "dolphins", "year": 1995 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 385, "team": "dolphins", "year": 1995 },
+      "RushYards": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 16726, "team": "bears", "year": 1987 },
+      "RushTds": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 110, "team": "bears", "year": 1987 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 15123, "team": "49ers", "year": 1995 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 156, "team": "49ers", "year": 1995 },
+      "ReceiveCatches": { "firstName": "Art", "lastName": "Monk", "position": "WR", "value": 940, "team": "washington", "year": 1995 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 81, "team": "vikings", "year": 1979 },
+      "DefensiveSacks": { "firstName": "Reggie", "lastName": "White", "position": "LE", "value": 170, "team": "packers", "year": 1995 }
+    },
+    "2000": {
+      "PassYards": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 61361, "team": "dolphins", "year": 1999 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 420, "team": "dolphins", "year": 1999 },
+      "RushYards": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 16726, "team": "bears", "year": 1987 },
+      "RushTds": { "firstName": "Emmitt", "lastName": "Smith", "position": "HB", "value": 153, "team": "cowboys", "year": 2000 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 20386, "team": "49ers", "year": 2000 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 187, "team": "49ers", "year": 2000 },
+      "ReceiveCatches": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 1364, "team": "49ers", "year": 2000 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 81, "team": "vikings", "year": 1979 },
+      "DefensiveSacks": { "firstName": "Reggie", "lastName": "White", "position": "LE", "value": 198, "team": "packers", "year": 2000 }
+    },
+    "2005": {
+      "PassYards": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 61361, "team": "dolphins", "year": 1999 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 420, "team": "dolphins", "year": 1999 },
+      "RushYards": { "firstName": "Emmitt", "lastName": "Smith", "position": "HB", "value": 18355, "team": "cowboys", "year": 2004 },
+      "RushTds": { "firstName": "Emmitt", "lastName": "Smith", "position": "HB", "value": 164, "team": "cowboys", "year": 2004 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 22895, "team": "49ers", "year": 2004 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 197, "team": "49ers", "year": 2004 },
+      "ReceiveCatches": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 1549, "team": "49ers", "year": 2004 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 81, "team": "vikings", "year": 1979 },
+      "DefensiveSacks": { "firstName": "Bruce", "lastName": "Smith", "position": "RE", "value": 200, "team": "bills", "year": 2003 }
+    },
+    "2010": {
+      "PassYards": { "firstName": "Brett", "lastName": "Favre", "position": "QB", "value": 71838, "team": "packers", "year": 2010 },
+      "PassTds": { "firstName": "Brett", "lastName": "Favre", "position": "QB", "value": 508, "team": "packers", "year": 2010 },
+      "RushYards": { "firstName": "Emmitt", "lastName": "Smith", "position": "HB", "value": 18355, "team": "cowboys", "year": 2004 },
+      "RushTds": { "firstName": "Emmitt", "lastName": "Smith", "position": "HB", "value": 164, "team": "cowboys", "year": 2004 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 22895, "team": "49ers", "year": 2004 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 197, "team": "49ers", "year": 2004 },
+      "ReceiveCatches": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 1549, "team": "49ers", "year": 2004 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 81, "team": "vikings", "year": 1979 },
+      "DefensiveSacks": { "firstName": "Bruce", "lastName": "Smith", "position": "RE", "value": 200, "team": "bills", "year": 2003 }
+    }
+  },
+  "season": {
+    "1976": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 4007, "team": "jets", "year": 1967 },
+      "PassTds": { "firstName": "George", "lastName": "Blanda", "position": "QB", "value": 36, "team": "texans", "year": 1961 },
+      "RushYards": { "firstName": "O.J.", "lastName": "Simpson", "position": "HB", "value": 2003, "team": "bills", "year": 1973 },
+      "RushTds": { "firstName": "Jim", "lastName": "Taylor", "position": "FB", "value": 19, "team": "packers", "year": 1962 },
+      "ReceiveYards": { "firstName": "Charley", "lastName": "Hennigan", "position": "WR", "value": 1746, "team": "texans", "year": 1961 },
+      "ReceiveTDs": { "firstName": "Don", "lastName": "Hutson", "position": "WR", "value": 17, "team": "packers", "year": 1942 },
+      "ReceiveCatches": { "firstName": "Tom", "lastName": "Fears", "position": "WR", "value": 84, "team": "rams", "year": 1950 },
+      "DefensiveInts": { "firstName": "Night Train", "lastName": "Lane", "position": "CB", "value": 14, "team": "rams", "year": 1952 },
+      "DefensiveSacks": { "firstName": "Deacon", "lastName": "Jones", "position": "LE", "value": 22, "team": "rams", "year": 1967 }
+    },
+    "1980": {
+      "PassYards": { "firstName": "Dan", "lastName": "Fouts", "position": "QB", "value": 4715, "team": "chargers", "year": 1980 },
+      "PassTds": { "firstName": "George", "lastName": "Blanda", "position": "QB", "value": 36, "team": "texans", "year": 1961 },
+      "RushYards": { "firstName": "O.J.", "lastName": "Simpson", "position": "HB", "value": 2003, "team": "bills", "year": 1973 },
+      "RushTds": { "firstName": "Jim", "lastName": "Taylor", "position": "FB", "value": 19, "team": "packers", "year": 1962 },
+      "ReceiveYards": { "firstName": "Charley", "lastName": "Hennigan", "position": "WR", "value": 1746, "team": "texans", "year": 1961 },
+      "ReceiveTDs": { "firstName": "Don", "lastName": "Hutson", "position": "WR", "value": 17, "team": "packers", "year": 1942 },
+      "ReceiveCatches": { "firstName": "Tom", "lastName": "Fears", "position": "WR", "value": 84, "team": "rams", "year": 1950 },
+      "DefensiveInts": { "firstName": "Night Train", "lastName": "Lane", "position": "CB", "value": 14, "team": "rams", "year": 1952 },
+      "DefensiveSacks": { "firstName": "Coy", "lastName": "Bacon", "position": "LE", "value": 26, "team": "bengals", "year": 1976 }
+    },
+    "1985": {
+      "PassYards": { "firstName": "Dan", "lastName": "Fouts", "position": "QB", "value": 4802, "team": "chargers", "year": 1981 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 48, "team": "dolphins", "year": 1984 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 2105, "team": "rams", "year": 1984 },
+      "RushTds": { "firstName": "John", "lastName": "Riggins", "position": "FB", "value": 24, "team": "washington", "year": 1983 },
+      "ReceiveYards": { "firstName": "Roy", "lastName": "Green", "position": "WR", "value": 1555, "team": "cardinals", "year": 1984 },
+      "ReceiveTDs": { "firstName": "Mark", "lastName": "Clayton", "position": "WR", "value": 18, "team": "dolphins", "year": 1984 },
+      "ReceiveCatches": { "firstName": "Art", "lastName": "Monk", "position": "WR", "value": 106, "team": "washington", "year": 1984 },
+      "DefensiveInts": { "firstName": "Night Train", "lastName": "Lane", "position": "CB", "value": 14, "team": "rams", "year": 1952 },
+      "DefensiveSacks": { "firstName": "Mark", "lastName": "Gastineau", "position": "RE", "value": 22, "team": "jets", "year": 1984 }
+    },
+    "1990": {
+      "PassYards": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 5084, "team": "dolphins", "year": 1984 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 48, "team": "dolphins", "year": 1984 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 2105, "team": "rams", "year": 1984 },
+      "RushTds": { "firstName": "John", "lastName": "Riggins", "position": "FB", "value": 24, "team": "washington", "year": 1983 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 1570, "team": "49ers", "year": 1986 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 22, "team": "49ers", "year": 1987 },
+      "ReceiveCatches": { "firstName": "Art", "lastName": "Monk", "position": "WR", "value": 106, "team": "washington", "year": 1984 },
+      "DefensiveInts": { "firstName": "Night Train", "lastName": "Lane", "position": "CB", "value": 14, "team": "rams", "year": 1952 },
+      "DefensiveSacks": { "firstName": "Mark", "lastName": "Gastineau", "position": "RE", "value": 22, "team": "jets", "year": 1984 }
+    },
+    "1995": {
+      "PassYards": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 5084, "team": "dolphins", "year": 1984 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 48, "team": "dolphins", "year": 1984 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 2105, "team": "rams", "year": 1984 },
+      "RushTds": { "firstName": "Emmitt", "lastName": "Smith", "position": "HB", "value": 25, "team": "cowboys", "year": 1995 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 1848, "team": "49ers", "year": 1995 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 22, "team": "49ers", "year": 1987 },
+      "ReceiveCatches": { "firstName": "Herman", "lastName": "Moore", "position": "WR", "value": 123, "team": "lions", "year": 1995 },
+      "DefensiveInts": { "firstName": "Night Train", "lastName": "Lane", "position": "CB", "value": 14, "team": "rams", "year": 1952 },
+      "DefensiveSacks": { "firstName": "Mark", "lastName": "Gastineau", "position": "RE", "value": 22, "team": "jets", "year": 1984 }
+    },
+    "2000": {
+      "PassYards": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 5084, "team": "dolphins", "year": 1984 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 48, "team": "dolphins", "year": 1984 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 2105, "team": "rams", "year": 1984 },
+      "RushTds": { "firstName": "Emmitt", "lastName": "Smith", "position": "HB", "value": 25, "team": "cowboys", "year": 1995 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 1848, "team": "49ers", "year": 1995 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 22, "team": "49ers", "year": 1987 },
+      "ReceiveCatches": { "firstName": "Herman", "lastName": "Moore", "position": "WR", "value": 123, "team": "lions", "year": 1995 },
+      "DefensiveInts": { "firstName": "Night Train", "lastName": "Lane", "position": "CB", "value": 14, "team": "rams", "year": 1952 },
+      "DefensiveSacks": { "firstName": "Mark", "lastName": "Gastineau", "position": "RE", "value": 22, "team": "jets", "year": 1984 }
+    },
+    "2005": {
+      "PassYards": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 5084, "team": "dolphins", "year": 1984 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 48, "team": "dolphins", "year": 1984 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 2105, "team": "rams", "year": 1984 },
+      "RushTds": { "firstName": "Shaun", "lastName": "Alexander", "position": "HB", "value": 28, "team": "seahawks", "year": 2005 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 1848, "team": "49ers", "year": 1995 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 23, "team": "patriots", "year": 2007 },
+      "ReceiveCatches": { "firstName": "Marvin", "lastName": "Harrison", "position": "WR", "value": 143, "team": "colts", "year": 2002 },
+      "DefensiveInts": { "firstName": "Night Train", "lastName": "Lane", "position": "CB", "value": 14, "team": "rams", "year": 1952 },
+      "DefensiveSacks": { "firstName": "Michael", "lastName": "Strahan", "position": "LE", "value": 22.5, "team": "giants", "year": 2001 }
+    },
+    "2010": {
+      "PassYards": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 5084, "team": "dolphins", "year": 1984 },
+      "PassTds": { "firstName": "Tom", "lastName": "Brady", "position": "QB", "value": 50, "team": "patriots", "year": 2007 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 2105, "team": "rams", "year": 1984 },
+      "RushTds": { "firstName": "LaDainian", "lastName": "Tomlinson", "position": "HB", "value": 31, "team": "chargers", "year": 2006 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 1848, "team": "49ers", "year": 1995 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 23, "team": "patriots", "year": 2007 },
+      "ReceiveCatches": { "firstName": "Marvin", "lastName": "Harrison", "position": "WR", "value": 143, "team": "colts", "year": 2002 },
+      "DefensiveInts": { "firstName": "Night Train", "lastName": "Lane", "position": "CB", "value": 14, "team": "rams", "year": 1952 },
+      "DefensiveSacks": { "firstName": "Michael", "lastName": "Strahan", "position": "LE", "value": 22.5, "team": "giants", "year": 2001 }
+    }
+  },
+  "game": {
+    "1976": {
+      "PassYards": { "firstName": "Norm", "lastName": "Van Brocklin", "position": "QB", "value": 554, "team": "rams", "year": 1951 },
+      "PassTds": { "firstName": "Sid", "lastName": "Luckman", "position": "QB", "value": 7, "team": "bears", "year": 1943 },
+      "RushYards": { "firstName": "O.J.", "lastName": "Simpson", "position": "HB", "value": 273, "team": "bills", "year": 1976 },
+      "RushTds": { "firstName": "Ernie", "lastName": "Nevers", "position": "FB", "value": 6, "team": "cardinals", "year": 1929 },
+      "ReceiveYards": { "firstName": "Jim", "lastName": "Benton", "position": "WR", "value": 303, "team": "browns", "year": 1945 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 5, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Tom", "lastName": "Fears", "position": "WR", "value": 18, "team": "rams", "year": 1950 },
+      "DefensiveInts": { "firstName": "Sammy", "lastName": "Baugh", "position": "QB", "value": 4, "team": "washington", "year": 1943 },
+      "DefensiveSacks": { "firstName": "Deacon", "lastName": "Jones", "position": "LE", "value": 4, "team": "rams", "year": 1967 }
+    },
+    "1980": {
+      "PassYards": { "firstName": "Norm", "lastName": "Van Brocklin", "position": "QB", "value": 554, "team": "rams", "year": 1951 },
+      "PassTds": { "firstName": "Sid", "lastName": "Luckman", "position": "QB", "value": 7, "team": "bears", "year": 1943 },
+      "RushYards": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 275, "team": "bears", "year": 1977 },
+      "RushTds": { "firstName": "Ernie", "lastName": "Nevers", "position": "FB", "value": 6, "team": "cardinals", "year": 1929 },
+      "ReceiveYards": { "firstName": "Jim", "lastName": "Benton", "position": "WR", "value": 303, "team": "browns", "year": 1945 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 5, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Tom", "lastName": "Fears", "position": "WR", "value": 18, "team": "rams", "year": 1950 },
+      "DefensiveInts": { "firstName": "Sammy", "lastName": "Baugh", "position": "QB", "value": 4, "team": "washington", "year": 1943 },
+      "DefensiveSacks": { "firstName": "Fred", "lastName": "Dean", "position": "LE", "value": 4, "team": "chargers", "year": 1980 }
+    },
+    "1985": {
+      "PassYards": { "firstName": "Norm", "lastName": "Van Brocklin", "position": "QB", "value": 554, "team": "rams", "year": 1951 },
+      "PassTds": { "firstName": "Sid", "lastName": "Luckman", "position": "QB", "value": 7, "team": "bears", "year": 1943 },
+      "RushYards": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 275, "team": "bears", "year": 1977 },
+      "RushTds": { "firstName": "Ernie", "lastName": "Nevers", "position": "FB", "value": 6, "team": "cardinals", "year": 1929 },
+      "ReceiveYards": { "firstName": "Jim", "lastName": "Benton", "position": "WR", "value": 303, "team": "browns", "year": 1945 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 5, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Tom", "lastName": "Fears", "position": "WR", "value": 18, "team": "rams", "year": 1950 },
+      "DefensiveInts": { "firstName": "Sammy", "lastName": "Baugh", "position": "QB", "value": 4, "team": "washington", "year": 1943 },
+      "DefensiveSacks": { "firstName": "Fred", "lastName": "Dean", "position": "LE", "value": 5, "team": "49ers", "year": 1983 }
+    },
+    "1990": {
+      "PassYards": { "firstName": "Norm", "lastName": "Van Brocklin", "position": "QB", "value": 554, "team": "rams", "year": 1951 },
+      "PassTds": { "firstName": "Sid", "lastName": "Luckman", "position": "QB", "value": 7, "team": "bears", "year": 1943 },
+      "RushYards": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 275, "team": "bears", "year": 1977 },
+      "RushTds": { "firstName": "Ernie", "lastName": "Nevers", "position": "FB", "value": 6, "team": "cardinals", "year": 1929 },
+      "ReceiveYards": { "firstName": "Flipper", "lastName": "Anderson", "position": "WR", "value": 336, "team": "rams", "year": 1989 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 5, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Tom", "lastName": "Fears", "position": "WR", "value": 18, "team": "rams", "year": 1950 },
+      "DefensiveInts": { "firstName": "Sammy", "lastName": "Baugh", "position": "QB", "value": 4, "team": "washington", "year": 1943 },
+      "DefensiveSacks": { "firstName": "Derrick", "lastName": "Thomas", "position": "LOLB", "value": 7, "team": "chiefs", "year": 1990 }
+    },
+    "1995": {
+      "PassYards": { "firstName": "Norm", "lastName": "Van Brocklin", "position": "QB", "value": 554, "team": "rams", "year": 1951 },
+      "PassTds": { "firstName": "Sid", "lastName": "Luckman", "position": "QB", "value": 7, "team": "bears", "year": 1943 },
+      "RushYards": { "firstName": "Walter", "lastName": "Payton", "position": "HB", "value": 275, "team": "bears", "year": 1977 },
+      "RushTds": { "firstName": "Ernie", "lastName": "Nevers", "position": "FB", "value": 6, "team": "cardinals", "year": 1929 },
+      "ReceiveYards": { "firstName": "Flipper", "lastName": "Anderson", "position": "WR", "value": 336, "team": "rams", "year": 1989 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 5, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Tom", "lastName": "Fears", "position": "WR", "value": 18, "team": "rams", "year": 1950 },
+      "DefensiveInts": { "firstName": "Sammy", "lastName": "Baugh", "position": "QB", "value": 4, "team": "washington", "year": 1943 },
+      "DefensiveSacks": { "firstName": "Derrick", "lastName": "Thomas", "position": "LOLB", "value": 7, "team": "chiefs", "year": 1990 }
+    },
+    "2000": {
+      "PassYards": { "firstName": "Norm", "lastName": "Van Brocklin", "position": "QB", "value": 554, "team": "rams", "year": 1951 },
+      "PassTds": { "firstName": "Sid", "lastName": "Luckman", "position": "QB", "value": 7, "team": "bears", "year": 1943 },
+      "RushYards": { "firstName": "Corey", "lastName": "Dillon", "position": "HB", "value": 278, "team": "bengals", "year": 2000 },
+      "RushTds": { "firstName": "Ernie", "lastName": "Nevers", "position": "FB", "value": 6, "team": "cardinals", "year": 1929 },
+      "ReceiveYards": { "firstName": "Flipper", "lastName": "Anderson", "position": "WR", "value": 336, "team": "rams", "year": 1989 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 5, "team": "49ers", "year": 1990 },
+      "ReceiveCatches": { "firstName": "Tom", "lastName": "Fears", "position": "WR", "value": 18, "team": "rams", "year": 1950 },
+      "DefensiveInts": { "firstName": "Sammy", "lastName": "Baugh", "position": "QB", "value": 4, "team": "washington", "year": 1943 },
+      "DefensiveSacks": { "firstName": "Derrick", "lastName": "Thomas", "position": "LOLB", "value": 7, "team": "chiefs", "year": 1990 }
+    },
+    "2005": {
+      "PassYards": { "firstName": "Norm", "lastName": "Van Brocklin", "position": "QB", "value": 554, "team": "rams", "year": 1951 },
+      "PassTds": { "firstName": "Sid", "lastName": "Luckman", "position": "QB", "value": 7, "team": "bears", "year": 1943 },
+      "RushYards": { "firstName": "Jamal", "lastName": "Lewis", "position": "HB", "value": 295, "team": "ravens", "year": 2003 },
+      "RushTds": { "firstName": "Ernie", "lastName": "Nevers", "position": "FB", "value": 6, "team": "cardinals", "year": 1929 },
+      "ReceiveYards": { "firstName": "Flipper", "lastName": "Anderson", "position": "WR", "value": 336, "team": "rams", "year": 1989 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 5, "team": "49ers", "year": 1990 },
+      "ReceiveCatches": { "firstName": "Terrell", "lastName": "Owens", "position": "WR", "value": 20, "team": "49ers", "year": 2000 },
+      "DefensiveInts": { "firstName": "Sammy", "lastName": "Baugh", "position": "QB", "value": 4, "team": "washington", "year": 1943 },
+      "DefensiveSacks": { "firstName": "Derrick", "lastName": "Thomas", "position": "LOLB", "value": 7, "team": "chiefs", "year": 1990 }
+    },
+    "2010": {
+      "PassYards": { "firstName": "Norm", "lastName": "Van Brocklin", "position": "QB", "value": 554, "team": "rams", "year": 1951 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 7, "team": "colts", "year": 2004 },
+      "RushYards": { "firstName": "Adrian", "lastName": "Peterson", "position": "HB", "value": 296, "team": "vikings", "year": 2007 },
+      "RushTds": { "firstName": "Ernie", "lastName": "Nevers", "position": "FB", "value": 6, "team": "cardinals", "year": 1929 },
+      "ReceiveYards": { "firstName": "Flipper", "lastName": "Anderson", "position": "WR", "value": 336, "team": "rams", "year": 1989 },
+      "ReceiveTDs": { "firstName": "Jerry", "lastName": "Rice", "position": "WR", "value": 5, "team": "49ers", "year": 1990 },
+      "ReceiveCatches": { "firstName": "Terrell", "lastName": "Owens", "position": "WR", "value": 20, "team": "49ers", "year": 2000 },
+      "DefensiveInts": { "firstName": "Sammy", "lastName": "Baugh", "position": "QB", "value": 4, "team": "washington", "year": 1943 },
+      "DefensiveSacks": { "firstName": "Derrick", "lastName": "Thomas", "position": "LOLB", "value": 7, "team": "chiefs", "year": 1990 }
+    }
+  },
+  "rookieSeason": {
+    "1976": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 2220, "team": "jets", "year": 1965 },
+      "PassTds": { "firstName": "Charley", "lastName": "Johnson", "position": "QB", "value": 14, "team": "cardinals", "year": 1962 },
+      "RushYards": { "firstName": "Beattie", "lastName": "Feathers", "position": "HB", "value": 1004, "team": "bears", "year": 1934 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 14, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 1473, "team": "texans", "year": 1960 },
+      "ReceiveTDs": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 12, "team": "texans", "year": 1960 },
+      "ReceiveCatches": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 72, "team": "texans", "year": 1960 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 12, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Lem", "lastName": "Barney", "position": "CB", "value": 10, "team": "lions", "year": 1967 }
+    },
+    "1980": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 2220, "team": "jets", "year": 1965 },
+      "PassTds": { "firstName": "Charley", "lastName": "Johnson", "position": "QB", "value": 14, "team": "cardinals", "year": 1962 },
+      "RushYards": { "firstName": "Earl", "lastName": "Campbell", "position": "HB", "value": 1450, "team": "texans", "year": 1978 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 14, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 1473, "team": "texans", "year": 1960 },
+      "ReceiveTDs": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 12, "team": "texans", "year": 1960 },
+      "ReceiveCatches": { "firstName": "Earl", "lastName": "Cooper", "position": "TE", "value": 83, "team": "49ers", "year": 1980 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 12, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Al", "lastName": "Baker", "position": "LE", "value": 23, "team": "lions", "year": 1978 }
+    },
+    "1985": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 2220, "team": "jets", "year": 1965 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 20, "team": "dolphins", "year": 1983 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 1808, "team": "rams", "year": 1983 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 14, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 1473, "team": "texans", "year": 1960 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 17, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Earl", "lastName": "Cooper", "position": "TE", "value": 83, "team": "49ers", "year": 1980 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 12, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Al", "lastName": "Baker", "position": "LE", "value": 23, "team": "lions", "year": 1978 }
+    },
+    "1990": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 2220, "team": "jets", "year": 1965 },
+      "PassTds": { "firstName": "Dan", "lastName": "Marino", "position": "QB", "value": 20, "team": "dolphins", "year": 1983 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 1808, "team": "rams", "year": 1983 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 14, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 1473, "team": "texans", "year": 1960 },
+      "ReceiveTDs": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 12, "team": "texans", "year": 1960 },
+      "ReceiveCatches": { "firstName": "Earl", "lastName": "Cooper", "position": "TE", "value": 83, "team": "49ers", "year": 1980 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 12, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Al", "lastName": "Baker", "position": "LE", "value": 23, "team": "lions", "year": 1978 }
+    },
+    "1995": {
+      "PassYards": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 3739, "team": "colts", "year": 1998 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 26, "team": "colts", "year": 1998 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 1808, "team": "rams", "year": 1983 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 14, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 1473, "team": "texans", "year": 1960 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 17, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Earl", "lastName": "Cooper", "position": "TE", "value": 83, "team": "49ers", "year": 1980 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 12, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Al", "lastName": "Baker", "position": "LE", "value": 23, "team": "lions", "year": 1978 }
+    },
+    "2000": {
+      "PassYards": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 3739, "team": "colts", "year": 1998 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 26, "team": "colts", "year": 1998 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 1808, "team": "rams", "year": 1983 },
+      "RushTds": { "firstName": "Edgerrin", "lastName": "James", "position": "HB", "value": 17, "team": "colts", "year": 1999 },
+      "ReceiveYards": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 1377, "team": "cardinals", "year": 2003 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 17, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Terry", "lastName": "Glenn", "position": "WR", "value": 90, "team": "patriots", "year": 1996 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 12, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Jevon", "lastName": "Kearse", "position": "LE", "value": 14.5, "team": "titans", "year": 1999 }
+    },
+    "2005": {
+      "PassYards": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 3739, "team": "colts", "year": 1998 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 26, "team": "colts", "year": 1998 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 1808, "team": "rams", "year": 1983 },
+      "RushTds": { "firstName": "Edgerrin", "lastName": "James", "position": "HB", "value": 17, "team": "colts", "year": 1999 },
+      "ReceiveYards": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 1377, "team": "cardinals", "year": 2003 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 17, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 101, "team": "cardinals", "year": 2003 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 12, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Jevon", "lastName": "Kearse", "position": "LE", "value": 14.5, "team": "titans", "year": 1999 }
+    },
+    "2010": {
+      "PassYards": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 3739, "team": "colts", "year": 1998 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 26, "team": "colts", "year": 1998 },
+      "RushYards": { "firstName": "Eric", "lastName": "Dickerson", "position": "HB", "value": 1808, "team": "rams", "year": 1983 },
+      "RushTds": { "firstName": "Edgerrin", "lastName": "James", "position": "HB", "value": 17, "team": "colts", "year": 1999 },
+      "ReceiveYards": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 1377, "team": "cardinals", "year": 2003 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 17, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 101, "team": "cardinals", "year": 2003 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 12, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Jevon", "lastName": "Kearse", "position": "LE", "value": 14.5, "team": "titans", "year": 1999 }
+    }
+  },
+  "rookieGame": {
+    "1976": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 287, "team": "jets", "year": 1965 },
+      "PassTds": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 4, "team": "vikings", "year": 1961 },
+      "RushYards": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 205, "team": "bears", "year": 1965 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 4, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 180, "team": "texans", "year": 1960 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 3, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Bill", "lastName": "Groman", "position": "WR", "value": 9, "team": "texans", "year": 1960 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 3, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Lem", "lastName": "Barney", "position": "CB", "value": 3, "team": "lions", "year": 1967 }
+    },
+    "1980": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 287, "team": "jets", "year": 1965 },
+      "PassTds": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 4, "team": "vikings", "year": 1961 },
+      "RushYards": { "firstName": "Earl", "lastName": "Campbell", "position": "HB", "value": 199, "team": "texans", "year": 1978 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 4, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Butler", "position": "WR", "value": 255, "team": "bills", "year": 1979 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 3, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Earl", "lastName": "Cooper", "position": "TE", "value": 11, "team": "49ers", "year": 1980 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 3, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Al", "lastName": "Baker", "position": "LE", "value": 3.5, "team": "lions", "year": 1978 }
+    },
+    "1985": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 287, "team": "jets", "year": 1965 },
+      "PassTds": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 4, "team": "vikings", "year": 1961 },
+      "RushYards": { "firstName": "Earl", "lastName": "Campbell", "position": "HB", "value": 199, "team": "texans", "year": 1978 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 4, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Butler", "position": "WR", "value": 255, "team": "bills", "year": 1979 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 3, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Earl", "lastName": "Cooper", "position": "TE", "value": 11, "team": "49ers", "year": 1980 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 3, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Al", "lastName": "Baker", "position": "LE", "value": 3.5, "team": "lions", "year": 1978 }
+    },
+    "1990": {
+      "PassYards": { "firstName": "Joe", "lastName": "Namath", "position": "QB", "value": 287, "team": "jets", "year": 1965 },
+      "PassTds": { "firstName": "Fran", "lastName": "Tarkenton", "position": "QB", "value": 4, "team": "vikings", "year": 1961 },
+      "RushYards": { "firstName": "Earl", "lastName": "Campbell", "position": "HB", "value": 199, "team": "texans", "year": 1978 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 4, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Jerry", "lastName": "Butler", "position": "WR", "value": 255, "team": "bills", "year": 1979 },
+      "ReceiveTDs": { "firstName": "Bob", "lastName": "Shaw", "position": "WR", "value": 3, "team": "cardinals", "year": 1950 },
+      "ReceiveCatches": { "firstName": "Earl", "lastName": "Cooper", "position": "TE", "value": 11, "team": "49ers", "year": 1980 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 3, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Al", "lastName": "Baker", "position": "LE", "value": 3.5, "team": "lions", "year": 1978 }
+    },
+    "1995": {
+      "PassYards": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 357, "team": "colts", "year": 1998 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 4, "team": "colts", "year": 1998 },
+      "RushYards": { "firstName": "Adrian", "lastName": "Peterson", "position": "HB", "value": 224, "team": "vikings", "year": 2007 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 4, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 217, "team": "cardinals", "year": 2003 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 3, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 10, "team": "cardinals", "year": 2003 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 3, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Jevon", "lastName": "Kearse", "position": "LE", "value": 3, "team": "titans", "year": 1999 }
+    },
+    "2000": {
+      "PassYards": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 357, "team": "colts", "year": 1998 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 4, "team": "colts", "year": 1998 },
+      "RushYards": { "firstName": "Mike", "lastName": "Anderson", "position": "HB", "value": 251, "team": "broncos", "year": 2000 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 4, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 217, "team": "cardinals", "year": 2003 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 3, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 10, "team": "cardinals", "year": 2003 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 3, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Jevon", "lastName": "Kearse", "position": "LE", "value": 3, "team": "titans", "year": 1999 }
+    },
+    "2005": {
+      "PassYards": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 357, "team": "colts", "year": 1998 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 4, "team": "colts", "year": 1998 },
+      "RushYards": { "firstName": "Mike", "lastName": "Anderson", "position": "HB", "value": 251, "team": "broncos", "year": 2000 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 4, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 217, "team": "cardinals", "year": 2003 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 3, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 10, "team": "cardinals", "year": 2003 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 3, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Jevon", "lastName": "Kearse", "position": "LE", "value": 3, "team": "titans", "year": 1999 }
+    },
+    "2010": {
+      "PassYards": { "firstName": "Cam", "lastName": "Newton", "position": "QB", "value": 432, "team": "panthers", "year": 2011 },
+      "PassTds": { "firstName": "Peyton", "lastName": "Manning", "position": "QB", "value": 4, "team": "colts", "year": 1998 },
+      "RushYards": { "firstName": "Adrian", "lastName": "Peterson", "position": "HB", "value": 224, "team": "vikings", "year": 2007 },
+      "RushTds": { "firstName": "Gale", "lastName": "Sayers", "position": "HB", "value": 4, "team": "bears", "year": 1965 },
+      "ReceiveYards": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 217, "team": "cardinals", "year": 2003 },
+      "ReceiveTDs": { "firstName": "Randy", "lastName": "Moss", "position": "WR", "value": 3, "team": "vikings", "year": 1998 },
+      "ReceiveCatches": { "firstName": "Anquan", "lastName": "Boldin", "position": "WR", "value": 10, "team": "cardinals", "year": 2003 },
+      "DefensiveInts": { "firstName": "Paul", "lastName": "Krause", "position": "FS", "value": 3, "team": "washington", "year": 1964 },
+      "DefensiveSacks": { "firstName": "Jevon", "lastName": "Kearse", "position": "LE", "value": 3, "team": "titans", "year": 1999 }
+    }
+  }
+}

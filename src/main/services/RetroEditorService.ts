@@ -4152,6 +4152,296 @@ ${fieldsList}
   }
 
   // ============================================
+  // NFL RECORDS METHODS
+  // ============================================
+
+  /**
+   * Load NFL historical records data
+   */
+  private loadNFLRecordsData(): any | null {
+    try {
+      const appPath = app.getAppPath();
+      const dataPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
+        : path.join(appPath, 'data', 'retro');
+
+      // Try full version first, fall back to basic version
+      let recordsPath = path.join(dataPath, 'historical-records-full.json');
+      if (!fs.existsSync(recordsPath)) {
+        recordsPath = path.join(dataPath, 'historical-records.json');
+      }
+
+      if (!fs.existsSync(recordsPath)) {
+        console.log('[RetroEditorService] No historical records data file found');
+        return null;
+      }
+
+      const recordsData = JSON.parse(fs.readFileSync(recordsPath, 'utf-8'));
+      console.log('[RetroEditorService] Loaded historical records data from', path.basename(recordsPath));
+      return recordsData;
+    } catch (error) {
+      console.error('[RetroEditorService] Error loading historical records data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get the historical data for a specific scope and year
+   * Falls back to the most recent available year if exact year not found
+   */
+  private getHistoricalRecordsForYear(data: any, scope: string, year: number): any | null {
+    const scopeData = data[scope];
+    if (!scopeData) return null;
+
+    const availableYears = Object.keys(scopeData).map(Number).sort((a, b) => a - b);
+    if (availableYears.length === 0) return null;
+
+    // Find the closest year that's <= target year
+    let dataYear = availableYears[0];
+    for (const y of availableYears) {
+      if (y <= year) dataYear = y;
+      else break;
+    }
+
+    return scopeData[dataYear];
+  }
+
+  /**
+   * Get NFL records preview for a specific year
+   */
+  getNFLRecordsPreview(year: number): { career: any; season: any; game: any; rookieSeason?: any; rookieGame?: any } {
+    const data = this.loadNFLRecordsData();
+    if (!data) {
+      throw new Error('No historical records data available');
+    }
+
+    return {
+      career: this.getHistoricalRecordsForYear(data, 'career', year),
+      season: this.getHistoricalRecordsForYear(data, 'season', year),
+      game: this.getHistoricalRecordsForYear(data, 'game', year),
+      rookieSeason: this.getHistoricalRecordsForYear(data, 'rookieSeason', year),
+      rookieGame: this.getHistoricalRecordsForYear(data, 'rookieGame', year)
+    };
+  }
+
+  /**
+   * Apply historical NFL records to franchise file
+   */
+  async applyNFLRecords(filePath: string, year: number): Promise<{ success: boolean; recordsUpdated: number }> {
+    console.log(`[RetroEditorService] Applying NFL records for year ${year}`);
+
+    const recordsData = this.loadNFLRecordsData();
+    if (!recordsData) {
+      throw new Error('No historical records data available');
+    }
+
+    // Table IDs for each record scope
+    const RECORD_TABLES = {
+      career: { id: 3126035436, jsonKey: 'career' },
+      season: { id: 3016865922, jsonKey: 'season' },
+      game: { id: 3197279835, jsonKey: 'game' },
+      rookieSeason: { id: 1211717477, jsonKey: 'rookieSeason' },
+      rookieGame: { id: 1291340498, jsonKey: 'rookieGame' }
+    };
+
+    const STAT_TYPES = [
+      'PassYards', 'PassTds', 'RushYards', 'RushTds',
+      'ReceiveYards', 'ReceiveTDs', 'ReceiveCatches',
+      'DefensiveInts', 'DefensiveSacks'
+    ];
+
+    // Use the correct method to get the franchise instance
+    const franchise = this.getFranchise(filePath);
+
+    // Get current season year for offset calculation
+    let currentSeasonYear = 2012;
+    const seasonInfoId = 3123991521;
+    for (const table of franchise.tables) {
+      if (table.header?.uniqueId === seasonInfoId) {
+        await table.readRecords();
+        if (table.records && table.records.length > 0) {
+          currentSeasonYear = table.records[0].CurrentSeasonYear || 2012;
+        }
+        break;
+      }
+    }
+    console.log(`[RetroEditorService] Current season year: ${currentSeasonYear}`);
+
+    // Build team name to index mapping
+    const teamTable = franchise.getTableByUniqueId(637929298);
+    await teamTable.readRecords();
+
+    const teamNameToIndex: { [key: string]: number } = {};
+    for (let i = 0; i < teamTable.records.length; i++) {
+      const t = teamTable.records[i];
+      if (t.isEmpty) continue;
+      const name = (t.DisplayName || t.ShortName || '').toLowerCase();
+      const city = (t.TEAM_CITY || '').toLowerCase();
+      if (name) teamNameToIndex[name] = i;
+      if (city) teamNameToIndex[city] = i;
+
+      // Add common team aliases
+      const aliases: { [key: string]: string[] } = {
+        'redskins': ['washington', 'commanders'],
+        'commanders': ['washington', 'redskins'],
+        'oilers': ['titans', 'texans'],
+        'texans': ['oilers'],
+        '49ers': ['niners', 'san francisco'],
+        'raiders': ['las vegas', 'oakland', 'los angeles'],
+        'rams': ['los angeles', 'st. louis'],
+        'chargers': ['san diego', 'los angeles'],
+        'cardinals': ['arizona', 'phoenix', 'st. louis']
+      };
+
+      if (aliases[name]) {
+        for (const alias of aliases[name]) {
+          if (!teamNameToIndex[alias]) teamNameToIndex[alias] = i;
+        }
+      }
+    }
+
+    // Get base teamRef format from a sample record
+    let baseRef = '';
+    const sampleTable = franchise.getTableByUniqueId(RECORD_TABLES.career.id);
+    if (sampleTable) {
+      await sampleTable.readRecords();
+      const sampleRec = sampleTable.records.find((r: any) => !r.isEmpty);
+      if (sampleRec && sampleRec.teamRef) {
+        baseRef = sampleRec.teamRef.substring(0, sampleRec.teamRef.length - 6);
+      }
+    }
+
+    const makeTeamRef = (teamIndex: number): string => {
+      const indexBinary = teamIndex.toString(2).padStart(6, '0');
+      return baseRef + indexBinary;
+    };
+
+    let totalRecordsUpdated = 0;
+
+    // Process each record table
+    for (const [scopeName, tableInfo] of Object.entries(RECORD_TABLES)) {
+      const table = franchise.getTableByUniqueId(tableInfo.id);
+      if (!table) {
+        console.log(`[RetroEditorService] Table not found for ${scopeName}, skipping...`);
+        continue;
+      }
+
+      await table.readRecords();
+      console.log(`[RetroEditorService] Processing ${scopeName} records (${table.records.length} total)`);
+
+      // Get historical data for this scope
+      const historical = this.getHistoricalRecordsForYear(recordsData, tableInfo.jsonKey, year);
+      if (!historical) {
+        console.log(`[RetroEditorService] No historical data for ${scopeName}, zeroing out...`);
+        for (const r of table.records) {
+          if (r.isEmpty) continue;
+          r.statValue = 0;
+        }
+        continue;
+      }
+
+      // Group records by statType
+      const recordsByType: { [key: string]: any[] } = {};
+      for (const r of table.records) {
+        if (r.isEmpty) continue;
+        const type = r.statType;
+        if (!recordsByType[type]) recordsByType[type] = [];
+        recordsByType[type].push(r);
+      }
+
+      // Process each stat type
+      for (const statType of STAT_TYPES) {
+        const records = recordsByType[statType];
+        if (!records || records.length === 0) continue;
+
+        const historicalData = historical[statType];
+        if (!historicalData) {
+          // Zero out this stat type if no historical data
+          for (const r of records) {
+            r.statValue = 0;
+          }
+          continue;
+        }
+
+        // Check if this record is from AFTER the target year (anachronistic)
+        if (historicalData.year && historicalData.year > year) {
+          for (const r of records) {
+            r.statValue = 0;
+          }
+          continue;
+        }
+
+        // Sort by table index (lowest first)
+        records.sort((a: any, b: any) => {
+          const aIdx = table.records.indexOf(a);
+          const bIdx = table.records.indexOf(b);
+          return aIdx - bIdx;
+        });
+
+        const currentMax = Math.max(...records.map((r: any) => r.statValue));
+        const historicalMax = typeof historicalData.value === 'number'
+          ? Math.floor(historicalData.value)
+          : historicalData.value;
+
+        // Calculate scale factor
+        const scaleFactor = currentMax > 0 ? (historicalMax * 0.95) / currentMax : 1;
+
+        // Get team index and ref
+        const teamName = historicalData.team || '';
+        const teamIndex = teamNameToIndex[teamName.toLowerCase()];
+        const teamRef = teamIndex !== undefined ? makeTeamRef(teamIndex) : records[0].teamRef;
+
+        // Calculate the correct year offset
+        let recordYear: number;
+        if (historicalData.year) {
+          recordYear = historicalData.year - currentSeasonYear;
+        } else {
+          recordYear = year - currentSeasonYear;
+        }
+
+        // Update ALL records for this stat type
+        // Game reads from fixed indices, so ALL records must show correct year
+        for (let i = 0; i < records.length; i++) {
+          const r = records[i];
+          const originalValue = r.statValue;
+
+          // Set player info on ALL records
+          r.firstName = historicalData.firstName;
+          r.lastName = historicalData.lastName;
+          r.position = historicalData.position;
+          if (teamIndex !== undefined) {
+            r.teamRef = teamRef;
+          }
+
+          // ALL records get the same correct year
+          r.seasonYear = recordYear;
+
+          if (i === 0) {
+            // Primary record - highest value
+            r.statValue = historicalMax;
+          } else {
+            // Secondary records - scaled value
+            r.statValue = currentMax > 0 ? Math.floor(originalValue * scaleFactor) : 0;
+          }
+
+          totalRecordsUpdated++;
+        }
+      }
+    }
+
+    console.log(`[RetroEditorService] NFL records applied: ${totalRecordsUpdated} records updated`);
+
+    // Save the franchise file to persist changes
+    await franchise.save(filePath);
+    console.log(`[RetroEditorService] Franchise file saved`);
+
+    return {
+      success: true,
+      recordsUpdated: totalRecordsUpdated
+    };
+  }
+
+  // ============================================
   // STADIUM NAME METHODS
   // ============================================
 
