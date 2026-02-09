@@ -3,7 +3,7 @@
 /* Dark theme base */
 .ag-theme-alpine {
   --ag-background-color: #1a1a1a;
-  --ag-header-background-color: #2d2d30;
+  /* --ag-header-background-color controlled by JavaScript applyHeaderColors() */
   --ag-odd-row-background-color: #242529;
   --ag-row-hover-color: #3e4248;
   --ag-selected-row-background-color: #0d4f8c;
@@ -17,7 +17,7 @@
   /* Text colors */
   --ag-foreground-color: #e0e0e0;
   --ag-secondary-foreground-color: #a0a0a0;
-  --ag-header-foreground-color: #ffffff;
+  /* --ag-header-foreground-color controlled by JavaScript applyHeaderColors() */
 
   /* Input controls */
   --ag-input-background-color: #2d2d30;
@@ -200,24 +200,21 @@
   --ag-range-selection-border-color: transparent;
 }
 
-/* Row selection - orange highlight for selected rows */
+/* Row selection - gradient set by dynamic JS style, NOT HERE */
+/* DO NOT set background here - let dynamic-selection-style handle it */
 .ag-theme-alpine .ag-row-selected,
 .ag-theme-alpine .ag-row-selected .ag-cell,
 .ag-theme-alpine .ag-row-selected .ag-cell[style] {
-  background-color: #ffa726 !important;
-  background: #ffa726 !important;
-  color: #000000 !important;
+  color: #ffffff !important;
 }
 
-/* Selection for pinned columns (row number, portrait, names) */
+/* Selection for pinned columns - no background, let dynamic style handle it */
 .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected,
 .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell,
 .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell[style],
 .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .portrait-cell,
 .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .row-number-cell {
-  background-color: #ffa726 !important;
-  background: #ffa726 !important;
-  color: #000000 !important;
+  color: #ffffff !important;
 }
 
 /* Disable cell focus highlight that causes white borders */
@@ -300,9 +297,10 @@ body {
    Use team colors for headers when viewing a team
    ======================================== */
 
-/* Team header background - apply to ALL header containers */
+/* Team header background - controlled by JavaScript applyHeaderColors() */
+/* DO NOT set background here - it conflicts with inline styles */
 .team-view-active .ag-theme-alpine .ag-header {
-  background: linear-gradient(to right, var(--team-primary) 0%, var(--team-secondary) 100%) !important;
+  /* background is set by JavaScript */
 }
 
 /* Header viewport (the scrollable area) */
@@ -321,10 +319,10 @@ body {
 }
 
 /* All header cells - pinned and scrollable */
-/* Embossed/3D effect - raised text with light/dark edges */
+/* Color set by JavaScript applyHeaderColors() */
 .team-view-active .ag-theme-alpine .ag-header-cell {
   background: transparent !important;
-  color: var(--team-secondary) !important;
+  /* color is set by JavaScript */
   text-shadow:
     -1px -1px 1px rgba(255, 255, 255, 0.4),
     1px 1px 1px rgba(0, 0, 0, 0.6),
@@ -344,9 +342,9 @@ body {
   background: transparent !important;
 }
 
-/* Header cell label text color */
+/* Header cell label text color - set by JavaScript */
 .team-view-active .ag-theme-alpine .ag-header-cell-label {
-  color: var(--team-secondary) !important;
+  /* color is set by JavaScript applyHeaderColors() */
 }
 
 /* Ensure header group cells are also transparent */
@@ -360,24 +358,21 @@ body {
   color: #ffffff !important;
 }
 
-/* Team row selection - use team colors (secondary bg, primary text) */
+/* Team row selection - gradient set by dynamic JS style, NOT HERE */
+/* DO NOT set background here - let dynamic-selection-style handle it */
 .team-view-active .ag-theme-alpine .ag-row-selected,
 .team-view-active .ag-theme-alpine .ag-row-selected .ag-cell,
 .team-view-active .ag-theme-alpine .ag-row-selected .ag-cell[style] {
-  background-color: var(--team-secondary) !important;
-  background: var(--team-secondary) !important;
-  color: var(--team-primary) !important;
+  color: #ffffff !important;
 }
 
-/* Team selection for pinned columns */
+/* Team selection for pinned columns - no background, let dynamic style handle it */
 .team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected,
 .team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell,
 .team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell[style],
 .team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .portrait-cell,
 .team-view-active .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .row-number-cell {
-  background-color: var(--team-secondary) !important;
-  background: var(--team-secondary) !important;
-  color: var(--team-primary) !important;
+  color: #ffffff !important;
 }
 
 /* Team pinned column border */

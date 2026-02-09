@@ -8,6 +8,7 @@ import {
     getFieldDefinition,
     getLookupValue,
     TEAM_MAPPINGS,
+    POSITION_MAPPINGS,
     onBodyTypeChange,
     onWeightChange,
     storedWeightToActual,
@@ -22,11 +23,11 @@ const TEAM_COLORS = {
     'BAL': { primary: '#241773', secondary: '#9E7C0C', headerText: '#9E7C0C' },  // Ravens: Purple / Gold header, purple selection text
     'BUF': { primary: '#00338D', secondary: '#C60C30' },  // Bills: Royal blue / Red
     'CAR': { primary: '#0085CA', secondary: '#101820', headerText: '#FFFFFF' },  // Panthers: Process blue / Black, white header text
-    'CHI': { primary: '#C83803', secondary: '#0B162A' },  // Bears: Orange / Navy
-    'CIN': { primary: '#FB4F14', secondary: '#000000', headerText: '#FFFFFF' },  // Bengals: Orange / Black, white header text
+    'CHI': { primary: '#0B162A', secondary: '#C83803' },  // Bears: Navy / Orange (Matched team-data.js)
+    'CIN': { primary: '#000000', secondary: '#FB4F14', headerText: '#FB4F14' },  // Bengals: Black / Orange (Swapped for dark header)
     'CLE': { primary: '#311D00', secondary: '#FF3C00' },  // Browns: Brown / Orange
     'DAL': { primary: '#003594', secondary: '#869397' },  // Cowboys: Navy blue / Silver
-    'DEN': { primary: '#FB4F14', secondary: '#002244', headerText: '#FFFFFF' },  // Broncos: Orange / Navy, white header text
+    'DEN': { primary: '#002244', secondary: '#FB4F14', headerText: '#FFFFFF' },  // Broncos: Navy / Orange (Swapped for dark header)
     'DET': { primary: '#0076B6', secondary: '#B0B7BC' },  // Lions: Honolulu blue / Silver
     'GB': { primary: '#203731', secondary: '#FFB612' },   // Packers: Dark green / Gold
     'HOU': { primary: '#03202F', secondary: '#A71930' },  // Texans: Deep steel blue / Red
@@ -39,11 +40,11 @@ const TEAM_COLORS = {
     'MIA': { primary: '#008E97', secondary: '#FC4C02' },  // Dolphins: Aqua / Orange
     'MIN': { primary: '#4F2683', secondary: '#FFC62F' },  // Vikings: Purple / Gold
     'NE': { primary: '#002244', secondary: '#C60C30' },   // Patriots: Navy / Red
-    'NO': { primary: '#D3BC8D', secondary: '#101820', headerText: '#FFFFFF' },   // Saints: Old gold / Black, white header text
+    'NO': { primary: '#101820', secondary: '#D3BC8D', headerText: '#D3BC8D' },   // Saints: Black / Old gold, gold header text
     'NYG': { primary: '#0B2265', secondary: '#A71930' },  // Giants: Blue / Red
     'NYJ': { primary: '#125740', secondary: '#FFFFFF' },  // Jets: Gotham green / White
     'PHI': { primary: '#004C54', secondary: '#A5ACAF' },  // Eagles: Midnight green / Silver
-    'PIT': { primary: '#FFB612', secondary: '#101820', headerText: '#FFFFFF' },  // Steelers: Gold / Black, white header text
+    'PIT': { primary: '#101820', secondary: '#FFB612', headerText: '#FFB612' },  // Steelers: Black / Gold, gold header text
     'SF': { primary: '#AA0000', secondary: '#B3995D' },   // 49ers: Red / Gold
     'SEA': { primary: '#002244', secondary: '#69BE28' },  // Seahawks: College navy / Action green
     'TB': { primary: '#D50A0A', secondary: '#FF7900' },   // Buccaneers: Red / Pewter orange
@@ -214,6 +215,68 @@ class PAMCellRenderer {
 }
 
 /**
+ * Player Name Cell Renderer - shows initials circle + full name (V2 mockup style)
+ * Uses CSS classes from roster-editor-v2.css
+ */
+class PlayerNameCellRenderer {
+    init(params) {
+        const player = params.data;
+        const firstName = player?.PFNA || '';
+        const lastName = player?.PLNA || '';
+        const initials = `${firstName.charAt(0) || ''}${lastName.charAt(0) || ''}`.toUpperCase() || '??';
+
+        this.eGui = document.createElement('div');
+        this.eGui.className = 'player-cell-v2';
+
+        this.eGui.innerHTML = `
+            <div class="player-avatar-v2">${initials}</div>
+            <span class="player-name-v2">${firstName} ${lastName}</span>
+        `;
+    }
+
+    getGui() {
+        return this.eGui;
+    }
+
+    refresh(params) {
+        return false;
+    }
+}
+
+/**
+ * OVR Cell Renderer - color-coded overall rating (V2 mockup style)
+ * Uses CSS classes from roster-editor-v2.css
+ */
+class OVRCellRenderer {
+    init(params) {
+        const ovr = parseInt(params.value) || 0;
+
+        this.eGui = document.createElement('span');
+        this.eGui.className = 'ovr-cell-v2 ' + this.getOvrClass(ovr);
+        this.eGui.textContent = ovr.toString();
+    }
+
+    getOvrClass(ovr) {
+        if (ovr >= 90) return 'elite';   // Bright green
+        if (ovr >= 80) return 'good';    // Yellow-green
+        if (ovr >= 70) return 'avg';     // Yellow
+        if (ovr >= 60) return 'below';   // Orange
+        return 'poor';                    // Red
+    }
+
+    getGui() {
+        return this.eGui;
+    }
+
+    refresh(params) {
+        const ovr = parseInt(params.value) || 0;
+        this.eGui.className = 'ovr-cell-v2 ' + this.getOvrClass(ovr);
+        this.eGui.textContent = ovr.toString();
+        return true;
+    }
+}
+
+/**
  * Row Number Cell Renderer - clickable row numbers for player cards
  */
 class RowNumberCellRenderer {
@@ -333,7 +396,9 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             headerName: displayName,
             headerTooltip: fieldDef.display || displayName, // Full name on hover
             field: fieldName,
-            editable: !fieldDef.readOnly,
+            // Check editable property from field definitions (default to true for most fields)
+            editable: fieldDef.editable !== false,
+            singleClickEdit: true, // Enable single-click editing for all columns
             sortable: true,
             filter: true,
             resizable: true,
@@ -392,7 +457,13 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
                 const pid = parseInt(params.data.PSXP) || 0;
                 if (!pid) return null;
 
-                // Custom portrait PIDs (12000+) - use player's actual name
+                // First check if PID exists in the lookup
+                const playerName = pidMap.get(pid);
+                if (playerName) {
+                    return playerName;
+                }
+
+                // Custom portrait PIDs (12000+) or unknown PIDs - use player's actual name
                 const CUSTOM_PORTRAIT_PID_START = 12000;
                 if (pid >= CUSTOM_PORTRAIT_PID_START) {
                     const lastName = params.data.PLNA || '';
@@ -400,11 +471,11 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
                     if (lastName || firstName) {
                         return `${lastName}, ${firstName}`;
                     }
-                    return 'Custom Portrait';
+                    return `Custom (${pid})`;
                 }
 
-                const playerName = pidMap.get(pid);
-                return playerName || 'Generic Face';
+                // Unknown PID not in lookup - show the PID number
+                return `PID: ${pid}`;
             };
 
             // Use valueSetter to write back to PSXP field
@@ -595,18 +666,6 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
                     </div>`;
                 };
 
-                // Add onCellEditingStarted callback to debug editor opening
-                colDef.onCellEditingStarted = (params) => {
-                    console.log(`[DEBUG DROPDOWN ${fieldName}] Cell editing STARTED`);
-                    console.log(`[DEBUG DROPDOWN ${fieldName}]   Cell editor:`, params.cellEditor);
-                    console.log(`[DEBUG DROPDOWN ${fieldName}]   Current value:`, params.value);
-                };
-
-                colDef.onCellEditingStopped = (params) => {
-                    console.log(`[DEBUG DROPDOWN ${fieldName}] Cell editing STOPPED`);
-                    console.log(`[DEBUG DROPDOWN ${fieldName}]   New value:`, params.value);
-                };
-
                 console.log(`[AG-Grid]   Configured ${fieldName} dropdown with ${fieldDef.options.length} options`);
             } else {
                 // No dropdown options - just display human-readable names
@@ -666,6 +725,29 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             console.log('[AG-Grid] PEPS column configured with PAMCellRenderer for right-click picker');
         }
 
+        // OVR (POVR) column - color-coded overall rating
+        if (fieldName === 'POVR') {
+            colDef.cellRenderer = OVRCellRenderer;
+            console.log('[AG-Grid] POVR column configured with OVRCellRenderer');
+        }
+
+        // CRITICAL: Ensure every editable column has a cellEditor
+        // AG-Grid v34 may not provide default editors automatically
+        if (colDef.editable && !colDef.cellEditor && !colDef.cellEditorSelector) {
+            // Determine appropriate editor based on field type
+            if (fieldDef.type === 'numeric' || fieldDef.type === 'number') {
+                colDef.cellEditor = 'agNumberCellEditor';
+                colDef.cellEditorParams = {
+                    min: fieldDef.min,
+                    max: fieldDef.max,
+                    precision: 0
+                };
+            } else {
+                colDef.cellEditor = 'agTextCellEditor';
+            }
+            console.log(`[AG-Grid] Added default ${colDef.cellEditor} to editable column ${fieldName}`);
+        }
+
         columnDefs.push(colDef);
     });
 
@@ -710,7 +792,8 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             resizable: true,
             sortable: true,
             filter: true,
-            editable: false,
+            editable: true, // Enable editing by default - columns can override to false
+            singleClickEdit: true, // Enable single-click editing globally
             // Only set text color - let CSS handle row backgrounds
             cellStyle: (params) => {
                 // When filtering by team, use team colors on row backgrounds via getRowStyle
@@ -779,9 +862,26 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             }, 10);
         },
 
-        // Handle header click for sorting - use app's sort mechanism which handles paginated data
+        // Handle cell clicks - manually start editing if cell is editable
         onCellClicked: (event) => {
-            // Header clicks are handled separately via onSortChanged
+            console.log('[AG-Grid] CELL CLICKED:', {
+                field: event.colDef?.field,
+                editable: event.colDef?.editable,
+                singleClickEdit: event.colDef?.singleClickEdit,
+                cellEditor: event.colDef?.cellEditor,
+                value: event.value,
+                rowIndex: event.rowIndex
+            });
+
+            // WORKAROUND: Manually start editing if the column is editable
+            // AG-Grid v34 may not automatically start editing on single click
+            if (event.colDef?.editable) {
+                console.log('[AG-Grid] Starting edit manually for:', event.colDef.field);
+                event.api.startEditingCell({
+                    rowIndex: event.rowIndex,
+                    colKey: event.colDef.field
+                });
+            }
         },
 
         // Handle sort changes - let AG-Grid handle sorting, just track state
@@ -980,10 +1080,10 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                                 app.portraitCache.set(cacheKey, imageData);
                                 console.log('[AG-Grid] Portrait cached for PID:', pid);
                             }
-                            // Refresh portrait cell for this row
+                            // Refresh portrait and PLAYERPIC cells for this row
                             event.api.refreshCells({
                                 rowNodes: [event.node],
-                                columns: ['_portrait'],
+                                columns: ['_portrait', 'PLAYERPIC'],
                                 force: true
                             });
                         }).catch(err => {
@@ -991,15 +1091,15 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                             // Still refresh to show placeholder
                             event.api.refreshCells({
                                 rowNodes: [event.node],
-                                columns: ['_portrait'],
+                                columns: ['_portrait', 'PLAYERPIC'],
                                 force: true
                             });
                         });
                     } else {
-                        // No PID, refresh to clear portrait
+                        // No PID, refresh to clear portrait and PLAYERPIC
                         event.api.refreshCells({
                             rowNodes: [event.node],
-                            columns: ['_portrait'],
+                            columns: ['_portrait', 'PLAYERPIC'],
                             force: true
                         });
                     }
@@ -1160,8 +1260,36 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             setTimeout(() => document.addEventListener('click', hideMenu), 0);
         },
 
-        // Selection is handled purely by CSS using .ag-row-selected class
-        // No custom onSelectionChanged handler needed
+        // Update logo circle when selection changes (All Players view only)
+        onSelectionChanged: (event) => {
+            // Only update logo on All Players view (no team filter)
+            if (app.selectedTeamId) return;
+
+            const selectedRows = event.api.getSelectedRows();
+            const logoEl = document.getElementById('v2TeamLogo');
+            if (!logoEl) return;
+
+            if (selectedRows.length > 0) {
+                const player = selectedRows[0];
+                const teamId = player.TGID;
+                // Get team data using the imported function from app
+                if (app.getTeamLogoUrl) {
+                    const logoUrl = app.getTeamLogoUrl(teamId);
+                    if (logoUrl) {
+                        logoEl.innerHTML = `<img src="${logoUrl}" alt="Team logo">`;
+                    } else {
+                        logoEl.innerHTML = 'NFL';
+                    }
+                } else {
+                    // Fallback - use team abbreviation from TEAM_MAPPINGS
+                    const teamAbbr = TEAM_MAPPINGS[teamId] || 'NFL';
+                    logoEl.innerHTML = teamAbbr;
+                }
+            } else {
+                // No selection - show NFL
+                logoEl.innerHTML = 'NFL';
+            }
+        },
 
         onGridReady: (params) => {
             console.log('[AG-Grid] Grid ready, player count:', players.length);
@@ -1418,9 +1546,26 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
     // Create grid
     const gridApi = createGrid(container, gridOptions);
 
+    // DEBUG: Add click handler to container to verify clicks are reaching the DOM
+    container.addEventListener('click', (e) => {
+        console.log('[AG-Grid DEBUG] Container clicked:', {
+            target: e.target.tagName,
+            className: e.target.className,
+            cellValue: e.target.textContent?.substring(0, 50)
+        });
+    }, true); // Use capture phase
+
     // Store reference
     app.agGrid = gridApi;
     app.agGridOptions = gridOptions;
+
+    // Expose to window for card view integration
+    window.rosterGridApi = gridApi;
+
+    // Notify card view of data change
+    if (typeof window.notifyCardViewDataChanged === 'function') {
+        window.notifyCardViewDataChanged();
+    }
 
     // Apply initial sort state from app.sortColumns if any
     if (app.sortColumns && app.sortColumns.length > 0) {
@@ -1455,98 +1600,155 @@ export function applyHeaderColors(app, container) {
     );
     console.log('[DEBUG applyHeaderColors] Found header elements:', headerElements.length);
 
-    let bgColor, textColor;
+    let bgColor, textColor, secondaryColor;
 
     // Main page (all teams) - BLACK background, ORANGE text
     if (!app.selectedTeamId) {
         bgColor = '#000000';
         textColor = '#ffa726';
+        secondaryColor = null;
         console.log('[DEBUG applyHeaderColors] Using main page colors (black bg, orange text)');
     } else {
         // Team page - TEAM PRIMARY COLOR background, TEAM SECONDARY COLOR text
         // Get first player's team to determine team color
         const firstPlayer = app.filteredPlayers && app.filteredPlayers.length > 0 ? app.filteredPlayers[0] : null;
-        console.log('[DEBUG applyHeaderColors] First player:', firstPlayer ? `TGID=${firstPlayer.TGID}` : 'null');
+        console.log('[DEBUG applyHeaderColors] TEAM PAGE - selectedTeamId:', app.selectedTeamId);
+        console.log('[DEBUG applyHeaderColors] First player TGID:', firstPlayer?.TGID);
 
         if (firstPlayer && firstPlayer.TGID) {
             const teamAbbr = TEAM_MAPPINGS[firstPlayer.TGID];
-            console.log('[DEBUG applyHeaderColors] Team abbreviation:', teamAbbr);
+            console.log('[DEBUG applyHeaderColors] TEAM_MAPPINGS[' + firstPlayer.TGID + '] =', teamAbbr);
 
             const teamColors = TEAM_COLORS[teamAbbr];
-            console.log('[DEBUG applyHeaderColors] Team colors:', teamColors);
+            console.log('[DEBUG applyHeaderColors] TEAM_COLORS["' + teamAbbr + '"] =', JSON.stringify(teamColors));
 
             if (teamColors) {
-                bgColor = teamColors.primary;  // TEAM PRIMARY COLOR background
-                textColor = teamColors.headerText || teamColors.secondary;  // Use headerText override or secondary
-                console.log('[DEBUG applyHeaderColors] Using team colors - BG:', bgColor, 'Text:', textColor);
+                bgColor = teamColors.primary;
+                secondaryColor = teamColors.secondary;
+                textColor = teamColors.headerText || teamColors.secondary;
+                console.log('>>> HEADER BG (solid): ' + bgColor + ', TEXT: ' + textColor);
             } else {
-                // Fallback
                 bgColor = '#000000';
-                textColor = '#ffa726';
-                console.log('[DEBUG applyHeaderColors] No team colors found, using fallback');
+                secondaryColor = null;
+                textColor = '#e0e0e0';
+                console.log('[DEBUG applyHeaderColors] NO TEAM COLORS FOUND for abbr:', teamAbbr);
             }
         } else {
-            // Fallback
             bgColor = '#000000';
-            textColor = '#ffa726';
-            console.log('[DEBUG applyHeaderColors] No first player, using fallback');
+            secondaryColor = null;
+            textColor = '#e0e0e0';
+            console.log('[DEBUG applyHeaderColors] No first player or TGID');
         }
     }
 
-    // Inject dynamic CSS to override AG-Grid theme styles
-    // This is needed because AG-Grid's CSS variables in .ag-theme-alpine have higher specificity
-    const styleId = 'ag-grid-dynamic-header-colors';
-    let styleEl = document.getElementById(styleId);
-    if (!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = styleId;
-        document.head.appendChild(styleEl);
-    }
-
-    // Use highly specific CSS rules to override the theme
-    // Inset effect - text appears pressed in (dark top-left, light bottom-right)
+    // For team pages, use SOLID primary color (no gradient)
+    // For main page (all teams), use solid black
     const isTeamPage = app.selectedTeamId;
-    const textEffects = isTeamPage
-        ? `text-shadow:
-            -1px -1px 2px rgba(0, 0, 0, 0.9),
-            1px 1px 1px rgba(255, 255, 255, 0.4),
-            0 0 3px rgba(0, 0, 0, 0.5) !important;`
-        : '';
+    // Header is always solid primary color - NO gradient
+    const headerBgStyle = bgColor;
+    console.log('[DEBUG applyHeaderColors] Using solid color:', headerBgStyle);
 
-    styleEl.textContent = `
-        #rosterGrid.ag-theme-alpine .ag-header,
-        #rosterGrid.ag-theme-alpine .ag-header-viewport,
-        #rosterGrid.ag-theme-alpine .ag-header-container,
-        #rosterGrid.ag-theme-alpine .ag-header-row,
-        #rosterGrid.ag-theme-alpine .ag-header-cell,
-        #rosterGrid.ag-theme-alpine .ag-pinned-left-header,
-        #rosterGrid.ag-theme-alpine .ag-pinned-right-header,
-        #rosterGrid.ag-theme-alpine .ag-header-group-cell {
-            background-color: ${bgColor} !important;
-            background: ${bgColor} !important;
+    // DIRECTLY set inline styles on DOM elements - this CANNOT be overridden by CSS
+    const headerEl = container.querySelector('.ag-header');
+    const headerViewport = container.querySelector('.ag-header-viewport');
+    const headerContainer = container.querySelector('.ag-header-container');
+    const headerRows = container.querySelectorAll('.ag-header-row');
+    const pinnedLeft = container.querySelector('.ag-pinned-left-header');
+    const pinnedRight = container.querySelector('.ag-pinned-right-header');
+    const headerCells = container.querySelectorAll('.ag-header-cell');
+    const headerTexts = container.querySelectorAll('.ag-header-cell-text, .ag-header-cell-label');
+
+    console.log('>>> Found elements: header=' + !!headerEl + ', viewport=' + !!headerViewport + ', rows=' + headerRows.length + ', cells=' + headerCells.length);
+
+    // Apply gradient to main header elements
+    [headerEl, headerViewport, headerContainer, pinnedLeft, pinnedRight].forEach(el => {
+        if (el) {
+            el.style.setProperty('background', headerBgStyle, 'important');
         }
-        #rosterGrid.ag-theme-alpine .ag-header-cell-text,
-        #rosterGrid.ag-theme-alpine .ag-header-cell-label {
+    });
+
+    // Header rows get gradient too
+    headerRows.forEach(el => {
+        if (el) {
+            el.style.setProperty('background', headerBgStyle, 'important');
+        }
+    });
+
+    // Header cells MUST be transparent so gradient shows through
+    headerCells.forEach(el => {
+        if (el) {
+            el.style.setProperty('background', 'transparent', 'important');
+        }
+    });
+
+    // Set text color on header text elements (for already-rendered elements)
+    headerTexts.forEach(el => {
+        if (el) {
+            el.style.setProperty('color', textColor, 'important');
+        }
+    });
+
+    // Inject dynamic CSS rule for ALL header text (including scrollable columns rendered later)
+    let headerTextStyle = document.getElementById('dynamic-header-text-style');
+    if (!headerTextStyle) {
+        headerTextStyle = document.createElement('style');
+        headerTextStyle.id = 'dynamic-header-text-style';
+        document.head.appendChild(headerTextStyle);
+    }
+    headerTextStyle.textContent = `
+        .ag-header-cell-text,
+        .ag-header-cell-label,
+        .ag-header-group-cell-label,
+        .roster-editor-v2 .ag-header-cell-text,
+        .roster-editor-v2 .ag-header-cell-label,
+        #rosterGrid .ag-header-cell-text,
+        #rosterGrid .ag-header-cell-label {
             color: ${textColor} !important;
-            font-weight: 700 !important;
-            letter-spacing: 0.5px !important;
-            ${textEffects}
+            text-shadow:
+                -1px -1px 0 #000,
+                1px -1px 0 #000,
+                -1px 1px 0 #000,
+                1px 1px 0 #000,
+                2px 2px 4px rgba(0, 0, 0, 0.5) !important;
         }
     `;
-    console.log('[DEBUG applyHeaderColors] Injected dynamic CSS with BG:', bgColor, 'Text:', textColor);
 
-    // Also set CSS variables on container as backup
-    container.style.setProperty('--ag-header-background-color', bgColor);
+    // Verify styles were applied
+    if (headerEl) {
+        console.log('>>> ACTUAL headerEl.style.background:', headerEl.style.background);
+    }
+    console.log('>>> APPLIED: BG=' + headerBgStyle + ', Text=' + textColor);
+
+    // Set CSS variables directly on the .ag-theme-alpine element (the actual grid wrapper)
+    // This is where AG-Grid's CSS looks for the variable
+    const themeEl = container.querySelector('.ag-theme-alpine');
+    if (themeEl) {
+        themeEl.style.setProperty('--ag-header-background-color', headerBgStyle);
+        themeEl.style.setProperty('--ag-header-foreground-color', textColor);
+        console.log('>>> Set CSS vars on .ag-theme-alpine element');
+    }
+
+    // Also set on container and document root as fallback
+    container.style.setProperty('--ag-header-background-color', headerBgStyle);
     container.style.setProperty('--ag-header-foreground-color', textColor);
+    document.documentElement.style.setProperty('--ag-header-background-color', headerBgStyle);
+    document.documentElement.style.setProperty('--ag-header-foreground-color', textColor);
+
+    // Also set team colors on document root for CSS rules that use var(--team-primary/secondary)
+    if (isTeamPage && secondaryColor) {
+        document.documentElement.style.setProperty('--team-primary', bgColor);
+        document.documentElement.style.setProperty('--team-secondary', secondaryColor);
+        console.log('[DEBUG applyHeaderColors] Set CSS vars - primary:', bgColor, 'secondary:', secondaryColor);
+    }
 
     // Update selection colors CSS variables
     // For team pages, use team secondary color as selection background
     // For main page, use orange
     let selectionBgColor, selectionTextColor;
     if (!app.selectedTeamId) {
-        // Main page - orange selection
-        selectionBgColor = '#ffa726';
-        selectionTextColor = '#000000';
+        // Main page - neutral selection
+        selectionBgColor = '#333333'; // Neutral dark grey
+        selectionTextColor = '#ffffff';
     } else {
         // Team page - use team secondary color for selection
         const firstPlayer = app.filteredPlayers && app.filteredPlayers.length > 0 ? app.filteredPlayers[0] : null;
@@ -1554,16 +1756,18 @@ export function applyHeaderColors(app, container) {
             const teamAbbr = TEAM_MAPPINGS[firstPlayer.TGID];
             const teamColors = TEAM_COLORS[teamAbbr];
             if (teamColors) {
-                selectionBgColor = teamColors.secondary;
-                // Use selectionText override or primary for text on selected rows
-                selectionTextColor = teamColors.selectionText || teamColors.primary;
+                // Use team PRIMARY color for selection (User Request: Prevent Gold/Yellow selections)
+                selectionBgColor = teamColors.primary;
+
+                // Ensure high contrast text for selection
+                selectionTextColor = '#ffffff';
             } else {
-                selectionBgColor = '#ffa726';
-                selectionTextColor = '#000000';
+                selectionBgColor = '#333333'; // Neutral dark grey
+                selectionTextColor = '#ffffff';
             }
         } else {
-            selectionBgColor = '#ffa726';
-            selectionTextColor = '#000000';
+            selectionBgColor = '#333333'; // Neutral dark grey
+            selectionTextColor = '#ffffff';
         }
     }
 
@@ -1846,4 +2050,657 @@ function applyAGGridOVRAdjustments(node, player, adjustments, app, gridApi) {
     if (gridApi) {
         gridApi.refreshCells({ rowNodes: [node], force: true });
     }
+}
+
+// =============================================
+// ROSTER PUSH TO DATABASE
+// =============================================
+
+/**
+ * Open the Push to Database dialog for roster
+ */
+export async function openRosterPushToDatabaseDialog(app) {
+    // Get all players from app.filteredPlayers (full roster, not just visible grid rows)
+    const players = app.filteredPlayers || app.players || [];
+
+    if (players.length === 0) {
+        console.error('[Push to DB] No roster loaded');
+        alert('No players to push. Load a roster file first.');
+        return;
+    }
+
+    // Determine season year from file name or fallback to current year
+    let seasonYear = new Date().getFullYear();
+    if (app.rosterFilePath) {
+        const yearMatch = app.rosterFilePath.match(/(\d{4})/);
+        if (yearMatch) {
+            const extractedYear = parseInt(yearMatch[1]);
+            if (extractedYear >= 1936 && extractedYear <= 2100) {
+                seasonYear = extractedYear;
+            }
+        }
+    }
+
+    console.log(`[Push to DB] Analyzing ${players.length} players for year ${seasonYear}`);
+
+    // Show year selection dialog first
+    const yearSelectHTML = `
+        <div id="roster-push-db-year-modal" class="modal-overlay" style="z-index: 100001;">
+            <div class="modal-content" style="padding: 30px; max-width: 400px;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">Push Roster to Database</h2>
+                    <button id="roster-push-db-year-close-btn" class="close-btn" style="font-size: 24px; background: none; border: none; color: #999; cursor: pointer;">×</button>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label for="roster-push-db-year-input" style="display: block; margin-bottom: 8px; font-weight: bold;">
+                        Season Year:
+                    </label>
+                    <input type="number" id="roster-push-db-year-input" value="${seasonYear}" min="1936" max="2100"
+                        style="width: 100%; padding: 10px; font-size: 16px; border: 1px solid #555; border-radius: 4px; background: #1a1a1a; color: #fff;">
+                    <p style="color: #888; font-size: 12px; margin-top: 8px;">
+                        This will be the season year for the player ratings, team assignments, and jersey numbers in the database.
+                    </p>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button id="roster-push-db-year-cancel-btn" style="padding: 10px 20px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <button id="roster-push-db-year-continue-btn" style="padding: 10px 20px; background: #2196F3; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', yearSelectHTML);
+
+    const yearModal = document.getElementById('roster-push-db-year-modal');
+    const yearInput = document.getElementById('roster-push-db-year-input');
+
+    // Focus the input
+    yearInput.focus();
+    yearInput.select();
+
+    // Close handlers
+    const closeYearModal = () => yearModal.remove();
+    document.getElementById('roster-push-db-year-close-btn').addEventListener('click', closeYearModal);
+    document.getElementById('roster-push-db-year-cancel-btn').addEventListener('click', closeYearModal);
+    yearModal.addEventListener('click', (e) => {
+        if (e.target === yearModal) closeYearModal();
+    });
+
+    // Continue handler
+    document.getElementById('roster-push-db-year-continue-btn').addEventListener('click', async () => {
+        const selectedYear = parseInt(yearInput.value);
+        if (isNaN(selectedYear) || selectedYear < 1936 || selectedYear > 2100) {
+            alert('Please enter a valid year between 1936 and 2100');
+            return;
+        }
+
+        closeYearModal();
+        await analyzeAndShowRosterPushDialog(app, players, selectedYear);
+    });
+
+    // Enter key to continue
+    yearInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('roster-push-db-year-continue-btn').click();
+        }
+    });
+}
+
+/**
+ * Analyze roster players and show the push confirmation dialog
+ */
+async function analyzeAndShowRosterPushDialog(app, players, seasonYear) {
+    // Show loading indicator
+    const loadingHTML = `
+        <div id="roster-push-db-loading-modal" class="modal-overlay" style="z-index: 100001;">
+            <div class="modal-content" style="padding: 30px; text-align: center; max-width: 400px;">
+                <h3>Analyzing Roster...</h3>
+                <p>Checking for existing players in database for year ${seasonYear}...</p>
+                <div style="margin-top: 20px;">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loadingHTML);
+
+    try {
+        // Call backend to analyze
+        const response = await window.electronAPI.database.analyzeRosterPush(players, seasonYear);
+
+        // Remove loading modal
+        document.getElementById('roster-push-db-loading-modal')?.remove();
+
+        if (!response.success) {
+            alert(`Error analyzing roster: ${response.error}`);
+            return;
+        }
+
+        const analysis = response.analysis;
+        console.log('[Push to DB] Roster analysis result:', analysis);
+
+        // Show the analysis/confirmation modal
+        showRosterPushConfirmationModal(app, analysis, seasonYear);
+
+    } catch (error) {
+        document.getElementById('roster-push-db-loading-modal')?.remove();
+        console.error('[Push to DB] Error:', error);
+        alert(`Error: ${error.message || error}`);
+    }
+}
+
+/**
+ * Show the push confirmation modal with analysis results
+ */
+function showRosterPushConfirmationModal(app, analysis, seasonYear) {
+    const { newPlayers, existingBundled, existingCustom, totalConflicts, hasYearConflicts } = analysis;
+
+    const totalNew = newPlayers.length;
+    const totalExisting = existingBundled.length + existingCustom.length;
+    const totalPlayers = totalNew + totalExisting;
+
+    // Build conflicts list HTML - card-based design
+    let conflictsHTML = '';
+    let conflictIndex = 0;
+    const allConflicts = [];
+    const playersWithConflicts = [];
+
+    // Gather all conflicts from bundled and custom players
+    for (const item of [...existingBundled, ...existingCustom]) {
+        if (item.conflicts && item.conflicts.length > 0) {
+            const firstName = item.player.PFNA || item.player.firstName || '';
+            const lastName = item.player.PLNA || item.player.lastName || '';
+            const playerName = `${firstName} ${lastName}`.trim();
+            const position = POSITION_MAPPINGS[item.player.PPOS] || item.player.position || '?';
+            const cardId = `roster-conflict-card-${item.playerIndex}`;
+
+            playersWithConflicts.push({ cardId, playerName });
+
+            // Build conflict rows for this player
+            let conflictRowsHTML = '';
+            for (const conflict of item.conflicts) {
+                const conflictId = `roster_conflict_${conflictIndex}`;
+                allConflicts.push({
+                    playerIndex: item.playerIndex,
+                    field: conflict.field,
+                    id: conflictId,
+                    cardId: cardId
+                });
+
+                conflictRowsHTML += `
+                    <div class="conflict-row" style="display: grid; grid-template-columns: 120px 1fr 1fr 180px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #333;">
+                        <div style="font-weight: bold; color: #aaa;">${conflict.displayName}</div>
+                        <div style="background: #2a2a2a; padding: 6px 10px; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">Current</div>
+                            <div style="color: #ff9800;">${conflict.currentValue || '(empty)'}</div>
+                        </div>
+                        <div style="background: #2a2a2a; padding: 6px 10px; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">New</div>
+                            <div style="color: #4CAF50;">${conflict.newValue || '(empty)'}</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="${conflictId}" value="keep" checked> Keep
+                            </label>
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="${conflictId}" value="overwrite"> Use New
+                            </label>
+                        </div>
+                    </div>
+                `;
+                conflictIndex++;
+            }
+
+            // Build player card
+            conflictsHTML += `
+                <div id="${cardId}" class="conflict-card" style="background: #1e1e1e; border: 1px solid #444; border-radius: 8px; margin-bottom: 12px; overflow: hidden;">
+                    <div class="conflict-card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #252525; border-bottom: 1px solid #444;">
+                        <div>
+                            <span style="font-weight: bold; font-size: 15px; color: #fff;">${playerName}</span>
+                            <span style="color: #888; margin-left: 10px;">${position}</span>
+                            <span style="color: #666; margin-left: 10px; font-size: 12px;">${item.conflicts.length} conflict(s)</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="roster-conflict-keep-all-btn" data-card="${cardId}" style="padding: 5px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                Keep All Current
+                            </button>
+                            <button class="roster-conflict-use-all-btn" data-card="${cardId}" style="padding: 5px 12px; background: #1a5a1a; border: 1px solid #2a7a2a; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                Use All New
+                            </button>
+                            <button class="roster-conflict-done-btn" data-card="${cardId}" style="padding: 5px 12px; background: #2196F3; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                    <div class="conflict-card-body" style="padding: 10px 15px;">
+                        <div class="conflict-grid-header" style="display: grid; grid-template-columns: 120px 1fr 1fr 180px; gap: 10px; padding: 8px 0; border-bottom: 2px solid #444; font-size: 12px; color: #888;">
+                            <div>Field</div>
+                            <div style="text-align: center;">Database Value</div>
+                            <div style="text-align: center;">Roster Value</div>
+                            <div style="text-align: center;">Action</div>
+                        </div>
+                        ${conflictRowsHTML}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Build year conflicts warning
+    let yearConflictHTML = '';
+    if (hasYearConflicts) {
+        yearConflictHTML = `
+            <div class="warning-box" style="background: #332200; border: 1px solid #664400; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <strong style="color: #ffaa00;">Warning:</strong> Some players already have ratings for year ${seasonYear}.
+                <div style="margin-top: 8px;">
+                    <label>
+                        <input type="checkbox" id="roster-overwrite-seasons-checkbox" checked>
+                        Overwrite existing season ratings for ${seasonYear}
+                    </label>
+                </div>
+            </div>
+        `;
+    }
+
+    // Build modal HTML
+    const modalHTML = `
+        <div id="roster-push-db-modal" class="modal-overlay" style="z-index: 100001;">
+            <div class="modal-content" style="max-width: 900px; width: 90%; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #444;">
+                    <h2 style="margin: 0;">Push Roster to Database</h2>
+                    <button id="roster-push-db-close-btn" class="close-btn" style="font-size: 24px; background: none; border: none; color: #999; cursor: pointer;">×</button>
+                </div>
+                <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 15px 0;">
+                    <div class="summary-section" style="margin-bottom: 20px;">
+                        <h3 style="margin-top: 0;">Summary for ${seasonYear} Season</h3>
+                        <p style="color: #aaa; font-size: 13px; margin-bottom: 15px;">
+                            This will save player ratings, team assignments, jersey numbers, and archetypes for the ${seasonYear} season.
+                        </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div style="background: #1a3a1a; padding: 15px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 28px; font-weight: bold; color: #4CAF50;">${totalNew}</div>
+                                <div style="color: #aaa;">New Players</div>
+                                <div style="color: #666; font-size: 12px;">Will be created</div>
+                            </div>
+                            <div style="background: #1a2a3a; padding: 15px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 28px; font-weight: bold; color: #2196F3;">${totalExisting}</div>
+                                <div style="color: #aaa;">Existing Players</div>
+                                <div style="color: #666; font-size: 12px;">Will add/update ${seasonYear} season</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Push Options -->
+                    <div class="push-options-section" style="margin-top: 20px; margin-bottom: 20px; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px;">Push Options</h3>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
+                                <input type="radio" name="roster-push-mode" value="all" checked id="roster-push-mode-all">
+                                <span style="font-weight: bold;">All Data</span>
+                                <span style="color: #888; font-size: 12px;">- Push ratings, team, jersey, archetype, and selected bio fields</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="roster-push-mode" value="ratings" id="roster-push-mode-ratings">
+                                <span style="font-weight: bold;">Ratings Only</span>
+                                <span style="color: #888; font-size: 12px;">- Only push player ratings for ${seasonYear}</span>
+                            </label>
+                        </div>
+
+                        <!-- Bio Fields Selection (shown when All Data is selected) -->
+                        <div id="roster-bio-fields-section" style="padding: 12px; background: #252525; border-radius: 6px; border: 1px solid #404040;">
+                            <div style="font-weight: bold; margin-bottom: 10px; color: #aaa;">Include Bio Fields:</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-team" checked>
+                                    <span>Team Assignment</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-jersey" checked>
+                                    <span>Jersey Number</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-archetype" checked>
+                                    <span>Archetype</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-position" checked>
+                                    <span>Position</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-college">
+                                    <span>College</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-height">
+                                    <span>Height</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-weight">
+                                    <span>Weight</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-homestate">
+                                    <span>Home State</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-race">
+                                    <span>Race</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-bodytype">
+                                    <span>Body Type</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-handedness">
+                                    <span>Handedness</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-pid" checked>
+                                    <span>PID (Portrait)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="roster-bio-pam" checked>
+                                    <span>PAM (3D Face)</span>
+                                </label>
+                            </div>
+                            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                <button id="roster-bio-select-all" style="padding: 4px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">Select All</button>
+                                <button id="roster-bio-select-none" style="padding: 4px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">Select None</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${yearConflictHTML}
+
+                    <div style="margin-bottom: 15px;">
+                        <label>
+                            <input type="checkbox" id="roster-fill-empty-bio-checkbox" checked>
+                            Automatically fill empty bio fields (only for fields selected above)
+                        </label>
+                    </div>
+
+                    ${totalConflicts > 0 ? `
+                        <div class="conflicts-section" style="margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h3 style="margin: 0; color: #ff9800;">Bio Field Conflicts (${totalConflicts} across ${playersWithConflicts.length} players)</h3>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="roster-conflict-keep-all-global" style="padding: 6px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        Keep All Current
+                                    </button>
+                                    <button id="roster-conflict-use-all-global" style="padding: 6px 12px; background: #1a5a1a; border: 1px solid #2a7a2a; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        Use All New
+                                    </button>
+                                </div>
+                            </div>
+                            <p style="color: #aaa; font-size: 13px; margin-bottom: 15px;">
+                                The following players have different values for bio fields. Choose which value to keep, or click "Done" to collapse a player's card.
+                            </p>
+                            <div class="conflicts-list" style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
+                                ${conflictsHTML}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${totalExisting > 0 ? `
+                        <div class="existing-details" style="margin-top: 20px;">
+                            <details>
+                                <summary style="cursor: pointer; color: #2196F3;">Show ${totalExisting} existing player(s) to be updated</summary>
+                                <div style="margin-top: 10px; max-height: 250px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 13px;">
+                                    ${[...existingBundled, ...existingCustom].map(item => {
+        const firstName = item.player.PFNA || item.player.firstName || '';
+        const lastName = item.player.PLNA || item.player.lastName || '';
+        const name = `${firstName} ${lastName}`.trim();
+        const type = item.isCustomPlayer ? '(custom)' : '(bundled)';
+        return `<div style="padding: 2px 0;">${name} <span style="color: #666;">${type}</span></div>`;
+    }).join('')}
+                                </div>
+                            </details>
+                        </div>
+                    ` : ''}
+
+                    ${totalNew > 0 ? `
+                        <div class="new-details" style="margin-top: 20px;">
+                            <details>
+                                <summary style="cursor: pointer; color: #4CAF50;">Show ${totalNew} new player(s) to be created</summary>
+                                <div style="margin-top: 10px; max-height: 250px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 13px;">
+                                    ${newPlayers.map(item => {
+        const firstName = item.player.PFNA || item.player.firstName || '';
+        const lastName = item.player.PLNA || item.player.lastName || '';
+        const name = `${firstName} ${lastName}`.trim();
+        const pos = item.player.PPOS !== undefined ? POSITION_MAPPINGS[item.player.PPOS] : '?';
+        const ovr = item.player.POVR || '?';
+        return `<div style="padding: 2px 0;">${name} <span style="color: #666;">(${pos}, ${ovr} OVR)</span></div>`;
+    }).join('')}
+                                </div>
+                            </details>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #444;">
+                    <button id="roster-push-db-cancel-btn" style="padding: 10px 20px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <button id="roster-push-db-execute-btn" style="padding: 10px 20px; background: #2196F3; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        Push ${totalPlayers} Players to Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    const modal = document.getElementById('roster-push-db-modal');
+
+    // Close handlers
+    const closeModal = () => {
+        modal.remove();
+    };
+
+    document.getElementById('roster-push-db-close-btn').addEventListener('click', closeModal);
+    document.getElementById('roster-push-db-cancel-btn').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    // Conflict card button handlers
+    // "Keep All Current" per card
+    document.querySelectorAll('.roster-conflict-keep-all-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cardId = btn.dataset.card;
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.querySelectorAll('input[type="radio"][value="keep"]').forEach(radio => {
+                    radio.checked = true;
+                });
+            }
+        });
+    });
+
+    // "Use All New" per card
+    document.querySelectorAll('.roster-conflict-use-all-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cardId = btn.dataset.card;
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.querySelectorAll('input[type="radio"][value="overwrite"]').forEach(radio => {
+                    radio.checked = true;
+                });
+            }
+        });
+    });
+
+    // "Done" button - collapse/minimize card
+    document.querySelectorAll('.roster-conflict-done-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cardId = btn.dataset.card;
+            const card = document.getElementById(cardId);
+            if (card) {
+                const body = card.querySelector('.conflict-card-body');
+                if (body.style.display === 'none') {
+                    // Expand
+                    body.style.display = 'block';
+                    btn.textContent = 'Done';
+                    card.style.opacity = '1';
+                } else {
+                    // Collapse
+                    body.style.display = 'none';
+                    btn.textContent = 'Expand';
+                    card.style.opacity = '0.7';
+                }
+            }
+        });
+    });
+
+    // Global "Keep All Current"
+    const globalKeepAllBtn = document.getElementById('roster-conflict-keep-all-global');
+    if (globalKeepAllBtn) {
+        globalKeepAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.conflicts-list input[type="radio"][value="keep"]').forEach(radio => {
+                radio.checked = true;
+            });
+        });
+    }
+
+    // Global "Use All New"
+    const globalUseAllBtn = document.getElementById('roster-conflict-use-all-global');
+    if (globalUseAllBtn) {
+        globalUseAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.conflicts-list input[type="radio"][value="overwrite"]').forEach(radio => {
+                radio.checked = true;
+            });
+        });
+    }
+
+    // Push mode radio handlers - show/hide bio fields section
+    const bioFieldsSection = document.getElementById('roster-bio-fields-section');
+    document.querySelectorAll('input[name="roster-push-mode"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.value === 'ratings') {
+                bioFieldsSection.style.display = 'none';
+            } else {
+                bioFieldsSection.style.display = 'block';
+            }
+        });
+    });
+
+    // Bio fields Select All / Select None buttons
+    document.getElementById('roster-bio-select-all')?.addEventListener('click', () => {
+        document.querySelectorAll('#roster-bio-fields-section input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+        });
+    });
+
+    document.getElementById('roster-bio-select-none')?.addEventListener('click', () => {
+        document.querySelectorAll('#roster-bio-fields-section input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+    });
+
+    // Execute push handler
+    document.getElementById('roster-push-db-execute-btn').addEventListener('click', async () => {
+        // Gather resolutions from radio buttons
+        const resolutions = [];
+        for (const conflict of allConflicts) {
+            const keepCurrent = document.querySelector(`input[name="${conflict.id}"]:checked`)?.value === 'keep';
+            resolutions.push({
+                playerIndex: conflict.playerIndex,
+                field: conflict.field,
+                keepCurrent
+            });
+        }
+
+        // Get push mode
+        const pushMode = document.querySelector('input[name="roster-push-mode"]:checked')?.value || 'all';
+
+        // Get bio field options (only relevant for "all" mode)
+        const bioFieldOptions = {
+            team: document.getElementById('roster-bio-team')?.checked ?? true,
+            jersey: document.getElementById('roster-bio-jersey')?.checked ?? true,
+            archetype: document.getElementById('roster-bio-archetype')?.checked ?? true,
+            position: document.getElementById('roster-bio-position')?.checked ?? true,
+            college: document.getElementById('roster-bio-college')?.checked ?? false,
+            height: document.getElementById('roster-bio-height')?.checked ?? false,
+            weight: document.getElementById('roster-bio-weight')?.checked ?? false,
+            homeState: document.getElementById('roster-bio-homestate')?.checked ?? false,
+            race: document.getElementById('roster-bio-race')?.checked ?? false,
+            bodyType: document.getElementById('roster-bio-bodytype')?.checked ?? false,
+            handedness: document.getElementById('roster-bio-handedness')?.checked ?? false,
+            pid: document.getElementById('roster-bio-pid')?.checked ?? true,
+            pam: document.getElementById('roster-bio-pam')?.checked ?? true
+        };
+
+        // Get other options
+        const overwriteExistingSeasons = document.getElementById('roster-overwrite-seasons-checkbox')?.checked ?? true;
+        const fillEmptyBioFields = document.getElementById('roster-fill-empty-bio-checkbox')?.checked ?? true;
+
+        // Disable button and show progress
+        const executeBtn = document.getElementById('roster-push-db-execute-btn');
+        executeBtn.disabled = true;
+        executeBtn.textContent = 'Pushing...';
+
+        try {
+            const response = await window.electronAPI.database.executeRosterPush(
+                analysis,
+                resolutions,
+                { pushMode, bioFieldOptions, overwriteExistingSeasons, fillEmptyBioFields }
+            );
+
+            if (response.success && response.result) {
+                const result = response.result;
+                closeModal();
+
+                // Show success message
+                const successHTML = `
+                    <div id="roster-push-db-success-modal" class="modal-overlay" style="z-index: 100001;">
+                        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;">
+                            <div style="font-size: 48px; color: #4CAF50; margin-bottom: 20px;">✓</div>
+                            <h2 style="margin: 0 0 15px 0;">Push Complete!</h2>
+                            <div style="text-align: left; background: #1a1a1a; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                                <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                                    <span>Players Created:</span>
+                                    <span style="color: #4CAF50; font-weight: bold;">${result.created}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                                    <span>Players Updated:</span>
+                                    <span style="color: #2196F3; font-weight: bold;">${result.updated}</span>
+                                </div>
+                                ${result.skipped > 0 ? `
+                                    <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                                        <span>Skipped:</span>
+                                        <span style="color: #888;">${result.skipped}</span>
+                                    </div>
+                                ` : ''}
+                                ${result.errors.length > 0 ? `
+                                    <div style="margin-top: 10px; color: #ff5722;">
+                                        <strong>Errors:</strong>
+                                        <div style="font-size: 12px; max-height: 100px; overflow-y: auto;">
+                                            ${result.errors.join('<br>')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <button id="roster-push-db-success-close-btn" style="padding: 10px 30px; background: #2196F3; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', successHTML);
+
+                document.getElementById('roster-push-db-success-close-btn').addEventListener('click', () => {
+                    document.getElementById('roster-push-db-success-modal').remove();
+                });
+
+            } else {
+                alert(`Push failed: ${response.error}`);
+                executeBtn.disabled = false;
+                executeBtn.textContent = `Push ${totalPlayers} Players to Database`;
+            }
+
+        } catch (error) {
+            console.error('[Push to DB] Error:', error);
+            alert(`Error: ${error.message || error}`);
+            executeBtn.disabled = false;
+            executeBtn.textContent = `Push ${totalPlayers} Players to Database`;
+        }
+    });
 }

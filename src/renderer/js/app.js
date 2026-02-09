@@ -58,12 +58,12 @@ if (typeof window.electronAPI !== 'undefined' && window.electronAPI.debug) {
 }
 
 // Intercept console.log to send to session log
-(function() {
+(function () {
     const originalLog = console.log;
     const originalError = console.error;
     const originalWarn = console.warn;
 
-    console.log = function(...args) {
+    console.log = function (...args) {
         originalLog.apply(console, args);
         try {
             const message = args.map(arg =>
@@ -75,7 +75,7 @@ if (typeof window.electronAPI !== 'undefined' && window.electronAPI.debug) {
         }
     };
 
-    console.error = function(...args) {
+    console.error = function (...args) {
         originalError.apply(console, args);
         try {
             const message = args.map(arg =>
@@ -87,7 +87,7 @@ if (typeof window.electronAPI !== 'undefined' && window.electronAPI.debug) {
         }
     };
 
-    console.warn = function(...args) {
+    console.warn = function (...args) {
         originalWarn.apply(console, args);
         try {
             const message = args.map(arg =>
@@ -167,13 +167,69 @@ class MaddenEditorApp {
 
     hideSplashScreen() {
         const splash = document.getElementById('splash');
-        const app = document.getElementById('app');
+        const landing = document.getElementById('landing');
 
         splash.style.opacity = '0';
         setTimeout(() => {
             splash.style.display = 'none';
-            app.classList.add('show');
+            // Show landing page instead of app directly
+            if (landing) {
+                landing.classList.add('active');
+            }
         }, 500);
+    }
+
+    // Navigation: Show a specific tool from landing page
+    showTool(toolName) {
+        const landing = document.getElementById('landing');
+        const app = document.getElementById('app');
+
+        // Hide landing page
+        if (landing) {
+            landing.classList.remove('active');
+        }
+
+        // Show app container
+        if (app) {
+            app.classList.add('show');
+        }
+
+        // Activate the correct tool tab
+        const tabs = document.querySelectorAll('.tool-tab');
+        const panels = document.querySelectorAll('.tool-panel');
+
+        tabs.forEach(tab => {
+            if (tab.dataset.tool === toolName) {
+                tab.classList.add('active');
+            } else {
+                tab.classList.remove('active');
+            }
+        });
+
+        panels.forEach(panel => {
+            const panelTool = panel.id.replace('-tool', '');
+            if (panelTool === toolName) {
+                panel.classList.add('active');
+            } else {
+                panel.classList.remove('active');
+            }
+        });
+    }
+
+    // Navigation: Go back to landing page
+    goToLanding() {
+        const landing = document.getElementById('landing');
+        const app = document.getElementById('app');
+
+        // Hide app
+        if (app) {
+            app.classList.remove('show');
+        }
+
+        // Show landing page
+        if (landing) {
+            landing.classList.add('active');
+        }
     }
 
     async initializeLookup() {
@@ -287,6 +343,10 @@ class MaddenEditorApp {
 
         document.getElementById('importCsvBtn').addEventListener('click', () => {
             this.importRosterCSV();
+        });
+
+        document.getElementById('pushRosterToDbBtn').addEventListener('click', () => {
+            this.pushRosterToDatabase();
         });
 
         // Draft class controls
@@ -413,6 +473,14 @@ class MaddenEditorApp {
         if (fixDraftCommentaryBtn2) {
             fixDraftCommentaryBtn2.addEventListener('click', () => {
                 this.fixCommentary();
+            });
+        }
+
+        // Push to Database button
+        const pushDraftToDbBtn = document.getElementById('pushDraftToDbBtn');
+        if (pushDraftToDbBtn) {
+            pushDraftToDbBtn.addEventListener('click', () => {
+                this.pushDraftClassToDatabase();
             });
         }
 
@@ -698,6 +766,7 @@ class MaddenEditorApp {
         const exportBtn = document.getElementById('exportCsvBtn');
         const importBtn = document.getElementById('importCsvBtn');
         const fillDbBtn = document.getElementById('fillFromDbRosterBtn');
+        const pushDbBtn = document.getElementById('pushRosterToDbBtn');
         const saveBtn = document.getElementById('saveRosterBtn');
 
         if (fileNameEl) fileNameEl.textContent = 'New Roster (unsaved)';
@@ -705,6 +774,7 @@ class MaddenEditorApp {
         if (exportBtn) exportBtn.style.display = 'inline-flex';
         if (importBtn) importBtn.style.display = 'inline-flex';
         if (fillDbBtn) fillDbBtn.style.display = 'inline-flex';
+        if (pushDbBtn) pushDbBtn.style.display = 'inline-flex';
         if (saveBtn) saveBtn.style.display = 'inline-flex';
 
         console.log('[createEmptyRoster] Buttons shown');
@@ -786,6 +856,11 @@ class MaddenEditorApp {
                     this.renderRoster();
                     this.setStatus(`Loaded ${this.players.length} players from ${fileName}`);
 
+                    // Show view toggle for Card/Table view
+                    if (typeof window.showViewToggle === 'function') {
+                        window.showViewToggle();
+                    }
+
                     // Enable Fix Faces, Fix Commentary, and Remove All Injuries buttons when roster is loaded
                     const fixFacesBtn = document.getElementById('fixGenericFacesBtn');
                     if (fixFacesBtn) {
@@ -844,6 +919,7 @@ class MaddenEditorApp {
         const exportBtn = document.getElementById('exportCsvBtn');
         const importBtn = document.getElementById('importCsvBtn');
         const fillDbBtn = document.getElementById('fillFromDbRosterBtn');
+        const pushDbBtn = document.getElementById('pushRosterToDbBtn');
         const saveBtn = document.getElementById('saveRosterBtn');
 
         if (fileNameEl) fileNameEl.textContent = fileName;
@@ -851,12 +927,20 @@ class MaddenEditorApp {
         if (exportBtn) exportBtn.style.display = 'inline-flex';
         if (importBtn) importBtn.style.display = 'inline-flex';
         if (fillDbBtn) fillDbBtn.style.display = 'inline-flex';
+        if (pushDbBtn) pushDbBtn.style.display = 'inline-flex';
         if (saveBtn) saveBtn.style.display = 'inline-flex';
+
+        // Update V2 status bar
+        const statusText = document.getElementById('rosterStatusText');
+        if (statusText) {
+            statusText.textContent = `Editing: ${fileName}`;
+        }
 
         console.log('[setCurrentFile] Buttons shown:', {
             exportBtn: exportBtn ? 'found' : 'NOT FOUND',
             importBtn: importBtn ? 'found' : 'NOT FOUND',
             fillDbBtn: fillDbBtn ? 'found' : 'NOT FOUND',
+            pushDbBtn: pushDbBtn ? 'found' : 'NOT FOUND',
             saveBtn: saveBtn ? 'found' : 'NOT FOUND'
         });
     }
@@ -1293,12 +1377,12 @@ class MaddenEditorApp {
 
         // Build field columns first
         const fieldColumns = fieldCodes.map((fieldName, index) => {
-                const fieldDef = getFieldDefinition(fieldName);
-                let columnConfig = {
-                    data: index + 1, // +1 because index 0 is portrait column
-                    readOnly: !fieldDef.editable,
-                    allowInvalid: false
-                };
+            const fieldDef = getFieldDefinition(fieldName);
+            let columnConfig = {
+                data: index + 1, // +1 because index 0 is portrait column
+                readOnly: !fieldDef.editable,
+                allowInvalid: false
+            };
 
             // Configure column type and editor based on field type
             // IMPORTANT: Check specific field names FIRST before generic type checks
@@ -1369,8 +1453,8 @@ class MaddenEditorApp {
                 };
             }
 
-                return columnConfig;
-            });
+            return columnConfig;
+        });
 
         // NOW construct the final columns array with portrait first
         const columns = [
@@ -3495,41 +3579,52 @@ class MaddenEditorApp {
         const team = getTeamById(teamId);
         if (!team) return;
 
-        // Show team header
-        const teamHeader = document.getElementById('teamViewHeader');
-        const teamName = document.getElementById('teamName');
-        const teamLogo = document.getElementById('teamLogo');
-
-        teamHeader.style.display = 'flex';
-        teamName.textContent = team.fullName;
-
-        // Set team logo if available
-        if (team.logo) {
-            teamLogo.innerHTML = `<img src="${team.logo}" alt="${team.fullName} logo" class="team-logo-img">`;
-        } else {
-            teamLogo.innerHTML = '';
+        // Show back button in filter bar
+        const backBtn = document.getElementById('backToAllTeams');
+        if (backBtn) {
+            backBtn.style.display = 'inline-flex';
+            console.log('[App] Showing back button');
         }
 
-        // Apply team colors
+        // Update team name in filter bar
+        const v2TeamName = document.getElementById('v2TeamName');
+        if (v2TeamName) v2TeamName.textContent = team.fullName;
+
+        // Apply team colors to CSS variables
         this.applyTeamColors(team);
 
-        // Filter and render
+        // Filter and render - this updates the grid data
         this.filterPlayers();
 
-        // Update header colors after grid is rendered
+        // FORCE updates to AG Grid header colors
         const container = document.getElementById('rosterGrid');
-        if (container) {
+        if (this.agGrid && container) {
+            console.log('[App] Applying team colors to AG Grid headers...');
             applyHeaderColors(this, container);
+
+            // Force redraw of rows to ensure background colors update
+            this.agGrid.redrawRows();
         }
     }
 
     exitTeamView() {
-        // Hide team header
-        document.getElementById('teamViewHeader').style.display = 'none';
+        // Hide back button in filter bar
+        const backBtn = document.getElementById('backToAllTeams');
+        if (backBtn) backBtn.style.display = 'none';
+
+        // Reset team name in filter bar
+        const v2TeamName = document.getElementById('v2TeamName');
+        if (v2TeamName) v2TeamName.textContent = 'ALL TEAMS';
 
         // Reset team filter dropdown
         document.getElementById('teamFilter').value = '';
         this.selectedTeamId = null;
+
+        // Reset v2 header logo to NFL
+        const v2Logo = document.getElementById('v2TeamLogo');
+        if (v2Logo) {
+            v2Logo.innerHTML = 'NFL';
+        }
 
         // Reset colors to default
         this.resetColors();
@@ -3544,14 +3639,64 @@ class MaddenEditorApp {
         }
     }
 
+    // Helper to get team logo URL by team ID
+    getTeamLogoUrl(teamId) {
+        const team = getTeamById(teamId);
+        return team ? team.logo : null;
+    }
+
     applyTeamColors(team) {
         const root = document.documentElement;
         root.style.setProperty('--team-primary', team.primary);
         root.style.setProperty('--team-secondary', team.secondary);
 
-        // Apply team colors to header
-        const teamHeader = document.getElementById('teamViewHeader');
-        teamHeader.style.background = `linear-gradient(135deg, ${team.primary} 0%, ${team.secondary} 100%)`;
+        // Parse team PRIMARY color to RGB for selection gradient (User Request: Use Primary)
+        const hex = team.primary.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        // Keep --team-secondary-rgb for other uses, but use primary for selection
+        const secHex = team.secondary.replace('#', '');
+        const sr = parseInt(secHex.substring(0, 2), 16);
+        const sg = parseInt(secHex.substring(2, 4), 16);
+        const sb = parseInt(secHex.substring(4, 6), 16);
+
+        root.style.setProperty('--team-secondary-rgb', `${sr}, ${sg}, ${sb}`);
+        root.style.setProperty('--selection-rgb', `${r}, ${g}, ${b}`);
+        root.style.setProperty('--selection-gradient', `linear-gradient(90deg, rgba(${r}, ${g}, ${b}, 0.5) 0%, transparent 100%)`);
+
+        // Inject dynamic selection styles with team color - append to BODY for highest priority
+        let dynamicStyle = document.getElementById('dynamic-selection-style');
+        if (dynamicStyle) {
+            dynamicStyle.remove(); // Remove old one
+        }
+        dynamicStyle = document.createElement('style');
+        dynamicStyle.id = 'dynamic-selection-style';
+        document.body.appendChild(dynamicStyle); // Append to body, not head
+
+        const teamGradient = `linear-gradient(90deg, rgba(${r}, ${g}, ${b}, 0.5) 0%, transparent 100%)`;
+        console.log('[TEAM COLORS] Applying team gradient:', teamGradient, 'for team:', team.name);
+
+        dynamicStyle.textContent = `
+            /* Override ALL selection styles with team color - HIGHEST SPECIFICITY */
+            html body .ag-theme-alpine .ag-row-selected .ag-cell,
+            html body .ag-theme-alpine .ag-row-selected.ag-row-even .ag-cell,
+            html body .ag-theme-alpine .ag-row-selected.ag-row-odd .ag-cell,
+            html body .roster-editor-v2 .ag-row-selected .ag-cell,
+            html body .roster-editor-v2 .ag-row.ag-row-selected .ag-cell,
+            html body #roster-tool .ag-row-selected .ag-cell,
+            html body #roster-tool .ag-row.ag-row-selected .ag-cell,
+            html body #rosterGrid .ag-row-selected .ag-cell,
+            html body #rosterGrid .ag-row.ag-row-selected .ag-cell,
+            html body .roster-editor-v2 .ag-theme-alpine .ag-row-selected .ag-cell,
+            html body .roster-editor-v2 .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell,
+            html body .roster-editor-v2 .ag-theme-alpine .ag-center-cols-container .ag-row-selected .ag-cell,
+            html body .ag-theme-alpine .ag-pinned-left-cols-container .ag-row-selected .ag-cell,
+            html body .ag-theme-alpine .ag-center-cols-container .ag-row-selected .ag-cell,
+            html body [class*="ag-row-selected"] .ag-cell {
+                background: ${teamGradient} !important;
+            }
+        `;
 
         // Apply team colors to data grid container
         const gridContainer = document.getElementById('rosterGrid');
@@ -3561,11 +3706,32 @@ class MaddenEditorApp {
             gridContainer.classList.add('team-view-active'); // Enable team-colored selections
         }
 
+        // Add team-active class to roster container for CSS targeting
+        const rosterTool = document.getElementById('roster-tool');
+        if (rosterTool) rosterTool.classList.add('team-active');
+
         // Apply subtle team-colored overlay to Handsontable
-        const hotContainer = gridContainer.querySelector('.handsontable');
+        const hotContainer = gridContainer?.querySelector('.handsontable');
         if (hotContainer) {
             hotContainer.style.position = 'relative';
             hotContainer.style.background = '#1a1a1a'; // Keep table dark for readability
+        }
+
+        // Update V2 header team badge
+        const v2TeamName = document.getElementById('v2TeamName');
+        const v2TeamLogo = document.getElementById('v2TeamLogo');
+        const v2TeamCount = document.getElementById('v2TeamCount');
+        if (v2TeamName) v2TeamName.textContent = team.fullName;
+        if (v2TeamLogo) {
+            if (team.logo) {
+                v2TeamLogo.innerHTML = `<img src="${team.logo}" alt="${team.fullName} logo">`;
+            } else {
+                v2TeamLogo.textContent = team.abbr;
+            }
+        }
+        if (v2TeamCount) {
+            const teamPlayers = this.players.filter(p => p.TGID === team.id);
+            v2TeamCount.textContent = `${teamPlayers.length} Players`;
         }
     }
 
@@ -3573,9 +3739,34 @@ class MaddenEditorApp {
         const root = document.documentElement;
         root.style.removeProperty('--team-primary');
         root.style.removeProperty('--team-secondary');
+        root.style.removeProperty('--team-secondary-rgb');
+        root.style.setProperty('--selection-rgb', '212, 175, 55'); // Reset to gold
+        root.style.setProperty('--selection-gradient', 'linear-gradient(90deg, rgba(212, 175, 55, 0.2) 0%, transparent 100%)'); // Reset to gold gradient
 
-        // Reset header
-        document.getElementById('teamViewHeader').style.background = '';
+        // Reset dynamic selection style to gold - recreate in body
+        let dynamicStyle = document.getElementById('dynamic-selection-style');
+        if (dynamicStyle) {
+            dynamicStyle.remove();
+        }
+        dynamicStyle = document.createElement('style');
+        dynamicStyle.id = 'dynamic-selection-style';
+        document.body.appendChild(dynamicStyle);
+
+        const goldGradient = 'linear-gradient(90deg, rgba(212, 175, 55, 0.3) 0%, transparent 100%)';
+        console.log('[TEAM COLORS] Resetting to gold gradient');
+
+        dynamicStyle.textContent = `
+            html body .ag-theme-alpine .ag-row-selected .ag-cell,
+            html body .ag-theme-alpine .ag-row-selected.ag-row-even .ag-cell,
+            html body .ag-theme-alpine .ag-row-selected.ag-row-odd .ag-cell,
+            html body .roster-editor-v2 .ag-row-selected .ag-cell,
+            html body .roster-editor-v2 .ag-row.ag-row-selected .ag-cell,
+            html body #roster-tool .ag-row-selected .ag-cell,
+            html body #rosterGrid .ag-row-selected .ag-cell,
+            html body [class*="ag-row-selected"] .ag-cell {
+                background: ${goldGradient} !important;
+            }
+        `;
 
         // Reset grid container
         const gridContainer = document.getElementById('rosterGrid');
@@ -3585,11 +3776,23 @@ class MaddenEditorApp {
             gridContainer.classList.remove('team-view-active'); // Disable team-colored selections
         }
 
+        // Remove team-active class from roster container
+        const rosterTool = document.getElementById('roster-tool');
+        if (rosterTool) rosterTool.classList.remove('team-active');
+
         // Reset Handsontable container
         const hotContainer = gridContainer?.querySelector('.handsontable');
         if (hotContainer) {
             hotContainer.style.background = '';
         }
+
+        // Reset V2 header team badge
+        const v2TeamName = document.getElementById('v2TeamName');
+        const v2TeamLogo = document.getElementById('v2TeamLogo');
+        const v2TeamCount = document.getElementById('v2TeamCount');
+        if (v2TeamName) v2TeamName.textContent = 'ALL TEAMS';
+        if (v2TeamLogo) v2TeamLogo.textContent = 'NFL';
+        if (v2TeamCount) v2TeamCount.textContent = `${this.players.length} Players`;
     }
 
     updateStats() {
@@ -3845,7 +4048,7 @@ class MaddenEditorApp {
                             const values = this.parseCSVLine(dataLine);
 
                             if (values.length !== fieldCodes.length) {
-                                errors.push(`Row ${i-1}: column count mismatch (expected ${fieldCodes.length}, got ${values.length})`);
+                                errors.push(`Row ${i - 1}: column count mismatch (expected ${fieldCodes.length}, got ${values.length})`);
                                 continue;
                             }
 
@@ -4399,367 +4602,367 @@ class MaddenEditorApp {
                 return;
             }
 
-        const gridRowIndex = this.currentFacePickerRowIndex;
-        console.log(`[GenericFacePicker] Grid row index: ${gridRowIndex}`);
-        console.log(`[GenericFacePicker] Player object keys:`, Object.keys(this.currentFacePickerPlayer));
+            const gridRowIndex = this.currentFacePickerRowIndex;
+            console.log(`[GenericFacePicker] Grid row index: ${gridRowIndex}`);
+            console.log(`[GenericFacePicker] Player object keys:`, Object.keys(this.currentFacePickerPlayer));
 
-        // Determine which grid and data array we're working with
-        const isRoster = 'PSXP' in this.currentFacePickerPlayer;
-        const isDraft = 'PID' in this.currentFacePickerPlayer;
-        const isDraftAgGrid = isDraft && this.draftAgGrid;
-        console.log(`[GenericFacePicker] isRoster: ${isRoster}, isDraft: ${isDraft}, isDraftAgGrid: ${isDraftAgGrid}`);
+            // Determine which grid and data array we're working with
+            const isRoster = 'PSXP' in this.currentFacePickerPlayer;
+            const isDraft = 'PID' in this.currentFacePickerPlayer;
+            const isDraftAgGrid = isDraft && this.draftAgGrid;
+            console.log(`[GenericFacePicker] isRoster: ${isRoster}, isDraft: ${isDraft}, isDraftAgGrid: ${isDraftAgGrid}`);
 
-        const grid = isRoster ? this.agGrid : (isDraftAgGrid ? this.draftAgGrid : (isDraft ? this.draftGrid : null));
-        const dataArray = isRoster ? this.filteredPlayers : (isDraft ? this.draftProspects : null);
+            const grid = isRoster ? this.agGrid : (isDraftAgGrid ? this.draftAgGrid : (isDraft ? this.draftGrid : null));
+            const dataArray = isRoster ? this.filteredPlayers : (isDraft ? this.draftProspects : null);
 
-        console.log(`[GenericFacePicker] Grid exists: ${!!grid}`);
-        console.log(`[GenericFacePicker] DataArray exists: ${!!dataArray}, length: ${dataArray ? dataArray.length : 'N/A'}`);
+            console.log(`[GenericFacePicker] Grid exists: ${!!grid}`);
+            console.log(`[GenericFacePicker] DataArray exists: ${!!dataArray}, length: ${dataArray ? dataArray.length : 'N/A'}`);
 
-        if (!grid) {
-            console.error('[GenericFacePicker] Grid is missing');
-            console.error(`  - this.agGrid: ${!!this.agGrid}`);
-            console.error(`  - this.draftGrid: ${!!this.draftGrid}`);
-            return;
-        }
-
-        // For Handsontable (draft mode only), check if destroyed
-        // AG-Grid uses different destroyed check
-        if (isDraft && !isDraftAgGrid && grid.isDestroyed) {
-            console.error('[GenericFacePicker] Draft grid is destroyed');
-            return;
-        }
-
-        if (!dataArray) {
-            console.error('[GenericFacePicker] Data array is missing');
-            console.error(`  - this.filteredPlayers: ${!!this.filteredPlayers}`);
-            console.error(`  - this.draftProspects: ${!!this.draftProspects}`);
-            return;
-        }
-
-        // CRITICAL: Get the player data from AG-Grid's row node directly
-        // This works for both paginated players AND newly added players (via applyTransaction)
-        let player;
-        if (isRoster && this.agGrid) {
-            // Get the row node from AG-Grid by display index
-            const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
-            if (rowNode && rowNode.data) {
-                player = rowNode.data;
-                console.log(`[GenericFacePicker] Got player from AG-Grid rowNode at index ${gridRowIndex}:`, player.PFNA, player.PLNA);
-            } else {
-                // Fallback to pagination mapping if rowNode not found
-                let actualDataIndex = gridRowIndex;
-                if (this.paginatedPlayerIndices && this.paginatedPlayerIndices[gridRowIndex] !== undefined) {
-                    actualDataIndex = this.paginatedPlayerIndices[gridRowIndex];
-                    console.log(`[GenericFacePicker] Mapped grid row ${gridRowIndex} to data index ${actualDataIndex} via paginatedPlayerIndices`);
-                }
-                player = dataArray[actualDataIndex];
-            }
-        } else {
-            // Non-roster (draft class) - use direct index
-            player = dataArray[gridRowIndex];
-        }
-
-        if (!player) {
-            console.error(`[GenericFacePicker] No player found at grid index ${gridRowIndex}`);
-            console.error(`  - dataArray.length: ${dataArray.length}`);
-            console.error(`  - paginatedPlayerIndices: ${this.paginatedPlayerIndices}`);
-            return;
-        }
-
-        console.log(`[GenericFacePicker] Found player:`, player.PFNA || player.firstName, player.PLNA || player.lastName);
-
-        // Find the PID and Player Pic column indices using field mapping
-        let pidColumnIndex = -1;
-        let playerPicColumnIndex = -1;
-
-        console.log(`[GenericFacePicker] Looking for PID and Player Pic columns...`);
-
-        if (isRoster) {
-            // For roster, look for PSXP and PLAYERPIC fields in currentFieldMapping
-            // currentFieldMapping is ['', 'field1', 'field2', ...] where '' is portrait column at index 0
-            console.log(`[GenericFacePicker] this.currentFieldMapping exists: ${!!this.currentFieldMapping}`);
-            console.log(`[GenericFacePicker] currentFieldMapping:`, this.currentFieldMapping);
-
-            if (this.currentFieldMapping) {
-                pidColumnIndex = this.currentFieldMapping.indexOf('PSXP');
-                playerPicColumnIndex = this.currentFieldMapping.indexOf('PLAYERPIC');
-                console.log(`[GenericFacePicker] PSXP column index: ${pidColumnIndex}`);
-                console.log(`[GenericFacePicker] PLAYERPIC column index: ${playerPicColumnIndex}`);
-            } else {
-                console.error(`[GenericFacePicker] ERROR: currentFieldMapping is undefined/null!`);
-            }
-        } else if (isDraftAgGrid) {
-            // For draft class with AG-Grid, use column field names
-            pidColumnIndex = 'PID'; // Field name in AG-Grid
-            playerPicColumnIndex = 'playerPic'; // Field name in AG-Grid
-            console.log(`[GenericFacePicker] Draft AG-Grid PID field: ${pidColumnIndex}`);
-            console.log(`[GenericFacePicker] Draft AG-Grid Player Pic field: ${playerPicColumnIndex}`);
-        } else if (isDraft) {
-            // For draft class with Handsontable, PID field should be in the columns
-            const colHeaders = grid.getColHeader();
-            pidColumnIndex = colHeaders.indexOf('PID');
-            playerPicColumnIndex = colHeaders.indexOf('Player Pic');
-            console.log(`[GenericFacePicker] Draft Handsontable PID column index: ${pidColumnIndex}`);
-            console.log(`[GenericFacePicker] Draft Handsontable Player Pic column index: ${playerPicColumnIndex}`);
-        }
-
-        console.log(`[GenericFacePicker] FINAL PID column index: ${pidColumnIndex}, Player Pic: ${playerPicColumnIndex}`);
-
-        // Update player PID - handle both roster (PSXP) and draft class (PID) fields
-        // Also look up and update race based on the generic face's race
-        let newRace = null;
-        try {
-            newRace = await window.electronAPI.lookup.getRaceByPID(pid);
-            console.log(`[GenericFacePicker] Looked up race for PID ${pid}: ${newRace}`);
-        } catch (err) {
-            console.warn(`[GenericFacePicker] Could not get race for PID ${pid}:`, err);
-        }
-
-        if (isRoster) {
-            // Roster player - update the actual player object in filteredPlayers
-            const oldPID = player.PSXP;
-            const oldRace = player.PLRC;
-            player.PSXP = pid;
-            player.PLAYERPIC = 'Generic Face'; // Update Player Pic field
-
-            // CRITICAL: Set PEPS (PAM) to GENR format for in-game face assignment
-            // Use verifiedGenr if available, otherwise convert portrait key to GENR format
-            const pepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
-            if (pepsValue) {
-                player.PEPS = pepsValue;
-                console.log(`[GenericFacePicker] Set player.PEPS to "${pepsValue}"`);
+            if (!grid) {
+                console.error('[GenericFacePicker] Grid is missing');
+                console.error(`  - this.agGrid: ${!!this.agGrid}`);
+                console.error(`  - this.draftGrid: ${!!this.draftGrid}`);
+                return;
             }
 
-            // CRITICAL: Use VERIFIED GENR/SKNT values for exact face matching
-            // These are the 268 faces that work correctly in-game
-            // NOTE: Using non-underscore property names because IPC strips underscore-prefixed properties!
-            let genrValue = null;
-            if (verifiedGenr && verifiedSknt !== null) {
-                // Use the verified values directly - these are guaranteed to work in-game
-                player.assignedGenr = verifiedGenr;
-                player.assignedSknt = verifiedSknt;
-                genrValue = verifiedGenr;
-                console.log(`[GenericFacePicker] Set VERIFIED assignedGenr="${verifiedGenr}", assignedSknt=${verifiedSknt}`);
-            } else if (portrait && portrait.includes('generic_')) {
-                // Fallback: Convert portrait name to GENR format (for non-verified faces)
-                genrValue = portrait.replace('plpo_generic_', 'gen_');
-                player.assignedGenr = genrValue;
-
-                // Extract SKNT from the first number in the portrait name
-                const skntMatch = portrait.match(/generic_(\d+)/);
-                if (skntMatch) {
-                    player.assignedSknt = parseInt(skntMatch[1]);
-                }
-
-                console.log(`[GenericFacePicker] Set FALLBACK assignedGenr="${genrValue}", assignedSknt=${player.assignedSknt} from portrait "${portrait}"`);
+            // For Handsontable (draft mode only), check if destroyed
+            // AG-Grid uses different destroyed check
+            if (isDraft && !isDraftAgGrid && grid.isDestroyed) {
+                console.error('[GenericFacePicker] Draft grid is destroyed');
+                return;
             }
 
-            // CRITICAL: Sync assignedGenr/assignedSknt/PEPS to this.players array to ensure persistence
-            if (genrValue) {
-                const playerIndex = this.players.indexOf(player);
-                if (playerIndex >= 0) {
-                    this.players[playerIndex].assignedGenr = player.assignedGenr;
-                    this.players[playerIndex].assignedSknt = player.assignedSknt;
-                    this.players[playerIndex].PEPS = player.PEPS;
-                    this.players[playerIndex].PSXP = player.PSXP;
-                    console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
+            if (!dataArray) {
+                console.error('[GenericFacePicker] Data array is missing');
+                console.error(`  - this.filteredPlayers: ${!!this.filteredPlayers}`);
+                console.error(`  - this.draftProspects: ${!!this.draftProspects}`);
+                return;
+            }
+
+            // CRITICAL: Get the player data from AG-Grid's row node directly
+            // This works for both paginated players AND newly added players (via applyTransaction)
+            let player;
+            if (isRoster && this.agGrid) {
+                // Get the row node from AG-Grid by display index
+                const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
+                if (rowNode && rowNode.data) {
+                    player = rowNode.data;
+                    console.log(`[GenericFacePicker] Got player from AG-Grid rowNode at index ${gridRowIndex}:`, player.PFNA, player.PLNA);
                 } else {
-                    // Fallback: search by unique identifier (PSXP + name combination)
+                    // Fallback to pagination mapping if rowNode not found
+                    let actualDataIndex = gridRowIndex;
+                    if (this.paginatedPlayerIndices && this.paginatedPlayerIndices[gridRowIndex] !== undefined) {
+                        actualDataIndex = this.paginatedPlayerIndices[gridRowIndex];
+                        console.log(`[GenericFacePicker] Mapped grid row ${gridRowIndex} to data index ${actualDataIndex} via paginatedPlayerIndices`);
+                    }
+                    player = dataArray[actualDataIndex];
+                }
+            } else {
+                // Non-roster (draft class) - use direct index
+                player = dataArray[gridRowIndex];
+            }
+
+            if (!player) {
+                console.error(`[GenericFacePicker] No player found at grid index ${gridRowIndex}`);
+                console.error(`  - dataArray.length: ${dataArray.length}`);
+                console.error(`  - paginatedPlayerIndices: ${this.paginatedPlayerIndices}`);
+                return;
+            }
+
+            console.log(`[GenericFacePicker] Found player:`, player.PFNA || player.firstName, player.PLNA || player.lastName);
+
+            // Find the PID and Player Pic column indices using field mapping
+            let pidColumnIndex = -1;
+            let playerPicColumnIndex = -1;
+
+            console.log(`[GenericFacePicker] Looking for PID and Player Pic columns...`);
+
+            if (isRoster) {
+                // For roster, look for PSXP and PLAYERPIC fields in currentFieldMapping
+                // currentFieldMapping is ['', 'field1', 'field2', ...] where '' is portrait column at index 0
+                console.log(`[GenericFacePicker] this.currentFieldMapping exists: ${!!this.currentFieldMapping}`);
+                console.log(`[GenericFacePicker] currentFieldMapping:`, this.currentFieldMapping);
+
+                if (this.currentFieldMapping) {
+                    pidColumnIndex = this.currentFieldMapping.indexOf('PSXP');
+                    playerPicColumnIndex = this.currentFieldMapping.indexOf('PLAYERPIC');
+                    console.log(`[GenericFacePicker] PSXP column index: ${pidColumnIndex}`);
+                    console.log(`[GenericFacePicker] PLAYERPIC column index: ${playerPicColumnIndex}`);
+                } else {
+                    console.error(`[GenericFacePicker] ERROR: currentFieldMapping is undefined/null!`);
+                }
+            } else if (isDraftAgGrid) {
+                // For draft class with AG-Grid, use column field names
+                pidColumnIndex = 'PID'; // Field name in AG-Grid
+                playerPicColumnIndex = 'playerPic'; // Field name in AG-Grid
+                console.log(`[GenericFacePicker] Draft AG-Grid PID field: ${pidColumnIndex}`);
+                console.log(`[GenericFacePicker] Draft AG-Grid Player Pic field: ${playerPicColumnIndex}`);
+            } else if (isDraft) {
+                // For draft class with Handsontable, PID field should be in the columns
+                const colHeaders = grid.getColHeader();
+                pidColumnIndex = colHeaders.indexOf('PID');
+                playerPicColumnIndex = colHeaders.indexOf('Player Pic');
+                console.log(`[GenericFacePicker] Draft Handsontable PID column index: ${pidColumnIndex}`);
+                console.log(`[GenericFacePicker] Draft Handsontable Player Pic column index: ${playerPicColumnIndex}`);
+            }
+
+            console.log(`[GenericFacePicker] FINAL PID column index: ${pidColumnIndex}, Player Pic: ${playerPicColumnIndex}`);
+
+            // Update player PID - handle both roster (PSXP) and draft class (PID) fields
+            // Also look up and update race based on the generic face's race
+            let newRace = null;
+            try {
+                newRace = await window.electronAPI.lookup.getRaceByPID(pid);
+                console.log(`[GenericFacePicker] Looked up race for PID ${pid}: ${newRace}`);
+            } catch (err) {
+                console.warn(`[GenericFacePicker] Could not get race for PID ${pid}:`, err);
+            }
+
+            if (isRoster) {
+                // Roster player - update the actual player object in filteredPlayers
+                const oldPID = player.PSXP;
+                const oldRace = player.PLRC;
+                player.PSXP = pid;
+                player.PLAYERPIC = 'Generic Face'; // Update Player Pic field
+
+                // CRITICAL: Set PEPS (PAM) to GENR format for in-game face assignment
+                // Use verifiedGenr if available, otherwise convert portrait key to GENR format
+                const pepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+                if (pepsValue) {
+                    player.PEPS = pepsValue;
+                    console.log(`[GenericFacePicker] Set player.PEPS to "${pepsValue}"`);
+                }
+
+                // CRITICAL: Use VERIFIED GENR/SKNT values for exact face matching
+                // These are the 268 faces that work correctly in-game
+                // NOTE: Using non-underscore property names because IPC strips underscore-prefixed properties!
+                let genrValue = null;
+                if (verifiedGenr && verifiedSknt !== null) {
+                    // Use the verified values directly - these are guaranteed to work in-game
+                    player.assignedGenr = verifiedGenr;
+                    player.assignedSknt = verifiedSknt;
+                    genrValue = verifiedGenr;
+                    console.log(`[GenericFacePicker] Set VERIFIED assignedGenr="${verifiedGenr}", assignedSknt=${verifiedSknt}`);
+                } else if (portrait && portrait.includes('generic_')) {
+                    // Fallback: Convert portrait name to GENR format (for non-verified faces)
+                    genrValue = portrait.replace('plpo_generic_', 'gen_');
+                    player.assignedGenr = genrValue;
+
+                    // Extract SKNT from the first number in the portrait name
+                    const skntMatch = portrait.match(/generic_(\d+)/);
+                    if (skntMatch) {
+                        player.assignedSknt = parseInt(skntMatch[1]);
+                    }
+
+                    console.log(`[GenericFacePicker] Set FALLBACK assignedGenr="${genrValue}", assignedSknt=${player.assignedSknt} from portrait "${portrait}"`);
+                }
+
+                // CRITICAL: Sync assignedGenr/assignedSknt/PEPS to this.players array to ensure persistence
+                if (genrValue) {
+                    const playerIndex = this.players.indexOf(player);
+                    if (playerIndex >= 0) {
+                        this.players[playerIndex].assignedGenr = player.assignedGenr;
+                        this.players[playerIndex].assignedSknt = player.assignedSknt;
+                        this.players[playerIndex].PEPS = player.PEPS;
+                        this.players[playerIndex].PSXP = player.PSXP;
+                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
+                    } else {
+                        // Fallback: search by unique identifier (PSXP + name combination)
+                        const originalPlayer = this.players.find(p =>
+                            p.PFNA === player.PFNA && p.PLNA === player.PLNA &&
+                            (p.PSXP === player.PSXP || p.PSXP === oldPID)
+                        );
+                        if (originalPlayer) {
+                            originalPlayer.assignedGenr = player.assignedGenr;
+                            originalPlayer.assignedSknt = player.assignedSknt;
+                            originalPlayer.PEPS = player.PEPS;
+                            originalPlayer.PSXP = player.PSXP;
+                            console.log(`[GenericFacePicker] Synced to this.players via name/PID search - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
+                        } else {
+                            console.warn(`[GenericFacePicker] Could not find player in this.players to sync assignedGenr/assignedSknt/PEPS!`);
+                        }
+                    }
+                }
+
+                if (newRace !== null) {
+                    player.PLRC = newRace;
+                    player.assignedRace = newRace; // Also update assignedRace for BLBM GENR/SKNT assignment
+                }
+
+                // CRITICAL: Set PGHE (Player Generic Head) for the face model
+                // PGHE controls which face MODEL appears in-game (values 1-290)
+                const blackPGHEs = [6, 42, 57, 64, 79, 89, 101, 102, 108, 114, 131, 138, 143, 148, 160, 161, 164, 190, 209, 210, 211, 224, 230, 255, 257, 267, 274, 280];
+                const whitePGHEs = [11, 12, 18, 24, 50, 54, 55, 56, 85, 90, 146, 154, 155, 158, 176, 202, 212, 227, 239, 243, 245, 253, 256, 264, 290];
+                const sharedPGHEs = [1, 7, 21, 25, 27, 34, 36, 53, 59, 62, 67, 77, 84, 93, 99, 100, 109, 119, 120, 128, 132, 139, 142, 147, 157, 162, 183, 188, 200, 232, 246, 247, 261, 271, 273, 278, 282, 286, 287, 288];
+
+                const raceForPGHE = newRace !== null ? newRace : (player.PLRC ?? 7);
+                let pghePool;
+                if (raceForPGHE === 7) {
+                    pghePool = [...blackPGHEs, ...sharedPGHEs];
+                } else if (raceForPGHE === 1) {
+                    pghePool = [...whitePGHEs, ...sharedPGHEs];
+                } else {
+                    pghePool = sharedPGHEs;
+                }
+
+                const oldPGHE = player.PGHE;
+                player.PGHE = pghePool[Math.floor(Math.random() * pghePool.length)];
+                console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to ${player.PGHE} (race=${raceForPGHE})`);
+
+                // Sync PGHE to this.players array
+                const pghePlayerIndex = this.players.indexOf(player);
+                if (pghePlayerIndex >= 0) {
+                    this.players[pghePlayerIndex].PGHE = player.PGHE;
+                } else {
                     const originalPlayer = this.players.find(p =>
-                        p.PFNA === player.PFNA && p.PLNA === player.PLNA &&
-                        (p.PSXP === player.PSXP || p.PSXP === oldPID)
+                        p.PFNA === player.PFNA && p.PLNA === player.PLNA
                     );
                     if (originalPlayer) {
-                        originalPlayer.assignedGenr = player.assignedGenr;
-                        originalPlayer.assignedSknt = player.assignedSknt;
-                        originalPlayer.PEPS = player.PEPS;
-                        originalPlayer.PSXP = player.PSXP;
-                        console.log(`[GenericFacePicker] Synced to this.players via name/PID search - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
-                    } else {
-                        console.warn(`[GenericFacePicker] Could not find player in this.players to sync assignedGenr/assignedSknt/PEPS!`);
+                        originalPlayer.PGHE = player.PGHE;
                     }
                 }
-            }
 
-            if (newRace !== null) {
-                player.PLRC = newRace;
-                player.assignedRace = newRace; // Also update assignedRace for BLBM GENR/SKNT assignment
-            }
-
-            // CRITICAL: Set PGHE (Player Generic Head) for the face model
-            // PGHE controls which face MODEL appears in-game (values 1-290)
-            const blackPGHEs = [6, 42, 57, 64, 79, 89, 101, 102, 108, 114, 131, 138, 143, 148, 160, 161, 164, 190, 209, 210, 211, 224, 230, 255, 257, 267, 274, 280];
-            const whitePGHEs = [11, 12, 18, 24, 50, 54, 55, 56, 85, 90, 146, 154, 155, 158, 176, 202, 212, 227, 239, 243, 245, 253, 256, 264, 290];
-            const sharedPGHEs = [1, 7, 21, 25, 27, 34, 36, 53, 59, 62, 67, 77, 84, 93, 99, 100, 109, 119, 120, 128, 132, 139, 142, 147, 157, 162, 183, 188, 200, 232, 246, 247, 261, 271, 273, 278, 282, 286, 287, 288];
-
-            const raceForPGHE = newRace !== null ? newRace : (player.PLRC ?? 7);
-            let pghePool;
-            if (raceForPGHE === 7) {
-                pghePool = [...blackPGHEs, ...sharedPGHEs];
-            } else if (raceForPGHE === 1) {
-                pghePool = [...whitePGHEs, ...sharedPGHEs];
-            } else {
-                pghePool = sharedPGHEs;
-            }
-
-            const oldPGHE = player.PGHE;
-            player.PGHE = pghePool[Math.floor(Math.random() * pghePool.length)];
-            console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to ${player.PGHE} (race=${raceForPGHE})`);
-
-            // Sync PGHE to this.players array
-            const pghePlayerIndex = this.players.indexOf(player);
-            if (pghePlayerIndex >= 0) {
-                this.players[pghePlayerIndex].PGHE = player.PGHE;
-            } else {
-                const originalPlayer = this.players.find(p =>
-                    p.PFNA === player.PFNA && p.PLNA === player.PLNA
-                );
-                if (originalPlayer) {
-                    originalPlayer.PGHE = player.PGHE;
-                }
-            }
-
-            console.log(`[GenericFacePicker] Updated player.PSXP from ${oldPID} to ${pid}`);
-            console.log(`[GenericFacePicker] Updated player.PLAYERPIC to "Generic Face"`);
-            if (newRace !== null) {
-                console.log(`[GenericFacePicker] Updated player.PLRC from ${oldRace} to ${newRace}`);
-            }
-        } else if (isDraft) {
-            // Draft class prospect - update the actual prospect object in draftProspects
-            const oldPID = player.PID;
-            player.PID = pid;
-            console.log(`[GenericFacePicker] Updated player.PID from ${oldPID} to ${pid}`);
-        }
-
-        console.log(`[GenericFacePicker] Data updates complete. Updating grid immediately...`);
-
-        // PERFORMANCE FIX: Don't await portrait loading - update grid immediately
-        // Load portrait in background, cell will show "loading..." then auto-update when ready
-        // CRITICAL: For generic faces, use PAM-based cache key (matches grid renderer logic)
-        const pepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
-        const cacheKey = pepsValue ? `pam_${pepsValue}` : `pid_${pid}`;
-
-        if (!this.portraitCache.has(cacheKey)) {
-            console.log(`[GenericFacePicker] Starting portrait load in background: ${cacheKey}`);
-            this.portraitCache.set(cacheKey, 'loading');
-
-            // Load in background (no await)
-            // For generic faces, load by PAM; for real faces, load by PID
-            const loadPromise = pepsValue
-                ? window.electronAPI.portrait.getImageDataByPam(pepsValue)
-                : window.electronAPI.portrait.getByPID(pid);
-
-            loadPromise.then(imageData => {
-                if (imageData && imageData.length > 0) {
-                    this.portraitCache.set(cacheKey, imageData);
-                    console.log(`[GenericFacePicker] Portrait loaded in background, length: ${imageData.length}`);
-                    // Re-render to show the loaded portrait
-                    if (isRoster && this.agGrid) {
-                        // AG-Grid: refresh cells to update portrait display
-                        this.agGrid.refreshCells({ force: true });
-                    } else if (isDraftAgGrid && this.draftAgGrid) {
-                        // AG-Grid for draft: refresh cells
-                        this.draftAgGrid.refreshCells({ force: true });
-                    } else if (isDraft && grid && !grid.isDestroyed) {
-                        // Handsontable: render the grid
-                        grid.render();
-                    }
-                } else {
-                    this.portraitCache.set(cacheKey, null);
-                    console.warn(`[GenericFacePicker] No portrait data for ${cacheKey}`);
-                }
-            }).catch(error => {
-                console.error(`[GenericFacePicker] Error loading portrait:`, error);
-                this.portraitCache.set(cacheKey, null);
-            });
-        } else {
-            console.log(`[GenericFacePicker] Portrait already in cache: ${cacheKey}`);
-        }
-
-        console.log(`[GenericFacePicker] Updating grid display...`);
-
-        if (isRoster && this.agGrid) {
-            // AG-Grid: Get the row node and update data through API (not direct modification)
-            // This ensures AG-Grid detects the change and properly refreshes
-            const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
-            if (rowNode) {
-                // Update via AG-Grid API - this triggers proper cell refresh
-                rowNode.setDataValue('PSXP', pid);
-                rowNode.setDataValue('PLAYERPIC', 'Generic Face');
-                // CRITICAL: Use GENR format for PEPS (PAM), not portrait key format
-                const gridPepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
-                if (gridPepsValue) {
-                    rowNode.setDataValue('PEPS', gridPepsValue);
-                }
+                console.log(`[GenericFacePicker] Updated player.PSXP from ${oldPID} to ${pid}`);
+                console.log(`[GenericFacePicker] Updated player.PLAYERPIC to "Generic Face"`);
                 if (newRace !== null) {
-                    rowNode.setDataValue('PLRC', newRace);
+                    console.log(`[GenericFacePicker] Updated player.PLRC from ${oldRace} to ${newRace}`);
                 }
-                console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid}, PLAYERPIC=Generic Face, PEPS=${gridPepsValue}, PLRC=${newRace}`);
-
-                // Force refresh the portrait column specifically
-                this.agGrid.refreshCells({
-                    rowNodes: [rowNode],
-                    columns: ['_portrait'],
-                    force: true
-                });
-                console.log(`[GenericFacePicker] Portrait cell refreshed for row ${gridRowIndex}`);
-            } else {
-                console.error(`[GenericFacePicker] Could not find row node at index ${gridRowIndex}`);
+            } else if (isDraft) {
+                // Draft class prospect - update the actual prospect object in draftProspects
+                const oldPID = player.PID;
+                player.PID = pid;
+                console.log(`[GenericFacePicker] Updated player.PID from ${oldPID} to ${pid}`);
             }
-        } else if (isDraftAgGrid) {
-            // AG-Grid: Get the row node and update data through API
-            const rowNode = grid.getDisplayedRowAtIndex(gridRowIndex);
-            if (rowNode) {
-                // Update via AG-Grid API
-                rowNode.setDataValue('PID', pid);
-                rowNode.setDataValue('playerPic', 'Generic Face');
-                const gridPepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
-                if (gridPepsValue) {
-                    rowNode.setDataValue('PEPS', gridPepsValue);
+
+            console.log(`[GenericFacePicker] Data updates complete. Updating grid immediately...`);
+
+            // PERFORMANCE FIX: Don't await portrait loading - update grid immediately
+            // Load portrait in background, cell will show "loading..." then auto-update when ready
+            // CRITICAL: For generic faces, use PAM-based cache key (matches grid renderer logic)
+            const pepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+            const cacheKey = pepsValue ? `pam_${pepsValue}` : `pid_${pid}`;
+
+            if (!this.portraitCache.has(cacheKey)) {
+                console.log(`[GenericFacePicker] Starting portrait load in background: ${cacheKey}`);
+                this.portraitCache.set(cacheKey, 'loading');
+
+                // Load in background (no await)
+                // For generic faces, load by PAM; for real faces, load by PID
+                const loadPromise = pepsValue
+                    ? window.electronAPI.portrait.getImageDataByPam(pepsValue)
+                    : window.electronAPI.portrait.getByPID(pid);
+
+                loadPromise.then(imageData => {
+                    if (imageData && imageData.length > 0) {
+                        this.portraitCache.set(cacheKey, imageData);
+                        console.log(`[GenericFacePicker] Portrait loaded in background, length: ${imageData.length}`);
+                        // Re-render to show the loaded portrait
+                        if (isRoster && this.agGrid) {
+                            // AG-Grid: refresh cells to update portrait display
+                            this.agGrid.refreshCells({ force: true });
+                        } else if (isDraftAgGrid && this.draftAgGrid) {
+                            // AG-Grid for draft: refresh cells
+                            this.draftAgGrid.refreshCells({ force: true });
+                        } else if (isDraft && grid && !grid.isDestroyed) {
+                            // Handsontable: render the grid
+                            grid.render();
+                        }
+                    } else {
+                        this.portraitCache.set(cacheKey, null);
+                        console.warn(`[GenericFacePicker] No portrait data for ${cacheKey}`);
+                    }
+                }).catch(error => {
+                    console.error(`[GenericFacePicker] Error loading portrait:`, error);
+                    this.portraitCache.set(cacheKey, null);
+                });
+            } else {
+                console.log(`[GenericFacePicker] Portrait already in cache: ${cacheKey}`);
+            }
+
+            console.log(`[GenericFacePicker] Updating grid display...`);
+
+            if (isRoster && this.agGrid) {
+                // AG-Grid: Get the row node and update data through API (not direct modification)
+                // This ensures AG-Grid detects the change and properly refreshes
+                const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
+                if (rowNode) {
+                    // Update via AG-Grid API - this triggers proper cell refresh
+                    rowNode.setDataValue('PSXP', pid);
+                    rowNode.setDataValue('PLAYERPIC', 'Generic Face');
+                    // CRITICAL: Use GENR format for PEPS (PAM), not portrait key format
+                    const gridPepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+                    if (gridPepsValue) {
+                        rowNode.setDataValue('PEPS', gridPepsValue);
+                    }
+                    if (newRace !== null) {
+                        rowNode.setDataValue('PLRC', newRace);
+                    }
+                    console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid}, PLAYERPIC=Generic Face, PEPS=${gridPepsValue}, PLRC=${newRace}`);
+
+                    // Force refresh the portrait column specifically
+                    this.agGrid.refreshCells({
+                        rowNodes: [rowNode],
+                        columns: ['_portrait'],
+                        force: true
+                    });
+                    console.log(`[GenericFacePicker] Portrait cell refreshed for row ${gridRowIndex}`);
+                } else {
+                    console.error(`[GenericFacePicker] Could not find row node at index ${gridRowIndex}`);
                 }
-                console.log(`[GenericFacePicker] Updated draft row via setDataValue: PID=${pid}, playerPic=Generic Face, PEPS=${gridPepsValue}`);
+            } else if (isDraftAgGrid) {
+                // AG-Grid: Get the row node and update data through API
+                const rowNode = grid.getDisplayedRowAtIndex(gridRowIndex);
+                if (rowNode) {
+                    // Update via AG-Grid API
+                    rowNode.setDataValue('PID', pid);
+                    rowNode.setDataValue('playerPic', 'Generic Face');
+                    const gridPepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
+                    if (gridPepsValue) {
+                        rowNode.setDataValue('PEPS', gridPepsValue);
+                    }
+                    console.log(`[GenericFacePicker] Updated draft row via setDataValue: PID=${pid}, playerPic=Generic Face, PEPS=${gridPepsValue}`);
 
-                // Force refresh the portrait column
-                grid.refreshCells({
-                    rowNodes: [rowNode],
-                    columns: ['_portrait'],
-                    force: true
-                });
-            } else {
-                console.error(`[GenericFacePicker] Could not find draft row node at index ${gridRowIndex}`);
+                    // Force refresh the portrait column
+                    grid.refreshCells({
+                        rowNodes: [rowNode],
+                        columns: ['_portrait'],
+                        force: true
+                    });
+                } else {
+                    console.error(`[GenericFacePicker] Could not find draft row node at index ${gridRowIndex}`);
+                }
+            } else if (isDraft) {
+                // Handsontable: Use setDataAtCell to update the grid
+                const changes = [];
+
+                // Update portrait cell (column 0) - just set row index to trigger portrait renderer
+                changes.push([gridRowIndex, 0, gridRowIndex]);
+
+                // Update PID column if found
+                if (pidColumnIndex >= 0) {
+                    changes.push([gridRowIndex, pidColumnIndex, pid]);
+                    console.log(`[GenericFacePicker] Queuing PID update: row ${gridRowIndex}, col ${pidColumnIndex}, value ${pid}`);
+                }
+
+                // Update Player Pic column if found
+                if (playerPicColumnIndex >= 0) {
+                    changes.push([gridRowIndex, playerPicColumnIndex, 'Generic Face']);
+                    console.log(`[GenericFacePicker] Queuing Player Pic update: row ${gridRowIndex}, col ${playerPicColumnIndex}, value "Generic Face"`);
+                }
+
+                // Apply all changes in one batch
+                if (changes.length > 0 && !grid.isDestroyed) {
+                    grid.setDataAtCell(changes, null, null, 'GenericFacePicker');
+                    console.log(`[GenericFacePicker] Applied ${changes.length} cell updates via setDataAtCell`);
+                }
             }
-        } else if (isDraft) {
-            // Handsontable: Use setDataAtCell to update the grid
-            const changes = [];
 
-            // Update portrait cell (column 0) - just set row index to trigger portrait renderer
-            changes.push([gridRowIndex, 0, gridRowIndex]);
+            // Close modal after updates
+            console.log(`[GenericFacePicker] Closing modal...`);
+            this.closeGenericFacePicker();
+            console.log(`[GenericFacePicker] Complete - portrait and PID updated, no freeze`);
 
-            // Update PID column if found
-            if (pidColumnIndex >= 0) {
-                changes.push([gridRowIndex, pidColumnIndex, pid]);
-                console.log(`[GenericFacePicker] Queuing PID update: row ${gridRowIndex}, col ${pidColumnIndex}, value ${pid}`);
-            }
-
-            // Update Player Pic column if found
-            if (playerPicColumnIndex >= 0) {
-                changes.push([gridRowIndex, playerPicColumnIndex, 'Generic Face']);
-                console.log(`[GenericFacePicker] Queuing Player Pic update: row ${gridRowIndex}, col ${playerPicColumnIndex}, value "Generic Face"`);
-            }
-
-            // Apply all changes in one batch
-            if (changes.length > 0 && !grid.isDestroyed) {
-                grid.setDataAtCell(changes, null, null, 'GenericFacePicker');
-                console.log(`[GenericFacePicker] Applied ${changes.length} cell updates via setDataAtCell`);
-            }
-        }
-
-        // Close modal after updates
-        console.log(`[GenericFacePicker] Closing modal...`);
-        this.closeGenericFacePicker();
-        console.log(`[GenericFacePicker] Complete - portrait and PID updated, no freeze`);
-
-        console.log(`[GenericFacePicker] ===== DONE =====`);
+            console.log(`[GenericFacePicker] ===== DONE =====`);
 
         } finally {
             // Clear the processing flag
@@ -5041,7 +5244,7 @@ class MaddenEditorApp {
 
             // Check if PAM is for a real player (not generic)
             const hasRealPAM = peps && typeof peps === 'string' && peps.length > 0 &&
-                               !peps.startsWith('gen_') && !peps.includes('generic');
+                !peps.startsWith('gen_') && !peps.includes('generic');
 
             // Skip players with REAL faces (has real PAM or PLPL != 0) - don't touch their PID
             if (!isGenericFace || hasRealPAM) {
@@ -5175,10 +5378,10 @@ class MaddenEditorApp {
 
         const saveTarget = isDraftClass ? 'draft class' : 'roster';
         const msg = `Fixed ${fixedCount} ${isDraftClass ? 'prospects' : 'players'} with PGHE generic faces.\n\n` +
-                    `Skipped ${skippedReal} with real PAM.\n` +
-                    `${noRaceFound} had no race data (used default).\n` +
-                    `${failedAssignment} failed to find matching face.\n\n` +
-                    `SAVE the ${saveTarget} to apply changes!`;
+            `Skipped ${skippedReal} with real PAM.\n` +
+            `${noRaceFound} had no race data (used default).\n` +
+            `${failedAssignment} failed to find matching face.\n\n` +
+            `SAVE the ${saveTarget} to apply changes!`;
 
         console.log('[FixFaces]', msg);
         alert(msg);
@@ -5273,11 +5476,32 @@ class MaddenEditorApp {
 
         const saveTarget = isDraftClass ? 'draft class' : 'roster';
         const msg = `Updated ${fixedCount} ${isDraftClass ? 'prospects' : 'players'} with commentary IDs.\n\n` +
-                    `${noMatchFound} had no matching last name in the lookup.\n\n` +
-                    `SAVE the ${saveTarget} to apply changes!`;
+            `${noMatchFound} had no matching last name in the lookup.\n\n` +
+            `SAVE the ${saveTarget} to apply changes!`;
 
         console.log('[FixCommentary]', msg);
         alert(msg);
+    }
+
+    /**
+     * Push draft class players to the user database
+     * Creates new custom players or updates existing players with season ratings
+     */
+    async pushDraftClassToDatabase() {
+        // Import the function dynamically to avoid circular dependencies
+        const { openPushToDatabaseDialog } = await import('./ag-grid-draft-complete.js');
+        openPushToDatabaseDialog(this);
+    }
+
+    /**
+     * Push roster players to the user database
+     * Creates new custom players or updates existing players with season ratings
+     * Includes team, jersey number, and archetype for the specified season year
+     */
+    async pushRosterToDatabase() {
+        // Import the function dynamically to avoid circular dependencies
+        const { openRosterPushToDatabaseDialog } = await import('./ag-grid-roster-complete.js');
+        openRosterPushToDatabaseDialog(this);
     }
 
     /**
@@ -5464,6 +5688,7 @@ class MaddenEditorApp {
             document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
             document.getElementById('fixDraftFacesBtn').disabled = false;
             document.getElementById('fixDraftCommentaryBtn').disabled = false;
+            document.getElementById('pushDraftToDbBtn').disabled = false;
             // Show info-tooltips version buttons
             document.getElementById('fixDraftFacesBtn2').style.display = 'inline-flex';
             document.getElementById('fixDraftCommentaryBtn2').style.display = 'inline-flex';
@@ -5572,7 +5797,7 @@ class MaddenEditorApp {
 
         // Store original prospect data with numeric IDs for save/restore
         // CRITICAL: This must be set before AG-Grid init so save can convert names back to IDs
-        this.originalProspectData = prospects.map(p => ({...p}));
+        this.originalProspectData = prospects.map(p => ({ ...p }));
 
         // Initialize AG-Grid (async to load archetype mappings)
         console.log('[Draft AG-Grid] Initializing with', prospects.length, 'prospects');
@@ -5612,7 +5837,7 @@ class MaddenEditorApp {
         const gridHeight = `calc(100vh - ${totalOffset}px)`;
 
         // Store original prospect data with numeric IDs
-        this.originalProspectData = prospects.map(p => ({...p}));
+        this.originalProspectData = prospects.map(p => ({ ...p }));
 
         // Pre-load portraits for all prospects in batch
         let portraitsToLoad = 0;
@@ -5754,7 +5979,7 @@ class MaddenEditorApp {
                 // Body type is now a string from backend ("Thin", "Muscular", "Heavy", or null/undefined for "Standard")
                 bodyType: bodyType === null || bodyType === undefined ? 'Standard'
                     : typeof bodyType === 'number' ? ['Standard', 'Thin', 'Muscular', 'Heavy'][bodyType] || 'Standard'
-                    : bodyType,
+                        : bodyType,
                 playerPic: playerPic,
 
                 // All stat fields (explicit list to avoid corruption)
@@ -5854,7 +6079,7 @@ class MaddenEditorApp {
         const archetypeCache = new Map();
 
         // Custom renderer for lookup columns - ensures friendly names are always displayed
-        const dropdownRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+        const dropdownRenderer = function (instance, td, row, col, prop, value, cellProperties) {
             // Convert numeric values to friendly names if needed
             let displayValue = value;
 
@@ -5884,7 +6109,7 @@ class MaddenEditorApp {
 
         // Custom renderer for draft position - display actual draft pick number (1-402+)
         // Uses the draftPosition from the source data (0-indexed), displays as 1-indexed
-        const draftPositionRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+        const draftPositionRenderer = function (instance, td, row, col, prop, value, cellProperties) {
             // Get the actual draftPosition from the source data
             const physicalRow = instance.toPhysicalRow(row);
             const sourceData = instance.getSourceDataAtRow(physicalRow);
@@ -5961,7 +6186,7 @@ class MaddenEditorApp {
         };
 
         // Birthday renderer - displays pre-converted birthday (already in MM/DD/YYYY format)
-        const birthdayRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+        const birthdayRenderer = function (instance, td, row, col, prop, value, cellProperties) {
             td.innerHTML = '';
             td.style.textAlign = 'center';
             td.textContent = value || '';  // Value is already in display format
@@ -5969,7 +6194,7 @@ class MaddenEditorApp {
         };
 
         // Age renderer - displays age from data (read-only)
-        const ageRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+        const ageRenderer = function (instance, td, row, col, prop, value, cellProperties) {
             td.innerHTML = '';
             td.style.textAlign = 'center';
             td.style.backgroundColor = '#2a2a2a'; // Darker to indicate read-only
@@ -5978,7 +6203,7 @@ class MaddenEditorApp {
         };
 
         // Archetype renderer - displays archetype name (value is already converted)
-        const archetypeRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+        const archetypeRenderer = function (instance, td, row, col, prop, value, cellProperties) {
             td.innerHTML = '';
             td.style.textAlign = 'left';
 
@@ -6067,7 +6292,7 @@ class MaddenEditorApp {
                 type: 'numeric',
                 readOnly: false,
                 renderer: draftPositionRenderer,
-                validator: function(value, callback) {
+                validator: function (value, callback) {
                     const maxPos = this.instance.countRows();
                     // Convert from 1-indexed input to 0-indexed for validation
                     const zeroIndexed = value - 1;
@@ -6085,7 +6310,7 @@ class MaddenEditorApp {
                 width: 70,
                 type: 'numeric',
                 readOnly: true,
-                renderer: function(instance, td, row, col, prop, value, cellProperties) {
+                renderer: function (instance, td, row, col, prop, value, cellProperties) {
                     td.innerHTML = '';
                     td.style.textAlign = 'center';
                     td.style.backgroundColor = '#2a2a2a';
@@ -6127,7 +6352,7 @@ class MaddenEditorApp {
                 title: 'Archetype',
                 width: 200,
                 type: 'dropdown',
-                source: async function(query, process) {
+                source: async function (query, process) {
                     // Get position from current row data
                     const row = this.row;
                     const instance = this.instance;
@@ -6301,9 +6526,9 @@ class MaddenEditorApp {
             columnSorting: {
                 indicator: true,
                 headerAction: true,
-                compareFunctionFactory: function(sortOrder, columnMeta) {
+                compareFunctionFactory: function (sortOrder, columnMeta) {
                     // Custom comparator that handles both string and numeric values
-                    return function(value, nextValue) {
+                    return function (value, nextValue) {
                         // Ensure we're comparing strings for dropdown columns
                         const val1 = String(value || '');
                         const val2 = String(nextValue || '');
@@ -6900,8 +7125,8 @@ class MaddenEditorApp {
                 console.log(`  college: ${p.college}`);
                 // Log all rating-related keys
                 const ratingKeys = Object.keys(p).filter(k =>
-                  k.includes('throw') || k.includes('speed') || k.includes('acceleration') ||
-                  k.includes('awareness') || k.includes('PSPD') || k.includes('PTAD') || k.includes('PTHP')
+                    k.includes('throw') || k.includes('speed') || k.includes('acceleration') ||
+                    k.includes('awareness') || k.includes('PSPD') || k.includes('PTAD') || k.includes('PTHP')
                 );
                 console.log(`  Rating-related keys: ${ratingKeys.join(', ')}`);
             }
@@ -7977,7 +8202,7 @@ class MaddenEditorApp {
         // Custom renderer for draft position - display as 1-indexed
         // Draft position renderer - ALWAYS display current row position (1-indexed)
         // Position is NOT stored - it's calculated from the row's physical position in the grid
-        const draftPosRenderer = function(instance, td, row, col, prop, value, cellProperties) {
+        const draftPosRenderer = function (instance, td, row, col, prop, value, cellProperties) {
             // Always display the current physical row position (row numbers are 0-indexed, display as 1-indexed)
             const displayValue = row + 1;
             Handsontable.renderers.TextRenderer.apply(this, [instance, td, row, col, prop, displayValue, cellProperties]);
@@ -7997,7 +8222,7 @@ class MaddenEditorApp {
                 type: 'numeric',
                 renderer: draftPosRenderer,
                 readOnly: false,
-                validator: function(value, callback) {
+                validator: function (value, callback) {
                     const maxPos = this.instance.countRows();
                     if (value >= 1 && value <= maxPos) {
                         callback(true);
@@ -8599,99 +8824,99 @@ class MaddenEditorApp {
                 }
 
                 return {
-                // Basic Info
-                firstName: player.firstName,
-                lastName: player.lastName,
-                position: player.positionCode, // Use numeric code for draft class
-                archetype: player.archetype,   // CRITICAL: Include archetype ID (0=FieldGeneral, etc.)
-                college: player.college || 'Unknown',
-                jerseyNum: player.jerseyNum,
-                age: player.age,
-                yearsPro: 0,
-                heightInches: player.heightInches,
-                weight: player.weight,
+                    // Basic Info
+                    firstName: player.firstName,
+                    lastName: player.lastName,
+                    position: player.positionCode, // Use numeric code for draft class
+                    archetype: player.archetype,   // CRITICAL: Include archetype ID (0=FieldGeneral, etc.)
+                    college: player.college || 'Unknown',
+                    jerseyNum: player.jerseyNum,
+                    age: player.age,
+                    yearsPro: 0,
+                    heightInches: player.heightInches,
+                    weight: player.weight,
 
-                // Dev Trait
-                devTrait: player.devTrait,
+                    // Dev Trait
+                    devTrait: player.devTrait,
 
-                // Ratings - map from GeneratedPlayer ratings to prospect format
-                overall: player.ratings.overall,
-                speed: player.ratings.speed,
-                acceleration: player.ratings.acceleration,
-                agility: player.ratings.agility,
-                strength: player.ratings.strength,
-                awareness: player.ratings.awareness,
-                jumping: player.ratings.jumping || 70,
-                stamina: player.ratings.stamina || 85,
-                injury: player.ratings.injury || 90,
+                    // Ratings - map from GeneratedPlayer ratings to prospect format
+                    overall: player.ratings.overall,
+                    speed: player.ratings.speed,
+                    acceleration: player.ratings.acceleration,
+                    agility: player.ratings.agility,
+                    strength: player.ratings.strength,
+                    awareness: player.ratings.awareness,
+                    jumping: player.ratings.jumping || 70,
+                    stamina: player.ratings.stamina || 85,
+                    injury: player.ratings.injury || 90,
 
-                // Core Physical (missing from before)
-                changeOfDirection: player.ratings.changeOfDirection || 0,
-                toughness: player.ratings.toughness || 0,
+                    // Core Physical (missing from before)
+                    changeOfDirection: player.ratings.changeOfDirection || 0,
+                    toughness: player.ratings.toughness || 0,
 
-                // Position-specific attributes
-                // QB throwing attributes need higher defaults (they affect OVR heavily)
-                throwPower: player.ratings.throwPower || 75,
-                throwAccuracyShort: player.ratings.throwAccuracyShort || 70,
-                throwAccuracyMid: player.ratings.throwAccuracyMid || 68,
-                throwAccuracyDeep: player.ratings.throwAccuracyDeep || 65,
-                throwOnTheRun: player.ratings.throwOnTheRun || 65,
-                throwUnderPressure: player.ratings.throwUnderPressure || 65,  // CRITICAL: Was 0, caused OVR to drop 10+ points
-                playAction: player.ratings.playAction || 65,
-                breakSack: player.ratings.breakSack || 60,  // CRITICAL: Was 0, caused OVR to drop significantly
+                    // Position-specific attributes
+                    // QB throwing attributes need higher defaults (they affect OVR heavily)
+                    throwPower: player.ratings.throwPower || 75,
+                    throwAccuracyShort: player.ratings.throwAccuracyShort || 70,
+                    throwAccuracyMid: player.ratings.throwAccuracyMid || 68,
+                    throwAccuracyDeep: player.ratings.throwAccuracyDeep || 65,
+                    throwOnTheRun: player.ratings.throwOnTheRun || 65,
+                    throwUnderPressure: player.ratings.throwUnderPressure || 65,  // CRITICAL: Was 0, caused OVR to drop 10+ points
+                    playAction: player.ratings.playAction || 65,
+                    breakSack: player.ratings.breakSack || 60,  // CRITICAL: Was 0, caused OVR to drop significantly
 
-                carrying: player.ratings.carrying || 0,
-                ballCarrierVision: player.ratings.ballCarrierVision || 0,
-                breakTackle: player.ratings.breakTackle || 0,
-                trucking: player.ratings.trucking || 0,
-                stiffArm: player.ratings.stiffArm || 0,
-                spinMove: player.ratings.spinMove || 0,
-                jukeMove: player.ratings.jukeMove || 0,
+                    carrying: player.ratings.carrying || 0,
+                    ballCarrierVision: player.ratings.ballCarrierVision || 0,
+                    breakTackle: player.ratings.breakTackle || 0,
+                    trucking: player.ratings.trucking || 0,
+                    stiffArm: player.ratings.stiffArm || 0,
+                    spinMove: player.ratings.spinMove || 0,
+                    jukeMove: player.ratings.jukeMove || 0,
 
-                catching: player.ratings.catching || 0,
-                catchInTraffic: player.ratings.catchInTraffic || 0,
-                spectacularCatch: player.ratings.spectacularCatch || 0,
-                shortRouteRunning: player.ratings.shortRouteRunning || 0,
-                mediumRouteRunning: player.ratings.mediumRouteRunning || 0,
-                deepRouteRunning: player.ratings.deepRouteRunning || 0,
-                release: player.ratings.release || 0,
+                    catching: player.ratings.catching || 0,
+                    catchInTraffic: player.ratings.catchInTraffic || 0,
+                    spectacularCatch: player.ratings.spectacularCatch || 0,
+                    shortRouteRunning: player.ratings.shortRouteRunning || 0,
+                    mediumRouteRunning: player.ratings.mediumRouteRunning || 0,
+                    deepRouteRunning: player.ratings.deepRouteRunning || 0,
+                    release: player.ratings.release || 0,
 
-                passBlock: player.ratings.passBlock || 0,
-                passBlockPower: player.ratings.passBlockPower || 0,
-                passBlockFinesse: player.ratings.passBlockFinesse || 0,
-                runBlock: player.ratings.runBlock || 0,
-                runBlockPower: player.ratings.runBlockPower || 0,
-                runBlockFinesse: player.ratings.runBlockFinesse || 0,
-                leadBlock: player.ratings.leadBlock || 0,
-                impactBlocking: player.ratings.impactBlocking || 0,
+                    passBlock: player.ratings.passBlock || 0,
+                    passBlockPower: player.ratings.passBlockPower || 0,
+                    passBlockFinesse: player.ratings.passBlockFinesse || 0,
+                    runBlock: player.ratings.runBlock || 0,
+                    runBlockPower: player.ratings.runBlockPower || 0,
+                    runBlockFinesse: player.ratings.runBlockFinesse || 0,
+                    leadBlock: player.ratings.leadBlock || 0,
+                    impactBlocking: player.ratings.impactBlocking || 0,
 
-                tackle: player.ratings.tackle || 0,
-                hitPower: player.ratings.hitPower || 0,
-                powerMoves: player.ratings.powerMoves || 0,
-                finesseMoves: player.ratings.finesseMoves || 0,
-                blockShedding: player.ratings.blockShedding || 0,
-                pursuit: player.ratings.pursuit || 0,
-                playRecognition: player.ratings.playRecognition || 0,
-                manCoverage: player.ratings.manCoverage || 0,
-                zoneCoverage: player.ratings.zoneCoverage || 0,
-                pressCoverage: player.ratings.pressCoverage || 0,
+                    tackle: player.ratings.tackle || 0,
+                    hitPower: player.ratings.hitPower || 0,
+                    powerMoves: player.ratings.powerMoves || 0,
+                    finesseMoves: player.ratings.finesseMoves || 0,
+                    blockShedding: player.ratings.blockShedding || 0,
+                    pursuit: player.ratings.pursuit || 0,
+                    playRecognition: player.ratings.playRecognition || 0,
+                    manCoverage: player.ratings.manCoverage || 0,
+                    zoneCoverage: player.ratings.zoneCoverage || 0,
+                    pressCoverage: player.ratings.pressCoverage || 0,
 
-                kickPower: player.ratings.kickPower || 0,
-                kickAccuracy: player.ratings.kickAccuracy || 0,
-                kickReturn: player.ratings.kickReturn || 0,
-                longSnap: player.ratings.longSnap || 0,
+                    kickPower: player.ratings.kickPower || 0,
+                    kickAccuracy: player.ratings.kickAccuracy || 0,
+                    kickReturn: player.ratings.kickReturn || 0,
+                    longSnap: player.ratings.longSnap || 0,
 
-                // Visuals - CRITICAL: Include template visuals so M26Writer can update them
-                PID: player.PID || 0,
-                PEPS: player.PEPS || null,
-                bodyType: player.bodyType || 1,
-                visuals: templateVisuals, // Copy template visuals structure
+                    // Visuals - CRITICAL: Include template visuals so M26Writer can update them
+                    PID: player.PID || 0,
+                    PEPS: player.PEPS || null,
+                    bodyType: player.bodyType || 1,
+                    visuals: templateVisuals, // Copy template visuals structure
 
-                // Draft info (optional, can be filled in editor)
-                round: 0,
-                pick: 0,
-                draftTeam: 0,
-                homeState: player.homeState || 0
+                    // Draft info (optional, can be filled in editor)
+                    round: 0,
+                    pick: 0,
+                    draftTeam: 0,
+                    homeState: player.homeState || 0
                 };
             });
 
@@ -8737,6 +8962,7 @@ class MaddenEditorApp {
             document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
             document.getElementById('fixDraftFacesBtn').disabled = false;
             document.getElementById('fixDraftCommentaryBtn').disabled = false;
+            document.getElementById('pushDraftToDbBtn').disabled = false;
             // Show info-tooltips version buttons
             document.getElementById('fixDraftFacesBtn2').style.display = 'inline-flex';
             document.getElementById('fixDraftCommentaryBtn2').style.display = 'inline-flex';
@@ -8970,6 +9196,7 @@ class MaddenEditorApp {
             const exportBtn = document.getElementById('exportCsvBtn');
             const importBtn = document.getElementById('importCsvBtn');
             const fillDbBtn = document.getElementById('fillFromDbRosterBtn');
+            const pushDbBtn = document.getElementById('pushRosterToDbBtn');
             const saveBtn = document.getElementById('saveRosterBtn');
 
             if (fileNameEl) fileNameEl.textContent = 'Generated Roster (unsaved)';
@@ -8977,6 +9204,7 @@ class MaddenEditorApp {
             if (exportBtn) exportBtn.style.display = 'inline-flex';
             if (importBtn) importBtn.style.display = 'inline-flex';
             if (fillDbBtn) fillDbBtn.style.display = 'inline-flex';
+            if (pushDbBtn) pushDbBtn.style.display = 'inline-flex';
             if (saveBtn) saveBtn.style.display = 'inline-flex';
 
             console.log('[loadGeneratedRoster] Buttons shown');
@@ -9839,7 +10067,7 @@ class MaddenEditorApp {
 }
 
 // Global function for modal close button
-window.closeErrorModal = function() {
+window.closeErrorModal = function () {
     if (window.app) {
         window.app.closeErrorModal();
     } else {
@@ -9854,6 +10082,128 @@ window.closeErrorModal = function() {
 // Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new MaddenEditorApp();
+
+    // Initialize selection gradient style with gold (default for All Teams page)
+    const initStyle = document.createElement('style');
+    initStyle.id = 'dynamic-selection-style';
+    const goldGradient = 'linear-gradient(90deg, rgba(212, 175, 55, 0.3) 0%, transparent 100%)';
+    initStyle.textContent = `
+        html body .ag-theme-alpine .ag-row-selected .ag-cell,
+        html body .ag-theme-alpine .ag-row-selected.ag-row-even .ag-cell,
+        html body .ag-theme-alpine .ag-row-selected.ag-row-odd .ag-cell,
+        html body .roster-editor-v2 .ag-row-selected .ag-cell,
+        html body #roster-tool .ag-row-selected .ag-cell,
+        html body #rosterGrid .ag-row-selected .ag-cell,
+        html body [class*="ag-row-selected"] .ag-cell {
+            background: ${goldGradient} !important;
+        }
+    `;
+    document.body.appendChild(initStyle);
+
+    // Expose navigation functions globally for landing page
+    window.showTool = (toolName) => window.app.showTool(toolName);
+    window.goToLanding = () => window.app.goToLanding();
+
+    // Draft Class Card View toggle
+    window.setDraftView = function (view) {
+        const cardView = document.getElementById('draftCardView');
+        const tableView = document.getElementById('draftTableView');
+        const cardBtn = document.getElementById('draftCardViewBtn');
+        const tableBtn = document.getElementById('draftTableViewBtn');
+
+        if (view === 'card') {
+            if (cardView) cardView.classList.remove('hidden');
+            if (tableView) tableView.classList.add('hidden');
+            if (cardBtn) cardBtn.classList.add('active');
+            if (tableBtn) tableBtn.classList.remove('active');
+            loadDraftCardViewPlayers();
+        } else {
+            if (cardView) cardView.classList.add('hidden');
+            if (tableView) tableView.classList.remove('hidden');
+            if (cardBtn) cardBtn.classList.remove('active');
+            if (tableBtn) tableBtn.classList.add('active');
+        }
+    };
+
+    function loadDraftCardViewPlayers() {
+        if (!window.draftGridApi) return;
+        const listEl = document.getElementById('draftCardViewPlayerList');
+        if (!listEl) return;
+
+        const prospects = [];
+        window.draftGridApi.forEachNodeAfterFilterAndSort(node => {
+            if (node.data) prospects.push(node.data);
+        });
+
+        if (prospects.length === 0) {
+            listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No prospects loaded</div>';
+            return;
+        }
+
+        listEl.innerHTML = prospects.map((player, index) => {
+            const firstName = player.firstName || player.PFNA || '';
+            const lastName = player.lastName || player.PLNA || '';
+            const position = player.position || player.PPOS || '--';
+            const round = player.draftRound || player.PLDR || '--';
+            const ovr = player.overallRating || player.POVR || '--';
+            const initials = (firstName.charAt(0) || '?') + (lastName.charAt(0) || '?');
+
+            return '<div class="player-list-item' + (index === 0 ? ' selected' : '') + '" data-index="' + index + '">' +
+                '<div class="player-list-avatar">' + initials.toUpperCase() + '</div>' +
+                '<div class="player-list-info">' +
+                '<div class="player-list-name">' + firstName + ' ' + lastName + '</div>' +
+                '<div class="player-list-pos">' + position + ' | Rd ' + round + '</div>' +
+                '</div>' +
+                '<span class="player-list-ovr">' + ovr + '</span>' +
+                '</div>';
+        }).join('');
+
+        listEl.querySelectorAll('.player-list-item').forEach(function (item) {
+            item.addEventListener('click', function () {
+                var idx = parseInt(this.dataset.index);
+                listEl.querySelectorAll('.player-list-item').forEach(function (i) { i.classList.remove('selected'); });
+                this.classList.add('selected');
+                updateDraftCardView(prospects[idx]);
+            });
+        });
+
+        if (prospects.length > 0) updateDraftCardView(prospects[0]);
+    }
+
+    function updateDraftCardView(player) {
+        if (!player) return;
+        var nameEl = document.getElementById('draftCardPlayerName');
+        var posEl = document.getElementById('draftCardPlayerPosition');
+        var ovrEl = document.getElementById('draftCardPlayerOVR');
+        var quickStatsEl = document.getElementById('draftCardQuickStats');
+
+        var firstName = player.firstName || player.PFNA || '';
+        var lastName = player.lastName || player.PLNA || '';
+
+        if (nameEl) nameEl.textContent = (firstName + ' ' + lastName).trim() || 'Unknown Prospect';
+        if (posEl) posEl.textContent = player.position || player.PPOS || '--';
+        if (ovrEl) ovrEl.textContent = player.overallRating || player.POVR || '--';
+
+        if (quickStatsEl) {
+            var stats = [
+                { key: 'PSPD', label: 'SPD' },
+                { key: 'PACC', label: 'ACC' },
+                { key: 'PSTR', label: 'STR' },
+                { key: 'PAGI', label: 'AGI' },
+                { key: 'PAWR', label: 'AWR' },
+                { key: 'PTHP', label: 'THP' }
+            ];
+            quickStatsEl.innerHTML = stats.map(function (stat) {
+                var val = player[stat.key] || '--';
+                return '<div class="quick-stat-item"><div class="val">' + val + '</div><div class="lbl">' + stat.label + '</div></div>';
+            }).join('');
+        }
+    }
+
+    window.showDraftViewToggle = function () {
+        var container = document.getElementById('draftViewToggleContainer');
+        if (container) container.style.display = 'flex';
+    };
 
     // Initialize Draft Wizard V2
     if (window.draftWizard && typeof window.draftWizard.init === 'function') {
@@ -10002,7 +10352,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Debug function for testing PID lookups in browser console
-    window.testPIDLookup = function() {
+    window.testPIDLookup = function () {
         console.log('=== Testing PID Lookup ===');
         console.log('Testing getPlayerNameFromPID(1):', getPlayerNameFromPID(1));
         console.log('Testing getPlayerNameFromPID(20):', getPlayerNameFromPID(20));
