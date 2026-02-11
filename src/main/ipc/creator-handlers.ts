@@ -263,5 +263,92 @@ export function registerCreatorHandlers(): void {
     }
   });
 
+  /**
+   * Scrape season stats from PFR (passing, rushing, receiving, defense)
+   * Much more reliable than per-player scraping
+   */
+  ipcMain.handle('scraper:scrape-season-stats', async (event, year: number) => {
+    try {
+      console.log(`[CreatorHandlers] Scraping season stats for ${year}`);
+
+      const statsMap = await scraperService.scrapeSeasonStats(year);
+
+      // Convert Map to array for IPC transfer
+      const stats = Array.from(statsMap.entries()).map(([name, data]) => ({
+        name,
+        ...data
+      }));
+
+      return {
+        success: true,
+        playerCount: stats.length,
+        stats: stats
+      };
+
+    } catch (error: any) {
+      console.error('[CreatorHandlers] Error scraping season stats:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
+   * Get player stats from season cache
+   * Supports position/team for disambiguation when there are multiple players with same name
+   */
+  ipcMain.handle('scraper:get-player-stats', async (event, playerName: string, year: number, position?: string, team?: string) => {
+    try {
+      const stats = await scraperService.getPlayerStatsFromSeason(playerName, year, position, team);
+      return {
+        success: true,
+        stats: stats
+      };
+
+    } catch (error: any) {
+      console.error('[CreatorHandlers] Error getting player stats:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
+   * Get all matching players for disambiguation
+   */
+  ipcMain.handle('scraper:get-all-matches', async (event, playerName: string, year: number) => {
+    try {
+      const matches = await scraperService.getAllMatchingPlayers(playerName, year);
+      return {
+        success: true,
+        matches: matches
+      };
+
+    } catch (error: any) {
+      console.error('[CreatorHandlers] Error getting matches:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  });
+
+  /**
+   * Get list of cached seasons
+   */
+  ipcMain.handle('scraper:get-cached-seasons', async () => {
+    return scraperService.getCachedSeasons();
+  });
+
+  /**
+   * Clear the season stats cache
+   */
+  ipcMain.handle('scraper:clear-cache', async () => {
+    scraperService.clearSeasonStatsCache();
+    return { success: true };
+  });
+
   console.log('[CreatorHandlers] Creator IPC handlers registered');
 }

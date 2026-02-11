@@ -103,6 +103,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('creator:test-scraper', year)
   },
 
+  // Scraper APIs (season-based stats scraping)
+  scraper: {
+    // Scrape all stats for a season (passing, rushing, receiving, defense)
+    scrapeSeasonStats: (year: number) =>
+      ipcRenderer.invoke('scraper:scrape-season-stats', year),
+    // Get one player's stats (with optional position/team for disambiguation)
+    getPlayerStats: (playerName: string, year: number, position?: string, team?: string) =>
+      ipcRenderer.invoke('scraper:get-player-stats', playerName, year, position, team),
+    // Get all matching players for disambiguation UI
+    getAllMatches: (playerName: string, year: number) =>
+      ipcRenderer.invoke('scraper:get-all-matches', playerName, year),
+    // Check what years are cached
+    getCachedSeasons: () =>
+      ipcRenderer.invoke('scraper:get-cached-seasons'),
+    // Clear cache if needed
+    clearCache: () =>
+      ipcRenderer.invoke('scraper:clear-cache')
+  },
+
   // Roster Creator APIs
   rosterCreator: {
     generate: (year: number, templatePath: string, ratingMode: string = 'semi-historical') =>

@@ -27,6 +27,7 @@ export interface PlayerStats {
   height?: string;
   weight?: number;
   age?: number;
+  gamesPlayed?: number;
 
   // Passing Stats
   passAttempts?: number;
@@ -34,24 +35,75 @@ export interface PlayerStats {
   passYards?: number;
   passTDs?: number;
   interceptions?: number;
+  passerRating?: number;
 
   // Rushing Stats
   rushAttempts?: number;
   rushYards?: number;
   rushTDs?: number;
+  rushYPC?: number;
 
   // Receiving Stats
   receptions?: number;
   recYards?: number;
   recTDs?: number;
   targets?: number;
+  recYPC?: number;
 
   // Defensive Stats
   tackles?: number;
+  tacklesSolo?: number;
+  tacklesAssist?: number;
   sacks?: number;
   forcedFumbles?: number;
+  fumblesRecovered?: number;
   interceptionsCaught?: number;
   passDefended?: number;
+
+  // Kicking Stats
+  fgAttempts?: number;
+  fgMade?: number;
+  fgPct?: number;
+  fgLong?: number;
+  xpAttempts?: number;
+  xpMade?: number;
+  xpPct?: number;
+  kickingPoints?: number;
+
+  // Punting Stats
+  punts?: number;
+  puntYards?: number;
+  puntAvg?: number;
+  puntLong?: number;
+  puntBlocked?: number;
+  puntIn20?: number;
+  puntTouchbacks?: number;
+
+  // Return Stats
+  puntReturns?: number;
+  puntReturnYards?: number;
+  puntReturnTDs?: number;
+  puntReturnLong?: number;
+  puntReturnAvg?: number;
+  kickReturns?: number;
+  kickReturnYards?: number;
+  kickReturnTDs?: number;
+  kickReturnLong?: number;
+  kickReturnAvg?: number;
+
+  // Scrimmage Stats (combined rushing + receiving)
+  scrimmageYards?: number;
+  scrimmageTDs?: number;
+  touches?: number;
+  yardsPerTouch?: number;
+
+  // Scoring Stats
+  totalTDs?: number;
+  rushingTDsScoring?: number;
+  receivingTDsScoring?: number;
+  returnTDs?: number;
+  totalPoints?: number;
+  twoPointConversions?: number;
 }
 
 export interface DraftProspect {
@@ -144,6 +196,7 @@ export interface CareerYearData {
 export class ScraperService {
   private browser: Browser | null = null;
   private hofLookup: Map<string, { year: number; height: string; weight: number; position: string; college: string; birthState: string }> | null = null;
+  private seasonStatsCache: Map<number, Map<string, PlayerStats>> = new Map();
 
   /**
    * Initialize Puppeteer browser
@@ -277,6 +330,16 @@ export class ScraperService {
    * @returns Player stats object
    */
   async scrapePlayerStats(playerName: string, year: number): Promise<PlayerStats | null> {
+    // FIRST: Try to get from cached season data (much faster and more reliable)
+    const seasonStats = await this.getPlayerStatsFromSeason(playerName, year);
+    if (seasonStats) {
+      console.log(`[ScraperService] Found ${playerName} in season ${year} cache`);
+      return seasonStats;
+    }
+
+    // FALLBACK: Search for player individually (slower, less reliable)
+    console.log(`[ScraperService] ${playerName} not in season cache, trying individual search...`);
+
     await this.initBrowser();
 
     if (!this.browser) {
@@ -2734,6 +2797,487 @@ export class ScraperService {
       // Map JT-SW team code to PFR team code (they're usually the same)
       return this.scrapeTeamRoster(teamCode, year);
     }
+  }
+
+  /**
+   * Scrape all player stats for a given season from PFR season pages
+   * Much more reliable than per-player scraping - gets ALL players in one pass
+   *
+   * URLs scraped:
+   * - /years/{year}/passing.htm - All QB passing stats
+   * - /years/{year}/rushing.htm - All rushing stats
+   * - /years/{year}/receiving.htm - All receiving stats
+   * - /years/{year}/defense.htm - All defensive stats
+   *
+   * @param year - The NFL season year
+   * @returns Map of player name -> PlayerStats
+   */
+  async scrapeSeasonStats(year: number): Promise<Map<string, PlayerStats>> {
+    // Check cache first
+    if (this.seasonStatsCache.has(year)) {
+      console.log(`[ScraperService] Using cached season stats for ${year}`);
+      return this.seasonStatsCache.get(year)!;
+    }
+
+    await this.initBrowser();
+    if (!this.browser) {
+      throw new Error('Failed to initialize browser');
+    }
+
+    const statsMap = new Map<string, PlayerStats>();
+    const page = await this.browser.newPage();
+
+    // Set a realistic user agent
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    try {
+      console.log(`[ScraperService] Scraping season stats for ${year}...`);
+
+      // Scrape passing stats
+      console.log(`[ScraperService] Scraping passing stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'passing', statsMap);
+      await this.delay(1500); // Be nice to the server
+
+      // Scrape rushing stats
+      console.log(`[ScraperService] Scraping rushing stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'rushing', statsMap);
+      await this.delay(1500);
+
+      // Scrape receiving stats
+      console.log(`[ScraperService] Scraping receiving stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'receiving', statsMap);
+      await this.delay(1500);
+
+      // Scrape defensive stats
+      console.log(`[ScraperService] Scraping defense stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'defense', statsMap);
+      await this.delay(1500);
+
+      // Scrape kicking stats
+      console.log(`[ScraperService] Scraping kicking stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'kicking', statsMap);
+      await this.delay(1500);
+
+      // Scrape punting stats
+      console.log(`[ScraperService] Scraping punting stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'punting', statsMap);
+      await this.delay(1500);
+
+      // Scrape return stats
+      console.log(`[ScraperService] Scraping returns stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'returns', statsMap);
+      await this.delay(1500);
+
+      // Scrape scrimmage stats (combined rushing + receiving - useful for OVR)
+      console.log(`[ScraperService] Scraping scrimmage stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'scrimmage', statsMap);
+      await this.delay(1500);
+
+      // Scrape scoring stats (useful for OVR)
+      console.log(`[ScraperService] Scraping scoring stats for ${year}...`);
+      await this.scrapeSeasonPage(page, year, 'scoring', statsMap);
+
+      console.log(`[ScraperService] Season ${year}: Scraped stats for ${statsMap.size} unique players`);
+
+      // Cache the results
+      this.seasonStatsCache.set(year, statsMap);
+
+      await page.close();
+      return statsMap;
+
+    } catch (error: any) {
+      console.error(`[ScraperService] Error scraping season stats for ${year}:`, error);
+      await page.close();
+      return statsMap; // Return what we got
+    }
+  }
+
+  /**
+   * Scrape a specific season stats page
+   * Supports: passing, rushing, receiving, defense, kicking, punting, returns, scrimmage, scoring
+   */
+  private async scrapeSeasonPage(
+    page: Page,
+    year: number,
+    statType: 'passing' | 'rushing' | 'receiving' | 'defense' | 'kicking' | 'punting' | 'returns' | 'scrimmage' | 'scoring',
+    statsMap: Map<string, PlayerStats>
+  ): Promise<void> {
+    const url = `https://www.pro-football-reference.com/years/${year}/${statType}.htm`;
+
+    try {
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+
+      // Wait for table to load
+      await page.waitForSelector('table#' + statType, { timeout: 10000 }).catch(() => {
+        // Some years might have different table IDs
+        console.log(`[ScraperService] Table #${statType} not found, trying alternate selectors`);
+      });
+
+      const players = await page.evaluate((statType) => {
+        const results: any[] = [];
+
+        // Find the main stats table
+        const table = document.querySelector(`table#${statType}`) ||
+                      document.querySelector('table.stats_table') ||
+                      document.querySelector('#all_' + statType + ' table');
+
+        if (!table) {
+          console.log('No stats table found for', statType);
+          return results;
+        }
+
+        const rows = table.querySelectorAll('tbody tr:not(.thead)');
+
+        for (const row of Array.from(rows)) {
+          // Skip header rows within tbody
+          if (row.classList.contains('thead') || row.querySelector('th[colspan]')) continue;
+
+          const playerLink = row.querySelector('td[data-stat="player"] a');
+          if (!playerLink) continue;
+
+          const name = playerLink.textContent?.trim() || '';
+          if (!name) continue;
+
+          const playerData: any = { name };
+
+          // Get team
+          const teamCell = row.querySelector('td[data-stat="team"]');
+          if (teamCell) playerData.team = teamCell.textContent?.trim();
+
+          // Get position
+          const posCell = row.querySelector('td[data-stat="pos"]');
+          if (posCell) playerData.position = posCell.textContent?.trim();
+
+          // Get age
+          const ageCell = row.querySelector('td[data-stat="age"]');
+          if (ageCell) playerData.age = parseInt(ageCell.textContent?.trim() || '0');
+
+          // Get games played
+          const gamesCell = row.querySelector('td[data-stat="g"]');
+          if (gamesCell) playerData.gamesPlayed = parseInt(gamesCell.textContent?.trim() || '0');
+
+          // Extract stat-specific data
+          if (statType === 'passing') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            playerData.passAttempts = parseInt(getValue('pass_att') || '0');
+            playerData.passCompletions = parseInt(getValue('pass_cmp') || '0');
+            playerData.passYards = parseInt(getValue('pass_yds')?.replace(/,/g, '') || '0');
+            playerData.passTDs = parseInt(getValue('pass_td') || '0');
+            playerData.interceptions = parseInt(getValue('pass_int') || '0');
+            playerData.passerRating = parseFloat(getValue('pass_rating') || '0');
+          }
+
+          if (statType === 'rushing') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            playerData.rushAttempts = parseInt(getValue('rush_att') || '0');
+            playerData.rushYards = parseInt(getValue('rush_yds')?.replace(/,/g, '') || '0');
+            playerData.rushTDs = parseInt(getValue('rush_td') || '0');
+            playerData.rushYPC = parseFloat(getValue('rush_yds_per_att') || '0');
+          }
+
+          if (statType === 'receiving') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            playerData.targets = parseInt(getValue('targets') || '0');
+            playerData.receptions = parseInt(getValue('rec') || '0');
+            playerData.recYards = parseInt(getValue('rec_yds')?.replace(/,/g, '') || '0');
+            playerData.recTDs = parseInt(getValue('rec_td') || '0');
+            playerData.recYPC = parseFloat(getValue('rec_yds_per_rec') || '0');
+          }
+
+          if (statType === 'defense') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            playerData.tackles = parseInt(getValue('tackles_combined') || getValue('tackles_solo') || '0');
+            playerData.tacklesSolo = parseInt(getValue('tackles_solo') || '0');
+            playerData.tacklesAssist = parseInt(getValue('tackles_assists') || '0');
+            playerData.sacks = parseFloat(getValue('sacks') || '0');
+            playerData.interceptionsCaught = parseInt(getValue('def_int') || '0');
+            playerData.passDefended = parseInt(getValue('pass_defended') || '0');
+            playerData.forcedFumbles = parseInt(getValue('fumbles_forced') || '0');
+            playerData.fumblesRecovered = parseInt(getValue('fumbles_rec') || '0');
+          }
+
+          if (statType === 'kicking') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            playerData.fgAttempts = parseInt(getValue('fga') || '0');
+            playerData.fgMade = parseInt(getValue('fgm') || '0');
+            playerData.fgPct = parseFloat(getValue('fg_perc') || '0');
+            playerData.fgLong = parseInt(getValue('fg_long') || '0');
+            playerData.xpAttempts = parseInt(getValue('xpa') || '0');
+            playerData.xpMade = parseInt(getValue('xpm') || '0');
+            playerData.xpPct = parseFloat(getValue('xp_perc') || '0');
+            playerData.kickingPoints = parseInt(getValue('kick_points') || '0');
+          }
+
+          if (statType === 'punting') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            playerData.punts = parseInt(getValue('punt') || '0');
+            playerData.puntYards = parseInt(getValue('punt_yds')?.replace(/,/g, '') || '0');
+            playerData.puntAvg = parseFloat(getValue('punt_yds_per_punt') || '0');
+            playerData.puntLong = parseInt(getValue('punt_long') || '0');
+            playerData.puntBlocked = parseInt(getValue('punt_blocked') || '0');
+            playerData.puntIn20 = parseInt(getValue('punt_in20') || '0');
+            playerData.puntTouchbacks = parseInt(getValue('punt_touchback') || '0');
+          }
+
+          if (statType === 'returns') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            // Punt returns
+            playerData.puntReturns = parseInt(getValue('punt_ret') || '0');
+            playerData.puntReturnYards = parseInt(getValue('punt_ret_yds')?.replace(/,/g, '') || '0');
+            playerData.puntReturnTDs = parseInt(getValue('punt_ret_td') || '0');
+            playerData.puntReturnLong = parseInt(getValue('punt_ret_long') || '0');
+            playerData.puntReturnAvg = parseFloat(getValue('punt_ret_yds_per_ret') || '0');
+            // Kick returns
+            playerData.kickReturns = parseInt(getValue('kick_ret') || '0');
+            playerData.kickReturnYards = parseInt(getValue('kick_ret_yds')?.replace(/,/g, '') || '0');
+            playerData.kickReturnTDs = parseInt(getValue('kick_ret_td') || '0');
+            playerData.kickReturnLong = parseInt(getValue('kick_ret_long') || '0');
+            playerData.kickReturnAvg = parseFloat(getValue('kick_ret_yds_per_ret') || '0');
+          }
+
+          if (statType === 'scrimmage') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            // Total yards from scrimmage (rushing + receiving combined)
+            playerData.scrimmageYards = parseInt(getValue('yds_from_scrimmage')?.replace(/,/g, '') || '0');
+            playerData.scrimmageTDs = parseInt(getValue('rush_receive_td') || '0');
+            playerData.touches = parseInt(getValue('touches') || '0');
+            playerData.yardsPerTouch = parseFloat(getValue('yds_per_touch') || '0');
+          }
+
+          if (statType === 'scoring') {
+            const getValue = (stat: string) => {
+              const cell = row.querySelector(`td[data-stat="${stat}"]`);
+              return cell ? cell.textContent?.trim() : null;
+            };
+            // Total scoring - useful for OVR calculations
+            playerData.totalTDs = parseInt(getValue('all_td') || '0');
+            playerData.rushingTDsScoring = parseInt(getValue('rush_td') || '0');
+            playerData.receivingTDsScoring = parseInt(getValue('rec_td') || '0');
+            playerData.returnTDs = parseInt(getValue('ret_td') || '0');
+            playerData.totalPoints = parseInt(getValue('pts') || '0');
+            playerData.twoPointConversions = parseInt(getValue('two_pt_md') || '0');
+          }
+
+          results.push(playerData);
+        }
+
+        return results;
+      }, statType);
+
+      console.log(`[ScraperService] Found ${players.length} players in ${statType} stats for ${year}`);
+
+      // Merge into statsMap
+      for (const player of players) {
+        const existing = statsMap.get(player.name);
+        if (existing) {
+          // Merge stats - keep existing non-zero values, add new ones
+          statsMap.set(player.name, { ...existing, ...player });
+        } else {
+          statsMap.set(player.name, player as PlayerStats);
+        }
+      }
+
+    } catch (error: any) {
+      console.error(`[ScraperService] Error scraping ${statType} for ${year}:`, error.message);
+    }
+  }
+
+  /**
+   * Normalize a player name for matching
+   * Removes suffixes like Jr., III, Sr., etc. and standardizes format
+   */
+  private normalizeName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/\s+(jr\.?|sr\.?|ii|iii|iv|v)$/i, '')  // Remove suffixes
+      .replace(/[.']/g, '')  // Remove periods and apostrophes
+      .replace(/\s+/g, ' ')  // Normalize spaces
+      .trim();
+  }
+
+  /**
+   * Get stats for a specific player from pre-scraped season data
+   * Call scrapeSeasonStats first to populate the cache
+   *
+   * @param playerName - Player name to search for
+   * @param year - Season year
+   * @param position - Optional position to disambiguate (e.g., "HB", "QB")
+   * @param team - Optional team abbreviation to disambiguate (e.g., "MIN", "CHI")
+   */
+  async getPlayerStatsFromSeason(
+    playerName: string,
+    year: number,
+    position?: string,
+    team?: string
+  ): Promise<PlayerStats | null> {
+    // Ensure we have the season data
+    if (!this.seasonStatsCache.has(year)) {
+      await this.scrapeSeasonStats(year);
+    }
+
+    const seasonStats = this.seasonStatsCache.get(year);
+    if (!seasonStats) return null;
+
+    const normalizedSearch = this.normalizeName(playerName);
+    const searchParts = normalizedSearch.split(' ');
+    const searchFirst = searchParts[0];
+    const searchLast = searchParts[searchParts.length - 1];
+
+    // Collect all potential matches with scores
+    const matches: { stats: PlayerStats; score: number }[] = [];
+
+    for (const [name, stats] of seasonStats.entries()) {
+      const normalizedName = this.normalizeName(name);
+      const nameParts = normalizedName.split(' ');
+      const nameFirst = nameParts[0];
+      const nameLast = nameParts[nameParts.length - 1];
+
+      let score = 0;
+
+      // Exact normalized match = highest score
+      if (normalizedName === normalizedSearch) {
+        score = 100;
+      }
+      // First and last name match
+      else if (nameFirst === searchFirst && nameLast === searchLast) {
+        score = 80;
+      }
+      // Last name only match (for common nicknames like "A.J." vs "Adrian")
+      else if (nameLast === searchLast) {
+        // Check if first initial matches
+        if (nameFirst[0] === searchFirst[0]) {
+          score = 60;
+        } else {
+          score = 30;
+        }
+      }
+
+      if (score > 0) {
+        // Boost score if position matches
+        if (position && stats.position) {
+          const normPos = position.toUpperCase();
+          const statsPos = stats.position.toUpperCase();
+          // Handle position variations (HB/RB, LOLB/OLB, etc.)
+          if (statsPos === normPos ||
+              (normPos === 'HB' && statsPos === 'RB') ||
+              (normPos === 'RB' && statsPos === 'HB') ||
+              (normPos.includes('OLB') && statsPos.includes('LB')) ||
+              (normPos.includes('ILB') && statsPos.includes('LB'))) {
+            score += 20;
+          } else {
+            score -= 30; // Penalize position mismatch
+          }
+        }
+
+        // Boost score if team matches
+        if (team && stats.team) {
+          const normTeam = team.toUpperCase();
+          const statsTeam = stats.team.toUpperCase();
+          if (statsTeam === normTeam || statsTeam.includes(normTeam) || normTeam.includes(statsTeam)) {
+            score += 15;
+          }
+        }
+
+        if (score > 0) {
+          matches.push({ stats, score });
+        }
+      }
+    }
+
+    // Sort by score descending and return best match
+    if (matches.length > 0) {
+      matches.sort((a, b) => b.score - a.score);
+
+      // Log if there were multiple matches (potential disambiguation needed)
+      if (matches.length > 1 && matches[0].score === matches[1].score) {
+        console.log(`[ScraperService] Multiple matches for "${playerName}" in ${year}:`,
+          matches.slice(0, 3).map(m => `${m.stats.name} (${m.stats.position}/${m.stats.team}) score=${m.score}`));
+      }
+
+      return matches[0].stats;
+    }
+
+    return null;
+  }
+
+  /**
+   * Get all matching players (for disambiguation UI)
+   */
+  async getAllMatchingPlayers(
+    playerName: string,
+    year: number
+  ): Promise<PlayerStats[]> {
+    if (!this.seasonStatsCache.has(year)) {
+      await this.scrapeSeasonStats(year);
+    }
+
+    const seasonStats = this.seasonStatsCache.get(year);
+    if (!seasonStats) return [];
+
+    const normalizedSearch = this.normalizeName(playerName);
+    const searchParts = normalizedSearch.split(' ');
+    const searchLast = searchParts[searchParts.length - 1];
+
+    const matches: PlayerStats[] = [];
+
+    for (const [name, stats] of seasonStats.entries()) {
+      const normalizedName = this.normalizeName(name);
+      const nameParts = normalizedName.split(' ');
+      const nameLast = nameParts[nameParts.length - 1];
+
+      // Match on full normalized name or last name
+      if (normalizedName === normalizedSearch || nameLast === searchLast) {
+        matches.push(stats);
+      }
+    }
+
+    return matches;
+  }
+
+  /**
+   * Clear the season stats cache
+   */
+  clearSeasonStatsCache(): void {
+    this.seasonStatsCache.clear();
+    console.log('[ScraperService] Season stats cache cleared');
+  }
+
+  /**
+   * Get cached season years
+   */
+  getCachedSeasons(): number[] {
+    return Array.from(this.seasonStatsCache.keys());
+  }
+
+  /**
+   * Helper delay function
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 
