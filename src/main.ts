@@ -78,6 +78,11 @@ ipcMain.handle('window:focus', async () => {
   return { success: false, error: 'No window available' };
 });
 
+// Get app version
+ipcMain.handle('app:getVersion', () => {
+  return app.getVersion();
+});
+
 // Keep a global reference of the window object
 let mainWindow: BrowserWindow | null = null;
 let databaseWindow: BrowserWindow | null = null;
@@ -95,19 +100,26 @@ ipcMain.handle('window:open-database', async (_event, mode?: 'roster' | 'draft')
     return { success: true, alreadyOpen: true };
   }
 
-  // Create new database browser window
+  // Create new database browser window - open maximized to fit all content
   databaseWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 900,
-    minHeight: 600,
+    width: 1600,
+    height: 1000,
+    minWidth: 1200,
+    minHeight: 800,
     backgroundColor: '#0a0a0a',
     title: 'Player Database Browser',
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
     },
+  });
+
+  // Maximize and show when ready
+  databaseWindow.once('ready-to-show', () => {
+    databaseWindow?.maximize();
+    databaseWindow?.show();
   });
 
   // Load the database browser page with mode as query param
@@ -160,9 +172,9 @@ const createWindow = (): void => {
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
-    height: 900,
+    height: 950,
     minWidth: 1200,
-    minHeight: 700,
+    minHeight: 800,
     backgroundColor: '#0a0a0a',
     webPreferences: {
       nodeIntegration: false,

@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="styles/team-themes.css">
     <link rel="stylesheet" href="styles/landing.css">
     <link rel="stylesheet" href="styles/roster-editor-v2.css">
+    <link rel="stylesheet" href="styles/draft-editor-v2.css">
     <link rel="stylesheet" href="css/database-player-card.css">
     <link rel="stylesheet" href="css/database-coach-card.css">
     <link rel="stylesheet" href="css/player-browser.css">
@@ -51,6 +52,37 @@
             font-size: 13px !important;
             letter-spacing: 0.8px !important;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+        }
+
+        /* Draft class editor header - Black background with orange text */
+        #draft-tool .ag-theme-alpine .ag-header,
+        #draft-tool .ag-theme-alpine .ag-header-row,
+        #draft-tool .ag-theme-alpine .ag-header-cell {
+            background: #000 !important;
+        }
+        #draft-tool .ag-theme-alpine .ag-header-cell-text {
+            color: #ffa726 !important;
+            font-size: 25px !important;
+            font-weight: 700 !important;
+            -webkit-text-stroke: 0.5px #000 !important;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8), 0 0 3px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        /* Retro Editor panel display fix */
+        #retro-tool.tool-panel.active {
+            display: flex !important;
+            flex-direction: column !important;
+            background: linear-gradient(180deg, #0a0a0a 0%, #000 100%) !important;
+        }
+        #retro-tool.tool-panel:not(.active) {
+            display: none !important;
+        }
+        #retro-tool .wizard-step.active {
+            display: block !important;
+        }
+        #retro-tool .creator-container {
+            flex: 1 !important;
+            overflow-y: auto !important;
         }
 
         /* Column headers - background set dynamically via JavaScript */
@@ -218,6 +250,64 @@
         }
 
         /* Portrait Manager Styles */
+        .portrait-tool-card:hover {
+            border-color: var(--accent-color) !important;
+            transform: translateY(-2px);
+        }
+
+        .portrait-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .portrait-modal-content {
+            background: var(--bg-primary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .portrait-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .portrait-modal-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .portrait-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .portrait-modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .portrait-modal-body {
+            padding: 20px;
+        }
+
         .portrait-manager-tabs {
             display: flex;
             gap: 4px;
@@ -1441,8 +1531,8 @@
             <div class="footer-status">
                 <span class="status-dot"></span>
                 Ready
+                <span class="footer-version" id="app-version-display">v...</span>
             </div>
-            <span class="footer-version">v2.0.0</span>
         </footer>
     </div>
 
@@ -1514,13 +1604,46 @@
                                         onclick="window.setRosterView && window.setRosterView('table')">TABLE VIEW</button>
                                 </div>
                                 <button class="v2-btn v2-btn-dark" id="saveRosterBtn" style="display: none;">SAVE</button>
-                                <button class="v2-btn v2-btn-green" id="exportCsvBtn" style="display: none;">EXPORT</button>
                                 <button class="v2-btn v2-btn-dark" id="openFileBtn">OPEN</button>
+                                <div class="v2-tools-dropdown">
+                                    <button class="v2-btn v2-btn-green" id="toolsBtn">TOOLS</button>
+                                    <div class="v2-tools-popup" id="toolsPopup">
+                                        <button class="v2-tools-item" id="toolsDatabaseBtn">
+                                            <span class="v2-tools-icon">🗄️</span>Database
+                                        </button>
+                                        <button class="v2-tools-item" id="toolsImportCsvBtn">
+                                            <span class="v2-tools-icon">📥</span>Import CSV
+                                        </button>
+                                        <button class="v2-tools-item" id="toolsExportCsvBtn">
+                                            <span class="v2-tools-icon">📤</span>Export CSV
+                                        </button>
+                                        <div class="v2-tools-divider"></div>
+                                        <button class="v2-tools-item" id="toolsFixFacesBtn">
+                                            <span class="v2-tools-icon">👤</span>Fix Faces
+                                        </button>
+                                        <button class="v2-tools-item" id="toolsFixCommentaryBtn">
+                                            <span class="v2-tools-icon">🎙️</span>Fix Commentary
+                                        </button>
+                                        <button class="v2-tools-item" id="toolsRemoveInjuriesBtn">
+                                            <span class="v2-tools-icon">🏥</span>Remove Injuries
+                                        </button>
+                                        <div class="v2-tools-divider"></div>
+                                        <button class="v2-tools-item" id="toolsFillFromDbBtn">
+                                            <span class="v2-tools-icon">⬇️</span>Fill From Database
+                                        </button>
+                                        <button class="v2-tools-item" id="toolsPushToDbBtn">
+                                            <span class="v2-tools-icon">⬆️</span>Push to Database
+                                        </button>
+                                        <button class="v2-tools-item" id="toolsCreateEmptyBtn">
+                                            <span class="v2-tools-icon">📄</span>Create Empty Roster
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <!-- V2 Filter Bar -->
                         <div class="v2-filters">
-                            <button id="backToAllTeams" class="v2-btn v2-btn-dark v2-back-to-all" style="display: none;">
+                            <button id="backToAllTeams" class="v2-btn v2-btn-dark v2-back-to-all">
                                 ← Back to All Teams
                             </button>
                             <div class="v2-roster-name-display" id="v2RosterNameDisplay">
@@ -1565,7 +1688,9 @@
                     </div>
                     <!-- Right column: logo panel -->
                     <div class="v2-logo-panel">
-                        <div class="v2-team-logo-large" id="v2TeamLogo">NFL</div>
+                        <div class="v2-team-logo-large" id="v2TeamLogo">
+                            <img src="https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg" alt="NFL logo">
+                        </div>
                     </div>
                 </div>
 
@@ -1741,170 +1866,125 @@
                 </div>
             </div>
 
-            <!-- Draft Class Tool -->
-            <div id="draft-tool" class="tool-panel" tabindex="-1">
-                <div class="tool-header">
-                    <div class="file-info">
-                        <span id="draft-file-name" class="file-name">No file loaded</span>
-                        <span id="draft-file-stats" class="file-stats"></span>
-                    </div>
-                    <div class="tool-actions">
-                        <button id="open-draft-btn" class="btn btn-primary">
-                            <span class="btn-icon">📂</span>
-                            Open Draft Class
-                        </button>
-                        <button id="new-draft-btn" class="btn btn-secondary"
-                            onclick="window.app && window.app.createNewDraftClass()">
-                            <span class="btn-icon">✨</span>
-                            New Draft Class
-                        </button>
-                        <button id="save-draft-btn" class="btn btn-success" disabled>
-                            <span class="btn-icon">💾</span>
-                            Save Draft Class
-                        </button>
-                        <button id="export-draft-json-btn" class="btn btn-secondary" disabled>
-                            <span class="btn-icon">📤</span>
-                            Export CSV
-                        </button>
-                        <button id="import-draft-csv-btn" class="btn btn-secondary" disabled>
-                            <span class="btn-icon">📥</span>
-                            Import CSV
-                        </button>
-                        <button id="fillFromDbDraftBtn" class="btn btn-secondary" disabled
-                            onclick="window.openFillModal && window.openFillModal()">
-                            <span class="btn-icon">🗃️</span>
-                            Fill from Database
-                        </button>
-                        <button id="openDraftPlayerBrowserBtn" class="btn btn-secondary" disabled
-                            title="Browse player database to add players">
-                            <span class="btn-icon">📚</span>
-                            Browse Players
-                        </button>
-                        <button id="fixDraftFacesBtn" class="btn btn-secondary" disabled
-                            title="Fix generic faces to use verified GENR values">
-                            <span class="btn-icon">🎭</span>
-                            Fix Faces
-                        </button>
-                        <button id="fixDraftCommentaryBtn" class="btn btn-secondary" disabled
-                            title="Auto-fill commentary IDs by last name">
-                            <span class="btn-icon">🎙️</span>
-                            Fix Commentary
-                        </button>
-                        <button id="pushDraftToDbBtn" class="btn btn-secondary" disabled
-                            title="Push draft class players to user database">
-                            <span class="btn-icon">📤</span>
-                            Push to Database
-                        </button>
-                    </div>
+            <!-- Draft Class Tool (V2 Layout) -->
+            <div id="draft-tool" class="tool-panel draft-editor-v2" tabindex="-1">
+                <!-- Hidden buttons for legacy compatibility -->
+                <div style="display: none;">
+                    <button id="open-draft-btn"></button>
+                    <button id="new-draft-btn"></button>
+                    <button id="save-draft-btn"></button>
+                    <button id="export-draft-json-btn"></button>
+                    <button id="import-draft-csv-btn"></button>
+                    <button id="fillFromDbDraftBtn"></button>
+                    <button id="openDraftPlayerBrowserBtn"></button>
+                    <button id="fixDraftFacesBtn"></button>
+                    <button id="fixDraftCommentaryBtn"></button>
+                    <button id="pushDraftToDbBtn"></button>
+                    <button id="openDraftPlayerBrowserBtn2"></button>
+                    <button id="fixDraftFacesBtn2"></button>
+                    <button id="fixDraftCommentaryBtn2"></button>
                 </div>
-                <script>
-                    // Handler for Draft Class Browse Players button
-                    document.getElementById('openDraftPlayerBrowserBtn').addEventListener('click', function () {
-                        console.log('[Draft] Browse Players clicked');
-                        if (typeof window.openPlayerBrowser === 'function') {
-                            window.openPlayerBrowser('draft');
-                        } else {
-                            var modal = document.getElementById('playerBrowserModal');
-                            if (modal) modal.style.display = 'flex';
-                        }
-                    });
-                </script>
 
-                <!-- Info Tooltips and Action Buttons for Draft -->
-                <div class="info-tooltips">
-                    <div class="info-tips-left">
-                        <div class="info-tip">
-                            <span class="info-icon">ℹ️</span>
-                            <span class="info-text">Click column headers to sort. Shift+click to sort by multiple
-                                columns.</span>
+                <div class="v2-top-wrapper">
+                    <!-- Left column: header and filters stacked -->
+                    <div class="v2-top-left">
+                        <!-- V2 Header Bar -->
+                        <div class="v2-header">
+                            <div class="v2-header-left">
+                                <button class="v2-back-btn" onclick="window.goToLanding()" title="Back to Home">←</button>
+                                <h1 class="v2-title">DRAFT CLASS EDITOR</h1>
+                            </div>
+                            <div class="v2-header-center">
+                                <div class="v2-view-toggle">
+                                    <button class="v2-view-btn" id="draftCardViewBtn"
+                                        onclick="window.setDraftView && window.setDraftView('card')">CARD VIEW</button>
+                                    <button class="v2-view-btn active" id="draftTableViewBtn"
+                                        onclick="window.setDraftView && window.setDraftView('table')">TABLE VIEW</button>
+                                </div>
+                                <button class="v2-btn v2-btn-dark" id="saveDraftBtn" style="display: none;">SAVE</button>
+                                <button class="v2-btn v2-btn-dark" id="openDraftFileBtn">OPEN</button>
+                                <div class="v2-tools-dropdown">
+                                    <button class="v2-btn v2-btn-green" id="draftToolsBtn">TOOLS</button>
+                                    <div class="v2-tools-popup" id="draftToolsPopup">
+                                        <button class="v2-tools-item" id="draftToolsDatabaseBtn">
+                                            <span class="v2-tools-icon">🗄️</span>Database
+                                        </button>
+                                        <button class="v2-tools-item" id="draftToolsImportCsvBtn">
+                                            <span class="v2-tools-icon">📥</span>Import CSV
+                                        </button>
+                                        <button class="v2-tools-item" id="draftToolsExportCsvBtn">
+                                            <span class="v2-tools-icon">📤</span>Export CSV
+                                        </button>
+                                        <div class="v2-tools-divider"></div>
+                                        <button class="v2-tools-item" id="draftToolsFixFacesBtn">
+                                            <span class="v2-tools-icon">👤</span>Fix Faces
+                                        </button>
+                                        <button class="v2-tools-item" id="draftToolsFixCommentaryBtn">
+                                            <span class="v2-tools-icon">🎙️</span>Fix Commentary
+                                        </button>
+                                        <div class="v2-tools-divider"></div>
+                                        <button class="v2-tools-item" id="draftToolsFillFromDbBtn">
+                                            <span class="v2-tools-icon">⬇️</span>Fill From Database
+                                        </button>
+                                        <button class="v2-tools-item" id="draftToolsPushToDbBtn">
+                                            <span class="v2-tools-icon">⬆️</span>Push to Database
+                                        </button>
+                                        <button class="v2-tools-item" id="draftToolsCreateEmptyBtn">
+                                            <span class="v2-tools-icon">📄</span>Create New Draft Class
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- V2 Filter Bar -->
+                        <div class="v2-filters">
+                            <div class="v2-draft-name-display" id="v2DraftNameDisplay">
+                                <span class="v2-team-name" id="v2DraftName">NO FILE</span>
+                                <span class="v2-team-count" id="v2DraftCount">Load a draft class</span>
+                            </div>
+                            <input type="text" class="v2-search" id="draftSearchInput" placeholder="Search prospects...">
+                            <select class="v2-select" id="draftRoundFilter">
+                                <option value="">All Rounds</option>
+                                <option value="1">Round 1</option>
+                                <option value="2">Round 2</option>
+                                <option value="3">Round 3</option>
+                                <option value="4">Round 4</option>
+                                <option value="5">Round 5</option>
+                                <option value="6">Round 6</option>
+                                <option value="7">Round 7</option>
+                                <option value="ufa">UFA (Undrafted)</option>
+                            </select>
+                            <select class="v2-select" id="draftPositionFilter">
+                                <option value="">All Positions</option>
+                                <option value="QB">QB</option>
+                                <option value="HB">HB</option>
+                                <option value="FB">FB</option>
+                                <option value="WR">WR</option>
+                                <option value="TE">TE</option>
+                                <option value="LT">LT</option>
+                                <option value="LG">LG</option>
+                                <option value="C">C</option>
+                                <option value="RG">RG</option>
+                                <option value="RT">RT</option>
+                                <option value="LE">LE</option>
+                                <option value="RE">RE</option>
+                                <option value="DT">DT</option>
+                                <option value="LOLB">LOLB</option>
+                                <option value="MLB">MLB</option>
+                                <option value="ROLB">ROLB</option>
+                                <option value="CB">CB</option>
+                                <option value="FS">FS</option>
+                                <option value="SS">SS</option>
+                                <option value="K">K</option>
+                                <option value="P">P</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="info-tips-right">
-                        <button id="openDraftPlayerBrowserBtn2" class="btn-browse-db"
-                            title="Browse player database to add players">
-                            <span class="browse-icon">📚</span>
-                            Browse Players
-                        </button>
-                        <button id="fixDraftFacesBtn2" class="btn-fix-faces"
-                            title="Fix generic faces to use verified GENR values" style="display: none;">
-                            <span class="fix-icon">🎭</span>
-                            Fix Faces
-                        </button>
-                        <button id="fixDraftCommentaryBtn2" class="btn-fix-faces"
-                            title="Auto-fill commentary IDs by last name" style="display: none;">
-                            <span class="fix-icon">🎙️</span>
-                            Fix Commentary
-                        </button>
-                    </div>
-                </div>
-                <script>
-                    // Handler for Draft Class Browse Players button (info-tooltips version)
-                    document.getElementById('openDraftPlayerBrowserBtn2').addEventListener('click', function () {
-                        console.log('[Draft] Browse Players (top bar) clicked');
-                        if (typeof window.openPlayerBrowser === 'function') {
-                            window.openPlayerBrowser('draft');
-                        } else {
-                            var modal = document.getElementById('playerBrowserModal');
-                            if (modal) modal.style.display = 'flex';
-                        }
-                    });
-                </script>
-
-                <div class="filter-controls"
-                    style="padding: 10px; background-color: #2a2a2a; border-bottom: 1px solid #444; display: flex; gap: 15px; align-items: center;">
-                    <div class="control-group">
-                        <label for="draftRoundFilter" class="control-label">Round:</label>
-                        <select id="draftRoundFilter" class="control-select">
-                            <option value="">All Rounds</option>
-                            <option value="1">Round 1</option>
-                            <option value="2">Round 2</option>
-                            <option value="3">Round 3</option>
-                            <option value="4">Round 4</option>
-                            <option value="5">Round 5</option>
-                            <option value="6">Round 6</option>
-                            <option value="7">Round 7</option>
-                            <option value="ufa">UFA (Undrafted)</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label for="draftPositionFilter" class="control-label">Position:</label>
-                        <select id="draftPositionFilter" class="control-select">
-                            <option value="">All Positions</option>
-                            <option value="QB">Quarterbacks</option>
-                            <option value="HB">Running Backs</option>
-                            <option value="FB">Fullbacks</option>
-                            <option value="WR">Wide Receivers</option>
-                            <option value="TE">Tight Ends</option>
-                            <option value="LT">Left Tackles</option>
-                            <option value="LG">Left Guards</option>
-                            <option value="C">Centers</option>
-                            <option value="RG">Right Guards</option>
-                            <option value="RT">Right Tackles</option>
-                            <option value="LEDG">Left Edge</option>
-                            <option value="REDG">Right Edge</option>
-                            <option value="DT">Defensive Tackles</option>
-                            <option value="SAM">SAM Linebackers</option>
-                            <option value="Mike">Mike Linebackers</option>
-                            <option value="WILL">WILL Linebackers</option>
-                            <option value="CB">Cornerbacks</option>
-                            <option value="FS">Free Safeties</option>
-                            <option value="SS">Strong Safeties</option>
-                            <option value="K">Kickers</option>
-                            <option value="P">Punters</option>
-                            <option value="LS">Long Snappers</option>
-                        </select>
-                    </div>
-                    <div class="control-group" style="flex: 1;">
-                        <label for="draftSearchInput" class="control-label">Search:</label>
-                        <input type="text" id="draftSearchInput" class="form-input"
-                            placeholder="Search by player name..." style="width: 100%;">
-                    </div>
-                    <!-- View Toggle -->
-                    <div id="draftViewToggleContainer" class="view-toggle-container" style="display: none;">
-                        <button id="draftCardViewBtn" class="view-toggle-btn"
-                            onclick="window.setDraftView && window.setDraftView('card')">Card</button>
-                        <button id="draftTableViewBtn" class="view-toggle-btn active"
-                            onclick="window.setDraftView && window.setDraftView('table')">Table</button>
+                    <!-- Right side: College logo bubble -->
+                    <div class="v2-top-right">
+                        <div class="v2-team-logo-large" id="v2CollegeLogo">
+                            <img src="" alt="College logo" style="display: none;">
+                        </div>
                     </div>
                 </div>
 
@@ -1970,9 +2050,8 @@
 
                     <!-- Player List Panel -->
                     <div class="player-list-panel">
-                        <div class="player-list-header">
-                            <input type="text" class="player-list-search" id="draftCardViewSearch"
-                                placeholder="Search prospects...">
+                        <div class="player-list-search">
+                            <input type="text" id="draftCardViewSearch" placeholder="Search prospects...">
                         </div>
                         <div class="player-list-items" id="draftCardViewPlayerList">
                             <!-- Populated dynamically -->
@@ -1982,7 +2061,7 @@
 
                 <!-- Table View for Draft Class -->
                 <div id="draftTableView" class="roster-table-view">
-                    <div id="draft-grid-container" class="grid-container ag-theme-alpine">
+                    <div id="draft-grid-container" class="data-grid-container ag-theme-alpine">
                         <!-- AG-Grid will be inserted here -->
                     </div>
                 </div>
@@ -2330,18 +2409,18 @@
                                         historical NFL record holders</p>
                                 </div>
 
-                                <!-- Super Bowl History Tool -->
-                                <div class="retro-tool-card" data-tool="super-bowl-history"
+                                <!-- Historical Stats Tool -->
+                                <div class="retro-tool-card" data-tool="historical-stats"
                                     style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
-                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">🏈</div>
-                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Super
-                                        Bowl History</h4>
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">📊</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Historical
+                                        Stats</h4>
                                     <p class="tool-timing"
                                         style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Pre-season
                                     </p>
                                     <p class="tool-desc"
-                                        style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Set
-                                        historical Super Bowl results</p>
+                                        style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Apply
+                                        historical career stats to players</p>
                                 </div>
                             </div>
 
@@ -3578,44 +3657,51 @@
                         </div>
                     </div>
 
-                    <!-- Super Bowl History Modal -->
-                    <div id="modal-super-bowl-history" class="retro-tool-modal" style="display: none;">
-                        <div class="retro-tool-modal-content" style="max-width: 600px;">
+                    <!-- Historical Stats Modal -->
+                    <div id="modal-historical-stats" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content" style="max-width: 700px;">
                             <div class="retro-tool-modal-header">
-                                <h3>🏈 Super Bowl History</h3>
+                                <h3>📊 Historical Stats</h3>
                                 <button class="retro-tool-modal-close">&times;</button>
                             </div>
                             <div class="retro-tool-modal-body">
                                 <p style="color: var(--text-secondary); margin-bottom: 16px;">
-                                    Clears existing Super Bowl history and populates with correct historical results.
+                                    Apply historical career statistics to players based on Pro Football Reference data.
                                     <br><strong>When to use:</strong> Pre-season, after setting the year.
                                 </p>
-                                <div id="super-bowl-history-preview" class="retro-tool-preview">
+                                <div id="historical-stats-preview" class="retro-tool-preview">
                                     <div class="retro-tool-preview-header">
-                                        <h4 class="retro-tool-preview-title">Super Bowl History for <span
-                                                id="super-bowl-year">--</span></h4>
+                                        <h4 class="retro-tool-preview-title">Career Stats for <span
+                                                id="historical-stats-year">--</span></h4>
                                     </div>
-                                    <div id="super-bowl-history-info" style="padding: 16px;">
-                                        <div id="super-bowl-loading"
-                                            style="text-align: center; color: var(--text-secondary);">Loading Super Bowl
-                                            history...</div>
-                                        <div id="super-bowl-content" style="display: none;">
-                                            <p id="super-bowl-upcoming"
-                                                style="margin-bottom: 12px; font-weight: 600; color: var(--accent-color);">
+                                    <div id="historical-stats-info" style="padding: 16px;">
+                                        <div id="historical-stats-loading"
+                                            style="text-align: center; color: var(--text-secondary);">Loading stats data...</div>
+                                        <div id="historical-stats-content" style="display: none;">
+                                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                                                <div style="background: var(--bg-tertiary); padding: 12px; border-radius: 6px;">
+                                                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Players with Stats</div>
+                                                    <div id="stats-player-count" style="font-size: 1.5rem; font-weight: 600; color: var(--accent-color);">--</div>
+                                                </div>
+                                                <div style="background: var(--bg-tertiary); padding: 12px; border-radius: 6px;">
+                                                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Year Coverage</div>
+                                                    <div id="stats-year-coverage" style="font-size: 1.5rem; font-weight: 600; color: var(--accent-color);">--</div>
+                                                </div>
+                                            </div>
+                                            <p id="historical-stats-summary" style="margin-bottom: 12px; color: var(--text-secondary);">
                                             </p>
-                                            <div id="super-bowl-list" style="max-height: 300px; overflow-y: auto;">
-                                                <!-- Super Bowl entries will be populated here -->
+                                            <div id="historical-stats-list" style="max-height: 250px; overflow-y: auto; font-size: 0.85rem;">
+                                                <!-- Sample players will be shown here -->
                                             </div>
                                         </div>
-                                        <div id="super-bowl-error" style="display: none; color: var(--error-color);">
+                                        <div id="historical-stats-error" style="display: none; color: var(--error-color);">
                                         </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="retro-tool-modal-footer">
                                 <button class="btn btn-secondary modal-cancel">Cancel</button>
-                                <button id="btn-apply-super-bowl-history" class="btn btn-primary">Apply Super Bowl
-                                    History</button>
+                                <button id="btn-apply-historical-stats" class="btn btn-primary">Apply Historical Stats</button>
                             </div>
                         </div>
                     </div>
@@ -4045,192 +4131,282 @@
 
             <!-- Portrait Manager Tool -->
             <div id="portraits-tool" class="tool-panel" tabindex="-1">
-                <div class="creator-container">
-                    <div class="creator-header">
-                        <h2 class="creator-title">Portrait Manager</h2>
-                        <p class="creator-subtitle">Import, manage, and export player and coach portraits</p>
+                <div class="creator-container" style="background: linear-gradient(180deg, #0a0a0a 0%, #000 100%);">
+                    <div class="creator-header" style="text-align: center; padding: 32px 24px 24px;">
+                        <h2 class="creator-title" style="font-size: 1.8rem; margin-bottom: 8px;">Portrait Manager</h2>
+                        <p class="creator-subtitle" style="color: var(--text-secondary); font-size: 0.95rem;">
+                            Import, manage, and export player and coach portraits
+                        </p>
                     </div>
 
-                    <!-- Portrait Manager Tabs -->
-                    <div class="portrait-manager-tabs">
-                        <button class="portrait-manager-tab active" data-tab="players"
-                            id="playerPortraitTabBtn">Players</button>
-                        <button class="portrait-manager-tab" data-tab="coaches"
-                            id="coachPortraitTabBtn">Coaches</button>
+                    <!-- Tool Cards Grid -->
+                    <div class="portrait-tools-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; padding: 0 24px 24px; max-width: 900px; margin: 0 auto;">
+
+                        <!-- Import Portraits -->
+                        <div class="portrait-tool-card" data-portrait-tool="import"
+                            style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 12px;">📁</div>
+                            <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1rem;">Import Portraits</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                Add custom player portraits from files
+                            </p>
+                        </div>
+
+                        <!-- My Portraits -->
+                        <div class="portrait-tool-card" data-portrait-tool="my-portraits"
+                            style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 12px;">🖼️</div>
+                            <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1rem;">My Portraits</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                View and manage imported portraits
+                            </p>
+                            <span id="my-portraits-count" style="display: inline-block; margin-top: 8px; background: var(--accent-color); color: #000; font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;">0</span>
+                        </div>
+
+                        <!-- Workspace - Match Portraits to Players -->
+                        <div class="portrait-tool-card" data-portrait-tool="workspace"
+                            style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 12px;">🔗</div>
+                            <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1rem;">Workspace</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                Match portraits to players in database
+                            </p>
+                            <span id="workspace-unassigned-count" style="display: inline-block; margin-top: 8px; background: #f39c12; color: #000; font-size: 0.75rem; padding: 2px 8px; border-radius: 10px;">0 to assign</span>
+                        </div>
+
+                        <!-- Export Portraits -->
+                        <div class="portrait-tool-card" data-portrait-tool="export"
+                            style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 12px;">💾</div>
+                            <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1rem;">Export Portraits</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                Export portraits for distribution
+                            </p>
+                        </div>
+
+                        <!-- Bundled Portraits -->
+                        <div class="portrait-tool-card" data-portrait-tool="bundled"
+                            style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 12px;">🔍</div>
+                            <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1rem;">Bundled Portraits</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                Search and export pre-bundled portraits
+                            </p>
+                        </div>
+
+                        <!-- Coach Portraits -->
+                        <div class="portrait-tool-card" data-portrait-tool="coaches"
+                            style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s; text-align: center;">
+                            <div style="font-size: 2rem; margin-bottom: 12px;">👔</div>
+                            <h4 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1rem;">Coach Portraits</h4>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">
+                                Manage coach portrait assignments
+                            </p>
+                        </div>
                     </div>
 
-                    <div class="portrait-manager-content">
-                        <!-- Players Tab Content -->
-                        <div id="playerPortraitTabContent" class="portrait-tab-content active">
-                            <!-- Toolbar -->
-                            <div class="portrait-toolbar">
-                                <button id="importPortraitBtn" class="btn btn-primary">
-                                    <span class="btn-icon">📁</span>
-                                    Import Portrait
-                                </button>
-                                <button id="importAndAssignBtn" class="btn btn-success">
-                                    <span class="btn-icon">📁+👤</span>
-                                    Import & Assign
-                                </button>
-                                <button id="importMultiplePortraitsBtn" class="btn btn-secondary">
-                                    <span class="btn-icon">📂</span>
-                                    Import Multiple
-                                </button>
-                                <button id="exportSelectedPortraitsBtn" class="btn btn-secondary" disabled>
-                                    <span class="btn-icon">💾</span>
-                                    Export Selected
-                                </button>
-                                <button id="exportAllPortraitsBtn" class="btn btn-secondary">
-                                    <span class="btn-icon">📦</span>
-                                    Export All
-                                </button>
-                                <button id="generateSpriteSheetsBtn" class="btn btn-info"
-                                    title="Generate sprite sheets and atlas JSON for distribution">
-                                    <span class="btn-icon">🖼️</span>
-                                    Sprite Sheets
-                                </button>
-                                <div class="toolbar-separator"></div>
-                                <button id="assignPortraitBtn" class="btn btn-secondary" disabled>
-                                    <span class="btn-icon">👤</span>
-                                    Assign to Player
-                                </button>
-                                <div class="toolbar-separator"></div>
-                                <label for="yearFilter" class="toolbar-label">Filter by Year:</label>
-                                <select id="portraitYearFilter" class="toolbar-select">
-                                    <option value="">All Years</option>
-                                </select>
-                                <label for="portraitSortBy" class="toolbar-label" style="margin-left: 8px;">Sort
-                                    by:</label>
-                                <select id="portraitSortBy" class="toolbar-select">
-                                    <option value="pid">PID</option>
-                                    <option value="year">Year</option>
-                                    <option value="name">Player Name</option>
-                                </select>
-                                <div class="toolbar-separator"></div>
-                                <button id="portraitViewModeToggle" class="btn btn-outline-secondary">
-                                    <i class="bi bi-eye"></i> Show All
-                                </button>
-                                <div class="toolbar-separator"></div>
-                                <span id="portraitCount" class="toolbar-info">0 to assign</span>
-                            </div>
+                    <!-- Status Area -->
+                    <div id="portrait-tool-status" style="margin: 0 24px 24px; padding: 16px; background: var(--bg-tertiary); border-radius: 8px; display: none;">
+                        <div id="portrait-tool-status-content"></div>
+                    </div>
+                </div>
+            </div>
 
-                            <!-- Portrait Grid -->
-                            <div id="portraitGrid" class="portrait-grid">
-                                <div class="portrait-empty-state">
-                                    <span class="empty-icon">🖼️</span>
-                                    <h3>No Portraits Yet</h3>
-                                    <p>Click "Import Portrait" to add custom player portraits.</p>
-                                    <p class="empty-hint">Portraits will be assigned PIDs starting at 12000.</p>
-                                </div>
-                            </div>
+            <!-- Import Portraits Modal -->
+            <div id="modal-portrait-import" class="portrait-modal-overlay" style="display: none;">
+                <div class="portrait-modal-content" style="max-width: 600px;">
+                    <div class="portrait-modal-header">
+                        <h3>📁 Import Portraits</h3>
+                        <button class="portrait-modal-close">&times;</button>
+                    </div>
+                    <div class="portrait-modal-body">
+                        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                            Import custom player portraits from image files. Supported formats: PNG, JPG, DDS.
+                        </p>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <button id="btn-import-single" class="btn btn-primary" style="padding: 16px; font-size: 1rem;">
+                                <span style="margin-right: 8px;">📄</span> Import Single Portrait
+                            </button>
+                            <button id="btn-import-multiple" class="btn btn-secondary" style="padding: 16px; font-size: 1rem;">
+                                <span style="margin-right: 8px;">📂</span> Import Multiple Portraits
+                            </button>
+                            <button id="btn-import-and-assign" class="btn btn-success" style="padding: 16px; font-size: 1rem;">
+                                <span style="margin-right: 8px;">📁+👤</span> Import & Assign to Player
+                            </button>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-top: 16px; font-size: 0.85rem;">
+                            Tip: Portraits will be assigned PIDs starting at 12000.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
-                            <!-- Bundled Portraits Export Section -->
-                            <div class="bundled-portraits-section">
-                                <div class="section-header" id="bundledPortraitsHeader">
-                                    <span class="toggle-icon">▼</span>
-                                    <h3>Export Bundled Portraits</h3>
-                                    <span class="section-subtitle">Search and export pre-bundled sprite sheet portraits
-                                        as DDS</span>
+            <!-- My Portraits Modal -->
+            <div id="modal-my-portraits" class="portrait-modal-overlay" style="display: none;">
+                <div class="portrait-modal-content" style="max-width: 900px; max-height: 80vh;">
+                    <div class="portrait-modal-header">
+                        <h3>🖼️ My Portraits</h3>
+                        <button class="portrait-modal-close">&times;</button>
+                    </div>
+                    <div class="portrait-modal-body" style="overflow-y: auto; max-height: calc(80vh - 120px);">
+                        <!-- Toolbar -->
+                        <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
+                            <label style="color: var(--text-secondary);">Filter:</label>
+                            <select id="myPortraitsFilter" class="toolbar-select" style="padding: 6px 12px;">
+                                <option value="">All Years</option>
+                            </select>
+                            <select id="myPortraitsSort" class="toolbar-select" style="padding: 6px 12px;">
+                                <option value="pid">Sort by PID</option>
+                                <option value="year">Sort by Year</option>
+                                <option value="name">Sort by Name</option>
+                            </select>
+                            <span id="myPortraitsCount" style="margin-left: auto; color: var(--text-secondary);">0 portraits</span>
+                        </div>
+                        <!-- Portrait Grid -->
+                        <div id="myPortraitsGrid" class="portrait-grid" style="min-height: 200px;">
+                            <div class="portrait-empty-state">
+                                <span class="empty-icon">🖼️</span>
+                                <h3>No Portraits Yet</h3>
+                                <p>Use "Import Portraits" to add custom portraits.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Workspace Modal - Match portraits to players -->
+            <div id="modal-workspace" class="portrait-modal-overlay" style="display: none;">
+                <div class="portrait-modal-content" style="max-width: 1600px; width: 95vw; max-height: 90vh;">
+                    <div class="portrait-modal-header">
+                        <h3>🔗 Portrait Workspace</h3>
+                        <button class="portrait-modal-close">&times;</button>
+                    </div>
+                    <div class="portrait-modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
+                        <div style="display: flex; gap: 20px;">
+                            <!-- Left side: Unassigned Portraits -->
+                            <div style="flex: 2; min-width: 700px;">
+                                <h4 style="margin: 0 0 12px 0; color: var(--text-primary);">Unassigned Portraits</h4>
+                                <div id="workspaceUnassignedGrid" class="portrait-grid" style="min-height: 400px; max-height: 70vh; overflow-y: auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;"></div>
+                            </div>
+                            <!-- Right side: Player Search & Assignment -->
+                            <div style="flex: 1; min-width: 350px;">
+                                <h4 style="margin: 0 0 12px 0; color: var(--text-primary);">Find Player to Assign</h4>
+                                <div style="margin-bottom: 12px;">
+                                    <input type="text" id="workspacePlayerSearch" placeholder="Search players by name..."
+                                        style="width: 100%; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
                                 </div>
-                                <div id="bundledPortraitsContent" class="section-content">
-                                    <div class="bundled-search-bar">
-                                        <input type="text" id="bundledPortraitSearch"
-                                            placeholder="Search by player name (e.g., Brady, Mahomes)..."
-                                            autocomplete="off">
-                                        <button id="bundledSearchBtn" class="btn btn-secondary">Search</button>
-                                        <button id="exportBundledSelectedBtn" class="btn btn-primary" disabled>
-                                            <span class="btn-icon">💾</span>
-                                            Export Selected as DDS
-                                        </button>
-                                    </div>
-                                    <div id="bundledPortraitResults" class="bundled-portrait-grid">
-                                        <div class="bundled-empty-state">
-                                            <p>Search for portraits above to browse and export.</p>
+                                <div id="workspacePlayerResults" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary);"></div>
+                                <div id="workspaceSelectedPlayer" style="margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px; display: none;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <div id="workspacePlayerName" style="font-weight: 600; color: var(--text-primary);"></div>
+                                            <div id="workspacePlayerDetails" style="font-size: 0.85rem; color: var(--text-secondary);"></div>
                                         </div>
+                                        <button id="btn-workspace-assign" class="btn btn-primary">Assign Portrait</button>
                                     </div>
                                 </div>
                             </div>
-                        </div><!-- End Players Tab Content -->
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                        <!-- Coaches Tab Content -->
-                        <div id="coachPortraitTabContent" class="portrait-tab-content">
-                            <!-- Coach Toolbar -->
-                            <div class="portrait-toolbar">
-                                <button id="importCoachPortraitBtn" class="btn btn-primary">
-                                    <span class="btn-icon">📁</span>
-                                    Import Portrait
-                                </button>
-                                <button id="importAndAssignCoachBtn" class="btn btn-success">
-                                    <span class="btn-icon">📁+👤</span>
-                                    Import & Assign
-                                </button>
-                                <button id="importMultipleCoachPortraitsBtn" class="btn btn-secondary">
-                                    <span class="btn-icon">📂</span>
-                                    Import Multiple
-                                </button>
-                                <button id="exportSelectedCoachPortraitsBtn" class="btn btn-secondary" disabled>
-                                    <span class="btn-icon">💾</span>
-                                    Export Selected
-                                </button>
-                                <button id="exportAllCoachPortraitsBtn" class="btn btn-secondary">
-                                    <span class="btn-icon">📦</span>
-                                    Export All
-                                </button>
-                                <div class="toolbar-separator"></div>
-                                <button id="assignCoachPortraitBtn" class="btn btn-secondary" disabled>
-                                    <span class="btn-icon">👤</span>
-                                    Assign to Coach
-                                </button>
-                                <div class="toolbar-separator"></div>
-                                <label for="coachYearFilter" class="toolbar-label">Filter by Year:</label>
-                                <select id="coachPortraitYearFilter" class="toolbar-select">
-                                    <option value="">All Years</option>
-                                </select>
-                                <div class="toolbar-separator"></div>
-                                <button id="coachPortraitViewModeToggle" class="btn btn-outline-secondary">
-                                    <i class="bi bi-eye"></i> Show All
-                                </button>
-                                <div class="toolbar-separator"></div>
-                                <span id="coachPortraitCount" class="toolbar-info">0 to assign</span>
+            <!-- Export Portraits Modal -->
+            <div id="modal-portrait-export" class="portrait-modal-overlay" style="display: none;">
+                <div class="portrait-modal-content" style="max-width: 600px;">
+                    <div class="portrait-modal-header">
+                        <h3>💾 Export Portraits</h3>
+                        <button class="portrait-modal-close">&times;</button>
+                    </div>
+                    <div class="portrait-modal-body">
+                        <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                            Export your imported portraits for use in mods or distribution.
+                        </p>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <button id="btn-export-all" class="btn btn-primary" style="padding: 16px; font-size: 1rem;">
+                                <span style="margin-right: 8px;">📦</span> Export All Portraits
+                            </button>
+                            <button id="btn-generate-sprites" class="btn btn-secondary" style="padding: 16px; font-size: 1rem;">
+                                <span style="margin-right: 8px;">🖼️</span> Generate Sprite Sheets
+                            </button>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-top: 16px; font-size: 0.85rem;">
+                            Sprite sheets combine portraits into optimized atlas files for faster loading.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bundled Portraits Modal -->
+            <div id="modal-bundled-portraits" class="portrait-modal-overlay" style="display: none;">
+                <div class="portrait-modal-content" style="max-width: 900px; max-height: 80vh;">
+                    <div class="portrait-modal-header">
+                        <h3>🔍 Bundled Portraits</h3>
+                        <button class="portrait-modal-close">&times;</button>
+                    </div>
+                    <div class="portrait-modal-body" style="overflow-y: auto; max-height: calc(80vh - 120px);">
+                        <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                            Search pre-bundled portraits from the sprite sheets and export as DDS files.
+                        </p>
+                        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                            <input type="text" id="bundledSearchInput" placeholder="Search by player name (e.g., Brady, Mahomes)..."
+                                style="flex: 1; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                            <button id="btn-bundled-search" class="btn btn-secondary">Search</button>
+                            <button id="btn-bundled-export" class="btn btn-primary" disabled>Export Selected</button>
+                        </div>
+                        <div id="bundledSearchResults" class="bundled-portrait-grid" style="min-height: 200px;">
+                            <div class="bundled-empty-state" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                                <p>Search for portraits above to browse and export.</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            <!-- Coach Portrait Grid -->
-                            <div id="coachPortraitGrid" class="portrait-grid">
-                                <div class="portrait-empty-state">
-                                    <span class="empty-icon">🖼️</span>
-                                    <h3>No Coach Portraits Yet</h3>
-                                    <p>Click "Import Portrait" to add custom coach portraits.</p>
-                                    <p class="empty-hint">Coach portraits will be assigned PIDs starting at 50000.</p>
+            <!-- Coach Portraits Modal -->
+            <div id="modal-coach-portraits" class="portrait-modal-overlay" style="display: none;">
+                <div class="portrait-modal-content" style="max-width: 900px; max-height: 80vh;">
+                    <div class="portrait-modal-header">
+                        <h3>👔 Coach Portraits</h3>
+                        <button class="portrait-modal-close">&times;</button>
+                    </div>
+                    <div class="portrait-modal-body" style="overflow-y: auto; max-height: calc(80vh - 120px);">
+                        <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                            <button id="btn-import-coach" class="btn btn-primary">
+                                <span style="margin-right: 6px;">📁</span> Import Coach Portrait
+                            </button>
+                            <button id="btn-import-coach-multiple" class="btn btn-secondary">
+                                <span style="margin-right: 6px;">📂</span> Import Multiple
+                            </button>
+                            <button id="btn-export-coach-all" class="btn btn-secondary">
+                                <span style="margin-right: 6px;">💾</span> Export All
+                            </button>
+                            <span id="coachPortraitsCount" style="margin-left: auto; color: var(--text-secondary); align-self: center;">0 coach portraits</span>
+                        </div>
+                        <!-- Coach Portrait Grid -->
+                        <div id="coachPortraitsGrid" class="portrait-grid" style="min-height: 200px;">
+                            <div class="portrait-empty-state">
+                                <span class="empty-icon">👔</span>
+                                <h3>No Coach Portraits Yet</h3>
+                                <p>Click "Import Coach Portrait" to add custom coach portraits.</p>
+                            </div>
+                        </div>
+
+                        <!-- Bundled Coach Portraits Section -->
+                        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                            <h4 style="margin-bottom: 12px; color: var(--text-primary);">Search Bundled Coach Portraits</h4>
+                            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                                <input type="text" id="coachBundledSearchInput" placeholder="Search by coach name (e.g., Reid, Belichick)..."
+                                    style="flex: 1; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                                <button id="btn-coach-bundled-search" class="btn btn-secondary">Search</button>
+                                <button id="btn-coach-bundled-export" class="btn btn-primary" disabled>Export Selected</button>
+                            </div>
+                            <div id="coachBundledSearchResults" class="bundled-portrait-grid" style="min-height: 100px;">
+                                <div class="bundled-empty-state" style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                                    <p>Search for coach portraits above.</p>
                                 </div>
                             </div>
-
-                            <!-- Bundled Coach Portraits Section -->
-                            <div class="bundled-portraits-section">
-                                <div class="section-header" id="coachBundledPortraitsHeader">
-                                    <span class="toggle-icon">▼</span>
-                                    <h3>Export Bundled Coach Portraits</h3>
-                                    <span class="section-subtitle">Search and export pre-bundled coach portraits as
-                                        DDS</span>
-                                </div>
-                                <div id="coachBundledPortraitsContent" class="section-content">
-                                    <div class="bundled-search-bar">
-                                        <input type="text" id="coachBundledPortraitSearch"
-                                            placeholder="Search by coach name (e.g., Reid, Belichick)..."
-                                            autocomplete="off">
-                                        <button id="coachBundledSearchBtn" class="btn btn-secondary">Search</button>
-                                        <button id="exportCoachBundledSelectedBtn" class="btn btn-primary" disabled>
-                                            <span class="btn-icon">💾</span>
-                                            Export Selected as DDS
-                                        </button>
-                                    </div>
-                                    <div id="coachBundledPortraitResults" class="bundled-portrait-grid">
-                                        <div class="bundled-empty-state">
-                                            <p>Search for coach portraits above to browse and export.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div><!-- End Coaches Tab Content -->
+                        </div>
                     </div>
                 </div>
             </div>

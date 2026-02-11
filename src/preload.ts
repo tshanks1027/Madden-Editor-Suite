@@ -32,6 +32,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('file:exists', filePath)
   },
 
+  // App APIs
+  app: {
+    getVersion: () => ipcRenderer.invoke('app:getVersion')
+  },
+
   // Lookup APIs
   lookup: {
     isReady: () => ipcRenderer.invoke('lookup:is-ready'),
@@ -396,6 +401,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     applyNFLRecords: (filePath: string, year: number) =>
       ipcRenderer.invoke('retro:apply-nfl-records', filePath, year),
 
+    // Historical Stats APIs
+    getHistoricalStatsPreview: (year: number) =>
+      ipcRenderer.invoke('retro:get-historical-stats-preview', year),
+    applyHistoricalStats: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-historical-stats', filePath, year),
+
     // Stadium APIs
     getStadiumPreview: (filePath: string, year: number) =>
       ipcRenderer.invoke('retro:get-stadium-preview', filePath, year),
@@ -591,6 +602,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('database:get-player-for-draft', internalId, year),
     getPlayerAvailableYears: (internalId: number) =>
       ipcRenderer.invoke('database:get-player-available-years', internalId),
+
+    // Career stats operations (from scraped PFR database)
+    getCareerStats: (firstName: string, lastName: string) =>
+      ipcRenderer.invoke('database:get-career-stats', firstName, lastName),
+    getCareerStatsByYear: (firstName: string, lastName: string, year: number) =>
+      ipcRenderer.invoke('database:get-career-stats-by-year', firstName, lastName, year),
+    calculateRatingFromStats: (stats: any, position: string) =>
+      ipcRenderer.invoke('database:calculate-rating-from-stats', stats, position),
     getPlayerSeasonYears: (internalId: number) =>
       ipcRenderer.invoke('database:get-player-season-years', internalId),
     getPlayersForFill: (options: {

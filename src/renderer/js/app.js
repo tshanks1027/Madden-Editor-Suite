@@ -337,15 +337,80 @@ class MaddenEditorApp {
             this.saveRoster();
         });
 
-        document.getElementById('exportCsvBtn').addEventListener('click', () => {
-            this.exportRosterCSV();
+        // Tools dropdown toggle
+        const toolsBtn = document.getElementById('toolsBtn');
+        const toolsPopup = document.getElementById('toolsPopup');
+
+        if (toolsBtn && toolsPopup) {
+            toolsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toolsPopup.classList.toggle('show');
+            });
+
+            // Close popup when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!toolsPopup.contains(e.target) && e.target !== toolsBtn) {
+                    toolsPopup.classList.remove('show');
+                }
+            });
+        }
+
+        // Tools menu items
+        document.getElementById('toolsDatabaseBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            if (typeof window.openPlayerBrowser === 'function') {
+                window.openPlayerBrowser('roster');
+            }
         });
 
-        document.getElementById('importCsvBtn').addEventListener('click', () => {
+        document.getElementById('toolsImportCsvBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
             this.importRosterCSV();
         });
 
-        document.getElementById('pushRosterToDbBtn').addEventListener('click', () => {
+        document.getElementById('toolsExportCsvBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.exportRosterCSV();
+        });
+
+        document.getElementById('toolsFixFacesBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.fixGenericFaces();
+        });
+
+        document.getElementById('toolsFixCommentaryBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.fixCommentary();
+        });
+
+        document.getElementById('toolsRemoveInjuriesBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.removeAllInjuries();
+        });
+
+        document.getElementById('toolsFillFromDbBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            if (typeof window.openFillModal === 'function') {
+                window.openFillModal();
+            }
+        });
+
+        document.getElementById('toolsPushToDbBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.pushRosterToDatabase();
+        });
+
+        document.getElementById('toolsCreateEmptyBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.createNewRoster();
+        });
+
+        // Legacy button handlers (if still present in DOM)
+        document.getElementById('importCsvBtn')?.addEventListener('click', () => {
+            this.importRosterCSV();
+        });
+
+        document.getElementById('pushRosterToDbBtn')?.addEventListener('click', () => {
             this.pushRosterToDatabase();
         });
 
@@ -380,6 +445,78 @@ class MaddenEditorApp {
         document.getElementById('draftSearchInput').addEventListener('input', (e) => {
             this.draftSearchTerm = e.target.value.toLowerCase().trim();
             this.filterDraftProspects();
+        });
+
+        // Draft Class V2 controls
+        document.getElementById('openDraftFileBtn')?.addEventListener('click', async () => {
+            await this.openDraftClassDialog();
+        });
+
+        document.getElementById('saveDraftBtn')?.addEventListener('click', () => {
+            this.saveDraftClass();
+        });
+
+        // Draft Tools dropdown toggle
+        const draftToolsBtn = document.getElementById('draftToolsBtn');
+        const draftToolsPopup = document.getElementById('draftToolsPopup');
+
+        if (draftToolsBtn && draftToolsPopup) {
+            draftToolsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                draftToolsPopup.classList.toggle('show');
+            });
+
+            // Close popup when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!draftToolsPopup.contains(e.target) && e.target !== draftToolsBtn) {
+                    draftToolsPopup.classList.remove('show');
+                }
+            });
+        }
+
+        // Draft Tools menu items
+        document.getElementById('draftToolsDatabaseBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            if (typeof window.openPlayerBrowser === 'function') {
+                window.openPlayerBrowser('draft');
+            }
+        });
+
+        document.getElementById('draftToolsImportCsvBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            this.importDraftCSV();
+        });
+
+        document.getElementById('draftToolsExportCsvBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            this.exportDraftCSV();
+        });
+
+        document.getElementById('draftToolsFixFacesBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            this.fixGenericFaces();
+        });
+
+        document.getElementById('draftToolsFixCommentaryBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            this.fixCommentary();
+        });
+
+        document.getElementById('draftToolsFillFromDbBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            if (typeof window.openFillModal === 'function') {
+                window.openFillModal();
+            }
+        });
+
+        document.getElementById('draftToolsPushToDbBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            this.pushDraftClassToDatabase();
+        });
+
+        document.getElementById('draftToolsCreateEmptyBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            this.createNewDraftClass();
         });
 
         // Modal close
@@ -3645,6 +3782,11 @@ class MaddenEditorApp {
         return team ? team.logo : null;
     }
 
+    // Helper to get full team data by team ID (for logo + colors)
+    getTeamById(teamId) {
+        return getTeamById(teamId);
+    }
+
     applyTeamColors(team) {
         const root = document.documentElement;
         root.style.setProperty('--team-primary', team.primary);
@@ -3723,10 +3865,12 @@ class MaddenEditorApp {
         const v2TeamCount = document.getElementById('v2TeamCount');
         if (v2TeamName) v2TeamName.textContent = team.fullName;
         if (v2TeamLogo) {
+            // Set bubble background to team secondary color
+            v2TeamLogo.style.background = `linear-gradient(145deg, ${team.secondary}, ${team.secondary}99)`;
             if (team.logo) {
                 v2TeamLogo.innerHTML = `<img src="${team.logo}" alt="${team.fullName} logo">`;
             } else {
-                v2TeamLogo.textContent = team.abbr;
+                v2TeamLogo.innerHTML = '<img src="https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg" alt="NFL logo">';
             }
         }
         if (v2TeamCount) {
@@ -3791,7 +3935,11 @@ class MaddenEditorApp {
         const v2TeamLogo = document.getElementById('v2TeamLogo');
         const v2TeamCount = document.getElementById('v2TeamCount');
         if (v2TeamName) v2TeamName.textContent = 'ALL TEAMS';
-        if (v2TeamLogo) v2TeamLogo.textContent = 'NFL';
+        if (v2TeamLogo) {
+            // Reset bubble background to default gold
+            v2TeamLogo.style.background = 'linear-gradient(145deg, #ffa726, #ffa72699)';
+            v2TeamLogo.innerHTML = '<img src="https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg" alt="NFL logo">';
+        }
         if (v2TeamCount) v2TeamCount.textContent = `${this.players.length} Players`;
     }
 
@@ -5675,20 +5823,32 @@ class MaddenEditorApp {
                 ufa: result.data.prospects.filter(p => p.round === 8).length
             });
 
-            // Update UI
-            document.getElementById('draft-file-name').textContent = filePath.split(/[/\\]/).pop();
-            document.getElementById('draft-file-stats').textContent =
-                `${result.data.prospects.length} prospects | Year: ${result.data.header.year}`;
+            // Update UI - V2 elements
+            const fileName = filePath.split(/[/\\]/).pop();
+            const v2DraftName = document.getElementById('v2DraftName');
+            const v2DraftCount = document.getElementById('v2DraftCount');
+            const saveDraftBtn = document.getElementById('saveDraftBtn');
 
-            // Enable buttons
-            document.getElementById('save-draft-btn').disabled = false;
-            document.getElementById('export-draft-json-btn').disabled = false;
-            document.getElementById('import-draft-csv-btn').disabled = false;
-            document.getElementById('fillFromDbDraftBtn').disabled = false;
-            document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
-            document.getElementById('fixDraftFacesBtn').disabled = false;
-            document.getElementById('fixDraftCommentaryBtn').disabled = false;
-            document.getElementById('pushDraftToDbBtn').disabled = false;
+            if (v2DraftName) v2DraftName.textContent = fileName;
+            if (v2DraftCount) v2DraftCount.textContent = `${result.data.prospects.length} prospects | Year: ${result.data.header.year}`;
+            if (saveDraftBtn) saveDraftBtn.style.display = 'inline-flex';
+
+            // Update UI - legacy elements (check existence first)
+            const draftFileName = document.getElementById('draft-file-name');
+            const draftFileStats = document.getElementById('draft-file-stats');
+            if (draftFileName) draftFileName.textContent = fileName;
+            if (draftFileStats) draftFileStats.textContent = `${result.data.prospects.length} prospects | Year: ${result.data.header.year}`;
+
+            // Enable buttons (legacy - check existence)
+            const legacyButtons = [
+                'save-draft-btn', 'export-draft-json-btn', 'import-draft-csv-btn',
+                'fillFromDbDraftBtn', 'openDraftPlayerBrowserBtn', 'fixDraftFacesBtn',
+                'fixDraftCommentaryBtn', 'pushDraftToDbBtn'
+            ];
+            legacyButtons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = false;
+            });
             // Show info-tooltips version buttons
             document.getElementById('fixDraftFacesBtn2').style.display = 'inline-flex';
             document.getElementById('fixDraftCommentaryBtn2').style.display = 'inline-flex';
@@ -5745,21 +5905,44 @@ class MaddenEditorApp {
             window.electronAPI.editorTracking.clear('draft');
         }
 
-        // Update UI
-        document.getElementById('draft-file-name').textContent = 'New Draft Class (unsaved)';
-        document.getElementById('draft-file-stats').textContent = `0 prospects | Year: ${currentYear}`;
+        // Update V2 UI elements
+        const v2DraftName = document.getElementById('v2DraftName');
+        const v2DraftCount = document.getElementById('v2DraftCount');
+        const saveDraftBtn = document.getElementById('saveDraftBtn');
 
-        // Enable buttons
-        document.getElementById('save-draft-btn').disabled = false;
-        document.getElementById('export-draft-json-btn').disabled = false;
-        document.getElementById('import-draft-csv-btn').disabled = false;
-        document.getElementById('fillFromDbDraftBtn').disabled = false;
-        document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
-        document.getElementById('fixDraftFacesBtn').disabled = false;
-        document.getElementById('fixDraftCommentaryBtn').disabled = false;
-        // Show info-tooltips version buttons
-        document.getElementById('fixDraftFacesBtn2').style.display = 'inline-flex';
-        document.getElementById('fixDraftCommentaryBtn2').style.display = 'inline-flex';
+        if (v2DraftName) v2DraftName.textContent = 'New Draft Class (unsaved)';
+        if (v2DraftCount) v2DraftCount.textContent = `0 prospects | Year: ${currentYear}`;
+        if (saveDraftBtn) saveDraftBtn.style.display = 'inline-flex';
+
+        // Update UI (legacy - check existence first)
+        const draftFileName = document.getElementById('draft-file-name');
+        const draftFileStats = document.getElementById('draft-file-stats');
+        if (draftFileName) draftFileName.textContent = 'New Draft Class (unsaved)';
+        if (draftFileStats) draftFileStats.textContent = `0 prospects | Year: ${currentYear}`;
+
+        // Reset college logo to NCAA default (no image - just text)
+        const logoEl = document.getElementById('v2CollegeLogo');
+        if (logoEl) {
+            logoEl.innerHTML = '<span style="font-family: Oswald, sans-serif; font-size: 36px; font-weight: 700;">NCAA</span>';
+            logoEl.style.background = 'linear-gradient(145deg, #ffa726, #ffa72699)';
+        }
+
+        // Enable buttons (legacy - check existence first)
+        const legacyButtons = [
+            'save-draft-btn', 'export-draft-json-btn', 'import-draft-csv-btn',
+            'fillFromDbDraftBtn', 'openDraftPlayerBrowserBtn', 'fixDraftFacesBtn',
+            'fixDraftCommentaryBtn'
+        ];
+        legacyButtons.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) btn.disabled = false;
+        });
+
+        // Show info-tooltips version buttons (check existence first)
+        const fixFacesBtn2 = document.getElementById('fixDraftFacesBtn2');
+        const fixCommentaryBtn2 = document.getElementById('fixDraftCommentaryBtn2');
+        if (fixFacesBtn2) fixFacesBtn2.style.display = 'inline-flex';
+        if (fixCommentaryBtn2) fixCommentaryBtn2.style.display = 'inline-flex';
 
         // Create empty grid
         this.createDraftGrid([]);
@@ -9316,6 +9499,19 @@ class MaddenEditorApp {
             modal.classList.add('team-colored-card');
         }
 
+        // Update the logo bubble with the player's team logo and color
+        const logoEl = document.getElementById('v2TeamLogo');
+        if (logoEl) {
+            if (teamData && teamData.logo) {
+                logoEl.innerHTML = `<img src="${teamData.logo}" alt="${teamData.fullName || 'Team'} logo">`;
+                logoEl.style.background = `linear-gradient(145deg, ${teamData.secondary}, ${teamData.secondary}99)`;
+            } else {
+                // Fallback to NFL logo
+                logoEl.innerHTML = '<img src="https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg" alt="NFL logo">';
+                logoEl.style.background = 'linear-gradient(145deg, #ffa726, #ffa72699)';
+            }
+        }
+
         // Header section - display only
         document.getElementById('playerCardNumber').textContent = playerData.PJEN || '0';
         document.getElementById('playerCardName').textContent = `${playerData.PFNA || ''} ${playerData.PLNA || 'Unknown'}`.trim();
@@ -10080,8 +10276,24 @@ window.closeErrorModal = function () {
 }
 
 // Initialize app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     window.app = new MaddenEditorApp();
+
+    // Load and display app version
+    try {
+        console.log('[App] Loading app version...');
+        console.log('[App] electronAPI.app exists:', !!window.electronAPI?.app);
+        const version = await window.electronAPI.app.getVersion();
+        console.log('[App] Got version:', version);
+        const versionEl = document.getElementById('app-version-display');
+        console.log('[App] Version element found:', !!versionEl);
+        if (versionEl) {
+            versionEl.textContent = 'v' + version;
+            console.log('[App] Version set to:', versionEl.textContent);
+        }
+    } catch (e) {
+        console.error('[App] Could not get app version:', e);
+    }
 
     // Initialize selection gradient style with gold (default for All Teams page)
     const initStyle = document.createElement('style');

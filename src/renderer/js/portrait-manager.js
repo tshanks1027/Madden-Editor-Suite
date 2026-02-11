@@ -2623,6 +2623,903 @@
     initCustomCoachPortraitSection();
   }
 
+  // ============================================
+  // TOOL CARD MODAL HANDLERS (New Landing Page UI)
+  // ============================================
+
+  /**
+   * Initialize the new tool card landing page
+   */
+  function initToolCardLandingPage() {
+    console.log('[PortraitManager] Initializing tool card landing page...');
+
+    // Tool card click handlers
+    document.querySelectorAll('.portrait-tool-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const tool = card.dataset.portraitTool;
+        console.log('[PortraitManager] Tool card clicked:', tool);
+        openPortraitToolModal(tool);
+      });
+    });
+
+    // Modal close handlers
+    document.querySelectorAll('.portrait-modal-close').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const modal = e.target.closest('.portrait-modal-overlay');
+        if (modal) modal.style.display = 'none';
+      });
+    });
+
+    // Close modal on overlay click
+    document.querySelectorAll('.portrait-modal-overlay').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.style.display = 'none';
+        }
+      });
+    });
+
+    // Import modal buttons
+    document.getElementById('btn-import-single')?.addEventListener('click', () => {
+      document.getElementById('modal-portrait-import').style.display = 'none';
+      handleImportSingle();
+    });
+
+    document.getElementById('btn-import-multiple')?.addEventListener('click', () => {
+      document.getElementById('modal-portrait-import').style.display = 'none';
+      handleImportMultiple();
+    });
+
+    document.getElementById('btn-import-and-assign')?.addEventListener('click', () => {
+      document.getElementById('modal-portrait-import').style.display = 'none';
+      handleImportAndAssign();
+    });
+
+    // Export modal buttons
+    document.getElementById('btn-export-all')?.addEventListener('click', () => {
+      document.getElementById('modal-portrait-export').style.display = 'none';
+      handleExportAll();
+    });
+
+    document.getElementById('btn-generate-sprites')?.addEventListener('click', () => {
+      document.getElementById('modal-portrait-export').style.display = 'none';
+      handleGenerateSpriteSheets();
+    });
+
+    // My Portraits modal filters
+    document.getElementById('myPortraitsFilter')?.addEventListener('change', renderMyPortraitsGrid);
+    document.getElementById('myPortraitsSort')?.addEventListener('change', renderMyPortraitsGrid);
+
+    // Bundled search
+    document.getElementById('btn-bundled-search')?.addEventListener('click', handleBundledSearchNew);
+    document.getElementById('bundledSearchInput')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleBundledSearchNew();
+    });
+
+    // Coach modal buttons
+    document.getElementById('btn-import-coach')?.addEventListener('click', () => {
+      handleCoachImportSingle();
+    });
+
+    document.getElementById('btn-import-coach-multiple')?.addEventListener('click', () => {
+      handleCoachImportMultiple();
+    });
+
+    document.getElementById('btn-export-coach-all')?.addEventListener('click', () => {
+      handleCoachExportAll();
+    });
+
+    document.getElementById('btn-coach-bundled-search')?.addEventListener('click', handleCoachBundledSearchNew);
+    document.getElementById('coachBundledSearchInput')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleCoachBundledSearchNew();
+    });
+
+    // Update portrait count badge
+    updatePortraitCountBadge();
+  }
+
+  /**
+   * Open a portrait tool modal
+   */
+  function openPortraitToolModal(tool) {
+    switch (tool) {
+      case 'import':
+        document.getElementById('modal-portrait-import').style.display = 'flex';
+        break;
+      case 'my-portraits':
+        document.getElementById('modal-my-portraits').style.display = 'flex';
+        renderMyPortraitsGrid();
+        break;
+      case 'workspace':
+        document.getElementById('modal-workspace').style.display = 'flex';
+        renderWorkspaceGrid();
+        break;
+      case 'export':
+        document.getElementById('modal-portrait-export').style.display = 'flex';
+        break;
+      case 'bundled':
+        document.getElementById('modal-bundled-portraits').style.display = 'flex';
+        break;
+      case 'coaches':
+        document.getElementById('modal-coach-portraits').style.display = 'flex';
+        renderCoachPortraitsGrid();
+        break;
+    }
+  }
+
+  /**
+   * Render the My Portraits grid in the modal
+   */
+  async function renderMyPortraitsGrid() {
+    const grid = document.getElementById('myPortraitsGrid');
+    const countEl = document.getElementById('myPortraitsCount');
+    const filterEl = document.getElementById('myPortraitsFilter');
+    const sortEl = document.getElementById('myPortraitsSort');
+
+    if (!grid) return;
+
+    // Refresh portraits data
+    portraits = await window.electronAPI.customPortrait.list();
+
+    // Filter by year
+    let filtered = [...portraits];
+    const yearFilter = filterEl?.value;
+    if (yearFilter) {
+      filtered = filtered.filter(p => p.year && p.year.toString() === yearFilter);
+    }
+
+    // Sort
+    const sortBy = sortEl?.value || 'pid';
+    filtered.sort((a, b) => {
+      if (sortBy === 'pid') return (a.pid || 0) - (b.pid || 0);
+      if (sortBy === 'year') return (a.year || 0) - (b.year || 0);
+      if (sortBy === 'name') return (a.assignedName || '').localeCompare(b.assignedName || '');
+      return 0;
+    });
+
+    // Update count
+    if (countEl) countEl.textContent = `${filtered.length} portraits`;
+
+    // Update year filter options
+    const years = [...new Set(portraits.map(p => p.year).filter(y => y))].sort((a, b) => b - a);
+    if (filterEl) {
+      const currentValue = filterEl.value;
+      filterEl.innerHTML = '<option value="">All Years</option>' +
+        years.map(y => `<option value="${y}">${y}</option>`).join('');
+      filterEl.value = currentValue;
+    }
+
+    // Render grid
+    if (filtered.length === 0) {
+      grid.innerHTML = `
+        <div class="portrait-empty-state">
+          <span class="empty-icon">🖼️</span>
+          <h3>No Portraits Yet</h3>
+          <p>Use "Import Portraits" to add custom portraits.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Create cards and load images async
+    grid.innerHTML = '';
+    for (const p of filtered) {
+      const card = document.createElement('div');
+      card.className = 'portrait-card';
+      card.dataset.pid = p.pid;
+
+      const img = document.createElement('img');
+      img.alt = `Portrait ${p.pid}`;
+
+      // Load image async
+      try {
+        const imageData = await window.electronAPI.customPortrait.get(p.pid);
+        if (imageData) {
+          img.src = imageData;
+        } else {
+          img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+        }
+      } catch (e) {
+        img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+      }
+      card.appendChild(img);
+
+      const pidEl = document.createElement('div');
+      pidEl.className = 'portrait-pid';
+      pidEl.textContent = `PID: ${p.pid}`;
+      card.appendChild(pidEl);
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'portrait-name';
+      nameEl.textContent = p.playerName || 'Unassigned';
+      card.appendChild(nameEl);
+
+      if (p.year) {
+        const yearEl = document.createElement('div');
+        yearEl.className = 'portrait-year';
+        yearEl.textContent = p.year;
+        card.appendChild(yearEl);
+      }
+
+      grid.appendChild(card);
+    }
+
+    // Update badge
+    updatePortraitCountBadge();
+  }
+
+  /**
+   * Render the Coach Portraits grid in the modal
+   */
+  async function renderCoachPortraitsGrid() {
+    const grid = document.getElementById('coachPortraitsGrid');
+    const countEl = document.getElementById('coachPortraitsCount');
+
+    if (!grid) return;
+
+    // Refresh coach portraits - use customCoachPortrait API
+    let coachPortraits = [];
+    try {
+      coachPortraits = await window.electronAPI.customCoachPortrait.list();
+    } catch (err) {
+      console.error('[PortraitManager] Error loading coach portraits:', err);
+    }
+
+    if (countEl) countEl.textContent = `${coachPortraits.length} coach portraits`;
+
+    if (!coachPortraits || coachPortraits.length === 0) {
+      grid.innerHTML = `
+        <div class="portrait-empty-state">
+          <span class="empty-icon">👔</span>
+          <h3>No Coach Portraits Yet</h3>
+          <p>Click "Import Coach Portrait" to add custom coach portraits.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Create cards and load images async
+    grid.innerHTML = '';
+    for (const p of coachPortraits) {
+      const card = document.createElement('div');
+      card.className = 'portrait-card';
+      card.dataset.pid = p.pid;
+
+      const img = document.createElement('img');
+      img.alt = `Coach ${p.pid}`;
+
+      // Load image async
+      try {
+        const imageData = await window.electronAPI.customCoachPortrait.get(p.pid);
+        if (imageData) {
+          img.src = imageData;
+        } else {
+          img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+        }
+      } catch (e) {
+        img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+      }
+      card.appendChild(img);
+
+      const pidEl = document.createElement('div');
+      pidEl.className = 'portrait-pid';
+      pidEl.textContent = `PID: ${p.pid}`;
+      card.appendChild(pidEl);
+
+      const nameEl = document.createElement('div');
+      nameEl.className = 'portrait-name';
+      nameEl.textContent = p.coachName || 'Unassigned';
+      card.appendChild(nameEl);
+
+      grid.appendChild(card);
+    }
+  }
+
+  /**
+   * Handle bundled search from new modal
+   */
+  async function handleBundledSearchNew() {
+    const input = document.getElementById('bundledSearchInput');
+    const resultsEl = document.getElementById('bundledSearchResults');
+    if (!input || !resultsEl) return;
+
+    const query = input.value.trim();
+    if (!query) {
+      resultsEl.innerHTML = '<div class="bundled-empty-state"><p>Enter a player name to search.</p></div>';
+      return;
+    }
+
+    resultsEl.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">Searching...</div>';
+
+    try {
+      const results = await window.electronAPI.portrait.searchWithImages(query, 50);
+      if (!results || results.length === 0) {
+        resultsEl.innerHTML = '<div class="bundled-empty-state"><p>No portraits found for "' + query + '"</p></div>';
+        return;
+      }
+
+      resultsEl.innerHTML = results.map(p => `
+        <div class="bundled-portrait-card" data-pid="${p.pid}" data-plpo="${p.plpo || ''}">
+          <input type="checkbox" class="bundled-checkbox">
+          <img src="${p.imageData || p.dataUrl || ''}" alt="${p.name || p.playerName || 'Unknown'}">
+          <div class="bundled-info">
+            <div class="bundled-name">${p.name || p.playerName || 'Unknown'}</div>
+            <div class="bundled-pid">PID: ${p.pid}</div>
+          </div>
+        </div>
+      `).join('');
+
+      // Enable export button when items selected
+      resultsEl.querySelectorAll('.bundled-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const anySelected = resultsEl.querySelector('.bundled-checkbox:checked');
+          document.getElementById('btn-bundled-export').disabled = !anySelected;
+        });
+      });
+    } catch (err) {
+      console.error('[PortraitManager] Bundled search error:', err);
+      resultsEl.innerHTML = '<div class="bundled-empty-state"><p>Error searching portraits.</p></div>';
+    }
+  }
+
+  /**
+   * Handle coach bundled search from new modal
+   */
+  async function handleCoachBundledSearchNew() {
+    const input = document.getElementById('coachBundledSearchInput');
+    const resultsEl = document.getElementById('coachBundledSearchResults');
+    if (!input || !resultsEl) return;
+
+    const query = input.value.trim();
+    if (!query) {
+      resultsEl.innerHTML = '<div class="bundled-empty-state"><p>Enter a coach name to search.</p></div>';
+      return;
+    }
+
+    resultsEl.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">Searching...</div>';
+
+    try {
+      // Use coach database search API
+      const results = await window.electronAPI.coachDatabase.searchCoaches({ query, limit: 30 });
+      if (!results || results.length === 0) {
+        resultsEl.innerHTML = '<div class="bundled-empty-state"><p>No coaches found for "' + query + '"</p></div>';
+        return;
+      }
+
+      // Build HTML and load images for each coach
+      resultsEl.innerHTML = '';
+      for (const coach of results.slice(0, 30)) {
+        const card = document.createElement('div');
+        card.className = 'bundled-portrait-card';
+        card.dataset.pid = coach.id || coach.pid;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'bundled-checkbox';
+        card.appendChild(checkbox);
+
+        const img = document.createElement('img');
+        img.alt = coach.displayName || `${coach.firstName} ${coach.lastName}`;
+        try {
+          const pid = coach.id || coach.pid;
+          const imageData = await window.electronAPI.coachPortrait.getImageDataByPID(pid);
+          if (imageData) {
+            img.src = imageData;
+          } else {
+            img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+          }
+        } catch (e) {
+          img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+        }
+        card.appendChild(img);
+
+        const info = document.createElement('div');
+        info.className = 'bundled-info';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'bundled-name';
+        nameEl.textContent = coach.displayName || `${coach.firstName} ${coach.lastName}`;
+        info.appendChild(nameEl);
+
+        const pidEl = document.createElement('div');
+        pidEl.className = 'bundled-pid';
+        pidEl.textContent = `PID: ${coach.id || coach.pid}`;
+        info.appendChild(pidEl);
+
+        card.appendChild(info);
+        resultsEl.appendChild(card);
+      }
+
+      // Enable export button when items selected
+      resultsEl.querySelectorAll('.bundled-checkbox').forEach(cb => {
+        cb.addEventListener('change', () => {
+          const anySelected = resultsEl.querySelector('.bundled-checkbox:checked');
+          document.getElementById('btn-coach-bundled-export').disabled = !anySelected;
+        });
+      });
+    } catch (err) {
+      console.error('[PortraitManager] Coach bundled search error:', err);
+      resultsEl.innerHTML = '<div class="bundled-empty-state"><p>Error searching coach portraits.</p></div>';
+    }
+  }
+
+  // =====================================
+  // WORKSPACE FUNCTIONS
+  // =====================================
+
+  let workspaceSelectedPid = null;
+  let workspaceSelectedPlayerId = null;
+  let workspaceSearchTimeout = null;
+
+  /**
+   * Render the workspace grid with unassigned portraits
+   */
+  async function renderWorkspaceGrid() {
+    const grid = document.getElementById('workspaceUnassignedGrid');
+    if (!grid) {
+      console.error('[PortraitManager] Workspace grid not found');
+      return;
+    }
+
+    console.log('[PortraitManager] Rendering workspace grid...');
+
+    // Refresh portraits
+    try {
+      portraits = await window.electronAPI.customPortrait.list();
+      console.log('[PortraitManager] Loaded portraits:', portraits?.length || 0);
+    } catch (err) {
+      console.error('[PortraitManager] Error loading portraits:', err);
+      grid.innerHTML = `
+        <div class="portrait-empty-state" style="padding: 40px; text-align: center;">
+          <span style="font-size: 2rem;">❌</span>
+          <h3 style="color: var(--text-primary);">Error Loading Portraits</h3>
+          <p style="color: var(--text-secondary);">${err.message}</p>
+        </div>
+      `;
+      return;
+    }
+
+    const unassigned = portraits.filter(p => !p.playerName && !p.databasePlayerId);
+    console.log('[PortraitManager] Unassigned portraits:', unassigned.length);
+
+    // Update unassigned count badge
+    const badge = document.getElementById('workspace-unassigned-count');
+    if (badge) {
+      badge.textContent = `${unassigned.length} to assign`;
+    }
+
+    // No portraits at all
+    if (!portraits || portraits.length === 0) {
+      grid.innerHTML = `
+        <div class="portrait-empty-state" style="padding: 40px; text-align: center;">
+          <span style="font-size: 2rem;">🖼️</span>
+          <h3 style="color: var(--text-primary);">No Portraits Imported</h3>
+          <p style="color: var(--text-secondary);">Use "Import Portraits" to add custom portraits first.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // All portraits assigned
+    if (unassigned.length === 0) {
+      grid.innerHTML = `
+        <div class="portrait-empty-state" style="padding: 40px; text-align: center;">
+          <span style="font-size: 2rem;">✅</span>
+          <h3 style="color: var(--text-primary);">All Done!</h3>
+          <p style="color: var(--text-secondary);">All ${portraits.length} portraits have been assigned to players.</p>
+        </div>
+      `;
+      return;
+    }
+
+    // Render unassigned portraits
+    grid.innerHTML = '';
+    for (const p of unassigned) {
+      const card = document.createElement('div');
+      card.className = 'portrait-card' + (workspaceSelectedPid === p.pid ? ' selected' : '');
+      card.dataset.pid = p.pid;
+      card.style.cursor = 'pointer';
+
+      const img = document.createElement('img');
+      img.alt = `Portrait ${p.pid}`;
+      try {
+        const imageData = await window.electronAPI.customPortrait.get(p.pid);
+        img.src = imageData || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+      } catch (e) {
+        img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+      }
+      card.appendChild(img);
+
+      const pidEl = document.createElement('div');
+      pidEl.className = 'portrait-pid';
+      pidEl.textContent = `PID: ${p.pid}`;
+      card.appendChild(pidEl);
+
+      // Show suggested name from filename with quick confirm button
+      const suggestedName = parsePlayerNameFromFilename(p.originalFilename);
+      if (suggestedName) {
+        const nameRow = document.createElement('div');
+        nameRow.className = 'portrait-name-row';
+        nameRow.style.cssText = 'display: flex; align-items: center; gap: 4px; justify-content: center;';
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'portrait-name portrait-name-suggested';
+        nameEl.textContent = '? ' + suggestedName;
+        nameEl.title = 'Suggested from filename';
+        nameRow.appendChild(nameEl);
+
+        // Quick confirm checkmark button
+        const quickConfirm = document.createElement('button');
+        quickConfirm.className = 'portrait-quick-confirm';
+        quickConfirm.innerHTML = '✓';
+        quickConfirm.title = 'Quick confirm this match';
+        quickConfirm.style.cssText = 'background: #4caf50; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; line-height: 1;';
+        quickConfirm.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await handleWorkspaceQuickConfirm(p.pid, suggestedName);
+        });
+        nameRow.appendChild(quickConfirm);
+
+        card.appendChild(nameRow);
+      }
+
+      card.addEventListener('click', () => handleWorkspacePortraitSelect(p.pid, suggestedName));
+      grid.appendChild(card);
+    }
+
+    // Setup search handler
+    const searchInput = document.getElementById('workspacePlayerSearch');
+    if (searchInput && !searchInput.dataset.bound) {
+      searchInput.dataset.bound = 'true';
+      searchInput.addEventListener('input', handleWorkspacePlayerSearch);
+    }
+
+    // Setup assign button
+    const assignBtn = document.getElementById('btn-workspace-assign');
+    if (assignBtn && !assignBtn.dataset.bound) {
+      assignBtn.dataset.bound = 'true';
+      assignBtn.addEventListener('click', handleWorkspaceAssign);
+    }
+  }
+
+  /**
+   * Handle portrait selection in workspace
+   */
+  function handleWorkspacePortraitSelect(pid, suggestedName) {
+    workspaceSelectedPid = pid;
+
+    // Update visual selection
+    const grid = document.getElementById('workspaceUnassignedGrid');
+    grid.querySelectorAll('.portrait-card').forEach(card => {
+      card.classList.toggle('selected', card.dataset.pid == pid);
+    });
+
+    // Auto-search if we have a suggested name
+    if (suggestedName) {
+      const searchInput = document.getElementById('workspacePlayerSearch');
+      if (searchInput) {
+        searchInput.value = suggestedName;
+        handleWorkspacePlayerSearch();
+      }
+    }
+  }
+
+  /**
+   * Handle player search in workspace
+   */
+  async function handleWorkspacePlayerSearch() {
+    const input = document.getElementById('workspacePlayerSearch');
+    const resultsEl = document.getElementById('workspacePlayerResults');
+    if (!input || !resultsEl) return;
+
+    clearTimeout(workspaceSearchTimeout);
+
+    const query = input.value.trim();
+    if (query.length < 2) {
+      resultsEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Type at least 2 characters to search...</div>';
+      return;
+    }
+
+    workspaceSearchTimeout = setTimeout(async () => {
+      resultsEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Searching...</div>';
+
+      try {
+        // Search player database
+        console.log('[PortraitManager] Searching players for:', query);
+        const response = await window.electronAPI.database.searchPlayers(query, { limit: 20 });
+        console.log('[PortraitManager] Search response:', response);
+        const results = response?.players || response || [];
+
+        if (!results || results.length === 0) {
+          resultsEl.innerHTML = `
+            <div style="padding: 20px; text-align: center;">
+              <p style="color: var(--text-secondary); margin-bottom: 12px;">No players found for "${query}"</p>
+              <button id="btn-workspace-create-player" class="btn btn-secondary" style="padding: 8px 16px;">
+                + Create New Player
+              </button>
+            </div>
+          `;
+          // Add create player handler
+          document.getElementById('btn-workspace-create-player')?.addEventListener('click', () => {
+            handleWorkspaceCreatePlayer(query);
+          });
+          return;
+        }
+
+        console.log('[PortraitManager] Found players:', results.length);
+
+        resultsEl.innerHTML = results.map(p => {
+          // Handle both field name formats
+          const playerId = p.internalId || p.id;
+          const firstName = p.firstName || p.first_name || '';
+          const lastName = p.lastName || p.last_name || '';
+          const position = p.position || '';
+          const college = p.college || '';
+          const draftYear = p.draftYear || p.draftClass || '';
+          const photoId = p.photoId || p.photo_id || '';
+          return `
+          <div class="workspace-player-item" data-id="${playerId}" data-firstname="${firstName}" data-lastname="${lastName}"
+               style="padding: 10px 12px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 500; color: var(--text-primary);">${firstName} ${lastName}</div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary);">${position} - ${college} ${draftYear ? '(' + draftYear + ')' : ''}</div>
+            </div>
+            <div style="font-size: 0.75rem; color: ${photoId ? 'var(--accent-color)' : 'var(--text-secondary)'};">
+              ${photoId ? 'PID: ' + photoId : 'No PID'}
+            </div>
+          </div>
+        `}).join('');
+
+        // Add click handlers
+        resultsEl.querySelectorAll('.workspace-player-item').forEach(item => {
+          item.addEventListener('click', () => {
+            workspaceSelectedPlayerId = item.dataset.id;
+            const name = `${item.dataset.firstname} ${item.dataset.lastname}`.trim();
+            console.log('[PortraitManager] Selected player:', workspaceSelectedPlayerId, name);
+
+            // Show selected player
+            const selectedEl = document.getElementById('workspaceSelectedPlayer');
+            const nameEl = document.getElementById('workspacePlayerName');
+            const detailsEl = document.getElementById('workspacePlayerDetails');
+
+            if (selectedEl && nameEl) {
+              nameEl.textContent = name;
+              detailsEl.textContent = `ID: ${item.dataset.id}`;
+              selectedEl.style.display = 'block';
+            }
+
+            // Highlight selected item
+            resultsEl.querySelectorAll('.workspace-player-item').forEach(i => {
+              i.style.background = i === item ? 'var(--accent-color-20)' : '';
+            });
+          });
+        });
+      } catch (err) {
+        console.error('[PortraitManager] Workspace search error:', err);
+        resultsEl.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Error searching players</div>';
+      }
+    }, 300);
+  }
+
+  /**
+   * Handle portrait assignment in workspace
+   */
+  async function handleWorkspaceAssign() {
+    if (!workspaceSelectedPid || !workspaceSelectedPlayerId) {
+      alert('Please select both a portrait and a player.');
+      return;
+    }
+
+    // Save PID before clearing selection
+    const assignedPid = workspaceSelectedPid;
+
+    try {
+      // Get player name
+      const nameEl = document.getElementById('workspacePlayerName');
+      const playerName = nameEl?.textContent || 'Unknown';
+
+      // Update portrait metadata
+      await window.electronAPI.customPortrait.updateMetadata(assignedPid, {
+        playerName: playerName,
+        databasePlayerId: parseInt(workspaceSelectedPlayerId)
+      });
+
+      console.log(`[PortraitManager] Assigned PID ${assignedPid} to ${playerName}`);
+
+      // Clear selection
+      workspaceSelectedPid = null;
+      workspaceSelectedPlayerId = null;
+      document.getElementById('workspaceSelectedPlayer').style.display = 'none';
+      document.getElementById('workspacePlayerSearch').value = '';
+      document.getElementById('workspacePlayerResults').innerHTML = '';
+
+      // Remove just the assigned card from DOM instead of re-rendering entire grid
+      const grid = document.getElementById('workspaceUnassignedGrid');
+      const card = grid?.querySelector(`.portrait-card[data-pid="${assignedPid}"]`);
+      if (card) {
+        card.remove();
+        console.log(`[PortraitManager] Removed card for PID ${assignedPid} from grid`);
+
+        // Update the unassigned count badge
+        const badge = document.getElementById('workspace-unassigned-count');
+        if (badge) {
+          const remaining = grid.querySelectorAll('.portrait-card').length;
+          badge.textContent = `${remaining} to assign`;
+
+          // Show "All Done" message if no more unassigned
+          if (remaining === 0) {
+            grid.innerHTML = `
+              <div class="portrait-empty-state" style="padding: 40px; text-align: center;">
+                <span style="font-size: 2rem;">✅</span>
+                <h3 style="color: var(--text-primary);">All Done!</h3>
+                <p style="color: var(--text-secondary);">All portraits have been assigned to players.</p>
+              </div>
+            `;
+          }
+        }
+      } else {
+        // Fallback to full refresh if card not found
+        await renderWorkspaceGrid();
+      }
+
+    } catch (err) {
+      console.error('[PortraitManager] Error assigning portrait:', err);
+      alert('Error assigning portrait: ' + err.message);
+    }
+  }
+
+  /**
+   * Quick confirm a suggested name match in workspace
+   */
+  async function handleWorkspaceQuickConfirm(pid, suggestedName) {
+    if (!suggestedName) {
+      alert('No suggested name to confirm');
+      return;
+    }
+
+    console.log('[PortraitManager] Quick confirming PID', pid, 'as', suggestedName);
+
+    try {
+      // Try to find a matching player in the database
+      const response = await window.electronAPI.database.searchPlayers(suggestedName, { limit: 5 });
+      const results = response?.players || response || [];
+
+      if (results.length > 0) {
+        // Use the first match
+        const player = results[0];
+        const playerId = player.internalId || player.id;
+        const playerName = `${player.firstName || ''} ${player.lastName || ''}`.trim();
+
+        await window.electronAPI.customPortrait.updateMetadata(pid, {
+          playerName: playerName,
+          databasePlayerId: playerId
+        });
+
+        console.log(`[PortraitManager] Quick assigned PID ${pid} to ${playerName} (ID: ${playerId})`);
+      } else {
+        // No database match, just assign the name
+        await window.electronAPI.customPortrait.updateMetadata(pid, {
+          playerName: suggestedName
+        });
+
+        console.log(`[PortraitManager] Quick assigned PID ${pid} to ${suggestedName} (no database match)`);
+      }
+
+      // Remove just the confirmed card from DOM instead of re-rendering entire grid
+      const grid = document.getElementById('workspaceUnassignedGrid');
+      const card = grid?.querySelector(`.portrait-card[data-pid="${pid}"]`);
+      if (card) {
+        card.remove();
+        console.log(`[PortraitManager] Removed card for PID ${pid} from grid`);
+
+        // Update the unassigned count badge
+        const badge = document.getElementById('workspace-unassigned-count');
+        if (badge) {
+          const remaining = grid.querySelectorAll('.portrait-card').length;
+          badge.textContent = `${remaining} to assign`;
+
+          // Show "All Done" message if no more unassigned
+          if (remaining === 0) {
+            grid.innerHTML = `
+              <div class="portrait-empty-state" style="padding: 40px; text-align: center;">
+                <span style="font-size: 2rem;">✅</span>
+                <h3 style="color: var(--text-primary);">All Done!</h3>
+                <p style="color: var(--text-secondary);">All portraits have been assigned to players.</p>
+              </div>
+            `;
+          }
+        }
+      } else {
+        // Fallback to full refresh if card not found
+        await renderWorkspaceGrid();
+      }
+
+    } catch (err) {
+      console.error('[PortraitManager] Error quick confirming:', err);
+      alert('Error confirming match: ' + err.message);
+    }
+  }
+
+  /**
+   * Create a new player from workspace when no match found
+   */
+  async function handleWorkspaceCreatePlayer(suggestedName) {
+    // Parse suggested name into first/last
+    const parts = suggestedName.trim().split(/\s+/);
+    let firstName = '';
+    let lastName = '';
+
+    if (parts.length === 1) {
+      lastName = parts[0];
+    } else if (parts.length >= 2) {
+      firstName = parts[0];
+      lastName = parts.slice(1).join(' ');
+    }
+
+    console.log('[PortraitManager] Creating new player:', firstName, lastName);
+
+    // Use the existing createNewPlayer function if available, or open the database player creator
+    if (typeof createNewPlayer === 'function') {
+      // Set the pending portrait PID to be assigned after creation
+      pendingPortraitPid = workspaceSelectedPid;
+      createNewPlayer(firstName, lastName);
+    } else if (typeof window.createNewDbPlayer === 'function') {
+      // Set pending portrait for database player card
+      pendingPortraitPid = workspaceSelectedPid;
+      window.createNewDbPlayer(firstName, lastName);
+    } else {
+      // Fallback: Create directly via API
+      try {
+        const result = await window.electronAPI.database.createCustomPlayer({
+          firstName: firstName,
+          lastName: lastName,
+          position: '',
+          photoId: workspaceSelectedPid
+        });
+
+        if (result.success && result.playerId) {
+          // Assign portrait to new player
+          await window.electronAPI.customPortrait.updateMetadata(workspaceSelectedPid, {
+            playerName: suggestedName,
+            databasePlayerId: result.playerId
+          });
+
+          alert(`Created player: ${firstName} ${lastName}`);
+          await renderWorkspaceGrid();
+        } else {
+          alert('Error creating player: ' + (result.error || 'Unknown error'));
+        }
+      } catch (err) {
+        console.error('[PortraitManager] Error creating player:', err);
+        alert('Error creating player: ' + err.message);
+      }
+    }
+  }
+
+  /**
+   * Update the portrait count badge on the landing page
+   */
+  async function updatePortraitCountBadge() {
+    const badge = document.getElementById('my-portraits-count');
+    if (badge) {
+      badge.textContent = portraits.length.toString();
+    }
+
+    // Also update workspace unassigned count
+    const unassignedBadge = document.getElementById('workspace-unassigned-count');
+    if (unassignedBadge) {
+      const unassigned = portraits.filter(p => !p.playerName && !p.databasePlayerId).length;
+      unassignedBadge.textContent = `${unassigned} to assign`;
+    }
+  }
+
+  // Initialize tool card landing page when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initToolCardLandingPage);
+  } else {
+    initToolCardLandingPage();
+  }
+
   // Export for potential external use
   window.portraitManager = {
     refresh: refreshPortraits,
@@ -2634,7 +3531,10 @@
     getPendingPortraitPid: () => pendingPortraitPid,
     clearPendingPortraitPid: () => { pendingPortraitPid = null; },
     // Coach portrait functions
-    searchCoachPortraits: handleCoachBundledSearch
+    searchCoachPortraits: handleCoachBundledSearch,
+    // New modal functions
+    openToolModal: openPortraitToolModal,
+    updateCountBadge: updatePortraitCountBadge
   };
 
   // Coach portrait manager export
