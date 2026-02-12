@@ -88,6 +88,82 @@ const SEASON_WEEK_TYPES = {
 };
 
 /**
+ * SqlJsWrapper - Provides a better-sqlite3-like API for sql.js
+ * This allows using sql.js (pure JS) while maintaining compatibility with existing code
+ */
+class SqlJsWrapper {
+  private db: any;
+
+  constructor(db: any) {
+    this.db = db;
+  }
+
+  /**
+   * Prepare a SQL statement and return a statement object with get() and all() methods
+   */
+  prepare(sql: string): SqlJsStatement {
+    return new SqlJsStatement(this.db, sql);
+  }
+
+  /**
+   * Close the database
+   */
+  close(): void {
+    this.db.close();
+  }
+}
+
+/**
+ * SqlJsStatement - Wraps a sql.js prepared statement
+ */
+class SqlJsStatement {
+  private db: any;
+  private sql: string;
+
+  constructor(db: any, sql: string) {
+    this.db = db;
+    this.sql = sql;
+  }
+
+  /**
+   * Execute query and return first result row
+   */
+  get(...params: any[]): any {
+    const stmt = this.db.prepare(this.sql);
+    try {
+      if (params.length > 0) {
+        stmt.bind(params);
+      }
+      if (stmt.step()) {
+        return stmt.getAsObject();
+      }
+      return null;
+    } finally {
+      stmt.free();
+    }
+  }
+
+  /**
+   * Execute query and return all result rows
+   */
+  all(...params: any[]): any[] {
+    const stmt = this.db.prepare(this.sql);
+    const results: any[] = [];
+    try {
+      if (params.length > 0) {
+        stmt.bind(params);
+      }
+      while (stmt.step()) {
+        results.push(stmt.getAsObject());
+      }
+      return results;
+    } finally {
+      stmt.free();
+    }
+  }
+}
+
+/**
  * Get a field value from a record, trying both the named field and the generic Field_X name
  */
 function getGameField(record: any, fieldName: keyof typeof SEASON_GAME_FIELD_MAPPING): any {
@@ -4439,6 +4515,289 @@ ${fieldsList}
       success: true,
       recordsUpdated: totalRecordsUpdated
     };
+  }
+
+  // ============================================
+  // SUPER BOWL HISTORY METHODS
+  // ============================================
+
+  /**
+   * Load Super Bowl history data
+   */
+  private loadSuperBowlHistoryData(): any | null {
+    try {
+      const appPath = app.getAppPath();
+      const dataPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
+        : path.join(appPath, 'data', 'retro');
+
+      const historyPath = path.join(dataPath, 'super-bowl-history.json');
+      if (!fs.existsSync(historyPath)) {
+        console.log('[RetroEditorService] No Super Bowl history data file found');
+        return null;
+      }
+
+      const historyData = JSON.parse(fs.readFileSync(historyPath, 'utf-8'));
+      console.log('[RetroEditorService] Loaded Super Bowl history data');
+      return historyData;
+    } catch (error) {
+      console.error('[RetroEditorService] Error loading Super Bowl history data:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get historical stats preview for a specific year
+   * Shows database stats and sample players that will be matched
+   */
+  async getHistoricalStatsPreview(year: number): Promise<{
+    totalPlayers: number;
+    yearCoverage: string;
+    matchedPlayers: number;
+    samplePlayers: any[];
+  }> {
+    console.log(`[RetroEditorService] Getting historical stats preview for year ${year}`);
+
+    const db = await this.getCareerStatsDatabase();
+    if (!db) {
+      throw new Error('Career stats database not available');
+    }
+
+    try {
+      // Get total players and year coverage from database
+      const playerCount = db.prepare('SELECT COUNT(*) as c FROM players').get() as any;
+      const yearRange = db.prepare('SELECT MIN(from_year) as min_year, MAX(to_year) as max_year FROM players').get() as any;
+
+      // Get sample players who would have stats before the target year
+      // Note: handles both 'success' (PFR scraped) and 'imported' (XLS imported) data
+      const samplePlayers = db.prepare(`
+        SELECT p.first_name, p.last_name, p.position, p.from_year, p.to_year,
+               SUM(s.pass_yds) as pass_yds, SUM(s.rush_yds) as rush_yds,
+               SUM(s.rec_yds) as rec_yds, SUM(s.tackles) as tackles, SUM(s.sacks) as sacks
+        FROM players p
+        LEFT JOIN player_season_stats s ON p.pfr_id = s.pfr_id AND s.year < ?
+        WHERE p.to_year >= ? AND p.from_year < ?
+        GROUP BY p.pfr_id
+        HAVING SUM(s.games) > 0
+        ORDER BY (SUM(s.pass_yds) + SUM(s.rush_yds) + SUM(s.rec_yds)) DESC
+        LIMIT 10
+      `).all(year, year - 15, year) as any[];
+
+      // Count players who would have stats
+      const matchedCount = db.prepare(`
+        SELECT COUNT(DISTINCT p.pfr_id) as c
+        FROM players p
+        JOIN player_season_stats s ON p.pfr_id = s.pfr_id AND s.year < ?
+        WHERE p.to_year >= ? AND p.from_year < ?
+      `).get(year, year - 15, year) as any;
+
+      return {
+        totalPlayers: playerCount?.c || 0,
+        yearCoverage: `${yearRange?.min_year || '?'}-${yearRange?.max_year || '?'}`,
+        matchedPlayers: matchedCount?.c || 0,
+        samplePlayers: samplePlayers.map(p => ({
+          first_name: p.first_name,
+          last_name: p.last_name,
+          position: p.position,
+          pass_yds: p.pass_yds || 0,
+          rush_yds: p.rush_yds || 0,
+          rec_yds: p.rec_yds || 0,
+          tackles: p.tackles || 0,
+          sacks: p.sacks || 0
+        }))
+      };
+    } finally {
+      db.close();
+    }
+  }
+
+  /**
+   * Get career stats database connection using sql.js (pure JS SQLite)
+   * This avoids native module compatibility issues with Electron
+   */
+  private async getCareerStatsDatabase(): Promise<SqlJsWrapper | null> {
+    try {
+      const initSqlJs = require('sql.js');
+      const appPath = app.getAppPath();
+      const dbPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'player-career-stats.db')
+        : path.join(appPath, 'data', 'player-career-stats.db');
+
+      if (!fs.existsSync(dbPath)) {
+        console.log('[RetroEditorService] Career stats database not found at:', dbPath);
+        return null;
+      }
+
+      // Initialize sql.js
+      const SQL = await initSqlJs();
+
+      // Load database file into memory
+      const fileBuffer = fs.readFileSync(dbPath);
+      const db = new SQL.Database(fileBuffer);
+
+      // Return a wrapper that provides a better-sqlite3-like API
+      return new SqlJsWrapper(db);
+    } catch (error) {
+      console.error('[RetroEditorService] Error opening career stats database:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Apply historical career stats to franchise file players
+   * Matches players by name and populates their career stats
+   */
+  async applyHistoricalStats(filePath: string, year: number): Promise<{ success: boolean; playersUpdated: number }> {
+    console.log(`[RetroEditorService] Applying historical stats for year ${year}`);
+
+    const db = await this.getCareerStatsDatabase();
+    if (!db) {
+      throw new Error('Career stats database not available');
+    }
+
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      db.close();
+      throw new Error(`Franchise file not loaded: ${filePath}`);
+    }
+
+    try {
+      // Get Player table
+      const PLAYER_TABLE_ID = 1612938518;
+      const playerTable = franchise.getTableByUniqueId(PLAYER_TABLE_ID);
+      if (!playerTable) {
+        throw new Error('Player table not found');
+      }
+
+      await playerTable.readRecords();
+      console.log(`[RetroEditorService] Found ${playerTable.records.length} players in franchise`);
+
+      // Get CareerOffensiveStats and CareerDefensiveStats tables
+      const CAREER_OFF_STATS_ID = 3425633076;
+      const CAREER_DEF_STATS_ID = 2990623107;
+
+      const careerOffTable = franchise.getTableByUniqueId(CAREER_OFF_STATS_ID);
+      const careerDefTable = franchise.getTableByUniqueId(CAREER_DEF_STATS_ID);
+
+      if (careerOffTable) await careerOffTable.readRecords();
+      if (careerDefTable) await careerDefTable.readRecords();
+
+      console.log(`[RetroEditorService] Career tables: Offensive=${careerOffTable?.records?.length || 0}, Defensive=${careerDefTable?.records?.length || 0}`);
+
+      // Prepare query for getting player stats
+      const getPlayerStats = db.prepare(`
+        SELECT p.pfr_id, p.first_name, p.last_name, p.position, p.from_year, p.to_year,
+               SUM(s.games) as games, SUM(s.games_started) as games_started,
+               SUM(s.pass_cmp) as pass_cmp, SUM(s.pass_att) as pass_att,
+               SUM(s.pass_yds) as pass_yds, SUM(s.pass_td) as pass_td, SUM(s.pass_int) as pass_int,
+               SUM(s.rush_att) as rush_att, SUM(s.rush_yds) as rush_yds, SUM(s.rush_td) as rush_td,
+               SUM(s.rec) as rec, SUM(s.rec_yds) as rec_yds, SUM(s.rec_td) as rec_td,
+               SUM(s.tackles) as tackles, SUM(s.sacks) as sacks,
+               SUM(s.def_int) as def_int, SUM(s.ff) as ff, SUM(s.fr) as fr
+        FROM players p
+        JOIN player_season_stats s ON p.pfr_id = s.pfr_id
+        WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?) AND s.year < ?
+        GROUP BY p.pfr_id
+        ORDER BY ABS(p.from_year - ?) ASC
+        LIMIT 1
+      `);
+
+      let playersUpdated = 0;
+
+      for (const player of playerTable.records) {
+        if (player.isEmpty) continue;
+
+        const firstName = player.FirstName;
+        const lastName = player.LastName;
+        if (!firstName || !lastName) continue;
+
+        // Look up player in our database
+        const stats = getPlayerStats.get(firstName, lastName, year, year - 10) as any;
+        if (!stats || stats.games === 0) continue;
+
+        // Apply offensive stats if player has career stats reference
+        if (careerOffTable && player.CareerStats) {
+          try {
+            // Extract record index from CareerStats reference (last 17 bits)
+            const careerStatsRef = parseInt(player.CareerStats);
+            if (careerStatsRef > 0) {
+              const recordIndex = careerStatsRef & 0x1FFFF;
+              if (recordIndex < careerOffTable.records.length) {
+                const careerRecord = careerOffTable.records[recordIndex];
+
+                // Set offensive stats
+                if (stats.pass_yds > 0) {
+                  careerRecord.PASSYARDS = stats.pass_yds || 0;
+                  careerRecord.PASSTDS = stats.pass_td || 0;
+                  careerRecord.PASSINTS = stats.pass_int || 0;
+                  careerRecord.PASSATT = stats.pass_att || 0;
+                  careerRecord.PASSCOMP = stats.pass_cmp || 0;
+                }
+
+                if (stats.rush_yds > 0) {
+                  careerRecord.RUSHYARDS = stats.rush_yds || 0;
+                  careerRecord.RUSHTDS = stats.rush_td || 0;
+                  careerRecord.RUSHATTS = stats.rush_att || 0;
+                }
+
+                if (stats.rec_yds > 0) {
+                  careerRecord.RECYARDS = stats.rec_yds || 0;
+                  careerRecord.RECTDS = stats.rec_td || 0;
+                  careerRecord.RECEPTIONS = stats.rec || 0;
+                }
+
+                careerRecord.GAMESPLAYED = stats.games || 0;
+                careerRecord.GAMESSTARTED = stats.games_started || 0;
+
+                playersUpdated++;
+
+                if (playersUpdated <= 5) {
+                  console.log(`[RetroEditorService] Updated ${firstName} ${lastName}: ${stats.pass_yds} pass yds, ${stats.rush_yds} rush yds, ${stats.rec_yds} rec yds`);
+                }
+              }
+            }
+          } catch (e: any) {
+            console.error(`[RetroEditorService] Error updating offensive stats for ${firstName} ${lastName}:`, e.message);
+          }
+        }
+
+        // Apply defensive stats
+        if (careerDefTable && player.CareerDefensiveStats) {
+          try {
+            const defStatsRef = parseInt(player.CareerDefensiveStats);
+            if (defStatsRef > 0) {
+              const recordIndex = defStatsRef & 0x1FFFF;
+              if (recordIndex < careerDefTable.records.length) {
+                const defRecord = careerDefTable.records[recordIndex];
+
+                if (stats.tackles > 0 || stats.sacks > 0 || stats.def_int > 0) {
+                  defRecord.TOTALTACKLES = stats.tackles || 0;
+                  defRecord.SACKS = stats.sacks || 0;
+                  defRecord.DEFINTS = stats.def_int || 0;
+                  defRecord.FORCEDFUMBLES = stats.ff || 0;
+                  defRecord.FUMRECS = stats.fr || 0;
+                }
+              }
+            }
+          } catch (e: any) {
+            console.error(`[RetroEditorService] Error updating defensive stats for ${firstName} ${lastName}:`, e.message);
+          }
+        }
+      }
+
+      console.log(`[RetroEditorService] Historical stats applied: ${playersUpdated} players updated`);
+
+      // Save the franchise file
+      await franchise.save(filePath);
+      console.log(`[RetroEditorService] Franchise file saved`);
+
+      return {
+        success: true,
+        playersUpdated
+      };
+    } finally {
+      db.close();
+    }
   }
 
   // ============================================

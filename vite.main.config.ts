@@ -77,6 +77,22 @@ export default defineConfig({
             }
           }
 
+          // Copy player-career-stats.db SQLite database (for historical stats in retro editor)
+          const srcCareerStatsDb = path.join(srcDataDir, 'player-career-stats.db');
+          if (existsSync(srcCareerStatsDb)) {
+            const destCareerStatsDb = path.join(destDataDir, 'player-career-stats.db');
+            try {
+              copyFileSync(srcCareerStatsDb, destCareerStatsDb);
+              console.log('Copied player-career-stats.db to build output');
+            } catch (dbError) {
+              if (dbError.code === 'EBUSY') {
+                console.log('player-career-stats.db is locked, using existing copy if available');
+              } else {
+                throw dbError;
+              }
+            }
+          }
+
           // Copy portrait atlas JSON
           const atlasFile = path.join(srcDataDir, 'portrait-atlas.json');
           if (existsSync(atlasFile)) {
