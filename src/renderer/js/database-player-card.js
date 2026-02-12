@@ -220,10 +220,31 @@
       addToDraftBtn.addEventListener('click', addPlayerToDraft);
     }
 
-    // Year selector
+    // Year selector (Ratings tab)
     var yearSelect = document.getElementById('dbPlayerYearSelect');
     if (yearSelect) {
+      console.log('[DbPlayerCard] Setting up year selector listener');
       yearSelect.addEventListener('change', onYearChange);
+    } else {
+      console.warn('[DbPlayerCard] dbPlayerYearSelect not found!');
+    }
+
+    // Career Stats year selector
+    var statsYearSelect = document.getElementById('dbStatsYearSelect');
+    if (statsYearSelect) {
+      statsYearSelect.addEventListener('change', onCareerStatsYearChange);
+    }
+
+    // Calculate Rating from Stats button
+    var calcRatingBtn = document.getElementById('btnCalculateRatingFromStats');
+    if (calcRatingBtn) {
+      calcRatingBtn.addEventListener('click', calculateRatingFromStats);
+    }
+
+    // Refresh Career Stats button
+    var refreshStatsBtn = document.getElementById('btnRefreshCareerStats');
+    if (refreshStatsBtn) {
+      refreshStatsBtn.addEventListener('click', refreshCareerStats);
     }
 
     // Track changes on all inputs
@@ -249,6 +270,25 @@
             portraitEl.style.display = 'none';
           }
         }
+      });
+    }
+
+    // Team change listener - sync to career stats tab and ratings all-years table
+    var seasonTeamSelect = document.getElementById('dbPlayerSeasonTeam');
+    if (seasonTeamSelect) {
+      seasonTeamSelect.addEventListener('change', async function() {
+        console.log('[DbPlayerCard] Team changed, syncing to other views');
+        // Small delay to allow save to complete
+        setTimeout(async function() {
+          // Refresh career stats to show updated team
+          if (currentDbPlayer && careerStatsData) {
+            await renderCareerStatsAllYears(careerStatsData);
+          }
+          // Refresh ratings all-years table to show updated team
+          if (currentDbPlayerId && availableYears && availableYears.length > 0) {
+            await renderRatingsAllYears();
+          }
+        }, 100);
       });
     }
 
@@ -278,7 +318,8 @@
       console.log('[DbPlayerCard] OVR input found, setting up listeners');
       // Store previous value to detect actual changes - capture on multiple events
       var captureOldValue = function() {
-        if (!ovrInput.dataset.previousValue) {
+        // Only capture if previousValue is not set AND current value is not empty
+        if (!ovrInput.dataset.previousValue && ovrInput.value && ovrInput.value.trim() !== '') {
           ovrInput.dataset.previousValue = ovrInput.value;
           console.log('[DbPlayerCard] Captured previous OVR:', ovrInput.value);
         }
@@ -290,7 +331,10 @@
       ovrInput.addEventListener('change', function() {
         var oldOVR = parseInt(ovrInput.dataset.previousValue, 10);
         var newOVR = parseInt(ovrInput.value, 10);
+        console.log('[DbPlayerCard] OVR change event fired!');
+        console.log('[DbPlayerCard] previousValue from dataset:', ovrInput.dataset.previousValue);
         console.log('[DbPlayerCard] OVR change detected:', oldOVR, '->', newOVR);
+        console.log('[DbPlayerCard] Conditions: isNaN(oldOVR)=', isNaN(oldOVR), 'isNaN(newOVR)=', isNaN(newOVR), 'oldOVR !== newOVR:', oldOVR !== newOVR);
 
         // Clear the captured value for next change
         ovrInput.dataset.previousValue = '';
@@ -298,6 +342,8 @@
         if (!isNaN(oldOVR) && !isNaN(newOVR) && oldOVR !== newOVR && newOVR >= 0 && newOVR <= 99) {
           console.log('[DbPlayerCard] Calling handleDbOVRChange');
           handleDbOVRChange(oldOVR, newOVR);
+        } else {
+          console.log('[DbPlayerCard] NOT calling handleDbOVRChange - condition failed');
         }
       });
     } else {
@@ -577,6 +623,12 @@
       // Set up year selector (async - fetches from DB)
       await setupYearSelector(currentDbPlayer);
 
+      // Load career stats from PFR database
+      await loadCareerStats(currentDbPlayer);
+
+      // Load player traits
+      await loadPlayerTraits();
+
       // Check if player has edits
       updateEditedIndicator();
 
@@ -742,6 +794,295 @@
     setValue('dbPlayerSt', '');
     setValue('dbPlayerWAV', '');
     setChecked('dbPlayerHOF', false);
+  }
+
+  // ========================================
+  // Trait Management Functions
+  // ========================================
+
+  // Trait definitions (imported inline for simplicity)
+  const PLAYER_TRAITS = {
+    // QB Traits
+    AGGRESSIVEQB: { display: 'Aggressive QB', description: 'QB takes more risks and throws into tight coverage', category: 'QB', positions: ['QB'] },
+    CANNON: { display: 'Cannon Arm', description: 'QB can make extremely powerful throws', category: 'QB', positions: ['QB'] },
+    CONSERVATIVE: { display: 'Conservative', description: 'QB avoids risky throws and checks down more often', category: 'QB', positions: ['QB'] },
+    EYESUP: { display: 'Eyes Up', description: 'QB keeps eyes downfield while avoiding pressure', category: 'QB', positions: ['QB'] },
+    HAPPYFEET: { display: 'Happy Feet', description: 'QB tends to scramble even when not under pressure', category: 'QB', positions: ['QB'] },
+    HEROBALL: { display: 'Hero Ball', description: 'QB tries to make big plays in clutch situations', category: 'QB', positions: ['QB'] },
+    LOOKFORSTARS: { display: 'Look for Stars', description: 'QB targets star receivers more often', category: 'QB', positions: ['QB'] },
+    OBLIVIOUS: { display: 'Oblivious', description: 'QB is less aware of incoming pressure', category: 'QB', positions: ['QB'] },
+    PARANOID: { display: 'Paranoid', description: 'QB panics under pressure more easily', category: 'QB', positions: ['QB'] },
+    POCKETPASSER: { display: 'Pocket Passer', description: 'QB prefers to stay in the pocket', category: 'QB', positions: ['QB'] },
+    QUICKCLOCK: { display: 'Quick Clock', description: 'QB gets the ball out quickly', category: 'QB', positions: ['QB'] },
+    QUICKTRIGGER: { display: 'Quick Trigger', description: 'QB releases the ball very quickly', category: 'QB', positions: ['QB'] },
+    RISKTAKER: { display: 'Risk Taker', description: 'QB throws into tight windows more often', category: 'QB', positions: ['QB'] },
+    SCRAMBLER: { display: 'Scrambler', description: 'QB likes to run when plays break down', category: 'QB', positions: ['QB'] },
+    SEEINGGHOSTS: { display: 'Seeing Ghosts', description: 'QB senses phantom pressure and throws early', category: 'QB', positions: ['QB'] },
+    SETUPTIME: { display: 'Setup Time', description: 'QB needs more time to make reads', category: 'QB', positions: ['QB'] },
+    SNAPMISCHIEF: { display: 'Snap Mischief', description: 'QB draws defenders offsides with hard counts', category: 'QB', positions: ['QB'] },
+    THROWAWAY: { display: 'Throw Away', description: 'QB throws the ball away rather than taking sacks', category: 'QB', positions: ['QB'] },
+    TRIGGERHAPPY: { display: 'Trigger Happy', description: 'QB throws to first read without progression', category: 'QB', positions: ['QB'] },
+    UPANDOVER: { display: 'Up and Over', description: 'QB uses a high throwing motion', category: 'QB', positions: ['QB'] },
+
+    // Ball Carrier Traits
+    AGGRESSIVE: { display: 'Aggressive Receiver', description: 'Receiver fights for the ball in contested catches', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+    COVERBALL: { display: 'Cover Ball', description: 'Ball carrier covers up in traffic to avoid fumbles', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+    ELUSIVEINSTINCT: { display: 'Elusive Instinct', description: 'Ball carrier has natural instincts to avoid tackles', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+    HIGHLIGHTREEL: { display: 'Highlight Reel', description: 'Ball carrier makes spectacular plays', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+    POSSESSION: { display: 'Possession Receiver', description: 'Receiver focuses on securing the catch', category: 'Ball Carrier', positions: ['WR', 'TE'] },
+    RAC: { display: 'RAC Receiver', description: 'Receiver excels at gaining yards after the catch', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+    RUNOVER: { display: 'Run Over', description: 'Ball carrier powers through tackles', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+    SPINCYCLE: { display: 'Spin Cycle', description: 'Ball carrier uses spin moves effectively', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+    STEERINGCLEAR: { display: 'Steering Clear', description: 'Receiver avoids contact and runs out of bounds', category: 'Ball Carrier', positions: ['WR', 'TE'] },
+    STRONGARM: { display: 'Strong Arm', description: 'Ball carrier uses stiff arm effectively', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+    WHIRLWIND: { display: 'Whirlwind', description: 'Ball carrier spins through contact effectively', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+
+    // Defensive Traits - Position-specific (includes both old and M26 position codes)
+    BIGHITTER: { display: 'Big Hitter', description: 'Defender delivers powerful hits', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    BOUNCER: { display: 'Bouncer', description: 'Defender bounces off blocks effectively', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
+    BULL: { display: 'Bull Rush', description: 'Pass rusher uses power to push through blockers', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+    DISCIPLINED: { display: 'Disciplined', description: 'Player rarely commits penalties', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    FLYSWATTER: { display: 'Fly Swatter', description: 'Defender swats down passes at the line', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
+    HAMMERHEAD: { display: 'Hammerhead', description: 'Defender uses head-first tackling style', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    HEADHUNTER: { display: 'Head Hunter', description: 'Defender targets ball carriers aggressively', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    KNEECAPBITER: { display: 'Kneecap Biter', description: 'Defender goes low for tackles', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    PLAYBALL: { display: 'Play Ball', description: 'Defender goes for interceptions', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    PLAYBALLAGGRESSIVE: { display: 'Play Ball Aggressive', description: 'Defender aggressively attacks the ball', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
+    PLAYBALLCONSERVATIVE: { display: 'Play Ball Conservative', description: 'Defender plays it safe and goes for swats', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
+    PLAYRECEIVER: { display: 'Play Receiver', description: 'Defender focuses on the receiver, not the ball', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
+    PLAYDEFENDER: { display: 'Play Defender', description: 'Defender focuses on the offensive player', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
+    PUNCHITOUT: { display: 'Punch It Out', description: 'Defender goes for forced fumbles', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    SAFETACKLER: { display: 'Safe Tackler', description: 'Defender wraps up for secure tackles', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    SEDENTARY: { display: 'Sedentary', description: 'Defender is slow to react', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
+    STRIPSBALL: { display: 'Strips Ball', description: 'Defender actively tries to strip the ball', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    UNDISCIPLINED: { display: 'Undisciplined', description: 'Player commits penalties more often', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+
+    // Pass Rusher Traits - DL/Edge and edge-rushing LBs only
+    FINESSERUSHER: { display: 'Finesse Rusher', description: 'Pass rusher uses speed and agility moves', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+    POWERRUSHER: { display: 'Power Rusher', description: 'Pass rusher uses strength-based moves', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+    SPINRUSHER: { display: 'Spin Rusher', description: 'Pass rusher uses spin moves', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+    UNDERCUT: { display: 'Undercut', description: 'Pass rusher dips under blockers effectively', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+    FREESTYLER: { display: 'Freestyler', description: 'Pass rusher uses creative moves', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+    TWISTER: { display: 'Twister', description: 'Pass rusher uses twist/stunt moves effectively', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+    BULLISH: { display: 'Bullish', description: 'Pass rusher has a powerful bull rush', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+
+    // Blocking Traits
+    OLE: { display: 'Ole', description: 'Blocker whiffs on blocks occasionally', category: 'Blocking', positions: ['LT', 'LG', 'C', 'RG', 'RT', 'TE', 'FB'] },
+
+    // Other Traits
+    DIVECELEBRATION: { display: 'Dive Celebration', description: 'Player dives into the end zone', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE'] },
+    DOUBLEBACK: { display: 'Double Back', description: 'Ball carrier reverses field', category: 'Other', positions: ['HB', 'FB', 'WR', 'TE'] },
+    EARLYCELEBRATION: { display: 'Early Celebration', description: 'Player celebrates before crossing goal line', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE'] },
+    GASGUZZLER: { display: 'Gas Guzzler', description: 'Player tires out faster', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    JAMMER: { display: 'Red Zone Jammer', description: 'Defender excels in red zone coverage', category: 'Other', positions: ['CB', 'FS', 'SS'] }
+  };
+
+  const POSITION_ALIASES = {
+    'Mike': 'MLB', 'SAM': 'LOLB', 'WILL': 'ROLB', 'LE': 'LEDG', 'RE': 'REDG'
+  };
+
+  const TRAIT_CATEGORIES = {
+    QB: { display: 'Quarterback', color: '#4CAF50', order: 1 },
+    'Ball Carrier': { display: 'Ball Carrier', color: '#2196F3', order: 2 },
+    Defense: { display: 'Defense', color: '#f44336', order: 3 },
+    'Pass Rush': { display: 'Pass Rush', color: '#FF9800', order: 4 },
+    Blocking: { display: 'Blocking', color: '#9C27B0', order: 5 },
+    Other: { display: 'Other', color: '#607D8B', order: 6 }
+  };
+
+  /**
+   * Get traits applicable to a specific position
+   * @param {string} position - Position code
+   * @returns {Array} Array of trait objects
+   */
+  function getTraitsForPosition(position) {
+    const normalizedPosition = POSITION_ALIASES[position] || position;
+    const traits = [];
+
+    for (const [name, def] of Object.entries(PLAYER_TRAITS)) {
+      if (def.positions && def.positions.includes(normalizedPosition)) {
+        traits.push({ name, ...def });
+      }
+    }
+
+    return traits;
+  }
+
+  /**
+   * Get traits grouped by category for a position
+   * @param {string} position - Position code
+   * @returns {Object} Traits grouped by category
+   */
+  function getTraitsGroupedByCategory(position) {
+    const traits = getTraitsForPosition(position);
+    const grouped = {};
+
+    traits.forEach(trait => {
+      const category = trait.category || 'Other';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(trait);
+    });
+
+    // Sort by category order
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+      const orderA = TRAIT_CATEGORIES[a]?.order || 99;
+      const orderB = TRAIT_CATEGORIES[b]?.order || 99;
+      return orderA - orderB;
+    });
+
+    const result = {};
+    sortedCategories.forEach(cat => {
+      result[cat] = grouped[cat];
+    });
+
+    return result;
+  }
+
+  // Store current trait values for saving
+  let currentTraitValues = {};
+
+  /**
+   * Render trait toggles for a player based on their position
+   * @param {string} position - Player's position
+   * @param {Object} traitData - Current trait values (PT_* fields from franchise)
+   */
+  function renderTraitsForPosition(position, traitData = {}) {
+    const container = document.getElementById('dbTraitsContainer');
+    if (!container) {
+      console.warn('[DatabasePlayerCard] Traits container not found');
+      return;
+    }
+
+    const groupedTraits = getTraitsGroupedByCategory(position);
+
+    if (Object.keys(groupedTraits).length === 0) {
+      container.innerHTML = '<p class="trait-empty-message">No traits available for this position.</p>';
+      return;
+    }
+
+    currentTraitValues = { ...traitData };
+    let html = '';
+
+    for (const [category, traits] of Object.entries(groupedTraits)) {
+      const catInfo = TRAIT_CATEGORIES[category] || { display: category, color: '#607D8B' };
+
+      html += `
+        <div class="trait-category" data-category="${category}">
+          <div class="trait-category-header">
+            <span class="trait-category-badge" style="background: ${catInfo.color};">${traits.length}</span>
+            <h5 class="trait-category-title">${catInfo.display}</h5>
+          </div>
+          <div class="trait-grid">
+      `;
+
+      traits.forEach(trait => {
+        const fieldName = 'PT_' + trait.name;
+        const isActive = traitData[fieldName] === true || traitData[fieldName] === 'true' || traitData[fieldName] === 1;
+        const activeClass = isActive ? 'active' : '';
+        const checkedAttr = isActive ? 'checked' : '';
+
+        html += `
+          <div class="trait-item ${activeClass}" title="${trait.description}" data-trait="${trait.name}">
+            <label class="trait-label" for="trait_${trait.name}">${trait.display}</label>
+            <label class="trait-toggle">
+              <input type="checkbox" id="trait_${trait.name}" data-field="${fieldName}" ${checkedAttr}>
+              <span class="trait-toggle-slider"></span>
+            </label>
+          </div>
+        `;
+      });
+
+      html += `
+          </div>
+        </div>
+      `;
+    }
+
+    container.innerHTML = html;
+
+    // Add event listeners for trait toggles
+    container.querySelectorAll('.trait-toggle input').forEach(input => {
+      input.addEventListener('change', function() {
+        const fieldName = this.dataset.field;
+        const isChecked = this.checked;
+        currentTraitValues[fieldName] = isChecked;
+
+        // Update visual state
+        const traitItem = this.closest('.trait-item');
+        if (traitItem) {
+          traitItem.classList.toggle('active', isChecked);
+        }
+
+        hasUnsavedChanges = true;
+        console.log('[DatabasePlayerCard] Trait changed:', fieldName, isChecked);
+      });
+    });
+  }
+
+  /**
+   * Load trait data for the current player
+   * This fetches trait values from the franchise file via IPC
+   */
+  async function loadPlayerTraits() {
+    if (!currentDbPlayer || !currentDbPlayer.position) {
+      console.log('[DatabasePlayerCard] No player or position, skipping trait load');
+      return;
+    }
+
+    const position = currentDbPlayer.position;
+    console.log('[DatabasePlayerCard] Loading traits for position:', position);
+
+    // For now, render with empty trait data since franchise traits require IPC
+    // In Phase 2, we'll implement the franchise file trait loading
+    // Placeholder: load from player object if traits are included
+    let traitData = {};
+
+    // Check if trait data is available in the player object
+    for (const key of Object.keys(currentDbPlayer)) {
+      if (key.startsWith('PT_')) {
+        traitData[key] = currentDbPlayer[key];
+      }
+    }
+
+    console.log('[DatabasePlayerCard] Trait data found:', Object.keys(traitData).length, 'traits');
+
+    // Set development trait dropdown
+    const devTraitSelect = document.getElementById('dbTraitDevelopment');
+    if (devTraitSelect) {
+      const devTrait = currentDbPlayer.TraitDevelopment || currentDbPlayer.devTrait || 0;
+      devTraitSelect.value = devTrait;
+    }
+
+    renderTraitsForPosition(position, traitData);
+  }
+
+  /**
+   * Collect trait edits for saving
+   * @returns {Object} Object with PT_* field names and boolean values
+   */
+  function collectTraitEdits() {
+    const edits = {};
+
+    // Collect development trait
+    const devTraitSelect = document.getElementById('dbTraitDevelopment');
+    if (devTraitSelect && devTraitSelect.value !== '') {
+      edits.TraitDevelopment = parseInt(devTraitSelect.value, 10);
+    }
+
+    // Collect all trait toggle values
+    const container = document.getElementById('dbTraitsContainer');
+    if (container) {
+      container.querySelectorAll('.trait-toggle input').forEach(input => {
+        const fieldName = input.dataset.field;
+        if (fieldName) {
+          edits[fieldName] = input.checked;
+        }
+      });
+    }
+
+    return edits;
   }
 
   /**
@@ -913,6 +1254,18 @@
     availableYears = [];
     yearSelect.innerHTML = '<option value="">Select Year for Ratings</option>';
 
+    // Add "All Years" option for table overview
+    var allOpt = document.createElement('option');
+    allOpt.value = 'all';
+    allOpt.textContent = 'All Years (Table View)';
+    yearSelect.appendChild(allOpt);
+
+    // Initialize view states - show BOTH all-years table (always visible) and single year editor
+    var allYearsView = document.getElementById('ratingsAllYearsView');
+    var singleYearView = document.getElementById('ratingsSingleYearView');
+    if (allYearsView) allYearsView.style.display = 'block';  // Always show all-years table
+    if (singleYearView) singleYearView.style.display = 'block';  // Always show detail editor
+
     // Get career span info
     var draftYear = parseInt(player.draftClass);
     var careerFrom = parseInt(player.careerFrom);
@@ -982,6 +1335,9 @@
     selectedYear = null;
     originalSeasonData = null;
     clearRatingsForm();
+
+    // Render the all-years table immediately
+    await renderRatingsAllYears();
   }
 
   /**
@@ -1015,6 +1371,27 @@
    */
   async function onYearChange(e) {
     var year = e.target.value;
+    console.log('[DbPlayerCard] onYearChange called with value:', year);
+
+    var allYearsView = document.getElementById('ratingsAllYearsView');
+    var singleYearView = document.getElementById('ratingsSingleYearView');
+
+    console.log('[DbPlayerCard] allYearsView found:', !!allYearsView);
+    console.log('[DbPlayerCard] singleYearView found:', !!singleYearView);
+
+    // Handle "All Years" selection - just refresh the table, both views stay visible
+    if (year === 'all') {
+      console.log('[DbPlayerCard] All Years selected, refreshing table');
+      await renderRatingsAllYears();
+      // Clear the year selector since we're not editing a specific year
+      document.getElementById('dbPlayerYearSelect').value = '';
+      selectedYear = null;
+      clearRatingsForm();
+      return;
+    }
+
+    // Both views always stay visible - all-years table at top, detail editor below
+    // (Don't hide either view)
 
     if (year === 'custom') {
       var customYear = prompt('Enter year (e.g., 2024):');
@@ -1046,6 +1423,278 @@
 
     await loadRatingsForYear(selectedYear);
   }
+
+  /**
+   * Render all years ratings overview table with editable inputs
+   */
+  async function renderRatingsAllYears() {
+    console.log('[DbPlayerCard] renderRatingsAllYears called');
+    console.log('[DbPlayerCard] currentDbPlayerId:', currentDbPlayerId);
+    console.log('[DbPlayerCard] availableYears:', availableYears);
+
+    var container = document.getElementById('ratingsAllYearsTable');
+    console.log('[DbPlayerCard] ratingsAllYearsTable container found:', !!container);
+    if (!container) return;
+
+    // Set container styles for horizontal AND vertical scrolling
+    container.style.position = 'relative';
+    container.style.maxHeight = '350px';
+    container.style.overflowY = 'auto';
+    container.style.overflowX = 'auto';
+
+    if (!currentDbPlayerId || availableYears.length === 0) {
+      console.log('[DbPlayerCard] No player or years - showing no data message');
+      container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No rating data available</p>';
+      return;
+    }
+
+    container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Loading all years...</p>';
+
+    // Get team options for dropdown from team_lookup.csv
+    var teamOptions = [];
+    try {
+      var teams = await window.electronAPI.lookup.getDropdownOptions('team_lookup.csv');
+      if (teams && teams.length > 0) {
+        teamOptions = teams.map(function(t) {
+          var name = (t.label || t.name || '').trim();
+          return { abbr: name, name: name };
+        }).filter(function(t) { return t.name !== ''; });
+      }
+    } catch (e) {
+      console.warn('[DbPlayerCard] Could not load team options:', e);
+    }
+
+    try {
+      // Fetch all years data
+      var allSeasonsData = [];
+      for (var i = 0; i < availableYears.length; i++) {
+        var year = availableYears[i];
+        var result;
+        if (isCustomPlayer) {
+          result = await window.electronAPI.database.getCustomPlayerSeason(currentDbPlayerId, year);
+          if (result.success && result.data) result = { success: true, season: result.data };
+        } else {
+          result = await window.electronAPI.database.getMergedPlayerSeason(currentDbPlayerId, year);
+        }
+        // Include all years, even those without data yet
+        allSeasonsData.push({ year: year, season: result.success && result.season ? result.season : null });
+      }
+
+      // Define all rating columns - grouped by category
+      var ratingColumns = [
+        // Core
+        { field: 'POVR', label: 'OVR', highlight: true },
+        { field: 'PSPD', label: 'SPD' },
+        { field: 'PACC', label: 'ACC' },
+        { field: 'PSTR', label: 'STR' },
+        { field: 'PAGI', label: 'AGI' },
+        { field: 'PAWR', label: 'AWR' },
+        { field: 'PJMP', label: 'JMP' },
+        { field: 'PSTM', label: 'STA' },
+        { field: 'PINJ', label: 'INJ' },
+        { field: 'PTGH', label: 'TGH' },
+        { field: 'PCOD', label: 'COD' },
+        // Passing
+        { field: 'PPWR', label: 'THP', category: 'pass' },
+        { field: 'PTAS', label: 'TAS', category: 'pass' },
+        { field: 'PTAM', label: 'TAM', category: 'pass' },
+        { field: 'PTAD', label: 'TAD', category: 'pass' },
+        { field: 'PTOR', label: 'TOR', category: 'pass' },
+        { field: 'PTUP', label: 'TUP', category: 'pass' },
+        // Running
+        { field: 'PCAR', label: 'CAR', category: 'run' },
+        { field: 'PBCV', label: 'BCV', category: 'run' },
+        { field: 'PBTK', label: 'BTK', category: 'run' },
+        { field: 'PTRK', label: 'TRK', category: 'run' },
+        { field: 'PELU', label: 'ELU', category: 'run' },
+        { field: 'PSFA', label: 'SFA', category: 'run' },
+        { field: 'PSPN', label: 'SPN', category: 'run' },
+        { field: 'PJKM', label: 'JKM', category: 'run' },
+        // Receiving
+        { field: 'PCTH', label: 'CTH', category: 'rec' },
+        { field: 'PSPC', label: 'SPC', category: 'rec' },
+        { field: 'PCIT', label: 'CIT', category: 'rec' },
+        { field: 'PSRR', label: 'SRR', category: 'rec' },
+        { field: 'PMRR', label: 'MRR', category: 'rec' },
+        { field: 'PDRR', label: 'DRR', category: 'rec' },
+        { field: 'PREL', label: 'RLS', category: 'rec' },
+        // Blocking
+        { field: 'PRBK', label: 'RBK', category: 'blk' },
+        { field: 'PPBK2', label: 'PBK', category: 'blk' },
+        { field: 'PIBK', label: 'IBL', category: 'blk' },
+        { field: 'PLBK', label: 'LBK', category: 'blk' },
+        // Defense
+        { field: 'PTAK', label: 'TAK', category: 'def' },
+        { field: 'PHIT', label: 'POW', category: 'def' },
+        { field: 'PPWM', label: 'PMV', category: 'def' },
+        { field: 'PFMV', label: 'FMV', category: 'def' },
+        { field: 'PBSH', label: 'BSH', category: 'def' },
+        { field: 'PPRC', label: 'PUR', category: 'def' },
+        { field: 'PPLA', label: 'PRC', category: 'def' },
+        // Coverage
+        { field: 'PMCV', label: 'MCV', category: 'cov' },
+        { field: 'PZCV', label: 'ZCV', category: 'cov' },
+        { field: 'PPRS', label: 'PRS', category: 'cov' },
+        // Kicking
+        { field: 'PKPR', label: 'KPW', category: 'kick' },
+        { field: 'PKAC', label: 'KAC', category: 'kick' },
+        { field: 'PKRT', label: 'KRT', category: 'kick' }
+      ];
+
+      // Build team dropdown options HTML
+      var teamOptionsHtml = '<option value="">-</option>';
+      teamOptions.forEach(function(team) {
+        teamOptionsHtml += '<option value="' + (team.abbr || team.name) + '">' + (team.abbr || team.name) + '</option>';
+      });
+
+      // Styles
+      var stickyThStyle = 'position: sticky; top: 0; z-index: 10; padding: 6px 4px; border-bottom: 2px solid var(--border-color); background: #1a1a1a; color: #fff; font-weight: 600; font-size: 11px; white-space: nowrap;';
+      var inputStyle = 'width: 38px; text-align: center; background: #252525; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 2px 1px; font-size: 11px;';
+      var selectStyle = 'width: 60px; background: #252525; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 2px; font-size: 11px;';
+
+      // Build table
+      var html = '<table class="ratings-table" style="border-collapse: collapse; font-size: 11px; min-width: max-content;">';
+      html += '<thead>';
+      html += '<tr>';
+      // Fixed columns: Year, Team, Age
+      html += '<th style="text-align: left; ' + stickyThStyle + ' position: sticky; left: 0; z-index: 20; background: #1a1a1a;">Year</th>';
+      html += '<th style="text-align: left; ' + stickyThStyle + '">Team</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Age</th>';
+      // All rating columns
+      ratingColumns.forEach(function(col) {
+        var bgStyle = col.highlight ? ' background: #2a4a2a; color: #4caf50;' : '';
+        html += '<th style="text-align: center; ' + stickyThStyle + bgStyle + '">' + col.label + '</th>';
+      });
+      html += '</tr></thead><tbody>';
+
+      allSeasonsData.forEach(function(data) {
+        var s = data.season || {};
+        var r = s.ratings || {};
+        var yr = data.year;
+        var currentTeam = s.team || '';
+
+        html += '<tr style="border-bottom: 1px solid #333;" data-year="' + yr + '">';
+        // Year - sticky left, clickable
+        html += '<td style="padding: 4px; color: #64b5f6; cursor: pointer; font-weight: 500; position: sticky; left: 0; background: #1a1a1a; z-index: 5;" onclick="document.getElementById(\'dbPlayerYearSelect\').value=\'' + yr + '\'; document.getElementById(\'dbPlayerYearSelect\').dispatchEvent(new Event(\'change\'));" title="Click to edit full ratings">' + yr + '</td>';
+        // Team - editable dropdown
+        html += '<td style="padding: 2px;"><select style="' + selectStyle + '" data-year="' + yr + '" data-field="team" onchange="window.saveAllYearsRatingEdit(this)">';
+        teamOptions.forEach(function(team) {
+          var abbr = team.abbr || team.name;
+          var selected = (abbr === currentTeam) ? ' selected' : '';
+          html += '<option value="' + abbr + '"' + selected + '>' + abbr + '</option>';
+        });
+        html += '</select></td>';
+        // Age
+        html += '<td style="padding: 2px; text-align: center;"><input type="number" min="18" max="50" style="' + inputStyle + '" data-year="' + yr + '" data-field="age" value="' + (s.age || '') + '" onchange="window.saveAllYearsRatingEdit(this)"></td>';
+        // All rating columns
+        ratingColumns.forEach(function(col) {
+          var val = r[col.field] || '';
+          var style = inputStyle;
+          if (col.highlight) {
+            style += ' font-weight: bold; color: #4caf50; background: #1a2a1a;';
+          }
+          html += '<td style="padding: 2px; text-align: center;"><input type="number" min="0" max="99" style="' + style + '" data-year="' + yr + '" data-field="' + col.field + '" value="' + val + '" onchange="window.saveAllYearsRatingEdit(this)"></td>';
+        });
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      html += '<p style="color: #888; font-size: 10px; margin-top: 6px;">Scroll horizontally to see all ratings. Edit values directly or click year to view full form.</p>';
+
+      container.innerHTML = html;
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error loading all years ratings:', error);
+      container.innerHTML = '<p style="color: #f44336; text-align: center; padding: 20px;">Error loading ratings: ' + error.message + '</p>';
+    }
+  }
+
+  /**
+   * Save rating edit from all-years table
+   */
+  async function saveAllYearsRatingEdit(input) {
+    var year = parseInt(input.dataset.year, 10);
+    var field = input.dataset.field;
+    var isSelect = input.tagName === 'SELECT';
+    var value;
+
+    if (field === 'team') {
+      // Team is a string value
+      value = input.value || null;
+    } else {
+      // Numeric fields
+      value = input.value ? parseInt(input.value, 10) : null;
+    }
+
+    if (!currentDbPlayerId || isNaN(year)) {
+      console.error('[DbPlayerCard] Invalid player or year for rating edit');
+      return;
+    }
+
+    console.log('[DbPlayerCard] Saving all-years rating edit:', year, field, value);
+
+    try {
+      if (field === 'age' || field === 'team') {
+        // Age and Team are season fields, not ratings
+        var seasonData = {};
+        seasonData[field] = value;
+        if (isCustomPlayer) {
+          await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, seasonData);
+        } else {
+          await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, seasonData);
+        }
+
+        // If team changed, refresh career stats to show updated team
+        if (field === 'team' && currentDbPlayer && careerStatsData) {
+          setTimeout(async function() {
+            await renderCareerStatsAllYears(careerStatsData);
+          }, 100);
+        }
+      } else {
+        // Rating fields
+        var ratings = {};
+        ratings[field] = value;
+        if (isCustomPlayer) {
+          await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, { ratings: ratings });
+        } else {
+          await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, { ratings: ratings });
+        }
+      }
+
+      // Visual feedback
+      if (isSelect) {
+        input.style.outline = '2px solid rgba(76, 175, 80, 0.6)';
+        setTimeout(function() {
+          input.style.outline = '';
+        }, 500);
+      } else {
+        input.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
+        setTimeout(function() {
+          input.style.backgroundColor = '';
+        }, 500);
+      }
+
+      hasUnsavedChanges = true;
+      updateSaveButtonState();
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error saving all-years rating edit:', error);
+      if (isSelect) {
+        input.style.outline = '2px solid rgba(244, 67, 54, 0.6)';
+        setTimeout(function() {
+          input.style.outline = '';
+        }, 1000);
+      } else {
+        input.style.backgroundColor = 'rgba(244, 67, 54, 0.2)';
+        setTimeout(function() {
+          input.style.backgroundColor = '';
+        }, 1000);
+      }
+    }
+  }
+
+  // Expose save function globally for inline onchange handlers
+  window.saveAllYearsRatingEdit = saveAllYearsRatingEdit;
 
   /**
    * Load ratings for a specific year
@@ -1161,6 +1810,12 @@
    * Populate the ratings form
    */
   function populateRatingsForm(season) {
+    // Clear OVR previousValue so it captures fresh value on next focus
+    var ovrInput = document.getElementById('dbRating_POVR');
+    if (ovrInput) {
+      ovrInput.dataset.previousValue = '';
+    }
+
     // Season-specific info
     setValue('dbPlayerSeasonTeam', season.team || '');
     setValue('dbPlayerSeasonJersey', season.jersey || '');
@@ -1426,6 +2081,15 @@
         appearanceEdits.maddenCpvf = pghe.cpvf;
         appearanceEdits.maddenSkinTone = pghe.skinTone;
         console.log('[DatabasePlayerCard] Including PGHE data in appearance save:', pghe);
+      }
+
+      // Collect trait edits
+      var traitEdits = collectTraitEdits();
+      if (Object.keys(traitEdits).length > 0) {
+        console.log('[DatabasePlayerCard] Trait edits collected:', traitEdits);
+        // Merge trait edits into player edits (for custom players)
+        // or handle separately for franchise files
+        Object.assign(playerEdits, traitEdits);
       }
 
       // Save player edits - use different API for custom vs original players
@@ -3426,6 +4090,480 @@
     }
   }
 
+  // =============================================
+  // CAREER STATS TAB FUNCTIONALITY
+  // =============================================
+
+  // Career stats state
+  var careerStatsData = null;
+  var careerStatsPlayer = null;
+
+  /**
+   * Load career stats for the current player
+   */
+  async function loadCareerStats(player) {
+    if (!player) {
+      console.log('[DbPlayerCard] No player for career stats');
+      return;
+    }
+
+    var firstName = player.firstName || '';
+    var lastName = player.lastName || '';
+
+    if (!firstName || !lastName) {
+      console.log('[DbPlayerCard] Missing name for career stats lookup');
+      renderNoCareerStats('Player name required for stats lookup');
+      return;
+    }
+
+    console.log('[DbPlayerCard] Loading career stats for:', firstName, lastName);
+
+    try {
+      var result = await window.electronAPI.database.getCareerStats(firstName, lastName);
+
+      if (!result.success) {
+        console.error('[DbPlayerCard] Career stats error:', result.error);
+        renderNoCareerStats('Error loading stats: ' + result.error);
+        return;
+      }
+
+      careerStatsData = result.stats || [];
+      careerStatsPlayer = result.player;
+
+      console.log('[DbPlayerCard] Loaded', careerStatsData.length, 'seasons of career stats');
+
+      // Set up the career stats year selector
+      setupCareerStatsYearSelector(careerStatsData);
+
+      // Render all years table by default
+      renderCareerStatsAllYears(careerStatsData);
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error loading career stats:', error);
+      renderNoCareerStats('Failed to load stats: ' + error.message);
+    }
+  }
+
+  /**
+   * Set up the career stats year selector dropdown
+   */
+  function setupCareerStatsYearSelector(stats) {
+    var yearSelect = document.getElementById('dbStatsYearSelect');
+    if (!yearSelect) return;
+
+    yearSelect.innerHTML = '<option value="all">All Years (Table View)</option>';
+
+    if (!stats || stats.length === 0) {
+      return;
+    }
+
+    // Add each year as an option
+    stats.forEach(function(season) {
+      var opt = document.createElement('option');
+      opt.value = season.year;
+      opt.textContent = season.year + ' (' + (season.team || 'Unknown') + ')';
+      yearSelect.appendChild(opt);
+    });
+  }
+
+  /**
+   * Handle career stats year selector change
+   */
+  async function onCareerStatsYearChange() {
+    var yearSelect = document.getElementById('dbStatsYearSelect');
+    if (!yearSelect) return;
+
+    var value = yearSelect.value;
+    var allYearsView = document.getElementById('statsAllYearsView');
+    var singleYearView = document.getElementById('statsSingleYearView');
+
+    if (value === 'all') {
+      // Show all years table
+      if (allYearsView) allYearsView.style.display = 'block';
+      if (singleYearView) singleYearView.style.display = 'none';
+      await renderCareerStatsAllYears(careerStatsData);
+    } else {
+      // Show single year detail
+      var year = parseInt(value, 10);
+      if (allYearsView) allYearsView.style.display = 'none';
+      if (singleYearView) singleYearView.style.display = 'block';
+      renderCareerStatsSingleYear(year);
+    }
+  }
+
+  /**
+   * Render all years career stats table
+   */
+  async function renderCareerStatsAllYears(stats) {
+    var container = document.getElementById('statsAllYearsTable');
+    if (!container) return;
+
+    // Set container styles for proper sticky header behavior
+    container.style.position = 'relative';
+    container.style.maxHeight = '300px';
+    container.style.overflowY = 'auto';
+
+    if (!stats || stats.length === 0) {
+      container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">No career stats found in database</p>';
+      return;
+    }
+
+    // Fetch team data from database for each year to fill in missing teams
+    var dbTeamsByYear = {};
+    if (currentDbPlayerId && availableYears.length > 0) {
+      for (var i = 0; i < availableYears.length; i++) {
+        var yr = availableYears[i];
+        try {
+          var result;
+          if (isCustomPlayer) {
+            result = await window.electronAPI.database.getCustomPlayerSeason(currentDbPlayerId, yr);
+            if (result.success && result.data) result = { success: true, season: result.data };
+          } else {
+            result = await window.electronAPI.database.getMergedPlayerSeason(currentDbPlayerId, yr);
+          }
+          if (result.success && result.season && result.season.team) {
+            dbTeamsByYear[yr] = result.season.team;
+          }
+        } catch (e) {
+          // Ignore errors for individual years
+        }
+      }
+    }
+
+    // Determine what type of stats to show based on position
+    var hasPassingStats = stats.some(function(s) { return s.pass_att > 0; });
+    var hasRushingStats = stats.some(function(s) { return s.rush_att > 0; });
+    var hasReceivingStats = stats.some(function(s) { return s.rec > 0; });
+    var hasDefensiveStats = stats.some(function(s) { return s.tackles > 0 || s.sacks > 0 || s.def_int > 0; });
+
+    var stickyThStyle = 'position: sticky; top: 0; z-index: 10; padding: 8px 6px; border-bottom: 2px solid #444; background: #1a1a1a; color: #fff; font-weight: 600;';
+    var html = '<table class="stats-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+    html += '<thead>';
+    html += '<tr>';
+    html += '<th style="text-align: left; ' + stickyThStyle + '">Year</th>';
+    html += '<th style="text-align: left; ' + stickyThStyle + '">Team</th>';
+    html += '<th style="text-align: center; ' + stickyThStyle + '">G</th>';
+
+    if (hasPassingStats) {
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Cmp</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Att</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Yds</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">TD</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">INT</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Rtg</th>';
+    }
+
+    if (hasRushingStats) {
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Rush</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">RuYds</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">RuTD</th>';
+    }
+
+    if (hasReceivingStats) {
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Rec</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">RecYds</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">RecTD</th>';
+    }
+
+    if (hasDefensiveStats) {
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Tkl</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">Sck</th>';
+      html += '<th style="text-align: center; ' + stickyThStyle + '">INT</th>';
+    }
+
+    html += '</tr></thead><tbody>';
+
+    // Career totals
+    var totals = {
+      games: 0, pass_cmp: 0, pass_att: 0, pass_yds: 0, pass_td: 0, pass_int: 0,
+      rush_att: 0, rush_yds: 0, rush_td: 0, rec: 0, rec_yds: 0, rec_td: 0,
+      tackles: 0, sacks: 0, def_int: 0
+    };
+
+    stats.forEach(function(s) {
+      // Use database team if available, otherwise PFR team
+      var displayTeam = dbTeamsByYear[s.year] || s.team || '-';
+      html += '<tr style="border-bottom: 1px solid #333;">';
+      html += '<td style="padding: 6px; color: #64b5f6; font-weight: 500;">' + s.year + '</td>';
+      html += '<td style="padding: 6px; color: #aaa;">' + displayTeam + '</td>';
+      html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.games || 0) + '</td>';
+
+      if (hasPassingStats) {
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.pass_cmp || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.pass_att || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.pass_yds || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.pass_td || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.pass_int || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.pass_rating || 0).toFixed(1) + '</td>';
+      }
+
+      if (hasRushingStats) {
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.rush_att || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.rush_yds || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.rush_td || 0) + '</td>';
+      }
+
+      if (hasReceivingStats) {
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.rec || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.rec_yds || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.rec_td || 0) + '</td>';
+      }
+
+      if (hasDefensiveStats) {
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.tackles || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.sacks || 0) + '</td>';
+        html += '<td style="padding: 6px; text-align: center; color: #e0e0e0;">' + (s.def_int || 0) + '</td>';
+      }
+
+      html += '</tr>';
+
+      // Accumulate totals
+      totals.games += s.games || 0;
+      totals.pass_cmp += s.pass_cmp || 0;
+      totals.pass_att += s.pass_att || 0;
+      totals.pass_yds += s.pass_yds || 0;
+      totals.pass_td += s.pass_td || 0;
+      totals.pass_int += s.pass_int || 0;
+      totals.rush_att += s.rush_att || 0;
+      totals.rush_yds += s.rush_yds || 0;
+      totals.rush_td += s.rush_td || 0;
+      totals.rec += s.rec || 0;
+      totals.rec_yds += s.rec_yds || 0;
+      totals.rec_td += s.rec_td || 0;
+      totals.tackles += s.tackles || 0;
+      totals.sacks += s.sacks || 0;
+      totals.def_int += s.def_int || 0;
+    });
+
+    // Career totals row
+    html += '<tr style="font-weight: bold; background: #252525; border-top: 2px solid #4caf50;">';
+    html += '<td style="padding: 8px 6px; color: #fff;" colspan="2">Career</td>';
+    html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.games + '</td>';
+
+    if (hasPassingStats) {
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.pass_cmp + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.pass_att + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.pass_yds + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.pass_td + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.pass_int + '</td>';
+      // Calculate career passer rating
+      var careerRating = totals.pass_att > 0 ? calculatePasserRating(totals) : 0;
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + careerRating.toFixed(1) + '</td>';
+    }
+
+    if (hasRushingStats) {
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.rush_att + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.rush_yds + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.rush_td + '</td>';
+    }
+
+    if (hasReceivingStats) {
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.rec + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.rec_yds + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.rec_td + '</td>';
+    }
+
+    if (hasDefensiveStats) {
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.tackles + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.sacks + '</td>';
+      html += '<td style="padding: 8px 6px; text-align: center; color: #fff;">' + totals.def_int + '</td>';
+    }
+
+    html += '</tr>';
+    html += '</tbody></table>';
+
+    container.innerHTML = html;
+  }
+
+  /**
+   * Calculate NFL passer rating
+   */
+  function calculatePasserRating(stats) {
+    if (!stats.pass_att || stats.pass_att === 0) return 0;
+
+    var a = ((stats.pass_cmp / stats.pass_att) - 0.3) * 5;
+    var b = ((stats.pass_yds / stats.pass_att) - 3) * 0.25;
+    var c = (stats.pass_td / stats.pass_att) * 20;
+    var d = 2.375 - ((stats.pass_int / stats.pass_att) * 25);
+
+    a = Math.max(0, Math.min(2.375, a));
+    b = Math.max(0, Math.min(2.375, b));
+    c = Math.max(0, Math.min(2.375, c));
+    d = Math.max(0, Math.min(2.375, d));
+
+    return ((a + b + c + d) / 6) * 100;
+  }
+
+  /**
+   * Render single year career stats detail
+   */
+  function renderCareerStatsSingleYear(year) {
+    if (!careerStatsData) return;
+
+    var season = careerStatsData.find(function(s) { return s.year === year; });
+    if (!season) {
+      console.log('[DbPlayerCard] No stats found for year:', year);
+      return;
+    }
+
+    // Update year label
+    var yearLabel = document.getElementById('statsSelectedYear');
+    if (yearLabel) {
+      yearLabel.textContent = year + ' (' + (season.team || 'Unknown') + ')';
+    }
+
+    // Populate single year fields
+    setValue('statsGames', season.games || 0);
+    setValue('statsPassCmp', season.pass_cmp || 0);
+    setValue('statsPassAtt', season.pass_att || 0);
+    setValue('statsPassYds', season.pass_yds || 0);
+    setValue('statsPassTd', season.pass_td || 0);
+    setValue('statsPassInt', season.pass_int || 0);
+    setValue('statsPassRating', (season.pass_rating || 0).toFixed(1));
+    setValue('statsRushAtt', season.rush_att || 0);
+    setValue('statsRushYds', season.rush_yds || 0);
+    setValue('statsRushTd', season.rush_td || 0);
+    setValue('statsRec', season.rec || 0);
+    setValue('statsRecYds', season.rec_yds || 0);
+    setValue('statsRecTd', season.rec_td || 0);
+    setValue('statsTackles', season.tackles || 0);
+    setValue('statsSacks', season.sacks || 0);
+    setValue('statsDefInt', season.def_int || 0);
+    setValue('statsFf', season.ff || 0);
+    setValue('statsFr', season.fr || 0);
+
+    // Show/hide stat sections based on what data exists
+    var passingSection = document.getElementById('statsPassingSection');
+    var rushingSection = document.getElementById('statsRushingSection');
+    var receivingSection = document.getElementById('statsReceivingSection');
+    var defenseSection = document.getElementById('statsDefenseSection');
+
+    if (passingSection) passingSection.style.display = season.pass_att > 0 ? 'block' : 'none';
+    if (rushingSection) rushingSection.style.display = season.rush_att > 0 ? 'block' : 'none';
+    if (receivingSection) receivingSection.style.display = season.rec > 0 ? 'block' : 'none';
+    if (defenseSection) defenseSection.style.display = (season.tackles > 0 || season.sacks > 0 || season.def_int > 0) ? 'block' : 'none';
+  }
+
+  /**
+   * Render no career stats message
+   */
+  function renderNoCareerStats(message) {
+    var container = document.getElementById('statsAllYearsTable');
+    if (container) {
+      container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">' + (message || 'No career stats available') + '</p>';
+    }
+
+    // Clear year selector
+    var yearSelect = document.getElementById('dbStatsYearSelect');
+    if (yearSelect) {
+      yearSelect.innerHTML = '<option value="all">All Years (Table View)</option>';
+    }
+  }
+
+  /**
+   * Calculate Madden ratings from stats and push to ratings tab
+   */
+  async function calculateRatingFromStats() {
+    var yearSelect = document.getElementById('dbStatsYearSelect');
+    if (!yearSelect || yearSelect.value === 'all') {
+      alert('Please select a specific year to calculate ratings from');
+      return;
+    }
+
+    var year = parseInt(yearSelect.value, 10);
+    var season = careerStatsData ? careerStatsData.find(function(s) { return s.year === year; }) : null;
+
+    if (!season) {
+      alert('No stats found for year ' + year);
+      return;
+    }
+
+    var position = currentDbPlayer ? (currentDbPlayer.position || '') : '';
+
+    console.log('[DbPlayerCard] Calculating ratings from stats for year', year, 'position', position);
+
+    try {
+      var result = await window.electronAPI.database.calculateRatingFromStats(season, position);
+
+      if (!result.success) {
+        alert('Error calculating ratings: ' + result.error);
+        return;
+      }
+
+      var ratings = result.ratings;
+      console.log('[DbPlayerCard] Calculated ratings:', ratings);
+
+      // Check if there are existing ratings for this year
+      var existingRatingsYearSelect = document.getElementById('dbPlayerYearSelect');
+      var hasExistingRatings = false;
+
+      if (existingRatingsYearSelect) {
+        // Check if this year exists in ratings
+        for (var i = 0; i < existingRatingsYearSelect.options.length; i++) {
+          if (parseInt(existingRatingsYearSelect.options[i].value, 10) === year) {
+            hasExistingRatings = true;
+            break;
+          }
+        }
+      }
+
+      if (hasExistingRatings) {
+        var confirmed = confirm(
+          'Warning: This player already has ratings for ' + year + '.\n\n' +
+          'Do you want to overwrite the existing ratings with stats-based calculations?\n\n' +
+          'Calculated OVR: ' + (ratings.POVR || 'N/A')
+        );
+        if (!confirmed) return;
+      }
+
+      // Switch to ratings tab
+      var ratingsTab = document.querySelector('.db-player-tab[data-tab="ratings"]');
+      if (ratingsTab) ratingsTab.click();
+
+      // Select the year in ratings tab
+      if (existingRatingsYearSelect) {
+        existingRatingsYearSelect.value = year.toString();
+        // Trigger change event to load existing data (if any)
+        existingRatingsYearSelect.dispatchEvent(new Event('change'));
+      }
+
+      // Populate the calculated ratings after a brief delay to ensure form is ready
+      setTimeout(function() {
+        Object.keys(ratings).forEach(function(key) {
+          var inputId = 'dbRating_' + key;
+          var input = document.getElementById(inputId);
+          if (input) {
+            input.value = ratings[key];
+            input.dispatchEvent(new Event('change'));
+          }
+        });
+
+        hasUnsavedChanges = true;
+        updateSaveButtonState();
+
+        if (typeof window.showToast === 'function') {
+          window.showToast('Ratings calculated from ' + year + ' stats (OVR: ' + ratings.POVR + ')', 'success');
+        }
+      }, 100);
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error calculating ratings:', error);
+      alert('Failed to calculate ratings: ' + error.message);
+    }
+  }
+
+  /**
+   * Refresh career stats data
+   */
+  async function refreshCareerStats() {
+    if (currentDbPlayer) {
+      await loadCareerStats(currentDbPlayer);
+      if (typeof window.showToast === 'function') {
+        window.showToast('Career stats refreshed', 'info');
+      }
+    }
+  }
+
   // Make functions available globally
   window.openDbPlayerCard = openDbPlayerCard;
   window.closeDbPlayerCard = closeDbPlayerCard;
@@ -3433,6 +4571,9 @@
   window.initDatabasePlayerCard = initDatabasePlayerCard;
   window.openPortraitPicker = openPortraitPicker;
   window.loadPlayerPortrait = loadPlayerPortrait;
+  window.loadPlayerTraits = loadPlayerTraits;
+  window.renderTraitsForPosition = renderTraitsForPosition;
+  window.loadCareerStats = loadCareerStats;
 
   // Auto-initialize when DOM is ready
   if (document.readyState === 'loading') {

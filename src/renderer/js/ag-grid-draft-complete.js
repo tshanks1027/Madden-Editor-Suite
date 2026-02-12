@@ -6,6 +6,7 @@
 import { createGrid, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { getLookupValue, getLookupOptions, BODY_TYPE_NAMES } from '../data/field-definitions.js';
 import { FastSelectEditor } from './FastSelectEditor.js';
+import { getCollegeById, getCollegeByName, NCAA_LOGO, NCAA_COLORS } from '../data/college-data.js';
 
 // Register AG-Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -909,6 +910,8 @@ export async function initializeDraftAGGrid(app, container, prospects) {
             ? getLookupValue('positions', prospect.position) || prospect.position
             : prospect.position;
 
+        // Preserve original college ID for logo lookup
+        const collegeId = typeof prospect.college === 'number' ? prospect.college : null;
         const college = typeof prospect.college === 'number'
             ? getLookupValue('colleges', prospect.college) || prospect.college
             : prospect.college;
@@ -968,6 +971,7 @@ export async function initializeDraftAGGrid(app, container, prospects) {
             round,
             position,
             college,
+            collegeId,
             homeState,
             devTrait,
             bodyType,
@@ -1044,6 +1048,8 @@ export async function initializeDraftAGGrid(app, container, prospects) {
         rowHeight: 70,
         headerHeight: 40,
         animateRows: false,
+        // Show message when draft class is empty
+        overlayNoRowsTemplate: '<div style="padding: 40px; text-align: center; color: #ffa726; font-family: Oswald, sans-serif; font-size: 20px;">No prospects in draft class<br><span style="font-size: 14px; color: #999;">Use Player Database to add prospects</span></div>',
         rowSelection: 'single',
         suppressRowClickSelection: false,
         enableCellTextSelection: true,
@@ -1236,6 +1242,112 @@ export async function initializeDraftAGGrid(app, container, prospects) {
 
                 event.api.setGridOption('rowData', allData);
             }
+
+            // ========== AUTO-RECALCULATE OVR WHEN RATINGS CHANGE ==========
+            const ratingFields = ['speed', 'acceleration', 'agility', 'strength', 'jumping', 'awareness',
+                'throwPower', 'throwAccuracyShort', 'throwAccuracyMid', 'throwAccuracyDeep',
+                'throwOnTheRun', 'throwUnderPressure', 'playAction', 'breakSack',
+                'passBlock', 'runBlock', 'leadBlock', 'impactBlocking', 'passBlockFinesse', 'passBlockPower',
+                'runBlockFinesse', 'runBlockPower', 'tackle', 'hitPower', 'manCoverage', 'zoneCoverage',
+                'press', 'pursuit', 'playRecognition', 'finesseMoves', 'blockShed', 'powerMoves',
+                'kickPower', 'kickAccuracy', 'kickReturn', 'carrying', 'catching', 'catchInTraffic',
+                'spectacularCatch', 'release', 'routeRunningShort', 'routeRunningMid', 'routeRunningDeep',
+                'stamina', 'injury', 'toughness', 'breakTackle', 'trucking', 'elusiveness', 'spinMove',
+                'jukeMoves', 'stiffArm', 'bcVision', 'changeOfDirection'];
+
+            const fieldName = event.colDef.field;
+            if (ratingFields.includes(fieldName) && event.newValue !== event.oldValue) {
+                console.log(`[Draft AG-Grid] Rating field ${fieldName} changed from ${event.oldValue} to ${event.newValue}, recalculating OVR...`);
+
+                // Build attributes from prospect data (map display names to internal names)
+                const prospect = event.data;
+                const attributes = {
+                    PSPD: parseInt(prospect.speed) || 50,
+                    PACC: parseInt(prospect.acceleration) || 50,
+                    PAGI: parseInt(prospect.agility) || 50,
+                    PSTR: parseInt(prospect.strength) || 50,
+                    PJMP: parseInt(prospect.jumping) || 50,
+                    PAWR: parseInt(prospect.awareness) || 50,
+                    PTHP: parseInt(prospect.throwPower) || 50,
+                    PTAS: parseInt(prospect.throwAccuracyShort) || 50,
+                    PTAM: parseInt(prospect.throwAccuracyMid) || 50,
+                    PTAD: parseInt(prospect.throwAccuracyDeep) || 50,
+                    PTOR: parseInt(prospect.throwOnTheRun) || 50,
+                    PTUP: parseInt(prospect.throwUnderPressure) || 50,
+                    PPLA: parseInt(prospect.playAction) || 50,
+                    PBSK: parseInt(prospect.breakSack) || 50,
+                    PPBK: parseInt(prospect.passBlock) || 50,
+                    PRBK: parseInt(prospect.runBlock) || 50,
+                    PLBK: parseInt(prospect.leadBlock) || 50,
+                    PLIB: parseInt(prospect.impactBlocking) || 50,
+                    PPBF: parseInt(prospect.passBlockFinesse) || 50,
+                    PPBS: parseInt(prospect.passBlockPower) || 50,
+                    PRBF: parseInt(prospect.runBlockFinesse) || 50,
+                    PRBS: parseInt(prospect.runBlockPower) || 50,
+                    PTAK: parseInt(prospect.tackle) || 50,
+                    PLHT: parseInt(prospect.hitPower) || 50,
+                    PLMC: parseInt(prospect.manCoverage) || 50,
+                    PLZC: parseInt(prospect.zoneCoverage) || 50,
+                    PLPR: parseInt(prospect.press) || 50,
+                    PLPU: parseInt(prospect.pursuit) || 50,
+                    PLPM: parseInt(prospect.playRecognition) || 50,
+                    PFMS: parseInt(prospect.finesseMoves) || 50,
+                    PBSG: parseInt(prospect.blockShed) || 50,
+                    PLPE: parseInt(prospect.powerMoves) || 50,
+                    PKPR: parseInt(prospect.kickPower) || 50,
+                    PKAC: parseInt(prospect.kickAccuracy) || 50,
+                    PKRT: parseInt(prospect.kickReturn) || 50,
+                    PCAR: parseInt(prospect.carrying) || 50,
+                    PCTH: parseInt(prospect.catching) || 50,
+                    PLCI: parseInt(prospect.catchInTraffic) || 50,
+                    PLSC: parseInt(prospect.spectacularCatch) || 50,
+                    PLRL: parseInt(prospect.release) || 50,
+                    PSTA: parseInt(prospect.stamina) || 50,
+                    PINJ: parseInt(prospect.injury) || 50,
+                    PTGH: parseInt(prospect.toughness) || 50,
+                    PBKT: parseInt(prospect.breakTackle) || 50,
+                    PLTR: parseInt(prospect.trucking) || 50,
+                    PELU: parseInt(prospect.elusiveness) || 50,
+                    PLSM: parseInt(prospect.spinMove) || 50,
+                    PLJM: parseInt(prospect.jukeMoves) || 50,
+                    PLSA: parseInt(prospect.stiffArm) || 50,
+                    PBCV: parseInt(prospect.bcVision) || 50
+                };
+
+                // Get position name
+                const positionName = prospect.position || 'QB';
+                const archetype = prospect.archetypeId || 0;
+
+                // Calculate new OVR
+                if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRMadden) {
+                    window.electronAPI.rating.calculateOVRMadden(positionName, attributes, archetype)
+                        .then(newOVR => {
+                            const oldOVR = parseInt(prospect.overall) || 50;
+                            if (newOVR !== oldOVR) {
+                                console.log(`[Draft AG-Grid] OVR recalculated: ${oldOVR} → ${newOVR}`);
+
+                                // Update prospect data
+                                prospect.overall = newOVR;
+                                event.data.overall = newOVR;
+
+                                // Refresh the OVR cell in the grid
+                                event.api.refreshCells({
+                                    rowNodes: [event.node],
+                                    columns: ['overall'],
+                                    force: true
+                                });
+
+                                // Also update the card view OVR display
+                                const cardOvrEl = document.getElementById('draftCardPlayerOVR');
+                                if (cardOvrEl) {
+                                    cardOvrEl.textContent = newOVR;
+                                }
+                            }
+                        })
+                        .catch(err => console.error('[Draft AG-Grid] OVR calculation error:', err));
+                }
+            }
+            // ========== END AUTO-RECALCULATE OVR ==========
         },
 
         onCellContextMenu: (event) => {
@@ -1480,6 +1592,43 @@ export async function initializeDraftAGGrid(app, container, prospects) {
         onColumnMoved: (params) => {
             const columnState = params.api.getColumnState();
             localStorage.setItem('draftGridColumnState', JSON.stringify(columnState));
+        },
+
+        // Update college logo when prospect is selected
+        onSelectionChanged: (params) => {
+            const selectedRows = params.api.getSelectedRows();
+            if (selectedRows.length > 0) {
+                const prospect = selectedRows[0];
+
+                // Use preserved collegeId (numeric) if available, otherwise try string name
+                let collegeData;
+                if (prospect.collegeId != null) {
+                    collegeData = getCollegeById(prospect.collegeId);
+                } else if (typeof prospect.college === 'string') {
+                    collegeData = getCollegeByName(prospect.college);
+                } else if (typeof prospect.college === 'number') {
+                    collegeData = getCollegeById(prospect.college);
+                }
+
+                const logoEl = document.getElementById('v2CollegeLogo');
+                if (logoEl && collegeData) {
+                    if (collegeData.logo) {
+                        logoEl.innerHTML = `<img src="${collegeData.logo}" alt="${collegeData.name} logo" style="display: block;" onerror="this.style.display='none'">`;
+                    } else {
+                        // No logo - show college name abbreviation
+                        logoEl.innerHTML = `<span style="font-family: 'Oswald', sans-serif; font-size: 36px; font-weight: 700;">${collegeData.abbr || '?'}</span>`;
+                    }
+                    logoEl.style.background = `linear-gradient(145deg, ${collegeData.secondary || '#666'}, ${(collegeData.secondary || '#666')}99)`;
+                } else if (logoEl) {
+                    // No college data found - show placeholder with college name abbreviation
+                    const collegeName = prospect.college || '';
+                    const abbr = typeof collegeName === 'string' && collegeName.length > 0
+                        ? collegeName.substring(0, 4).toUpperCase()
+                        : '?';
+                    logoEl.innerHTML = `<span style="font-family: 'Oswald', sans-serif; font-size: 36px; font-weight: 700;">${abbr}</span>`;
+                    logoEl.style.background = 'linear-gradient(145deg, #666, #66699)';
+                }
+            }
         }
     };
 
@@ -1876,4 +2025,658 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, sel
 
     app.hasUnsavedChanges = true;
     app.updateSaveButton();
+}
+
+// =============================================
+// PUSH TO DATABASE FUNCTIONALITY
+// =============================================
+
+/**
+ * Open the Push to Database dialog
+ * Analyzes draft class prospects and allows pushing to user database
+ */
+export async function openPushToDatabaseDialog(app) {
+    if (!app.draftAgGrid) {
+        console.error('[Push to DB] No draft grid available');
+        return;
+    }
+
+    // Get all prospects from grid
+    const prospects = [];
+    app.draftAgGrid.forEachNode(node => {
+        prospects.push(node.data);
+    });
+
+    if (prospects.length === 0) {
+        alert('No prospects to push. Load a draft class first.');
+        return;
+    }
+
+    // Determine draft year from draft class header or fallback to current year
+    let draftYear = new Date().getFullYear();
+    if (app.currentDraftClass && app.currentDraftClass.header && app.currentDraftClass.header.year) {
+        draftYear = app.currentDraftClass.header.year;
+    }
+    // Also try to extract from file path as backup
+    if (app.draftClassFilePath) {
+        const yearMatch = app.draftClassFilePath.match(/(\d{4})/);
+        if (yearMatch) {
+            const extractedYear = parseInt(yearMatch[1]);
+            if (extractedYear >= 1936 && extractedYear <= 2100) {
+                draftYear = extractedYear;
+            }
+        }
+    }
+
+    console.log(`[Push to DB] Analyzing ${prospects.length} prospects for year ${draftYear}`);
+
+    // Show year selection dialog first
+    const yearSelectHTML = `
+        <div id="push-db-year-modal" class="modal-overlay" style="z-index: 100001;">
+            <div class="modal-content" style="padding: 30px; max-width: 400px;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">Push Draft Class to Database</h2>
+                    <button id="push-db-year-close-btn" class="close-btn" style="font-size: 24px; background: none; border: none; color: #999; cursor: pointer;">×</button>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label for="push-db-year-input" style="display: block; margin-bottom: 8px; font-weight: bold;">
+                        Draft Year:
+                    </label>
+                    <input type="number" id="push-db-year-input" value="${draftYear}" min="1936" max="2100"
+                        style="width: 100%; padding: 10px; font-size: 16px; border: 1px solid #555; border-radius: 4px; background: #1a1a1a; color: #fff;">
+                    <p style="color: #888; font-size: 12px; margin-top: 8px;">
+                        This will be the season year for the player ratings in the database.
+                    </p>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button id="push-db-year-cancel-btn" style="padding: 10px 20px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <button id="push-db-year-continue-btn" style="padding: 10px 20px; background: #2196F3; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">Continue</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', yearSelectHTML);
+
+    const yearModal = document.getElementById('push-db-year-modal');
+    const yearInput = document.getElementById('push-db-year-input');
+
+    // Focus the input
+    yearInput.focus();
+    yearInput.select();
+
+    // Close handlers
+    const closeYearModal = () => yearModal.remove();
+    document.getElementById('push-db-year-close-btn').addEventListener('click', closeYearModal);
+    document.getElementById('push-db-year-cancel-btn').addEventListener('click', closeYearModal);
+    yearModal.addEventListener('click', (e) => {
+        if (e.target === yearModal) closeYearModal();
+    });
+
+    // Continue handler
+    document.getElementById('push-db-year-continue-btn').addEventListener('click', async () => {
+        const selectedYear = parseInt(yearInput.value);
+        if (isNaN(selectedYear) || selectedYear < 1936 || selectedYear > 2100) {
+            alert('Please enter a valid year between 1936 and 2100');
+            return;
+        }
+
+        closeYearModal();
+        await analyzeAndShowPushDialog(app, prospects, selectedYear);
+    });
+
+    // Enter key to continue
+    yearInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('push-db-year-continue-btn').click();
+        }
+    });
+}
+
+/**
+ * Analyze prospects and show the push confirmation dialog
+ */
+async function analyzeAndShowPushDialog(app, prospects, draftYear) {
+    // Show loading indicator
+    const loadingHTML = `
+        <div id="push-db-loading-modal" class="modal-overlay" style="z-index: 100001;">
+            <div class="modal-content" style="padding: 30px; text-align: center; max-width: 400px;">
+                <h3>Analyzing Draft Class...</h3>
+                <p>Checking for existing players in database for year ${draftYear}...</p>
+                <div style="margin-top: 20px;">
+                    <div class="loading-spinner"></div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', loadingHTML);
+
+    try {
+        // Call backend to analyze
+        const response = await window.electronAPI.database.analyzeDraftClassPush(prospects, draftYear);
+
+        // Remove loading modal
+        document.getElementById('push-db-loading-modal')?.remove();
+
+        if (!response.success) {
+            alert(`Error analyzing draft class: ${response.error}`);
+            return;
+        }
+
+        const analysis = response.analysis;
+        console.log('[Push to DB] Analysis result:', analysis);
+
+        // Show the analysis/confirmation modal
+        showPushConfirmationModal(app, analysis, draftYear);
+
+    } catch (error) {
+        document.getElementById('push-db-loading-modal')?.remove();
+        console.error('[Push to DB] Error:', error);
+        alert(`Error: ${error.message || error}`);
+    }
+}
+
+/**
+ * Show the push confirmation modal with analysis results
+ */
+function showPushConfirmationModal(app, analysis, draftYear) {
+    const { newPlayers, existingBundled, existingCustom, totalConflicts, hasYearConflicts } = analysis;
+
+    const totalNew = newPlayers.length;
+    const totalExisting = existingBundled.length + existingCustom.length;
+    const totalProspects = totalNew + totalExisting;
+
+    // Build conflicts list HTML - card-based design
+    let conflictsHTML = '';
+    let conflictIndex = 0;
+    const allConflicts = [];
+    const playersWithConflicts = [];
+
+    // Gather all conflicts from bundled and custom players
+    for (const item of [...existingBundled, ...existingCustom]) {
+        if (item.conflicts && item.conflicts.length > 0) {
+            const playerName = `${item.prospect.firstName || ''} ${item.prospect.lastName || ''}`.trim();
+            const position = item.prospect.position || '?';
+            const cardId = `conflict-card-${item.prospectIndex}`;
+
+            playersWithConflicts.push({ cardId, playerName });
+
+            // Build conflict rows for this player
+            let conflictRowsHTML = '';
+            for (const conflict of item.conflicts) {
+                const conflictId = `conflict_${conflictIndex}`;
+                allConflicts.push({
+                    prospectIndex: item.prospectIndex,
+                    field: conflict.field,
+                    id: conflictId,
+                    cardId: cardId
+                });
+
+                conflictRowsHTML += `
+                    <div class="conflict-row" style="display: grid; grid-template-columns: 120px 1fr 1fr 180px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid #333;">
+                        <div style="font-weight: bold; color: #aaa;">${conflict.displayName}</div>
+                        <div style="background: #2a2a2a; padding: 6px 10px; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">Current</div>
+                            <div style="color: #ff9800;">${conflict.currentValue || '(empty)'}</div>
+                        </div>
+                        <div style="background: #2a2a2a; padding: 6px 10px; border-radius: 4px; text-align: center;">
+                            <div style="font-size: 11px; color: #888; margin-bottom: 2px;">New</div>
+                            <div style="color: #4CAF50;">${conflict.newValue || '(empty)'}</div>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="${conflictId}" value="keep" checked> Keep
+                            </label>
+                            <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="${conflictId}" value="overwrite"> Use New
+                            </label>
+                        </div>
+                    </div>
+                `;
+                conflictIndex++;
+            }
+
+            // Build player card
+            conflictsHTML += `
+                <div id="${cardId}" class="conflict-card" style="background: #1e1e1e; border: 1px solid #444; border-radius: 8px; margin-bottom: 12px; overflow: hidden;">
+                    <div class="conflict-card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #252525; border-bottom: 1px solid #444;">
+                        <div>
+                            <span style="font-weight: bold; font-size: 15px; color: #fff;">${playerName}</span>
+                            <span style="color: #888; margin-left: 10px;">${position}</span>
+                            <span style="color: #666; margin-left: 10px; font-size: 12px;">${item.conflicts.length} conflict(s)</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="conflict-keep-all-btn" data-card="${cardId}" style="padding: 5px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                Keep All Current
+                            </button>
+                            <button class="conflict-use-all-btn" data-card="${cardId}" style="padding: 5px 12px; background: #1a5a1a; border: 1px solid #2a7a2a; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                Use All New
+                            </button>
+                            <button class="conflict-done-btn" data-card="${cardId}" style="padding: 5px 12px; background: #2196F3; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                ✓ Done
+                            </button>
+                        </div>
+                    </div>
+                    <div class="conflict-card-body" style="padding: 10px 15px;">
+                        <div class="conflict-grid-header" style="display: grid; grid-template-columns: 120px 1fr 1fr 180px; gap: 10px; padding: 8px 0; border-bottom: 2px solid #444; font-size: 12px; color: #888;">
+                            <div>Field</div>
+                            <div style="text-align: center;">Database Value</div>
+                            <div style="text-align: center;">Draft Class Value</div>
+                            <div style="text-align: center;">Action</div>
+                        </div>
+                        ${conflictRowsHTML}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Build year conflicts warning
+    let yearConflictHTML = '';
+    if (hasYearConflicts) {
+        yearConflictHTML = `
+            <div class="warning-box" style="background: #332200; border: 1px solid #664400; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                <strong style="color: #ffaa00;">Warning:</strong> Some players already have ratings for year ${draftYear}.
+                <div style="margin-top: 8px;">
+                    <label>
+                        <input type="checkbox" id="overwrite-seasons-checkbox" checked>
+                        Overwrite existing season ratings for ${draftYear}
+                    </label>
+                </div>
+            </div>
+        `;
+    }
+
+    // Build modal HTML
+    const modalHTML = `
+        <div id="push-db-modal" class="modal-overlay" style="z-index: 100001;">
+            <div class="modal-content" style="max-width: 900px; width: 90%; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid #444;">
+                    <h2 style="margin: 0;">Push Draft Class to Database</h2>
+                    <button id="push-db-close-btn" class="close-btn" style="font-size: 24px; background: none; border: none; color: #999; cursor: pointer;">×</button>
+                </div>
+                <div class="modal-body" style="overflow-y: auto; flex: 1; padding: 15px 0;">
+                    <div class="summary-section" style="margin-bottom: 20px;">
+                        <h3 style="margin-top: 0;">Summary for ${draftYear} Draft Class</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div style="background: #1a3a1a; padding: 15px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 28px; font-weight: bold; color: #4CAF50;">${totalNew}</div>
+                                <div style="color: #aaa;">New Players</div>
+                                <div style="color: #666; font-size: 12px;">Will be created</div>
+                            </div>
+                            <div style="background: #1a2a3a; padding: 15px; border-radius: 4px; text-align: center;">
+                                <div style="font-size: 28px; font-weight: bold; color: #2196F3;">${totalExisting}</div>
+                                <div style="color: #aaa;">Existing Players</div>
+                                <div style="color: #666; font-size: 12px;">Will add/update ${draftYear} season</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Push Options -->
+                    <div class="push-options-section" style="margin-top: 20px; margin-bottom: 20px; background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                        <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 16px;">Push Options</h3>
+
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
+                                <input type="radio" name="draft-push-mode" value="all" checked id="draft-push-mode-all">
+                                <span style="font-weight: bold;">All Data</span>
+                                <span style="color: #888; font-size: 12px;">- Push ratings, draft info, and selected bio fields</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="draft-push-mode" value="ratings" id="draft-push-mode-ratings">
+                                <span style="font-weight: bold;">Ratings Only</span>
+                                <span style="color: #888; font-size: 12px;">- Only push player ratings for ${draftYear}</span>
+                            </label>
+                        </div>
+
+                        <!-- Bio Fields Selection (shown when All Data is selected) -->
+                        <div id="draft-bio-fields-section" style="padding: 12px; background: #252525; border-radius: 6px; border: 1px solid #404040;">
+                            <div style="font-weight: bold; margin-bottom: 10px; color: #aaa;">Include Bio Fields:</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px;">
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-draftinfo" checked>
+                                    <span>Draft Round/Pick</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-archetype" checked>
+                                    <span>Archetype</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-position" checked>
+                                    <span>Position</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-college" checked>
+                                    <span>College</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-height" checked>
+                                    <span>Height</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-weight" checked>
+                                    <span>Weight</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-homestate" checked>
+                                    <span>Home State</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-race" checked>
+                                    <span>Race</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-bodytype">
+                                    <span>Body Type</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-handedness">
+                                    <span>Handedness</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-pid" checked>
+                                    <span>PID (Portrait)</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                    <input type="checkbox" id="draft-bio-pam" checked>
+                                    <span>PAM (3D Face)</span>
+                                </label>
+                            </div>
+                            <div style="margin-top: 10px; display: flex; gap: 10px;">
+                                <button id="draft-bio-select-all" style="padding: 4px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">Select All</button>
+                                <button id="draft-bio-select-none" style="padding: 4px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">Select None</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${yearConflictHTML}
+
+                    <div style="margin-bottom: 15px;">
+                        <label>
+                            <input type="checkbox" id="fill-empty-bio-checkbox" checked>
+                            Automatically fill empty bio fields (only for fields selected above)
+                        </label>
+                    </div>
+
+                    ${totalConflicts > 0 ? `
+                        <div class="conflicts-section" style="margin-top: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h3 style="margin: 0; color: #ff9800;">Bio Field Conflicts (${totalConflicts} across ${playersWithConflicts.length} players)</h3>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="conflict-keep-all-global" style="padding: 6px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        Keep All Current
+                                    </button>
+                                    <button id="conflict-use-all-global" style="padding: 6px 12px; background: #1a5a1a; border: 1px solid #2a7a2a; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        Use All New
+                                    </button>
+                                </div>
+                            </div>
+                            <p style="color: #aaa; font-size: 13px; margin-bottom: 15px;">
+                                The following players have different values for bio fields. Choose which value to keep, or click "Done" to collapse a player's card.
+                            </p>
+                            <div class="conflicts-list" style="max-height: 500px; overflow-y: auto; padding-right: 10px;">
+                                ${conflictsHTML}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${totalExisting > 0 ? `
+                        <div class="existing-details" style="margin-top: 20px;">
+                            <details>
+                                <summary style="cursor: pointer; color: #2196F3;">Show ${totalExisting} existing player(s) to be updated</summary>
+                                <div style="margin-top: 10px; max-height: 250px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 13px;">
+                                    ${[...existingBundled, ...existingCustom].map(item => {
+                                        const name = `${item.prospect.firstName || ''} ${item.prospect.lastName || ''}`.trim();
+                                        const type = item.isCustomPlayer ? '(custom)' : '(bundled)';
+                                        return `<div style="padding: 2px 0;">${name} <span style="color: #666;">${type}</span></div>`;
+                                    }).join('')}
+                                </div>
+                            </details>
+                        </div>
+                    ` : ''}
+
+                    ${totalNew > 0 ? `
+                        <div class="new-details" style="margin-top: 20px;">
+                            <details>
+                                <summary style="cursor: pointer; color: #4CAF50;">Show ${totalNew} new player(s) to be created</summary>
+                                <div style="margin-top: 10px; max-height: 250px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 13px;">
+                                    ${newPlayers.map(item => {
+                                        const name = `${item.prospect.firstName || ''} ${item.prospect.lastName || ''}`.trim();
+                                        const pos = item.prospect.position || '?';
+                                        const ovr = item.prospect.overall || item.prospect.POVR || '?';
+                                        return `<div style="padding: 2px 0;">${name} <span style="color: #666;">(${pos}, ${ovr} OVR)</span></div>`;
+                                    }).join('')}
+                                </div>
+                            </details>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 15px; border-top: 1px solid #444;">
+                    <button id="push-db-cancel-btn" style="padding: 10px 20px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer;">Cancel</button>
+                    <button id="push-db-execute-btn" style="padding: 10px 20px; background: #2196F3; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                        Push ${totalProspects} Players to Database
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    const modal = document.getElementById('push-db-modal');
+
+    // Close handlers
+    const closeModal = () => {
+        modal.remove();
+    };
+
+    document.getElementById('push-db-close-btn').addEventListener('click', closeModal);
+    document.getElementById('push-db-cancel-btn').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+
+    // Conflict card button handlers
+    // "Keep All Current" per card
+    document.querySelectorAll('.conflict-keep-all-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cardId = btn.dataset.card;
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.querySelectorAll('input[type="radio"][value="keep"]').forEach(radio => {
+                    radio.checked = true;
+                });
+            }
+        });
+    });
+
+    // "Use All New" per card
+    document.querySelectorAll('.conflict-use-all-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cardId = btn.dataset.card;
+            const card = document.getElementById(cardId);
+            if (card) {
+                card.querySelectorAll('input[type="radio"][value="overwrite"]').forEach(radio => {
+                    radio.checked = true;
+                });
+            }
+        });
+    });
+
+    // "Done" button - collapse/minimize card
+    document.querySelectorAll('.conflict-done-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const cardId = btn.dataset.card;
+            const card = document.getElementById(cardId);
+            if (card) {
+                const body = card.querySelector('.conflict-card-body');
+                const header = card.querySelector('.conflict-card-header');
+                if (body.style.display === 'none') {
+                    // Expand
+                    body.style.display = 'block';
+                    btn.textContent = '✓ Done';
+                    card.style.opacity = '1';
+                } else {
+                    // Collapse
+                    body.style.display = 'none';
+                    btn.textContent = '↓ Expand';
+                    card.style.opacity = '0.7';
+                }
+            }
+        });
+    });
+
+    // Global "Keep All Current"
+    const globalKeepAllBtn = document.getElementById('conflict-keep-all-global');
+    if (globalKeepAllBtn) {
+        globalKeepAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.conflicts-list input[type="radio"][value="keep"]').forEach(radio => {
+                radio.checked = true;
+            });
+        });
+    }
+
+    // Global "Use All New"
+    const globalUseAllBtn = document.getElementById('conflict-use-all-global');
+    if (globalUseAllBtn) {
+        globalUseAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.conflicts-list input[type="radio"][value="overwrite"]').forEach(radio => {
+                radio.checked = true;
+            });
+        });
+    }
+
+    // Push mode radio handlers - show/hide bio fields section
+    const draftBioFieldsSection = document.getElementById('draft-bio-fields-section');
+    document.querySelectorAll('input[name="draft-push-mode"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (e.target.value === 'ratings') {
+                draftBioFieldsSection.style.display = 'none';
+            } else {
+                draftBioFieldsSection.style.display = 'block';
+            }
+        });
+    });
+
+    // Bio fields Select All / Select None buttons
+    document.getElementById('draft-bio-select-all')?.addEventListener('click', () => {
+        document.querySelectorAll('#draft-bio-fields-section input[type="checkbox"]').forEach(cb => {
+            cb.checked = true;
+        });
+    });
+
+    document.getElementById('draft-bio-select-none')?.addEventListener('click', () => {
+        document.querySelectorAll('#draft-bio-fields-section input[type="checkbox"]').forEach(cb => {
+            cb.checked = false;
+        });
+    });
+
+    // Execute push handler
+    document.getElementById('push-db-execute-btn').addEventListener('click', async () => {
+        // Gather resolutions from radio buttons
+        const resolutions = [];
+        for (const conflict of allConflicts) {
+            const keepCurrent = document.querySelector(`input[name="${conflict.id}"]:checked`)?.value === 'keep';
+            resolutions.push({
+                prospectIndex: conflict.prospectIndex,
+                field: conflict.field,
+                keepCurrent
+            });
+        }
+
+        // Get push mode
+        const pushMode = document.querySelector('input[name="draft-push-mode"]:checked')?.value || 'all';
+
+        // Get bio field options (only relevant for "all" mode)
+        const bioFieldOptions = {
+            draftInfo: document.getElementById('draft-bio-draftinfo')?.checked ?? true,
+            archetype: document.getElementById('draft-bio-archetype')?.checked ?? true,
+            position: document.getElementById('draft-bio-position')?.checked ?? true,
+            college: document.getElementById('draft-bio-college')?.checked ?? true,
+            height: document.getElementById('draft-bio-height')?.checked ?? true,
+            weight: document.getElementById('draft-bio-weight')?.checked ?? true,
+            homeState: document.getElementById('draft-bio-homestate')?.checked ?? true,
+            race: document.getElementById('draft-bio-race')?.checked ?? true,
+            bodyType: document.getElementById('draft-bio-bodytype')?.checked ?? false,
+            handedness: document.getElementById('draft-bio-handedness')?.checked ?? false,
+            pid: document.getElementById('draft-bio-pid')?.checked ?? true,
+            pam: document.getElementById('draft-bio-pam')?.checked ?? true
+        };
+
+        // Get other options
+        const overwriteExistingSeasons = document.getElementById('overwrite-seasons-checkbox')?.checked ?? true;
+        const fillEmptyBioFields = document.getElementById('fill-empty-bio-checkbox')?.checked ?? true;
+
+        // Disable button and show progress
+        const executeBtn = document.getElementById('push-db-execute-btn');
+        executeBtn.disabled = true;
+        executeBtn.textContent = 'Pushing...';
+
+        try {
+            const response = await window.electronAPI.database.executeDraftClassPush(
+                analysis,
+                resolutions,
+                { pushMode, bioFieldOptions, overwriteExistingSeasons, fillEmptyBioFields }
+            );
+
+            if (response.success && response.result) {
+                const result = response.result;
+                closeModal();
+
+                // Show success message
+                const successHTML = `
+                    <div id="push-db-success-modal" class="modal-overlay" style="z-index: 100001;">
+                        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;">
+                            <div style="font-size: 48px; color: #4CAF50; margin-bottom: 20px;">✓</div>
+                            <h2 style="margin: 0 0 15px 0;">Push Complete!</h2>
+                            <div style="text-align: left; background: #1a1a1a; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                                <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                                    <span>Players Created:</span>
+                                    <span style="color: #4CAF50; font-weight: bold;">${result.created}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                                    <span>Players Updated:</span>
+                                    <span style="color: #2196F3; font-weight: bold;">${result.updated}</span>
+                                </div>
+                                ${result.skipped > 0 ? `
+                                    <div style="display: flex; justify-content: space-between; padding: 5px 0;">
+                                        <span>Skipped:</span>
+                                        <span style="color: #888;">${result.skipped}</span>
+                                    </div>
+                                ` : ''}
+                                ${result.errors.length > 0 ? `
+                                    <div style="margin-top: 10px; color: #ff5722;">
+                                        <strong>Errors:</strong>
+                                        <div style="font-size: 12px; max-height: 100px; overflow-y: auto;">
+                                            ${result.errors.join('<br>')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <button id="push-db-success-close-btn" style="padding: 10px 30px; background: #4CAF50; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', successHTML);
+                document.getElementById('push-db-success-close-btn').addEventListener('click', () => {
+                    document.getElementById('push-db-success-modal').remove();
+                });
+                document.getElementById('push-db-success-modal').addEventListener('click', (e) => {
+                    if (e.target.id === 'push-db-success-modal') {
+                        e.target.remove();
+                    }
+                });
+            } else {
+                alert(`Push failed: ${response.error || 'Unknown error'}`);
+                executeBtn.disabled = false;
+                executeBtn.textContent = `Push ${totalProspects} Players to Database`;
+            }
+        } catch (error) {
+            console.error('[Push to DB] Execute error:', error);
+            alert(`Push failed: ${error.message || error}`);
+            executeBtn.disabled = false;
+            executeBtn.textContent = `Push ${totalProspects} Players to Database`;
+        }
+    });
 }

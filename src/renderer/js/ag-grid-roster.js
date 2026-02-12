@@ -360,11 +360,11 @@ export function createRosterGrid(container, players, columnDefs, app) {
 async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app) {
     console.log('[AG-Grid OVR] handleAGGridOVRChange called:', oldOVR, '->', newOVR);
 
-    // Get position name from position ID
+    // Get position name from position ID (M26 codes)
     const positionMap = {
         0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
-        8: 'RG', 9: 'RT', 10: 'LE', 11: 'RE', 12: 'DT', 13: 'LOLB', 14: 'MLB',
-        15: 'ROLB', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+        8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike',
+        15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
     };
     const position = positionMap[player.PPOS] || 'QB';
     const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'Unknown Player';

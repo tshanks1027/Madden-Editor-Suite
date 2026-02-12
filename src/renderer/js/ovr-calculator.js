@@ -67,11 +67,11 @@ const ATTR_NAME_TO_FIELD = {
     'KickReturnRating': 'PKRT'
 };
 
-// Position ID to position name mapping
+// Position ID to position name mapping (M26 codes)
 const POSITION_ID_TO_NAME = {
     0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
-    8: 'RG', 9: 'RT', 10: 'LE', 11: 'RE', 12: 'DT', 13: 'LOLB', 14: 'MLB',
-    15: 'ROLB', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+    8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike',
+    15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
 };
 
 // Mapping from global archetype ID (0-67) to OVRWeights formula name

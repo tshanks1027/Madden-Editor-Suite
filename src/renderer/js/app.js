@@ -2529,8 +2529,8 @@ class MaddenEditorApp {
     getPositionNameFromId(posId) {
         const posMap = {
             0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
-            8: 'RG', 9: 'RT', 10: 'LE', 11: 'RE', 12: 'DT', 13: 'LOLB', 14: 'MLB',
-            15: 'ROLB', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+            8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike',
+            15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
         };
         return posMap[posId] || 'QB';
     }
@@ -9449,8 +9449,464 @@ class MaddenEditorApp {
         const prospect = rowNode.data;
         console.log('[showDraftPlayerCard] Showing card for:', prospect.firstName, prospect.lastName);
 
-        // For now, just log the prospect data - can be enhanced to show a modal
-        alert(`Draft Prospect: ${prospect.firstName} ${prospect.lastName}\nPosition: ${prospect.position}\nOverall: ${prospect.overall}\nCollege: ${prospect.college}`);
+        // Store current prospect data for saving
+        this.currentDraftCardData = prospect;
+        this.currentDraftCardRowIndex = rowIndex;
+
+        // Get modal elements
+        const modal = document.getElementById('draftPlayerCardModal');
+        if (!modal) {
+            console.error('[showDraftPlayerCard] Draft player card modal not found');
+            return;
+        }
+
+        // Populate header info
+        document.getElementById('draftCardName').textContent = `${prospect.firstName} ${prospect.lastName}`;
+        document.getElementById('draftCardPosition').textContent = prospect.position || 'N/A';
+        document.getElementById('draftCardCollege').textContent = prospect.college || 'N/A';
+        document.getElementById('draftCardOverall').textContent = prospect.overall || '--';
+        document.getElementById('draftCardPick').textContent = prospect.draftRound ? `Rd ${prospect.draftRound}` : '#';
+
+        // Set portrait - get from portrait cache using same logic as AG-Grid
+        const portraitImg = document.getElementById('draftCardPortrait');
+        if (portraitImg) {
+            const pid = prospect.PID || 0;
+            const peps = prospect.PEPS || (prospect.visuals && prospect.visuals.genericHeadName);
+            const cacheKey = pid > 0 ? `pid_${pid}` : (peps ? `pam_${peps}` : 'pam_none');
+
+            if (this.portraitCache && this.portraitCache.has(cacheKey)) {
+                const imageData = this.portraitCache.get(cacheKey);
+                if (imageData && imageData !== 'loading') {
+                    portraitImg.src = imageData;
+                } else {
+                    // Use default placeholder
+                    portraitImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMzMzMiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIyMCIgZmlsbD0iIzY2NiIvPjxwYXRoIGQ9Ik0yMCA4NUMyMCA2NSAzNSA1NSA1MCA1NUM2NSA1NSA4MCA2NSA4MCA4NVYxMDBIMjBWODVaIiBmaWxsPSIjNjY2Ii8+PC9zdmc+';
+                }
+            } else {
+                // Try to load the portrait
+                const loadPortrait = async () => {
+                    try {
+                        let imageData = null;
+                        if (pid > 0) {
+                            imageData = await window.electronAPI.portrait.getByPID(pid);
+                        } else if (peps) {
+                            imageData = await window.electronAPI.portrait.getImageDataByPam(peps);
+                        }
+                        if (imageData) {
+                            portraitImg.src = imageData;
+                            // Cache it for future use
+                            if (this.portraitCache) {
+                                this.portraitCache.set(cacheKey, imageData);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('[showDraftPlayerCard] Could not load portrait:', e);
+                    }
+                };
+                loadPortrait();
+
+                // Use placeholder while loading
+                portraitImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMzMzMiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjM1IiByPSIyMCIgZmlsbD0iIzY2NiIvPjxwYXRoIGQ9Ik0yMCA4NUMyMCA2NSAzNSA1NSA1MCA1NUM2NSA1NSA4MCA2NSA4MCA4NVYxMDBIMjBWODVaIiBmaWxsPSIjNjY2Ii8+PC9zdmc+';
+            }
+        }
+
+        // Populate basic info
+        document.getElementById('draftCardFirstName').value = prospect.firstName || '';
+        document.getElementById('draftCardLastName').value = prospect.lastName || '';
+        document.getElementById('draftCardAge').value = prospect.age || '';
+        document.getElementById('draftCardHeight').value = prospect.height || '';
+        document.getElementById('draftCardWeight').value = prospect.weight || '';
+        document.getElementById('draftCardJersey').value = prospect.jerseyNum || '';
+
+        // Populate college dropdown
+        this.populateDraftCardCollegeDropdown(prospect.college);
+
+        // Populate archetype dropdown
+        this.populateDraftCardArchetypeDropdown(prospect.position, prospect.archetype);
+
+        // Populate ratings
+        this.populateDraftCardRatings(prospect);
+
+        // Populate dev trait - handle both string and numeric values
+        const devTraitSelect = document.getElementById('draftCardDevTrait');
+        if (devTraitSelect) {
+            let devTraitValue = prospect.devTrait;
+            // Convert string to number if needed
+            if (typeof devTraitValue === 'string') {
+                const devTraitMap = { 'Normal': 0, 'Star': 1, 'Superstar': 2, 'X-Factor': 3 };
+                devTraitValue = devTraitMap[devTraitValue] ?? 0;
+            }
+            devTraitSelect.value = devTraitValue || 0;
+        }
+
+        // Populate traits based on position
+        this.populateDraftCardTraits(prospect);
+
+        // Show modal
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * Close draft player card modal
+     */
+    closeDraftPlayerCard() {
+        const modal = document.getElementById('draftPlayerCardModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+        this.currentDraftCardData = null;
+        this.currentDraftCardRowIndex = null;
+    }
+
+    /**
+     * Populate college dropdown for draft card
+     */
+    populateDraftCardCollegeDropdown(currentCollege) {
+        const select = document.getElementById('draftCardCollegeSelect');
+        if (!select) return;
+
+        // Get colleges from lookup service
+        select.innerHTML = '<option value="">Select College...</option>';
+
+        try {
+            const collegeOptions = getLookupOptions('colleges');
+            if (collegeOptions && collegeOptions.length > 0) {
+                collegeOptions.forEach(college => {
+                    const option = document.createElement('option');
+                    const collegeName = college.label || college.name || college;
+                    option.value = collegeName;
+                    option.textContent = collegeName;
+                    if (collegeName === currentCollege) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+            }
+        } catch (e) {
+            console.error('[populateDraftCardCollegeDropdown] Error getting college options:', e);
+        }
+    }
+
+    /**
+     * Populate archetype dropdown for draft card
+     */
+    populateDraftCardArchetypeDropdown(position, currentArchetype) {
+        const select = document.getElementById('draftCardArchetype');
+        if (!select) return;
+
+        // Position-specific archetypes
+        const archetypes = this.getArchetypesForPosition(position);
+        select.innerHTML = '';
+
+        archetypes.forEach(arch => {
+            const option = document.createElement('option');
+            option.value = arch;
+            option.textContent = arch;
+            if (arch === currentArchetype) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    }
+
+    /**
+     * Get archetypes for a position
+     */
+    getArchetypesForPosition(position) {
+        const archetypeMap = {
+            'QB': ['Field General', 'Improviser', 'Scrambler', 'Strong Arm'],
+            'HB': ['Elusive Back', 'Power Back', 'Receiving Back'],
+            'FB': ['Blocking', 'Utility'],
+            'WR': ['Deep Threat', 'Physical', 'Route Runner', 'Slot'],
+            'TE': ['Blocking', 'Possession', 'Vertical Threat'],
+            'LT': ['Agile', 'Pass Protector', 'Power'],
+            'LG': ['Agile', 'Pass Protector', 'Power'],
+            'C': ['Agile', 'Pass Protector', 'Power'],
+            'RG': ['Agile', 'Pass Protector', 'Power'],
+            'RT': ['Agile', 'Pass Protector', 'Power'],
+            'LEDG': ['Power Rusher', 'Speed Rusher', 'Run Stopper'],
+            'REDG': ['Power Rusher', 'Speed Rusher', 'Run Stopper'],
+            'DT': ['Power Rusher', 'Speed Rusher', 'Run Stopper'],
+            'LOLB': ['Pass Coverage', 'Power Rusher', 'Speed Rusher', 'Run Stopper'],
+            'MLB': ['Field General', 'Pass Coverage', 'Run Stopper'],
+            'ROLB': ['Pass Coverage', 'Power Rusher', 'Speed Rusher', 'Run Stopper'],
+            'CB': ['Man to Man', 'Slot', 'Zone'],
+            'FS': ['Hybrid', 'Zone'],
+            'SS': ['Hybrid', 'Run Support', 'Zone'],
+            'K': ['Accurate', 'Power'],
+            'P': ['Accurate', 'Power']
+        };
+        return archetypeMap[position] || ['Standard'];
+    }
+
+    /**
+     * Populate ratings for draft card using bubble style
+     */
+    populateDraftCardRatings(prospect) {
+        const container = document.getElementById('draftCardRatings');
+        if (!container) return;
+
+        // Position aliasing - convert old position codes to current ones
+        const POSITION_ALIASES = {
+            'SAM': 'LOLB',
+            'Mike': 'MLB',
+            'MIKE': 'MLB',
+            'WILL': 'ROLB',
+            'LE': 'LEDG',
+            'RE': 'REDG',
+            'OLB': 'LOLB',
+            'DE': 'LEDG'
+        };
+
+        const rawPosition = prospect.position;
+        const normalizedPosition = POSITION_ALIASES[rawPosition] || rawPosition;
+
+        // Position-specific ratings (similar to roster editor)
+        const positionRatings = {
+            'QB': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'throwPower', 'throwAccuracyShort', 'throwAccuracyMid', 'throwAccuracyDeep', 'carrying'],
+            'HB': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'carrying', 'breakTackle', 'trucking', 'elusiveness', 'catching'],
+            'FB': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'carrying', 'runBlock', 'passBlock', 'catching'],
+            'WR': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'catching', 'catchInTraffic', 'shortRouteRunning', 'mediumRouteRunning', 'deepRouteRunning'],
+            'TE': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'catching', 'runBlock', 'passBlock', 'shortRouteRunning'],
+            'LT': ['strength', 'runBlock', 'passBlock', 'awareness', 'agility', 'acceleration'],
+            'LG': ['strength', 'runBlock', 'passBlock', 'awareness', 'agility', 'acceleration'],
+            'C': ['strength', 'runBlock', 'passBlock', 'awareness', 'agility', 'acceleration'],
+            'RG': ['strength', 'runBlock', 'passBlock', 'awareness', 'agility', 'acceleration'],
+            'RT': ['strength', 'runBlock', 'passBlock', 'awareness', 'agility', 'acceleration'],
+            'LEDG': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'tackle', 'hitPower', 'finesseMoves', 'powerMoves', 'blockShedding'],
+            'REDG': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'tackle', 'hitPower', 'finesseMoves', 'powerMoves', 'blockShedding'],
+            'DT': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'tackle', 'hitPower', 'finesseMoves', 'powerMoves', 'blockShedding'],
+            'LOLB': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'tackle', 'hitPower', 'zoneCoverage', 'manCoverage', 'pursuit'],
+            'MLB': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'tackle', 'hitPower', 'zoneCoverage', 'manCoverage', 'pursuit'],
+            'ROLB': ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'tackle', 'hitPower', 'zoneCoverage', 'manCoverage', 'pursuit'],
+            'CB': ['speed', 'acceleration', 'agility', 'awareness', 'manCoverage', 'zoneCoverage', 'press', 'catching', 'tackle', 'pursuit'],
+            'FS': ['speed', 'acceleration', 'agility', 'awareness', 'zoneCoverage', 'manCoverage', 'tackle', 'hitPower', 'catching', 'pursuit'],
+            'SS': ['speed', 'acceleration', 'agility', 'awareness', 'zoneCoverage', 'manCoverage', 'tackle', 'hitPower', 'catching', 'pursuit'],
+            'K': ['kickPower', 'kickAccuracy', 'awareness'],
+            'P': ['kickPower', 'kickAccuracy', 'awareness']
+        };
+
+        // Rating label mapping
+        const labelMap = {
+            speed: 'SPD', acceleration: 'ACC', agility: 'AGI', strength: 'STR', awareness: 'AWR',
+            throwPower: 'THP', throwAccuracyShort: 'TAS', throwAccuracyMid: 'TAM', throwAccuracyDeep: 'TAD',
+            carrying: 'CAR', catching: 'CTH', runBlock: 'RBK', passBlock: 'PBK', tackle: 'TAK',
+            hitPower: 'POW', manCoverage: 'MCV', zoneCoverage: 'ZCV', kickPower: 'KPW', kickAccuracy: 'KAC',
+            breakTackle: 'BTK', trucking: 'TRK', elusiveness: 'ELU', catchInTraffic: 'CIT',
+            shortRouteRunning: 'SRR', mediumRouteRunning: 'MRR', deepRouteRunning: 'DRR',
+            finesseMoves: 'FNM', powerMoves: 'PWM', blockShedding: 'BSH', pursuit: 'PUR', press: 'PRS'
+        };
+
+        // Get position-specific ratings or default (use normalized position)
+        const ratingsToShow = positionRatings[normalizedPosition] ||
+            ['speed', 'acceleration', 'agility', 'strength', 'awareness', 'catching', 'tackle', 'carrying'];
+
+        container.innerHTML = '';
+
+        ratingsToShow.forEach(key => {
+            const value = prospect[key];
+            if (value !== undefined && value !== null) {
+                const ratingClass = this.getRatingClass(value);
+
+                const ratingItem = document.createElement('div');
+                ratingItem.className = 'rating-item';
+
+                // Create label
+                const label = document.createElement('div');
+                label.className = 'rating-label';
+                label.textContent = labelMap[key] || key.toUpperCase().substring(0, 3);
+
+                // Create editable input with bubble style
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = `rating-value ${ratingClass}`;
+                input.id = `draftRating_${key}`;
+                input.value = value;
+                input.min = 0;
+                input.max = 99;
+                input.dataset.key = key;
+
+                // Update color class on input change
+                input.addEventListener('input', (e) => {
+                    const newValue = parseInt(e.target.value) || 0;
+                    const newClass = this.getRatingClass(newValue);
+                    e.target.className = `rating-value ${newClass}`;
+                });
+
+                ratingItem.appendChild(label);
+                ratingItem.appendChild(input);
+                container.appendChild(ratingItem);
+            }
+        });
+    }
+
+    /**
+     * Populate traits for draft card based on position
+     */
+    populateDraftCardTraits(prospect) {
+        const container = document.getElementById('draftCardTraitsContainer');
+        if (!container) return;
+
+        // Position aliasing - convert old position codes to current ones
+        const POSITION_ALIASES = {
+            'SAM': 'LOLB',
+            'Mike': 'MLB',
+            'MIKE': 'MLB',
+            'WILL': 'ROLB',
+            'LE': 'LEDG',
+            'RE': 'REDG',
+            'OLB': 'LOLB',  // Generic OLB maps to LOLB
+            'DE': 'LEDG'    // Generic DE maps to LEDG
+        };
+
+        const rawPosition = prospect.position;
+        const position = POSITION_ALIASES[rawPosition] || rawPosition;
+
+        // Position-specific traits (same as roster/db player card)
+        const PLAYER_TRAITS = {
+            // QB Traits
+            AGGRESSIVEQB: { display: 'Aggressive QB', category: 'QB', positions: ['QB'] },
+            CANNON: { display: 'Cannon Arm', category: 'QB', positions: ['QB'] },
+            CONSERVATIVE: { display: 'Conservative', category: 'QB', positions: ['QB'] },
+            EYESUP: { display: 'Eyes Up', category: 'QB', positions: ['QB'] },
+            HAPPYFEET: { display: 'Happy Feet', category: 'QB', positions: ['QB'] },
+            HEROBALL: { display: 'Hero Ball', category: 'QB', positions: ['QB'] },
+            POCKETPASSER: { display: 'Pocket Passer', category: 'QB', positions: ['QB'] },
+            QUICKCLOCK: { display: 'Quick Clock', category: 'QB', positions: ['QB'] },
+            SCRAMBLER: { display: 'Scrambler', category: 'QB', positions: ['QB'] },
+            THROWAWAY: { display: 'Throw Away', category: 'QB', positions: ['QB'] },
+            // Ball Carrier Traits
+            COVERBALL: { display: 'Cover Ball', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+            ELUSIVEINSTINCT: { display: 'Elusive Instinct', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+            HIGHLIGHTREEL: { display: 'Highlight Reel', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+            POSSESSION: { display: 'Possession Receiver', category: 'Ball Carrier', positions: ['WR', 'TE'] },
+            RAC: { display: 'RAC Receiver', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+            // Defensive Traits (includes both old and M26 position codes)
+            BIGHITTER: { display: 'Big Hitter', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            BOUNCER: { display: 'Bouncer', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
+            FLYSWATTER: { display: 'Fly Swatter', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
+            HAMMERHEAD: { display: 'Hammerhead', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            PLAYBALL: { display: 'Play Ball', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            PLAYDEFENDER: { display: 'Play Defender', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
+            SAFETACKLER: { display: 'Safe Tackler', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            STRIPSBALL: { display: 'Strips Ball', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            // Pass Rush Traits
+            FINESSERUSHER: { display: 'Finesse Rusher', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+            POWERRUSHER: { display: 'Power Rusher', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+            BULLISH: { display: 'Bullish', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+            // Secondary Traits
+            JAMMER: { display: 'Red Zone Jammer', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
+            PLAYBALLAGGRESSIVE: { display: 'Play Ball Aggressive', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
+            PLAYBALLCONSERVATIVE: { display: 'Play Ball Conservative', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
+            // Other
+            DISCIPLINED: { display: 'Disciplined', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            GASGUZZLER: { display: 'Gas Guzzler', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] }
+        };
+
+        // Get traits for this position
+        const positionTraits = [];
+        for (const [key, trait] of Object.entries(PLAYER_TRAITS)) {
+            if (trait.positions.includes(position)) {
+                positionTraits.push({ key, ...trait });
+            }
+        }
+
+        if (positionTraits.length === 0) {
+            container.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No traits available for this position</p>';
+            return;
+        }
+
+        // Group by category
+        const grouped = {};
+        positionTraits.forEach(trait => {
+            if (!grouped[trait.category]) {
+                grouped[trait.category] = [];
+            }
+            grouped[trait.category].push(trait);
+        });
+
+        // Build HTML
+        let html = '';
+        for (const [category, traits] of Object.entries(grouped)) {
+            html += `<div class="trait-category">
+                <h4 class="trait-category-title">${category}</h4>
+                <div class="trait-grid">`;
+
+            traits.forEach(trait => {
+                const isEnabled = prospect[`trait_${trait.key}`] || false;
+                html += `
+                    <div class="trait-item ${isEnabled ? 'active' : ''}">
+                        <span class="trait-label">${trait.display}</span>
+                        <label class="trait-toggle">
+                            <input type="checkbox" class="trait-checkbox" data-trait="${trait.key}" ${isEnabled ? 'checked' : ''}>
+                            <span class="trait-toggle-slider"></span>
+                        </label>
+                    </div>`;
+            });
+
+            html += '</div></div>';
+        }
+
+        container.innerHTML = html;
+    }
+
+    /**
+     * Save draft card changes
+     */
+    saveDraftCardChanges() {
+        if (!this.currentDraftCardData || this.currentDraftCardRowIndex === null) {
+            console.error('[saveDraftCardChanges] No draft card data to save');
+            return;
+        }
+
+        const prospect = this.currentDraftCardData;
+
+        // Update basic info
+        prospect.firstName = document.getElementById('draftCardFirstName').value;
+        prospect.lastName = document.getElementById('draftCardLastName').value;
+        prospect.age = parseInt(document.getElementById('draftCardAge').value) || prospect.age;
+        prospect.height = parseInt(document.getElementById('draftCardHeight').value) || prospect.height;
+        prospect.weight = parseInt(document.getElementById('draftCardWeight').value) || prospect.weight;
+        prospect.jerseyNum = parseInt(document.getElementById('draftCardJersey').value) || prospect.jerseyNum;
+        prospect.college = document.getElementById('draftCardCollegeSelect').value || prospect.college;
+        prospect.archetype = document.getElementById('draftCardArchetype').value || prospect.archetype;
+        // Update dev trait - store both string and numeric formats
+        const devTraitId = parseInt(document.getElementById('draftCardDevTrait').value) || 0;
+        const devTraitNames = ['Normal', 'Star', 'Superstar', 'X-Factor'];
+        prospect.devTrait = devTraitNames[devTraitId] || 'Normal';
+        prospect.devTraitId = devTraitId;
+
+        // Update ratings
+        document.querySelectorAll('#draftCardRatings input[data-key]').forEach(input => {
+            const key = input.dataset.key;
+            const value = parseInt(input.value);
+            if (!isNaN(value)) {
+                prospect[key] = value;
+            }
+        });
+
+        // Update traits
+        document.querySelectorAll('#draftCardTraitsContainer input[data-trait]').forEach(checkbox => {
+            const traitKey = checkbox.dataset.trait;
+            prospect[`trait_${traitKey}`] = checkbox.checked;
+        });
+
+        // Refresh AG-Grid row
+        if (this.draftAgGrid) {
+            const rowNode = this.draftAgGrid.getDisplayedRowAtIndex(this.currentDraftCardRowIndex);
+            if (rowNode) {
+                rowNode.setData(prospect);
+            }
+        }
+
+        // Mark as modified
+        this.draftClassModified = true;
+
+        // Update header display
+        document.getElementById('draftCardName').textContent = `${prospect.firstName} ${prospect.lastName}`;
+        document.getElementById('draftCardOverall').textContent = prospect.overall || '--';
+
+        console.log('[saveDraftCardChanges] Saved changes for:', prospect.firstName, prospect.lastName);
     }
 
     // Player Card Methods
@@ -9613,6 +10069,9 @@ class MaddenEditorApp {
         // Ratings section - populate based on position
         this.populatePlayerRatings(playerData, position);
 
+        // Traits section - populate based on position
+        this.populatePlayerTraits(playerData, position);
+
         // Setup scroll wheel editing for player card
         this.setupPlayerCardScrollWheelEditing();
 
@@ -9716,6 +10175,24 @@ class MaddenEditorApp {
                 const input = document.getElementById(`playerCardRating_${fieldCode}`);
                 if (input) {
                     this.currentPlayerCardData[fieldCode] = parseInt(input.value) || 0;
+                }
+            });
+        }
+
+        // Update development trait
+        const devTraitSelect = document.getElementById('playerCardDevTrait');
+        if (devTraitSelect) {
+            this.currentPlayerCardData.PROL = parseInt(devTraitSelect.value) || 0;
+        }
+
+        // Update traits from toggle inputs
+        const traitsContainer = document.getElementById('playerCardTraitsContainer');
+        if (traitsContainer) {
+            traitsContainer.querySelectorAll('.trait-toggle input').forEach(input => {
+                const fieldCode = input.dataset.field;
+                if (fieldCode) {
+                    // Roster file traits are stored as 0 or 1
+                    this.currentPlayerCardData[fieldCode] = input.checked ? 1 : 0;
                 }
             });
         }
@@ -9988,6 +10465,136 @@ class MaddenEditorApp {
             ratingItem.appendChild(label);
             ratingItem.appendChild(input);
             ratingsContainer.appendChild(ratingItem);
+        });
+    }
+
+    /**
+     * Populate player traits section based on position
+     */
+    populatePlayerTraits(playerData, position) {
+        const container = document.getElementById('playerCardTraitsContainer');
+        if (!container) {
+            console.warn('[App] Traits container not found');
+            return;
+        }
+
+        // Set development trait value
+        const devTraitSelect = document.getElementById('playerCardDevTrait');
+        if (devTraitSelect) {
+            // PROL is the dev trait field in roster files (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
+            devTraitSelect.value = playerData.PROL || 0;
+        }
+
+        // Trait definitions for roster files (TR* fields)
+        // These map to actual roster file fields (includes both old and M26 position codes)
+        const ROSTER_TRAITS = {
+            TRBH: { display: 'Big Hitter', description: 'Powerful hits on ball carriers', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS', 'LEDG', 'REDG', 'DT'] },
+            TRCB: { display: 'Cover Ball', description: 'Protects the ball in traffic', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+            TRSB: { display: 'Strips Ball', description: 'Goes for forced fumbles', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS', 'LEDG', 'REDG', 'DT'] },
+            TRTA: { display: 'Throw Away', description: 'Throws ball away under pressure', category: 'QB', positions: ['QB'] },
+            TRFB: { display: 'Force Fumble', description: 'Punch out attempts', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            TRSW: { display: 'Swat Ball', description: 'Swats passes instead of intercepting', category: 'Defense', positions: ['CB', 'FS', 'SS', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL'] },
+            TRHM: { display: 'Highlight Reel', description: 'Makes spectacular plays', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+            TRFK: { display: 'Fake Out', description: 'Effective juke/spin moves', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
+            TRFY: { display: 'Scrambler', description: 'Likes to run when plays break down', category: 'QB', positions: ['QB'] },
+            TRBR: { display: 'Bull Rush', description: 'Power through blockers', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
+            TRJR: { display: 'Jump Routes', description: 'Jumps passing lanes', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
+            TRDO: { display: 'Drops Open', description: 'May drop easy catches', category: 'Other', positions: ['WR', 'TE', 'HB', 'FB'] },
+            TRDS: { display: 'Deep Streak', description: 'Excels at deep routes', category: 'Ball Carrier', positions: ['WR', 'TE'] },
+            TRCL: { display: 'Clutch', description: 'Performs better in key moments', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS', 'K', 'P'] },
+            TRTL: { display: 'Tight Lines', description: 'Stays in blocking lanes', category: 'Blocking', positions: ['LT', 'LG', 'C', 'RG', 'RT', 'TE', 'FB'] },
+            TRTS: { display: 'Tough Situation', description: 'Performs under pressure', category: 'Other', positions: ['QB', 'K', 'P'] },
+            TRWU: { display: 'Warm Up', description: 'Gets better during game', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE'] }
+        };
+
+        const TRAIT_CATEGORIES = {
+            QB: { display: 'Quarterback', color: '#4CAF50' },
+            'Ball Carrier': { display: 'Ball Carrier', color: '#2196F3' },
+            Defense: { display: 'Defense', color: '#f44336' },
+            'Pass Rush': { display: 'Pass Rush', color: '#FF9800' },
+            Blocking: { display: 'Blocking', color: '#9C27B0' },
+            Other: { display: 'Other', color: '#607D8B' }
+        };
+
+        const POSITION_ALIASES = { 'Mike': 'MLB', 'MIKE': 'MLB', 'SAM': 'LOLB', 'WILL': 'ROLB', 'LE': 'LEDG', 'RE': 'REDG', 'OLB': 'LOLB', 'DE': 'LEDG' };
+
+        // Get normalized position
+        const normalizedPosition = POSITION_ALIASES[position] || position;
+
+        // Filter traits by position
+        const applicableTraits = [];
+        for (const [fieldCode, trait] of Object.entries(ROSTER_TRAITS)) {
+            if (trait.positions.includes(normalizedPosition)) {
+                applicableTraits.push({ fieldCode, ...trait });
+            }
+        }
+
+        if (applicableTraits.length === 0) {
+            container.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No traits available for this position.</p>';
+            return;
+        }
+
+        // Group by category
+        const grouped = {};
+        applicableTraits.forEach(trait => {
+            const cat = trait.category || 'Other';
+            if (!grouped[cat]) grouped[cat] = [];
+            grouped[cat].push(trait);
+        });
+
+        // Sort categories
+        const sortedCategories = Object.keys(grouped).sort((a, b) => {
+            const order = ['QB', 'Ball Carrier', 'Defense', 'Pass Rush', 'Blocking', 'Other'];
+            return order.indexOf(a) - order.indexOf(b);
+        });
+
+        let html = '';
+        for (const category of sortedCategories) {
+            const traits = grouped[category];
+            const catInfo = TRAIT_CATEGORIES[category] || { display: category, color: '#607D8B' };
+
+            html += `
+                <div class="trait-category" data-category="${category}">
+                    <div class="trait-category-header">
+                        <span class="trait-category-badge" style="background: ${catInfo.color};">${traits.length}</span>
+                        <h5 class="trait-category-title">${catInfo.display}</h5>
+                    </div>
+                    <div class="trait-grid">
+            `;
+
+            traits.forEach(trait => {
+                const value = playerData[trait.fieldCode] || 0;
+                const isActive = value > 0;
+                const activeClass = isActive ? 'active' : '';
+                const checkedAttr = isActive ? 'checked' : '';
+
+                html += `
+                    <div class="trait-item ${activeClass}" title="${trait.description}" data-trait="${trait.fieldCode}">
+                        <label class="trait-label" for="playerTrait_${trait.fieldCode}">${trait.display}</label>
+                        <label class="trait-toggle">
+                            <input type="checkbox" id="playerTrait_${trait.fieldCode}" data-field="${trait.fieldCode}" ${checkedAttr}>
+                            <span class="trait-toggle-slider"></span>
+                        </label>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+
+        // Add event listeners for trait toggles
+        container.querySelectorAll('.trait-toggle input').forEach(input => {
+            input.addEventListener('change', function() {
+                const traitItem = this.closest('.trait-item');
+                if (traitItem) {
+                    traitItem.classList.toggle('active', this.checked);
+                }
+            });
         });
     }
 
@@ -10502,6 +11109,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         savePlayerCardBtn.addEventListener('click', () => {
             if (window.app) {
                 window.app.savePlayerCard();
+            }
+        });
+    }
+
+    // Draft Card Save button
+    const saveDraftCardBtn = document.getElementById('saveDraftCardBtn');
+    if (saveDraftCardBtn) {
+        saveDraftCardBtn.addEventListener('click', () => {
+            if (window.app) {
+                window.app.saveDraftCardChanges();
+            }
+        });
+    }
+
+    // Draft Card Modal close on background click
+    const draftPlayerCardModal = document.getElementById('draftPlayerCardModal');
+    if (draftPlayerCardModal) {
+        draftPlayerCardModal.addEventListener('click', (e) => {
+            if (e.target === draftPlayerCardModal) {
+                if (window.app) {
+                    window.app.closeDraftPlayerCard();
+                }
             }
         });
     }

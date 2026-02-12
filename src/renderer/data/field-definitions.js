@@ -7,7 +7,7 @@ export const MADDEN_FIELDS = {
     // User-friendly fields based on FIELD_ORDER
     'PLNA': { display: 'Last Name', shortDisplay: 'Last Name', type: 'text', editable: true, width: 100 },
     'PFNA': { display: 'First Name', shortDisplay: 'First Name', type: 'text', editable: true, width: 100 },
-    'PSXP': { display: 'Pic ID', shortDisplay: 'PID', type: 'numeric', editable: true, width: 60, min: 0, max: 10861 },
+    'PSXP': { display: 'Pic ID', shortDisplay: 'PID', type: 'numeric', editable: true, width: 70, min: 0, max: 999999 },
     'PLAYERPIC': { display: 'Player Pic', shortDisplay: 'Player Pic', type: 'autocomplete', editable: true, width: 180, lookup: 'pids' },
     'PEPS': { display: 'PAM', shortDisplay: 'PAM', type: 'text', editable: true, width: 180 },
     'PPOS': { display: 'Position', shortDisplay: 'POS', type: 'lookup', editable: true, width: 80, lookup: 'positions' },
@@ -200,6 +200,15 @@ export const MADDEN_EXPORT_ORDER = [
 
 // Basic fields for default view (user-friendly editing fields only)
 export const BASIC_FIELDS = FIELD_ORDER.map(field => field[0]);
+
+// Simplified fields matching the mockup design (cleaner table view)
+// PLAYER column combines PFNA + PLNA, shown with initials
+export const SIMPLIFIED_FIELDS = [
+    ["PLNA", "Last Name"], ["PFNA", "First Name"],
+    ["PPOS", "POS"], ["POVR", "OVR"], ["PAGE", "AGE"],
+    ["PSPD", "SPD"], ["PACC", "ACC"], ["PSTR", "STR"], ["PAWR", "AWR"],
+    ["PTHP", "THP"], ["PTAS", "SAC"], ["PTAM", "MAC"], ["PTAD", "DAC"]
+];
 
 // Position field mappings (PPOS numeric code to position name)
 // MUST match position_lookup.csv exactly

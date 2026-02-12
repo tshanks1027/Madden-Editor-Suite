@@ -15,6 +15,7 @@ import {
     BODY_TYPE_NAMES
 } from '../data/field-definitions.js';
 import { FastSelectEditor } from './FastSelectEditor.js';
+import { getTeamById } from '../data/team-data.js';
 
 // Team colors for row styling
 const TEAM_COLORS = {
@@ -136,10 +137,11 @@ class PortraitCellRenderer {
             this.eGui.appendChild(injuryIcon);
         }
 
-        // Click handler to show player card
+        // Click handler to show player card - pass actual player data, not index
         this.eGui.addEventListener('click', () => {
-            const rowIndex = params.node.rowIndex;
-            app.showPlayerCard(rowIndex);
+            if (player) {
+                app.openPlayerCard(player, params.node.rowIndex);
+            }
         });
 
         // Right-click context menu for face picker
@@ -297,10 +299,12 @@ class RowNumberCellRenderer {
 
         this.eGui.textContent = (params.node.rowIndex + 1).toString();
 
-        // Click handler to show player card
+        // Click handler to show player card - pass actual player data, not index
+        const player = params.data;
         this.eGui.addEventListener('click', () => {
-            const rowIndex = params.node.rowIndex;
-            app.showPlayerCard(rowIndex);
+            if (player) {
+                app.openPlayerCard(player, params.node.rowIndex);
+            }
         });
     }
 
@@ -1050,6 +1054,72 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     }
                 }
 
+                // ========== AUTO-RECALCULATE OVR WHEN RATINGS CHANGE ==========
+                const ratingFields = ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
+                    'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
+                    'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
+                    'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
+                    'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
+                    'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
+                    'PSTA', 'PINJ', 'PTGH'];
+
+                if (ratingFields.includes(fieldName) && event.newValue !== event.oldValue) {
+                    console.log(`[AG-Grid] Rating field ${fieldName} changed from ${event.oldValue} to ${event.newValue}, recalculating OVR...`);
+
+                    // Build attributes from player data
+                    const attributes = {};
+                    for (const field of ratingFields) {
+                        if (actualPlayer[field] !== undefined) {
+                            attributes[field] = parseInt(actualPlayer[field]) || 50;
+                        }
+                    }
+
+                    // Get position name
+                    const positionId = actualPlayer.PPOS;
+                    const positionName = POSITION_MAPPINGS[positionId] || 'QB';
+                    const archetype = actualPlayer.PLTY;
+
+                    // Calculate new OVR
+                    if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRMadden) {
+                        window.electronAPI.rating.calculateOVRMadden(positionName, attributes, archetype)
+                            .then(newOVR => {
+                                const oldOVR = parseInt(actualPlayer.POVR) || 50;
+                                if (newOVR !== oldOVR) {
+                                    console.log(`[AG-Grid] OVR recalculated: ${oldOVR} → ${newOVR}`);
+
+                                    // Update player data
+                                    actualPlayer.POVR = newOVR;
+                                    event.data.POVR = newOVR;
+                                    if (playerIndex !== -1) {
+                                        app.players[playerIndex].POVR = newOVR;
+                                    }
+
+                                    // Refresh the OVR cell in the grid
+                                    event.api.refreshCells({
+                                        rowNodes: [event.node],
+                                        columns: ['POVR'],
+                                        force: true
+                                    });
+
+                                    // Also update the card view OVR display
+                                    const cardOvrEl = document.getElementById('cardPlayerOVR');
+                                    if (cardOvrEl) {
+                                        cardOvrEl.textContent = newOVR;
+                                    }
+
+                                    // Update currentPlayerCardData if it exists
+                                    if (app.currentPlayerCardData) {
+                                        app.currentPlayerCardData.POVR = newOVR;
+                                    }
+                                }
+                            })
+                            .catch(err => {
+                                console.warn('[AG-Grid] Could not recalculate OVR:', err);
+                            });
+                    }
+                }
+                // ========== END AUTO-RECALCULATE OVR ==========
+
                 // If PLAYERPIC or PSXP changed, refresh the portrait column AND update race
                 if (fieldName === 'PLAYERPIC' || fieldName === 'PSXP') {
                     const pid = actualPlayer.PSXP;
@@ -1185,7 +1255,10 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                         }
                     }
                 } else if (action === 'view-player-card') {
-                    app.showPlayerCard(rowIndex);
+                    const player = event.data;
+                    if (player) {
+                        app.openPlayerCard(player, rowIndex);
+                    }
                 } else if (action === 'save-bio-to-db') {
                     // Save bio info to database
                     const player = event.data;
@@ -1272,22 +1345,28 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             if (selectedRows.length > 0) {
                 const player = selectedRows[0];
                 const teamId = player.TGID;
-                // Get team data using the imported function from app
-                if (app.getTeamLogoUrl) {
+                const nflLogoHtml = '<img src="https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg" alt="NFL logo">';
+
+                // Get team data for logo and color
+                const team = getTeamById(teamId);
+
+                if (team && team.logo) {
+                    logoEl.innerHTML = `<img src="${team.logo}" alt="Team logo">`;
+                    logoEl.style.background = `linear-gradient(145deg, ${team.secondary}, ${team.secondary}99)`;
+                } else if (app.getTeamLogoUrl) {
                     const logoUrl = app.getTeamLogoUrl(teamId);
                     if (logoUrl) {
                         logoEl.innerHTML = `<img src="${logoUrl}" alt="Team logo">`;
                     } else {
-                        logoEl.innerHTML = 'NFL';
+                        logoEl.innerHTML = nflLogoHtml;
                     }
                 } else {
-                    // Fallback - use team abbreviation from TEAM_MAPPINGS
-                    const teamAbbr = TEAM_MAPPINGS[teamId] || 'NFL';
-                    logoEl.innerHTML = teamAbbr;
+                    logoEl.innerHTML = nflLogoHtml;
                 }
             } else {
-                // No selection - show NFL
-                logoEl.innerHTML = 'NFL';
+                // No selection - show NFL logo with default gold
+                logoEl.innerHTML = '<img src="https://static.www.nfl.com/image/upload/v1554321393/league/nvfr7ogywskqrfaiu38m.svg" alt="NFL logo">';
+                logoEl.style.background = 'linear-gradient(145deg, #ffa726, #ffa72699)';
             }
         },
 
@@ -1831,11 +1910,11 @@ export function destroyAGGrid(app) {
 async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app, gridApi) {
     console.log('[AG-Grid OVR] handleAGGridOVRChange called:', oldOVR, '->', newOVR);
 
-    // Get position name from position ID
+    // Get position name from position ID (M26 codes)
     const positionMap = {
         0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
-        8: 'RG', 9: 'RT', 10: 'LE', 11: 'RE', 12: 'DT', 13: 'LOLB', 14: 'MLB',
-        15: 'ROLB', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+        8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike',
+        15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
     };
     const position = positionMap[player.PPOS] || 'QB';
     const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'Unknown Player';
