@@ -67,29 +67,42 @@ function readXlsFile(filePath) {
     try {
         const workbook = XLSX.readFile(filePath);
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        // Find the actual header row (skip category headers like "Rushing")
+        // Find the header row (the one containing "Player")
         let headerRowIndex = 0;
-        for (let i = 0; i < Math.min(5, data.length); i++) {
-            if (data[i] && data[i].includes('Player')) {
+        for (let i = 0; i < Math.min(5, rawData.length); i++) {
+            if (rawData[i] && rawData[i].includes('Player')) {
                 headerRowIndex = i;
                 break;
             }
         }
 
-        const headers = data[headerRowIndex];
-        const rows = data.slice(headerRowIndex + 1);
+        const headers = rawData[headerRowIndex];
+        const rows = rawData.slice(headerRowIndex + 1);
+
+        // Track seen column names to handle duplicates (e.g., two "Yds" columns)
+        const headerCounts = {};
+        const uniqueHeaders = headers.map(h => {
+            if (!h) return null;
+            if (headerCounts[h]) {
+                headerCounts[h]++;
+                return `${h}_${headerCounts[h]}`;  // Yds -> Yds_2
+            } else {
+                headerCounts[h] = 1;
+                return h;
+            }
+        });
 
         return rows.map(row => {
             const obj = {};
-            headers.forEach((header, idx) => {
+            uniqueHeaders.forEach((header, idx) => {
                 if (header) {
                     obj[header] = row[idx];
                 }
             });
             return obj;
-        }).filter(row => row.Player && row.Player.length > 0);
+        }).filter(row => row.Player && String(row.Player).length > 0);
     } catch (error) {
         console.error(`Error reading ${filePath}:`, error.message);
         return null;
