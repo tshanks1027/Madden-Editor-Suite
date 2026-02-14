@@ -42,7 +42,7 @@
         searchTimeout = setTimeout(() => {
           currentPage = 1;
           performSearch();
-        }, 300);
+        }, 400);
       });
 
       // Enter key for immediate search
@@ -291,6 +291,75 @@
 
     resultsDiv.innerHTML = html;
     updatePagination();
+
+    // Add row click handlers for preview
+    const rows = resultsDiv.querySelectorAll('.player-browser-row');
+    rows.forEach(row => {
+      row.addEventListener('click', (e) => {
+        // Don't trigger on button clicks
+        if (e.target.tagName === 'BUTTON') return;
+
+        const coachId = parseInt(row.dataset.coachId, 10);
+        const isCustom = row.dataset.isCustom === 'true';
+        const coach = currentResults.find(c => c.id === coachId && c.isCustom === isCustom);
+        if (coach) {
+          updatePreview(coach);
+          // Highlight selected row
+          rows.forEach(r => r.classList.remove('selected'));
+          row.classList.add('selected');
+        }
+      });
+    });
+  }
+
+  /**
+   * Update the coach preview panel
+   */
+  async function updatePreview(coach) {
+    const previewContent = document.getElementById('coachPreviewContent');
+    if (!previewContent) return;
+
+    const positionBadge = coach.position ? getPositionBadge(coach.position) : '';
+    const teamName = coach.teamIndex !== undefined ? `Team ${coach.teamIndex}` : '-';
+
+    // Try to get coach portrait
+    let portraitHtml = '<div class="preview-portrait-placeholder">👔</div>';
+    try {
+      // For original coaches, use the PID (coach.id). For custom, check if there's a maddenPid
+      const pid = coach.id;
+      if (pid && window.electronAPI?.coachPortrait) {
+        const hasPortrait = await window.electronAPI.coachPortrait.hasPortrait(pid);
+        if (hasPortrait) {
+          const imageData = await window.electronAPI.coachPortrait.getImageDataByPID(pid);
+          if (imageData) {
+            portraitHtml = `<img src="${imageData}" alt="${coach.displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">`;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[CoachBrowser] Failed to load portrait:', e);
+    }
+
+    previewContent.innerHTML = `
+      <div class="preview-portrait">
+        ${portraitHtml}
+      </div>
+      <div class="preview-name">${coach.displayName}</div>
+      <div class="preview-subtitle">${positionBadge} ${coach.isCustom ? '(Custom)' : ''}</div>
+      <div class="preview-stats">
+        <div class="preview-stat">
+          <div class="preview-stat-label">Team</div>
+          <div class="preview-stat-value">${teamName}</div>
+        </div>
+        <div class="preview-stat">
+          <div class="preview-stat-label">Type</div>
+          <div class="preview-stat-value">${coach.isCustom ? 'Custom' : 'Original'}</div>
+        </div>
+      </div>
+      <div class="preview-actions">
+        <button class="preview-btn preview-btn-primary" onclick="window.viewDbCoach(${coach.id}, ${coach.isCustom})">Edit Coach</button>
+      </div>
+    `;
   }
 
   /**

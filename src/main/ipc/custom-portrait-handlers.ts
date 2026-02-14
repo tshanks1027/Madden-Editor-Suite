@@ -9,6 +9,7 @@
  */
 
 import { ipcMain, dialog, BrowserWindow } from 'electron';
+import path from 'path';
 import { customPortraitService } from '../services/CustomPortraitService';
 
 export function registerCustomPortraitHandlers(): void {
@@ -42,7 +43,13 @@ export function registerCustomPortraitHandlers(): void {
       return { success: false, canceled: true };
     }
 
-    const importResult = await customPortraitService.importPortrait(result.filePaths[0]);
+    // Extract year from filename if present
+    const filePath = result.filePaths[0];
+    const filename = path.basename(filePath);
+    const yearMatch = filename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+    const metadata = yearMatch ? { year: parseInt(yearMatch[1], 10) } : undefined;
+
+    const importResult = await customPortraitService.importPortrait(filePath, metadata);
     return importResult;
   });
 
@@ -69,7 +76,18 @@ export function registerCustomPortraitHandlers(): void {
     const errors: string[] = [];
 
     for (const filePath of result.filePaths) {
-      const importResult = await customPortraitService.importPortrait(filePath, metadata);
+      // Extract year from filename if not provided in metadata
+      // Look for 4-digit years like 1976, 2024 in the filename
+      let fileMetadata = { ...metadata };
+      if (!fileMetadata.year) {
+        const filename = path.basename(filePath);
+        const yearMatch = filename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+        if (yearMatch) {
+          fileMetadata.year = parseInt(yearMatch[1], 10);
+        }
+      }
+
+      const importResult = await customPortraitService.importPortrait(filePath, fileMetadata);
       if (importResult.success && importResult.pid) {
         results.push({ pid: importResult.pid, filename: filePath });
       } else {

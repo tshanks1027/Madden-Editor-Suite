@@ -27,29 +27,29 @@ class MaddenRosterHelper {
         this._filePath = filePath;
 
         return new Promise((resolve, reject) => {
-            fs.open(filePath, (err, fd) => {
-                const buffer = Buffer.alloc(0x18);
+                fs.open(filePath, (err, fd) => {
+                    const buffer = Buffer.alloc(0x18);
 
-                fs.read(fd, buffer, buffer.byteOffset, 0x18, 0, (err, bytesRead, buffer) => {
-                    this._headerBuffer = buffer;
-                    this._year = buffer.readUInt16LE(0x16);
+                    fs.read(fd, buffer, buffer.byteOffset, 0x18, 0, (err, bytesRead, buffer) => {
+                        this._headerBuffer = buffer;
+                        this._year = buffer.readUInt16LE(0x16);
                     
-                    if (this._year >= 2021) {
-                        self._dataStart = 0x4A;
-                    }
-                    else {
-                        self._dataStart = 0x3E;
-                    }
+                        if (this._year >= 2021) {
+                            self._dataStart = 0x4A;
+                        }
+                        else {
+                            self._dataStart = 0x3E;
+                        }
 
-                    const headerBytesToRead = self._dataStart - 0x18;
-                    const newFormatBuffer = Buffer.alloc(headerBytesToRead);
+                        const headerBytesToRead = self._dataStart - 0x18;
+                        const newFormatBuffer = Buffer.alloc(headerBytesToRead);
 
-                    fs.read(fd, newFormatBuffer, newFormatBuffer.byteOffset, headerBytesToRead, 0x18, (err, bytesRead, newBuffer) => {
-                        this._headerBuffer = Buffer.concat([this._headerBuffer, newBuffer]);
-                        readTdb2Stream(fd, self._dataStart);
+                        fs.read(fd, newFormatBuffer, newFormatBuffer.byteOffset, headerBytesToRead, 0x18, (err, bytesRead, newBuffer) => {
+                            this._headerBuffer = Buffer.concat([this._headerBuffer, newBuffer]);
+                            readTdb2Stream(fd, self._dataStart);
+                        });
                     });
                 });
-            });
 
             function readTdb2Stream(fd, dataStart) {
                 const stream = fs.createReadStream(null, { fd: fd, start: dataStart });

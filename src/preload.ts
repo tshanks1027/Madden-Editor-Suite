@@ -531,6 +531,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('database:reset-player', originalId),
     clearPlayerSeasons: (originalId: number) =>
       ipcRenderer.invoke('database:clear-player-seasons', originalId),
+    deletePlayerSeason: (originalId: number, year: number) =>
+      ipcRenderer.invoke('database:delete-player-season', originalId, year),
+    deleteCustomPlayerSeason: (customPlayerId: number, year: number) =>
+      ipcRenderer.invoke('database:delete-custom-player-season', customPlayerId, year),
 
     // Appearance edit operations
     saveAppearanceEdit: (originalPlayerId: number, edits: any) =>
@@ -623,8 +627,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('database:get-player-available-years', internalId),
 
     // Career stats operations (from scraped PFR database)
-    getCareerStats: (firstName: string, lastName: string) =>
-      ipcRenderer.invoke('database:get-career-stats', firstName, lastName),
+    // draftYear is optional but helps disambiguate players with the same name
+    getCareerStats: (firstName: string, lastName: string, draftYear?: number) =>
+      ipcRenderer.invoke('database:get-career-stats', firstName, lastName, draftYear),
     getCareerStatsByYear: (firstName: string, lastName: string, year: number) =>
       ipcRenderer.invoke('database:get-career-stats-by-year', firstName, lastName, year),
     calculateRatingFromStats: (stats: any, position: string) =>

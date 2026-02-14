@@ -24,6 +24,7 @@ import { lookupService } from './lookup-service';
 import { draftClassService } from './DraftClassService';
 import { pgheLookupService } from './PGHELookupService';
 import { userDatabaseService } from './UserDatabaseService';
+import { contractService } from './ContractService';
 
 export interface RosterPlayer {
   // Basic Info
@@ -220,38 +221,21 @@ export class RosterGeneratorService {
 
     console.log('[RosterGeneratorService] ===== INITIALIZING =====');
 
-    // Load CSV data directly (more reliable than database)
-    const csvPath = path.join(app.getAppPath(), 'data', 'lookups', 'ROSTER_lookup.csv');
-    console.log('[RosterGeneratorService] Loading CSV from:', csvPath);
+    // Wait for lookupService to be ready (database loaded)
+    console.log('[RosterGeneratorService] Waiting for lookup service...');
+    await lookupService.waitForReady();
+    console.log('[RosterGeneratorService] Lookup service ready');
 
-    if (!fs.existsSync(csvPath)) {
-      throw new Error(`ROSTER_lookup.csv not found at: ${csvPath}`);
+    // Get available years from database
+    const availableYears = lookupService.getAvailableRosterYears();
+    console.log('[RosterGeneratorService] Database has data for', availableYears.length, 'years');
+    if (availableYears.length > 0) {
+      console.log('[RosterGeneratorService] Year range:', Math.min(...availableYears), '-', Math.max(...availableYears));
     }
 
-    const csvContent = fs.readFileSync(csvPath, 'utf8');
-    const parsed = Papa.parse(csvContent, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      // CRITICAL: Trim all fields to handle " Northern Arizona" -> "Northern Arizona"
-      transform: (value: string) => {
-        return typeof value === 'string' ? value.trim() : value;
-      }
-    });
-
-    console.log('[RosterGeneratorService] Parsed', parsed.data.length, 'rows');
-
-    // Group by year
-    parsed.data.forEach((row: any) => {
-      const year = Math.floor(row.Year);
-      if (!this.rosterData.has(year)) {
-        this.rosterData.set(year, []);
-      }
-      this.rosterData.get(year)!.push(row);
-    });
-
-    console.log('[RosterGeneratorService] Loaded data for', this.rosterData.size, 'years');
-    console.log('[RosterGeneratorService] Year range:', Math.min(...this.rosterData.keys()), '-', Math.max(...this.rosterData.keys()));
+    // NOTE: We no longer pre-load all data into memory
+    // Instead, we query the database on-demand in generateSingleYear/generateAllTime
+    // This is more memory efficient and ensures we always get fresh data
 
     // Load template
     const templatePath = path.join(app.getAppPath(), 'data', 'Templates', 'ROSTER-Official');
@@ -495,6 +479,116 @@ export class RosterGeneratorService {
       console.warn('[RosterGeneratorService] Failed to load custom portrait assignments:', error);
     }
 
+    // =============================================
+    // LOAD CUSTOM PLAYERS FROM USER DATABASE
+    // =============================================
+    // Custom players are the user's additions - they should be the PRIMARY data source
+    // Custom player data OVERRIDES bundled database data for the same player
+    console.log('[RosterGeneratorService] Loading custom players from user database...');
+
+    try {
+      const customPlayerSeasons = userDatabaseService.getAllCustomPlayerSeasonsWithPlayer();
+      console.log('[RosterGeneratorService] Found', customPlayerSeasons.length, 'custom player seasons');
+
+      // Track custom players added to each year for debugging
+      const customPlayersPerYear: Map<number, number> = new Map();
+
+      for (const cps of customPlayerSeasons) {
+        const year = cps.year;
+        if (!year) continue;
+
+        // Convert custom player season to CSV-like row format
+        // This matches the format expected by convertCsvRowToRosterPlayer
+        const csvLikeRow: any = {
+          Year: year,
+          Season_Team: cps.team || 'FA',  // Free Agent if no team
+          Player_Name: `${cps.firstName} ${cps.lastName}`,
+          First_Name: cps.firstName,
+          Last_Name: cps.lastName,
+          Position: cps.position || 'QB',  // Default position
+          Jersey: cps.jersey || 0,
+          Age: cps.age || 25,
+          PID: cps.maddenPid || 0,
+          PAM: cps.maddenPam || '',
+          College: cps.collegeId || 0,  // Will be processed as numeric ID
+          Height: cps.height || 72,
+          Weight: cps.weight || 200,
+          POVR: cps.ratings?.POVR || 70,
+          Archetype: cps.archetype || '',
+          Race: cps.race || 1,
+          BirthDate: '',
+          YearsPro: cps.year && cps.draftClass ? year - cps.draftClass : 1,
+          Handedness: cps.handedness || 0,
+          Dev_Trait: 0,
+          // Flag this as a custom player for priority handling
+          _isCustomPlayer: true,
+          _customPlayerId: cps.customPlayerId
+        };
+
+        // Copy all rating fields from custom player
+        for (const field of RATING_FIELDS) {
+          if (cps.ratings && cps.ratings[field] !== undefined) {
+            csvLikeRow[field] = cps.ratings[field];
+          }
+        }
+
+        // Add to rosterData for this year
+        if (!this.rosterData.has(year)) {
+          this.rosterData.set(year, []);
+        }
+        this.rosterData.get(year)!.push(csvLikeRow);
+
+        // Track for logging
+        customPlayersPerYear.set(year, (customPlayersPerYear.get(year) || 0) + 1);
+
+        // Add custom player to lookup maps (OVERRIDE bundled data)
+        const key = `${cps.firstName}|${cps.lastName}`;
+
+        // Add to nameToInternalId with custom ID range (offset by 1,000,000 to avoid collisions)
+        const customInternalId = 1000000 + cps.customPlayerId;
+        this.nameToInternalId.set(key, customInternalId);  // OVERRIDE bundled entry
+
+        // Add PID/CommID mapping if custom player has them set
+        if (cps.maddenPid && cps.maddenPid > 0) {
+          // Add to validPIDs so it won't be rejected
+          this.validPIDs.add(cps.maddenPid);
+
+          // Add PID → CommID mapping
+          if (cps.maddenCommid) {
+            const commIdNum = parseInt(cps.maddenCommid);
+            if (!isNaN(commIdNum) && commIdNum > 0) {
+              this.pidToCommID.set(cps.maddenPid, commIdNum);
+            }
+          }
+
+          // Add PID → PAM mapping
+          if (cps.maddenPam) {
+            this.pidToPAM.set(cps.maddenPid, cps.maddenPam);
+          }
+        }
+
+        // Add home location mapping (OVERRIDE bundled)
+        if (cps.hometown || cps.homeState) {
+          this.homeLocationLookup.set(key, {
+            hometown: cps.hometown || '',
+            homeState: cps.homeState || ''
+          });
+        }
+      }
+
+      // Log summary of custom players added
+      if (customPlayersPerYear.size > 0) {
+        console.log('[RosterGeneratorService] Custom players added by year:');
+        for (const [year, count] of Array.from(customPlayersPerYear.entries()).sort((a, b) => a[0] - b[0])) {
+          console.log(`  ${year}: ${count} players`);
+        }
+        console.log('[RosterGeneratorService] Total custom player seasons:', customPlayerSeasons.length);
+        console.log('[RosterGeneratorService] nameToInternalId now has', this.nameToInternalId.size, 'entries');
+      }
+    } catch (error) {
+      console.error('[RosterGeneratorService] Failed to load custom players:', error);
+    }
+
     this.initialized = true;
     console.log('[RosterGeneratorService] ===== INITIALIZATION COMPLETE =====');
   }
@@ -544,38 +638,72 @@ export class RosterGeneratorService {
 
   /**
    * Generate single year roster
+   * Now queries database directly via lookupService instead of reading from CSV
+   * Also merges any custom players added by the user
    */
   private async generateSingleYear(year: number): Promise<{ players: RosterPlayer[], metadata: any }> {
     console.log('[RosterGeneratorService] ===== GENERATING SINGLE YEAR =====');
     console.log('[RosterGeneratorService] Requested year:', year);
 
-    const yearPlayers = this.rosterData.get(year) || [];
-    if (yearPlayers.length === 0) {
-      throw new Error(`No players found for year ${year}`);
-    }
+    // Query database for all players in this year
+    const dbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
 
-    console.log('[RosterGeneratorService] Found', yearPlayers.length, 'players for year', year);
+    // Also get custom players for this year (stored in this.rosterData during init)
+    const customPlayers = this.rosterData.get(year) || [];
+
+    // Build set of custom player names for override priority
+    const customPlayerNames = new Set(
+      customPlayers.map((p: any) => `${p.First_Name}|${p.Last_Name}`)
+    );
+
+    // Filter out database players that have custom overrides
+    const filteredDbPlayers = dbPlayers.filter(p =>
+      !customPlayerNames.has(`${p.firstName}|${p.lastName}`)
+    );
+
+    console.log('[RosterGeneratorService] Found', dbPlayers.length, 'database players for year', year);
+    console.log('[RosterGeneratorService] Found', customPlayers.length, 'custom players for year', year);
+    console.log('[RosterGeneratorService] After merge:', filteredDbPlayers.length, 'db +', customPlayers.length, 'custom');
 
     // Log first 3 players to verify correct year data
-    if (yearPlayers.length > 0) {
-      console.log('[RosterGeneratorService] Sample players from CSV:');
-      yearPlayers.slice(0, 3).forEach((p, i) => {
-        console.log(`  Player ${i + 1}: ${p.First_Name} ${p.Last_Name} - Year: ${p.Year}, Team: ${p.Season_Team}, PID: ${p.PID}, College: ${p.College}`);
+    if (filteredDbPlayers.length > 0) {
+      console.log('[RosterGeneratorService] Sample players from database:');
+      filteredDbPlayers.slice(0, 3).forEach((p, i) => {
+        console.log(`  Player ${i + 1}: ${p.firstName} ${p.lastName} - Team: ${p.team}, PID: ${p.maddenPid}, College: ${p.college}, Home: ${p.hometown}, ${p.homeState}`);
       });
     }
 
-    // Group players by team
+    // Group players by team - handle both database and custom formats
     const teamPlayers = new Map<string, any[]>();
-    yearPlayers.forEach(player => {
+
+    // Add database players
+    filteredDbPlayers.forEach(player => {
+      const team = player.team || 'FA';
+      if (!teamPlayers.has(team)) {
+        teamPlayers.set(team, []);
+      }
+      teamPlayers.get(team)!.push({ ...player, _source: 'db' });
+    });
+
+    // Add custom players (they use CSV format with Season_Team)
+    customPlayers.forEach((player: any) => {
       const team = player.Season_Team || 'FA';
       if (!teamPlayers.has(team)) {
         teamPlayers.set(team, []);
       }
-      teamPlayers.get(team)!.push(player);
+      teamPlayers.get(team)!.push({ ...player, _source: 'custom' });
     });
 
     console.log('[RosterGeneratorService] Found', teamPlayers.size, 'teams');
     console.log('[RosterGeneratorService] Teams:', Array.from(teamPlayers.keys()).slice(0, 10).join(', '), '...');
+
+    // Helper to get POVR from either format
+    const getPOVR = (p: any) => {
+      if (p._source === 'custom') {
+        return p.POVR || 0;
+      }
+      return p.ratings?.POVR || 0;
+    };
 
     // Build roster: top 55 players per team by POVR
     const roster: any[] = [];
@@ -584,7 +712,7 @@ export class RosterGeneratorService {
     teamPlayers.forEach((players, team) => {
       // Sort by POVR and take top 55
       const teamRoster = players
-        .sort((a, b) => (b.POVR || 0) - (a.POVR || 0))
+        .sort((a, b) => getPOVR(b) - getPOVR(a))
         .slice(0, 55);
 
       roster.push(...teamRoster);
@@ -594,9 +722,17 @@ export class RosterGeneratorService {
 
     console.log('[RosterGeneratorService] Total players across', totalTeams, 'teams:', roster.length);
 
-    // Enrich all players
+    // Enrich all players - use correct method based on source
     const enrichedPlayers = await Promise.all(
-      roster.map(p => this.enrichPlayer(p, year))
+      roster.map(p => {
+        if (p._source === 'custom') {
+          // Custom players use CSV format
+          return this.enrichPlayer(p, year);
+        } else {
+          // Database players use new format
+          return this.enrichPlayerFromDb(p, year);
+        }
+      })
     );
 
     console.log('[RosterGeneratorService] Final roster size:', enrichedPlayers.length);
@@ -667,6 +803,7 @@ export class RosterGeneratorService {
 
   /**
    * Generate all-time roster from year range
+   * Now queries database directly via lookupService
    *
    * Algorithm:
    * 1. Collect all players from year range, deduplicate by PID keeping BEST year
@@ -680,23 +817,50 @@ export class RosterGeneratorService {
     console.log('[RosterGeneratorService] Year range:', startYear, '-', endYear);
 
     // PHASE 1: Global Player Collection & Deduplication
-    console.log('\n[Phase 1] Collecting and deduplicating players...');
+    console.log('\n[Phase 1] Collecting and deduplicating players from database...');
 
-    const allPlayers: any[] = [];
+    const allDbPlayers: any[] = [];
+    const allCustomPlayers: any[] = [];
+
     for (let y = startYear; y <= endYear; y++) {
-      const yearPlayers = this.rosterData.get(y) || [];
-      allPlayers.push(...yearPlayers.map(p => ({ ...p, _year: y })));
+      // Query database for each year
+      const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      allDbPlayers.push(...yearPlayers.map(p => ({ ...p, _year: y, _source: 'db' })));
+
+      // Also get custom players for this year
+      const customPlayers = this.rosterData.get(y) || [];
+      allCustomPlayers.push(...customPlayers.map((p: any) => ({ ...p, _year: y, _source: 'custom' })));
     }
+
+    // Build set of custom player names for override priority
+    const customPlayerNames = new Set(
+      allCustomPlayers.map((p: any) => `${p.First_Name}|${p.Last_Name}`)
+    );
+
+    // Filter out database players that have custom overrides
+    const filteredDbPlayers = allDbPlayers.filter(p =>
+      !customPlayerNames.has(`${p.firstName}|${p.lastName}`)
+    );
+
+    const allPlayers = [...filteredDbPlayers, ...allCustomPlayers];
 
     if (allPlayers.length === 0) {
       throw new Error(`No players found in year range ${startYear}-${endYear}`);
     }
 
-    console.log('[Phase 1] Found', allPlayers.length, 'total player-years in range');
+    console.log('[Phase 1] Found', allDbPlayers.length, 'database player-years');
+    console.log('[Phase 1] Found', allCustomPlayers.length, 'custom player-years');
+    console.log('[Phase 1] Total after merge:', allPlayers.length, 'player-years in range');
 
-    // Enrich all players first
+    // Enrich all players - use correct method based on source
     const enrichedAll = await Promise.all(
-      allPlayers.map(p => this.enrichPlayer(p, p._year))
+      allPlayers.map(p => {
+        if (p._source === 'custom') {
+          return this.enrichPlayer(p, p._year);
+        } else {
+          return this.enrichPlayerFromDb(p, p._year);
+        }
+      })
     );
 
     // Deduplicate by firstName + lastName ONLY - keep BEST year (highest POVR)
@@ -1117,12 +1281,12 @@ export class RosterGeneratorService {
       teamRosters.map(p => `${p.PFNA}|${p.PLNA}`)
     );
 
-    // Scan 5 years BEFORE the selected range
+    // Scan 5 years BEFORE the selected range - query database
     for (let y = startYear - 5; y < startYear; y++) {
-      const yearPlayers = this.rosterData.get(y) || [];
+      const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
 
-      for (const csvRow of yearPlayers) {
-        const enriched = await this.enrichPlayer(csvRow, y);
+      for (const dbRow of yearPlayers) {
+        const enriched = await this.enrichPlayerFromDb(dbRow, y);
 
         // Skip if already on a team roster (same name, any position)
         const nameKey = `${enriched.PFNA}|${enriched.PLNA}`;
@@ -1133,8 +1297,8 @@ export class RosterGeneratorService {
         // Keep LAST year (most recent) for each free agent player
         // Use their final season stats and age
         const existing = freeAgentsByKey.get(nameKey);
-        const enrichedYear = (enriched as any).Year || 0;
-        const existingYear = existing ? ((existing as any).Year || 0) : 0;
+        const enrichedYear = (enriched as any)._year || 0;
+        const existingYear = existing ? ((existing as any)._year || 0) : 0;
         if (!existing || enrichedYear > existingYear) {
           freeAgentsByKey.set(nameKey, enriched);
         }
@@ -1245,26 +1409,26 @@ export class RosterGeneratorService {
     const currentPlayerNames = new Set(currentRoster.map(p => `${p.PFNA}|${p.PLNA}`));
     const freeAgentRawByName = new Map<string, any>();
 
-    // Look back 5 years - collect raw CSV data (don't enrich yet!)
+    // Look back 5 years - query database directly
     console.log('[RosterGeneratorService] Searching for free agents in years', year - 5, 'to', year - 1, '...');
     for (let y = year - 5; y < year; y++) {
-      const yearPlayers = this.rosterData.get(y) || [];
+      const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
       console.log(`[RosterGeneratorService]   Year ${y}: ${yearPlayers.length} players in database`);
 
       // Filter FIRST before enriching
       yearPlayers.forEach((p: any) => {
-        const firstName = p.First_Name || p.PFNA || '';
-        const lastName = p.Last_Name || p.PLNA || '';
+        const firstName = p.firstName || '';
+        const lastName = p.lastName || '';
         const nameKey = `${firstName}|${lastName}`;
 
         if (nameKey && nameKey !== '|' && !currentPlayerNames.has(nameKey)) {
           const existing = freeAgentRawByName.get(nameKey);
-          const pYear = p.Year || y;
-          const existingYear = existing ? (existing.Year || 0) : 0;
+          const pYear = y;
+          const existingYear = existing ? (existing._year || 0) : 0;
 
           // Keep the player from the LAST year (most recent)
           if (!existing || pYear > existingYear) {
-            freeAgentRawByName.set(nameKey, { ...p, Year: pYear });
+            freeAgentRawByName.set(nameKey, { ...p, _year: pYear });
           }
         }
       });
@@ -1286,17 +1450,16 @@ export class RosterGeneratorService {
 
     // Sort raw data by POVR and take only what we need
     const sortedRaw = Array.from(freeAgentRawByName.values())
-      .sort((a, b) => (b.POVR || 0) - (a.POVR || 0))
+      .sort((a, b) => (b.ratings?.POVR || 0) - (a.ratings?.POVR || 0))
       .slice(0, needed);
 
-    console.log('[RosterGeneratorService] ⚙ Enriching', sortedRaw.length, 'free agents from CSV...');
+    console.log('[RosterGeneratorService] ⚙ Enriching', sortedRaw.length, 'free agents from database...');
 
     // NOW enrich only the players we're actually going to use
     const enrichedFAs = await Promise.all(
       sortedRaw.map(async (p: any) => {
-        const enriched = await this.enrichPlayer(p, p.Year || year);
+        const enriched = await this.enrichPlayerFromDb(p, p._year || year);
         // CRITICAL: Set TGID to 1009 (Free Agents) AFTER enriching
-        // enrichPlayer sets TGID based on CSV's Season_Team, but we need FA team
         enriched.TGID = 1009;
         return enriched;
       })
@@ -1474,12 +1637,16 @@ export class RosterGeneratorService {
       PLPL: 0, // Generic face marker (number, not string)
       _race: fillerRace, // Store race for BLBM GENR/SKNT assignment
 
-      // Contract fields (Free Agent - no contract)
-      PSA0: 0, // Salary Year 0
-      PSA1: 0, // Salary Year 1
-      PSA2: 0, // Salary Year 2
-      PSB0: 0, // Bonus Year 0
-      PSB1: 0, // Bonus Year 1
+      // Contract fields (Free Agent - minimum 1-year contract)
+      // Use minimum salary - will be scaled appropriately when loaded into a roster
+      // Default to very low value (~$100K = 10 in $10K units) - historical minimum
+      PCON: 1,   // 1 year contract
+      PCYL: 1,   // 1 year left
+      PSBO: 0,   // No signing bonus
+      PCSA: 10,  // Cap salary = $100K (historical minimum)
+      PSA0: 10,  // Year 0 salary = $100K
+      PSA1: 0, PSA2: 0, PSA3: 0, PSA4: 0, PSA5: 0, PSA6: 0,
+      PSB0: 0, PSB1: 0, PSB2: 0, PSB3: 0, PSB4: 0, PSB5: 0, PSB6: 0,
     } as RosterPlayer;
   }
 
@@ -1526,6 +1693,10 @@ export class RosterGeneratorService {
    * The CSV already has most fields - we just need to map them to roster format
    */
   private async enrichPlayer(csvRow: any, year: number): Promise<RosterPlayer> {
+    // Strip pro-football-reference disambiguation markers (‡, †, *) from names FIRST
+    const cleanFirstName = (csvRow.First_Name || '').replace(/[‡†*]+\d*/g, '').trim();
+    const cleanLastName = (csvRow.Last_Name || '').replace(/[‡†*]+\d*/g, '').trim();
+
     // Map position string to position code (QB=0, HB=1, etc.) - DO THIS FIRST
     const positionCode = await this.lookupPositionCode(csvRow.Position);
 
@@ -1552,14 +1723,19 @@ export class RosterGeneratorService {
     const csvRace = parseInt(csvRow.Race) || 1; // Get race from CSV
 
     // Check for custom portrait assignment FIRST (user-uploaded portraits, PID 12000+)
+    // Use exact database player ID for reliable lookup (not name matching)
     const playerNameKey = `${csvRow.First_Name}|${csvRow.Last_Name}`;
     const playerInternalId = this.nameToInternalId.get(playerNameKey);
-    const customPortraitPID = playerInternalId ? this.customPortraitAssignments.get(playerInternalId) : undefined;
+
+    // Look up custom portrait by exact database player ID (most reliable method)
+    const customPortraitPID = playerInternalId
+      ? userDatabaseService.getCustomPortraitByPlayerId(playerInternalId)
+      : undefined;
 
     if (customPortraitPID) {
       // Player has a custom portrait assigned - use it!
       playerPID = customPortraitPID;
-      console.log(`[RosterGeneratorService] Using custom portrait PID ${customPortraitPID} for ${csvRow.First_Name} ${csvRow.Last_Name}`);
+      console.log(`[RosterGeneratorService] ✅ Using custom portrait PID ${customPortraitPID} for ${csvRow.First_Name} ${csvRow.Last_Name} (ID:${playerInternalId})`);
       // Custom portraits are treated as real faces (PLPL=100), skip all generic face logic below
     }
 
@@ -1632,8 +1808,8 @@ export class RosterGeneratorService {
         if (isCustomPortrait) {
           // Custom portrait - PAM is empty, Player Pic shows "Last, First"
           pepsValue = ''; // No PAM for custom portraits
-          playerPicValue = `${csvRow.Last_Name || ''}, ${csvRow.First_Name || ''}`;
-          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Custom portrait PID ${playerPID}, PEPS="" (no PAM), PlayerPic="${playerPicValue}"`);
+          playerPicValue = `${cleanLastName}, ${cleanFirstName}`;
+          console.log(`[PEPS DEBUG] ${cleanFirstName} ${cleanLastName}: Custom portrait PID ${playerPID}, PEPS="" (no PAM), PlayerPic="${playerPicValue}"`);
         } else {
           // Standard portrait - use mapped PAM, Player Pic from portrait name
           pepsValue = mappedPAM || '';
@@ -1685,8 +1861,8 @@ export class RosterGeneratorService {
     // Map CSV field names to UPPERCASE roster editor field codes
     return {
       // Basic Info (use UPPERCASE field codes that app.js expects!)
-      PFNA: csvRow.First_Name || '',  // First name
-      PLNA: csvRow.Last_Name || '',   // Last name
+      PFNA: cleanFirstName,  // First name (stripped of ‡†* markers at top of function)
+      PLNA: cleanLastName,   // Last name (stripped of ‡†* markers at top of function)
       PPOS: positionCode,              // Position code (numeric)
       PJEN: parseInt(csvRow.Jersey) || 0,  // Jersey number
       PAGE: parseInt(csvRow.Age) || 25,     // Age
@@ -1701,7 +1877,7 @@ export class RosterGeneratorService {
       PEPS: pepsValue,        // PAM code - blank for custom portraits
       PLAYERPIC: playerPicValue, // Player Pic display name (format: "Last, First" for custom portraits)
       POID: this.pidToCommID.get(playerPID) || 0, // Presentation ID for in-game commentary
-      PCMT: lookupService.getCommentaryId(csvRow.Last_Name || '') || 0, // Commentary ID - looked up by last name
+      PCMT: lookupService.getCommentaryId(cleanLastName) || 0, // Commentary ID - looked up by clean last name
 
       // College & Home - LOOKUP from CSV strings and ALL_PLAYER_LOOKUP.csv home location data
       PCOL: await this.lookupCollege(csvRow.College), // College is string, needs lookup
@@ -1778,12 +1954,341 @@ export class RosterGeneratorService {
       // Only set PGHE for generic faces
       PGHE: pgheValue,  // Generic head ID (only used for generic faces, 1-290)
 
+      // Contract fields - generated using ContractService
+      ...this.generatePlayerContract(csvRow.Position || 'HB', parseInt(ratings.POVR) || 50, year, yearsPro, parseInt(csvRow.Age) || 25),
+
       // Source data (for internal tracking - keep original string values for filtering)
       _year: year,
       _sourceTeam: csvRow.Season_Team || '',
       _position: csvRow.Position || '',  // Store position string for filtering
       _race: csvRace,  // Race value (1-7) for BLBM GENR/SKNT assignment
       _isHOF: this.hofLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`) || false  // Hall of Fame status
+    };
+  }
+
+  /**
+   * Enrich player data from DATABASE row (new method - replaces CSV-based enrichPlayer)
+   * Gets ALL data from database: bio, ratings, appearance, home location
+   */
+  private async enrichPlayerFromDb(dbRow: any, year: number): Promise<RosterPlayer> {
+    // Database already has clean names
+    const cleanFirstName = (dbRow.firstName || '').trim();
+    const cleanLastName = (dbRow.lastName || '').trim();
+
+    // Map position string to position code (QB=0, HB=1, etc.)
+    const positionCode = await this.lookupPositionCode(dbRow.position);
+    const positionName = await this.getPositionName(positionCode);
+
+    // Parse archetype to numeric (0-67)
+    const archetype = await this.parseArchetype(dbRow.archetype, positionName);
+
+    // Map team string to team code
+    const teamCode = await this.lookupTeamCode(dbRow.team);
+
+    // Get ratings from database - fill missing values
+    const ratings = this.fillMissingRatingsFromDb(dbRow.ratings || {});
+
+    // Handle PID/PAM from database
+    let playerPID = dbRow.maddenPid || 0;
+    let playerPAM = dbRow.maddenPam || '';
+    const dbRace = dbRow.race || 1;
+    const playerInternalId = dbRow.playerId;
+
+    // Check for custom portrait (PID 12000+) - single fast lookup by player ID
+    const customPortraitPID = playerInternalId
+      ? userDatabaseService.getCustomPortraitByPlayerId(playerInternalId)
+      : null;
+
+    if (customPortraitPID) {
+      playerPID = customPortraitPID;
+    }
+
+    // Variables for generic face handling
+    let isGenericFace = false;
+    let pgheValue = 0;
+    let plplValue: number = 100;
+    let pepsValue: string = '';
+    let playerPicValue: string = '';
+
+    // Validate PID and handle generic face assignment
+    // Custom portraits (>= 12000) and valid PIDs skip generic face
+    const isCustomPortraitPID = playerPID >= 12000;
+    if (playerPID === 0 || (!isCustomPortraitPID && !this.validPIDs.has(playerPID))) {
+      // Assign generic face
+      isGenericFace = true;
+      const genericFace = this.selectGenericFaceByRace(dbRace);
+      playerPID = genericFace.pid;
+      plplValue = 0;
+      pepsValue = genericFace.pam;
+      pgheValue = genericFace.pghe;
+    } else {
+      // Has valid PID - check portrait type
+      const mappedPAM = this.pidToPAM.get(playerPID);
+      const mappedPortrait = this.pidToPortrait.get(playerPID);
+      const isCustomPortrait = playerPID >= 12000;
+      const isLegendPortrait = mappedPortrait && mappedPortrait.includes('legends');
+      const isGenericPortrait = mappedPortrait && mappedPortrait.includes('generic');
+
+      if (isCustomPortrait || isLegendPortrait || (!isGenericPortrait && mappedPortrait)) {
+        // Real face
+        plplValue = 100;
+        if (isCustomPortrait) {
+          pepsValue = '';
+          playerPicValue = `${cleanLastName}, ${cleanFirstName}`;
+        } else {
+          pepsValue = mappedPAM || '';
+          playerPicValue = mappedPortrait || '';
+        }
+      } else if (isGenericPortrait) {
+        // Generic face portrait
+        isGenericFace = true;
+        plplValue = 0;
+        const genericFace = this.selectGenericFaceByRace(dbRace);
+        playerPID = genericFace.pid;
+        pepsValue = genericFace.pam;
+        pgheValue = genericFace.pghe;
+      } else {
+        // Keep PID as real face
+        plplValue = 100;
+        pepsValue = mappedPAM || '';
+      }
+    }
+
+    // Calculate years pro from draft class
+    const draftYear = dbRow.draftClass;
+    let yearsPro = 0;
+    if (draftYear && draftYear > 0) {
+      yearsPro = Math.max(0, year - draftYear);
+    }
+
+    // Get college ID from college name
+    const collegeId = await this.lookupCollege(dbRow.college);
+
+    // Get state ID from state name - database now provides this directly!
+    const stateId = await this.lookupStateByName(dbRow.homeState || '');
+
+    // Commentary ID lookup
+    const commId = dbRow.maddenCommid ? parseInt(dbRow.maddenCommid) : 0;
+
+    // Map to roster format
+    return {
+      // Basic Info
+      PFNA: cleanFirstName,
+      PLNA: cleanLastName,
+      PPOS: positionCode,
+      PJEN: dbRow.jersey || 0,
+      PAGE: dbRow.age || 25,
+      PHGT: dbRow.height || 72,
+      PWGT: Math.max(1, (dbRow.weight || 200) - 159),
+      TGID: teamCode,
+      PCBT: this.determinePCBTFromDb(dbRow),
+
+      // IDs
+      PSXP: playerPID,
+      PLPL: plplValue,
+      PEPS: pepsValue,
+      PLAYERPIC: playerPicValue,
+      POID: commId || this.pidToCommID.get(playerPID) || 0,
+      PCMT: lookupService.getCommentaryId(cleanLastName) || 0,
+
+      // College & Home - DIRECTLY from database!
+      PCOL: collegeId,
+      PHSN: stateId,
+      PHTN: dbRow.hometown || '',
+
+      // Ratings from database
+      POVR: ratings.POVR || 50,
+      PSPD: ratings.PSPD || 50,
+      PACC: ratings.PACC || 50,
+      PSTR: ratings.PSTR || 50,
+      PAGI: ratings.PAGI || 50,
+      PAWR: ratings.PAWR || 50,
+      PCTH: ratings.PCTH || 50,
+      PCAR: ratings.PCAR || 50,
+      PTHP: ratings.PTHP || 50,
+      PKPW: ratings.PKPW || 50,
+      PKAC: ratings.PKAC || 50,
+      PRBK: ratings.PRBK || 50,
+      PPBK: ratings.PPBK || 50,
+      PTAK: ratings.PTAK || 50,
+      PBTK: ratings.PBTK || 50,
+      PJMP: ratings.PJMP || 50,
+      PINJ: ratings.PINJ || 50,
+      PSTA: ratings.PSTA || 50,
+      PTGH: ratings.PTGH || 50,
+      PLTR: ratings.PLTR || ratings.PTRK || 50,
+      PELU: ratings.PELU || ratings.PCOD || 50,
+      PBCV: ratings.PBCV || 50,
+      PLSA: ratings.PLSA || ratings.PSTF || 50,
+      PLSM: ratings.PLSM || ratings.PSPM || 50,
+      PLJM: ratings.PLJM || ratings.PJUM || 50,
+      PLIB: ratings.PLIB || ratings.PIBL || 50,
+      PRBP: ratings.PRBP || 50,
+      PRBF: ratings.PRBF || 50,
+      PPBP: ratings.PPBP || 50,
+      PPBF: ratings.PPBF || 50,
+      PLBK: ratings.PLBK || ratings.PLDB || 50,
+      PBRS: ratings.PBRS || 50,
+      PTUP: ratings.PTUP || 50,
+      PLPM: ratings.PLPM || ratings.PPWM || 50,
+      PFMS: ratings.PFMS || ratings.PFNM || 50,
+      PBSG: ratings.PBSG || ratings.PBSH || 50,
+      PLPU: ratings.PLPU || ratings.PPUR || 50,
+      PLPR: ratings.PLPR || ratings.PPRC || 50,
+      PLMC: ratings.PLMC || ratings.PMCV || 50,
+      PLZC: ratings.PLZC || ratings.PZCV || 50,
+      PLSC: ratings.PLSC || ratings.PSPC || 50,
+      PLCI: ratings.PLCI || ratings.PCIT || 50,
+      SRRN: ratings.SRRN || ratings.PSRR || 50,
+      PMRR: ratings.PMRR || 50,
+      PDRR: ratings.PDRR || 50,
+      PLHT: ratings.PLHT || ratings.PHTP || 50,
+      PLPE: ratings.PLPE || ratings.PPRS || 50,
+      PLRL: ratings.PLRL || ratings.PREL || 50,
+      PPBS: ratings.PPBS || 50,
+      PRBS: ratings.PRBS || 50,
+      PTAS: ratings.PTAS || 50,
+      PTAM: ratings.PTAM || 50,
+      PTAD: ratings.PTAD || 50,
+      PPLA: ratings.PPLA || 50,
+      PTOR: ratings.PTOR || 50,
+      PKRT: ratings.PKRT || 50,
+      PBSK: ratings.PBSK || 50,
+
+      // Metadata
+      PLTY: parseInt(archetype) || 0,
+      PTAR: this.determineBodyTypeFromDb(dbRow),
+      PYRP: yearsPro,
+      PROL: this.determineDevTrait(ratings.POVR || 50),
+      PGHE: pgheValue,
+
+      // Contract
+      ...this.generatePlayerContract(dbRow.position || 'HB', ratings.POVR || 50, year, yearsPro, dbRow.age || 25),
+
+      // Source data
+      _year: year,
+      _sourceTeam: dbRow.team || '',
+      _position: dbRow.position || '',
+      _race: dbRace,
+      _isHOF: dbRow.isHof || false
+    };
+  }
+
+  /**
+   * Fill missing ratings from database row
+   * Clamps all ratings to minimum 40 (Madden's floor)
+   */
+  private fillMissingRatingsFromDb(ratings: { [key: string]: number }): { [key: string]: number } {
+    const MIN_RATING = 40;  // Madden minimum rating floor
+    const MAX_RATING = 99;
+
+    // POVR: use value if valid, otherwise default to 50, clamp to 40-99
+    const rawPOVR = ratings.POVR;
+    const povr = (rawPOVR && rawPOVR > 0) ? Math.max(MIN_RATING, Math.min(MAX_RATING, rawPOVR)) : 50;
+    const filled: { [key: string]: number } = { POVR: povr };
+
+    RATING_FIELDS.forEach(field => {
+      const value = ratings[field];
+      if (value === null || value === undefined || value === 0) {
+        // Apply 40-60 range with variance for missing values
+        filled[field] = Math.round(40 + Math.random() * 20);
+      } else {
+        // Clamp existing values to 40-99 range
+        filled[field] = Math.max(MIN_RATING, Math.min(MAX_RATING, value));
+      }
+    });
+
+    return filled;
+  }
+
+  /**
+   * Determine PCBT (body type display) from database row
+   */
+  private determinePCBTFromDb(dbRow: any): number {
+    const weight = dbRow.weight || 200;
+    const height = dbRow.height || 72;
+    const bmi = (weight / (height * height)) * 703;
+
+    if (bmi < 24) return 1;      // Thin
+    if (bmi < 28) return 0;      // Standard
+    if (bmi < 32) return 2;      // Muscular
+    if (bmi < 36) return 3;      // Heavy
+    return 4;                     // Extra Heavy
+  }
+
+  /**
+   * Determine body type code from database row
+   */
+  private determineBodyTypeFromDb(dbRow: any): number {
+    const weight = dbRow.weight || 200;
+    if (weight < 180) return 0;       // Thin
+    if (weight < 220) return 1;       // Normal
+    if (weight < 260) return 2;       // Muscular
+    if (weight < 300) return 3;       // Heavy
+    return 4;                          // Extra Heavy
+  }
+
+  /**
+   * Generate contract fields for a player using ContractService
+   * Returns object with PCON, PCYL, PSA0-6, PSB0-6, PSBO, PCSA
+   */
+  private generatePlayerContract(position: string, overall: number, year: number, yearsPro: number, age: number): {
+    PCON: number; PCYL: number; PSBO: number; PCSA: number;
+    PSA0: number; PSA1: number; PSA2: number; PSA3: number; PSA4: number; PSA5: number; PSA6: number;
+    PSB0: number; PSB1: number; PSB2: number; PSB3: number; PSB4: number; PSB5: number; PSB6: number;
+  } {
+    // Generate contract using ContractService with HISTORICAL cap values
+    // useHistoricalCap=true means salaries are scaled to the actual cap for that year
+    // This ensures 1995 rosters have 1995-appropriate salaries (~$700K average, not ~$4.8M)
+    const contract = contractService.generateContract(position, overall, year, yearsPro, age, undefined, undefined, true);
+
+    // Map to roster fields
+    // PCON = contract length (1-7)
+    // PCYL = years left on contract
+    // PSA0-6 = yearly salaries in $10K units (divide by 10 since ContractService uses thousands)
+    // PSB0-6 = prorated signing bonus per year in $10K units
+    // PSBO = total signing bonus in $10K units
+    // PCSA = current year cap hit = PSA[year] + PSB[year]
+
+    const yearsLeft = contract.length - contract.contractYear;
+    const pcon = contract.length;
+    const pcyl = yearsLeft;
+
+    // Convert thousands to $10K units (divide by 10)
+    const psa0 = Math.round((contract.yearlySalaries[0] || 0) / 10);
+    const psa1 = Math.round((contract.yearlySalaries[1] || 0) / 10);
+    const psa2 = Math.round((contract.yearlySalaries[2] || 0) / 10);
+    const psa3 = Math.round((contract.yearlySalaries[3] || 0) / 10);
+    const psa4 = Math.round((contract.yearlySalaries[4] || 0) / 10);
+    const psa5 = Math.round((contract.yearlySalaries[5] || 0) / 10);
+    const psa6 = Math.round((contract.yearlySalaries[6] || 0) / 10);
+
+    // Prorate signing bonus across contract years
+    const totalBonus = Math.round(contract.bonus / 10); // Convert to $10K units
+    const proratedBonus = pcon > 0 ? Math.round(totalBonus / pcon) : 0;
+
+    const psb0 = pcon > 0 ? proratedBonus : 0;
+    const psb1 = pcon > 1 ? proratedBonus : 0;
+    const psb2 = pcon > 2 ? proratedBonus : 0;
+    const psb3 = pcon > 3 ? proratedBonus : 0;
+    const psb4 = pcon > 4 ? proratedBonus : 0;
+    const psb5 = pcon > 5 ? proratedBonus : 0;
+    const psb6 = pcon > 6 ? proratedBonus : 0;
+
+    // Calculate PCSA: current year cap hit = PSA[current year] + PSB[current year]
+    // Current year index = PCON - PCYL
+    const currentYearIndex = pcon - pcyl;
+    const salaries = [psa0, psa1, psa2, psa3, psa4, psa5, psa6];
+    const bonuses = [psb0, psb1, psb2, psb3, psb4, psb5, psb6];
+    const pcsa = (salaries[currentYearIndex] || 0) + (bonuses[currentYearIndex] || 0);
+
+    return {
+      PCON: pcon,
+      PCYL: pcyl,
+      PSBO: totalBonus,
+      PCSA: pcsa,
+      PSA0: psa0, PSA1: psa1, PSA2: psa2, PSA3: psa3, PSA4: psa4, PSA5: psa5, PSA6: psa6,
+      PSB0: psb0, PSB1: psb1, PSB2: psb2, PSB3: psb3, PSB4: psb4, PSB5: psb5, PSB6: psb6
     };
   }
 
@@ -2971,7 +3476,8 @@ export class RosterGeneratorService {
       await this.initialize();
     }
 
-    const players = this.rosterData.get(year);
+    // Query database for this year
+    const players = lookupService.getAllPlayerSeasonsForYear(year);
     if (!players || players.length === 0) {
       return {
         valid: false,
@@ -2986,14 +3492,14 @@ export class RosterGeneratorService {
   }
 
   /**
-   * Get available years
+   * Get available years - now queries database
    */
   async getAvailableYears(): Promise<number[]> {
     if (!this.initialized) {
       await this.initialize();
     }
 
-    return Array.from(this.rosterData.keys()).sort((a, b) => a - b);
+    return lookupService.getAvailableRosterYears();
   }
 
   /**

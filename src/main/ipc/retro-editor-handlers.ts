@@ -838,6 +838,51 @@ ipcMain.handle('retro:apply-nfl-records', async (event, filePath: string, year: 
 });
 
 // ========================================
+// HISTORICAL STATS HANDLERS
+// ========================================
+
+/**
+ * Handle: retro:get-historical-stats-preview
+ * Get historical career stats preview for a specific year
+ */
+ipcMain.handle('retro:get-historical-stats-preview', async (event, year: number) => {
+  console.log('[retro-editor-handlers] ===== GET HISTORICAL STATS PREVIEW =====');
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const preview = await retroEditorService.getHistoricalStatsPreview(year);
+    console.log('[retro-editor-handlers] Historical stats preview generated');
+    console.log('[retro-editor-handlers] Matched players:', preview.matchedPlayers);
+    return { success: true, data: preview };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting historical stats preview:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: retro:apply-historical-stats
+ * Apply historical career stats to franchise file
+ */
+ipcMain.handle('retro:apply-historical-stats', async (event, filePath: string, year: number) => {
+  console.log('[retro-editor-handlers] ===== APPLY HISTORICAL STATS =====');
+  console.log('[retro-editor-handlers] File:', filePath);
+  console.log('[retro-editor-handlers] Year:', year);
+
+  try {
+    const result = await retroEditorService.applyHistoricalStats(filePath, year);
+    console.log('[retro-editor-handlers] Historical stats applied');
+    console.log('[retro-editor-handlers] Players updated:', result.playersUpdated);
+    return { success: true, playersUpdated: result.playersUpdated };
+
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying historical stats:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// ========================================
 // STADIUM HANDLERS
 // ========================================
 

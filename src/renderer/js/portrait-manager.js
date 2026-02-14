@@ -186,11 +186,11 @@
       portraits = await window.electronAPI.customPortrait.list();
       console.log('[PortraitManager] Loaded portraits:', portraits.length);
 
-      // Update year filter options
-      updateYearFilterOptions();
+      // Update year filter options (now async to fetch player draft years)
+      await updateYearFilterOptions();
 
       // Render the grid
-      renderGrid();
+      await renderGrid();
 
       // Update count
       updateCount();
@@ -202,13 +202,64 @@
   /**
    * Update the year filter dropdown with available years
    */
-  function updateYearFilterOptions() {
+  async function updateYearFilterOptions() {
     if (!yearFilter) return;
 
     const years = new Set();
-    portraits.forEach(p => {
-      if (p.year) years.add(p.year);
-    });
+
+    // If we have assigned portraits, fetch all players at once to get draft years
+    const playerIds = portraits
+      .filter(p => p.databasePlayerId)
+      .map(p => p.databasePlayerId);
+
+    // Build a map of playerId -> draftYear
+    const playerYearMap = new Map();
+    if (playerIds.length > 0) {
+      try {
+        // Search for all assigned players to get their draft years
+        const response = await window.electronAPI.database.searchPlayers('', { limit: 5000 });
+        const allPlayers = response?.players || response || [];
+        allPlayers.forEach(player => {
+          const id = player.internalId || player.id;
+          if (player.draftClass) {
+            const year = parseInt(player.draftClass, 10);
+            if (year >= 1960 && year <= 2030) {
+              playerYearMap.set(id, year);
+            }
+          }
+        });
+      } catch (e) {
+        console.error('[PortraitManager] Error fetching player data for years:', e);
+      }
+    }
+
+    // Now collect years from all sources
+    for (const p of portraits) {
+      // Use stored year if available
+      if (p.year) {
+        years.add(p.year);
+        continue;
+      }
+
+      // Check filename for year
+      if (p.originalFilename) {
+        const yearMatch = p.originalFilename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+        if (yearMatch) {
+          years.add(parseInt(yearMatch[1], 10));
+          p._draftYear = parseInt(yearMatch[1], 10);
+          continue;
+        }
+      }
+
+      // Use assigned player's draft year
+      if (p.databasePlayerId && playerYearMap.has(p.databasePlayerId)) {
+        const draftYear = playerYearMap.get(p.databasePlayerId);
+        years.add(draftYear);
+        p._draftYear = draftYear;
+      }
+    }
+
+    console.log('[PortraitManager] Year filter - found years:', Array.from(years));
 
     // Keep the current value
     const currentValue = yearFilter.value;
@@ -278,7 +329,18 @@
     // Filter by year if selected
     const filterYear = yearFilter?.value ? parseInt(yearFilter.value) : null;
     let filtered = filterYear
-      ? portraits.filter(p => p.year === filterYear)
+      ? portraits.filter(p => {
+          // Check stored year first
+          if (p.year === filterYear) return true;
+          // Check cached draft year from player
+          if (p._draftYear === filterYear) return true;
+          // Also check filename for year
+          if (p.originalFilename) {
+            const yearMatch = p.originalFilename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+            if (yearMatch && parseInt(yearMatch[1], 10) === filterYear) return true;
+          }
+          return false;
+        })
       : portraits;
 
     // Filter by view mode (workspace shows only unassigned)
@@ -1296,7 +1358,7 @@
         await window.electronAPI.customPortrait.updateMetadata(pid, { playerName: playerName });
       } else {
         // Update database player's appearance (PID)
-        await window.electronAPI.database.saveAppearanceEdit(playerId, { pid: pid });
+        await window.electronAPI.database.saveAppearanceEdit(playerId, { maddenPid: pid });
         // Update portrait metadata with player name AND database player ID (for generator lookup)
         await window.electronAPI.customPortrait.updateMetadata(pid, {
           playerName: playerName,
@@ -2761,11 +2823,68 @@
     // Refresh portraits data
     portraits = await window.electronAPI.customPortrait.list();
 
+    // Get player draft years for assigned portraits
+    const playerYearMap = new Map();
+    try {
+      const response = await window.electronAPI.database.searchPlayers('', { limit: 10000 });
+      const allPlayers = response?.players || response || [];
+      allPlayers.forEach(player => {
+        const id = player.internalId || player.id;
+        if (player.draftClass) {
+          const year = parseInt(player.draftClass, 10);
+          if (year >= 1960 && year <= 2030) {
+            playerYearMap.set(id, year);
+          }
+        }
+      });
+    } catch (e) {
+      console.error('[PortraitManager] Error loading player years:', e);
+    }
+
+    // Collect all available years and assign _year to portraits
+    const years = new Set();
+    portraits.forEach(p => {
+      // Check stored year
+      if (p.year) {
+        years.add(p.year);
+        p._year = p.year;
+      }
+      // Check filename for year
+      else if (p.originalFilename) {
+        const match = p.originalFilename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+        if (match) {
+          const y = parseInt(match[1], 10);
+          years.add(y);
+          p._year = y;
+        }
+      }
+      // Check assigned player's draft year
+      if (!p._year && p.databasePlayerId && playerYearMap.has(p.databasePlayerId)) {
+        const y = playerYearMap.get(p.databasePlayerId);
+        years.add(y);
+        p._year = y;
+      }
+    });
+
+    // Populate year filter dropdown
+    if (filterEl) {
+      const currentVal = filterEl.value;
+      filterEl.innerHTML = '<option value="">All Years</option>';
+      Array.from(years).sort((a, b) => a - b).forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        filterEl.appendChild(opt);
+      });
+      if (currentVal) filterEl.value = currentVal;
+    }
+
     // Filter by year
     let filtered = [...portraits];
     const yearFilter = filterEl?.value;
     if (yearFilter) {
-      filtered = filtered.filter(p => p.year && p.year.toString() === yearFilter);
+      const yf = parseInt(yearFilter, 10);
+      filtered = filtered.filter(p => p._year === yf);
     }
 
     // Sort
@@ -2779,15 +2898,6 @@
 
     // Update count
     if (countEl) countEl.textContent = `${filtered.length} portraits`;
-
-    // Update year filter options
-    const years = [...new Set(portraits.map(p => p.year).filter(y => y))].sort((a, b) => b - a);
-    if (filterEl) {
-      const currentValue = filterEl.value;
-      filterEl.innerHTML = '<option value="">All Years</option>' +
-        years.map(y => `<option value="${y}">${y}</option>`).join('');
-      filterEl.value = currentValue;
-    }
 
     // Render grid
     if (filtered.length === 0) {
@@ -3079,8 +3189,60 @@
       return;
     }
 
-    const unassigned = portraits.filter(p => !p.playerName && !p.databasePlayerId);
+    let unassigned = portraits.filter(p => !p.playerName && !p.databasePlayerId);
     console.log('[PortraitManager] Unassigned portraits:', unassigned.length);
+
+    // Populate year filter dropdown
+    const yearFilter = document.getElementById('workspaceYearFilter');
+    if (yearFilter) {
+      // Extract years from filenames (look for 4-digit years like 1976, 2024)
+      const years = new Set();
+      unassigned.forEach(p => {
+        if (p.originalFilename) {
+          const yearMatch = p.originalFilename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+          if (yearMatch) {
+            years.add(yearMatch[1]);
+          }
+        }
+      });
+
+      // Update dropdown if years have changed
+      const currentValue = yearFilter.value;
+      const sortedYears = Array.from(years).sort();
+
+      // Only rebuild if needed
+      if (!yearFilter.dataset.yearsLoaded || yearFilter.dataset.years !== sortedYears.join(',')) {
+        yearFilter.innerHTML = '<option value="">All Years</option>';
+        sortedYears.forEach(y => {
+          const opt = document.createElement('option');
+          opt.value = y;
+          opt.textContent = y;
+          yearFilter.appendChild(opt);
+        });
+        yearFilter.dataset.yearsLoaded = 'true';
+        yearFilter.dataset.years = sortedYears.join(',');
+
+        // Restore previous selection if still valid
+        if (currentValue && sortedYears.includes(currentValue)) {
+          yearFilter.value = currentValue;
+        }
+      }
+
+      // Bind filter change handler
+      if (!yearFilter.dataset.bound) {
+        yearFilter.dataset.bound = 'true';
+        yearFilter.addEventListener('change', () => renderWorkspaceGrid());
+      }
+
+      // Apply year filter
+      const selectedYear = yearFilter.value;
+      if (selectedYear) {
+        unassigned = unassigned.filter(p => {
+          if (!p.originalFilename) return false;
+          return p.originalFilename.includes(selectedYear);
+        });
+      }
+    }
 
     // Update unassigned count badge
     const badge = document.getElementById('workspace-unassigned-count');
@@ -3134,6 +3296,19 @@
       pidEl.className = 'portrait-pid';
       pidEl.textContent = `PID: ${p.pid}`;
       card.appendChild(pidEl);
+
+      // Red X button to remove photo from workspace
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'portrait-remove-btn';
+      removeBtn.innerHTML = '×';
+      removeBtn.title = 'Remove from workspace';
+      removeBtn.style.cssText = 'position: absolute; top: 4px; right: 4px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 14px; line-height: 1; font-weight: bold; z-index: 10;';
+      removeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await handleRemoveFromWorkspace(p.pid);
+      });
+      card.style.position = 'relative';
+      card.appendChild(removeBtn);
 
       // Show suggested name from filename with quick confirm button
       const suggestedName = parsePlayerNameFromFilename(p.originalFilename);
@@ -3441,9 +3616,62 @@
   }
 
   /**
+   * Remove a photo from the workspace (delete from custom portraits)
+   */
+  async function handleRemoveFromWorkspace(pid) {
+    if (!confirm('Remove this photo from the workspace? This will delete it permanently.')) {
+      return;
+    }
+
+    try {
+      await window.electronAPI.customPortrait.delete(pid);
+      console.log('[PortraitManager] Removed portrait PID', pid, 'from workspace');
+
+      // Remove the card from DOM
+      const grid = document.getElementById('workspaceUnassignedGrid');
+      const card = grid?.querySelector(`.portrait-card[data-pid="${pid}"]`);
+      if (card) {
+        card.remove();
+
+        // Update the unassigned count badge
+        const badge = document.getElementById('workspace-unassigned-count');
+        if (badge) {
+          const remaining = grid.querySelectorAll('.portrait-card').length;
+          badge.textContent = `${remaining} to assign`;
+
+          // Show empty message if no more photos
+          if (remaining === 0) {
+            grid.innerHTML = `
+              <div class="portrait-empty-state" style="padding: 40px; text-align: center;">
+                <span style="font-size: 2rem;">🖼️</span>
+                <h3 style="color: var(--text-primary);">No Portraits</h3>
+                <p style="color: var(--text-secondary);">All photos have been removed or assigned.</p>
+              </div>
+            `;
+          }
+        }
+      }
+
+      // Clear selection if the removed photo was selected
+      if (workspaceSelectedPid === pid) {
+        workspaceSelectedPid = null;
+      }
+    } catch (err) {
+      console.error('[PortraitManager] Error removing portrait:', err);
+      alert('Error removing photo: ' + err.message);
+    }
+  }
+
+  /**
    * Create a new player from workspace when no match found
    */
   async function handleWorkspaceCreatePlayer(suggestedName) {
+    // Check if a photo is selected
+    if (!workspaceSelectedPid) {
+      alert('Please select a photo first before creating a player.');
+      return;
+    }
+
     // Parse suggested name into first/last
     const parts = suggestedName.trim().split(/\s+/);
     let firstName = '';
@@ -3456,17 +3684,52 @@
       lastName = parts.slice(1).join(' ');
     }
 
-    console.log('[PortraitManager] Creating new player:', firstName, lastName);
+    console.log('[PortraitManager] Creating new player:', firstName, lastName, 'with PID:', workspaceSelectedPid);
 
-    // Use the existing createNewPlayer function if available, or open the database player creator
-    if (typeof createNewPlayer === 'function') {
-      // Set the pending portrait PID to be assigned after creation
-      pendingPortraitPid = workspaceSelectedPid;
-      createNewPlayer(firstName, lastName);
-    } else if (typeof window.createNewDbPlayer === 'function') {
-      // Set pending portrait for database player card
-      pendingPortraitPid = workspaceSelectedPid;
-      window.createNewDbPlayer(firstName, lastName);
+    // Set pending portrait for database player card
+    pendingPortraitPid = workspaceSelectedPid;
+
+    // Check if Database Player Card creator is available
+    if (typeof window.createNewDbPlayer === 'function') {
+      // Open the full Database Player Card in create mode
+      await window.createNewDbPlayer();
+
+      // Wait a moment for the form to render, then pre-fill the fields
+      setTimeout(() => {
+        // Pre-fill first name
+        const firstNameInput = document.getElementById('dbPlayerFirstName');
+        if (firstNameInput && firstName) {
+          firstNameInput.value = firstName;
+        }
+
+        // Pre-fill last name
+        const lastNameInput = document.getElementById('dbPlayerLastName');
+        if (lastNameInput && lastName) {
+          lastNameInput.value = lastName;
+        }
+
+        // Pre-fill the PID with the portrait's PID
+        const pidInput = document.getElementById('dbPlayerPID');
+        if (pidInput && workspaceSelectedPid) {
+          pidInput.value = workspaceSelectedPid;
+        }
+
+        // Update the header to show we're creating from portrait
+        const nameEl = document.getElementById('dbPlayerCardName');
+        if (nameEl) {
+          nameEl.textContent = 'New Custom Player (from Portrait)';
+        }
+
+        // Load the portrait preview
+        if (workspaceSelectedPid && typeof window.loadPlayerPortrait === 'function') {
+          window.loadPlayerPortrait(workspaceSelectedPid);
+        }
+
+        // Focus on first name field
+        if (firstNameInput) firstNameInput.focus();
+
+        console.log('[PortraitManager] Pre-filled form with:', { firstName, lastName, pid: workspaceSelectedPid });
+      }, 200);
     } else {
       // Fallback: Create directly via API
       try {

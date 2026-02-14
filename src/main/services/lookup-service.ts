@@ -993,7 +993,14 @@ export class LookupService {
     // Always use cache for search - it has all players loaded with all fields
     const results: FullDataEntry[] = [];
     const lowerQuery = query.toLowerCase().trim();
+
+    // Normalize query: remove punctuation for flexible matching
+    // This helps match "O'Connor" with "O Connor" or "OConnor"
+    // Also handles "R.J." matching "RJ" and suffixes like "Jr." or "III"
+    const normalizeForMatch = (str: string) => str.replace(/[.''\-]/g, '').replace(/\s+/g, ' ').trim();
+    const normalizedQuery = normalizeForMatch(lowerQuery);
     const queryParts = lowerQuery.split(/\s+/); // Split by whitespace for multi-word queries
+    const normalizedQueryParts = normalizedQuery.split(/\s+/);
 
     for (const entry of this.fullDataCache.values()) {
       // Skip PID-only entries (these are placeholders, not real players)
@@ -1010,19 +1017,27 @@ export class LookupService {
       const lastName = entry.lastName.toLowerCase();
       const fullName = `${firstName} ${lastName}`;
 
+      // Also create normalized versions for flexible matching
+      const normalizedFirst = normalizeForMatch(firstName);
+      const normalizedLast = normalizeForMatch(lastName);
+      const normalizedFullName = `${normalizedFirst} ${normalizedLast}`;
+
       let matches = false;
 
       if (queryParts.length === 1) {
-        // Single word: check first name OR last name
-        matches = firstName.includes(lowerQuery) || lastName.includes(lowerQuery);
+        // Single word: check first name OR last name (both original and normalized)
+        matches = firstName.includes(lowerQuery) || lastName.includes(lowerQuery) ||
+          normalizedFirst.includes(normalizedQuery) || normalizedLast.includes(normalizedQuery);
       } else {
         // Multi-word query: check full name OR all parts must match somewhere
-        if (fullName.includes(lowerQuery)) {
+        if (fullName.includes(lowerQuery) || normalizedFullName.includes(normalizedQuery)) {
           matches = true;
         } else {
-          // Check if all query parts are found in either first or last name
+          // Check if all query parts are found in either first or last name (try both original and normalized)
           matches = queryParts.every(part =>
             firstName.includes(part) || lastName.includes(part)
+          ) || normalizedQueryParts.every(part =>
+            normalizedFirst.includes(part) || normalizedLast.includes(part)
           );
         }
       }
@@ -1366,6 +1381,25 @@ export class LookupService {
     return null;
   }
 
+  // Find player by name who was active during a given season year (career span includes the year)
+  public findPlayerByNameActiveInYear(firstName: string, lastName: string, seasonYear: number): FullDataEntry | null {
+    const normalizedFirst = firstName.toLowerCase().trim();
+    const normalizedLast = lastName.toLowerCase().trim();
+
+    for (const [id, entry] of this.fullDataCache) {
+      if (entry.firstName.toLowerCase() === normalizedFirst &&
+          entry.lastName.toLowerCase() === normalizedLast) {
+        // Check if career span includes this year
+        const from = entry.careerFrom || 0;
+        const to = entry.careerTo || 9999;
+        if (seasonYear >= from && seasonYear <= to) {
+          return entry;
+        }
+      }
+    }
+    return null;
+  }
+
   // Look up a coach by name (for retro editor - check if coach has a portrait in game)
   public getCoachByName(lastName: string, firstName: string): CoachLookupEntry | undefined {
     const lastNameLower = lastName.toLowerCase();
@@ -1384,6 +1418,7 @@ export class LookupService {
   // ========== ROSTER GENERATOR METHODS ==========
 
   // Get all player seasons for a specific year (replaces ROSTER_lookup.csv loading)
+  // Returns COMPLETE player data from database - bio, season stats, ratings, appearance
   public getAllPlayerSeasonsForYear(year: number): Array<{
     playerId: number;
     firstName: string;
@@ -1397,10 +1432,27 @@ export class LookupService {
     gamesStarted: number;
     av: number;
     devTrait: string;
+    // Appearance IDs
     maddenPid: number;
     maddenPam: string;
+    maddenPlpo: string;
+    maddenCommid: string;
+    // Bio data
     college: string;
     race: number | null;
+    height: number | null;
+    weight: number | null;
+    hometown: string;
+    homeState: string;
+    // Draft info
+    draftClass: number | null;
+    draftRound: string;
+    draftPick: number | null;
+    // Career info
+    careerFrom: number | null;
+    careerTo: number | null;
+    isHof: boolean;
+    // All ratings
     ratings: { [key: string]: number };
   }> {
     if (!this.db) return [];
@@ -1408,9 +1460,12 @@ export class LookupService {
     const rows = this.db.prepare(`
       SELECT
         ps.*,
-        p.first_name, p.last_name, p.race,
+        p.first_name, p.last_name, p.race, p.height, p.weight,
+        p.hometown, p.home_state_name,
+        p.draft_class, p.draft_round, p.draft_pick,
+        p.career_from, p.career_to, p.is_hof,
         COALESCE(p.college_name, c.name) as college_name,
-        pa.madden_pid, pa.madden_pam
+        pa.madden_pid, pa.madden_pam, pa.madden_plpo, pa.madden_commid
       FROM player_seasons ps
       JOIN players p ON p.id = ps.player_id
       LEFT JOIN colleges c ON c.id = p.college_id
@@ -1431,10 +1486,27 @@ export class LookupService {
       gamesStarted: row.games_started || 0,
       av: row.av || 0,
       devTrait: row.dev_trait || '',
+      // Appearance IDs
       maddenPid: row.madden_pid || 0,
       maddenPam: row.madden_pam || '',
+      maddenPlpo: row.madden_plpo || '',
+      maddenCommid: row.madden_commid || '',
+      // Bio data
       college: row.college_name || '',
       race: row.race,
+      height: row.height,
+      weight: row.weight,
+      hometown: row.hometown || '',
+      homeState: row.home_state_name || '',
+      // Draft info
+      draftClass: row.draft_class,
+      draftRound: row.draft_round || '',
+      draftPick: row.draft_pick,
+      // Career info
+      careerFrom: row.career_from,
+      careerTo: row.career_to,
+      isHof: row.is_hof === 1,
+      // All ratings
       ratings: {
         POVR: row.POVR, PSPD: row.PSPD, PACC: row.PACC, PSTR: row.PSTR, PAGI: row.PAGI,
         PAWR: row.PAWR, PCTH: row.PCTH, PCAR: row.PCAR, PTHP: row.PTHP, PKPW: row.PKPW,
@@ -1446,7 +1518,13 @@ export class LookupService {
         PBSH: row.PBSH, PPUR: row.PPUR, PPRC: row.PPRC, PMCV: row.PMCV, PZCV: row.PZCV,
         PSPC: row.PSPC, PCIT: row.PCIT, PSRR: row.PSRR, PMRR: row.PMRR, PDRR: row.PDRR,
         PHTP: row.PHTP, PPRS: row.PPRS, PREL: row.PREL, PTAS: row.PTAS, PTAM: row.PTAM,
-        PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT
+        PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT,
+        // M26 field aliases
+        PLTR: row.PLTR, PELU: row.PELU, PLSA: row.PLSA, PLSM: row.PLSM, PLJM: row.PLJM,
+        PLIB: row.PLIB, PLBK: row.PLBK, PLPM: row.PLPM, PFMS: row.PFMS, PBSG: row.PBSG,
+        PLPU: row.PLPU, PLPR: row.PLPR, PLMC: row.PLMC, PLZC: row.PLZC, PLSC: row.PLSC,
+        PLCI: row.PLCI, SRRN: row.SRRN, PLHT: row.PLHT, PLPE: row.PLPE, PLRL: row.PLRL,
+        PBSK: row.PBSK, PPBS: row.PPBS, PRBS: row.PRBS
       }
     }));
   }

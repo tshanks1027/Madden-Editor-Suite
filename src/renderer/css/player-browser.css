@@ -164,7 +164,35 @@
   padding: 0;
 }
 
-/* Result Rows */
+/* Coach Browser Header and Rows (5-column layout) */
+#coachBrowserContainer .database-list-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 10px 20px;
+}
+
+#coachBrowserResults .player-browser-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #2a2a2a;
+  align-items: center;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+
+#coachBrowserResults .player-browser-row:hover {
+  background: rgba(212, 175, 55, 0.1);
+}
+
+#coachBrowserResults .player-browser-row.selected {
+  background: rgba(212, 175, 55, 0.15);
+  border-left: 3px solid #d4af37;
+}
+
+/* Player Browser Result Rows (7-column layout) */
 .player-browser-row {
   display: grid;
   grid-template-columns: 30px 3fr 1fr 2fr 1fr 1fr 1fr;

@@ -121,6 +121,7 @@ function initRetroEditor() {
   document.getElementById('btn-apply-draft-order')?.addEventListener('click', () => applyToolDraftOrder());
   document.getElementById('btn-apply-salary-cap')?.addEventListener('click', () => applyToolSalaryCap());
   document.getElementById('btn-apply-nfl-records')?.addEventListener('click', () => applyToolNFLRecords());
+  document.getElementById('btn-apply-historical-stats')?.addEventListener('click', () => applyToolHistoricalStats());
 
   // Coach search input enter key handler
   document.getElementById('coach-search-input')?.addEventListener('keypress', (e) => {
@@ -3592,6 +3593,9 @@ async function loadToolPreview(toolName) {
     case 'nfl-records':
       await loadNFLRecordsPreview();
       break;
+    case 'historical-stats':
+      await loadHistoricalStatsPreview();
+      break;
   }
 }
 
@@ -4972,6 +4976,122 @@ async function applyToolNFLRecords() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Apply NFL Records';
+  }
+}
+
+// ============================================
+// HISTORICAL STATS FUNCTIONS
+// ============================================
+
+/**
+ * Load Historical Stats preview for modal
+ */
+async function loadHistoricalStatsPreview() {
+  const yearEl = document.getElementById('historical-stats-year');
+  const loadingEl = document.getElementById('historical-stats-loading');
+  const contentEl = document.getElementById('historical-stats-content');
+  const errorEl = document.getElementById('historical-stats-error');
+  const listEl = document.getElementById('historical-stats-list');
+  const playerCountEl = document.getElementById('stats-player-count');
+  const yearCoverageEl = document.getElementById('stats-year-coverage');
+  const summaryEl = document.getElementById('historical-stats-summary');
+
+  // Reset display
+  yearEl.textContent = retroState.targetYear;
+  loadingEl.style.display = 'block';
+  contentEl.style.display = 'none';
+  errorEl.style.display = 'none';
+
+  try {
+    const result = await window.electronAPI.retro.getHistoricalStatsPreview(retroState.targetYear);
+
+    if (result.success && result.data) {
+      const { totalPlayers, yearCoverage, matchedPlayers, samplePlayers } = result.data;
+
+      // Update summary stats
+      playerCountEl.textContent = totalPlayers.toLocaleString();
+      yearCoverageEl.textContent = yearCoverage;
+
+      // Summary text
+      summaryEl.innerHTML = `
+        <strong style="color: var(--accent-color);">${matchedPlayers}</strong> players in the franchise file have matching career stats in our database.
+        Stats will be populated from historical Pro Football Reference data for seasons prior to ${retroState.targetYear}.
+      `;
+
+      // Build sample players list
+      let html = '<div style="border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden;">';
+      html += '<div style="padding: 8px; background: var(--bg-tertiary); font-weight: 600; border-bottom: 1px solid var(--border-color);">Sample Players</div>';
+
+      for (const player of samplePlayers) {
+        const stats = [];
+        if (player.pass_yds > 0) stats.push(`${player.pass_yds.toLocaleString()} pass yds`);
+        if (player.rush_yds > 0) stats.push(`${player.rush_yds.toLocaleString()} rush yds`);
+        if (player.rec_yds > 0) stats.push(`${player.rec_yds.toLocaleString()} rec yds`);
+        if (player.tackles > 0) stats.push(`${player.tackles} tackles`);
+        if (player.sacks > 0) stats.push(`${player.sacks} sacks`);
+
+        html += `
+          <div style="padding: 8px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between;">
+            <div>
+              <strong style="color: var(--text-primary);">${player.first_name} ${player.last_name}</strong>
+              <span style="color: var(--text-secondary); margin-left: 8px;">${player.position}</span>
+            </div>
+            <div style="color: var(--text-secondary); font-size: 0.85rem;">
+              ${stats.join(' | ') || 'No stats yet'}
+            </div>
+          </div>
+        `;
+      }
+
+      html += '</div>';
+      listEl.innerHTML = html;
+
+      loadingEl.style.display = 'none';
+      contentEl.style.display = 'block';
+    } else {
+      loadingEl.style.display = 'none';
+      errorEl.style.display = 'block';
+      errorEl.textContent = result.error || 'Failed to load historical stats data';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading historical stats preview:', error);
+    loadingEl.style.display = 'none';
+    errorEl.style.display = 'block';
+    errorEl.textContent = `Error: ${error.message}`;
+  }
+}
+
+/**
+ * Apply Historical Stats tool
+ */
+async function applyToolHistoricalStats() {
+  const btn = document.getElementById('btn-apply-historical-stats');
+
+  // Prompt for backup first
+  const proceed = await promptForBackup('Historical Stats');
+  if (!proceed) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    const result = await window.electronAPI.retro.applyHistoricalStats(
+      retroState.filePath,
+      retroState.targetYear
+    );
+
+    if (result.success) {
+      showToolStatus(`Historical career stats applied for ${result.playersUpdated} players!`, 'success');
+      closeToolModal(document.getElementById('modal-historical-stats'));
+    } else {
+      showToolStatus(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error applying historical stats:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Historical Stats';
   }
 }
 

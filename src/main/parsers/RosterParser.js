@@ -486,10 +486,222 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
       }
     }
 
+    // Before saving, attempt to sync the FBCHUNKS appearance JSON (in headerBuffer)
+    // so the editor preview (which reads the FBCHUNKS visuals) matches BLBM values
+    try {
+      if (helper && helper._headerBuffer && players && players.length > 0) {
+        console.log('[RosterParser] Attempting to sync FBCHUNKS visuals JSON in headerBuffer...');
+        let hb = helper._headerBuffer;
+        let s = hb.toString('utf8');
+
+        // Find JSON object spans by scanning for balanced braces (ignore strings)
+        let objs = [];
+        let inStr = false;
+        let esc = false;
+        let depth = 0;
+        let start = -1;
+        for (let i = 0; i < s.length; i++) {
+          const ch = s[i];
+          if (ch === '"' && !esc) inStr = !inStr;
+          if (inStr && ch === '\\') esc = !esc; else esc = false;
+          if (!inStr) {
+            if (ch === '{') {
+              if (depth === 0) start = i;
+              depth++;
+            } else if (ch === '}') {
+              depth--;
+              if (depth === 0 && start !== -1) {
+                objs.push({ start: start, end: i + 1 });
+                start = -1;
+              }
+            }
+          }
+        }
+
+        if (objs.length > 0) {
+          // Update each JSON object that contains a bodyType property
+          for (let idx = 0; idx < objs.length && idx < players.length; idx++) {
+            const pos = objs[idx];
+            const sub = s.slice(pos.start, pos.end);
+            let parsed = null;
+            try {
+              parsed = JSON.parse(sub);
+            } catch (e) {
+              continue;
+            }
+
+            if (parsed && Object.prototype.hasOwnProperty.call(parsed, 'bodyType')) {
+              const player = players[idx];
+              if (!player) continue;
+
+              // Sync bodyType from PLAY.PCBT
+              parsed.bodyType = player.PCBT;
+
+              // Sync weight/size fields if present (try common keys)
+              const pwgt = player.PWGT;
+              const actualWeight = (pwgt !== undefined && pwgt !== null) ? (pwgt + 160) : null;
+              if (actualWeight !== null) {
+                if (Object.prototype.hasOwnProperty.call(parsed, 'weight')) parsed.weight = actualWeight;
+                if (Object.prototype.hasOwnProperty.call(parsed, 'WLBS')) parsed.WLBS = actualWeight;
+                if (Object.prototype.hasOwnProperty.call(parsed, 'wlbs')) parsed.wlbs = actualWeight;
+                if (Object.prototype.hasOwnProperty.call(parsed, 'size')) parsed.size = actualWeight;
+              }
+
+              const newStr = JSON.stringify(parsed);
+              const origLen = pos.end - pos.start;
+              if (newStr.length <= origLen) {
+                // Replace in-place and pad with spaces to preserve header length
+                s = s.slice(0, pos.start) + newStr + ' '.repeat(origLen - newStr.length) + s.slice(pos.end);
+              } else {
+                console.warn('[RosterParser] FBCHUNKS visuals JSON for index', idx, 'would grow; skipping update to avoid header size change');
+              }
+            }
+          }
+
+          // Write back modified headerBuffer only if length preserved
+          const newBuf = Buffer.from(s, 'utf8');
+          if (newBuf.length === hb.length) {
+            helper._headerBuffer = newBuf;
+            console.log('[RosterParser] FBCHUNKS visuals JSON sync complete (headerBuffer updated)');
+          } else {
+            console.warn('[RosterParser] Modified header length differs; not replacing helper._headerBuffer');
+          }
+        } else {
+          console.log('[RosterParser] No JSON objects found in headerBuffer to sync');
+        }
+      }
+    } catch (e) {
+      console.warn('[RosterParser] Failed to sync FBCHUNKS visuals JSON:', e.message);
+    }
+
     // Save using MaddenRosterHelper
     await helper.save(filePath);
 
     console.log('[RosterParser] Roster saved successfully');
+
+    // Post-save: scan the written file for embedded FBCHUNKS blocks and
+    // attempt a safe update: decompress, modify appearance JSON, recompress,
+    // and replace the payload only when the recompressed bytes fit the
+    // original compressed space. Uses the helper's header buffer to update
+    // header values consistently with the writer.
+    try {
+      const fs = require('fs');
+      const zlib = require('zlib');
+      const CRC = require('../lib/services/CRC');
+      const utilService = require('../lib/services/utilService');
+
+      let fileBuf = fs.readFileSync(filePath);
+      const sig = Buffer.from('FBCHUNKS');
+      const matches = [];
+      for (let i = 0; i < fileBuf.length - sig.length; i++) {
+        if (fileBuf.slice(i, i + sig.length).equals(sig)) matches.push(i);
+      }
+
+      if (matches.length === 0) {
+        console.log('[RosterParser] No FBCHUNKS signature found in saved file');
+      } else {
+        console.log('[RosterParser] Found', matches.length, 'FBCHUNKS block(s) in saved file - attempting in-file sync');
+
+        let anyModified = false;
+
+        for (const pos of matches) {
+          try {
+            // Determine dataStart from year field (matches MaddenRosterHelper behavior)
+            const year = fileBuf.readUInt16LE(pos + 0x16);
+            const dataStart = (year >= 2021) ? 0x4A : 0x3E;
+            const payloadStart = pos + dataStart;
+            const origCompressed = fileBuf.slice(payloadStart);
+
+            // Try to inflate the remainder of file starting at payloadStart
+            let inflated;
+            try {
+              inflated = zlib.inflateSync(origCompressed);
+            } catch (e) {
+              // If inflate fails, skip this block
+              console.warn('[RosterParser] Could not inflate FBCHUNKS payload at', pos, '-', e.message);
+              continue;
+            }
+
+            const s = inflated.toString('utf8');
+
+            // Extract JSON objects from inflated string
+            let objs = [];
+            let inStr = false, esc = false, depth = 0, start = -1;
+            for (let i = 0; i < s.length; i++) {
+              const ch = s[i];
+              if (ch === '"' && !esc) inStr = !inStr;
+              if (inStr && ch === '\\') esc = !esc; else esc = false;
+              if (!inStr) {
+                if (ch === '{') { if (depth === 0) start = i; depth++; }
+                else if (ch === '}') { depth--; if (depth === 0 && start !== -1) { const sub = s.slice(start, i + 1); try { objs.push({ start, end: i + 1, json: JSON.parse(sub) }); } catch (e) {} start = -1; } }
+              }
+            }
+
+            if (objs.length === 0) continue;
+
+            // Update appearance objects matching players[]
+            let modified = false;
+            for (let idx = 0; idx < objs.length && idx < players.length; idx++) {
+              const item = objs[idx];
+              if (Object.prototype.hasOwnProperty.call(item.json, 'bodyType')) {
+                const player = players[idx];
+                if (!player) continue;
+                item.json.bodyType = player.PCBT;
+                const pwgt = player.PWGT;
+                const actualWeight = (pwgt !== undefined && pwgt !== null) ? (pwgt + 160) : null;
+                if (actualWeight !== null) {
+                  if (Object.prototype.hasOwnProperty.call(item.json, 'weight')) item.json.weight = actualWeight;
+                  if (Object.prototype.hasOwnProperty.call(item.json, 'WLBS')) item.json.WLBS = actualWeight;
+                  if (Object.prototype.hasOwnProperty.call(item.json, 'wlbs')) item.json.wlbs = actualWeight;
+                  if (Object.prototype.hasOwnProperty.call(item.json, 'size')) item.json.size = actualWeight;
+                }
+                modified = true;
+              }
+            }
+
+            if (!modified) continue;
+
+            // Re-serialize inflated payload: we will replace only the JSON spans
+            // For safety, rebuild as concatenated JSON objects (common format)
+            const newInflatedStr = objs.map(o => JSON.stringify(o.json)).join('\n');
+            const newInflatedBuf = Buffer.from(newInflatedStr, 'utf8');
+
+            // Compress using same algorithm as helper.save
+            const newCompressed = zlib.deflateSync(newInflatedBuf, { level: 9 });
+
+            if (newCompressed.length <= origCompressed.length) {
+              // Update helper header buffer values so file remains consistent
+              const headerBuf = helper._headerBuffer ? Buffer.from(helper._headerBuffer) : fileBuf.slice(pos, pos + dataStart);
+
+              // Write uncompressed size at 0x12 (matches MaddenRosterHelper.save)
+              headerBuf.writeUInt32LE(newInflatedBuf.length, 0x12);
+
+              // Compute CRC using CRC service to match writer
+              const crcObj = new CRC();
+              const crcVal = utilService.toUint32(utilService.toUint32(~crcObj.crc32_be(0, newInflatedBuf, newInflatedBuf.length)) ^ 0xFFFFFFFF);
+              headerBuf.writeUInt32LE(crcVal, 0x1A);
+
+              // Build new file buffer and write
+              const newFileBuf = Buffer.concat([fileBuf.slice(0, pos), headerBuf, newCompressed]);
+              fs.writeFileSync(filePath, newFileBuf);
+              // refresh fileBuf for subsequent blocks
+              fileBuf = fs.readFileSync(filePath);
+              anyModified = true;
+              console.log('[RosterParser] Updated FBCHUNKS block at', pos, '- replaced compressed payload');
+            } else {
+              console.warn('[RosterParser] Recompressed payload larger than original; skipping update for block at', pos);
+            }
+          } catch (innerErr) {
+            console.warn('[RosterParser] Error processing FBCHUNKS block at', pos, '-', innerErr.message);
+            continue;
+          }
+        }
+
+        if (!anyModified) console.log('[RosterParser] No FBCHUNKS blocks were modified');
+      }
+    } catch (fbErr) {
+      console.warn('[RosterParser] Post-save FBCHUNKS sync failed (non-fatal):', fbErr.message);
+    }
 
     // Run presentationIdFix to fix comm IDs before completing save
     try {

@@ -11,10 +11,10 @@
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="css/database-player-card.css">
     <link rel="stylesheet" href="css/player-browser.css">
+    <link rel="stylesheet" href="css/database-browser-layout.css">
     <link rel="stylesheet" href="css/database-coach-card.css">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Override modal styles for standalone window */
         body {
             margin: 0;
             padding: 0;
@@ -23,34 +23,6 @@
             color: #e0e0e0;
             height: 100vh;
             overflow: hidden;
-        }
-
-        /* Make player browser fill the window instead of being a modal */
-        #playerBrowserContainer,
-        #coachBrowserContainer {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-height: 0;
-            width: 100%;
-        }
-
-        .player-browser-container {
-            width: 100%;
-            max-width: 100%;
-            flex: 1;
-            min-height: 0;
-            max-height: none;
-            border-radius: 0;
-            border: none;
-        }
-
-        .player-browser-header {
-            border-radius: 0;
-        }
-
-        .player-browser-footer {
-            border-radius: 0;
         }
 
         /* DB Management modal styles */
@@ -110,473 +82,285 @@
             padding: 20px;
         }
 
-        .modal-footer {
-            padding: 16px 20px;
-            border-top: 1px solid #333;
-            background: #252525;
-            border-radius: 0 0 8px 8px;
-            text-align: right;
-        }
-
-        /* DB Button styles */
-        .db-btn {
-            padding: 8px 16px;
-            border: 1px solid #444;
-            border-radius: 4px;
-            font-size: 13px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .db-btn-primary {
-            background: #0078d4;
-            border-color: #0078d4;
-            color: #fff;
-        }
-
-        .db-btn-primary:hover {
-            background: #1084d8;
-        }
-
-        .db-btn-secondary {
-            background: #333;
-            border-color: #444;
-            color: #fff;
-        }
-
-        .db-btn-secondary:hover {
-            background: #444;
-        }
-
-        .db-btn-danger {
-            background: #d9534f;
-            border-color: #d9534f;
-            color: #fff;
-        }
-
-        .db-btn-danger:hover {
-            background: #c9302c;
-        }
-
-        .db-btn-success {
-            background: #2e7d32;
-            border-color: #2e7d32;
-            color: #fff;
-        }
-
-        .db-btn-success:hover {
-            background: #388e3c;
-        }
-
-        /* Stats card */
-        .stats-card {
-            background: #252525;
-            border-radius: 6px;
-            padding: 16px;
-            margin-bottom: 20px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 600;
-            color: #0078d4;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #888;
-            margin-top: 4px;
-        }
-
-        /* Action sections */
-        .action-section {
-            margin-bottom: 20px;
-        }
-
-        .action-section-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: 12px;
-        }
-
-        .action-buttons {
+        /* Tab button styles */
+        .database-tabs {
             display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
+            gap: 4px;
         }
 
-        /* Backup list */
-        #backupListContainer {
-            margin-top: 12px;
-            padding: 12px;
-            background: #1a1a1a;
+        .database-tab-btn {
+            padding: 6px 16px;
+            background: transparent;
+            border: 1px solid var(--db-border);
             border-radius: 4px;
-            border: 1px solid #333;
-        }
-
-        #backupList {
-            width: 100%;
-            padding: 8px;
-            background: #252525;
-            border: 1px solid #444;
-            border-radius: 4px;
-            color: #fff;
+            color: var(--db-text-muted);
             font-size: 13px;
-            margin-bottom: 12px;
-        }
-
-        /* Progress bar */
-        .progress-container {
-            margin-top: 12px;
-            padding: 12px;
-            background: #1a1a1a;
-            border-radius: 4px;
-            border: 1px solid #333;
-        }
-
-        .progress-bar-container {
-            height: 8px;
-            background: #333;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 8px 0;
-        }
-
-        .progress-bar {
-            height: 100%;
-            background: #3b82f6;
-            transition: width 0.3s;
-        }
-
-        .progress-status {
-            font-size: 12px;
-            color: #888;
-        }
-
-        .progress-counter {
-            font-size: 12px;
-            color: #0078d4;
-            float: right;
-        }
-
-        /* Database Browser Tabs */
-        .database-browser-tabs {
-            display: flex;
-            gap: 0;
-            background: #1a1a1a;
-            padding: 0;
-            border-bottom: 1px solid #333;
-        }
-
-        .browser-tab {
-            padding: 12px 24px;
-            background: #1a1a1a;
-            border: none;
-            border-bottom: 2px solid transparent;
-            color: #888;
-            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
         }
 
-        .browser-tab:hover {
-            background: #252525;
-            color: #fff;
+        .database-tab-btn:hover {
+            border-color: var(--db-gold);
+            color: var(--db-gold);
         }
 
-        .browser-tab.active {
-            background: #252525;
-            color: #fff;
-            border-bottom-color: #0078d4;
-        }
-
-        .browser-tab-content {
-            display: none;
-            height: calc(100vh - 45px);
-            overflow: hidden;
-        }
-
-        .browser-tab-content.active {
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Coach Portrait Picker Styles */
-        .coach-portrait-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 8px;
-            background: #1a1a1a;
-            border-radius: 4px;
-        }
-
-        .portrait-section-header {
-            width: 100%;
-            font-size: 12px;
-            font-weight: bold;
-            color: #0078d4;
-            padding: 4px 0;
-            border-bottom: 1px solid #333;
-            margin-bottom: 4px;
-        }
-
-        .coach-portrait-option {
-            width: 64px;
-            cursor: pointer;
-            text-align: center;
-            border: 2px solid transparent;
-            border-radius: 4px;
-            padding: 4px;
-            transition: border-color 0.2s, background 0.2s;
-        }
-
-        .coach-portrait-option:hover {
-            border-color: #0078d4;
-            background: rgba(0, 120, 212, 0.1);
-        }
-
-        .coach-portrait-option.selected {
-            border-color: #00cc66;
-            background: rgba(0, 204, 102, 0.1);
-        }
-
-        .coach-portrait-option img {
-            width: 56px;
-            height: 56px;
-            object-fit: cover;
-            border-radius: 4px;
-            background: #2a2a2a;
-        }
-
-        .portrait-name {
-            font-size: 9px;
-            color: #aaa;
-            margin-top: 2px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* PAM-only coach tiles (no portrait yet) */
-        .coach-portrait-option.pam-only {
-            border-color: #ff9800;
-            border-style: dashed;
-        }
-
-        .coach-portrait-option.pam-only:hover {
-            border-color: #ffb84d;
-            background: rgba(255, 152, 0, 0.1);
-        }
-
-        .pam-only-placeholder {
-            width: 56px;
-            height: 56px;
-            background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .pam-initials {
-            font-size: 18px;
-            font-weight: bold;
-            color: #ff9800;
-        }
-
-        /* Generic coach portraits styling */
-        .coach-portrait-option.generic-portrait {
-            border-color: #4a4a4a;
-        }
-
-        .coach-portrait-option.generic-portrait:hover {
-            border-color: #888;
-            background: rgba(100, 100, 100, 0.1);
-        }
-
-        .portrait-section-header.generic-race {
-            color: #888;
-            font-size: 11px;
+        .database-tab-btn.active {
+            background: var(--db-gold);
+            border-color: var(--db-gold);
+            color: #000;
         }
     </style>
 </head>
 <body>
-    <!-- Database Browser Tabs -->
-    <div class="database-browser-tabs">
-        <button class="browser-tab active" data-tab="players" id="playersTabBtn">Players</button>
-        <button class="browser-tab" data-tab="coaches" id="coachesTabBtn">Coaches</button>
+    <!-- Top Header Bar -->
+    <div class="database-top-bar">
+        <div class="database-top-bar-left">
+            <button class="database-home-btn" id="homeBtn">← Home</button>
+            <span class="database-title">NFL PLAYER DATABASE</span>
+            <div class="database-tabs">
+                <button class="database-tab-btn active" data-tab="players" id="playersTabBtn">Players</button>
+                <button class="database-tab-btn" data-tab="coaches" id="coachesTabBtn">Coaches</button>
+            </div>
+        </div>
+        <div class="database-top-bar-center">
+            <input type="text" class="database-quick-search" id="quickSearchInput" placeholder="Quick search by name, college, or PID...">
+            <div class="database-position-filters">
+                <button class="database-position-btn active" data-group="all">All</button>
+                <button class="database-position-btn" data-group="offense">Offense</button>
+                <button class="database-position-btn" data-group="defense">Defense</button>
+                <button class="database-position-btn" data-group="special">Special</button>
+            </div>
+        </div>
+        <div class="database-top-bar-right">
+            Showing <span class="database-player-count" id="totalPlayerCount">0</span> players
+        </div>
     </div>
 
-    <!-- Players Tab Content -->
-    <div id="playersTabContent" class="browser-tab-content active">
-        <!-- Player Browser (Main Content) -->
-        <div id="playerBrowserContainer">
-            <div class="player-browser-container">
-                <div class="player-browser-header">
-                    <h2>Player Database Browser</h2>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <span style="color: #888; font-size: 12px;">Separate Window Mode</span>
+    <!-- Main Three-Panel Layout (Players) -->
+    <div class="database-main-layout" id="playerBrowserContainer">
+        <!-- Left Filter Sidebar -->
+        <div class="database-filter-sidebar" id="playerFilterSidebar">
+            <div class="filter-header">
+                <h3>Filters</h3>
+                <button class="filter-clear-btn" id="clearAllFilters">Clear All</button>
+            </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Player Name</label>
+                <input type="text" class="filter-input" id="filterPlayerName" placeholder="Search by name...">
+            </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Position</label>
+                <select class="filter-select" id="filterPosition">
+                    <option value="">All Positions</option>
+                </select>
+            </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Team</label>
+                <select class="filter-select" id="filterTeam">
+                    <option value="">All Teams</option>
+                </select>
+            </div>
+
+            <div class="filter-section">
+                <label class="filter-label">College</label>
+                <select class="filter-select" id="filterCollege">
+                    <option value="">All Colleges</option>
+                </select>
+            </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Career Years</label>
+                <div class="filter-year-row">
+                    <input type="number" class="filter-input" id="filterYearFrom" placeholder="From" min="1900" max="2050">
+                    <span style="color: #666;">-</span>
+                    <input type="number" class="filter-input" id="filterYearTo" placeholder="To" min="1900" max="2050">
                 </div>
             </div>
-            <div class="player-browser-controls">
-                <div class="player-browser-search-row">
-                    <input type="text" id="playerBrowserSearch" placeholder="Search by name...">
-                </div>
-                <div class="player-browser-filters">
-                    <div class="player-browser-filter-group">
-                        <label>Position:</label>
-                        <select id="playerBrowserPositionFilter">
-                            <option value="">All Positions</option>
-                        </select>
-                    </div>
-                    <div class="player-browser-filter-group">
-                        <label>Draft Year:</label>
-                        <input type="number" id="playerBrowserDraftYearFrom" placeholder="From" min="1900" max="2050" style="width: 70px;">
-                        <span style="color: #666;">-</span>
-                        <input type="number" id="playerBrowserDraftYearTo" placeholder="To" min="1900" max="2050" style="width: 70px;">
-                    </div>
-                    <div class="player-browser-filter-group">
-                        <label>College:</label>
-                        <select id="playerBrowserCollegeFilter" style="width: 140px;">
-                            <option value="">All Colleges</option>
-                        </select>
-                    </div>
-                    <div class="player-browser-filter-group">
-                        <label>Team:</label>
-                        <select id="playerBrowserTeamFilter" style="width: 120px;">
-                            <option value="">All Teams</option>
-                        </select>
-                    </div>
-                    <div class="player-browser-filter-group">
-                        <label>HOF:</label>
-                        <select id="playerBrowserHofFilter">
-                            <option value="">All Players</option>
-                            <option value="hof">HOF Only</option>
-                            <option value="non-hof">Non-HOF Only</option>
-                        </select>
-                    </div>
-                    <div class="player-browser-filter-group">
-                        <label>Empty:</label>
-                        <select id="playerBrowserEmptyFilter">
-                            <option value="">Show All</option>
-                            <option value="position">Empty Position</option>
-                            <option value="college">Empty College</option>
-                            <option value="hometown">Empty Hometown</option>
-                            <option value="pid">Empty Photo ID</option>
-                            <option value="draftClass">Empty Draft Year</option>
-                        </select>
-                    </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Portrait Status</label>
+                <div class="filter-checkbox-group">
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="filterPortraitAll" checked>
+                        <span>All Players</span>
+                    </label>
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="filterPortraitReal">
+                        <span>Has Real Portrait</span>
+                    </label>
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="filterPortraitGeneric">
+                        <span>Has Generic Portrait</span>
+                    </label>
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="filterPortraitNone">
+                        <span>No Portrait</span>
+                    </label>
                 </div>
             </div>
-            <div class="player-browser-content">
-                <div class="player-browser-results-header">
-                    <div class="player-browser-select"><input type="checkbox" id="selectAllPlayers" title="Select All"></div>
-                    <div>Name</div>
-                    <div>Position</div>
-                    <div>College</div>
-                    <div>Draft</div>
-                    <div>Career</div>
-                    <div>Actions</div>
-                </div>
-                <div id="playerBrowserResults">
-                    <div class="player-browser-loading">Loading players...</div>
+
+            <div class="filter-section">
+                <label class="filter-label">Search by PID</label>
+                <input type="text" class="filter-input" id="filterPID" placeholder="Enter PID number...">
+            </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Quick Filters</label>
+                <div class="filter-quick-buttons">
+                    <button class="filter-quick-btn" data-filter="hof">HOF</button>
+                    <button class="filter-quick-btn" data-filter="probowl">Pro Bowl</button>
+                    <button class="filter-quick-btn" data-filter="allpro">All-Pro</button>
+                    <button class="filter-quick-btn" data-filter="active">Active</button>
+                    <button class="filter-quick-btn" data-filter="retired">Retired</button>
                 </div>
             </div>
-            <div class="player-browser-footer">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <button id="addNewPlayerBtn" class="db-btn db-btn-primary" style="padding: 6px 12px;">+ Add Player</button>
-                        <button id="addSelectedToRosterBtn" class="db-btn db-btn-primary" style="padding: 6px 12px; display: none;" title="Add selected players to roster">+ Selected to Roster</button>
-                        <button id="addSelectedToDraftBtn" class="db-btn db-btn-primary" style="padding: 6px 12px; display: none;" title="Add selected players to draft class">+ Selected to Draft</button>
-                        <span id="selectedPlayerCount" style="color: #0078d4; font-size: 12px; font-weight: 500; display: none;"></span>
-                        <button id="fillCurrentResultsBtn" class="db-btn db-btn-success" style="padding: 6px 12px; background: #2e7d32; border-color: #2e7d32;" title="Fill missing data from PFR for current search results">Fill from PFR</button>
-                        <span id="batchFillStatusInline" style="color: #888; font-size: 12px; display: none;"></span>
-                        <button id="hideAllBlankBtn" class="db-btn db-btn-warning" style="padding: 6px 12px; background: #f57c00; border-color: #f57c00;" title="Hide all players with blank/empty names">Hide All Blank</button>
-                        <button id="openDbManagement" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Manage Database</button>
-                    </div>
-                    <div class="player-browser-pagination">
-                        <button id="playerBrowserPrevPage" disabled>&laquo; Previous</button>
-                        <span id="playerBrowserPageInfo">Page 1</span>
-                        <button id="playerBrowserNextPage">Next &raquo;</button>
-                    </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Find Empty</label>
+                <div class="filter-quick-buttons">
+                    <button class="filter-quick-btn filter-empty-btn" data-filter="empty-position">No Position</button>
+                    <button class="filter-quick-btn filter-empty-btn" data-filter="empty-college">No College</button>
+                    <button class="filter-quick-btn filter-empty-btn" data-filter="empty-height">No Height</button>
+                    <button class="filter-quick-btn filter-empty-btn" data-filter="empty-weight">No Weight</button>
+                    <button class="filter-quick-btn filter-empty-btn" data-filter="empty-draftYear">No Draft Year</button>
+                    <button class="filter-quick-btn filter-empty-btn" data-filter="empty-pid">No PID</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Player List Panel -->
+        <div class="database-list-panel" id="playerListPanel">
+            <div class="database-list-header">
+                <div><input type="checkbox" id="selectAllPlayers" title="Select All"></div>
+                <div>Player</div>
+                <div>Position</div>
+                <div>College</div>
+                <div>Draft</div>
+                <div>Years</div>
+                <div>PID</div>
+                <div>Status</div>
+                <div>Actions</div>
+            </div>
+            <div class="database-list-content" id="playerBrowserResults">
+                <div class="player-browser-loading">Loading players...</div>
+            </div>
+            <div class="database-list-footer">
+                <div class="footer-actions">
+                    <button class="footer-btn footer-btn-primary" id="addNewPlayerBtn">+ Add Player</button>
+                    <button class="footer-btn" id="addSelectedToRosterBtn" style="display: none;">+ Selected to Roster</button>
+                    <button class="footer-btn" id="addSelectedToDraftBtn" style="display: none;">+ Selected to Draft</button>
+                    <button class="footer-btn" id="openDbManagement">Manage Database</button>
+                </div>
+                <div class="pagination-controls">
+                    <button class="pagination-btn" id="playerBrowserPrevPage" disabled>« Previous</button>
+                    <span class="pagination-info" id="playerBrowserPageInfo">Page 1</span>
+                    <button class="pagination-btn" id="playerBrowserNextPage">Next »</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Preview Panel -->
+        <div class="database-preview-panel" id="playerPreviewPanel">
+            <div class="preview-header">
+                <h3>Player Preview</h3>
+            </div>
+            <div class="preview-content" id="previewContent">
+                <div class="preview-empty">
+                    <div class="preview-empty-icon">👤</div>
+                    <p>Select a player to preview</p>
                 </div>
             </div>
         </div>
     </div>
-    </div><!-- End Players Tab Content -->
 
-    <!-- Coaches Tab Content -->
-    <div id="coachesTabContent" class="browser-tab-content">
-        <div id="coachBrowserContainer">
-            <div class="player-browser-container">
-                <div class="player-browser-header">
-                    <h2>Coach Database Browser</h2>
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <span style="color: #888; font-size: 12px;">Separate Window Mode</span>
-                    </div>
+    <!-- Coach Browser (hidden by default) -->
+    <div id="coachBrowserContainer" class="database-main-layout" style="display: none;">
+        <!-- Left Filter Sidebar for Coaches -->
+        <div class="database-filter-sidebar">
+            <div class="filter-header">
+                <h3>Filters</h3>
+                <button class="filter-clear-btn" id="clearCoachFilters">Clear All</button>
+            </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Coach Name</label>
+                <input type="text" class="filter-input" id="coachBrowserSearch" placeholder="Search by name...">
+            </div>
+
+            <div class="filter-section">
+                <label class="filter-label">Position</label>
+                <select class="filter-select" id="coachBrowserPositionFilter">
+                    <option value="">All Positions</option>
+                    <option value="HC">Head Coach</option>
+                    <option value="OC">Offensive Coordinator</option>
+                    <option value="DC">Defensive Coordinator</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Center Coach List Panel -->
+        <div class="database-list-panel">
+            <div class="database-list-header">
+                <div>Coach</div>
+                <div>Position</div>
+                <div>Team</div>
+                <div>Type</div>
+                <div>Actions</div>
+            </div>
+            <div class="database-list-content" id="coachBrowserResults">
+                <div class="player-browser-loading">Loading coaches...</div>
+            </div>
+            <div class="database-list-footer">
+                <div class="footer-actions">
+                    <button class="footer-btn footer-btn-primary" id="addNewCoachBtn">+ Add Coach</button>
+                    <button class="footer-btn" id="importRetroCoachesBtn">Import Retro Coaches</button>
                 </div>
-                <div class="player-browser-controls">
-                    <div class="player-browser-search-row">
-                        <input type="text" id="coachBrowserSearch" placeholder="Search by name...">
-                    </div>
-                    <div class="player-browser-filters">
-                        <div class="player-browser-filter-group">
-                            <label>Position:</label>
-                            <select id="coachBrowserPositionFilter">
-                                <option value="">All Positions</option>
-                                <option value="HC">Head Coach</option>
-                                <option value="OC">Offensive Coordinator</option>
-                                <option value="DC">Defensive Coordinator</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="player-browser-content">
-                    <div class="player-browser-results-header">
-                        <div>Name</div>
-                        <div>Position</div>
-                        <div>Team</div>
-                        <div>Status</div>
-                        <div>Actions</div>
-                    </div>
-                    <div id="coachBrowserResults">
-                        <div class="player-browser-loading">Loading coaches...</div>
-                    </div>
-                </div>
-                <div class="player-browser-footer">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <button id="addNewCoachBtn" class="db-btn db-btn-primary" style="padding: 6px 12px;">+ Add Coach</button>
-                            <button id="importRetroCoachesBtn" class="db-btn db-btn-secondary" style="padding: 6px 12px;">Import Retro Coaches</button>
-                            <button id="clearCoachDbBtn" class="db-btn" style="padding: 6px 12px; background: #8b0000; color: white;">Clear DB</button>
-                            <span id="retroCoachStatus" style="font-size: 11px; color: #888;"></span>
-                        </div>
-                        <div class="player-browser-pagination">
-                            <button id="coachBrowserPrevPage" disabled>&laquo; Previous</button>
-                            <span id="coachBrowserPageInfo">Page 1</span>
-                            <button id="coachBrowserNextPage">Next &raquo;</button>
-                        </div>
-                    </div>
+                <div class="pagination-controls">
+                    <button class="pagination-btn" id="coachBrowserPrevPage" disabled>« Previous</button>
+                    <span class="pagination-info" id="coachBrowserPageInfo">Page 1</span>
+                    <button class="pagination-btn" id="coachBrowserNextPage">Next »</button>
                 </div>
             </div>
         </div>
-    </div><!-- End Coaches Tab Content -->
 
-    <!-- Database Player Card Modal (for editing players) -->
+        <!-- Right Preview Panel for Coaches -->
+        <div class="database-preview-panel">
+            <div class="preview-header">
+                <h3>Coach Preview</h3>
+            </div>
+            <div class="preview-content" id="coachPreviewContent">
+                <div class="preview-empty">
+                    <div class="preview-empty-icon">👔</div>
+                    <p>Select a coach to preview</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DB Management Modal -->
+    <div id="dbManagementModal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 500px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Database Management</h3>
+                <button class="modal-close" id="closeDbManagement">×</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: #888; margin-bottom: 16px;">Manage your player database edits and custom players.</p>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button class="footer-btn" id="resetAllEditsBtn" style="width: 100%;">Reset All Player Edits</button>
+                    <button class="footer-btn" id="resetCustomPlayersBtn" style="width: 100%;">Delete All Custom Players</button>
+                    <button class="footer-btn" id="viewHiddenPlayersBtn" style="width: 100%;">View Hidden Players</button>
+                    <button class="footer-btn" id="exportDatabaseBtn" style="width: 100%;">Export Database</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Player Card Modal -->
     <div id="dbPlayerCardModal" class="modal" style="display: none;">
         <div class="modal-content db-player-card-modal">
             <!-- Header -->
@@ -665,10 +449,6 @@
                                     <option value="1">Left</option>
                                 </select>
                             </div>
-                            <div class="db-form-item" style="display: flex; align-items: center; gap: 8px;">
-                                <input type="checkbox" id="dbPlayerHas3DModel" style="width: auto;">
-                                <label class="db-form-label" for="dbPlayerHas3DModel" style="margin: 0;">Has 3D Model</label>
-                            </div>
                         </div>
                     </div>
 
@@ -733,7 +513,7 @@
                             </button>
                         </div>
                         <p style="color: #a0a0a0; font-size: 12px; margin-top: 12px;">
-                            These IDs link the player to Madden assets like portraits and commentary.
+                            These IDs link the player to Madden assets like portraits and commentary. Use "Assign Generic Face" to assign a random generic face PID for players without portraits.
                         </p>
                     </div>
                 </div>
@@ -755,143 +535,168 @@
                         </label>
                     </div>
 
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Season Info</h4>
-                        <div class="db-form-grid">
-                            <div class="db-form-item">
-                                <label class="db-form-label">Team</label>
-                                <select class="db-form-select" id="dbPlayerSeasonTeam">
-                                    <option value="">Select Team</option>
-                                </select>
+                    <!-- All Years Table View -->
+                    <div id="ratingsAllYearsView" style="margin-bottom: 20px;">
+                        <div id="ratingsAllYearsTable"></div>
+                    </div>
+
+                    <!-- Single Year Form View -->
+                    <div id="ratingsSingleYearView" style="display: none;">
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Season Info</h4>
+                            <div class="db-form-grid">
+                                <div class="db-form-item">
+                                    <label class="db-form-label">Team</label>
+                                    <select class="db-form-select" id="dbPlayerSeasonTeam">
+                                        <option value="">Select Team</option>
+                                    </select>
+                                </div>
+                                <div class="db-form-item">
+                                    <label class="db-form-label">Jersey</label>
+                                    <input type="number" class="db-form-input" id="dbPlayerSeasonJersey" min="0" max="99">
+                                </div>
+                                <div class="db-form-item">
+                                    <label class="db-form-label">Age</label>
+                                    <input type="number" class="db-form-input" id="dbPlayerSeasonAge" min="18" max="50">
+                                </div>
+                                <div class="db-form-item">
+                                    <label class="db-form-label">Position</label>
+                                    <select class="db-form-select" id="dbPlayerSeasonPosition">
+                                        <option value="">Select Position</option>
+                                    </select>
+                                </div>
+                                <div class="db-form-item">
+                                    <label class="db-form-label">Archetype</label>
+                                    <select class="db-form-select" id="dbPlayerSeasonArchetype">
+                                        <option value="">Select Position First</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="db-form-item">
-                                <label class="db-form-label">Jersey</label>
-                                <input type="number" class="db-form-input" id="dbPlayerSeasonJersey" min="0" max="99">
-                            </div>
-                            <div class="db-form-item">
-                                <label class="db-form-label">Age</label>
-                                <input type="number" class="db-form-input" id="dbPlayerSeasonAge" min="18" max="50">
-                            </div>
-                            <div class="db-form-item">
-                                <label class="db-form-label">Position</label>
-                                <select class="db-form-select" id="dbPlayerSeasonPosition">
-                                    <option value="">Select Position</option>
-                                </select>
-                            </div>
-                            <div class="db-form-item">
-                                <label class="db-form-label">Archetype</label>
-                                <select class="db-form-select" id="dbPlayerSeasonArchetype">
-                                    <option value="">Select Position First</option>
-                                </select>
+                        </div>
+
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Core Ratings</h4>
+                            <div class="db-ratings-grid">
+                                <div class="db-rating-item"><span class="db-rating-label">OVR</span><input type="number" class="db-rating-input" id="dbRating_POVR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">SPD</span><input type="number" class="db-rating-input" id="dbRating_PSPD" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">ACC</span><input type="number" class="db-rating-input" id="dbRating_PACC" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">STR</span><input type="number" class="db-rating-input" id="dbRating_PSTR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">AGI</span><input type="number" class="db-rating-input" id="dbRating_PAGI" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">AWR</span><input type="number" class="db-rating-input" id="dbRating_PAWR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">JMP</span><input type="number" class="db-rating-input" id="dbRating_PJMP" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">STA</span><input type="number" class="db-rating-input" id="dbRating_PSTM" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">INJ</span><input type="number" class="db-rating-input" id="dbRating_PINJ" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">TGH</span><input type="number" class="db-rating-input" id="dbRating_PTGH" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">COD</span><input type="number" class="db-rating-input" id="dbRating_PCOD" min="0" max="99"></div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Core Ratings</h4>
-                        <div class="db-ratings-grid">
-                            <div class="db-rating-item"><span class="db-rating-label">OVR</span><input type="number" class="db-rating-input" id="dbRating_POVR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">SPD</span><input type="number" class="db-rating-input" id="dbRating_PSPD" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">ACC</span><input type="number" class="db-rating-input" id="dbRating_PACC" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">STR</span><input type="number" class="db-rating-input" id="dbRating_PSTR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">AGI</span><input type="number" class="db-rating-input" id="dbRating_PAGI" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">AWR</span><input type="number" class="db-rating-input" id="dbRating_PAWR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">JMP</span><input type="number" class="db-rating-input" id="dbRating_PJMP" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">STA</span><input type="number" class="db-rating-input" id="dbRating_PSTM" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">INJ</span><input type="number" class="db-rating-input" id="dbRating_PINJ" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">TGH</span><input type="number" class="db-rating-input" id="dbRating_PTGH" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">COD</span><input type="number" class="db-rating-input" id="dbRating_PCOD" min="0" max="99"></div>
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Passing</h4>
+                            <div class="db-ratings-grid">
+                                <div class="db-rating-item"><span class="db-rating-label">THP</span><input type="number" class="db-rating-input" id="dbRating_PPWR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">TAS</span><input type="number" class="db-rating-input" id="dbRating_PTAS" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">TAM</span><input type="number" class="db-rating-input" id="dbRating_PTAM" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">TAD</span><input type="number" class="db-rating-input" id="dbRating_PTAD" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">TOR</span><input type="number" class="db-rating-input" id="dbRating_PTOR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">TUP</span><input type="number" class="db-rating-input" id="dbRating_PTUP" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">PAC</span><input type="number" class="db-rating-input" id="dbRating_PPBK" min="0" max="99"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Passing</h4>
-                        <div class="db-ratings-grid">
-                            <div class="db-rating-item"><span class="db-rating-label">THP</span><input type="number" class="db-rating-input" id="dbRating_PPWR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">TAS</span><input type="number" class="db-rating-input" id="dbRating_PTAS" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">TAM</span><input type="number" class="db-rating-input" id="dbRating_PTAM" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">TAD</span><input type="number" class="db-rating-input" id="dbRating_PTAD" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">TOR</span><input type="number" class="db-rating-input" id="dbRating_PTOR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">TUP</span><input type="number" class="db-rating-input" id="dbRating_PTUP" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">PAC</span><input type="number" class="db-rating-input" id="dbRating_PPBK" min="0" max="99"></div>
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Running</h4>
+                            <div class="db-ratings-grid">
+                                <div class="db-rating-item"><span class="db-rating-label">CAR</span><input type="number" class="db-rating-input" id="dbRating_PCAR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">BCV</span><input type="number" class="db-rating-input" id="dbRating_PBCV" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">BTK</span><input type="number" class="db-rating-input" id="dbRating_PBTK" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">TRK</span><input type="number" class="db-rating-input" id="dbRating_PTRK" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">ELU</span><input type="number" class="db-rating-input" id="dbRating_PELU" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">SFA</span><input type="number" class="db-rating-input" id="dbRating_PSFA" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">SPN</span><input type="number" class="db-rating-input" id="dbRating_PSPN" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">JKM</span><input type="number" class="db-rating-input" id="dbRating_PJKM" min="0" max="99"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Running</h4>
-                        <div class="db-ratings-grid">
-                            <div class="db-rating-item"><span class="db-rating-label">CAR</span><input type="number" class="db-rating-input" id="dbRating_PCAR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">BCV</span><input type="number" class="db-rating-input" id="dbRating_PBCV" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">BTK</span><input type="number" class="db-rating-input" id="dbRating_PBTK" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">TRK</span><input type="number" class="db-rating-input" id="dbRating_PTRK" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">ELU</span><input type="number" class="db-rating-input" id="dbRating_PELU" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">SFA</span><input type="number" class="db-rating-input" id="dbRating_PSFA" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">SPN</span><input type="number" class="db-rating-input" id="dbRating_PSPN" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">JKM</span><input type="number" class="db-rating-input" id="dbRating_PJKM" min="0" max="99"></div>
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Receiving</h4>
+                            <div class="db-ratings-grid">
+                                <div class="db-rating-item"><span class="db-rating-label">CTH</span><input type="number" class="db-rating-input" id="dbRating_PCTH" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">SPC</span><input type="number" class="db-rating-input" id="dbRating_PSPC" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">CIT</span><input type="number" class="db-rating-input" id="dbRating_PCIT" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">SRR</span><input type="number" class="db-rating-input" id="dbRating_PSRR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">MRR</span><input type="number" class="db-rating-input" id="dbRating_PMRR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">DRR</span><input type="number" class="db-rating-input" id="dbRating_PDRR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">RLS</span><input type="number" class="db-rating-input" id="dbRating_PREL" min="0" max="99"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Receiving</h4>
-                        <div class="db-ratings-grid">
-                            <div class="db-rating-item"><span class="db-rating-label">CTH</span><input type="number" class="db-rating-input" id="dbRating_PCTH" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">SPC</span><input type="number" class="db-rating-input" id="dbRating_PSPC" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">CIT</span><input type="number" class="db-rating-input" id="dbRating_PCIT" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">SRR</span><input type="number" class="db-rating-input" id="dbRating_PSRR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">MRR</span><input type="number" class="db-rating-input" id="dbRating_PMRR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">DRR</span><input type="number" class="db-rating-input" id="dbRating_PDRR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">RLS</span><input type="number" class="db-rating-input" id="dbRating_PREL" min="0" max="99"></div>
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Blocking</h4>
+                            <div class="db-ratings-grid">
+                                <div class="db-rating-item"><span class="db-rating-label">RBK</span><input type="number" class="db-rating-input" id="dbRating_PRBK" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">PBK</span><input type="number" class="db-rating-input" id="dbRating_PPBK2" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">IBL</span><input type="number" class="db-rating-input" id="dbRating_PIBK" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">LBK</span><input type="number" class="db-rating-input" id="dbRating_PLBK" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">RBF</span><input type="number" class="db-rating-input" id="dbRating_PFMS" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">RBP</span><input type="number" class="db-rating-input" id="dbRating_PRNS" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">PBF</span><input type="number" class="db-rating-input" id="dbRating_PPBS" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">PBP</span><input type="number" class="db-rating-input" id="dbRating_PPBP" min="0" max="99"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Blocking</h4>
-                        <div class="db-ratings-grid">
-                            <div class="db-rating-item"><span class="db-rating-label">RBK</span><input type="number" class="db-rating-input" id="dbRating_PRBK" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">PBK</span><input type="number" class="db-rating-input" id="dbRating_PPBK2" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">IBL</span><input type="number" class="db-rating-input" id="dbRating_PIBK" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">LBK</span><input type="number" class="db-rating-input" id="dbRating_PLBK" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">RBF</span><input type="number" class="db-rating-input" id="dbRating_PFMS" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">RBP</span><input type="number" class="db-rating-input" id="dbRating_PRNS" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">PBF</span><input type="number" class="db-rating-input" id="dbRating_PPBS" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">PBP</span><input type="number" class="db-rating-input" id="dbRating_PPBP" min="0" max="99"></div>
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Defense</h4>
+                            <div class="db-ratings-grid">
+                                <div class="db-rating-item"><span class="db-rating-label">TAK</span><input type="number" class="db-rating-input" id="dbRating_PTAK" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">POW</span><input type="number" class="db-rating-input" id="dbRating_PHIT" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">PMV</span><input type="number" class="db-rating-input" id="dbRating_PPWM" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">FMV</span><input type="number" class="db-rating-input" id="dbRating_PFMV" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">BSH</span><input type="number" class="db-rating-input" id="dbRating_PBSH" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">PUR</span><input type="number" class="db-rating-input" id="dbRating_PPRC" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">PRC</span><input type="number" class="db-rating-input" id="dbRating_PPLA" min="0" max="99"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Defense</h4>
-                        <div class="db-ratings-grid">
-                            <div class="db-rating-item"><span class="db-rating-label">TAK</span><input type="number" class="db-rating-input" id="dbRating_PTAK" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">POW</span><input type="number" class="db-rating-input" id="dbRating_PHIT" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">PMV</span><input type="number" class="db-rating-input" id="dbRating_PPWM" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">FMV</span><input type="number" class="db-rating-input" id="dbRating_PFMV" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">BSH</span><input type="number" class="db-rating-input" id="dbRating_PBSH" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">PUR</span><input type="number" class="db-rating-input" id="dbRating_PPRC" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">PRC</span><input type="number" class="db-rating-input" id="dbRating_PPLA" min="0" max="99"></div>
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Coverage</h4>
+                            <div class="db-ratings-grid">
+                                <div class="db-rating-item"><span class="db-rating-label">MCV</span><input type="number" class="db-rating-input" id="dbRating_PMCV" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">ZCV</span><input type="number" class="db-rating-input" id="dbRating_PZCV" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">PRS</span><input type="number" class="db-rating-input" id="dbRating_PPRS" min="0" max="99"></div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Coverage</h4>
-                        <div class="db-ratings-grid">
-                            <div class="db-rating-item"><span class="db-rating-label">MCV</span><input type="number" class="db-rating-input" id="dbRating_PMCV" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">ZCV</span><input type="number" class="db-rating-input" id="dbRating_PZCV" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">PRS</span><input type="number" class="db-rating-input" id="dbRating_PPRS" min="0" max="99"></div>
-                        </div>
-                    </div>
-
-                    <div class="db-form-section">
-                        <h4 class="db-form-section-title">Kicking</h4>
-                        <div class="db-ratings-grid">
-                            <div class="db-rating-item"><span class="db-rating-label">KPW</span><input type="number" class="db-rating-input" id="dbRating_PKPR" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">KAC</span><input type="number" class="db-rating-input" id="dbRating_PKAC" min="0" max="99"></div>
-                            <div class="db-rating-item"><span class="db-rating-label">KRT</span><input type="number" class="db-rating-input" id="dbRating_PKRT" min="0" max="99"></div>
+                        <div class="db-form-section">
+                            <h4 class="db-form-section-title">Kicking</h4>
+                            <div class="db-ratings-grid">
+                                <div class="db-rating-item"><span class="db-rating-label">KPW</span><input type="number" class="db-rating-input" id="dbRating_PKPR" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">KAC</span><input type="number" class="db-rating-input" id="dbRating_PKAC" min="0" max="99"></div>
+                                <div class="db-rating-item"><span class="db-rating-label">KRT</span><input type="number" class="db-rating-input" id="dbRating_PKRT" min="0" max="99"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Career Stats Tab -->
                 <div class="db-player-tab-content" id="tab-stats">
+                    <div class="db-year-selector">
+                        <label>Select Year:</label>
+                        <select id="dbStatsYearSelect">
+                            <option value="all">All Years (Table View)</option>
+                        </select>
+                    </div>
+
+                    <!-- All Years Stats Table View -->
+                    <div id="statsAllYearsView" style="margin-bottom: 20px;">
+                        <div id="statsAllYearsTable"></div>
+                    </div>
+
+                    <!-- Single Year Stats View -->
+                    <div id="statsSingleYearView" style="display: none;">
+                        <div id="statsSingleYearContent"></div>
+                    </div>
+
                     <div class="db-form-section">
                         <h4 class="db-form-section-title">Career Accolades</h4>
                         <div class="db-form-grid">
@@ -923,163 +728,47 @@
             <!-- Footer -->
             <div class="db-player-card-footer">
                 <div class="db-footer-left">
-                    <button class="db-btn db-btn-danger" id="deleteDbPlayerBtn" style="display: none;" title="Delete this custom player">🗑️ Delete Player</button>
                     <button class="db-btn db-btn-danger" id="resetDbPlayerBtn">Reset to Original</button>
-                    <button class="db-btn db-btn-warning" id="clearSeasonsBtn" title="Fix wrongly-assigned seasons">Clear Seasons</button>
-                    <button class="db-btn db-btn-info" id="fillFromPFRBtn" title="Fill missing data from Pro-Football-Reference">
-                        Fill from PFR
+                    <button class="db-btn db-btn-danger" id="deleteDbPlayerBtn" style="display: none;" title="Permanently delete this custom player">Delete Player</button>
+                    <button class="db-btn db-btn-warning" id="clearSeasonsBtn" title="Fix wrongly-assigned seasons by clearing all season data for this player">Clear Seasons</button>
+                    <button class="db-btn db-btn-info" id="fillFromPFRBtn" title="Fill missing data from Pro-Football-Reference (hometown, height, weight, college, team/jersey per year)">
+                        <span id="fillFromPFRBtnText">Fill from PFR</span>
+                        <span id="fillFromPFRSpinner" style="display: none;">Searching...</span>
                     </button>
+                    <button class="db-btn db-btn-portrait" id="assignCustomPortraitBtn" title="Assign a custom portrait (PID 12000+) to this player">Assign Portrait</button>
                 </div>
                 <div class="db-footer-right">
-                    <button class="db-btn db-btn-secondary" id="cancelDbPlayerBtn">Cancel</button>
-                    <button class="db-btn db-btn-primary" id="saveDbPlayerCardBtn">Save Changes</button>
+                    <button class="db-btn db-btn-secondary" id="addDbPlayerToRoster">Add to Roster</button>
+                    <button class="db-btn db-btn-secondary" id="addDbPlayerToDraft">Add to Draft Class</button>
+                    <button class="db-btn db-btn-primary" id="saveDbPlayerCardBtn" disabled>Save Changes</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Generic Face Picker Modal -->
-    <div id="genericFacePickerModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 800px; max-height: 80vh;">
+    <!-- Portrait Picker Modal -->
+    <div id="portraitPickerModal" class="modal" style="display: none; z-index: 25000;">
+        <div class="modal-content" style="width: 700px; max-width: 90vw; max-height: 80vh;">
             <div class="modal-header">
-                <h2 class="modal-title">Choose Generic Face</h2>
-                <button class="modal-close" id="closeGenericFacePicker">&times;</button>
+                <h3 class="modal-title">Select Portrait</h3>
+                <button class="modal-close" id="closePortraitPickerModal">&times;</button>
             </div>
-            <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
-                <div id="genericFaceGrid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;"></div>
+            <div class="modal-body" style="padding: 16px;">
+                <div style="margin-bottom: 16px;">
+                    <input type="text" id="portraitPickerSearch" placeholder="Search portraits..." style="width: 100%; padding: 8px; background: #252525; border: 1px solid #444; border-radius: 4px; color: #e0e0e0;">
+                </div>
+                <div id="portraitPickerGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; max-height: 400px; overflow-y: auto;">
+                </div>
             </div>
-            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-                <label style="display: flex; align-items: center; gap: 8px; color: #e0e0e0; font-size: 13px; cursor: pointer;">
-                    <input type="checkbox" id="modelOnlyCheckbox" style="width: 16px; height: 16px; cursor: pointer;">
-                    <span>3D Model Only (keep current portrait)</span>
-                </label>
-                <button class="db-btn db-btn-secondary" id="cancelGenericFacePicker">Cancel</button>
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 16px; border-top: 1px solid #333;">
+                <button class="db-btn db-btn-secondary" id="importNewPortraitBtn">Import New Portrait</button>
+                <button class="db-btn db-btn-secondary" id="cancelPortraitPickerBtn">Cancel</button>
+                <button class="db-btn db-btn-primary" id="confirmPortraitPickerBtn" disabled>Select</button>
             </div>
         </div>
     </div>
 
-    <!-- PAM Picker Modal (sets PAM only, not PID) -->
-    <div id="pamPickerModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 800px; max-height: 80vh;">
-            <div class="modal-header">
-                <h2 class="modal-title">Select Generic PAM</h2>
-                <button class="modal-close" id="closePAMPicker">&times;</button>
-            </div>
-            <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
-                <div style="margin-bottom: 15px; padding: 10px; background: #2a2a2a; border-radius: 4px; border-left: 3px solid #ff6b35;">
-                    <p style="margin: 0; font-size: 12px; color: #ccc;">
-                        <strong>Note:</strong> This will set the PAM (Player Assets) value only. The PID (Photo ID) will remain unchanged.
-                    </p>
-                </div>
-                <div id="pamPickerGrid" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px;"></div>
-            </div>
-            <div class="modal-footer">
-                <button class="db-btn db-btn-secondary" id="cancelPAMPicker">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Database Management Modal -->
-    <div id="dbManagementModal" class="modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h2 class="modal-title">Database Management</h2>
-                <button class="modal-close" id="closeDbManagement">&times;</button>
-            </div>
-            <div class="modal-body">
-                <!-- Statistics -->
-                <div class="stats-card">
-                    <h4 style="margin: 0 0 12px 0; font-size: 14px; color: #fff;">Database Statistics</h4>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-value" id="dbStatEditedPlayers">0</div>
-                            <div class="stat-label">Edited Players</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value" id="dbStatCustomPlayers">0</div>
-                            <div class="stat-label">Custom Players</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Reset Actions -->
-                <div class="action-section">
-                    <div class="action-section-title">Reset Options</div>
-                    <div class="action-buttons">
-                        <button class="db-btn db-btn-secondary" id="resetEditedPlayers">Reset Edited Players</button>
-                        <button class="db-btn db-btn-secondary" id="resetCustomPlayers">Delete Custom Players</button>
-                        <button class="db-btn db-btn-danger" id="resetAllDatabase">Reset All</button>
-                    </div>
-                </div>
-
-                <!-- Backup Actions -->
-                <div class="action-section">
-                    <div class="action-section-title">Backup & Restore</div>
-                    <div class="action-buttons">
-                        <button class="db-btn db-btn-primary" id="createDbBackup">Create Backup</button>
-                        <button class="db-btn db-btn-secondary" id="restoreDbBackup">Restore from Backup</button>
-                    </div>
-                    <div id="backupListContainer" style="display: none;">
-                        <select id="backupList"></select>
-                        <button class="db-btn db-btn-primary" id="confirmRestoreBackup">Restore Selected</button>
-                    </div>
-                </div>
-
-                <!-- Auto-Fill Missing Data -->
-                <div class="action-section">
-                    <div class="action-section-title">Auto-Fill Missing Data (PFR)</div>
-                    <div class="action-buttons">
-                        <button class="db-btn db-btn-secondary" id="scanMissingDataBtn">
-                            <span id="scanMissingBtnText">Scan for Missing Data</span>
-                            <span id="scanMissingSpinner" style="display: none;">Scanning...</span>
-                        </button>
-                        <button class="db-btn db-btn-success" id="batchFillDataBtn" style="display: none;">Fill All Missing Data</button>
-                    </div>
-                    <div id="missingDataResults" style="display: none; margin-top: 12px;">
-                        <div id="missingDataCount"></div>
-                        <div id="missingDataList" style="font-size: 12px; color: #888; margin-top: 8px;"></div>
-                    </div>
-                    <div id="batchFillProgress" class="progress-container" style="display: none;">
-                        <div class="progress-status" id="batchFillStatus">Starting...</div>
-                        <div class="progress-counter" id="batchFillCounter">0/0</div>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar" id="batchFillProgressBar" style="width: 0%;"></div>
-                        </div>
-                        <button class="db-btn db-btn-danger" id="cancelBatchFillBtn" style="margin-top: 8px;">Cancel</button>
-                    </div>
-                </div>
-
-                <!-- Hidden Players Management -->
-                <div class="action-section">
-                    <div class="action-section-title">Hidden Players</div>
-                    <p style="color: #888; font-size: 11px; margin-bottom: 12px;">
-                        Manage players hidden from search. User-hidden can be unhidden. Bundled hidden are set by the developer.
-                    </p>
-                    <div class="action-buttons">
-                        <button class="db-btn db-btn-secondary" id="loadHiddenPlayersBtn">
-                            <span id="loadHiddenBtnText">View Hidden Players</span>
-                            <span id="loadHiddenSpinner" style="display: none;">Loading...</span>
-                        </button>
-                    </div>
-                    <div id="hiddenPlayersContainer" style="display: none; margin-top: 12px;">
-                        <div id="hiddenPlayersCount" style="color: #f59e0b; margin-bottom: 8px; font-size: 12px;"></div>
-                        <div id="hiddenPlayersList" style="max-height: 200px; overflow-y: auto; background: #1e1e1e; border-radius: 4px; padding: 8px;">
-                            <!-- Hidden players will be listed here -->
-                        </div>
-                        <div style="margin-top: 10px; display: flex; gap: 8px;">
-                            <button id="unhideSelectedBtn" class="db-btn db-btn-primary" style="flex: 1;" disabled>Unhide Selected</button>
-                            <button id="unhideAllUserBtn" class="db-btn db-btn-secondary" style="flex: 1;">Unhide All (User)</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="db-btn db-btn-secondary" id="closeDbManagementBtn">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Database Coach Card Modal (for editing coaches) -->
+    <!-- Database Coach Card Modal -->
     <div id="dbCoachCardModal" class="modal" style="display: none;">
         <div class="modal-content db-coach-card-modal">
             <!-- Header -->
@@ -1147,6 +836,14 @@
                         <div class="db-coach-form-group">
                             <label>Legacy Score</label>
                             <input type="number" id="dbCoachLegacyScore" min="0">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Career From</label>
+                            <input type="number" id="dbCoachCareerFrom" min="1920" max="2030" placeholder="e.g., 1970">
+                        </div>
+                        <div class="db-coach-form-group">
+                            <label>Career To</label>
+                            <input type="number" id="dbCoachCareerTo" min="1920" max="2030" placeholder="e.g., 1985">
                         </div>
                     </div>
 
@@ -1227,14 +924,12 @@
                             <label>Offensive Playbook</label>
                             <select id="dbCoachOffPlaybook">
                                 <option value="">Select...</option>
-                                <!-- Populated dynamically -->
                             </select>
                         </div>
                         <div class="db-coach-form-group">
                             <label>Defensive Playbook</label>
                             <select id="dbCoachDefPlaybook">
                                 <option value="">Select...</option>
-                                <!-- Populated dynamically -->
                             </select>
                         </div>
                         <div class="db-coach-form-group">
@@ -1269,83 +964,65 @@
 
                 <!-- Career Stats Tab -->
                 <div class="db-coach-tab-content" id="dbCoachTabSeasons">
-                    <!-- Year Selector Section -->
-                    <div class="db-coach-year-section">
-                        <div class="db-coach-year-header">
-                            <div class="db-coach-year-selector">
-                                <label>Select Year:</label>
-                                <select id="dbCoachSeasonYear">
-                                    <option value="">Select Year</option>
+                    <!-- Year-by-Year Stats Section -->
+                    <div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #2a2a4e;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <label style="margin: 0;">Year:</label>
+                                <select id="dbCoachSeasonYear" style="padding: 6px 12px; background: #1a1a2e; border: 1px solid #3a3a5e; border-radius: 4px; color: #fff; min-width: 100px;">
+                                    <!-- Populated from Career From/To -->
                                 </select>
-                            </div>
-                            <div class="db-coach-year-info">
-                                <span class="db-coach-year-position" id="dbCoachYearPosition">-</span>
-                                <span class="db-coach-year-team" id="dbCoachYearTeam">-</span>
+                                <button class="db-btn db-btn-secondary" id="dbCoachSaveYearBtn" style="font-size: 12px; padding: 4px 10px;">
+                                    Save Year
+                                </button>
                             </div>
                             <button class="db-btn db-btn-secondary" id="dbCoachLoadRetroBtn" style="font-size: 12px; padding: 4px 10px;">
                                 Load from Retro Data
                             </button>
                         </div>
-
-                        <!-- Year-specific stats (only shown for HC years) -->
-                        <div id="dbCoachYearStatsSection">
-                            <div class="db-coach-form-grid" id="dbCoachYearStats">
-                                <div class="db-coach-form-group">
-                                    <label>Team</label>
-                                    <select id="dbCoachSeasonTeam">
-                                        <option value="">Select Team</option>
-                                    </select>
-                                </div>
-                                <div class="db-coach-form-group">
-                                    <label>Position</label>
-                                    <select id="dbCoachSeasonPosition">
-                                        <option value="">Select</option>
-                                        <option value="HC">Head Coach</option>
-                                        <option value="OC">Off. Coordinator</option>
-                                        <option value="DC">Def. Coordinator</option>
-                                        <option value="FA">Free Agent</option>
-                                    </select>
-                                </div>
-                                <div class="db-coach-form-group">
-                                    <label>Cumulative Wins</label>
-                                    <input type="number" id="dbCoachSeasonWins" min="0">
-                                </div>
-                                <div class="db-coach-form-group">
-                                    <label>Cumulative Losses</label>
-                                    <input type="number" id="dbCoachSeasonLosses" min="0">
-                                </div>
-                                <div class="db-coach-form-group">
-                                    <label>Cumulative Ties</label>
-                                    <input type="number" id="dbCoachSeasonTies" min="0">
-                                </div>
-                                <div class="db-coach-form-group">
-                                    <label>Cumulative Playoff Wins</label>
-                                    <input type="number" id="dbCoachSeasonPlayoffWins" min="0">
-                                </div>
-                                <div class="db-coach-form-group">
-                                    <label>Super Bowl Win</label>
-                                    <select id="dbCoachSeasonSBWin">
-                                        <option value="0">No</option>
-                                        <option value="1">Yes</option>
-                                    </select>
-                                </div>
-                                <div class="db-coach-form-group">
-                                    <button class="db-btn db-btn-primary" id="dbCoachSaveYearBtn" style="margin-top: 20px;">Save Year</button>
-                                </div>
+                        <div class="db-coach-form-grid">
+                            <div class="db-coach-form-group">
+                                <label>Team</label>
+                                <input type="text" id="dbCoachSeasonTeam" placeholder="e.g., DAL">
                             </div>
-                            <div id="dbCoachNoStatsMessage" style="display: none; padding: 16px; background: #252525; border-radius: 4px; text-align: center; color: #888;">
-                                <div style="font-size: 14px; margin-bottom: 8px;">This coach was an <strong id="dbCoachNoStatsPosition">OC/DC</strong> in <span id="dbCoachNoStatsYear">-</span></div>
-                                <div style="font-size: 12px;">Coordinator years don't have HC stats, but team assignment is tracked for Retro Editor placement.</div>
+                            <div class="db-coach-form-group">
+                                <label>Position</label>
+                                <select id="dbCoachSeasonPosition">
+                                    <option value="">Select...</option>
+                                    <option value="HC">Head Coach</option>
+                                    <option value="OC">Offensive Coordinator</option>
+                                    <option value="DC">Defensive Coordinator</option>
+                                </select>
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Wins</label>
+                                <input type="number" id="dbCoachSeasonWins" min="0" max="20">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Losses</label>
+                                <input type="number" id="dbCoachSeasonLosses" min="0" max="20">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Ties</label>
+                                <input type="number" id="dbCoachSeasonTies" min="0" max="5">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Playoff Wins</label>
+                                <input type="number" id="dbCoachSeasonPlayoffWins" min="0" max="4">
+                            </div>
+                            <div class="db-coach-form-group">
+                                <label>Super Bowl Win</label>
+                                <select id="dbCoachSeasonSBWin">
+                                    <option value="0">No</option>
+                                    <option value="1">Yes</option>
+                                </select>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Divider -->
-                    <div style="border-top: 1px solid #333; margin: 16px 0;"></div>
-
-                    <!-- Total Career Stats Section -->
-                    <div class="db-coach-career-totals">
-                        <h4 style="margin: 0 0 12px 0; color: #888; font-size: 13px;">Career Totals (Final Stats)</h4>
+                    <!-- Career Totals Section -->
+                    <div>
+                        <h4 style="margin: 0 0 12px 0; color: #888; font-size: 13px; text-transform: uppercase;">Career Totals</h4>
                         <div class="db-coach-form-grid">
                             <div class="db-coach-form-group">
                                 <label>Career Wins</label>
@@ -1403,64 +1080,13 @@
         </div>
     </div>
 
-    <!-- Batch Add Modal -->
-    <div id="batchAddModal" class="modal" style="display: none;">
-        <div class="modal-content" style="width: 700px; max-width: 95%; max-height: 80vh;">
-            <div class="modal-header">
-                <h3 class="modal-title" id="batchAddModalTitle">Add Selected Players</h3>
-                <button class="modal-close" id="closeBatchAddModal">&times;</button>
-            </div>
-            <div class="modal-body" style="padding: 20px;">
-                <p id="batchAddPlayerCount" style="margin-bottom: 12px; color: #aaa;"></p>
-
-                <!-- Roster-specific: Set all teams at once -->
-                <div id="batchAddRosterOptions" style="display: none; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #252525; border-radius: 4px;">
-                        <label style="color: #aaa; font-size: 13px; white-space: nowrap;">Set all to:</label>
-                        <select id="batchAddSetAllTeam" style="flex: 1; padding: 6px 10px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 13px;">
-                            <option value="">-- Choose team --</option>
-                            <option value="1009">Free Agent</option>
-                        </select>
-                        <button id="batchAddApplyAllTeam" class="db-btn db-btn-secondary" style="padding: 6px 12px; font-size: 12px;">Apply</button>
-                    </div>
-                </div>
-
-                <!-- Player list with individual team dropdowns -->
-                <div id="batchAddPlayerList" style="max-height: 350px; overflow-y: auto; background: #1a1a1a; border-radius: 4px; border: 1px solid #333;">
-                    <!-- Header row -->
-                    <div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 10px; padding: 10px 12px; background: #252525; border-bottom: 1px solid #333; font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; position: sticky; top: 0;">
-                        <div>Player</div>
-                        <div>Position</div>
-                        <div id="batchAddTeamHeader">Team</div>
-                    </div>
-                    <!-- Player rows will be inserted here -->
-                    <div id="batchAddPlayerRows"></div>
-                </div>
-
-                <!-- Draft-specific options -->
-                <div id="batchAddDraftOptions" style="display: none; margin-top: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #252525; border-radius: 4px;">
-                        <label style="color: #aaa; font-size: 13px; white-space: nowrap;">Draft Year (optional):</label>
-                        <input type="number" id="batchAddDraftYear" min="1920" max="2030" placeholder="Leave blank for default" style="flex: 1; padding: 6px 10px; background: #1a1a1a; border: 1px solid #444; border-radius: 4px; color: #fff; font-size: 13px;">
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 10px;">
-                <button class="db-btn db-btn-secondary" id="batchAddCancelBtn">Cancel</button>
-                <button class="db-btn db-btn-primary" id="batchAddConfirmBtn">Add Players</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
     <script src="js/database-player-card.js"></script>
     <script src="js/database-coach-card.js"></script>
     <script src="js/coach-browser.js"></script>
-    <script src="js/db-management.js"></script>
     <script>
         /**
-         * Standalone Database Browser initialization
-         * This runs when the database browser is opened in a separate window
+         * Database Browser - Three-Panel Layout
+         * Matches the Madden game aesthetic
          */
         (function() {
             'use strict';
@@ -1472,52 +1098,43 @@
             let pageSize = 50;
             let totalResults = 0;
             let isLoading = false;
-            let browserMode = 'roster'; // 'roster' or 'draft' - determines which batch add buttons are visible
+            let browserMode = 'roster';
+            let selectedPlayerIds = new Set();
+            let currentPositionGroup = 'all';
+            let currentQuickFilter = null;
+
+            // Madden standard position order
+            const MADDEN_POSITION_ORDER = ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS', 'K', 'P'];
+
+            // Position groups
+            const OFFENSE_POSITIONS = ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT'];
+            const DEFENSE_POSITIONS = ['LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'];
+            const SPECIAL_POSITIONS = ['K', 'P'];
 
             /**
-             * Initialize the standalone browser
+             * Initialize the browser
              */
             async function init() {
-                console.log('[DatabaseBrowser] Initializing standalone window...');
+                console.log('[DatabaseBrowser] Initializing...');
 
                 // Read mode from URL parameters
                 const urlParams = new URLSearchParams(window.location.search);
                 const modeParam = urlParams.get('mode');
                 if (modeParam === 'draft' || modeParam === 'roster') {
                     browserMode = modeParam;
-                    console.log('[DatabaseBrowser] Mode from URL:', browserMode);
-                }
-
-                // Listen for mode changes from main process (when window is already open)
-                if (window.electronAPI?.window?.onSetMode) {
-                    window.electronAPI.window.onSetMode(function(mode) {
-                        console.log('[DatabaseBrowser] Mode changed via IPC:', mode);
-                        browserMode = mode;
-                        updateBatchButtonsVisibility();
-                    });
                 }
 
                 // Set up event listeners
                 setupEventListeners();
 
-                // Update batch buttons based on initial mode
-                updateBatchButtonsVisibility();
-
-                // Wait for lookup service to be ready before loading filters
+                // Wait for lookup service
                 if (window.electronAPI?.lookup?.isReady) {
                     let attempts = 0;
-                    const maxAttempts = 20; // 2 seconds max wait
-                    while (attempts < maxAttempts) {
+                    while (attempts < 20) {
                         const ready = await window.electronAPI.lookup.isReady();
-                        if (ready) {
-                            console.log('[DatabaseBrowser] Lookup service ready');
-                            break;
-                        }
+                        if (ready) break;
                         await new Promise(r => setTimeout(r, 100));
                         attempts++;
-                    }
-                    if (attempts === maxAttempts) {
-                        console.warn('[DatabaseBrowser] Lookup service not ready after timeout');
                     }
                 }
 
@@ -1526,54 +1143,100 @@
                 await loadCollegeFilter();
                 await loadTeamFilter();
 
-                // Perform initial search
+                // Initial search
                 await performSearch();
 
                 console.log('[DatabaseBrowser] Initialized');
             }
 
+            /**
+             * Set up all event listeners
+             */
             function setupEventListeners() {
-                // Database Browser Tab Switching (Players/Coaches)
+                // Home button
+                const homeBtn = document.getElementById('homeBtn');
+                if (homeBtn) {
+                    homeBtn.addEventListener('click', () => {
+                        if (window.electronAPI?.window?.close) {
+                            window.electronAPI.window.close();
+                        }
+                    });
+                }
+
+                // Tab switching
                 const playersTabBtn = document.getElementById('playersTabBtn');
                 const coachesTabBtn = document.getElementById('coachesTabBtn');
-                const playersTabContent = document.getElementById('playersTabContent');
-                const coachesTabContent = document.getElementById('coachesTabContent');
-
-                if (playersTabBtn && coachesTabBtn) {
+                if (playersTabBtn) {
                     playersTabBtn.addEventListener('click', () => {
                         playersTabBtn.classList.add('active');
-                        coachesTabBtn.classList.remove('active');
-                        if (playersTabContent) playersTabContent.classList.add('active');
-                        if (coachesTabContent) coachesTabContent.classList.remove('active');
+                        coachesTabBtn?.classList.remove('active');
+                        document.getElementById('playerBrowserContainer').style.display = '';
+                        document.getElementById('coachBrowserContainer').style.display = 'none';
                     });
-
+                }
+                if (coachesTabBtn) {
                     coachesTabBtn.addEventListener('click', () => {
                         coachesTabBtn.classList.add('active');
-                        playersTabBtn.classList.remove('active');
-                        if (coachesTabContent) coachesTabContent.classList.add('active');
-                        if (playersTabContent) playersTabContent.classList.remove('active');
-                        // Initialize coach browser if not already done
-                        if (window.initCoachBrowser && !window.coachBrowserInitialized) {
+                        playersTabBtn?.classList.remove('active');
+                        document.getElementById('playerBrowserContainer').style.display = 'none';
+                        document.getElementById('coachBrowserContainer').style.display = '';
+                        if (!window.coachBrowserInitialized && typeof window.initCoachBrowser === 'function') {
                             window.initCoachBrowser();
                             window.coachBrowserInitialized = true;
                         }
                     });
                 }
 
-                // Search input with debounce
-                const searchInput = document.getElementById('playerBrowserSearch');
-                if (searchInput) {
-                    searchInput.addEventListener('input', () => {
+                // Quick search with debounce (400ms to reduce lag while typing)
+                const quickSearch = document.getElementById('quickSearchInput');
+                if (quickSearch) {
+                    quickSearch.addEventListener('input', () => {
                         if (searchTimeout) clearTimeout(searchTimeout);
                         searchTimeout = setTimeout(() => {
                             currentPage = 1;
                             performSearch();
-                        }, 300);
+                        }, 400);
                     });
                 }
 
-                // Filters
-                ['playerBrowserPositionFilter', 'playerBrowserCollegeFilter', 'playerBrowserTeamFilter', 'playerBrowserHofFilter', 'playerBrowserEmptyFilter'].forEach(id => {
+                // Position group buttons
+                const positionBtns = document.querySelectorAll('.database-position-btn');
+                positionBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        positionBtns.forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        currentPositionGroup = btn.dataset.group;
+                        currentPage = 1;
+                        performSearch();
+                    });
+                });
+
+                // Sidebar filters with debounce (400ms to reduce lag while typing)
+                const filterPlayerName = document.getElementById('filterPlayerName');
+                if (filterPlayerName) {
+                    filterPlayerName.addEventListener('input', () => {
+                        if (searchTimeout) clearTimeout(searchTimeout);
+                        searchTimeout = setTimeout(() => {
+                            currentPage = 1;
+                            performSearch();
+                        }, 400);
+                    });
+                }
+
+                // PID filter with debounce
+                const filterPID = document.getElementById('filterPID');
+                if (filterPID) {
+                    filterPID.addEventListener('input', () => {
+                        if (searchTimeout) clearTimeout(searchTimeout);
+                        searchTimeout = setTimeout(() => {
+                            currentPage = 1;
+                            performSearch();
+                        }, 400);
+                    });
+                }
+
+                // Dropdown filters
+                ['filterPosition', 'filterTeam', 'filterCollege'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) {
                         el.addEventListener('change', () => {
@@ -1583,8 +1246,8 @@
                     }
                 });
 
-                // Draft year filters
-                ['playerBrowserDraftYearFrom', 'playerBrowserDraftYearTo'].forEach(id => {
+                // Year filters
+                ['filterYearFrom', 'filterYearTo'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) {
                         el.addEventListener('change', () => {
@@ -1593,6 +1256,48 @@
                         });
                     }
                 });
+
+                // Portrait status checkboxes
+                ['filterPortraitAll', 'filterPortraitReal', 'filterPortraitGeneric', 'filterPortraitNone'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.addEventListener('change', () => {
+                            // If "All" is checked, uncheck others
+                            if (id === 'filterPortraitAll' && el.checked) {
+                                document.getElementById('filterPortraitReal').checked = false;
+                                document.getElementById('filterPortraitGeneric').checked = false;
+                                document.getElementById('filterPortraitNone').checked = false;
+                            } else if (id !== 'filterPortraitAll' && el.checked) {
+                                document.getElementById('filterPortraitAll').checked = false;
+                            }
+                            currentPage = 1;
+                            performSearch();
+                        });
+                    }
+                });
+
+                // Quick filter buttons
+                const quickFilterBtns = document.querySelectorAll('.filter-quick-btn');
+                quickFilterBtns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        if (btn.classList.contains('active')) {
+                            btn.classList.remove('active');
+                            currentQuickFilter = null;
+                        } else {
+                            quickFilterBtns.forEach(b => b.classList.remove('active'));
+                            btn.classList.add('active');
+                            currentQuickFilter = btn.dataset.filter;
+                        }
+                        currentPage = 1;
+                        performSearch();
+                    });
+                });
+
+                // Clear all filters
+                const clearBtn = document.getElementById('clearAllFilters');
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', clearAllFilters);
+                }
 
                 // Pagination
                 const prevBtn = document.getElementById('playerBrowserPrevPage');
@@ -1600,269 +1305,119 @@
                 if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; performSearch(); } });
                 if (nextBtn) nextBtn.addEventListener('click', () => { currentPage++; performSearch(); });
 
-                // Add New Player
+                // Add new player
                 const addNewBtn = document.getElementById('addNewPlayerBtn');
                 if (addNewBtn) {
                     addNewBtn.addEventListener('click', () => {
                         if (typeof window.createNewDbPlayer === 'function') {
                             window.createNewDbPlayer();
-                        } else {
-                            alert('Create player functionality not available.');
                         }
                     });
                 }
 
                 // DB Management
                 const manageBtn = document.getElementById('openDbManagement');
-                if (manageBtn) {
-                    manageBtn.addEventListener('click', () => {
-                        if (typeof window.openDbManagementModal === 'function') {
-                            window.openDbManagementModal();
-                        }
+                const closeDbMgmt = document.getElementById('closeDbManagement');
+                const dbModal = document.getElementById('dbManagementModal');
+                if (manageBtn && dbModal) {
+                    manageBtn.addEventListener('click', () => dbModal.style.display = 'flex');
+                }
+                if (closeDbMgmt && dbModal) {
+                    closeDbMgmt.addEventListener('click', () => dbModal.style.display = 'none');
+                }
+
+                // Select all checkbox
+                const selectAll = document.getElementById('selectAllPlayers');
+                if (selectAll) {
+                    selectAll.addEventListener('change', () => {
+                        const checkboxes = document.querySelectorAll('.player-select-checkbox');
+                        checkboxes.forEach(cb => {
+                            cb.checked = selectAll.checked;
+                            const playerId = parseInt(cb.dataset.id);
+                            if (selectAll.checked) {
+                                selectedPlayerIds.add(playerId);
+                            } else {
+                                selectedPlayerIds.delete(playerId);
+                            }
+                        });
+                        updateSelectionUI();
                     });
-                }
-
-                // Fill Current Results from PFR
-                const fillBtn = document.getElementById('fillCurrentResultsBtn');
-                if (fillBtn) {
-                    fillBtn.addEventListener('click', fillCurrentResultsFromPFR);
-                }
-
-                // Hide All Blank Players button
-                const hideAllBlankBtn = document.getElementById('hideAllBlankBtn');
-                if (hideAllBlankBtn) {
-                    hideAllBlankBtn.addEventListener('click', hideAllBlankPlayers);
-                }
-
-                // Selection handlers - "Select All" checkbox
-                const selectAllCheckbox = document.getElementById('selectAllPlayers');
-                if (selectAllCheckbox) {
-                    selectAllCheckbox.addEventListener('change', (e) => {
-                        handleSelectAllChange(e.target.checked);
-                    });
-                }
-
-                // Selection handlers - individual checkboxes (using event delegation)
-                const resultsContainer = document.getElementById('playerBrowserResults');
-                if (resultsContainer) {
-                    resultsContainer.addEventListener('change', (e) => {
-                        if (e.target.classList.contains('player-select-checkbox')) {
-                            handleCheckboxChange(e.target);
-                        }
-                    });
-                }
-
-                // Batch add buttons
-                const addSelectedToRosterBtn = document.getElementById('addSelectedToRosterBtn');
-                if (addSelectedToRosterBtn) {
-                    addSelectedToRosterBtn.addEventListener('click', addSelectedToRoster);
-                }
-
-                const addSelectedToDraftBtn = document.getElementById('addSelectedToDraftBtn');
-                if (addSelectedToDraftBtn) {
-                    addSelectedToDraftBtn.addEventListener('click', addSelectedToDraft);
-                }
-
-                // Batch add modal buttons
-                const closeBatchAddModal = document.getElementById('closeBatchAddModal');
-                if (closeBatchAddModal) {
-                    closeBatchAddModal.addEventListener('click', hideBatchAddModal);
-                }
-                const batchAddCancelBtn = document.getElementById('batchAddCancelBtn');
-                if (batchAddCancelBtn) {
-                    batchAddCancelBtn.addEventListener('click', hideBatchAddModal);
-                }
-                const batchAddConfirmBtn = document.getElementById('batchAddConfirmBtn');
-                if (batchAddConfirmBtn) {
-                    batchAddConfirmBtn.addEventListener('click', executeBatchAdd);
-                }
-                const batchAddApplyAllBtn = document.getElementById('batchAddApplyAllTeam');
-                if (batchAddApplyAllBtn) {
-                    batchAddApplyAllBtn.addEventListener('click', applyAllTeam);
-                }
-
-                // Set up progress listener for batch fill
-                if (window.electronAPI && window.electronAPI.playerFill) {
-                    window.electronAPI.playerFill.onProgress(handleBatchProgress);
                 }
             }
 
-            // Hide All Blank Players function
-            async function hideAllBlankPlayers() {
-                if (!window.electronAPI || !window.electronAPI.database || !window.electronAPI.database.hideAllBlankPlayers) {
-                    alert('This feature is not available');
-                    return;
-                }
+            /**
+             * Clear all filters
+             */
+            function clearAllFilters() {
+                document.getElementById('quickSearchInput').value = '';
+                document.getElementById('filterPlayerName').value = '';
+                document.getElementById('filterPosition').value = '';
+                document.getElementById('filterTeam').value = '';
+                document.getElementById('filterCollege').value = '';
+                document.getElementById('filterYearFrom').value = '';
+                document.getElementById('filterYearTo').value = '';
+                document.getElementById('filterPID').value = '';
+                document.getElementById('filterPortraitAll').checked = true;
+                document.getElementById('filterPortraitReal').checked = false;
+                document.getElementById('filterPortraitGeneric').checked = false;
+                document.getElementById('filterPortraitNone').checked = false;
 
-                const confirmed = confirm(
-                    'Hide all players with blank/empty names?\n\n' +
-                    'This will remove all "Blank" entries from the database browser.\n' +
-                    'You can restore them later from the Database Management panel.\n\n' +
-                    'Continue?'
-                );
+                // Reset position group
+                document.querySelectorAll('.database-position-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector('.database-position-btn[data-group="all"]')?.classList.add('active');
+                currentPositionGroup = 'all';
 
-                if (!confirmed) return;
+                // Reset quick filters
+                document.querySelectorAll('.filter-quick-btn').forEach(b => b.classList.remove('active'));
+                currentQuickFilter = null;
 
-                const btn = document.getElementById('hideAllBlankBtn');
-                if (btn) {
-                    btn.disabled = true;
-                    btn.textContent = 'Hiding...';
-                }
-
-                try {
-                    const result = await window.electronAPI.database.hideAllBlankPlayers();
-                    console.log('[DatabaseBrowser] Hide all blank result:', result);
-
-                    if (result.success) {
-                        if (window.showToast) {
-                            window.showToast(result.message || 'Hidden ' + result.hiddenCount + ' blank players', 'success');
-                        } else {
-                            alert(result.message || 'Hidden ' + result.hiddenCount + ' blank players');
-                        }
-                        // Refresh the search results
-                        performSearch();
-                    } else {
-                        alert('Error: ' + (result.error || 'Unknown error'));
-                    }
-                } catch (err) {
-                    console.error('[DatabaseBrowser] Error hiding blank players:', err);
-                    alert('Error: ' + err.message);
-                } finally {
-                    if (btn) {
-                        btn.disabled = false;
-                        btn.textContent = 'Hide All Blank';
-                    }
-                    // Restore focus to search input
-                    setTimeout(() => {
-                        const searchInput = document.getElementById('playerBrowserSearch');
-                        if (searchInput) {
-                            searchInput.focus();
-                        }
-                    }, 100);
-                }
+                currentPage = 1;
+                performSearch();
             }
 
-            // Batch fill state
-            let isBatchRunning = false;
-
-            async function fillCurrentResultsFromPFR() {
-                if (currentResults.length === 0) {
-                    alert('No players in current results. Search for players first.');
-                    return;
-                }
-
-                if (isBatchRunning) {
-                    alert('Batch fill already running.');
-                    return;
-                }
-
-                const confirmed = confirm(
-                    'Fill missing data from Pro-Football-Reference for ' + currentResults.length + ' players?\n\n' +
-                    'This will scrape PFR for each player in the current search results.\n' +
-                    'Takes about 1.5 seconds per player.\n\n' +
-                    'Continue?'
-                );
-
-                if (!confirmed) return;
-
-                console.log('[DatabaseBrowser] Starting batch fill for', currentResults.length, 'players');
-                isBatchRunning = true;
-
-                const fillBtn = document.getElementById('fillCurrentResultsBtn');
-                const statusSpan = document.getElementById('batchFillStatusInline');
-
-                if (fillBtn) {
-                    fillBtn.disabled = true;
-                    fillBtn.textContent = 'Filling...';
-                }
-                if (statusSpan) {
-                    statusSpan.style.display = 'inline';
-                    statusSpan.textContent = 'Starting...';
-                }
-
-                try {
-                    // Get player IDs from current results (use internalId, not id)
-                    const playerIds = currentResults.map(p => p.internalId);
-                    console.log('[DatabaseBrowser] Player IDs to fill:', playerIds.slice(0, 5), '...');
-
-                    // Call batch fill with these specific player IDs
-                    const result = await window.electronAPI.playerFill.batchFill({
-                        playerIds: playerIds
-                    });
-
-                    console.log('[DatabaseBrowser] Batch fill complete:', result);
-
-                    alert(
-                        'Batch fill complete!\n\n' +
-                        'Successfully filled: ' + result.success + '\n' +
-                        'Failed: ' + result.failed + '\n' +
-                        'Skipped (no data found): ' + result.skipped
-                    );
-
-                    // Refresh search results
-                    await performSearch();
-
-                } catch (error) {
-                    console.error('[DatabaseBrowser] Batch fill error:', error);
-                    alert('Batch fill error: ' + error.message);
-                } finally {
-                    isBatchRunning = false;
-
-                    if (fillBtn) {
-                        fillBtn.disabled = false;
-                        fillBtn.textContent = 'Fill from PFR';
-                    }
-                    if (statusSpan) {
-                        statusSpan.style.display = 'none';
-                    }
-                }
-            }
-
-            function handleBatchProgress(data) {
-                const statusSpan = document.getElementById('batchFillStatusInline');
-                if (statusSpan && isBatchRunning) {
-                    statusSpan.textContent = data.current + '/' + data.total + ' - ' + (data.playerName || data.status);
-                }
-            }
-
+            /**
+             * Load position filter with Madden standard order
+             */
             async function loadPositionFilter() {
-                const select = document.getElementById('playerBrowserPositionFilter');
-                console.log('[DatabaseBrowser] loadPositionFilter - select:', !!select, 'lookup:', !!window.electronAPI?.lookup);
-                if (!select) {
-                    console.error('[DatabaseBrowser] Position filter select element not found');
-                    return;
-                }
-                if (!window.electronAPI?.lookup) {
-                    console.error('[DatabaseBrowser] Lookup API not available');
-                    return;
-                }
+                const select = document.getElementById('filterPosition');
+                if (!select || !window.electronAPI?.lookup) return;
+
                 try {
                     const positions = await window.electronAPI.lookup.getDropdownOptions('position_lookup.csv');
-                    console.log('[DatabaseBrowser] Loaded positions:', positions?.length || 0);
                     if (positions && positions.length > 0) {
-                        positions.forEach(pos => {
+                        // Sort by Madden standard order
+                        const sorted = [...positions].sort((a, b) => {
+                            const posA = (a.label || a.name || '').toUpperCase();
+                            const posB = (b.label || b.name || '').toUpperCase();
+                            const idxA = MADDEN_POSITION_ORDER.indexOf(posA);
+                            const idxB = MADDEN_POSITION_ORDER.indexOf(posB);
+                            if (idxA === -1 && idxB === -1) return posA.localeCompare(posB);
+                            if (idxA === -1) return 1;
+                            if (idxB === -1) return -1;
+                            return idxA - idxB;
+                        });
+
+                        sorted.forEach(pos => {
                             const opt = document.createElement('option');
                             opt.value = pos.label || pos.name;
                             opt.textContent = pos.label || pos.name;
                             select.appendChild(opt);
                         });
                     }
-                } catch (e) { console.error('Failed to load positions:', e); }
+                } catch (e) {
+                    console.error('Failed to load positions:', e);
+                }
             }
 
+            /**
+             * Load college filter
+             */
             async function loadCollegeFilter() {
-                const select = document.getElementById('playerBrowserCollegeFilter');
-                console.log('[DatabaseBrowser] loadCollegeFilter - select:', !!select);
+                const select = document.getElementById('filterCollege');
                 if (!select || !window.electronAPI?.lookup) return;
+
                 try {
-                    // First check the cache status
-                    const status = await window.electronAPI.lookup.getStatus();
-                    console.log('[DatabaseBrowser] Lookup cache status:', status);
-
                     const colleges = await window.electronAPI.lookup.getDropdownOptions('college_lookup.csv');
-                    console.log('[DatabaseBrowser] Loaded colleges:', colleges?.length || 0);
-                    console.log('[DatabaseBrowser] Sample colleges:', colleges?.slice(0, 3));
-
                     if (colleges && colleges.length > 0) {
                         colleges.forEach(col => {
                             const opt = document.createElement('option');
@@ -1870,22 +1425,21 @@
                             opt.textContent = col.label || col.name || '(unknown)';
                             select.appendChild(opt);
                         });
-                        console.log('[DatabaseBrowser] Added', colleges.length, 'college options to dropdown');
-                    } else {
-                        console.warn('[DatabaseBrowser] No colleges returned from lookup service');
                     }
                 } catch (e) {
                     console.error('Failed to load colleges:', e);
                 }
             }
 
+            /**
+             * Load team filter
+             */
             async function loadTeamFilter() {
-                const select = document.getElementById('playerBrowserTeamFilter');
-                console.log('[DatabaseBrowser] loadTeamFilter - select:', !!select);
+                const select = document.getElementById('filterTeam');
                 if (!select || !window.electronAPI?.lookup) return;
+
                 try {
                     const teams = await window.electronAPI.lookup.getDropdownOptions('team_lookup.csv');
-                    console.log('[DatabaseBrowser] Loaded teams:', teams?.length || 0);
                     if (teams && teams.length > 0) {
                         teams.forEach(team => {
                             const opt = document.createElement('option');
@@ -1894,15 +1448,17 @@
                             select.appendChild(opt);
                         });
                     }
-                } catch (e) { console.error('Failed to load teams:', e); }
+                } catch (e) {
+                    console.error('Failed to load teams:', e);
+                }
             }
 
+            /**
+             * Perform search with all filters
+             */
             async function performSearch() {
-                // Safety: reset isLoading if stuck (shouldn't happen but prevents lockout)
                 if (isLoading) {
-                    console.warn('[DatabaseBrowser] performSearch called while loading - will retry');
-                    // Force reset after 5 seconds as safety
-                    setTimeout(function() { isLoading = false; }, 5000);
+                    console.warn('[DatabaseBrowser] Search already in progress');
                     return;
                 }
                 isLoading = true;
@@ -1912,25 +1468,62 @@
                 if (resultsDiv) resultsDiv.innerHTML = '<div class="player-browser-loading">Searching...</div>';
 
                 try {
-                    const searchQuery = document.getElementById('playerBrowserSearch')?.value || '';
-                    const position = document.getElementById('playerBrowserPositionFilter')?.value || '';
-                    const draftYearFrom = document.getElementById('playerBrowserDraftYearFrom')?.value ? parseInt(document.getElementById('playerBrowserDraftYearFrom').value) : null;
-                    const draftYearTo = document.getElementById('playerBrowserDraftYearTo')?.value ? parseInt(document.getElementById('playerBrowserDraftYearTo').value) : null;
-                    const hofFilter = document.getElementById('playerBrowserHofFilter')?.value || '';
-                    const teamFilter = document.getElementById('playerBrowserTeamFilter')?.value || '';
+                    // Gather all filter values
+                    const quickSearch = document.getElementById('quickSearchInput')?.value || '';
+                    const nameFilter = document.getElementById('filterPlayerName')?.value || '';
+                    const position = document.getElementById('filterPosition')?.value || '';
+                    const team = document.getElementById('filterTeam')?.value || '';
+                    const college = document.getElementById('filterCollege')?.value || '';
+                    const yearFrom = document.getElementById('filterYearFrom')?.value ? parseInt(document.getElementById('filterYearFrom').value) : null;
+                    const yearTo = document.getElementById('filterYearTo')?.value ? parseInt(document.getElementById('filterYearTo').value) : null;
+                    const pidFilter = document.getElementById('filterPID')?.value || '';
 
+                    // Portrait status
+                    const portraitAll = document.getElementById('filterPortraitAll')?.checked;
+                    const portraitReal = document.getElementById('filterPortraitReal')?.checked;
+                    const portraitGeneric = document.getElementById('filterPortraitGeneric')?.checked;
+                    const portraitNone = document.getElementById('filterPortraitNone')?.checked;
+
+                    // Build search query - combine quick search and name filter
+                    const searchQuery = quickSearch || nameFilter;
+
+                    // Build options for API
                     const options = {
                         limit: pageSize,
                         offset: (currentPage - 1) * pageSize
                     };
                     if (position) options.position = position;
-                    if (draftYearFrom) options.draftYearFrom = draftYearFrom;
-                    if (draftYearTo) options.draftYearTo = draftYearTo;
-                    // Pass HOF filter to server for proper filtering before pagination
-                    if (hofFilter) options.hof = hofFilter;
-                    // Pass team filter to server
-                    if (teamFilter) options.team = teamFilter;
+                    if (yearFrom) options.draftYearFrom = yearFrom;
+                    if (yearTo) options.draftYearTo = yearTo;
+                    if (team) options.team = team;
+                    if (currentQuickFilter === 'hof') options.hof = 'hof';
 
+                    // Pass PID filter to server (server-side for accurate search across all players)
+                    if (pidFilter && pidFilter.trim()) {
+                        const searchPid = parseInt(pidFilter.trim());
+                        if (!isNaN(searchPid)) {
+                            options.pid = searchPid;
+                        }
+                    }
+
+                    // Pass college filter to server (server-side for accurate search)
+                    if (college) {
+                        options.college = college;
+                    }
+
+                    // Pass "find empty" filter to server
+                    if (currentQuickFilter && currentQuickFilter.startsWith('empty-')) {
+                        options.emptyField = currentQuickFilter.replace('empty-', '');
+                    }
+
+                    // Pass position group as array of positions (server-side filter)
+                    if (currentPositionGroup && currentPositionGroup !== 'all' && !position) {
+                        if (currentPositionGroup === 'offense') options.positions = OFFENSE_POSITIONS;
+                        else if (currentPositionGroup === 'defense') options.positions = DEFENSE_POSITIONS;
+                        else if (currentPositionGroup === 'special') options.positions = SPECIAL_POSITIONS;
+                    }
+
+                    // Call API
                     let results;
                     if (searchQuery.trim()) {
                         results = await window.electronAPI.database.searchPlayers(searchQuery, options);
@@ -1938,520 +1531,242 @@
                         results = await window.electronAPI.database.getAllPlayers(options);
                     }
 
-                    // Handle response format: { success, players, total } or { success: false, error }
                     if (results && results.success === false) {
                         throw new Error(results.error || 'Search failed');
                     }
 
-                    // Extract players array from response
+                    // Extract players array
                     currentResults = Array.isArray(results) ? results : (results?.players || []);
                     totalResults = results?.total || currentResults.length;
 
-                    // Filter out players with blank names by default (entries like "FS #26", "CB #27")
+                    // Filter out blank names
                     currentResults = currentResults.filter(p => {
                         const hasFirstName = p.firstName && p.firstName.trim() !== '';
                         const hasLastName = p.lastName && p.lastName.trim() !== '';
-                        return hasFirstName || hasLastName; // Keep if at least one name exists
+                        return hasFirstName || hasLastName;
                     });
 
-                    // Log first 10 player IDs to see if hidden player is in results
-                    const first10Ids = currentResults.slice(0, 10).map(p => p.internalId);
-                    console.log('[DatabaseBrowser] First 10 result IDs:', JSON.stringify(first10Ids));
+                    // Apply client-side filters (note: PID and college filters are now server-side)
 
-                    // Apply remaining client-side filters (college, empty filter)
-                    // Note: team filter is handled server-side
-                    const college = document.getElementById('playerBrowserCollegeFilter')?.value || '';
-                    const emptyFilter = document.getElementById('playerBrowserEmptyFilter')?.value || '';
+                    // Position group filter is now done server-side via options.positions
 
-                    if (college || emptyFilter) {
+                    // Portrait status filter
+                    if (!portraitAll) {
                         currentResults = currentResults.filter(p => {
-                            if (college && p.college !== college) return false;
-                            if (emptyFilter === 'position' && p.position) return false;
-                            if (emptyFilter === 'college' && p.college) return false;
-                            if (emptyFilter === 'hometown' && p.hometown) return false;
-                            if (emptyFilter === 'pid' && p.photoId) return false;
-                            if (emptyFilter === 'draftClass' && p.draftClass) return false;
-                            return true;
+                            const pid = p.photoId || p.pid || 0;
+                            if (portraitReal && pid > 0 && pid < 10000) return true;
+                            if (portraitGeneric && pid >= 10000) return true;
+                            if (portraitNone && (!pid || pid === 0)) return true;
+                            return false;
                         });
                     }
 
+                    // Quick filters (other than HOF which is server-side)
+                    if (currentQuickFilter === 'active') {
+                        const currentYear = new Date().getFullYear();
+                        currentResults = currentResults.filter(p => p.careerTo >= currentYear - 1 || !p.careerTo);
+                    } else if (currentQuickFilter === 'retired') {
+                        const currentYear = new Date().getFullYear();
+                        currentResults = currentResults.filter(p => p.careerTo && p.careerTo < currentYear - 1);
+                    }
+
                     displayResults();
+
                 } catch (error) {
                     console.error('[DatabaseBrowser] Search failed:', error);
-                    if (resultsDiv) resultsDiv.innerHTML = '<div class="player-browser-error"><p>Search failed</p><p class="player-browser-error-msg">' + error.message + '</p></div>';
+                    if (resultsDiv) {
+                        resultsDiv.innerHTML = '<div class="player-browser-error"><p>Search failed</p><p class="player-browser-error-msg">' + error.message + '</p></div>';
+                    }
                 } finally {
                     isLoading = false;
                     console.log('[DatabaseBrowser] performSearch complete, displayed', currentResults.length, 'results');
                 }
             }
 
-            // Selection state for batch operations
-            let selectedPlayerIds = new Set();
-
+            /**
+             * Display search results
+             */
             function displayResults() {
                 const resultsDiv = document.getElementById('playerBrowserResults');
                 if (!resultsDiv) return;
 
+                // Update total count
+                const countEl = document.getElementById('totalPlayerCount');
+                if (countEl) countEl.textContent = totalResults.toLocaleString();
+
                 if (currentResults.length === 0) {
                     resultsDiv.innerHTML = '<div class="player-browser-empty"><p>No players found</p><p class="player-browser-empty-hint">Try adjusting your search or filters</p></div>';
                     updatePagination();
-                    updateSelectionUI();
                     return;
                 }
 
                 let html = '';
-                let playersWithMissingId = 0;
-                currentResults.forEach((player, index) => {
-                    // Validate internalId at render time
+                currentResults.forEach((player) => {
                     const playerId = player.internalId;
-                    if (playerId === undefined || playerId === null || isNaN(Number(playerId))) {
-                        console.error('[DatabaseBrowser] WARNING: Player at index', index, 'has invalid internalId:', playerId, 'Name:', player.firstName, player.lastName);
-                        playersWithMissingId++;
-                    }
-
-                    const hofBadge = player.isHof ? '<span class="player-hof-badge">HOF</span>' : '';
-                    const draftInfo = player.draftClass ? (player.draftRound ? `${player.draftClass} R${player.draftRound}` : player.draftClass) : '-';
-                    const careerInfo = player.careerFrom && player.careerTo ? `${player.careerFrom}-${player.careerTo}` : (player.careerFrom || '-');
+                    const isCustom = player.isCustom ? 'true' : 'false';
                     const isSelected = selectedPlayerIds.has(playerId);
 
-                    const isCustom = player.isCustom ? 'true' : 'false';
+                    // Initials
+                    const firstInitial = (player.firstName || '').charAt(0).toUpperCase();
+                    const lastInitial = (player.lastName || '').charAt(0).toUpperCase();
+                    const initials = firstInitial + lastInitial || '??';
+
+                    // Draft info
+                    const draftInfo = player.draftClass ? (player.draftRound ? `${player.draftClass} R${player.draftRound}` : player.draftClass) : '-';
+
+                    // Career years
+                    const careerInfo = player.careerFrom && player.careerTo ? `${player.careerFrom}-${player.careerTo}` : (player.careerFrom || '-');
+
+                    // PID status
+                    const photoId = player.photoId || player.pid || 0;
+                    let pidStatusClass = 'no-portrait';
+                    if (photoId > 0 && photoId < 10000) pidStatusClass = 'has-portrait';
+                    else if (photoId >= 10000) pidStatusClass = 'generic-portrait';
+
+                    // HOF badge
+                    const hofBadge = player.isHof ? '<span class="hof-badge">HOF</span>' : '';
+
                     html += `
-                        <div class="player-browser-row" data-player-id="${playerId}" data-is-custom="${isCustom}">
-                            <div class="player-browser-select"><input type="checkbox" class="player-select-checkbox" data-id="${playerId}" ${isSelected ? 'checked' : ''}></div>
-                            <div class="player-browser-name">${player.firstName || ''} ${player.lastName || ''} ${hofBadge}</div>
-                            <div class="player-browser-position">${player.position || '-'}</div>
-                            <div class="player-browser-college">${player.college || '-'}</div>
-                            <div class="player-browser-draft">${draftInfo}</div>
-                            <div class="player-browser-career">${careerInfo}</div>
-                            <div class="player-browser-actions">
-                                <button class="pb-btn pb-btn-view" onclick="window.viewDbPlayer(${playerId}, ${isCustom})">View</button>
-                                <button class="pb-btn pb-btn-add" onclick="window.addToRoster(${playerId})" title="Add to Roster">+Roster</button>
-                                <button class="pb-btn pb-btn-add" onclick="window.addToDraft(${playerId})" title="Add to Draft Class">+Draft</button>
+                        <div class="database-player-row" data-player-id="${playerId}" data-is-custom="${isCustom}" onclick="window.selectPlayerForPreview(${playerId}, ${isCustom})">
+                            <div><input type="checkbox" class="player-select-checkbox" data-id="${playerId}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); window.togglePlayerSelection(${playerId})"></div>
+                            <div class="player-cell">
+                                <div class="player-initials">${initials}</div>
+                                <div class="player-info">
+                                    <div class="player-name">${player.firstName || ''} ${player.lastName || ''}</div>
+                                </div>
+                            </div>
+                            <div><span class="position-badge">${player.position || '-'}</span></div>
+                            <div style="color: #aaa; font-size: 13px;">${player.college || '-'}</div>
+                            <div style="color: #888; font-size: 12px;">${draftInfo}</div>
+                            <div style="color: #888; font-size: 12px;">${careerInfo}</div>
+                            <div class="pid-cell">
+                                <span class="pid-status-dot ${pidStatusClass}"></span>
+                                <span style="color: #888; font-size: 12px;">${photoId || '-'}</span>
+                            </div>
+                            <div>${hofBadge}</div>
+                            <div class="row-actions">
+                                <button class="row-btn" onclick="event.stopPropagation(); window.viewDbPlayer(${playerId}, ${isCustom})">View</button>
+                                <button class="row-btn row-btn-add" onclick="event.stopPropagation(); window.addToRoster(${playerId})">Add</button>
                             </div>
                         </div>
                     `;
                 });
 
-                if (playersWithMissingId > 0) {
-                    console.error('[DatabaseBrowser] CRITICAL:', playersWithMissingId, 'players have missing/invalid internalId values!');
-                }
-
                 resultsDiv.innerHTML = html;
-
-                // DEBUG: Log the actual onclick values from the rendered buttons to verify IDs are correct
-                const renderedButtons = resultsDiv.querySelectorAll('.pb-btn-add[title="Add to Roster"]');
-                if (renderedButtons.length > 0) {
-                    console.log('[DatabaseBrowser] DEBUG - First 5 rendered +Roster button onclick values:');
-                    for (let i = 0; i < Math.min(5, renderedButtons.length); i++) {
-                        const btn = renderedButtons[i];
-                        const row = btn.closest('.player-browser-row');
-                        const dataPlayerId = row ? row.getAttribute('data-player-id') : 'no-row';
-                        const onclick = btn.getAttribute('onclick');
-                        const playerName = row ? row.querySelector('.player-browser-name')?.textContent?.trim() : 'unknown';
-                        console.log(`  [${i}] ${playerName}: onclick="${onclick}", data-player-id="${dataPlayerId}"`);
-                    }
-                }
-
                 updatePagination();
-                updateSelectAllCheckbox();
-                updateSelectionUI();
-
-                // DEBUG: Add click listener to log exactly what button is clicked
-                resultsDiv.querySelectorAll('.pb-btn-add[title="Add to Roster"]').forEach(btn => {
-                    btn.addEventListener('click', function(e) {
-                        const row = this.closest('.player-browser-row');
-                        const dataPlayerId = row ? row.getAttribute('data-player-id') : 'no-row';
-                        const onclick = this.getAttribute('onclick');
-                        const playerName = row ? row.querySelector('.player-browser-name')?.textContent?.trim() : 'unknown';
-                        console.log('[DatabaseBrowser] CLICK DEBUG - Button clicked:');
-                        console.log('  Player name:', playerName);
-                        console.log('  data-player-id:', dataPlayerId);
-                        console.log('  onclick attr:', onclick);
-                        console.log('  Event target:', e.target.tagName, e.target.className);
-                    }, true); // Use capture phase to log before onclick fires
-                });
-            }
-
-            function updateSelectAllCheckbox() {
-                const selectAllCheckbox = document.getElementById('selectAllPlayers');
-                if (!selectAllCheckbox) return;
-                const checkboxes = document.querySelectorAll('.player-select-checkbox');
-                if (checkboxes.length === 0) {
-                    selectAllCheckbox.checked = false;
-                    selectAllCheckbox.indeterminate = false;
-                    return;
-                }
-                const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-                if (checkedCount === 0) {
-                    selectAllCheckbox.checked = false;
-                    selectAllCheckbox.indeterminate = false;
-                } else if (checkedCount === checkboxes.length) {
-                    selectAllCheckbox.checked = true;
-                    selectAllCheckbox.indeterminate = false;
-                } else {
-                    selectAllCheckbox.checked = false;
-                    selectAllCheckbox.indeterminate = true;
-                }
-            }
-
-            function updateSelectionUI() {
-                const countSpan = document.getElementById('selectedPlayerCount');
-                const rosterBtn = document.getElementById('addSelectedToRosterBtn');
-                const draftBtn = document.getElementById('addSelectedToDraftBtn');
-                const count = selectedPlayerIds.size;
-                if (countSpan) {
-                    countSpan.textContent = count > 0 ? count + ' selected' : '';
-                    countSpan.style.display = count > 0 ? 'inline' : 'none';
-                }
-                // Show only the relevant button based on browserMode
-                if (rosterBtn) {
-                    rosterBtn.style.display = (count > 0 && browserMode === 'roster') ? 'inline-block' : 'none';
-                }
-                if (draftBtn) {
-                    draftBtn.style.display = (count > 0 && browserMode === 'draft') ? 'inline-block' : 'none';
-                }
-            }
-
-            function updateBatchButtonsVisibility() {
-                // Update button labels to indicate mode
-                const rosterBtn = document.getElementById('addSelectedToRosterBtn');
-                const draftBtn = document.getElementById('addSelectedToDraftBtn');
-                console.log('[DatabaseBrowser] Updating batch buttons for mode:', browserMode);
-                // Refresh the selection UI which now respects browserMode
                 updateSelectionUI();
             }
 
-            function handleCheckboxChange(checkbox) {
-                const playerId = parseInt(checkbox.dataset.id, 10);
-                if (checkbox.checked) {
-                    selectedPlayerIds.add(playerId);
-                } else {
-                    selectedPlayerIds.delete(playerId);
-                }
-                updateSelectAllCheckbox();
-                updateSelectionUI();
-            }
-
-            function handleSelectAllChange(checked) {
-                const checkboxes = document.querySelectorAll('.player-select-checkbox');
-                checkboxes.forEach(cb => {
-                    cb.checked = checked;
-                    const playerId = parseInt(cb.dataset.id, 10);
-                    if (checked) {
-                        selectedPlayerIds.add(playerId);
-                    } else {
-                        selectedPlayerIds.delete(playerId);
-                    }
-                });
-                updateSelectionUI();
-            }
-
-            function clearSelection() {
-                selectedPlayerIds.clear();
-                const checkboxes = document.querySelectorAll('.player-select-checkbox');
-                checkboxes.forEach(cb => cb.checked = false);
-                updateSelectAllCheckbox();
-                updateSelectionUI();
-            }
-
-            // Batch add modal state
-            let batchAddMode = null; // 'roster' or 'draft'
-            let batchAddTeamsLoaded = false;
-            let batchAddTeamOptions = []; // Cached team options for building dropdowns
-            let batchAddSelectedPlayers = []; // Players currently in the batch add modal
-
-            async function showBatchAddModal(mode) {
-                batchAddMode = mode;
-                const modal = document.getElementById('batchAddModal');
-                const title = document.getElementById('batchAddModalTitle');
-                const playerCount = document.getElementById('batchAddPlayerCount');
-                const playerRows = document.getElementById('batchAddPlayerRows');
-                const rosterOptions = document.getElementById('batchAddRosterOptions');
-                const draftOptions = document.getElementById('batchAddDraftOptions');
-                const teamHeader = document.getElementById('batchAddTeamHeader');
-
-                // Get selected players
-                batchAddSelectedPlayers = currentResults.filter(p => selectedPlayerIds.has(p.internalId));
-
-                // Set title and options based on mode
-                if (mode === 'roster') {
-                    title.textContent = 'Add Selected Players to Roster';
-                    rosterOptions.style.display = 'block';
-                    draftOptions.style.display = 'none';
-                    teamHeader.textContent = 'Team';
-                    // Load teams if not already loaded
-                    if (!batchAddTeamsLoaded) {
-                        await loadBatchAddTeams();
-                    }
-                } else {
-                    title.textContent = 'Add Selected Players to Draft Class';
-                    rosterOptions.style.display = 'none';
-                    draftOptions.style.display = 'block';
-                    teamHeader.textContent = 'Year';
-                }
-
-                // Show player count
-                const count = batchAddSelectedPlayers.length;
-                playerCount.textContent = count + ' player(s) selected';
-
-                // Build player rows with individual team/year selectors
-                let rowsHtml = '';
-                batchAddSelectedPlayers.forEach((p) => {
-                    const name = ((p.firstName || '') + ' ' + (p.lastName || '')).trim();
-                    const pos = p.position || '-';
-
-                    if (mode === 'roster') {
-                        // Build team dropdown for this player
-                        let teamOptionsHtml = '<option value="1009">Free Agent</option>';
-                        batchAddTeamOptions.forEach(team => {
-                            teamOptionsHtml += '<option value="' + team.id + '">' + team.name + '</option>';
-                        });
-                        rowsHtml += '<div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #2a2a2a; align-items: center;">' +
-                            '<div style="color: #fff; font-size: 13px;">' + name + '</div>' +
-                            '<div style="color: #0078d4; font-size: 13px;">' + pos + '</div>' +
-                            '<select class="batch-add-team-select" data-player-id="' + p.internalId + '" style="padding: 5px 8px; background: #252525; border: 1px solid #444; border-radius: 3px; color: #fff; font-size: 12px;">' + teamOptionsHtml + '</select>' +
-                            '</div>';
-                    } else {
-                        // For draft, just show the player info (year is set globally)
-                        rowsHtml += '<div style="display: grid; grid-template-columns: 2fr 1fr 2fr; gap: 10px; padding: 8px 12px; border-bottom: 1px solid #2a2a2a; align-items: center;">' +
-                            '<div style="color: #fff; font-size: 13px;">' + name + '</div>' +
-                            '<div style="color: #0078d4; font-size: 13px;">' + pos + '</div>' +
-                            '<div style="color: #888; font-size: 12px;">' + (p.draftYear || 'Default') + '</div>' +
-                            '</div>';
-                    }
-                });
-                playerRows.innerHTML = rowsHtml;
-
-                // Show modal
-                modal.style.display = 'flex';
-            }
-
-            async function loadBatchAddTeams() {
-                try {
-                    const teams = await window.electronAPI.lookup.getDropdownOptions('team_lookup.csv');
-                    if (teams && teams.length > 0) {
-                        // Store team options for building dropdowns
-                        batchAddTeamOptions = teams.map(team => ({
-                            id: team.id || team.value || team.label,
-                            name: team.label || team.name
-                        }));
-
-                        // Also populate the "Set all" dropdown
-                        const setAllSelect = document.getElementById('batchAddSetAllTeam');
-                        if (setAllSelect) {
-                            setAllSelect.innerHTML = '<option value="">-- Choose team --</option><option value="1009">Free Agent</option>';
-                            batchAddTeamOptions.forEach(team => {
-                                const opt = document.createElement('option');
-                                opt.value = team.id;
-                                opt.textContent = team.name;
-                                setAllSelect.appendChild(opt);
-                            });
-                        }
-
-                        batchAddTeamsLoaded = true;
-                        console.log('[DatabaseBrowser] Loaded', teams.length, 'teams for batch add');
-                    }
-                } catch (e) {
-                    console.error('[DatabaseBrowser] Failed to load teams for batch add:', e);
-                }
-            }
-
-            function applyAllTeam() {
-                const setAllSelect = document.getElementById('batchAddSetAllTeam');
-                const selectedTeam = setAllSelect?.value;
-                if (!selectedTeam) return;
-
-                // Set all individual team dropdowns to this value
-                const teamSelects = document.querySelectorAll('.batch-add-team-select');
-                teamSelects.forEach(select => {
-                    select.value = selectedTeam;
-                });
-            }
-
-            function hideBatchAddModal() {
-                const modal = document.getElementById('batchAddModal');
-                if (modal) modal.style.display = 'none';
-                batchAddMode = null;
-                batchAddSelectedPlayers = [];
-            }
-
-            async function executeBatchAdd() {
-                if (!batchAddMode || batchAddSelectedPlayers.length === 0) {
-                    hideBatchAddModal();
-                    return;
-                }
-
-                let successCount = 0;
-                const confirmBtn = document.getElementById('batchAddConfirmBtn');
-
-                if (confirmBtn) {
-                    confirmBtn.disabled = true;
-                    confirmBtn.textContent = 'Adding...';
-                }
-
-                if (batchAddMode === 'roster') {
-                    // Get individual team selections for each player
-                    const teamSelects = document.querySelectorAll('.batch-add-team-select');
-                    const playerTeamMap = {};
-                    teamSelects.forEach(select => {
-                        const playerId = parseInt(select.dataset.playerId, 10);
-                        const teamId = parseInt(select.value, 10) || 1009;
-                        playerTeamMap[playerId] = teamId;
-                    });
-
-                    console.log('[DatabaseBrowser] Batch adding', batchAddSelectedPlayers.length, 'players to roster with individual teams');
-
-                    for (const player of batchAddSelectedPlayers) {
-                        try {
-                            const teamId = playerTeamMap[player.internalId] || 1009;
-                            if (window.electronAPI?.database?.sendPlayerToMainWindow) {
-                                await window.electronAPI.database.sendPlayerToMainWindow(player.internalId, 'roster', { teamId: teamId, year: null });
-                                successCount++;
-                                console.log('[DatabaseBrowser] Added', player.firstName, player.lastName, 'to team', teamId);
-                            }
-                        } catch (error) {
-                            console.error('[DatabaseBrowser] Error adding player', player.internalId, ':', error);
-                        }
-                    }
-                } else if (batchAddMode === 'draft') {
-                    const yearInput = document.getElementById('batchAddDraftYear')?.value;
-                    const year = yearInput ? parseInt(yearInput, 10) : null;
-                    console.log('[DatabaseBrowser] Batch adding', batchAddSelectedPlayers.length, 'players to draft with year:', year);
-
-                    for (const player of batchAddSelectedPlayers) {
-                        try {
-                            if (window.electronAPI?.database?.sendPlayerToMainWindow) {
-                                await window.electronAPI.database.sendPlayerToMainWindow(player.internalId, 'draft', { year: year });
-                                successCount++;
-                            }
-                        } catch (error) {
-                            console.error('[DatabaseBrowser] Error adding player', player.internalId, ':', error);
-                        }
-                    }
-                }
-
-                if (confirmBtn) {
-                    confirmBtn.disabled = false;
-                    confirmBtn.textContent = 'Add Players';
-                }
-
-                hideBatchAddModal();
-                clearSelection();
-                alert('Sent ' + successCount + ' player(s) to ' + (batchAddMode === 'roster' ? 'roster' : 'draft class') + '.\nOpen the main editor to see them added.');
-            }
-
-            function addSelectedToRoster() {
-                if (selectedPlayerIds.size === 0) {
-                    alert('No players selected');
-                    return;
-                }
-                showBatchAddModal('roster');
-            }
-
-            function addSelectedToDraft() {
-                if (selectedPlayerIds.size === 0) {
-                    alert('No players selected');
-                    return;
-                }
-                showBatchAddModal('draft');
-            }
-
+            /**
+             * Update pagination controls
+             */
             function updatePagination() {
+                const totalPages = Math.ceil(totalResults / pageSize) || 1;
+                const pageInfo = document.getElementById('playerBrowserPageInfo');
                 const prevBtn = document.getElementById('playerBrowserPrevPage');
                 const nextBtn = document.getElementById('playerBrowserNextPage');
-                const pageInfo = document.getElementById('playerBrowserPageInfo');
 
+                if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
                 if (prevBtn) prevBtn.disabled = currentPage <= 1;
-                if (nextBtn) nextBtn.disabled = currentResults.length < pageSize;
-                if (pageInfo) pageInfo.textContent = `Page ${currentPage}`;
+                if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
             }
 
-            // Expose functions
-            window.refreshPlayerBrowser = function() {
-                console.log('[DatabaseBrowser] refreshPlayerBrowser called');
-                return performSearch();
-            };
-            window.getCurrentBrowserResults = function() { return currentResults; };
+            /**
+             * Update selection UI
+             */
+            function updateSelectionUI() {
+                const count = selectedPlayerIds.size;
+                const rosterBtn = document.getElementById('addSelectedToRosterBtn');
+                const draftBtn = document.getElementById('addSelectedToDraftBtn');
 
-            // Global action handlers for the standalone window
-            window.viewDbPlayer = function(internalId, isCustom) {
-                console.log('[DatabaseBrowser] View player:', internalId, 'isCustom:', isCustom);
-                if (window.openDbPlayerCard) {
-                    window.openDbPlayerCard(internalId, isCustom === true);
+                if (count > 0) {
+                    if (rosterBtn && browserMode === 'roster') rosterBtn.style.display = '';
+                    if (draftBtn && browserMode === 'draft') draftBtn.style.display = '';
                 } else {
-                    alert('Player card not available');
+                    if (rosterBtn) rosterBtn.style.display = 'none';
+                    if (draftBtn) draftBtn.style.display = 'none';
                 }
-            };
+            }
 
-            window.addToRoster = function(internalId) {
-                console.log('[DatabaseBrowser] Add to roster called with:', internalId, 'type:', typeof internalId);
+            // Global functions for onclick handlers
+            window.selectPlayerForPreview = function(playerId, isCustom) {
+                // Update selected row styling
+                document.querySelectorAll('.database-player-row').forEach(row => {
+                    row.classList.remove('selected');
+                    if (parseInt(row.dataset.playerId) === playerId) {
+                        row.classList.add('selected');
+                    }
+                });
 
-                // Validate internalId to catch potential issues
-                if (internalId === undefined || internalId === null) {
-                    console.error('[DatabaseBrowser] ERROR: internalId is undefined/null!');
-                    alert('Error: Player ID is missing. Please try searching again.');
-                    return;
-                }
-
-                // Convert to number and validate
-                const numericId = Number(internalId);
-                if (isNaN(numericId) || numericId <= 0) {
-                    console.error('[DatabaseBrowser] ERROR: Invalid internalId:', internalId, '-> numericId:', numericId);
-                    alert('Error: Invalid player ID (' + internalId + '). Please try searching again.');
-                    return;
-                }
-
-                // Find player in current results to log their name
-                const player = currentResults.find(p => p.internalId === numericId);
+                // Load preview (simplified - just show basic info for now)
+                const player = currentResults.find(p => p.internalId === playerId);
                 if (player) {
-                    console.log('[DatabaseBrowser] Adding player:', player.firstName, player.lastName, 'ID:', numericId);
-                } else {
-                    console.warn('[DatabaseBrowser] Player ID', numericId, 'not found in currentResults - may be from stale view');
-                }
-
-                // Send to main window via IPC
-                if (window.electronAPI?.database?.sendPlayerToMainWindow) {
-                    window.electronAPI.database.sendPlayerToMainWindow(numericId, 'roster');
-                } else {
-                    alert('Cannot add to roster from standalone window.\nPlease use the Player Browser in the main editor.');
-                }
-            };
-
-            window.addToDraft = function(internalId) {
-                console.log('[DatabaseBrowser] Add to draft called with:', internalId, 'type:', typeof internalId);
-
-                // Validate internalId to catch potential issues
-                if (internalId === undefined || internalId === null) {
-                    console.error('[DatabaseBrowser] ERROR: internalId is undefined/null!');
-                    alert('Error: Player ID is missing. Please try searching again.');
-                    return;
-                }
-
-                // Convert to number and validate
-                const numericId = Number(internalId);
-                if (isNaN(numericId) || numericId <= 0) {
-                    console.error('[DatabaseBrowser] ERROR: Invalid internalId:', internalId, '-> numericId:', numericId);
-                    alert('Error: Invalid player ID (' + internalId + '). Please try searching again.');
-                    return;
-                }
-
-                // Find player in current results to log their name
-                const player = currentResults.find(p => p.internalId === numericId);
-                if (player) {
-                    console.log('[DatabaseBrowser] Adding player:', player.firstName, player.lastName, 'ID:', numericId);
-                } else {
-                    console.warn('[DatabaseBrowser] Player ID', numericId, 'not found in currentResults - may be from stale view');
-                }
-
-                // Send to main window via IPC
-                if (window.electronAPI?.database?.sendPlayerToMainWindow) {
-                    window.electronAPI.database.sendPlayerToMainWindow(numericId, 'draft');
-                } else {
-                    alert('Cannot add to draft from standalone window.\nPlease use the Player Browser in the main editor.');
+                    const previewContent = document.getElementById('previewContent');
+                    if (previewContent) {
+                        const photoId = player.photoId || player.pid || 0;
+                        previewContent.innerHTML = `
+                            <div class="preview-portrait">
+                                <span class="preview-portrait-placeholder">👤</span>
+                            </div>
+                            <div class="preview-name">${player.firstName || ''} ${player.lastName || ''}</div>
+                            <div class="preview-subtitle">${player.position || ''} | ${player.college || ''}</div>
+                            <div class="preview-stats">
+                                <div class="preview-stat">
+                                    <div class="preview-stat-label">PID</div>
+                                    <div class="preview-stat-value">${photoId || '-'}</div>
+                                </div>
+                                <div class="preview-stat">
+                                    <div class="preview-stat-label">Draft</div>
+                                    <div class="preview-stat-value">${player.draftClass || '-'}</div>
+                                </div>
+                            </div>
+                            <div class="preview-actions">
+                                <button class="preview-btn preview-btn-primary" onclick="window.viewDbPlayer(${playerId}, ${isCustom})">View Full Details</button>
+                                <button class="preview-btn preview-btn-secondary" onclick="window.addToRoster(${playerId})">Add to Roster</button>
+                            </div>
+                        `;
+                    }
                 }
             };
 
-            // Initialize when DOM is ready
+            window.togglePlayerSelection = function(playerId) {
+                if (selectedPlayerIds.has(playerId)) {
+                    selectedPlayerIds.delete(playerId);
+                } else {
+                    selectedPlayerIds.add(playerId);
+                }
+                updateSelectionUI();
+            };
+
+            window.addToRoster = async function(playerId) {
+                try {
+                    if (window.electronAPI?.database?.getPlayer) {
+                        const result = await window.electronAPI.database.getPlayer(playerId);
+                        if (result.success) {
+                            // Send to roster
+                            if (window.electronAPI?.window?.sendData) {
+                                await window.electronAPI.window.sendData('main', {
+                                    type: 'add-player-to-roster',
+                                    player: result.player
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to add player to roster:', e);
+                }
+            };
+
+            window.viewDbPlayer = function(playerId, isCustom) {
+                if (typeof window.openDbPlayerCard === 'function') {
+                    window.openDbPlayerCard(playerId, isCustom === 'true' || isCustom === true);
+                }
+            };
+
+            // Expose refresh function
+            window.refreshDatabaseBrowser = performSearch;
+
+            // Initialize on DOM ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', init);
             } else {

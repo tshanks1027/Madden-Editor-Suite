@@ -760,8 +760,9 @@ export class CreatorService {
       };
 
       for (const player of allPlayers) {
-        const firstName = player.firstName || '';
-        const lastName = player.lastName || '';
+        // Strip markers from names for clean output
+        const firstName = (player.firstName || '').replace(/[‡†*]+\d*/g, '').trim();
+        const lastName = (player.lastName || '').replace(/[‡†*]+\d*/g, '').trim();
         const draftClass = player.draftClass || '';
 
         if (firstName && lastName && draftClass) {
@@ -789,7 +790,8 @@ export class CreatorService {
             'AP1': player.ap1 || '',
             'PB': player.pb || '',
             'St': player.starts || '',
-            'League': '' // League is not currently stored in database
+            'League': '', // League is not currently stored in database
+            'InternalId': player.internalId // Database internal ID for custom portrait lookup
           };
 
           const key = `${stripMarkers(firstName)} ${stripMarkers(lastName)} ${draftClass}`;
@@ -1614,6 +1616,9 @@ export class CreatorService {
    * @returns Array of generated prospects
    */
   async generateDraftClass(year: number, testingMode: boolean = false, league?: string, ratingMode: string = 'semi-historical'): Promise<GeneratedPlayer[]> {
+    // Ensure user database is ready for custom portrait lookups
+    await userDatabaseService.waitForReady();
+
     // Auto-detect league filter based on year
     let leagueFilter: string | undefined = league;
     if (!leagueFilter) {
@@ -1999,8 +2004,15 @@ export class CreatorService {
           playerAssetId = this.assignGenericAsset(matchedPID, raceData);
         }
 
-        // Match college to valid college in lookup (fuzzy matching)
-        const matchedCollege = this.matchCollege(prospect.college || 'Unknown');
+        // Match college - handle both number (already ID) and string (needs lookup)
+        let matchedCollege: number;
+        if (typeof prospect.college === 'number') {
+          matchedCollege = prospect.college;
+        } else if (typeof prospect.college === 'string') {
+          matchedCollege = this.matchCollege(prospect.college);
+        } else {
+          matchedCollege = 0;
+        }
 
         // Get homestate: use scraped if available (convert to ID), otherwise generate realistic one
         const generatedState = this.generateHomeState();
@@ -2105,6 +2117,9 @@ export class CreatorService {
     ratingMode: string = 'semi-historical'
   ): Promise<GeneratedPlayer[]> {
     const startTime = Date.now();
+
+    // Ensure user database is ready for custom portrait lookups
+    await userDatabaseService.waitForReady();
 
     // Auto-detect league filter based on year
     let leagueFilter: string | undefined = league;
@@ -2461,8 +2476,15 @@ export class CreatorService {
           playerAssetId = this.assignGenericAsset(matchedPID, raceData);
         }
 
-        // Match college to valid college in lookup (fuzzy matching)
-        const matchedCollege = this.matchCollege(prospect.college || 'Unknown');
+        // Match college - handle both number (already ID) and string (needs lookup)
+        let matchedCollege: number;
+        if (typeof prospect.college === 'number') {
+          matchedCollege = prospect.college;
+        } else if (typeof prospect.college === 'string') {
+          matchedCollege = this.matchCollege(prospect.college);
+        } else {
+          matchedCollege = 0;
+        }
 
         // Get homestate: generate realistic one
         const generatedState = this.generateHomeState();
@@ -2665,6 +2687,10 @@ export class CreatorService {
     const startTime = Date.now();
     console.log(`[CreatorService V2] Generating draft class with options:`, options);
 
+    // Ensure user database is ready for custom portrait lookups
+    await userDatabaseService.waitForReady();
+    console.log(`[CreatorService V2] User database ready for custom portrait lookups`);
+
     try {
       // Route to FutureDraftService for 2026+ (only supports variance mode)
       if (options.year && options.year >= 2026) {
@@ -2860,8 +2886,9 @@ export class CreatorService {
         const player = players[i];
 
         // Get name from player data (HistoricalPlayer and FutureProspect have firstName/lastName)
-        const firstName = player.firstName || 'John';
-        const lastName = player.lastName || 'Doe';
+        // Strip pro-football-reference disambiguation markers (‡, †, *) from names
+        const firstName = (player.firstName || 'John').replace(/[‡†*]+\d*/g, '').trim();
+        const lastName = (player.lastName || 'Doe').replace(/[‡†*]+\d*/g, '').trim();
         const fullName = `${firstName} ${lastName}`;
 
         // Build rating context
@@ -2923,12 +2950,35 @@ export class CreatorService {
         // Map position
         const mappedPosition = this.mapPosition(player.position);
 
-        // Use actual data from CSV when available, fallback to generated/matched values
-        let pid = player.photoID !== undefined && player.photoID > 0
-          ? player.photoID
-          : this.matchPID(firstName, lastName, player.draftClass ? parseInt(String(player.draftClass)) : options.year, player.position, player.college);
+        // Look up player in MASTER_LOOKUP to get their database internal ID
+        const masterLookup = this.loadMasterLookup();
+        const draftYear = player.draftClass ? parseInt(String(player.draftClass)) : options.year;
+        const lookupKey = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${draftYear}`;
+        const lookupEntry = masterLookup.get(lookupKey);
+        const playerInternalId = lookupEntry ? lookupEntry['InternalId'] : undefined;
 
-        // If no PID found (0), assign a generic face so every player has a portrait
+        // FIRST: Check for custom portrait by database player ID (most reliable)
+        // This uses the exact player assignment from portrait editor
+        let pid = 0;
+        if (playerInternalId) {
+          const customPID = userDatabaseService.getCustomPortraitByPlayerId(playerInternalId);
+          if (customPID) {
+            pid = customPID;
+            console.log(`[CreatorService V2] ✅ Using custom portrait for ${firstName} ${lastName} (ID:${playerInternalId}): PID ${customPID}`);
+          }
+        }
+
+        // SECOND: Use actual PID from database if available
+        if (pid === 0 && player.photoID !== undefined && player.photoID > 0) {
+          pid = player.photoID;
+        }
+
+        // THIRD: Try to match PID from lookup
+        if (pid === 0) {
+          pid = this.matchPID(firstName, lastName, draftYear, player.position, player.college);
+        }
+
+        // LAST: Assign a generic face so every player has a portrait
         if (pid === 0) {
           const raceData = (player as any).race;
           pid = this.assignGenericFace(firstName, lastName, player.position, raceData);
@@ -3190,6 +3240,10 @@ export class CreatorService {
   /**
    * Convert EnrichedProspect[] (from FutureDraftService) to GeneratedPlayer[]
    * EnrichedProspects already have ratings, archetypes, and all necessary data
+   *
+   * IMPORTANT: This now queries the user database for custom player data
+   * before falling back to generic faces. This ensures that data pushed
+   * via "Push to Database" is used when generating draft classes.
    */
   private async convertEnrichedProspectsToPlayers(prospects: EnrichedProspect[]): Promise<GeneratedPlayer[]> {
     console.log(`[CreatorService V2] Converting ${prospects.length} enriched prospects to GeneratedPlayer format`);
@@ -3204,13 +3258,119 @@ export class CreatorService {
       // Map position
       const mappedPosition = this.mapPosition(prospect.position);
 
-      // PID matching (future prospects likely don't have PIDs, use generic)
-      const raceData = prospect.race;
-      const pid = this.assignGenericFace(firstName, lastName, prospect.position, raceData);
-      const pam = this.assignGenericAsset(pid);
+      // === CHECK FOR DATABASE DATA ===
+      // Priority 1: Use maddenPid/maddenPam passed directly from FutureDraftService
+      // Priority 2: Fall back to database search by name
+      // Priority 3: Generate generic face
+      let pid = 0;
+      let pam = '';
+      let customArchetype: number | undefined;
+      let customRace: number | undefined;
+      let customRatings: { [key: string]: number } | undefined;
 
-      // Match college
-      const collegeId = prospect.college ? this.matchCollege(prospect.college) : 0;
+      // PRIORITY 1: Check if prospect already has maddenPid/maddenPam from database
+      // (FutureDraftService passes these through when loading from database)
+      if ((prospect as any).maddenPid && (prospect as any).maddenPid > 0) {
+        pid = (prospect as any).maddenPid;
+        console.log(`[CreatorService V2] Using prospect's maddenPid: ${pid} for ${firstName} ${lastName}`);
+      }
+      if ((prospect as any).maddenPam) {
+        pam = (prospect as any).maddenPam;
+        console.log(`[CreatorService V2] Using prospect's maddenPam: ${pam} for ${firstName} ${lastName}`);
+      }
+      if (prospect.race !== undefined && prospect.race !== null) {
+        customRace = prospect.race;
+      }
+
+      // Use archetype from prospect if available
+      if (prospect.archetypeId !== undefined) {
+        customArchetype = prospect.archetypeId;
+      }
+
+      // Use ratings from prospect if available
+      if (prospect.ratings && Object.keys(prospect.ratings).length > 0) {
+        customRatings = prospect.ratings as { [key: string]: number };
+      }
+
+      // PRIORITY 2: If no direct data, search database by name
+      if (pid === 0 || !pam) {
+        const customPlayers = userDatabaseService.searchCustomPlayers(`${firstName} ${lastName}`, 10);
+        const matchingCustom = customPlayers.find(cp =>
+          cp.firstName?.toLowerCase() === firstName.toLowerCase() &&
+          cp.lastName?.toLowerCase() === lastName.toLowerCase()
+        );
+
+        if (matchingCustom) {
+          console.log(`[CreatorService V2] Found custom player by name search: ${firstName} ${lastName} (ID: ${matchingCustom.id})`);
+
+          // Use custom PID and PAM if not already set
+          if (pid === 0 && matchingCustom.maddenPid && matchingCustom.maddenPid > 0) {
+            pid = matchingCustom.maddenPid;
+            console.log(`[CreatorService V2]   Using custom PID: ${pid}`);
+          }
+          if (!pam && matchingCustom.maddenPam) {
+            pam = matchingCustom.maddenPam;
+            console.log(`[CreatorService V2]   Using custom PAM: ${pam}`);
+          }
+
+          // Use custom race if not already set
+          if (customRace === undefined && matchingCustom.race !== undefined && matchingCustom.race !== null) {
+            customRace = matchingCustom.race;
+            console.log(`[CreatorService V2]   Using custom race: ${customRace}`);
+          }
+
+          // Get season data for ratings and archetype if not already set
+          if (matchingCustom.id && (customArchetype === undefined || !customRatings)) {
+            const draftYear = prospect.draftClass || new Date().getFullYear();
+            const seasonData = userDatabaseService.getCustomPlayerSeason(matchingCustom.id, draftYear);
+
+            if (seasonData) {
+              console.log(`[CreatorService V2]   Found season data for year ${draftYear}`);
+
+              // Use custom archetype (convert string to ID if needed)
+              if (customArchetype === undefined && seasonData.archetype !== undefined && seasonData.archetype !== null) {
+                if (typeof seasonData.archetype === 'number') {
+                  customArchetype = seasonData.archetype;
+                } else if (typeof seasonData.archetype === 'string') {
+                  // Convert archetype name to ID
+                  const archId = archetypeService.getArchetypeId(seasonData.archetype);
+                  if (archId !== undefined && archId > 0) {
+                    customArchetype = archId;
+                  }
+                }
+                console.log(`[CreatorService V2]   Using custom archetype: ${customArchetype}`);
+              }
+
+              // Use custom ratings if not already set
+              if (!customRatings && seasonData.ratings && Object.keys(seasonData.ratings).length > 0) {
+                customRatings = seasonData.ratings;
+                console.log(`[CreatorService V2]   Using ${Object.keys(customRatings).length} custom ratings`);
+              }
+            }
+          }
+        }
+      }
+
+      // FALLBACK: If no custom PID, use generic face
+      const raceData = customRace ?? prospect.race;
+      if (pid === 0) {
+        pid = this.assignGenericFace(firstName, lastName, prospect.position, raceData);
+      }
+
+      // FALLBACK: If no custom PAM, generate from PID
+      if (!pam) {
+        pam = this.assignGenericAsset(pid);
+      }
+
+      // Match college - handle both number (already ID) and string (needs lookup)
+      let collegeId: number;
+      if (typeof prospect.college === 'number') {
+        collegeId = prospect.college;
+      } else if (typeof prospect.college === 'string') {
+        collegeId = this.matchCollege(prospect.college);
+      } else {
+        collegeId = 0;
+      }
 
       // Match home state
       const homeState = prospect.homestate ? this.matchHomeState(prospect.homestate) : 0;
@@ -3219,7 +3379,15 @@ export class CreatorService {
       const jerseyNum = prospect.jersey || this.generateJerseyNumber(prospect.position);
 
       // Convert EnrichedProspect ratings to MaddenRatings format
-      const maddenRatings = this.convertRookieStatsToMaddenRatings(prospect.ratings || {});
+      // PRIORITY: Use custom ratings from database if available
+      let maddenRatings: MaddenRatings;
+      if (customRatings && Object.keys(customRatings).length > 0) {
+        // Use custom ratings from database
+        maddenRatings = this.convertRookieStatsToMaddenRatings(customRatings);
+        console.log(`[CreatorService V2] Using custom ratings for ${firstName} ${lastName}`);
+      } else {
+        maddenRatings = this.convertRookieStatsToMaddenRatings(prospect.ratings || {});
+      }
 
       // Determine dev trait based on wAV and overall
       const draftRound = prospect.round && prospect.round !== 'UD' ? parseInt(prospect.round) : undefined;
@@ -3235,8 +3403,11 @@ export class CreatorService {
       // Body type
       const bodyType = this.determineBodyType(prospect.position, prospect.weight || 200, prospect.height || 72);
 
-      // Archetype ID (already assigned by FutureDraftService)
-      const archetypeId = prospect.archetypeId || 0;
+      // Archetype ID - PRIORITY: Use custom archetype from database if available
+      const archetypeId = customArchetype ?? prospect.archetypeId ?? 0;
+      if (customArchetype !== undefined) {
+        console.log(`[CreatorService V2] Using custom archetype ${archetypeId} for ${firstName} ${lastName}`);
+      }
 
       // Age (calculate from draft class year)
       const age = 21; // Default age for rookies
@@ -3244,10 +3415,19 @@ export class CreatorService {
       // Get CommID if available
       const commID = prospect.commID ? parseInt(String(prospect.commID)) || 0 : 0;
 
-      // Get PGHE value from the assigned generic face (ensures matched set)
-      const pgheValue = this.lastAssignedPgheEntry?.psxp === pid
-        ? this.lastAssignedPgheEntry.pghe
-        : undefined;
+      // Get PGHE value - check lastAssignedPgheEntry first, then lookup by PID
+      let pgheValue: number | undefined;
+      if (this.lastAssignedPgheEntry?.psxp === pid) {
+        // PID was assigned via assignGenericFace, use cached entry
+        pgheValue = this.lastAssignedPgheEntry.pghe;
+      } else if (pid > 0) {
+        // PID came from database - lookup PGHE by PID
+        const pgheEntry = pgheLookupService.getByPID(pid);
+        if (pgheEntry) {
+          pgheValue = pgheEntry.pghe;
+          console.log(`[CreatorService V2] Looked up PGHE ${pgheValue} for custom PID ${pid}`);
+        }
+      }
 
       generatedPlayers.push({
         firstName,
@@ -3386,6 +3566,9 @@ export class CreatorService {
     ratingMode: string = 'semi-historical'
   ): Promise<GeneratedPlayer[]> {
     console.log(`[CreatorService] Generating roster for ${year} (${teams.length} teams, max ${maxPlayers} players, league: ${league || 'all'})`);
+
+    // Ensure user database is ready for custom portrait lookups
+    await userDatabaseService.waitForReady();
 
     try {
       const generatedPlayers: GeneratedPlayer[] = [];
@@ -3806,10 +3989,13 @@ export class CreatorService {
 
           // Check for custom portrait by player name (user-imported portraits)
           if (matchedPID === 0) {
+            console.log(`[CreatorService] 🔍 Checking custom portrait for ${firstName} ${lastName}...`);
             const customPID = userDatabaseService.getCustomPortraitByName(firstName, lastName);
             if (customPID) {
               matchedPID = customPID;
-              console.log(`[CreatorService] Using custom portrait for ${firstName} ${lastName}: PID ${customPID}`);
+              console.log(`[CreatorService] ✅ Using custom portrait for ${firstName} ${lastName}: PID ${customPID}`);
+            } else {
+              console.log(`[CreatorService] ❌ No custom portrait found for ${firstName} ${lastName}`);
             }
           }
 

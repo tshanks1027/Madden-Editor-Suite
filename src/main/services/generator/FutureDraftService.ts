@@ -18,6 +18,7 @@ import { comparableMatcherService } from './ComparableMatcherService';
 import { VarianceRatingGenerator } from '../rating-modes/VarianceRatingGenerator';
 import { RatingContext } from '../rating-modes/IRatingGenerator';
 import { ArchetypeService } from '../utils/archetypeService';
+import { userDatabaseService, CustomPlayer, CustomPlayerSeason } from '../UserDatabaseService';
 
 // ===========================
 // CONSTANTS
@@ -61,6 +62,10 @@ export interface EnrichedProspect extends FutureProspect {
   round?: string;
   pick?: string;
 
+  // Database identity (from Push to Database)
+  maddenPid?: number;        // Stored PID from database
+  maddenPam?: string;        // Stored PAM from database
+
   // Metadata
   isSynthetic?: boolean;     // True if generated to fill gaps
 }
@@ -78,9 +83,38 @@ export class FutureDraftService {
 
   /**
    * Generate a complete future draft class (402 players)
+   *
+   * PRIORITY: Check database FIRST for custom players pushed via "Push to Database"
+   * Only fall back to CSV if database has no players for this year.
    */
   public async generateFutureDraftClass(options: FutureDraftOptions): Promise<EnrichedProspect[]> {
     console.log(`\n[FutureDraftService] Generating ${options.year} draft class (Future)`);
+
+    // ========================================
+    // STEP 0: CHECK DATABASE FIRST
+    // ========================================
+    await userDatabaseService.waitForReady();
+    const databasePlayers = userDatabaseService.getCustomPlayersByDraftYear(options.year);
+
+    if (databasePlayers.length > 0) {
+      console.log(`  - ✅ Found ${databasePlayers.length} players in DATABASE for ${options.year}`);
+      console.log(`  - Using database as PRIMARY source (ignoring CSV)`);
+
+      // Convert database players to EnrichedProspect format
+      const enrichedFromDb = await this.convertDatabasePlayersToProspects(databasePlayers, options.year);
+      console.log(`  - Converted ${enrichedFromDb.length} database players to prospects`);
+
+      // Assign draft positions if not already set
+      this.assignDraftPositions(enrichedFromDb);
+
+      return [...enrichedFromDb];
+    }
+
+    console.log(`  - No players in database for ${options.year}, falling back to CSV`);
+
+    // ========================================
+    // FALLBACK: Load from CSV (original behavior)
+    // ========================================
 
     // Step 1: Load prospects from CSV
     const csvProspects = await this.loadProspectsFromCSV(options.year);
@@ -99,6 +133,102 @@ export class FutureDraftService {
 
     // Step 5: Return shallow copy to prevent mutations
     return [...enrichedProspects];
+  }
+
+  /**
+   * Convert database CustomPlayer records to EnrichedProspect format
+   * This ensures data pushed via "Push to Database" is used exactly as stored
+   */
+  private async convertDatabasePlayersToProspects(
+    players: CustomPlayer[],
+    year: number
+  ): Promise<EnrichedProspect[]> {
+    const prospects: EnrichedProspect[] = [];
+
+    for (const player of players) {
+      // Get season data for ratings
+      let seasonData: CustomPlayerSeason | null = null;
+      if (player.id) {
+        seasonData = userDatabaseService.getCustomPlayerSeason(player.id, year);
+      }
+
+      // Build ratings from season data
+      const ratings: Partial<RookieStats> = {};
+      if (seasonData?.ratings) {
+        // Copy all rating fields
+        for (const [key, value] of Object.entries(seasonData.ratings)) {
+          (ratings as any)[key.toLowerCase()] = value;
+        }
+      }
+
+      // Parse draft round to number (handle "UFA" -> 8)
+      let draftRound: string | undefined = player.draftRound;
+      if (draftRound === 'UFA' || draftRound === '8') {
+        draftRound = 'UD';
+      }
+
+      const prospect: EnrichedProspect = {
+        // Basic info
+        firstName: player.firstName || '',
+        lastName: player.lastName || '',
+        position: player.position || 'QB',
+        college: player.collegeId || 0,  // Pass numeric ID - draft editor will convert to name
+
+        // Physical
+        height: player.height,
+        weight: player.weight,
+
+        // Identity (CRITICAL: use stored values)
+        race: player.race,
+
+        // Database identity - CRITICAL: Pass through stored PID/PAM
+        maddenPid: player.maddenPid,
+        maddenPam: player.maddenPam,
+
+        // Draft info
+        draftClass: year,
+        round: draftRound,
+        pick: player.draftPick ? String(player.draftPick) : undefined,
+
+        // Archetype from season data
+        archetypeId: seasonData?.archetype ? this.parseArchetype(seasonData.archetype, player.position || 'QB') : undefined,
+
+        // Ratings
+        ratings,
+
+        // Location
+        homestate: player.homeState,
+
+        // Metadata
+        isSynthetic: false
+      };
+
+      prospects.push(prospect);
+    }
+
+    return prospects;
+  }
+
+  /**
+   * Get college name from ID
+   */
+  private getCollegeName(collegeId: number | undefined): string {
+    if (!collegeId) return '';
+    // TODO: Could add lookup here, but for now return empty
+    // The CreatorService will handle college matching
+    return '';
+  }
+
+  /**
+   * Parse archetype to numeric ID
+   */
+  private parseArchetype(archetype: string | number | undefined, position: string): number | undefined {
+    if (archetype === undefined || archetype === null) return undefined;
+    if (typeof archetype === 'number') return archetype;
+
+    // Try to get archetype ID from name
+    const id = ArchetypeService.getArchetypeId(archetype, position);
+    return id > 0 ? id : undefined;
   }
 
   /**

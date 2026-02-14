@@ -656,6 +656,10 @@ ipcMain.handle('coach-database:search-coaches', async (event, options: {
     const limit = options.limit || 50;
     const offset = options.offset || 0;
 
+    // Pre-load all edit data for fast bulk lookups (load once, use for all coaches)
+    const allCoachEdits = userDatabaseService.getAllCoachEdits();
+    const allCoachAppearanceEdits = userDatabaseService.getAllCoachAppearanceEdits();
+
     // Get hidden coaches list
     const hiddenCoachIds = includeHidden ? [] : userDatabaseService.getHiddenCoachIds();
 
@@ -693,9 +697,9 @@ ipcMain.handle('coach-database:search-coaches', async (event, options: {
         continue;
       }
 
-      // Get any edits
-      const coachEdit = userDatabaseService.getCoachEdit(coach.pid);
-      const appearanceEdit = userDatabaseService.getCoachAppearanceEdit(coach.pid);
+      // Get any edits (O(1) lookup from pre-loaded maps)
+      const coachEdit = allCoachEdits.get(coach.pid);
+      const appearanceEdit = allCoachAppearanceEdits.get(coach.pid);
 
       const firstName = coachEdit?.firstName ?? coach.firstName;
       const lastName = coachEdit?.lastName ?? coach.lastName;

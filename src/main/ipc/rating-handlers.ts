@@ -228,5 +228,40 @@ export function registerRatingHandlers(): void {
     }
   );
 
+  /**
+   * Calculate OVR for all archetypes of a position with given attributes
+   * Returns array of archetypes sorted by OVR (best first)
+   * @param attributes - Player's current attributes (field codes like PSPD, PAWR, etc.)
+   * @param position - Player position
+   * @returns Array of {id, name, ovr} sorted by OVR descending
+   */
+  ipcMain.handle(
+    'rating:calculate-ovr-for-archetypes',
+    async (_event, attributes: any, position: string): Promise<{ id: number; name: string; ovr: number }[]> => {
+      try {
+        console.log(`[RatingHandlers] Calculating OVR for all archetypes of ${position}`);
+        const archetypes = ArchetypeService.getArchetypesForPosition(position);
+
+        const results = archetypes.map(arch => {
+          const ovr = ovrWeightsCalculator.calculateOVR(attributes, position, arch.name);
+          return {
+            id: arch.id,
+            name: arch.name,
+            ovr: ovr
+          };
+        });
+
+        // Sort by OVR descending (best archetype first)
+        results.sort((a, b) => b.ovr - a.ovr);
+
+        console.log(`[RatingHandlers] Calculated OVRs for ${results.length} archetypes, best: ${results[0]?.name} (${results[0]?.ovr})`);
+        return results;
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error calculating OVR for archetypes:', error);
+        return [];
+      }
+    }
+  );
+
   console.log('[RatingHandlers] Rating handlers registered successfully');
 }

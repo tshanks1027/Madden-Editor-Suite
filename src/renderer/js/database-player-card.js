@@ -1553,10 +1553,12 @@
       var selectStyle = 'width: 60px; background: #252525; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 2px; font-size: 11px;';
 
       // Build table
+      var deleteButtonStyle = 'background: transparent; border: none; color: #f44336; cursor: pointer; font-size: 14px; padding: 2px 6px; opacity: 0.7; transition: opacity 0.2s;';
       var html = '<table class="ratings-table" style="border-collapse: collapse; font-size: 11px; min-width: max-content;">';
       html += '<thead>';
       html += '<tr>';
-      // Fixed columns: Year, Team, Age
+      // Fixed columns: Delete, Year, Team, Age
+      html += '<th style="text-align: center; ' + stickyThStyle + ' width: 30px;"></th>'; // Delete column header (empty)
       html += '<th style="text-align: left; ' + stickyThStyle + ' position: sticky; left: 0; z-index: 20; background: #1a1a1a;">Year</th>';
       html += '<th style="text-align: left; ' + stickyThStyle + '">Team</th>';
       html += '<th style="text-align: center; ' + stickyThStyle + '">Age</th>';
@@ -1574,6 +1576,8 @@
         var currentTeam = s.team || '';
 
         html += '<tr style="border-bottom: 1px solid #333;" data-year="' + yr + '">';
+        // Delete button
+        html += '<td style="padding: 2px; text-align: center;"><button style="' + deleteButtonStyle + '" onclick="window.deletePlayerSeasonYear(' + yr + ')" title="Delete ' + yr + ' season" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">&#x2715;</button></td>';
         // Year - sticky left, clickable
         html += '<td style="padding: 4px; color: #64b5f6; cursor: pointer; font-weight: 500; position: sticky; left: 0; background: #1a1a1a; z-index: 5;" onclick="document.getElementById(\'dbPlayerYearSelect\').value=\'' + yr + '\'; document.getElementById(\'dbPlayerYearSelect\').dispatchEvent(new Event(\'change\'));" title="Click to edit full ratings">' + yr + '</td>';
         // Team - editable dropdown
@@ -1695,6 +1699,70 @@
 
   // Expose save function globally for inline onchange handlers
   window.saveAllYearsRatingEdit = saveAllYearsRatingEdit;
+
+  /**
+   * Delete a specific season/year for the current player
+   * @param {number} year - The year to delete
+   */
+  async function deletePlayerSeasonYear(year) {
+    if (!currentDbPlayerId) {
+      console.error('[DbPlayerCard] No player loaded');
+      return;
+    }
+
+    var playerName = currentDbPlayer ? ((currentDbPlayer.firstName || '') + ' ' + (currentDbPlayer.lastName || '')).trim() : 'this player';
+
+    var confirmed = confirm(
+      'Delete ' + year + ' season for ' + playerName + '?\n\n' +
+      'This will remove the rating data for this year.\n' +
+      'This action cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    try {
+      var result;
+      if (isCustomPlayer) {
+        result = await window.electronAPI.database.deleteCustomPlayerSeason(currentDbPlayerId, year);
+      } else {
+        result = await window.electronAPI.database.deletePlayerSeason(currentDbPlayerId, year);
+      }
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete season');
+      }
+
+      console.log('[DbPlayerCard] Deleted season ' + year + ' for player ' + currentDbPlayerId);
+
+      // Remove year from available years
+      var idx = availableYears.indexOf(year);
+      if (idx !== -1) {
+        availableYears.splice(idx, 1);
+      }
+
+      // Refresh the all-years table
+      await renderRatingsAllYears();
+
+      // If the deleted year was selected, clear the form
+      if (selectedYear === year) {
+        selectedYear = null;
+        clearRatingsForm();
+        var yearSelect = document.getElementById('dbPlayerYearSelect');
+        if (yearSelect) yearSelect.value = '';
+      }
+
+      // Also refresh career stats if shown
+      if (typeof renderCareerStatsAllYears === 'function' && careerStatsData) {
+        await renderCareerStatsAllYears(careerStatsData);
+      }
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Failed to delete season:', error);
+      alert('Failed to delete season: ' + error.message);
+    }
+  }
+
+  // Expose delete function globally for inline onclick handlers
+  window.deletePlayerSeasonYear = deletePlayerSeasonYear;
 
   /**
    * Load ratings for a specific year
@@ -4062,11 +4130,14 @@
         await window.electronAPI.database.updateCustomPlayer(currentDbPlayerId, { pid: selectedPickerPid });
       } else {
         // Database player - save appearance edit
-        await window.electronAPI.database.saveAppearanceEdit(currentDbPlayerId, { pid: selectedPickerPid });
+        await window.electronAPI.database.saveAppearanceEdit(currentDbPlayerId, { maddenPid: selectedPickerPid });
       }
 
-      // Update portrait metadata with player name
-      await window.electronAPI.customPortrait.updateMetadata(selectedPickerPid, { playerName: playerName });
+      // Update portrait metadata with player name AND database player ID (for list view lookup)
+      await window.electronAPI.customPortrait.updateMetadata(selectedPickerPid, {
+        playerName: playerName,
+        databasePlayerId: currentDbPlayerId
+      });
 
       // Update the PID field in the form
       setValue('dbPlayerPID', selectedPickerPid);
@@ -4116,10 +4187,15 @@
       return;
     }
 
-    console.log('[DbPlayerCard] Loading career stats for:', firstName, lastName);
+    // Get draft year to help disambiguate players with the same name
+    // (e.g., Chris Johnson WR 2005 vs Chris Johnson RB 2008)
+    var draftYear = player.draftClass ? parseInt(player.draftClass, 10) : null;
+    if (isNaN(draftYear)) draftYear = null;
+
+    console.log('[DbPlayerCard] Loading career stats for:', firstName, lastName, draftYear ? '(draft ' + draftYear + ')' : '');
 
     try {
-      var result = await window.electronAPI.database.getCareerStats(firstName, lastName);
+      var result = await window.electronAPI.database.getCareerStats(firstName, lastName, draftYear);
 
       if (!result.success) {
         console.error('[DbPlayerCard] Career stats error:', result.error);

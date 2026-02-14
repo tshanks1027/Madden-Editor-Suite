@@ -453,6 +453,25 @@ existing visuals.genericHeadName: ${visuals.genericHeadName}
     console.log(`[M26Writer] Updating bodyType: ${visuals.bodyType} -> ${prospect.bodyType}`);
     visuals.bodyType = prospect.bodyType;
     updated = true;
+
+    // CRITICAL: Also update the loadout itemAssetName that references body type
+    // The game reads body type from "Heavy_BodyType", "Muscular_BodyType", etc.
+    // in the loadouts, not just from the top-level bodyType field
+    const bodyTypeAssetName = `${prospect.bodyType}_BodyType`;
+    if (visuals.loadouts && Array.isArray(visuals.loadouts)) {
+      for (const loadout of visuals.loadouts) {
+        if (loadout.loadoutElements && Array.isArray(loadout.loadoutElements)) {
+          for (const element of loadout.loadoutElements) {
+            if (element.slotType === 'CharacterBodyType' ||
+                (element.itemAssetName && element.itemAssetName.endsWith('_BodyType'))) {
+              const oldAssetName = element.itemAssetName;
+              element.itemAssetName = bodyTypeAssetName;
+              console.log(`[M26Writer] Updated loadout bodyType: ${oldAssetName} -> ${bodyTypeAssetName}`);
+            }
+          }
+        }
+      }
+    }
   }
 
   if (!updated) {

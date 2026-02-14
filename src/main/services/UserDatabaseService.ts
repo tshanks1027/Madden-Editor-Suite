@@ -794,6 +794,67 @@ class UserDatabaseService {
     return !!row;
   }
 
+  /**
+   * Get all player edits as a Map for fast bulk lookups
+   * Returns Map of originalId -> PlayerEdit
+   */
+  public getAllPlayerEdits(): Map<number, PlayerEdit> {
+    const map = new Map<number, PlayerEdit>();
+    if (!this.editsDb) return map;
+
+    const rows = this.editsDb.prepare('SELECT * FROM player_edits').all() as Record<string, unknown>[];
+    for (const row of rows) {
+      map.set(row.original_id as number, {
+        originalId: row.original_id as number,
+        firstName: row.first_name as string | undefined,
+        lastName: row.last_name as string | undefined,
+        collegeId: row.college_id as number | undefined,
+        race: row.race as number | undefined,
+        height: row.height as number | undefined,
+        weight: row.weight as number | undefined,
+        hometown: row.hometown as string | undefined,
+        homeState: row.home_state as string | undefined,
+        draftClass: row.draft_class as number | undefined,
+        draftRound: row.draft_round as string | undefined,
+        draftPick: row.draft_pick as number | undefined,
+        careerFrom: row.career_from as number | undefined,
+        careerTo: row.career_to as number | undefined,
+        bodyType: row.body_type as string | undefined,
+        handedness: row.handedness as number | undefined,
+        editedAt: row.edited_at as string | undefined
+      });
+    }
+    return map;
+  }
+
+  /**
+   * Get all appearance edits as a Map for fast bulk lookups
+   * Returns Map of originalPlayerId -> AppearanceEdit
+   */
+  public getAllAppearanceEdits(): Map<number, AppearanceEdit> {
+    const map = new Map<number, AppearanceEdit>();
+    if (!this.editsDb) return map;
+
+    const rows = this.editsDb.prepare('SELECT * FROM appearance_edits').all() as Record<string, unknown>[];
+    for (const row of rows) {
+      map.set(row.original_player_id as number, {
+        originalPlayerId: row.original_player_id as number,
+        maddenPid: row.madden_pid as number | undefined,
+        maddenPam: row.madden_pam as string | undefined,
+        maddenPlpo: row.madden_plpo as string | undefined,
+        maddenCommid: row.madden_commid as string | undefined,
+        maddenPghe: row.madden_pghe as number | undefined,
+        maddenPfcg: row.madden_pfcg as string | undefined,
+        maddenGpan: row.madden_gpan as string | undefined,
+        maddenGslp: row.madden_gslp as number | undefined,
+        maddenCpvf: row.madden_cpvf as number | undefined,
+        maddenSkinTone: row.madden_skin_tone as number | undefined,
+        editedAt: row.edited_at as string | undefined
+      });
+    }
+    return map;
+  }
+
   public resetPlayer(originalId: number): void {
     if (!this.editsDb) return;
 
@@ -822,6 +883,23 @@ class UserDatabaseService {
 
     console.log(`[UserDatabaseService] Cleared seasons for original_id=${originalId}, deleted ${deleteResult.changes} edits`);
     return deleteResult.changes;
+  }
+
+  /**
+   * Delete a specific season for a player (edited/added seasons only)
+   * @param originalPlayerId The player's original ID
+   * @param year The year to delete
+   * @returns true if a record was deleted
+   */
+  public deletePlayerSeason(originalPlayerId: number, year: number): boolean {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+
+    const result = this.editsDb.prepare(
+      'DELETE FROM season_edits WHERE original_player_id = ? AND year = ?'
+    ).run(originalPlayerId, year);
+
+    console.log(`[UserDatabaseService] Deleted season ${year} for player_id=${originalPlayerId}, affected=${result.changes}`);
+    return result.changes > 0;
   }
 
   /**
@@ -883,6 +961,26 @@ class UserDatabaseService {
       maddenSkinTone: row.madden_skin_tone as number | undefined,
       editedAt: row.edited_at as string | undefined
     };
+  }
+
+  /**
+   * Get all appearance edit PIDs mapped to player IDs (bulk load for performance)
+   * Returns Map of originalPlayerId -> maddenPid for players that have PID edits
+   */
+  public getAllAppearanceEditPids(): Map<number, number> {
+    if (!this.editsDb) return new Map();
+
+    const rows = this.editsDb.prepare(`
+      SELECT original_player_id, madden_pid
+      FROM appearance_edits
+      WHERE madden_pid IS NOT NULL
+    `).all() as { original_player_id: number; madden_pid: number }[];
+
+    const map = new Map<number, number>();
+    for (const row of rows) {
+      map.set(row.original_player_id, row.madden_pid);
+    }
+    return map;
   }
 
   // =============================================
@@ -1277,6 +1375,98 @@ class UserDatabaseService {
   }
 
   /**
+   * Get all custom player seasons with player data joined.
+   * Returns an array of objects combining custom player info with their season data.
+   * Used by RosterGeneratorService to include custom players in generated rosters.
+   */
+  public getAllCustomPlayerSeasonsWithPlayer(): Array<{
+    customPlayerId: number;
+    firstName: string;
+    lastName: string;
+    collegeId?: number;
+    race?: number;
+    height?: number;
+    weight?: number;
+    hometown?: string;
+    homeState?: string;
+    draftClass?: number;
+    draftRound?: string;
+    draftPick?: number;
+    careerFrom?: number;
+    careerTo?: number;
+    maddenPid?: number;
+    maddenPam?: string;
+    maddenPlpo?: string;
+    maddenCommid?: string;
+    bodyType?: number;
+    handedness?: number;
+    has3DModel?: boolean;
+    year: number;
+    team?: string;
+    jersey?: number;
+    age?: number;
+    position?: string;
+    archetype?: string;
+    ratings: { [key: string]: number };
+  }> {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(`
+      SELECT
+        p.id as player_id,
+        p.first_name, p.last_name, p.college_id, p.race, p.height, p.weight,
+        p.hometown, p.home_state, p.draft_class, p.draft_round, p.draft_pick,
+        p.career_from, p.career_to, p.madden_pid, p.madden_pam, p.madden_plpo,
+        p.madden_commid, p.body_type, p.handedness, p.has_3d_model,
+        s.year, s.team, s.jersey, s.age, s.position, s.archetype,
+        ${RATING_FIELDS.map(f => `s.${f}`).join(', ')}
+      FROM custom_players p
+      JOIN custom_player_seasons s ON p.id = s.custom_player_id
+      ORDER BY s.year, p.last_name, p.first_name
+    `).all() as Record<string, unknown>[];
+
+    return rows.map(row => {
+      const ratings: { [key: string]: number } = {};
+      for (const field of RATING_FIELDS) {
+        if (row[field] !== null && row[field] !== undefined) {
+          ratings[field] = row[field] as number;
+        }
+      }
+
+      return {
+        customPlayerId: row.player_id as number,
+        firstName: row.first_name as string,
+        lastName: row.last_name as string,
+        collegeId: row.college_id as number | undefined,
+        race: row.race as number | undefined,
+        height: row.height as number | undefined,
+        weight: row.weight as number | undefined,
+        hometown: row.hometown as string | undefined,
+        homeState: row.home_state as string | undefined,
+        draftClass: row.draft_class as number | undefined,
+        draftRound: row.draft_round as string | undefined,
+        draftPick: row.draft_pick as number | undefined,
+        careerFrom: row.career_from as number | undefined,
+        careerTo: row.career_to as number | undefined,
+        maddenPid: row.madden_pid as number | undefined,
+        maddenPam: row.madden_pam as string | undefined,
+        maddenPlpo: row.madden_plpo as string | undefined,
+        maddenCommid: row.madden_commid as string | undefined,
+        bodyType: row.body_type as number | undefined,
+        handedness: row.handedness as number | undefined,
+        has3DModel: row.has_3d_model === 1,
+        year: row.year as number,
+        team: row.team as string | undefined,
+        jersey: row.jersey as number | undefined,
+        age: row.age as number | undefined,
+        position: row.position as string | undefined,
+        archetype: row.archetype as string | undefined,
+        ratings
+      };
+    });
+  }
+
+  /**
    * Partial update for custom player season - only updates provided fields.
    * Unlike saveCustomPlayerSeason (INSERT OR REPLACE), this preserves existing values.
    * If the season doesn't exist, it creates it with the provided values.
@@ -1340,6 +1530,23 @@ class UserDatabaseService {
     console.log(`[UserDatabaseService] Update values:`, values);
 
     this.customDb.prepare(sql).run(...values);
+  }
+
+  /**
+   * Delete a specific season for a custom player
+   * @param customPlayerId The custom player's ID
+   * @param year The year to delete
+   * @returns true if a record was deleted
+   */
+  public deleteCustomPlayerSeason(customPlayerId: number, year: number): boolean {
+    if (!this.customDb) throw new Error('Custom database not initialized');
+
+    const result = this.customDb.prepare(
+      'DELETE FROM custom_player_seasons WHERE custom_player_id = ? AND year = ?'
+    ).run(customPlayerId, year);
+
+    console.log(`[UserDatabaseService] Deleted custom player season ${year} for player_id=${customPlayerId}, affected=${result.changes}`);
+    return result.changes > 0;
   }
 
   // =============================================
@@ -1631,6 +1838,46 @@ class UserDatabaseService {
   // =============================================
   // SEARCH (for Player Browser)
   // =============================================
+
+  /**
+   * Get all custom players by draft class year
+   * Used by FutureDraftService to load players from database instead of CSV
+   */
+  public getCustomPlayersByDraftYear(year: number): CustomPlayer[] {
+    if (!this.customDb) return [];
+
+    const rows = this.customDb.prepare(`
+      SELECT * FROM custom_players
+      WHERE draft_class = ?
+      ORDER BY draft_round, draft_pick, last_name, first_name
+    `).all(year) as Record<string, unknown>[];
+
+    return rows.map(row => ({
+      id: row.id as number,
+      firstName: row.first_name as string,
+      lastName: row.last_name as string,
+      collegeId: row.college_id as number | undefined,
+      race: row.race as number | undefined,
+      height: row.height as number | undefined,
+      weight: row.weight as number | undefined,
+      hometown: row.hometown as string | undefined,
+      homeState: row.home_state as string | undefined,
+      position: row.position as string | undefined,
+      draftClass: row.draft_class as number | undefined,
+      draftRound: row.draft_round as string | undefined,
+      draftPick: row.draft_pick as number | undefined,
+      careerFrom: row.career_from as number | undefined,
+      careerTo: row.career_to as number | undefined,
+      maddenPid: row.madden_pid as number | undefined,
+      maddenPam: row.madden_pam as string | undefined,
+      maddenPlpo: row.madden_plpo as string | undefined,
+      maddenCommid: row.madden_commid as string | undefined,
+      bodyType: row.body_type as number | undefined,
+      handedness: row.handedness as number | undefined,
+      createdAt: row.created_at as string | undefined,
+      editedAt: row.edited_at as string | undefined
+    }));
+  }
 
   public searchCustomPlayers(query: string, limit: number = 50): CustomPlayer[] {
     if (!this.customDb) return [];
@@ -2215,6 +2462,49 @@ class UserDatabaseService {
     return !!row;
   }
 
+  /**
+   * Get all coach edits as a Map for fast bulk lookups
+   */
+  public getAllCoachEdits(): Map<number, CoachEdit> {
+    const map = new Map<number, CoachEdit>();
+    if (!this.editsDb) return map;
+
+    const rows = this.editsDb.prepare('SELECT * FROM coach_edits').all() as Record<string, unknown>[];
+    for (const row of rows) {
+      map.set(row.original_id as number, {
+        originalId: row.original_id as number,
+        firstName: row.first_name as string | undefined,
+        lastName: row.last_name as string | undefined,
+        teamIndex: row.team_index as number | undefined,
+        position: row.position as string | undefined,
+        experience: row.experience as number | undefined,
+        age: row.age as number | undefined,
+        editedAt: row.edited_at as string | undefined
+      });
+    }
+    return map;
+  }
+
+  /**
+   * Get all coach appearance edits as a Map for fast bulk lookups
+   */
+  public getAllCoachAppearanceEdits(): Map<number, CoachAppearanceEdit> {
+    const map = new Map<number, CoachAppearanceEdit>();
+    if (!this.editsDb) return map;
+
+    const rows = this.editsDb.prepare('SELECT * FROM coach_appearance_edits').all() as Record<string, unknown>[];
+    for (const row of rows) {
+      map.set(row.original_coach_id as number, {
+        originalCoachId: row.original_coach_id as number,
+        maddenPid: row.madden_pid as number | undefined,
+        maddenPam: row.madden_pam as string | undefined,
+        headAsset: row.head_asset as string | undefined,
+        editedAt: row.edited_at as string | undefined
+      });
+    }
+    return map;
+  }
+
   public resetCoach(originalId: number): void {
     if (!this.editsDb) return;
     this.editsDb.prepare('DELETE FROM coach_edits WHERE original_id = ?').run(originalId);
@@ -2255,6 +2545,26 @@ class UserDatabaseService {
       headAsset: row.head_asset as string | undefined,
       editedAt: row.edited_at as string | undefined
     };
+  }
+
+  /**
+   * Get all coach appearance edit PIDs mapped to coach IDs (bulk load for performance)
+   * Returns Map of originalCoachId -> maddenPid for coaches that have PID edits
+   */
+  public getAllCoachAppearanceEditPids(): Map<number, number> {
+    if (!this.editsDb) return new Map();
+
+    const rows = this.editsDb.prepare(`
+      SELECT original_coach_id, madden_pid
+      FROM coach_appearance_edits
+      WHERE madden_pid IS NOT NULL
+    `).all() as { original_coach_id: number; madden_pid: number }[];
+
+    const map = new Map<number, number>();
+    for (const row of rows) {
+      map.set(row.original_coach_id, row.madden_pid);
+    }
+    return map;
   }
 
   // =============================================

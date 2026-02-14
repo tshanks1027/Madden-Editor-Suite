@@ -126,6 +126,24 @@ body {
     min-width: 250px;
 }
 
+/* Home/Back Button in Header */
+.header-left .back-btn {
+    font-size: 20px;
+    color: #999;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.3s;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header-left .back-btn:hover {
+    color: #d4af37;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #d4af37;
+}
+
 .app-logo {
     height: 50px;
     max-width: 200px;

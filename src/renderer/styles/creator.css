@@ -1,6 +1,7 @@
 /**
  * Creator Screens Styling
  * Styles for Create Roster and Create Draft Class workflows
+ * Updated with gold/dark glass theme
  */
 
 /* Creator Container */
@@ -10,6 +11,7 @@
     margin: 0 auto;
     height: 100%;
     overflow-y: auto;
+    background: linear-gradient(180deg, #0a0a0a 0%, #000 100%);
 }
 
 /* Creator Header */
@@ -19,9 +21,12 @@
 }
 
 .creator-title {
-    font-size: 32px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 36px;
     font-weight: 700;
-    color: #ffffff;
+    color: #d4af37;
+    text-transform: uppercase;
+    letter-spacing: 3px;
     margin: 0 0 10px 0;
 }
 
@@ -40,15 +45,16 @@
 
 /* Creator Step */
 .creator-step {
-    background: #1a1a1a;
-    border: 2px solid #333;
-    border-radius: 12px;
+    background: linear-gradient(160deg, rgba(40, 40, 40, 0.8), rgba(20, 20, 20, 0.9));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
     padding: 24px;
-    transition: border-color 0.2s ease;
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
 }
 
 .creator-step:hover {
-    border-color: #444;
+    border-color: #d4af37;
 }
 
 .step-header {
@@ -64,17 +70,24 @@
     justify-content: center;
     width: 40px;
     height: 40px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(145deg, #e5c04b, #b8960b);
+    color: #000;
+    font-family: 'Oswald', sans-serif;
     font-size: 20px;
     font-weight: 700;
     border-radius: 50%;
     flex-shrink: 0;
+    box-shadow:
+        inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .step-title {
-    font-size: 22px;
+    font-family: 'Oswald', sans-serif;
+    font-size: 20px;
     font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     color: #ffffff;
     margin: 0;
 }
@@ -111,7 +124,8 @@
 
 .form-input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #d4af37;
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
 }
 
 .form-input::placeholder {
@@ -130,8 +144,8 @@
     display: flex;
     gap: 15px;
     padding: 16px 20px;
-    background: rgba(102, 126, 234, 0.1);
-    border-left: 4px solid #667eea;
+    background: rgba(212, 175, 55, 0.1);
+    border-left: 4px solid #d4af37;
     border-radius: 8px;
     margin-top: 20px;
 }
@@ -192,7 +206,7 @@
     width: 18px;
     height: 18px;
     cursor: pointer;
-    accent-color: #667eea;
+    accent-color: #d4af37;
 }
 
 .team-checkbox label {
@@ -249,7 +263,7 @@
 
 .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(90deg, #e5c04b 0%, #d4af37 50%, #b8960b 100%);
     transition: width 0.3s ease;
     width: 0%;
 }
@@ -342,9 +356,9 @@
 }
 
 .retro-step-indicator.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: #667eea;
-    color: #fff;
+    background: linear-gradient(145deg, #e5c04b, #b8960b);
+    border-color: #d4af37;
+    color: #000;
 }
 
 .retro-step-indicator.completed {
@@ -355,10 +369,15 @@
 
 /* Wizard Steps Content */
 .wizard-step {
-    background: #1a1a1a;
-    border: 2px solid #333;
-    border-radius: 12px;
+    background: linear-gradient(160deg, rgba(40, 40, 40, 0.8), rgba(20, 20, 20, 0.9));
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
     padding: 24px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.wizard-step.active {
+    border-color: #d4af37;
 }
 
 .step-description {
@@ -384,9 +403,9 @@
 }
 
 .wizard-message.info {
-    background: rgba(102, 126, 234, 0.1);
-    border: 1px solid #667eea;
-    color: #a5b4fc;
+    background: rgba(212, 175, 55, 0.1);
+    border: 1px solid #d4af37;
+    color: #e5c04b;
 }
 
 .wizard-message.error {
@@ -441,7 +460,7 @@
 }
 
 .change-arrow {
-    color: #667eea;
+    color: #d4af37;
     font-size: 16px;
 }
 
@@ -521,7 +540,198 @@
 
 .results-summary li {
     margin-bottom: 8px;
-    color: #a5b4fc;
+    color: #e5c04b;
+}
+
+/* ==============================================
+   RETRO TOOL CARDS
+   ============================================== */
+
+.retro-tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.retro-tool-card {
+    background: var(--bg-secondary, #1a1a1a);
+    border-radius: 8px;
+    padding: 20px;
+    border: 2px solid var(--border-color, #333);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.retro-tool-card:hover:not(.disabled) {
+    border-color: #d4af37;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+}
+
+.retro-tool-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.retro-tool-card.disabled:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.retro-tool-card .tool-icon {
+    font-size: 1.8rem;
+    margin-bottom: 8px;
+}
+
+.retro-tool-card h4 {
+    margin: 0 0 4px 0;
+    color: var(--text-primary, #fff);
+    font-size: 0.95rem;
+}
+
+.retro-tool-card .tool-timing {
+    margin: 0;
+    font-size: 0.75rem;
+    color: #d4af37;
+}
+
+.retro-tool-card .tool-desc {
+    margin: 8px 0 0 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary, #999);
+}
+
+.retro-tool-card .tool-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #d4af37;
+    color: #000;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* Tool Modal Styles */
+.retro-tool-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.retro-tool-modal-content {
+    background: var(--bg-primary, #0f0f0f);
+    border-radius: 12px;
+    border: 2px solid var(--border-color, #333);
+    max-width: 800px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.retro-tool-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-color, #333);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.retro-tool-modal-header h3 {
+    margin: 0;
+    color: var(--text-primary, #fff);
+    font-size: 1.2rem;
+}
+
+.retro-tool-modal-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #999);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.retro-tool-modal-close:hover {
+    color: var(--text-primary, #fff);
+}
+
+.retro-tool-modal-body {
+    padding: 24px;
+}
+
+.retro-tool-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color, #333);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* Tool Preview Section */
+.retro-tool-preview {
+    background: var(--bg-secondary, #1a1a1a);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-color, #333);
+}
+
+.retro-tool-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.retro-tool-preview-title {
+    color: var(--text-primary, #fff);
+    font-weight: 600;
+    margin: 0;
+}
+
+.retro-tool-preview-count {
+    color: #d4af37;
+    font-size: 0.85rem;
+}
+
+.retro-tool-preview-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.retro-tool-preview-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color, #333);
+    font-size: 0.85rem;
+}
+
+.retro-tool-preview-item:last-child {
+    border-bottom: none;
+}
+
+.retro-tool-preview-old {
+    color: var(--text-secondary, #999);
+}
+
+.retro-tool-preview-arrow {
+    color: #d4af37;
+    margin: 0 8px;
+}
+
+.retro-tool-preview-new {
+    color: var(--success-color, #22c55e);
 }
 
 /* Button States */

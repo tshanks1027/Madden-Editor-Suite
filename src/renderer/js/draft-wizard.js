@@ -151,13 +151,8 @@ function nextStep() {
       wizardState.year = parseInt(document.getElementById('draft-year').value);
       wizardState.decade = null;
 
-      // For future draft classes (2026+), restrict to variance mode only
-      if (wizardState.year >= 2026) {
-        console.log('[DraftWizard] Future draft class detected - restricting to variance mode only');
-        updateRatingModeAvailability(true); // true = isFuture
-      } else {
-        updateRatingModeAvailability(false); // false = isHistorical
-      }
+      // All years (historical and future) support all rating modes
+      updateRatingModeAvailability(false);
     } else {
       wizardState.decade = parseInt(document.getElementById('draft-decade').value);
       wizardState.year = null;
@@ -569,16 +564,26 @@ async function loadIntoEditor() {
       : `Year ${wizardState.year}`;
     const fileName = `Generated_${sourceName.replace(/\s+/g, '_')}`;
 
-    document.getElementById('draft-file-name').textContent = fileName;
-    document.getElementById('draft-file-stats').textContent =
-      `${prospects.length} prospects | ${sourceName} | Mode: ${wizardState.ratingMode}`;
+    // Update V2 UI elements
+    const v2DraftName = document.getElementById('v2DraftName');
+    const v2DraftCount = document.getElementById('v2DraftCount');
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+    if (v2DraftName) v2DraftName.textContent = fileName;
+    if (v2DraftCount) v2DraftCount.textContent = `${prospects.length} prospects | ${sourceName} | Mode: ${wizardState.ratingMode}`;
+    if (saveDraftBtn) saveDraftBtn.style.display = 'inline-flex';
 
-    // Enable buttons
-    document.getElementById('save-draft-btn').disabled = false;
-    document.getElementById('export-draft-json-btn').disabled = false;
-    document.getElementById('import-draft-csv-btn').disabled = false;
-    document.getElementById('fillFromDbDraftBtn').disabled = false;
-    document.getElementById('openDraftPlayerBrowserBtn').disabled = false;
+    // Update legacy UI elements (check existence first)
+    const draftFileName = document.getElementById('draft-file-name');
+    const draftFileStats = document.getElementById('draft-file-stats');
+    if (draftFileName) draftFileName.textContent = fileName;
+    if (draftFileStats) draftFileStats.textContent = `${prospects.length} prospects | ${sourceName} | Mode: ${wizardState.ratingMode}`;
+
+    // Enable buttons (check existence first)
+    const legacyButtons = ['save-draft-btn', 'export-draft-json-btn', 'import-draft-csv-btn', 'fillFromDbDraftBtn', 'openDraftPlayerBrowserBtn'];
+    legacyButtons.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = false;
+    });
 
     // Create grid
     window.app.createDraftGrid(prospects);
