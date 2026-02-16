@@ -25,6 +25,8 @@ import { draftClassService } from './DraftClassService';
 import { pgheLookupService } from './PGHELookupService';
 import { userDatabaseService } from './UserDatabaseService';
 import { contractService } from './ContractService';
+import { ArchetypeSyncService } from './ArchetypeSyncService';
+import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
 
 export interface RosterPlayer {
   // Basic Info
@@ -186,7 +188,12 @@ const RATING_FIELDS = [
   'PIBL', 'PRBP', 'PRBF', 'PPBP', 'PPBF', 'PLDB', 'PBRS', 'PTUP',
   'PPWM', 'PFNM', 'PBSH', 'PPUR', 'PPRC', 'PMCV', 'PZCV', 'PSPC',
   'PCIT', 'PSRR', 'PMRR', 'PDRR', 'PHTP', 'PPRS', 'PREL', 'PTAS',
-  'PTAM', 'PTAD', 'PPLA', 'PTOR', 'PKRT'
+  'PTAM', 'PTAD', 'PPLA', 'PTOR', 'PKRT',
+  'PPBS', 'PRBS',  // CRITICAL: PassBlockStrength and RunBlockStrength - needed for OVR calculation!
+  'PBSK',          // Break Sack
+  'PLTR', 'PELU', 'PLSA', 'PLSM', 'PLJM', 'PLIB', 'PLBK',  // Roster field codes
+  'PLPM', 'PFMS', 'PBSG', 'PLPU', 'PLPR', 'PLMC', 'PLZC',  // Defense roster codes
+  'PLSC', 'PLCI', 'SRRN', 'PLHT', 'PLPE', 'PLRL'           // Receiving/coverage roster codes
 ];
 
 export class RosterGeneratorService {
@@ -1188,7 +1195,10 @@ export class RosterGeneratorService {
           PYER: 2024
         } as RosterPlayer;
 
-        players.push(player);
+        // CRITICAL: Sync archetype based on player attributes
+        // This ensures PLTY matches the correct archetype for the position
+        const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, position);
+        players.push(syncedPlayer);
         playerIndex++;
       }
     }
@@ -1538,7 +1548,7 @@ export class RosterGeneratorService {
     const genericFace = this.selectGenericFaceByRace(fillerRace);
     // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
 
-    return {
+    const player = {
       firstName: firstName,
       lastName: lastName,
       position: positionName,
@@ -1628,7 +1638,7 @@ export class RosterGeneratorService {
       PCOL: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
       PHSN: Math.floor(Math.random() * 50),
       PJEN: Math.floor(Math.random() * 99) + 1,
-      PLTY: Math.floor(Math.random() * 68), // Random archetype 0-67
+      PLTY: this.getDefaultArchetype(positionName), // Default archetype for position - will be synced below
       PYRP: Math.floor(Math.random() * 3) + 1, // Years Pro: 1-3 (rookie/young players)
       PCBT: this.determineFillerPCBT(positionCode), // Body type based on position (numeric)
       PTAR: this.determineFillerPTAR(positionCode), // Body type based on position (string)
@@ -1648,6 +1658,11 @@ export class RosterGeneratorService {
       PSA1: 0, PSA2: 0, PSA3: 0, PSA4: 0, PSA5: 0, PSA6: 0,
       PSB0: 0, PSB1: 0, PSB2: 0, PSB3: 0, PSB4: 0, PSB5: 0, PSB6: 0,
     } as RosterPlayer;
+
+    // CRITICAL: Sync archetype based on player attributes
+    // This ensures PLTY matches the correct archetype for the position and attributes
+    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
+    return syncedPlayer;
   }
 
   /**
@@ -1859,7 +1874,7 @@ export class RosterGeneratorService {
     }
 
     // Map CSV field names to UPPERCASE roster editor field codes
-    return {
+    const player: any = {
       // Basic Info (use UPPERCASE field codes that app.js expects!)
       PFNA: cleanFirstName,  // First name (stripped of ‡†* markers at top of function)
       PLNA: cleanLastName,   // Last name (stripped of ‡†* markers at top of function)
@@ -1900,7 +1915,7 @@ export class RosterGeneratorService {
       PRBK: parseInt(ratings.PRBK) || 50,
       PPBK: parseInt(ratings.PPBK) || 50,
       PTAK: parseInt(ratings.PTAK) || 50,
-      PBTK: parseInt(ratings.PBTK) || 50,
+      PBKT: parseInt(ratings.PBKT) || parseInt(ratings.PBTK) || 50,  // Break Tackle - roster uses PBKT!
       PJMP: parseInt(ratings.PJMP) || 50,
       PINJ: parseInt(ratings.PINJ) || 50,
       PSTA: parseInt(ratings.PSTA) || 50,
@@ -1909,34 +1924,34 @@ export class RosterGeneratorService {
       PLTR: parseInt(ratings.PLTR) || parseInt(ratings.PTRK) || 50,  // Trucking
       PELU: parseInt(ratings.PELU) || parseInt(ratings.PCOD) || 50,  // Change of Direction
       PBCV: parseInt(ratings.PBCV) || 50,
-      PLSA: parseInt(ratings.PLSA) || parseInt(ratings.PSTF) || 50,  // Stiff Arm
-      PLSM: parseInt(ratings.PLSM) || parseInt(ratings.PSPM) || 50,  // Spin Move
-      PLJM: parseInt(ratings.PLJM) || parseInt(ratings.PJUM) || 50,  // Juke Move
-      PLIB: parseInt(ratings.PLIB) || parseInt(ratings.PIBL) || 50,  // Impact Blocking
-      PRBP: parseInt(ratings.PRBP) || 50,
-      PRBF: parseInt(ratings.PRBF) || 50,
-      PPBP: parseInt(ratings.PPBP) || 50,
-      PPBF: parseInt(ratings.PPBF) || 50,
+      PLSA: parseInt(ratings.PLSA) || parseInt(ratings.PSFA) || parseInt(ratings.PSTF) || 50,  // Stiff Arm (db: PSFA)
+      PLSM: parseInt(ratings.PLSM) || parseInt(ratings.PSPN) || parseInt(ratings.PSPM) || 50,  // Spin Move (db: PSPN)
+      PLJM: parseInt(ratings.PLJM) || parseInt(ratings.PJKM) || parseInt(ratings.PJUM) || 50,  // Juke Move (db: PJKM)
+      PLIB: parseInt(ratings.PLIB) || parseInt(ratings.PIBK) || parseInt(ratings.PIBL) || 50,  // Impact Blocking (db: PIBK)
+      PRBP: parseInt(ratings.PRBP) || parseInt(ratings.PRBK) || 50,  // Run Block Power - fallback to PRBK
+      PRBF: parseInt(ratings.PRBF) || parseInt(ratings.PRBK) || 50,  // Run Block Finesse - fallback to PRBK
+      PPBP: parseInt(ratings.PPBP) || parseInt(ratings.PPBK) || 50,  // Pass Block Power - fallback to PPBK
+      PPBF: parseInt(ratings.PPBF) || parseInt(ratings.PPBK) || 50,  // Pass Block Finesse - fallback to PPBK
       PLBK: parseInt(ratings.PLBK) || parseInt(ratings.PLDB) || 50,  // Lead Block
       PBRS: parseInt(ratings.PBRS) || 50,
       PTUP: parseInt(ratings.PTUP) || 50,
-      PLPM: parseInt(ratings.PLPM) || parseInt(ratings.PPWM) || 50,  // Power Moves
-      PFMS: parseInt(ratings.PFMS) || parseInt(ratings.PFNM) || 50,  // Finesse Moves
-      PBSG: parseInt(ratings.PBSG) || parseInt(ratings.PBSH) || 50,  // Block Shedding
+      PLPM: parseInt(ratings.PLPM) || parseInt(ratings.PPWM) || 50,  // Power Moves (db: PPWM)
+      PFMS: parseInt(ratings.PFMS) || parseInt(ratings.PFMV) || parseInt(ratings.PFNM) || 50,  // Finesse Moves (db: PFMV)
+      PBSG: parseInt(ratings.PBSG) || parseInt(ratings.PBSH) || 50,  // Block Shedding (db: PBSH)
       PLPU: parseInt(ratings.PLPU) || parseInt(ratings.PPUR) || 50,  // Pursuit
-      PLPR: parseInt(ratings.PLPR) || parseInt(ratings.PPRC) || 50,  // Play Recognition
-      PLMC: parseInt(ratings.PLMC) || parseInt(ratings.PMCV) || 50,  // Man Coverage
-      PLZC: parseInt(ratings.PLZC) || parseInt(ratings.PZCV) || 50,  // Zone Coverage
-      PLSC: parseInt(ratings.PLSC) || parseInt(ratings.PSPC) || 50,  // Spectacular Catch
-      PLCI: parseInt(ratings.PLCI) || parseInt(ratings.PCIT) || 50,  // Catch in Traffic
-      SRRN: parseInt(ratings.SRRN) || parseInt(ratings.PSRR) || 50,  // Short Route Running
+      PLPR: parseInt(ratings.PLPR) || parseInt(ratings.PPRC) || 50,  // Play Recognition (db: PPRC)
+      PLMC: parseInt(ratings.PLMC) || parseInt(ratings.PMCV) || 50,  // Man Coverage (db: PMCV)
+      PLZC: parseInt(ratings.PLZC) || parseInt(ratings.PZCV) || 50,  // Zone Coverage (db: PZCV)
+      PLSC: parseInt(ratings.PLSC) || parseInt(ratings.PSPC) || 50,  // Spectacular Catch (db: PSPC)
+      PLCI: parseInt(ratings.PLCI) || parseInt(ratings.PCIT) || 50,  // Catch in Traffic (db: PCIT)
+      SRRN: parseInt(ratings.SRRN) || parseInt(ratings.PSRR) || 50,  // Short Route Running (db: PSRR)
       PMRR: parseInt(ratings.PMRR) || 50,
       PDRR: parseInt(ratings.PDRR) || 50,
-      PLHT: parseInt(ratings.PLHT) || parseInt(ratings.PHTP) || 50,  // Hit Power
-      PLPE: parseInt(ratings.PLPE) || parseInt(ratings.PPRS) || 50,  // Press
-      PLRL: parseInt(ratings.PLRL) || parseInt(ratings.PREL) || 50,  // Release
-      PPBS: parseInt(ratings.PPBS) || 50,  // Pass Block Strength (new)
-      PRBS: parseInt(ratings.PRBS) || 50,  // Run Block Strength (new)
+      PLHT: parseInt(ratings.PLHT) || parseInt(ratings.PHIT) || parseInt(ratings.PHTP) || 50,  // Hit Power (db: PHIT)
+      PLPE: parseInt(ratings.PLPE) || parseInt(ratings.PPRS) || 50,  // Press (db: PPRS)
+      PLRL: parseInt(ratings.PLRL) || parseInt(ratings.PREL) || 50,  // Release (db: PREL)
+      PPBS: parseInt(ratings.PPBS) || parseInt(ratings.PPBP) || parseInt(ratings.PPBK) || 50,  // Pass Block Strength - map from PPBP, fallback to PPBK
+      PRBS: parseInt(ratings.PRBS) || parseInt(ratings.PRBP) || parseInt(ratings.PRBK) || 50,  // Run Block Strength - map from PRBP, fallback to PRBK
       PTAS: parseInt(ratings.PTAS) || 50,
       PTAM: parseInt(ratings.PTAM) || 50,
       PTAD: parseInt(ratings.PTAD) || 50,
@@ -1946,7 +1961,7 @@ export class RosterGeneratorService {
       PBSK: parseInt(ratings.PBSK) || 50,  // Break Sack
 
       // Metadata
-      PLTY: parseInt(archetype) || 0,  // Archetype ID (PLTY, not PTAR!)
+      PLTY: parseInt(archetype) || 0,  // Archetype ID - PLTY is what franchise reads!
       PTAR: this.determineBodyType(csvRow),  // Body type (PTAR is actually body type, not archetype!)
       PYRP: yearsPro,  // Years pro - calculated from draft year
       PROL: this.determineDevTrait(parseInt(ratings.POVR) || 50),  // Dev trait (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
@@ -1964,6 +1979,82 @@ export class RosterGeneratorService {
       _race: csvRace,  // Race value (1-7) for BLBM GENR/SKNT assignment
       _isHOF: this.hofLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`) || false  // Hall of Fame status
     };
+
+    // Sync archetype based on player attributes - ensures PLTY matches what Madden will auto-assign
+    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
+
+    // CRITICAL: Recalculate POVR using the correct M26 formula (sum of weights / 11)
+    // This ensures roster POVR matches what Madden calculates during franchise import
+    if (ovrWeightsCalculator.isInitialized()) {
+      const attributes: Record<string, number> = {
+        PSPD: syncedPlayer.PSPD,
+        PACC: syncedPlayer.PACC,
+        PAGI: syncedPlayer.PAGI,
+        PSTR: syncedPlayer.PSTR,
+        PAWR: syncedPlayer.PAWR,
+        PCAR: syncedPlayer.PCAR,
+        PBCV: syncedPlayer.PBCV,
+        PBKT: syncedPlayer.PBKT,
+        PLTR: syncedPlayer.PLTR,
+        PLSA: syncedPlayer.PLSA,
+        PLSM: syncedPlayer.PLSM,
+        PLJM: syncedPlayer.PLJM,
+        PCTH: syncedPlayer.PCTH,
+        PLCI: syncedPlayer.PLCI,
+        PLSC: syncedPlayer.PLSC,
+        PELU: syncedPlayer.PELU,
+        PJMP: syncedPlayer.PJMP,
+        PSTA: syncedPlayer.PSTA,
+        PTGH: syncedPlayer.PTGH,
+        PINJ: syncedPlayer.PINJ,
+        SRRN: syncedPlayer.SRRN,
+        PMRR: syncedPlayer.PMRR,
+        PDRR: syncedPlayer.PDRR,
+        PTHP: syncedPlayer.PTHP,
+        PTAS: syncedPlayer.PTAS,
+        PTAM: syncedPlayer.PTAM,
+        PTAD: syncedPlayer.PTAD,
+        PTOR: syncedPlayer.PTOR,
+        PTUP: syncedPlayer.PTUP,
+        PPLA: syncedPlayer.PPLA,
+        PBSK: syncedPlayer.PBSK,
+        PBSG: syncedPlayer.PBSG,
+        PLPM: syncedPlayer.PLPM,
+        PFMS: syncedPlayer.PFMS,
+        PTAK: syncedPlayer.PTAK,
+        PLHT: syncedPlayer.PLHT,
+        PLPU: syncedPlayer.PLPU,
+        PLPR: syncedPlayer.PLPR,
+        PLMC: syncedPlayer.PLMC,
+        PLZC: syncedPlayer.PLZC,
+        PLPE: syncedPlayer.PLPE,
+        PPBK: syncedPlayer.PPBK,
+        PPBS: syncedPlayer.PPBS,
+        PPBF: syncedPlayer.PPBF,
+        PRBK: syncedPlayer.PRBK,
+        PRBS: syncedPlayer.PRBS,
+        PRBF: syncedPlayer.PRBF,
+        PLIB: syncedPlayer.PLIB,
+        PLBK: syncedPlayer.PLBK,
+        PKPW: syncedPlayer.PKPW,
+        PKAC: syncedPlayer.PKAC,
+        PLRL: syncedPlayer.PLRL,
+        PKRT: syncedPlayer.PKRT,
+      };
+
+      // Pass PLTY (numeric archetype ID) to calculator for proper conversion
+      const calculatedOvr = ovrWeightsCalculator.calculateOVR(
+        attributes,
+        positionName,
+        syncedPlayer.PLTY, // Pass the archetype ID for proper conversion
+        false // isDraftClass = false means use divisor 11 for roster/franchise
+      );
+
+      // Floor of 40 for generated players (quality control)
+      syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+    }
+
+    return syncedPlayer;
   }
 
   /**
@@ -2071,7 +2162,7 @@ export class RosterGeneratorService {
     const commId = dbRow.maddenCommid ? parseInt(dbRow.maddenCommid) : 0;
 
     // Map to roster format
-    return {
+    const player: any = {
       // Basic Info
       PFNA: cleanFirstName,
       PLNA: cleanLastName,
@@ -2111,7 +2202,7 @@ export class RosterGeneratorService {
       PRBK: ratings.PRBK || 50,
       PPBK: ratings.PPBK || 50,
       PTAK: ratings.PTAK || 50,
-      PBTK: ratings.PBTK || 50,
+      PBKT: ratings.PBKT || ratings.PBTK || 50,  // Break Tackle - roster uses PBKT!
       PJMP: ratings.PJMP || 50,
       PINJ: ratings.PINJ || 50,
       PSTA: ratings.PSTA || 50,
@@ -2119,34 +2210,34 @@ export class RosterGeneratorService {
       PLTR: ratings.PLTR || ratings.PTRK || 50,
       PELU: ratings.PELU || ratings.PCOD || 50,
       PBCV: ratings.PBCV || 50,
-      PLSA: ratings.PLSA || ratings.PSTF || 50,
-      PLSM: ratings.PLSM || ratings.PSPM || 50,
-      PLJM: ratings.PLJM || ratings.PJUM || 50,
-      PLIB: ratings.PLIB || ratings.PIBL || 50,
-      PRBP: ratings.PRBP || 50,
-      PRBF: ratings.PRBF || 50,
-      PPBP: ratings.PPBP || 50,
-      PPBF: ratings.PPBF || 50,
+      PLSA: ratings.PLSA || ratings.PSFA || ratings.PSTF || 50,  // Stiff Arm (db: PSFA)
+      PLSM: ratings.PLSM || ratings.PSPN || ratings.PSPM || 50,  // Spin Move (db: PSPN)
+      PLJM: ratings.PLJM || ratings.PJKM || ratings.PJUM || 50,  // Juke Move (db: PJKM)
+      PLIB: ratings.PLIB || ratings.PIBK || ratings.PIBL || 50,  // Impact Blocking (db: PIBK)
+      PRBP: ratings.PRBP || ratings.PRBK || 50,  // Run Block Power - fallback to PRBK
+      PRBF: ratings.PRBF || ratings.PRBK || 50,  // Run Block Finesse - fallback to PRBK
+      PPBP: ratings.PPBP || ratings.PPBK || 50,  // Pass Block Power - fallback to PPBK
+      PPBF: ratings.PPBF || ratings.PPBK || 50,  // Pass Block Finesse - fallback to PPBK
       PLBK: ratings.PLBK || ratings.PLDB || 50,
       PBRS: ratings.PBRS || 50,
       PTUP: ratings.PTUP || 50,
-      PLPM: ratings.PLPM || ratings.PPWM || 50,
-      PFMS: ratings.PFMS || ratings.PFNM || 50,
-      PBSG: ratings.PBSG || ratings.PBSH || 50,
-      PLPU: ratings.PLPU || ratings.PPUR || 50,
-      PLPR: ratings.PLPR || ratings.PPRC || 50,
-      PLMC: ratings.PLMC || ratings.PMCV || 50,
-      PLZC: ratings.PLZC || ratings.PZCV || 50,
-      PLSC: ratings.PLSC || ratings.PSPC || 50,
-      PLCI: ratings.PLCI || ratings.PCIT || 50,
-      SRRN: ratings.SRRN || ratings.PSRR || 50,
+      PLPM: ratings.PLPM || ratings.PPWM || 50,  // Power Moves (db: PPWM)
+      PFMS: ratings.PFMS || ratings.PFMV || ratings.PFNM || 50,  // Finesse Moves (db: PFMV)
+      PBSG: ratings.PBSG || ratings.PBSH || 50,  // Block Shedding (db: PBSH)
+      PLPU: ratings.PLPU || ratings.PPUR || 50,  // Pursuit
+      PLPR: ratings.PLPR || ratings.PPRC || 50,  // Play Recognition (db: PPRC)
+      PLMC: ratings.PLMC || ratings.PMCV || 50,  // Man Coverage (db: PMCV)
+      PLZC: ratings.PLZC || ratings.PZCV || 50,  // Zone Coverage (db: PZCV)
+      PLSC: ratings.PLSC || ratings.PSPC || 50,  // Spectacular Catch (db: PSPC)
+      PLCI: ratings.PLCI || ratings.PCIT || 50,  // Catch in Traffic (db: PCIT)
+      SRRN: ratings.SRRN || ratings.PSRR || 50,  // Short Route Running (db: PSRR)
       PMRR: ratings.PMRR || 50,
       PDRR: ratings.PDRR || 50,
-      PLHT: ratings.PLHT || ratings.PHTP || 50,
-      PLPE: ratings.PLPE || ratings.PPRS || 50,
-      PLRL: ratings.PLRL || ratings.PREL || 50,
-      PPBS: ratings.PPBS || 50,
-      PRBS: ratings.PRBS || 50,
+      PLHT: ratings.PLHT || ratings.PHIT || ratings.PHTP || 50,  // Hit Power (db: PHIT)
+      PLPE: ratings.PLPE || ratings.PPRS || 50,  // Press (db: PPRS)
+      PLRL: ratings.PLRL || ratings.PREL || 50,  // Release (db: PREL)
+      PPBS: ratings.PPBS || ratings.PPBP || ratings.PPBK || 50,  // Map from PPBP, fallback to PPBK
+      PRBS: ratings.PRBS || ratings.PRBP || ratings.PRBK || 50,  // Map from PRBP, fallback to PRBK
       PTAS: ratings.PTAS || 50,
       PTAM: ratings.PTAM || 50,
       PTAD: ratings.PTAD || 50,
@@ -2156,7 +2247,7 @@ export class RosterGeneratorService {
       PBSK: ratings.PBSK || 50,
 
       // Metadata
-      PLTY: parseInt(archetype) || 0,
+      PLTY: parseInt(archetype) || 0,  // Archetype ID - PLTY is what franchise reads!
       PTAR: this.determineBodyTypeFromDb(dbRow),
       PYRP: yearsPro,
       PROL: this.determineDevTrait(ratings.POVR || 50),
@@ -2172,6 +2263,85 @@ export class RosterGeneratorService {
       _race: dbRace,
       _isHOF: dbRow.isHof || false
     };
+
+    // Sync archetype based on player attributes - ensures PLTY matches what Madden will auto-assign
+    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, dbRow.position || 'HB');
+
+    // CRITICAL: Recalculate POVR using the correct M26 formula (sum of weights / 11)
+    // This ensures roster POVR matches what Madden calculates during franchise import
+    if (ovrWeightsCalculator.isInitialized()) {
+      // Map roster field codes to OVRWeightsCalculator attribute names
+      const attributes: Record<string, number> = {
+        PSPD: syncedPlayer.PSPD,
+        PACC: syncedPlayer.PACC,
+        PAGI: syncedPlayer.PAGI,
+        PSTR: syncedPlayer.PSTR,
+        PAWR: syncedPlayer.PAWR,
+        PCAR: syncedPlayer.PCAR,
+        PBCV: syncedPlayer.PBCV,
+        PBKT: syncedPlayer.PBKT,
+        PLTR: syncedPlayer.PLTR,
+        PLSA: syncedPlayer.PLSA,
+        PLSM: syncedPlayer.PLSM,
+        PLJM: syncedPlayer.PLJM,
+        PCTH: syncedPlayer.PCTH,
+        PLCI: syncedPlayer.PLCI,
+        PLSC: syncedPlayer.PLSC,
+        PELU: syncedPlayer.PELU,
+        PJMP: syncedPlayer.PJMP,
+        PSTA: syncedPlayer.PSTA,
+        PTGH: syncedPlayer.PTGH,
+        PINJ: syncedPlayer.PINJ,
+        SRRN: syncedPlayer.SRRN,
+        PMRR: syncedPlayer.PMRR,
+        PDRR: syncedPlayer.PDRR,
+        PTHP: syncedPlayer.PTHP,
+        PTAS: syncedPlayer.PTAS,
+        PTAM: syncedPlayer.PTAM,
+        PTAD: syncedPlayer.PTAD,
+        PTOR: syncedPlayer.PTOR,
+        PTUP: syncedPlayer.PTUP,
+        PPLA: syncedPlayer.PPLA,
+        PBSK: syncedPlayer.PBSK,
+        PBSG: syncedPlayer.PBSG,
+        PLPM: syncedPlayer.PLPM,
+        PFMS: syncedPlayer.PFMS,
+        PTAK: syncedPlayer.PTAK,
+        PLHT: syncedPlayer.PLHT,
+        PLPU: syncedPlayer.PLPU,
+        PLPR: syncedPlayer.PLPR,
+        PLMC: syncedPlayer.PLMC,
+        PLZC: syncedPlayer.PLZC,
+        PLPE: syncedPlayer.PLPE,
+        PPBK: syncedPlayer.PPBK,
+        PPBS: syncedPlayer.PPBS,
+        PPBF: syncedPlayer.PPBF,
+        PRBK: syncedPlayer.PRBK,
+        PRBS: syncedPlayer.PRBS,
+        PRBF: syncedPlayer.PRBF,
+        PLIB: syncedPlayer.PLIB,
+        PLBK: syncedPlayer.PLBK,
+        PKPW: syncedPlayer.PKPW,
+        PKAC: syncedPlayer.PKAC,
+        PLRL: syncedPlayer.PLRL,
+        PKRT: syncedPlayer.PKRT,
+      };
+
+      // Pass PLTY (numeric archetype ID) to calculator for proper conversion
+      const archetypeId = syncedPlayer.PLTY;
+      const calculatedOvr = ovrWeightsCalculator.calculateOVR(
+        attributes,
+        dbRow.position || 'HB',
+        archetypeId, // Pass the archetype ID for proper conversion
+        false // isDraftClass = false means use divisor 11 for roster/franchise
+      );
+
+      // Update POVR with calculated value (clamped to 40-99)
+      // Floor of 40 for generated players (quality control)
+      syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+    }
+
+    return syncedPlayer;
   }
 
   /**

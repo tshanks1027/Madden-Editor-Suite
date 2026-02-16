@@ -16,6 +16,7 @@ import {
 } from '../services/UserDatabaseService';
 import { lookupService } from '../services/lookup-service';
 import { ArchetypeService } from '../services/utils/archetypeService';
+import { ArchetypeSyncService } from '../services/ArchetypeSyncService';
 import {
   draftClassDatabaseService,
   PushAnalysisResult,
@@ -31,6 +32,7 @@ import {
 import Database from 'better-sqlite3';
 import { app } from 'electron';
 import * as path from 'path';
+import { ovrWeightsCalculator } from '../services/rating-modes/OVRWeightsCalculator';
 
 // =============================================
 // SHARED HELPER: Get merged player PID
@@ -2302,7 +2304,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PYRP: yearsPro,
       TGID: 1009, // Free Agent team by default
       PLPL: pid > 0 && pam && !pam.startsWith('gen_') ? 100 : 0, // 100=real face, 0=generic
-      PLTY: 0, // Will be set below
+      PLTY: 0, // Archetype - will be set below (PLTY is what franchise reads!)
 
       // PGHE face picker index (if user assigned specific generic face in database)
       ...(rosterPgheIndex !== undefined && { PGHE: rosterPgheIndex }),
@@ -2403,7 +2405,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
           archetypeId = isNaN(parsed) ? defaultArchetype : parsed;
         }
       }
-      rosterPlayer.PLTY = archetypeId;
+      rosterPlayer.PLTY = archetypeId;  // PLTY is what franchise reads!
 
       // Parse dev trait from season data
       if (seasonData.devTrait !== undefined && seasonData.devTrait !== null) {
@@ -2431,7 +2433,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       ratingFields.forEach(f => rosterPlayer[f] = defaultRating);
       rosterPlayer.PSTA = 85; // Stamina
       rosterPlayer.PINJ = 85; // Injury
-      rosterPlayer.PLTY = defaultArchetype;
+      rosterPlayer.PLTY = defaultArchetype;  // PLTY is what franchise reads!
     }
 
     // Set ARCHETYPE display name from PLTY ID
@@ -2455,9 +2457,21 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       availableYears = [year];
     }
 
+    // Sync archetype based on player attributes - ensures PLTY matches what Madden will auto-assign
+    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(rosterPlayer, positionName);
+    syncedPlayer.ARCHETYPE = ArchetypeService.getArchetypeName(syncedPlayer.PLTY, positionName);
+
+    // Recalculate POVR using proper Madden formula to ensure it matches game calculation
+    if (ovrWeightsCalculator.isInitialized()) {
+      const calculatedOvr = ovrWeightsCalculator.calculateOVR(syncedPlayer, positionName, syncedPlayer.PLTY);
+      // Floor of 40 for database players (quality control)
+      syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+      console.log(`[database-handlers] Roster POVR recalculated via OVRWeightsCalculator: ${syncedPlayer.POVR}`);
+    }
+
     return {
       success: true,
-      player: rosterPlayer,
+      player: syncedPlayer,
       playerName: `${player.firstName} ${player.lastName}`,
       availableYears,
       selectedYear: year
@@ -2959,6 +2973,48 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
 
     // Calculate suggested draft slot based on historical data
     const suggestedSlot = calculateDraftSlot(draftRound, draftPick);
+
+    // Sync archetype based on player attributes - ensures archetype matches what Madden will auto-assign
+    const syncedProspect = ArchetypeSyncService.syncArchetypeFromAttributes(prospect, prospect.positionName || 'HB');
+    syncedProspect.archetypeName = ArchetypeService.getArchetypeName(syncedProspect.archetype, prospect.positionName || 'HB');
+
+    // Recalculate overall using proper Madden formula to ensure it matches game calculation
+    if (ovrWeightsCalculator.isInitialized()) {
+      // Convert prospect human-readable names to Madden field codes for OVR calculation
+      const ovrAttributes: Record<string, number> = {
+        PSPD: syncedProspect.speed || 70, PACC: syncedProspect.acceleration || 70,
+        PAGI: syncedProspect.agility || 70, PSTR: syncedProspect.strength || 70,
+        PAWR: syncedProspect.awareness || 70, PJMP: syncedProspect.jumping || 70,
+        PSTA: syncedProspect.stamina || 85, PELU: syncedProspect.changeOfDirection || 70,
+        PTGH: syncedProspect.toughness || 70, PINJ: syncedProspect.injury || 85,
+        PCAR: syncedProspect.carrying || 70, PBCV: syncedProspect.ballCarrierVision || 70,
+        PBKT: syncedProspect.breakTackle || 70, PLTR: syncedProspect.trucking || 70,
+        PLSA: syncedProspect.stiffArm || 70, PLSM: syncedProspect.spinMove || 70,
+        PLJM: syncedProspect.jukeMove || 70, PCTH: syncedProspect.catching || 70,
+        PLCI: syncedProspect.catchInTraffic || 70, PLSC: syncedProspect.spectacularCatch || 70,
+        SRRN: syncedProspect.shortRouteRunning || 70, PMRR: syncedProspect.mediumRouteRunning || 70,
+        PDRR: syncedProspect.deepRouteRunning || 70, PLRL: syncedProspect.release || 70,
+        PTHP: syncedProspect.throwPower || 70, PTAS: syncedProspect.throwAccuracyShort || 70,
+        PTAM: syncedProspect.throwAccuracyMid || 70, PTAD: syncedProspect.throwAccuracyDeep || 70,
+        PTOR: syncedProspect.throwOnTheRun || 70, PTUP: syncedProspect.throwUnderPressure || 70,
+        PPLA: syncedProspect.playAction || 70, PBSK: syncedProspect.breakSack || 70,
+        PPBK: syncedProspect.passBlock || 70, PPBS: syncedProspect.passBlockPower || 70,
+        PPBF: syncedProspect.passBlockFinesse || 70, PRBK: syncedProspect.runBlock || 70,
+        PRBS: syncedProspect.runBlockPower || 70, PRBF: syncedProspect.runBlockFinesse || 70,
+        PLBK: syncedProspect.leadBlock || 70, PLIB: syncedProspect.impactBlocking || 70,
+        PTAK: syncedProspect.tackle || 70, PLHT: syncedProspect.hitPower || 70,
+        PLPM: syncedProspect.powerMoves || 70, PFMS: syncedProspect.finesseMoves || 70,
+        PBSG: syncedProspect.blockShedding || 70, PLPU: syncedProspect.pursuit || 70,
+        PLPR: syncedProspect.playRecognition || 70, PLMC: syncedProspect.manCoverage || 70,
+        PLZC: syncedProspect.zoneCoverage || 70, PLPE: syncedProspect.pressCoverage || 70,
+        PKPW: syncedProspect.kickPower || 70, PKAC: syncedProspect.kickAccuracy || 70,
+        PKRT: syncedProspect.kickReturn || 70
+      };
+      const calculatedOvr = ovrWeightsCalculator.calculateOVR(ovrAttributes, prospect.positionName || 'HB', syncedProspect.archetype, true);
+      // Floor of 40 for database players (quality control)
+      syncedProspect.overall = Math.max(40, Math.min(99, calculatedOvr));
+      console.log(`[database-handlers] Draft OVR recalculated via OVRWeightsCalculator: ${syncedProspect.overall}`);
+    }
 
     // Debug log what we're returning
     console.log(`[database-handlers] FINAL prospect data for ${player.firstName} ${player.lastName}:`);
@@ -4204,6 +4260,14 @@ ipcMain.handle('database:calculate-rating-from-stats', async (event, stats: any,
       // Generic fallback - just calculate a basic overall
       const games = stats.games || 1;
       ratings.POVR = Math.min(99, Math.max(40, Math.round(60 + (stats.games_started || 0) / games * 15)));
+    }
+
+    // Use OVRWeightsCalculator for proper POVR calculation (matches game formula)
+    if (ovrWeightsCalculator.isInitialized()) {
+      const calculatedOvr = ovrWeightsCalculator.calculateOVR(ratings, position);
+      // Floor of 40 for database-generated players (quality control)
+      ratings.POVR = Math.max(40, Math.min(99, calculatedOvr));
+      console.log(`[database-handlers] OVR recalculated via OVRWeightsCalculator: ${ratings.POVR}`);
     }
 
     console.log(`[database-handlers] Calculated ratings:`, ratings);

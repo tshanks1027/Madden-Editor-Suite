@@ -10,6 +10,24 @@ import {
     BODY_TYPE_NAMES
 } from '../data/field-definitions.js';
 
+// Rating fields that affect OVR calculation
+const OVR_RATING_FIELDS = new Set([
+    'PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
+    'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
+    'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
+    'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
+    'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
+    'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
+    'PSTA', 'PINJ', 'PTGH'
+]);
+
+// Position ID to name mapping for OVR calculation
+const POSITION_MAP = {
+    0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
+    8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike',
+    15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+};
+
 /**
  * Create portrait cell renderer for AG-Grid
  */
@@ -237,13 +255,20 @@ export function createRosterGrid(container, players, columnDefs, app) {
             }
             // ========== END BODY TYPE / WEIGHT LINKING ==========
 
-            // Handle OVR changes - prompt to adjust ratings
+            // ========== BIDIRECTIONAL OVR SYNC ==========
+            // If a rating field changed, recalculate OVR automatically
+            if (OVR_RATING_FIELDS.has(fieldName)) {
+                console.log(`[AG-Grid] Rating field ${fieldName} changed, recalculating OVR...`);
+                recalculateOVRFromRatings(event.node, player, app);
+            }
+
+            // If OVR changed directly, adjust ratings automatically to match
             if (fieldName === 'POVR') {
                 console.log('[AG-Grid] POVR field detected, processing OVR change...');
                 const newOVR = parseInt(event.newValue);
-                // If source is 'ovrAdjustment', skip (we're applying adjustments)
-                if (event.source === 'ovrAdjustment') {
-                    console.log('[AG-Grid] Skipping OVR dialog - source is ovrAdjustment');
+                // If source is 'ovrRecalc' or 'ovrAdjustment', skip (we're applying adjustments)
+                if (event.source === 'ovrAdjustment' || event.source === 'ovrRecalc') {
+                    console.log('[AG-Grid] Skipping OVR adjustment - source is internal');
                     return;
                 }
                 // Get old value - try event.oldValue first, fallback to stored value
@@ -256,8 +281,8 @@ export function createRosterGrid(container, players, columnDefs, app) {
                 console.log('[AG-Grid] OVR change - old:', oldOVR, 'new:', newOVR);
                 if (!isNaN(newOVR) && newOVR >= 0 && newOVR <= 99) {
                     if (isNaN(oldOVR) || oldOVR !== newOVR) {
-                        console.log('[AG-Grid] Calling handleAGGridOVRChange');
-                        handleAGGridOVRChange(event.node, event.data, oldOVR || 0, newOVR, app);
+                        console.log('[AG-Grid] Auto-adjusting ratings for new OVR target');
+                        autoAdjustRatingsForOVR(event.node, event.data, oldOVR || 0, newOVR, app);
                     } else {
                         console.log('[AG-Grid] OVR unchanged (old === new), skipping');
                     }
@@ -265,6 +290,7 @@ export function createRosterGrid(container, players, columnDefs, app) {
                     console.log('[AG-Grid] Invalid newOVR:', newOVR, '- must be 0-99');
                 }
             }
+            // ========== END BIDIRECTIONAL OVR SYNC ==========
         },
 
         onRowSelected: (event) => {
@@ -350,7 +376,131 @@ export function createRosterGrid(container, players, columnDefs, app) {
 }
 
 /**
- * Handle OVR change in AG-Grid - prompt user to adjust ratings
+ * Recalculate OVR when rating fields change
+ * Called automatically when any OVR-affecting rating field is modified
+ * @param {Object} node - AG-Grid row node
+ * @param {Object} player - Player data object
+ * @param {Object} app - App reference for updating data
+ */
+async function recalculateOVRFromRatings(node, player, app) {
+    const position = POSITION_MAP[player.PPOS] || 'QB';
+    const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'Unknown Player';
+
+    console.log(`[AG-Grid OVR] Recalculating OVR for ${playerName} (${position})`);
+
+    // Build attributes object from the player
+    const attributes = {};
+    for (const field of OVR_RATING_FIELDS) {
+        if (player[field] !== undefined) {
+            attributes[field] = parseInt(player[field]) || 50;
+        }
+    }
+
+    // Get archetype (PLTY is what franchise reads)
+    const archetype = player.PLTY !== undefined ? player.PLTY : undefined;
+
+    try {
+        // Calculate new OVR using backend
+        const newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, archetype);
+        // Game uses floor of 12, not 40
+        const clampedOVR = Math.max(12, Math.min(99, newOVR));
+        const oldOVR = player.POVR;
+
+        if (clampedOVR !== oldOVR) {
+            console.log(`[AG-Grid OVR] ${playerName}: OVR ${oldOVR} → ${clampedOVR}`);
+
+            // Update player data
+            player.POVR = clampedOVR;
+
+            // Update app.players
+            const rowIndex = node.rowIndex;
+            if (app.players[rowIndex]) {
+                app.players[rowIndex].POVR = clampedOVR;
+            }
+
+            // Refresh the OVR cell (use setDataValue with source to prevent loop)
+            node.setDataValue('POVR', clampedOVR, 'ovrRecalc');
+
+            // Mark as having unsaved changes
+            app.hasUnsavedChanges = true;
+            app.updateSaveButton();
+        }
+    } catch (error) {
+        console.error('[AG-Grid OVR] Error recalculating OVR:', error);
+    }
+}
+
+/**
+ * Automatically adjust ratings when OVR is changed directly
+ * Called automatically when POVR field is modified by user
+ * @param {Object} node - AG-Grid row node
+ * @param {Object} player - Player data object
+ * @param {number} oldOVR - Previous OVR value
+ * @param {number} newOVR - New target OVR
+ * @param {Object} app - App reference for updating data
+ */
+async function autoAdjustRatingsForOVR(node, player, oldOVR, newOVR, app) {
+    const position = POSITION_MAP[player.PPOS] || 'QB';
+    const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'Unknown Player';
+
+    console.log(`[AG-Grid OVR] Auto-adjusting ratings for ${playerName}: ${oldOVR} → ${newOVR}`);
+
+    // Build attributes object from the player
+    const attributes = {};
+    for (const field of OVR_RATING_FIELDS) {
+        if (player[field] !== undefined) {
+            attributes[field] = parseInt(player[field]) || 50;
+        }
+    }
+
+    // Get archetype (PLTY is what franchise reads)
+    const archetype = player.PLTY !== undefined ? player.PLTY : undefined;
+
+    try {
+        // Call the backend to calculate adjustments
+        const result = await window.electronAPI.rating.calculateOVRAdjustments(
+            attributes, newOVR, position, archetype
+        );
+
+        if (!result || Object.keys(result.adjustments).length === 0) {
+            console.log('[AG-Grid OVR] No adjustments needed or target already achieved');
+            return;
+        }
+
+        console.log(`[AG-Grid OVR] Applying ${Object.keys(result.adjustments).length} rating adjustments to achieve OVR ${result.newOVR}`);
+
+        // Apply all adjustments automatically
+        const rowIndex = node.rowIndex;
+        const changes = [];
+
+        for (const [fieldCode, adj] of Object.entries(result.adjustments)) {
+            // Update player data
+            player[fieldCode] = adj.suggested;
+
+            // Update grid cell
+            node.setDataValue(fieldCode, adj.suggested, 'ovrAdjustment');
+
+            // Update app.players
+            if (app.players[rowIndex]) {
+                app.players[rowIndex][fieldCode] = adj.suggested;
+            }
+
+            changes.push(`${adj.name}: ${adj.current} → ${adj.suggested}`);
+        }
+
+        console.log(`[AG-Grid OVR] Applied changes: ${changes.join(', ')}`);
+
+        // Mark as having unsaved changes
+        app.hasUnsavedChanges = true;
+        app.updateSaveButton();
+
+    } catch (error) {
+        console.error('[AG-Grid OVR] Error calculating adjustments:', error);
+    }
+}
+
+/**
+ * Handle OVR change in AG-Grid - prompt user to adjust ratings (LEGACY - kept for compatibility)
  * @param {Object} node - AG-Grid row node
  * @param {Object} player - Player data object
  * @param {number} oldOVR - Previous OVR value
@@ -358,57 +508,8 @@ export function createRosterGrid(container, players, columnDefs, app) {
  * @param {Object} app - App reference for updating data
  */
 async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app) {
-    console.log('[AG-Grid OVR] handleAGGridOVRChange called:', oldOVR, '->', newOVR);
-
-    // Get position name from position ID (M26 codes)
-    const positionMap = {
-        0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
-        8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike',
-        15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
-    };
-    const position = positionMap[player.PPOS] || 'QB';
-    const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'Unknown Player';
-
-    console.log('[AG-Grid OVR] Position:', position, 'Player:', playerName);
-
-    // Build attributes object from the player
-    const attributes = {};
-    const ratingFields = ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
-        'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
-        'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
-        'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
-        'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
-        'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
-        'PSTA', 'PINJ', 'PTGH'];
-
-    for (const field of ratingFields) {
-        if (player[field] !== undefined) {
-            attributes[field] = parseInt(player[field]) || 50;
-        }
-    }
-
-    // Get archetype if available
-    const archetype = player.PLTY !== undefined ? player.PLTY : undefined;
-
-    try {
-        // Call the backend to calculate adjustments
-        console.log('[AG-Grid OVR] Calling calculateOVRAdjustments...');
-        const result = await window.electronAPI.rating.calculateOVRAdjustments(
-            attributes, newOVR, position, archetype
-        );
-        console.log('[AG-Grid OVR] Result:', result);
-
-        if (!result || Object.keys(result.adjustments).length === 0) {
-            console.log('[AG-Grid OVR] No adjustments calculated');
-            return;
-        }
-
-        // Show the adjustment dialog
-        showAGGridOVRAdjustmentDialog(node, player, playerName, oldOVR, newOVR, result, app);
-
-    } catch (error) {
-        console.error('[AG-Grid OVR] Error calculating adjustments:', error);
-    }
+    // Redirect to automatic adjustment
+    return autoAdjustRatingsForOVR(node, player, oldOVR, newOVR, app);
 }
 
 /**

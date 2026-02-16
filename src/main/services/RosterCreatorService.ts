@@ -22,6 +22,7 @@ import { generateRandomRoster, RandomPlayer } from '../lib/roster/RandomPlayerGe
 import { scraperDebugLogger } from '../utils/DebugLogger';
 import { rosterGeneratorService } from './RosterGeneratorService';
 import { playerDataService, RookieStats } from './generator/PlayerDataService';
+import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
 import { app } from 'electron';
 import Papa from 'papaparse';
 import * as fs from 'fs';
@@ -618,6 +619,34 @@ export class RosterCreatorService {
       PDEV: this.mapDevTraitToId(stats.devTrait || 'Normal'),
     };
 
+    // CRITICAL: Recalculate POVR using the official formula
+    // This ensures roster POVR matches what Madden expects
+    if (ovrWeightsCalculator.isInitialized()) {
+      const attributes: Record<string, number> = {
+        PSPD: rosterPlayer.PSPD, PACC: rosterPlayer.PACC, PAGI: rosterPlayer.PAGI,
+        PSTR: rosterPlayer.PSTR, PAWR: rosterPlayer.PAWR, PCAR: rosterPlayer.PCAR,
+        PBCV: rosterPlayer.PBCV, PBKT: rosterPlayer.PBTK, PLTR: rosterPlayer.PTRK,
+        PLSA: rosterPlayer.PSTF, PLSM: rosterPlayer.PSPM, PLJM: rosterPlayer.PJUM,
+        PCTH: rosterPlayer.PCTH, PLCI: rosterPlayer.PCIT, PLSC: rosterPlayer.PSPC,
+        PELU: rosterPlayer.PCOD, PJMP: rosterPlayer.PJMP, PSTA: rosterPlayer.PSTA,
+        PTGH: rosterPlayer.PTGH, PINJ: rosterPlayer.PINJ, SRRN: rosterPlayer.PSRR,
+        PMRR: rosterPlayer.PMRR, PDRR: rosterPlayer.PDRR, PTHP: rosterPlayer.PTHP,
+        PTAS: rosterPlayer.PTAS, PTAM: rosterPlayer.PTAM, PTAD: rosterPlayer.PTAD,
+        PTOR: rosterPlayer.PTOR, PTUP: rosterPlayer.PTUP, PPLA: rosterPlayer.PPLA,
+        PBSK: rosterPlayer.PBRS, PBSG: rosterPlayer.PBSH, PLPM: rosterPlayer.PPWM,
+        PFMS: rosterPlayer.PFNM, PTAK: rosterPlayer.PTAK, PLHT: rosterPlayer.PHTP,
+        PLPU: rosterPlayer.PPUR, PLPR: rosterPlayer.PPRC, PLMC: rosterPlayer.PMCV,
+        PLZC: rosterPlayer.PZCV, PLPE: rosterPlayer.PPRS, PPBK: rosterPlayer.PPBK,
+        PPBS: rosterPlayer.PPBP, PPBF: rosterPlayer.PPBF, PRBK: rosterPlayer.PRBK,
+        PRBS: rosterPlayer.PRBP, PRBF: rosterPlayer.PRBF, PLIB: rosterPlayer.PIBL,
+        PLBK: rosterPlayer.PLDB, PKPW: rosterPlayer.PKPW, PKAC: rosterPlayer.PKAC,
+        PLRL: rosterPlayer.PREL, PKRT: rosterPlayer.PKRT,
+      };
+      const calculatedOvr = ovrWeightsCalculator.calculateOVR(attributes, stats.position || 'HB');
+      // Floor of 40 for generated players (quality control)
+      rosterPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+    }
+
     return rosterPlayer;
   }
 
@@ -1025,13 +1054,13 @@ export class RosterCreatorService {
           PDRR: player.ratings.deepRouteRunning,
           PLRL: player.ratings.release, // PLRL not PREL
 
-          // Blocking
+          // Blocking - fallback to base blocking rating when finesse/power missing
           PPBK: player.ratings.passBlock,
-          PPBS: player.ratings.passBlockPower, // PPBS not PPBP (Pass Block Strength)
-          PPBF: player.ratings.passBlockFinesse,
+          PPBS: player.ratings.passBlockPower || player.ratings.passBlock || 50, // PPBS - fallback to passBlock
+          PPBF: player.ratings.passBlockFinesse || player.ratings.passBlock || 50, // PPBF - fallback to passBlock
           PRBK: player.ratings.runBlock,
-          PRBS: player.ratings.runBlockPower, // PRBS not PRBP (Run Block Strength)
-          PRBF: player.ratings.runBlockFinesse,
+          PRBS: player.ratings.runBlockPower || player.ratings.runBlock || 50, // PRBS - fallback to runBlock
+          PRBF: player.ratings.runBlockFinesse || player.ratings.runBlock || 50, // PRBF - fallback to runBlock
           PLBK: player.ratings.leadBlock,
           PLIB: player.ratings.impactBlocking, // PLIB not PIBL
 
@@ -1053,12 +1082,39 @@ export class RosterCreatorService {
           PKRT: player.ratings.kickReturn,
           PLSN: player.ratings.longSnap,
 
-          // Overall
+          // Overall - will be recalculated below
           POVR: player.ratings.overall,
 
           // Metadata
           isHallOfFamer: player.devTrait === 3 // X-Factor dev trait indicates HOFer
         };
+
+        // CRITICAL: Recalculate POVR using the official formula
+        if (ovrWeightsCalculator.isInitialized()) {
+          const attributes: Record<string, number> = {
+            PSPD: rosterPlayer.PSPD, PACC: rosterPlayer.PACC, PAGI: rosterPlayer.PAGI,
+            PSTR: rosterPlayer.PSTR, PAWR: rosterPlayer.PAWR, PCAR: rosterPlayer.PCAR,
+            PBCV: rosterPlayer.PBCV, PBKT: rosterPlayer.PBKT, PLTR: rosterPlayer.PLTR,
+            PLSA: rosterPlayer.PLSA, PLSM: rosterPlayer.PLSM, PLJM: rosterPlayer.PLJM,
+            PCTH: rosterPlayer.PCTH, PLCI: rosterPlayer.PLCI, PLSC: rosterPlayer.PLSC,
+            PELU: rosterPlayer.PELU, PJMP: rosterPlayer.PJMP, PSTA: rosterPlayer.PSTA,
+            PTGH: rosterPlayer.PTGH, PINJ: rosterPlayer.PINJ, PSRR: rosterPlayer.PSRR,
+            PMRR: rosterPlayer.PMRR, PDRR: rosterPlayer.PDRR, PTHP: rosterPlayer.PTHP,
+            PTAS: rosterPlayer.PTAS, PTAM: rosterPlayer.PTAM, PTAD: rosterPlayer.PTAD,
+            PTOR: rosterPlayer.PTOR, PTUP: rosterPlayer.PTUP, PPLA: rosterPlayer.PPLA,
+            PBSK: rosterPlayer.PBSK, PBSG: rosterPlayer.PBSG, PLPM: rosterPlayer.PLPM,
+            PFMS: rosterPlayer.PFMS, PTAK: rosterPlayer.PTAK, PLHT: rosterPlayer.PLHT,
+            PLPU: rosterPlayer.PLPU, PLPR: rosterPlayer.PLPR, PLMC: rosterPlayer.PLMC,
+            PLZC: rosterPlayer.PLZC, PLPE: rosterPlayer.PLPE, PPBK: rosterPlayer.PPBK,
+            PPBS: rosterPlayer.PPBS, PPBF: rosterPlayer.PPBF, PRBK: rosterPlayer.PRBK,
+            PRBS: rosterPlayer.PRBS, PRBF: rosterPlayer.PRBF, PLIB: rosterPlayer.PLIB,
+            PLBK: rosterPlayer.PLBK, PKPR: rosterPlayer.PKPR, PKAC: rosterPlayer.PKAC,
+            PLRL: rosterPlayer.PLRL, PKRT: rosterPlayer.PKRT,
+          };
+          const calculatedOvr = ovrWeightsCalculator.calculateOVR(attributes, player.positionCode, rosterPlayer.PLTY);
+          // Floor of 40 for generated players (quality control)
+          rosterPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+        }
 
         return rosterPlayer;
       });
@@ -1472,13 +1528,13 @@ export class RosterCreatorService {
           PDRR: csvRow.PDRR || 50,
           PLRL: csvRow.PLRL || csvRow.PREL || 50, // Release
 
-          // Blocking
+          // Blocking - fallback to base blocking rating when finesse/power missing
           PPBK: csvRow.PPBK || 50,
-          PPBS: csvRow.PPBS || csvRow.PPBP || 50, // Pass Block Strength
-          PPBF: csvRow.PPBF || 50,
+          PPBS: csvRow.PPBS || csvRow.PPBP || csvRow.PPBK || 50, // Pass Block Strength (Power) - fallback to PPBK
+          PPBF: csvRow.PPBF || csvRow.PPBK || 50, // Pass Block Finesse - fallback to PPBK
           PRBK: csvRow.PRBK || 50,
-          PRBS: csvRow.PRBS || csvRow.PRBP || 50, // Run Block Strength
-          PRBF: csvRow.PRBF || 50,
+          PRBS: csvRow.PRBS || csvRow.PRBP || csvRow.PRBK || 50, // Run Block Strength (Power) - fallback to PRBK
+          PRBF: csvRow.PRBF || csvRow.PRBK || 50, // Run Block Finesse - fallback to PRBK
           PLBK: csvRow.PLBK || csvRow.PLDB || 50, // Lead Block
           PLIB: csvRow.PLIB || csvRow.PIBL || 50, // Impact Blocking
 
@@ -1500,7 +1556,7 @@ export class RosterCreatorService {
           PKRT: csvRow.PKRT || 50,
           PLSN: csvRow.PLSN || 50, // Long Snap
 
-          // Overall
+          // Overall - will be recalculated below
           POVR: csvRow.POVR || 50,
 
           // Face/Appearance fields - read from CSV or use defaults
@@ -1513,6 +1569,33 @@ export class RosterCreatorService {
           // Metadata
           isHallOfFamer: (csvRow.PDEV || csvRow.devTrait || 0) === 3
         };
+
+        // CRITICAL: Recalculate POVR using the official formula
+        if (ovrWeightsCalculator.isInitialized()) {
+          const attributes: Record<string, number> = {
+            PSPD: rosterPlayer.PSPD, PACC: rosterPlayer.PACC, PAGI: rosterPlayer.PAGI,
+            PSTR: rosterPlayer.PSTR, PAWR: rosterPlayer.PAWR, PCAR: rosterPlayer.PCAR,
+            PBCV: rosterPlayer.PBCV, PBKT: rosterPlayer.PBKT, PLTR: rosterPlayer.PLTR,
+            PLSA: rosterPlayer.PLSA, PLSM: rosterPlayer.PLSM, PLJM: rosterPlayer.PLJM,
+            PCTH: rosterPlayer.PCTH, PLCI: rosterPlayer.PLCI, PLSC: rosterPlayer.PLSC,
+            PELU: rosterPlayer.PELU, PJMP: rosterPlayer.PJMP, PSTA: rosterPlayer.PSTA,
+            PTGH: rosterPlayer.PTGH, PINJ: rosterPlayer.PINJ, PSRR: rosterPlayer.PSRR,
+            PMRR: rosterPlayer.PMRR, PDRR: rosterPlayer.PDRR, PTHP: rosterPlayer.PTHP,
+            PTAS: rosterPlayer.PTAS, PTAM: rosterPlayer.PTAM, PTAD: rosterPlayer.PTAD,
+            PTOR: rosterPlayer.PTOR, PTUP: rosterPlayer.PTUP, PPLA: rosterPlayer.PPLA,
+            PBSK: rosterPlayer.PBSK, PBSG: rosterPlayer.PBSG, PLPM: rosterPlayer.PLPM,
+            PFMS: rosterPlayer.PFMS, PTAK: rosterPlayer.PTAK, PLHT: rosterPlayer.PLHT,
+            PLPU: rosterPlayer.PLPU, PLPR: rosterPlayer.PLPR, PLMC: rosterPlayer.PLMC,
+            PLZC: rosterPlayer.PLZC, PLPE: rosterPlayer.PLPE, PPBK: rosterPlayer.PPBK,
+            PPBS: rosterPlayer.PPBS, PPBF: rosterPlayer.PPBF, PRBK: rosterPlayer.PRBK,
+            PRBS: rosterPlayer.PRBS, PRBF: rosterPlayer.PRBF, PLIB: rosterPlayer.PLIB,
+            PLBK: rosterPlayer.PLBK, PKPR: rosterPlayer.PKPR, PKAC: rosterPlayer.PKAC,
+            PLRL: rosterPlayer.PLRL, PKRT: rosterPlayer.PKRT,
+          };
+          const calculatedOvr = ovrWeightsCalculator.calculateOVR(attributes, rosterPlayer.PPOS, rosterPlayer.PLTY);
+          // Floor of 40 for generated players (quality control)
+          rosterPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+        }
 
         freeAgentPlayers.push(rosterPlayer);
       } catch (error: any) {
@@ -1685,7 +1768,7 @@ export class RosterCreatorService {
     const genericFace = this.selectGenericFaceByRace(race);
     // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
 
-    return {
+    const player: RosterPlayer = {
       PFNA: firstName,
       PLNA: lastName,
       PPOS: position,
@@ -1765,6 +1848,35 @@ export class RosterCreatorService {
 
       isHallOfFamer: false
     };
+
+    // CRITICAL: Recalculate POVR using the official formula
+    if (ovrWeightsCalculator.isInitialized()) {
+      const attributes: Record<string, number> = {
+        PSPD: player.PSPD as number, PACC: player.PACC as number, PAGI: player.PAGI as number,
+        PSTR: player.PSTR as number, PAWR: player.PAWR as number, PCAR: player.PCAR as number,
+        PBCV: player.PBCV as number, PBKT: player.PBKT as number, PLTR: player.PLTR as number,
+        PLSA: player.PLSA as number, PLSM: player.PLSM as number, PLJM: player.PLJM as number,
+        PCTH: player.PCTH as number, PLCI: player.PLCI as number, PLSC: player.PLSC as number,
+        PELU: player.PELU as number, PJMP: player.PJMP as number, PSTA: player.PSTA as number,
+        PTGH: player.PTGH as number, PINJ: player.PINJ as number, PSRR: player.PSRR as number,
+        PMRR: player.PMRR as number, PDRR: player.PDRR as number, PTHP: player.PTHP as number,
+        PTAS: player.PTAS as number, PTAM: player.PTAM as number, PTAD: player.PTAD as number,
+        PTOR: player.PTOR as number, PTUP: player.PTUP as number, PPLA: player.PPLA as number,
+        PBSK: player.PBSK as number, PBSG: player.PBSG as number, PLPM: player.PLPM as number,
+        PFMS: player.PFMS as number, PTAK: player.PTAK as number, PLHT: player.PLHT as number,
+        PLPU: player.PLPU as number, PLPR: player.PLPR as number, PLMC: player.PLMC as number,
+        PLZC: player.PLZC as number, PLPE: player.PLPE as number, PPBK: player.PPBK as number,
+        PPBS: player.PPBS as number, PPBF: player.PPBF as number, PRBK: player.PRBK as number,
+        PRBS: player.PRBS as number, PRBF: player.PRBF as number, PLIB: player.PLIB as number,
+        PLBK: player.PLBK as number, PKPR: player.PKPR as number, PKAC: player.PKAC as number,
+        PLRL: player.PLRL as number, PKRT: player.PKRT as number,
+      };
+      const calculatedOvr = ovrWeightsCalculator.calculateOVR(attributes, position, player.PLTY);
+      // Floor of 40 for generated players (quality control)
+      player.POVR = Math.max(40, Math.min(99, calculatedOvr));
+    }
+
+    return player;
   }
 
   /**
