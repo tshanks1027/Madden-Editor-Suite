@@ -1984,7 +1984,10 @@ ${fieldsList}
       }
 
       console.log('[RetroEditorService] Creating franchise instance for:', filePath);
-      const franchise = await createFranchise(filePath);
+      // IMPORTANT: autoUnempty must be true to properly allocate career stats records
+      // Without this, writing to empty records won't remove them from the empty linked list
+      // and the game won't recognize the career stats data
+      const franchise = await createFranchise(filePath, { autoUnempty: true } as any);
       console.log('[RetroEditorService] Franchise file parsed successfully');
       console.log('[RetroEditorService] Tables count:', franchise.tables?.length || 0);
 
@@ -4646,46 +4649,280 @@ ${fieldsList}
   /**
    * Apply historical career stats to franchise file players
    * Matches players by name and populates their career stats
+   * Creates career stats records for players who don't have them
    */
   async applyHistoricalStats(filePath: string, year: number): Promise<{ success: boolean; playersUpdated: number }> {
-    console.log(`[RetroEditorService] Applying historical stats for year ${year}`);
+    console.log(`[RetroEditorService] ===== APPLY HISTORICAL STATS =====`);
+    console.log(`[RetroEditorService] Year: ${year}, File: ${filePath}`);
 
     const db = await this.getCareerStatsDatabase();
     if (!db) {
       throw new Error('Career stats database not available');
     }
+    console.log(`[RetroEditorService] Career stats database loaded successfully`);
 
-    const franchise = this.getFranchise(filePath);
-    if (!franchise) {
+    // CRITICAL: Load franchise with autoUnempty enabled
+    // This ensures career stats records are properly allocated from the empty linked list
+    // Do NOT use cached franchise instance - we need fresh load with correct settings
+    const module = await getFranchiseModule();
+    const createFranchise = module.create;
+    if (!createFranchise) {
       db.close();
-      throw new Error(`Franchise file not loaded: ${filePath}`);
+      throw new Error('madden-franchise module does not export create function');
     }
+
+    console.log(`[RetroEditorService] Loading franchise with autoUnempty: true`);
+    const franchise = await createFranchise(filePath, { autoUnempty: true } as any);
+    console.log(`[RetroEditorService] Franchise loaded with autoUnempty enabled`);
+    console.log(`[RetroEditorService] Franchise settings:`, franchise.settings);
 
     try {
       // Get Player table
-      const PLAYER_TABLE_ID = 1612938518;
-      const playerTable = franchise.getTableByUniqueId(PLAYER_TABLE_ID);
+      let playerTable = franchise.getTableByName('Player');
+      if (!playerTable) {
+        playerTable = franchise.getTableByUniqueId(1612938518);
+      }
       if (!playerTable) {
         throw new Error('Player table not found');
       }
-
       await playerTable.readRecords();
       console.log(`[RetroEditorService] Found ${playerTable.records.length} players in franchise`);
 
-      // Get CareerOffensiveStats and CareerDefensiveStats tables
-      const CAREER_OFF_STATS_ID = 3425633076;
-      const CAREER_DEF_STATS_ID = 2990623107;
+      // Load career stats tables by ID (discovered via debug script)
+      // CareerOffensiveStats (4299) - main offensive stats for skill players
+      // CareerDefensiveStats (4164) - main defensive stats
+      const CAREER_OFF_TABLE_ID = 4299;
+      const CAREER_DEF_TABLE_ID = 4164;
+      // Season stats tables - needed for game to display career history
+      const SEASON_STATS_ARRAY_TABLE_ID = 5934;
+      const SEASON_OFF_TABLE_ID = 4259;
+      const SEASON_DEF_TABLE_ID = 4202;
 
-      const careerOffTable = franchise.getTableByUniqueId(CAREER_OFF_STATS_ID);
-      const careerDefTable = franchise.getTableByUniqueId(CAREER_DEF_STATS_ID);
+      const careerOffTable = franchise.getTableById(CAREER_OFF_TABLE_ID);
+      const careerDefTable = franchise.getTableById(CAREER_DEF_TABLE_ID);
+      const seasonStatsArrayTable = franchise.getTableById(SEASON_STATS_ARRAY_TABLE_ID);
+      const seasonOffTable = franchise.getTableById(SEASON_OFF_TABLE_ID);
+      const seasonDefTable = franchise.getTableById(SEASON_DEF_TABLE_ID);
 
-      if (careerOffTable) await careerOffTable.readRecords();
-      if (careerDefTable) await careerDefTable.readRecords();
+      if (!careerOffTable) {
+        throw new Error('CareerOffensiveStats table not found');
+      }
+      await careerOffTable.readRecords();
+      console.log(`[RetroEditorService] CareerOffensiveStats table: ${careerOffTable.records.length} records`);
 
-      console.log(`[RetroEditorService] Career tables: Offensive=${careerOffTable?.records?.length || 0}, Defensive=${careerDefTable?.records?.length || 0}`);
+      if (careerDefTable) {
+        await careerDefTable.readRecords();
+        console.log(`[RetroEditorService] CareerDefensiveStats table: ${careerDefTable.records.length} records`);
+      }
 
-      // Prepare query for getting player stats
-      const getPlayerStats = db.prepare(`
+      // Load season stats tables
+      if (seasonStatsArrayTable) {
+        await seasonStatsArrayTable.readRecords();
+        console.log(`[RetroEditorService] SeasonStats[] array table: ${seasonStatsArrayTable.records.length} records, nextRecordToUse=${seasonStatsArrayTable.header.nextRecordToUse}`);
+      }
+      if (seasonOffTable) {
+        await seasonOffTable.readRecords();
+        console.log(`[RetroEditorService] SeasonOffensiveStats table: ${seasonOffTable.records.length} records, nextRecordToUse=${seasonOffTable.header.nextRecordToUse}`);
+      }
+      if (seasonDefTable) {
+        await seasonDefTable.readRecords();
+        console.log(`[RetroEditorService] SeasonDefensiveStats table: ${seasonDefTable.records.length} records`);
+      }
+
+      // Use nextRecordToUse from table headers for proper record allocation
+      // This is the correct way to allocate new records according to madden-franchise-utils
+      let offNextRecord = careerOffTable.header.nextRecordToUse || 0;
+      const offCapacity = careerOffTable.header.recordCapacity || careerOffTable.records.length;
+      console.log(`[RetroEditorService] CareerOffensiveStats: nextRecordToUse=${offNextRecord}, capacity=${offCapacity}`);
+
+      let defNextRecord = 0;
+      let defCapacity = 0;
+      if (careerDefTable) {
+        defNextRecord = careerDefTable.header.nextRecordToUse || 0;
+        defCapacity = careerDefTable.header.recordCapacity || careerDefTable.records.length;
+        console.log(`[RetroEditorService] CareerDefensiveStats: nextRecordToUse=${defNextRecord}, capacity=${defCapacity}`);
+      }
+
+      // Helper to create a 32-bit binary reference string from tableId and rowNumber
+      const createBinaryRef = (tableId: number, rowNumber: number): string => {
+        const tableIdBin = tableId.toString(2).padStart(15, '0');
+        const rowBin = rowNumber.toString(2).padStart(17, '0');
+        return tableIdBin + rowBin;
+      };
+
+      // Helper to check if a reference is empty/zero
+      const isEmptyRef = (refValue: any): boolean => {
+        if (!refValue) return true;
+        if (refValue === '00000000000000000000000000000000') return true;
+        if (refValue === 0) return true;
+        return false;
+      };
+
+      // =========================================================================
+      // Helper functions to zero out ALL fields on stat records
+      // CRITICAL: This prevents garbage/negative values in fields we don't have data for
+      // =========================================================================
+
+      /**
+       * Zero out ALL fields on a SeasonOffensiveStats record
+       */
+      const zeroOutOffensiveSeasonRecord = (rec: any): void => {
+        rec.GAMESPLAYED = 0;
+        rec.GAMESSTARTED = 0;
+        rec.RUSHYARDS = 0;
+        rec.RUSHTDS = 0;
+        rec.RUSHATTEMPTS = 0;
+        rec.RUSHLONGEST = 0;
+        rec.RUSHYARDSAFTER1STHIT = 0;
+        rec.RUSHBROKENTACKLES = 0;
+        rec.RUSH20YARDRUNS = 0;
+        rec.RUSHFUMBLES = 0;
+        rec.RECEIVEYARDS = 0;
+        rec.RECEIVETDS = 0;
+        rec.RECEIVECATCHES = 0;
+        rec.RECEIVELONGEST = 0;
+        rec.RECEIVEYARDSAFTER = 0;  // YAC - was showing -4066 without zeroing
+        rec.RECEIVEDROPS = 0;
+        rec.PASSYARDS = 0;
+        rec.PASSTDS = 0;
+        rec.PASSINTS = 0;
+        rec.PASSATTEMPTS = 0;
+        rec.PASSCOMPLETED = 0;
+        rec.PASSLONGEST = 0;
+        rec.PASSSACKED = 0;
+        rec.FIRSTDOWNS = 0;
+        rec.DOWNSPLAYED = 0;
+        rec.GAMERATING = 0;
+        try { rec['4QCOMEBACKS'] = 0; } catch { /* field name starts with number */ }
+      };
+
+      /**
+       * Zero out ALL fields on a SeasonDefensiveStats record
+       */
+      const zeroOutDefensiveSeasonRecord = (rec: any): void => {
+        rec.GAMESPLAYED = 0;
+        rec.GAMESSTARTED = 0;
+        rec.DEFTACKLES = 0;
+        rec.ASSDEFTACKLES = 0;
+        rec.DEFTACKLESFORLOSS = 0;
+        rec.DLINESACKS = 0;
+        rec.DLINEHALFSACK = 0;
+        rec.DSECINTS = 0;
+        rec.DSECINTRETURNYARDS = 0;  // INT return yards - was showing negative
+        rec.DSECINTLONGESTRETURN = 0;  // Longest INT return - was showing negative
+        rec.DSECINTTDS = 0;
+        rec.DLINEFORCEDFUMBLES = 0;
+        rec.DLINEFUMBLERECOVERIES = 0;
+        rec.DLINEFUMBLERECOVERYYARDS = 0;  // Fumble return yards
+        rec.DLINEFUMBLETDS = 0;
+        rec.DLINESAFETIES = 0;
+        rec.DLINEBLOCKS = 0;
+        rec.DEFPASSDEFLECTIONS = 0;
+        rec.BIGHITS = 0;
+        rec.CTHALLOWED = 0;
+        rec.DOWNSPLAYED = 0;
+        rec.GAMERATING = 0;
+      };
+
+      /**
+       * Zero out ALL fields on a CareerOffensiveStats record
+       */
+      const zeroOutOffensiveCareerRecord = (rec: any): void => {
+        rec.GAMESPLAYED = 0;
+        rec.GAMESSTARTED = 0;
+        rec.RUSHYARDS = 0;
+        rec.RUSHTDS = 0;
+        rec.RUSHATTEMPTS = 0;
+        rec.RUSHLONGEST = 0;
+        rec.RUSHYARDSAFTER1STHIT = 0;
+        rec.RUSHBROKENTACKLES = 0;
+        rec.RUSH20YARDRUNS = 0;
+        rec.RUSHFUMBLES = 0;
+        rec.RECEIVEYARDS = 0;
+        rec.RECEIVETDS = 0;
+        rec.RECEIVECATCHES = 0;
+        rec.RECEIVELONGEST = 0;
+        rec.RECEIVEYARDSAFTER = 0;
+        rec.RECEIVEDROPS = 0;
+        rec.PASSYARDS = 0;
+        rec.PASSTDS = 0;
+        rec.PASSINTS = 0;
+        rec.PASSATTEMPTS = 0;
+        rec.PASSCOMPLETED = 0;
+        rec.PASSLONGEST = 0;
+        rec.PASSSACKED = 0;
+        rec.FIRSTDOWNS = 0;
+        rec.DOWNSPLAYED = 0;
+        rec.GAMERATING = 0;
+        try { rec['4QCOMEBACKS'] = 0; } catch { /* field name starts with number */ }
+      };
+
+      /**
+       * Zero out ALL fields on a CareerDefensiveStats record
+       */
+      const zeroOutDefensiveCareerRecord = (rec: any): void => {
+        rec.GAMESPLAYED = 0;
+        rec.GAMESSTARTED = 0;
+        rec.DEFTACKLES = 0;
+        rec.ASSDEFTACKLES = 0;
+        rec.DEFTACKLESFORLOSS = 0;
+        rec.DLINESACKS = 0;
+        rec.DLINEHALFSACK = 0;
+        rec.DSECINTS = 0;
+        rec.DSECINTRETURNYARDS = 0;
+        rec.DSECINTLONGESTRETURN = 0;
+        rec.DSECINTTDS = 0;
+        rec.DLINEFORCEDFUMBLES = 0;
+        rec.DLINEFUMBLERECOVERIES = 0;
+        rec.DLINEFUMBLERECOVERYYARDS = 0;
+        rec.DLINEFUMBLETDS = 0;
+        rec.DLINESAFETIES = 0;
+        rec.DLINEBLOCKS = 0;
+        rec.DEFPASSDEFLECTIONS = 0;
+        rec.BIGHITS = 0;
+        rec.CTHALLOWED = 0;
+        rec.STUFFS = 0;
+        rec.STOPS = 0;
+        rec.DEFPRESSURES = 0;
+        rec.DEFTARGETS = 0;
+        rec.DOWNSPLAYED = 0;
+        rec.GAMERATING = 0;
+        // Zone/coverage stats
+        rec.DEFBLITZ_YARDS = 0;
+        rec.DEFBLITZ_PLAYS = 0;
+        rec.DEFBLITZ_TD = 0;
+        rec.DEFDEEPPASS_YARDS = 0;
+        rec.DEFDEEPPASS_ATTEMPTS = 0;
+        rec.DEFDEEPPASS_COMPLETIONS = 0;
+        rec.DEFDEEPPASS_INTERCEPTIONS = 0;
+        rec.DEFDEEPPASS_TD = 0;
+        rec.DEFMEDIUMPASS_YARDS = 0;
+        rec.DEFMEDIUMPASS_ATTEMPTS = 0;
+        rec.DEFMEDIUMPASS_COMPLETIONS = 0;
+        rec.DEFMEDIUMPASS_INTERCEPTIONS = 0;
+        rec.DEFMEDIUMPASS_TD = 0;
+        rec.DEFSHORTPASS_YARDS = 0;
+        rec.DEFSHORTPASS_ATTEMPTS = 0;
+        rec.DEFSHORTPASS_COMPLETIONS = 0;
+        rec.DEFSHORTPASS_INTERCEPTIONS = 0;
+        rec.DEFSHORTPASS_TD = 0;
+        rec.DEFINSIDERUN_YARDS = 0;
+        rec.DEFINSIDERUN_CARRIES = 0;
+        rec.DEFINSIDERUN_RUNLEFT = 0;
+        rec.DEFINSIDERUN_RUNRIGHT = 0;
+        rec.DEFINSIDERUN_TD = 0;
+        rec.DEFOUTSIDERUN_YARDS = 0;
+        rec.DEFOUTSIDERUN_CARRIES = 0;
+        rec.DEFOUTSIDERUN_RUNLEFT = 0;
+        rec.DEFOUTSIDERUN_RUNRIGHT = 0;
+        rec.DEFOUTSIDERUN_TD = 0;
+        rec.COVERAGEDEPTH_NORMAL = 0;
+        rec.COVERAGEDEPTH_OFF = 0;
+        rec.COVERAGEDEPTH_PRESS = 0;
+      };
+
+      // Prepare query for getting CAREER TOTALS (summed stats)
+      const getPlayerCareerStats = db.prepare(`
         SELECT p.pfr_id, p.first_name, p.last_name, p.position, p.from_year, p.to_year,
                SUM(s.games) as games, SUM(s.games_started) as games_started,
                SUM(s.pass_cmp) as pass_cmp, SUM(s.pass_att) as pass_att,
@@ -4702,7 +4939,96 @@ ${fieldsList}
         LIMIT 1
       `);
 
+      // Prepare query for getting PER-SEASON stats (for SeasonStats array)
+      const getPlayerSeasonStats = db.prepare(`
+        SELECT s.year, s.games, s.games_started,
+               s.pass_cmp, s.pass_att, s.pass_yds, s.pass_td, s.pass_int,
+               s.rush_att, s.rush_yds, s.rush_td,
+               s.rec, s.rec_yds, s.rec_td,
+               s.tackles, s.sacks, s.def_int, s.ff, s.fr
+        FROM players p
+        JOIN player_season_stats s ON p.pfr_id = s.pfr_id
+        WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?) AND s.year < ?
+        ORDER BY s.year DESC
+      `);
+
       let playersUpdated = 0;
+      let playersWithStats = 0;
+      let recordsCreated = 0;
+
+      // Track current allocation position using nextRecordToUse
+      let currentOffSlot = offNextRecord;
+      let currentDefSlot = defNextRecord;
+
+      // Track season stats allocation slots
+      let currentSeasonArraySlot = seasonStatsArrayTable ? (seasonStatsArrayTable.header.nextRecordToUse || 0) : 0;
+      let currentSeasonOffSlot = seasonOffTable ? (seasonOffTable.header.nextRecordToUse || 0) : 0;
+      let currentSeasonDefSlot = seasonDefTable ? (seasonDefTable.header.nextRecordToUse || 0) : 0;
+      const seasonArrayCapacity = seasonStatsArrayTable ? (seasonStatsArrayTable.header.recordCapacity || seasonStatsArrayTable.records.length) : 0;
+      const seasonOffCapacity = seasonOffTable ? (seasonOffTable.header.recordCapacity || seasonOffTable.records.length) : 0;
+      const seasonDefCapacity = seasonDefTable ? (seasonDefTable.header.recordCapacity || seasonDefTable.records.length) : 0;
+
+      // Defensive positions for determining which table to use
+      const defensivePositions = ['CB', 'FS', 'SS', 'MLB', 'ROLB', 'LOLB', 'RE', 'LE', 'DT'];
+
+      // =========================================================================
+      // STEP 1: Clear ALL player CareerStats and SeasonStats references to ZERO_REF
+      // This is CRITICAL - madden-franchise-utils does this first before setting stats
+      // The game won't properly display stats unless we start from a clean slate
+      // =========================================================================
+      console.log(`[RetroEditorService] STEP 1: Clearing all player CareerStats and SeasonStats references...`);
+      let playersClearedCount = 0;
+
+      for (const player of playerTable.records) {
+        if (player.isEmpty) continue;
+
+        let playerCleared = false;
+
+        // Clear CareerStats reference
+        try {
+          const currentCareerRef = player.CareerStats;
+          if (!isEmptyRef(currentCareerRef)) {
+            player.CareerStats = ZERO_REF;
+            playerCleared = true;
+          }
+        } catch (e) {
+          // Field may not exist
+        }
+
+        // Also clear SeasonStats - we will repopulate it with historical data
+        try {
+          const currentSeasonRef = player.SeasonStats;
+          if (!isEmptyRef(currentSeasonRef)) {
+            player.SeasonStats = ZERO_REF;
+            playerCleared = true;
+          }
+        } catch (e) {
+          // Field may not exist
+        }
+
+        if (playerCleared) {
+          playersClearedCount++;
+        }
+      }
+
+      console.log(`[RetroEditorService] Cleared stats references for ${playersClearedCount} players`);
+
+      // =========================================================================
+      // STEP 1.5: Reset stat table allocation to start from slot 0
+      // Since we cleared all references, those old records are now orphaned
+      // We should start fresh from the beginning of the tables
+      // =========================================================================
+      currentOffSlot = 0;
+      currentDefSlot = 0;
+      currentSeasonArraySlot = 0;
+      currentSeasonOffSlot = 0;
+      currentSeasonDefSlot = 0;
+      console.log(`[RetroEditorService] Reset allocation: will start from slot 0 in all stat tables`);
+
+      // =========================================================================
+      // STEP 2: Now populate stats for players we have data for
+      // =========================================================================
+      console.log(`[RetroEditorService] STEP 2: Populating stats from historical database...`);
 
       for (const player of playerTable.records) {
         if (player.isEmpty) continue;
@@ -4711,85 +5037,449 @@ ${fieldsList}
         const lastName = player.LastName;
         if (!firstName || !lastName) continue;
 
-        // Look up player in our database
-        const stats = getPlayerStats.get(firstName, lastName, year, year - 10) as any;
-        if (!stats || stats.games === 0) continue;
+        // Look up player CAREER stats in our database (totals)
+        const careerStats = getPlayerCareerStats.get(firstName, lastName, year, year - 10) as any;
+        if (!careerStats || careerStats.games === 0) continue;
 
-        // Apply offensive stats if player has career stats reference
-        if (careerOffTable && player.CareerStats) {
-          try {
-            // Extract record index from CareerStats reference (last 17 bits)
-            const careerStatsRef = parseInt(player.CareerStats);
-            if (careerStatsRef > 0) {
-              const recordIndex = careerStatsRef & 0x1FFFF;
-              if (recordIndex < careerOffTable.records.length) {
-                const careerRecord = careerOffTable.records[recordIndex];
+        playersWithStats++;
 
-                // Set offensive stats
-                if (stats.pass_yds > 0) {
-                  careerRecord.PASSYARDS = stats.pass_yds || 0;
-                  careerRecord.PASSTDS = stats.pass_td || 0;
-                  careerRecord.PASSINTS = stats.pass_int || 0;
-                  careerRecord.PASSATT = stats.pass_att || 0;
-                  careerRecord.PASSCOMP = stats.pass_cmp || 0;
-                }
-
-                if (stats.rush_yds > 0) {
-                  careerRecord.RUSHYARDS = stats.rush_yds || 0;
-                  careerRecord.RUSHTDS = stats.rush_td || 0;
-                  careerRecord.RUSHATTS = stats.rush_att || 0;
-                }
-
-                if (stats.rec_yds > 0) {
-                  careerRecord.RECYARDS = stats.rec_yds || 0;
-                  careerRecord.RECTDS = stats.rec_td || 0;
-                  careerRecord.RECEPTIONS = stats.rec || 0;
-                }
-
-                careerRecord.GAMESPLAYED = stats.games || 0;
-                careerRecord.GAMESSTARTED = stats.games_started || 0;
-
-                playersUpdated++;
-
-                if (playersUpdated <= 5) {
-                  console.log(`[RetroEditorService] Updated ${firstName} ${lastName}: ${stats.pass_yds} pass yds, ${stats.rush_yds} rush yds, ${stats.rec_yds} rec yds`);
-                }
-              }
-            }
-          } catch (e: any) {
-            console.error(`[RetroEditorService] Error updating offensive stats for ${firstName} ${lastName}:`, e.message);
-          }
+        // Log first few matches
+        if (playersWithStats <= 5) {
+          console.log(`[RetroEditorService] Found stats for ${firstName} ${lastName}: ${careerStats.games} career games`);
         }
 
-        // Apply defensive stats
-        if (careerDefTable && player.CareerDefensiveStats) {
-          try {
-            const defStatsRef = parseInt(player.CareerDefensiveStats);
-            if (defStatsRef > 0) {
-              const recordIndex = defStatsRef & 0x1FFFF;
-              if (recordIndex < careerDefTable.records.length) {
-                const defRecord = careerDefTable.records[recordIndex];
+        const position = player.Position;
+        const isDefensive = defensivePositions.includes(position);
 
-                if (stats.tackles > 0 || stats.sacks > 0 || stats.def_int > 0) {
-                  defRecord.TOTALTACKLES = stats.tackles || 0;
-                  defRecord.SACKS = stats.sacks || 0;
-                  defRecord.DEFINTS = stats.def_int || 0;
-                  defRecord.FORCEDFUMBLES = stats.ff || 0;
-                  defRecord.FUMRECS = stats.fr || 0;
+        // Check if player already has a CareerStats reference
+        const currentRef = player.CareerStats;
+        const hasExistingRef = !isEmptyRef(currentRef);
+
+        if (hasExistingRef) {
+          // Player has existing reference - update that record
+          // Note: The record may be marked as "empty" if it was never properly initialized
+          // We still update it because setting fields with autoUnempty enabled will un-empty it
+          try {
+            const ref = player.getReferenceDataByKey('CareerStats');
+            if (ref && ref.tableId > 0) {
+              const table = franchise.getTableById(ref.tableId);
+              if (table) {
+                await table.readRecords();
+                const record = table.records[ref.rowNumber];
+                if (record) {
+                  // CRITICAL: Zero out ALL fields first to prevent garbage/negative values
+                  record.STAT_KEEP = true;
+                  if (isDefensive) {
+                    zeroOutDefensiveCareerRecord(record);
+                  } else {
+                    zeroOutOffensiveCareerRecord(record);
+                  }
+
+                  // Now set only the stats we have data for
+                  if (isDefensive) {
+                    record.DEFTACKLES = careerStats.tackles || 0;
+                    record.DLINESACKS = careerStats.sacks || 0;
+                    record.DSECINTS = careerStats.def_int || 0;
+                    record.DLINEFORCEDFUMBLES = careerStats.ff || 0;
+                    record.DLINEFUMBLERECOVERIES = careerStats.fr || 0;
+                  } else {
+                    if (careerStats.pass_yds > 0) {
+                      record.PASSYARDS = careerStats.pass_yds || 0;
+                      record.PASSTDS = careerStats.pass_td || 0;
+                      record.PASSINTS = careerStats.pass_int || 0;
+                      record.PASSATTEMPTS = careerStats.pass_att || 0;
+                      record.PASSCOMPLETED = careerStats.pass_cmp || 0;
+                    }
+                    if (careerStats.rush_yds > 0) {
+                      record.RUSHYARDS = careerStats.rush_yds || 0;
+                      record.RUSHTDS = careerStats.rush_td || 0;
+                      record.RUSHATTEMPTS = careerStats.rush_att || 0;
+                    }
+                    if (careerStats.rec_yds > 0) {
+                      record.RECEIVEYARDS = careerStats.rec_yds || 0;
+                      record.RECEIVETDS = careerStats.rec_td || 0;
+                      record.RECEIVECATCHES = careerStats.rec || 0;
+                    }
+                  }
+                  record.GAMESPLAYED = careerStats.games || 0;
+                  record.GAMESSTARTED = careerStats.games_started || 0;
+
+                  // =====================================================================
+                  // CRITICAL: Also create SeasonStats entries for players with existing refs
+                  // =====================================================================
+                  if (seasonStatsArrayTable && currentSeasonArraySlot < seasonArrayCapacity) {
+                    // Get per-season stats for this player
+                    const seasonStatsList: any[] = [];
+                    if (isDefensive) {
+                      const seasonStmt = db.prepare(`
+                        SELECT s.year, s.games, s.games_started,
+                               s.tackles, s.sacks, s.def_int, s.ff, s.fr
+                        FROM players p
+                        JOIN player_season_stats s ON p.pfr_id = s.pfr_id
+                        WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?) AND s.year < ?
+                        ORDER BY s.year DESC
+                      `);
+                      const results = seasonStmt.all(firstName, lastName, year) as any[];
+                      for (const row of results) {
+                        if (row.games > 0) seasonStatsList.push(row);
+                      }
+
+                      if (seasonStatsList.length > 0 && seasonDefTable && currentSeasonDefSlot < seasonDefCapacity) {
+                        const arrayRec = seasonStatsArrayTable.records[currentSeasonArraySlot];
+                        const numSeasons = Math.min(seasonStatsList.length, 20);
+                        arrayRec.arraySize = numSeasons;
+
+                        for (let i = 0; i < numSeasons; i++) {
+                          if (currentSeasonDefSlot >= seasonDefCapacity) break;
+                          const seasonData = seasonStatsList[i];
+                          const seasonRec = seasonDefTable.records[currentSeasonDefSlot];
+
+                          seasonRec.STAT_KEEP = true;
+                          zeroOutDefensiveSeasonRecord(seasonRec);
+                          seasonRec.SEAS_YEAR = seasonData.year - year;
+                          seasonRec.YEARBYYEARTEAMINDEX = player.TeamIndex || 0;
+                          seasonRec.GAMESPLAYED = seasonData.games || 0;
+                          seasonRec.GAMESSTARTED = seasonData.games_started || 0;
+                          seasonRec.DEFTACKLES = seasonData.tackles || 0;
+                          seasonRec.DLINESACKS = seasonData.sacks || 0;
+                          seasonRec.DSECINTS = seasonData.def_int || 0;
+                          seasonRec.DLINEFORCEDFUMBLES = seasonData.ff || 0;
+                          seasonRec.DLINEFUMBLERECOVERIES = seasonData.fr || 0;
+
+                          arrayRec[`SeasonStats${i}`] = createBinaryRef(SEASON_DEF_TABLE_ID, currentSeasonDefSlot);
+                          currentSeasonDefSlot++;
+                        }
+
+                        for (let i = numSeasons; i < 20; i++) {
+                          try { arrayRec[`SeasonStats${i}`] = ZERO_REF; } catch { /* ignore */ }
+                        }
+
+                        player.SeasonStats = createBinaryRef(SEASON_STATS_ARRAY_TABLE_ID, currentSeasonArraySlot);
+                        currentSeasonArraySlot++;
+                      }
+                    } else {
+                      const seasonStmt = db.prepare(`
+                        SELECT s.year, s.games, s.games_started,
+                               s.pass_cmp, s.pass_att, s.pass_yds, s.pass_td, s.pass_int,
+                               s.rush_att, s.rush_yds, s.rush_td,
+                               s.rec, s.rec_yds, s.rec_td
+                        FROM players p
+                        JOIN player_season_stats s ON p.pfr_id = s.pfr_id
+                        WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?) AND s.year < ?
+                        ORDER BY s.year DESC
+                      `);
+                      const results = seasonStmt.all(firstName, lastName, year) as any[];
+                      for (const row of results) {
+                        if (row.games > 0) seasonStatsList.push(row);
+                      }
+
+                      if (seasonStatsList.length > 0 && seasonOffTable && currentSeasonOffSlot < seasonOffCapacity) {
+                        const arrayRec = seasonStatsArrayTable.records[currentSeasonArraySlot];
+                        const numSeasons = Math.min(seasonStatsList.length, 20);
+                        arrayRec.arraySize = numSeasons;
+
+                        for (let i = 0; i < numSeasons; i++) {
+                          if (currentSeasonOffSlot >= seasonOffCapacity) break;
+                          const seasonData = seasonStatsList[i];
+                          const seasonRec = seasonOffTable.records[currentSeasonOffSlot];
+
+                          seasonRec.STAT_KEEP = true;
+                          zeroOutOffensiveSeasonRecord(seasonRec);
+                          seasonRec.SEAS_YEAR = seasonData.year - year;
+                          seasonRec.YEARBYYEARTEAMINDEX = player.TeamIndex || 0;
+                          seasonRec.GAMESPLAYED = seasonData.games || 0;
+                          seasonRec.GAMESSTARTED = seasonData.games_started || 0;
+                          seasonRec.PASSYARDS = seasonData.pass_yds || 0;
+                          seasonRec.PASSTDS = seasonData.pass_td || 0;
+                          seasonRec.PASSINTS = seasonData.pass_int || 0;
+                          seasonRec.PASSATTEMPTS = seasonData.pass_att || 0;
+                          seasonRec.PASSCOMPLETED = seasonData.pass_cmp || 0;
+                          seasonRec.RUSHYARDS = seasonData.rush_yds || 0;
+                          seasonRec.RUSHTDS = seasonData.rush_td || 0;
+                          seasonRec.RUSHATTEMPTS = seasonData.rush_att || 0;
+                          seasonRec.RECEIVEYARDS = seasonData.rec_yds || 0;
+                          seasonRec.RECEIVETDS = seasonData.rec_td || 0;
+                          seasonRec.RECEIVECATCHES = seasonData.rec || 0;
+
+                          arrayRec[`SeasonStats${i}`] = createBinaryRef(SEASON_OFF_TABLE_ID, currentSeasonOffSlot);
+                          currentSeasonOffSlot++;
+                        }
+
+                        for (let i = numSeasons; i < 20; i++) {
+                          try { arrayRec[`SeasonStats${i}`] = ZERO_REF; } catch { /* ignore */ }
+                        }
+
+                        player.SeasonStats = createBinaryRef(SEASON_STATS_ARRAY_TABLE_ID, currentSeasonArraySlot);
+                        currentSeasonArraySlot++;
+                      }
+                    }
+                  }
+
+                  playersUpdated++;
+
+                  if (playersUpdated <= 5) {
+                    console.log(`[RetroEditorService] Updated career+season stats for ${firstName} ${lastName}: RUSHYARDS=${careerStats.rush_yds || 0}`);
+                  }
                 }
               }
             }
           } catch (e: any) {
-            console.error(`[RetroEditorService] Error updating defensive stats for ${firstName} ${lastName}:`, e.message);
+            console.log(`[RetroEditorService] Error updating ${firstName} ${lastName}:`, e.message);
+          }
+        } else {
+          // Player has NO CareerStats reference - CREATE a new record
+          // Use nextRecordToUse for proper allocation (like madden-franchise-utils does)
+          if (isDefensive) {
+            // Use defensive stats table
+            if (careerDefTable && currentDefSlot < defCapacity) {
+              const record = careerDefTable.records[currentDefSlot];
+
+              // CRITICAL: Zero out ALL fields first to prevent garbage/negative values
+              record.STAT_KEEP = true;
+              zeroOutDefensiveCareerRecord(record);
+
+              // Now set only the stats we have data for
+              record.DEFTACKLES = careerStats.tackles || 0;
+              record.DLINESACKS = careerStats.sacks || 0;
+              record.DSECINTS = careerStats.def_int || 0;
+              record.DLINEFORCEDFUMBLES = careerStats.ff || 0;
+              record.DLINEFUMBLERECOVERIES = careerStats.fr || 0;
+              record.GAMESPLAYED = careerStats.games || 0;
+              record.GAMESSTARTED = careerStats.games_started || 0;
+
+              // Create binary reference and update player
+              const newRef = createBinaryRef(CAREER_DEF_TABLE_ID, currentDefSlot);
+              player.CareerStats = newRef;
+
+              // =====================================================================
+              // CRITICAL: Create SeasonStats entries for EACH year (defensive)
+              // =====================================================================
+              if (seasonStatsArrayTable && seasonDefTable &&
+                  currentSeasonArraySlot < seasonArrayCapacity) {
+
+                // Get per-season stats for this player
+                const seasonStatsList: any[] = [];
+                const seasonStmt = db.prepare(`
+                  SELECT s.year, s.games, s.games_started,
+                         s.tackles, s.sacks, s.def_int, s.ff, s.fr
+                  FROM players p
+                  JOIN player_season_stats s ON p.pfr_id = s.pfr_id
+                  WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?) AND s.year < ?
+                  ORDER BY s.year DESC
+                `);
+                const results = seasonStmt.all(firstName, lastName, year) as any[];
+                for (const row of results) {
+                  if (row.games > 0) {
+                    seasonStatsList.push(row);
+                  }
+                }
+
+                if (seasonStatsList.length > 0) {
+                  // Create array record for this player
+                  const arrayRec = seasonStatsArrayTable.records[currentSeasonArraySlot];
+                  const numSeasons = Math.min(seasonStatsList.length, 20);
+                  arrayRec.arraySize = numSeasons;
+
+                  // Create a season record for each year
+                  for (let i = 0; i < numSeasons; i++) {
+                    if (currentSeasonDefSlot >= seasonDefCapacity) break;
+
+                    const seasonData = seasonStatsList[i];
+                    const seasonRec = seasonDefTable.records[currentSeasonDefSlot];
+
+                    // CRITICAL: Zero out ALL fields first to prevent garbage/negative values
+                    seasonRec.STAT_KEEP = true;
+                    zeroOutDefensiveSeasonRecord(seasonRec);
+
+                    const seasYear = seasonData.year - year;
+
+                    seasonRec.SEAS_YEAR = seasYear;
+                    seasonRec.YEARBYYEARTEAMINDEX = player.TeamIndex || 0;
+                    seasonRec.GAMESPLAYED = seasonData.games || 0;
+                    seasonRec.GAMESSTARTED = seasonData.games_started || 0;
+                    seasonRec.DEFTACKLES = seasonData.tackles || 0;
+                    seasonRec.DLINESACKS = seasonData.sacks || 0;
+                    seasonRec.DSECINTS = seasonData.def_int || 0;
+                    seasonRec.DLINEFORCEDFUMBLES = seasonData.ff || 0;
+                    seasonRec.DLINEFUMBLERECOVERIES = seasonData.fr || 0;
+
+                    const seasonRef = createBinaryRef(SEASON_DEF_TABLE_ID, currentSeasonDefSlot);
+                    arrayRec[`SeasonStats${i}`] = seasonRef;
+
+                    currentSeasonDefSlot++;
+                  }
+
+                  // Clear remaining array slots
+                  for (let i = numSeasons; i < 20; i++) {
+                    try { arrayRec[`SeasonStats${i}`] = ZERO_REF; } catch (e) { /* ignore */ }
+                  }
+
+                  // Set player's SeasonStats reference
+                  const arrayRef = createBinaryRef(SEASON_STATS_ARRAY_TABLE_ID, currentSeasonArraySlot);
+                  player.SeasonStats = arrayRef;
+
+                  currentSeasonArraySlot++;
+
+                  if (playersUpdated < 3) {
+                    console.log(`[RetroEditorService]   Created ${numSeasons} DEF season entries for ${firstName} ${lastName}`);
+                  }
+                }
+              }
+
+              currentDefSlot++;
+              recordsCreated++;
+              playersUpdated++;
+
+              if (recordsCreated <= 5) {
+                console.log(`[RetroEditorService] Created DEF career+season record for ${firstName} ${lastName} at slot ${currentDefSlot - 1}`);
+              }
+            }
+          } else {
+            // Use offensive stats table
+            if (currentOffSlot < offCapacity) {
+              const record = careerOffTable.records[currentOffSlot];
+
+              // CRITICAL: Zero out ALL fields first to prevent garbage/negative values
+              record.STAT_KEEP = true;
+              zeroOutOffensiveCareerRecord(record);
+
+              // Now set only the stats we have data for
+              if (careerStats.pass_yds > 0) {
+                record.PASSYARDS = careerStats.pass_yds || 0;
+                record.PASSTDS = careerStats.pass_td || 0;
+                record.PASSINTS = careerStats.pass_int || 0;
+                record.PASSATTEMPTS = careerStats.pass_att || 0;
+                record.PASSCOMPLETED = careerStats.pass_cmp || 0;
+              }
+              if (careerStats.rush_yds > 0) {
+                record.RUSHYARDS = careerStats.rush_yds || 0;
+                record.RUSHTDS = careerStats.rush_td || 0;
+                record.RUSHATTEMPTS = careerStats.rush_att || 0;
+              }
+              if (careerStats.rec_yds > 0) {
+                record.RECEIVEYARDS = careerStats.rec_yds || 0;
+                record.RECEIVETDS = careerStats.rec_td || 0;
+                record.RECEIVECATCHES = careerStats.rec || 0;
+              }
+              record.GAMESPLAYED = careerStats.games || 0;
+              record.GAMESSTARTED = careerStats.games_started || 0;
+
+              // Create binary reference and update player
+              const newRef = createBinaryRef(CAREER_OFF_TABLE_ID, currentOffSlot);
+              player.CareerStats = newRef;
+
+              // =====================================================================
+              // CRITICAL: Create SeasonStats entries for EACH year the player played
+              // SEAS_YEAR is relative to franchise year: -1 = last year, -2 = 2 years ago, etc.
+              // SeasonStats0 = most recent season, SeasonStats1 = year before, etc.
+              // =====================================================================
+              if (seasonStatsArrayTable && seasonOffTable &&
+                  currentSeasonArraySlot < seasonArrayCapacity) {
+
+                // Get per-season stats for this player
+                const seasonStatsList: any[] = [];
+                const seasonStmt = db.prepare(`
+                  SELECT s.year, s.games, s.games_started,
+                         s.pass_cmp, s.pass_att, s.pass_yds, s.pass_td, s.pass_int,
+                         s.rush_att, s.rush_yds, s.rush_td,
+                         s.rec, s.rec_yds, s.rec_td
+                  FROM players p
+                  JOIN player_season_stats s ON p.pfr_id = s.pfr_id
+                  WHERE LOWER(p.first_name) = LOWER(?) AND LOWER(p.last_name) = LOWER(?) AND s.year < ?
+                  ORDER BY s.year DESC
+                `);
+                const results = seasonStmt.all(firstName, lastName, year) as any[];
+                for (const row of results) {
+                  if (row.games > 0) {
+                    seasonStatsList.push(row);
+                  }
+                }
+
+                if (seasonStatsList.length > 0) {
+                  // Create array record for this player
+                  const arrayRec = seasonStatsArrayTable.records[currentSeasonArraySlot];
+                  const numSeasons = Math.min(seasonStatsList.length, 20); // Max 20 seasons
+                  arrayRec.arraySize = numSeasons;
+
+                  // Create a season record for each year
+                  for (let i = 0; i < numSeasons; i++) {
+                    if (currentSeasonOffSlot >= seasonOffCapacity) break;
+
+                    const seasonData = seasonStatsList[i];
+                    const seasonRec = seasonOffTable.records[currentSeasonOffSlot];
+
+                    // CRITICAL: Zero out ALL fields first to prevent garbage/negative values
+                    seasonRec.STAT_KEEP = true;
+                    zeroOutOffensiveSeasonRecord(seasonRec);
+
+                    // Calculate SEAS_YEAR: relative to franchise year
+                    // If franchise is 1976 and season is 1975, SEAS_YEAR = 1975 - 1976 = -1
+                    const seasYear = seasonData.year - year;
+
+                    seasonRec.SEAS_YEAR = seasYear;
+                    seasonRec.YEARBYYEARTEAMINDEX = player.TeamIndex || 0;
+                    seasonRec.GAMESPLAYED = seasonData.games || 0;
+                    seasonRec.GAMESSTARTED = seasonData.games_started || 0;
+                    seasonRec.PASSYARDS = seasonData.pass_yds || 0;
+                    seasonRec.PASSTDS = seasonData.pass_td || 0;
+                    seasonRec.PASSINTS = seasonData.pass_int || 0;
+                    seasonRec.PASSATTEMPTS = seasonData.pass_att || 0;
+                    seasonRec.PASSCOMPLETED = seasonData.pass_cmp || 0;
+                    seasonRec.RUSHYARDS = seasonData.rush_yds || 0;
+                    seasonRec.RUSHTDS = seasonData.rush_td || 0;
+                    seasonRec.RUSHATTEMPTS = seasonData.rush_att || 0;
+                    seasonRec.RECEIVEYARDS = seasonData.rec_yds || 0;
+                    seasonRec.RECEIVETDS = seasonData.rec_td || 0;
+                    seasonRec.RECEIVECATCHES = seasonData.rec || 0;
+
+                    // Create reference and add to array
+                    const seasonRef = createBinaryRef(SEASON_OFF_TABLE_ID, currentSeasonOffSlot);
+                    arrayRec[`SeasonStats${i}`] = seasonRef;
+
+                    currentSeasonOffSlot++;
+                  }
+
+                  // Clear remaining array slots
+                  for (let i = numSeasons; i < 20; i++) {
+                    try { arrayRec[`SeasonStats${i}`] = ZERO_REF; } catch (e) { /* ignore */ }
+                  }
+
+                  // Set player's SeasonStats reference
+                  const arrayRef = createBinaryRef(SEASON_STATS_ARRAY_TABLE_ID, currentSeasonArraySlot);
+                  player.SeasonStats = arrayRef;
+
+                  currentSeasonArraySlot++;
+
+                  if (playersUpdated < 3) {
+                    console.log(`[RetroEditorService]   Created ${numSeasons} season entries for ${firstName} ${lastName}`);
+                  }
+                }
+              }
+
+              currentOffSlot++;
+              recordsCreated++;
+              playersUpdated++;
+
+              if (recordsCreated <= 5) {
+                console.log(`[RetroEditorService] Created OFF career+season record for ${firstName} ${lastName} at career slot ${currentOffSlot - 1}`);
+              }
+            }
           }
         }
       }
 
-      console.log(`[RetroEditorService] Historical stats applied: ${playersUpdated} players updated`);
+      console.log(`[RetroEditorService] Historical stats summary:`);
+      console.log(`[RetroEditorService]   - Players with matching stats in DB: ${playersWithStats}`);
+      console.log(`[RetroEditorService]   - New career records created: ${recordsCreated}`);
+      console.log(`[RetroEditorService]   - Season stats arrays created: ${currentSeasonArraySlot}`);
+      console.log(`[RetroEditorService]   - Players updated total: ${playersUpdated}`);
 
       // Save the franchise file
       await franchise.save(filePath);
       console.log(`[RetroEditorService] Franchise file saved`);
+
+      // Update the cached franchise instance so other operations see the changes
+      this.setFranchise(filePath, franchise);
 
       return {
         success: true,
@@ -6505,7 +7195,8 @@ ${fieldsList}
       }
 
       console.log(`[RetroEditorService] Loading franchise file...`);
-      const franchise = await createFranchise(sourcePath);
+      // IMPORTANT: autoUnempty must be true to properly allocate career stats records
+      const franchise = await createFranchise(sourcePath, { autoUnempty: true } as any);
       console.log(`[RetroEditorService] Franchise loaded`);
 
       // Store in cache so existing methods can find it
