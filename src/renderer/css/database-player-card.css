@@ -465,3 +465,70 @@
     justify-content: center;
   }
 }
+
+/* Archetype Change Notification Animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+#archetype-change-notification {
+  animation: slideIn 0.3s ease;
+}
+
+/* Portrait Picker Modal Styles */
+.picker-portrait-card {
+  width: 80px;
+  height: 100px;
+  background: #252535;
+  border: 2px solid #333;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.picker-portrait-card:hover {
+  border-color: #e94560;
+  transform: scale(1.05);
+}
+
+.picker-portrait-card.selected {
+  border-color: #4caf50;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+.picker-portrait-card img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+}
+
+.picker-portrait-pid {
+  font-size: 9px;
+  color: #aaa;
+  padding: 2px 4px;
+  background: rgba(0, 0, 0, 0.7);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-loading,
+.picker-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 20px;
+  color: #888;
+  font-size: 14px;
+}

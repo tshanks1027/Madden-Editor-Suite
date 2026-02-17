@@ -241,10 +241,31 @@
       calcRatingBtn.addEventListener('click', calculateRatingFromStats);
     }
 
+    // Bulk Generate Ratings button
+    var bulkRatingBtn = document.getElementById('btnBulkGenerateRatings');
+    if (bulkRatingBtn) {
+      bulkRatingBtn.addEventListener('click', bulkGenerateRatings);
+    }
+
     // Refresh Career Stats button
     var refreshStatsBtn = document.getElementById('btnRefreshCareerStats');
     if (refreshStatsBtn) {
       refreshStatsBtn.addEventListener('click', refreshCareerStats);
+    }
+
+    // Bulk Rating Preview Modal buttons
+    var closeBulkPreviewBtn = document.getElementById('closeBulkRatingPreview');
+    var cancelBulkPreviewBtn = document.getElementById('cancelBulkRatingPreview');
+    var applyBulkRatingsBtn = document.getElementById('applyBulkRatings');
+    var bulkPreviewModal = document.getElementById('bulkRatingPreviewModal');
+
+    if (closeBulkPreviewBtn) closeBulkPreviewBtn.addEventListener('click', closeBulkRatingPreviewModal);
+    if (cancelBulkPreviewBtn) cancelBulkPreviewBtn.addEventListener('click', closeBulkRatingPreviewModal);
+    if (applyBulkRatingsBtn) applyBulkRatingsBtn.addEventListener('click', applyBulkRatings);
+    if (bulkPreviewModal) {
+      bulkPreviewModal.addEventListener('click', function(e) {
+        if (e.target === bulkPreviewModal) closeBulkRatingPreviewModal();
+      });
     }
 
     // Track changes on all inputs
@@ -298,6 +319,15 @@
       assignFaceBtn.addEventListener('click', function() {
         console.log('[DbPlayerCard] Assign Generic Face clicked - opening face picker');
         openGenericFacePickerForDbCard();
+      });
+    }
+
+    // Assign PAM Only button - opens PAM picker (sets PAM only, keeps PID)
+    var assignPAMBtn = document.getElementById('assignPAMOnlyBtn');
+    if (assignPAMBtn) {
+      assignPAMBtn.addEventListener('click', function() {
+        console.log('[DbPlayerCard] Assign PAM Only clicked - opening PAM picker');
+        openPAMPickerForDbCard();
       });
     }
 
@@ -1663,6 +1693,14 @@
         } else {
           await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, { ratings: ratings });
         }
+
+        // If OVR was changed, distribute to ratings
+        // If a rating was changed, recalculate OVR
+        if (field === 'POVR') {
+          await distributeOVRToRatingsForRow(input, year, value);
+        } else {
+          await recalculateOVRForRow(input, year);
+        }
       }
 
       // Visual feedback
@@ -1694,6 +1732,140 @@
           input.style.backgroundColor = '';
         }, 1000);
       }
+    }
+  }
+
+  /**
+   * Recalculate OVR for a row in the all-years table when a rating changes
+   */
+  async function recalculateOVRForRow(changedInput, year) {
+    // Find the row containing this input
+    var row = changedInput.closest('tr');
+    if (!row) return;
+
+    // Get position and archetype from the player
+    var position = currentDbPlayer ? currentDbPlayer.position : null;
+    if (!position) {
+      console.log('[DbPlayerCard] No position for OVR calculation');
+      return;
+    }
+
+    // Collect all rating values from the row
+    var attributes = {};
+    var inputs = row.querySelectorAll('input[data-field]');
+    inputs.forEach(function(inp) {
+      var field = inp.dataset.field;
+      var val = inp.value ? parseInt(inp.value, 10) : 0;
+      if (field && field !== 'age' && !isNaN(val)) {
+        attributes[field] = val;
+      }
+    });
+
+    // Get archetype - try from season data or default
+    var archetype = '';
+    try {
+      var result;
+      if (isCustomPlayer) {
+        result = await window.electronAPI.database.getCustomPlayerSeason(currentDbPlayerId, year);
+        if (result.success && result.data) archetype = result.data.archetype || '';
+      } else {
+        result = await window.electronAPI.database.getMergedPlayerSeason(currentDbPlayerId, year);
+        if (result.success && result.season) archetype = result.season.archetype || '';
+      }
+    } catch (e) {
+      console.log('[DbPlayerCard] Could not get archetype for OVR calc');
+    }
+
+    // Calculate new OVR
+    try {
+      var newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, archetype);
+      console.log('[DbPlayerCard] Recalculated OVR for year', year, ':', newOVR);
+
+      // Find and update the OVR input in this row
+      var ovrInput = row.querySelector('input[data-field="POVR"]');
+      if (ovrInput && newOVR !== undefined) {
+        ovrInput.value = newOVR;
+
+        // Flash the OVR cell to show it updated
+        ovrInput.style.backgroundColor = 'rgba(76, 175, 80, 0.4)';
+        setTimeout(function() {
+          ovrInput.style.backgroundColor = '';
+        }, 800);
+
+        // Save the new OVR
+        var ratings = { POVR: newOVR };
+        if (isCustomPlayer) {
+          await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, { ratings: ratings });
+        } else {
+          await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, { ratings: ratings });
+        }
+      }
+    } catch (error) {
+      console.error('[DbPlayerCard] Error calculating OVR:', error);
+    }
+  }
+
+  /**
+   * Distribute OVR to ratings for a row in the all-years table
+   * When user sets an OVR directly, generate appropriate ratings
+   */
+  async function distributeOVRToRatingsForRow(ovrInput, year, targetOVR) {
+    if (!targetOVR || targetOVR < 40 || targetOVR > 99) {
+      console.log('[DbPlayerCard] Invalid OVR for distribution:', targetOVR);
+      return;
+    }
+
+    var row = ovrInput.closest('tr');
+    if (!row) return;
+
+    var position = currentDbPlayer ? currentDbPlayer.position : null;
+    if (!position) {
+      console.log('[DbPlayerCard] No position for OVR distribution');
+      return;
+    }
+
+    console.log('[DbPlayerCard] Distributing OVR', targetOVR, 'to ratings for position', position);
+
+    try {
+      // Call the backend to generate ratings from OVR
+      var result = await window.electronAPI.database.distributeOVRToRatings({
+        ovr: targetOVR,
+        position: position
+      });
+
+      if (!result.success || !result.ratings) {
+        console.error('[DbPlayerCard] Failed to distribute OVR:', result.error);
+        return;
+      }
+
+      var ratings = result.ratings;
+      ratings.POVR = targetOVR; // Ensure OVR is set
+
+      // Update all rating inputs in this row
+      var inputs = row.querySelectorAll('input[data-field]');
+      inputs.forEach(function(inp) {
+        var field = inp.dataset.field;
+        if (field && field !== 'age' && ratings[field] !== undefined) {
+          inp.value = ratings[field];
+          // Flash to show it updated
+          inp.style.backgroundColor = 'rgba(76, 175, 80, 0.3)';
+          setTimeout(function() {
+            inp.style.backgroundColor = '';
+          }, 600);
+        }
+      });
+
+      // Save all ratings to database
+      if (isCustomPlayer) {
+        await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, { ratings: ratings });
+      } else {
+        await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, { ratings: ratings });
+      }
+
+      console.log('[DbPlayerCard] Distributed OVR to', Object.keys(ratings).length, 'rating fields');
+
+    } catch (error) {
+      console.error('[DbPlayerCard] Error distributing OVR:', error);
     }
   }
 
@@ -3029,7 +3201,7 @@
 
   /**
    * Recalculate OVR dynamically when rating attributes change
-   * Also finds the best archetype and updates it if different
+   * Also finds the best archetype and shows notification if different
    */
   async function recalculateDbOVR() {
     try {
@@ -3044,9 +3216,9 @@
         position = mainPositionSelect ? mainPositionSelect.value : 'QB';
       }
 
-      // Get current archetype
+      // Get current archetype (stored as name string like "QB Field General")
       var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
-      var currentArchetype = archetypeSelect ? parseInt(archetypeSelect.value) : undefined;
+      var currentArchetypeName = archetypeSelect ? archetypeSelect.value : '';
 
       // Build attributes object from the rating inputs, mapping to OVR calculator field codes
       var attributes = {};
@@ -3068,8 +3240,8 @@
         // The first result is the best archetype (sorted by OVR descending)
         var bestArchetype = archetypeResults[0];
 
-        // Calculate OVR using the current archetype
-        var newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, currentArchetype);
+        // Calculate OVR using the current archetype name
+        var newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, currentArchetypeName);
         var ovrInput = document.getElementById('dbRating_POVR');
         var oldOVR = ovrInput ? parseInt(ovrInput.value) || 50 : 50;
 
@@ -3082,12 +3254,10 @@
           console.log('[DbPlayerCard] OVR recalculated: ' + oldOVR + ' → ' + newOVR);
         }
 
-        // Update archetype if a different one gives better OVR
-        if (archetypeSelect && currentArchetype !== bestArchetype.id && bestArchetype.ovr > newOVR) {
-          archetypeSelect.value = bestArchetype.id;
-          // Recalculate OVR with the new best archetype
-          setValue('dbRating_POVR', bestArchetype.ovr);
-          console.log('[DbPlayerCard] Updated archetype to ' + bestArchetype.name + ' (' + bestArchetype.id + '), OVR: ' + newOVR + ' → ' + bestArchetype.ovr);
+        // Check if a different archetype gives better OVR
+        if (archetypeSelect && currentArchetypeName && currentArchetypeName !== bestArchetype.name && bestArchetype.ovr > newOVR) {
+          // Show notification about better archetype
+          showArchetypeChangeNotification(currentArchetypeName, bestArchetype.name, newOVR, bestArchetype.ovr);
         }
 
         window._skipOvrRecalc = false;
@@ -3099,7 +3269,73 @@
   }
 
   /**
-   * Handle OVR change in database player card - prompt to adjust ratings
+   * Show notification when a better archetype is available
+   */
+  function showArchetypeChangeNotification(currentArchetype, bestArchetype, currentOVR, bestOVR) {
+    // Debounce notifications - don't spam during rapid edits
+    if (window._archetypeNotificationTimeout) {
+      clearTimeout(window._archetypeNotificationTimeout);
+    }
+
+    window._archetypeNotificationTimeout = setTimeout(function() {
+      // Remove any existing notification
+      var existingNotification = document.getElementById('archetype-change-notification');
+      if (existingNotification) {
+        existingNotification.remove();
+      }
+
+      var ovrDiff = bestOVR - currentOVR;
+      var notification = document.createElement('div');
+      notification.id = 'archetype-change-notification';
+      notification.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: linear-gradient(135deg, #1a3a1a 0%, #2a4a2a 100%); border: 1px solid #4caf50; border-radius: 8px; padding: 12px 16px; color: #e0e0e0; font-size: 13px; z-index: 100002; box-shadow: 0 4px 12px rgba(0,0,0,0.3); max-width: 320px; animation: slideIn 0.3s ease;';
+
+      notification.innerHTML =
+        '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">' +
+          '<strong style="color: #4caf50;">Better Archetype Available</strong>' +
+          '<button onclick="this.parentElement.parentElement.remove()" style="background: none; border: none; color: #888; cursor: pointer; font-size: 16px; line-height: 1; padding: 0;">&times;</button>' +
+        '</div>' +
+        '<div style="margin-bottom: 10px; line-height: 1.4;">' +
+          '<span style="color: #888;">Current:</span> ' + currentArchetype + ' <span style="color: #f0ad4e;">(' + currentOVR + ' OVR)</span><br>' +
+          '<span style="color: #888;">Better:</span> ' + bestArchetype + ' <span style="color: #4caf50;">(' + bestOVR + ' OVR, +' + ovrDiff + ')</span>' +
+        '</div>' +
+        '<div style="display: flex; gap: 8px;">' +
+          '<button id="apply-archetype-change" style="flex: 1; padding: 6px 12px; background: #4caf50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Switch to ' + bestArchetype.split(' ').pop() + '</button>' +
+          '<button onclick="this.parentElement.parentElement.remove()" style="padding: 6px 12px; background: #333; color: #aaa; border: 1px solid #444; border-radius: 4px; cursor: pointer; font-size: 12px;">Keep Current</button>' +
+        '</div>';
+
+      document.body.appendChild(notification);
+
+      // Add click handler for apply button
+      var applyBtn = document.getElementById('apply-archetype-change');
+      if (applyBtn) {
+        applyBtn.onclick = function() {
+          var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
+          if (archetypeSelect) {
+            archetypeSelect.value = bestArchetype;
+            archetypeSelect.dispatchEvent(new Event('change'));
+            // Update OVR to match new archetype
+            window._skipOvrRecalc = true;
+            setValue('dbRating_POVR', bestOVR);
+            window._skipOvrRecalc = false;
+            hasUnsavedChanges = true;
+            updateSaveButtonState();
+          }
+          notification.remove();
+        };
+      }
+
+      // Auto-dismiss after 10 seconds
+      setTimeout(function() {
+        if (notification.parentElement) {
+          notification.remove();
+        }
+      }, 10000);
+    }, 500); // Debounce delay
+  }
+
+  /**
+   * Handle OVR change in database player card - AUTOMATICALLY adjust ratings
+   * This ensures the OVR will translate correctly in-game
    * @param {number} oldOVR - Previous OVR value
    * @param {number} newOVR - New target OVR
    */
@@ -3116,7 +3352,7 @@
     }
     console.log('[DbPlayerCard] Position:', position);
 
-    // Get player name
+    // Get player name for logging
     var firstName = getValue('dbPlayerFirstName') || '';
     var lastName = getValue('dbPlayerLastName') || '';
     var playerName = (firstName + ' ' + lastName).trim() || 'Unknown Player';
@@ -3140,23 +3376,23 @@
     console.log('[DbPlayerCard] Current Archetype:', currentArchetype);
 
     try {
-      // Get all archetypes with their calculated OVR for current attributes
-      var archetypeOptions = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
-
       // Call the backend to calculate adjustments
-      console.log('[DbPlayerCard] Calling calculateOVRAdjustments...');
+      console.log('[DbPlayerCard] Auto-adjusting ratings for target OVR:', newOVR);
       var result = await window.electronAPI.rating.calculateOVRAdjustments(
         attributes, newOVR, position, currentArchetype
       );
       console.log('[DbPlayerCard] Result:', result);
 
       if (!result || Object.keys(result.adjustments).length === 0) {
-        console.log('[DbPlayerCard] No adjustments calculated');
+        console.log('[DbPlayerCard] No adjustments needed - target already achieved');
         return;
       }
 
-      // Show the adjustment dialog with archetype options
-      showDbOVRAdjustmentDialog(playerName, oldOVR, newOVR, result, archetypeOptions, currentArchetype, attributes, position);
+      // AUTOMATIC: Apply adjustments immediately without dialog
+      console.log('[DbPlayerCard] Applying ' + Object.keys(result.adjustments).length + ' rating adjustments');
+      applyDbOVRAdjustments(result.adjustments, currentArchetype);
+
+      console.log('[DbPlayerCard] ' + playerName + ': Ratings auto-adjusted to achieve OVR ' + result.newOVR);
 
     } catch (error) {
       console.error('[DbPlayerCard] Error calculating adjustments:', error);
@@ -4237,7 +4473,8 @@
     stats.forEach(function(season) {
       var opt = document.createElement('option');
       opt.value = season.year;
-      opt.textContent = season.year + ' (' + (season.team || 'Unknown') + ')';
+      var teamDisplay = pfrToMaddenTeam(season.team) || 'Unknown';
+      opt.textContent = season.year + ' (' + teamDisplay + ')';
       yearSelect.appendChild(opt);
     });
   }
@@ -4357,8 +4594,9 @@
     };
 
     stats.forEach(function(s) {
-      // Use database team if available, otherwise PFR team
-      var displayTeam = dbTeamsByYear[s.year] || s.team || '-';
+      // Use database team if available, otherwise convert PFR team to Madden format
+      var pfrTeamMapped = pfrToMaddenTeam(s.team);
+      var displayTeam = dbTeamsByYear[s.year] || pfrTeamMapped || '-';
       html += '<tr style="border-bottom: 1px solid #333;">';
       html += '<td style="padding: 6px; color: #64b5f6; font-weight: 500;">' + s.year + '</td>';
       html += '<td style="padding: 6px; color: #aaa;">' + displayTeam + '</td>';
@@ -4485,7 +4723,8 @@
     // Update year label
     var yearLabel = document.getElementById('statsSelectedYear');
     if (yearLabel) {
-      yearLabel.textContent = year + ' (' + (season.team || 'Unknown') + ')';
+      var teamDisplay = pfrToMaddenTeam(season.team) || 'Unknown';
+      yearLabel.textContent = year + ' (' + teamDisplay + ')';
     }
 
     // Populate single year fields
@@ -4538,6 +4777,7 @@
 
   /**
    * Calculate Madden ratings from stats and push to ratings tab
+   * Uses the Stats-Based OVR formula from docs/STATS_BASED_OVR_FORMULA.md
    */
   async function calculateRatingFromStats() {
     var yearSelect = document.getElementById('dbStatsYearSelect');
@@ -4556,10 +4796,53 @@
 
     var position = currentDbPlayer ? (currentDbPlayer.position || '') : '';
 
+    // Calculate player age for the target year
+    // Try to get birth year from draft class (assume drafted at ~22 years old)
+    var playerAge = 25; // Default
+    if (currentDbPlayer && currentDbPlayer.draftClass) {
+      var draftYear = parseInt(currentDbPlayer.draftClass, 10);
+      if (!isNaN(draftYear)) {
+        // Estimate birth year (drafted at age 22 typically)
+        var birthYear = draftYear - 22;
+        playerAge = (year + 1) - birthYear; // Age at start of next season (ratings apply to)
+      }
+    } else if (careerStatsPlayer && careerStatsPlayer.from_year) {
+      // Use first year in league as proxy (assume age 22)
+      var birthYear = careerStatsPlayer.from_year - 22;
+      playerAge = (year + 1) - birthYear;
+    }
+
+    // Build achievements object from career stats player data
+    // rookieYear is critical for career progression (rookies capped at 82, etc.)
+    var rookieYear = null;
+    if (careerStatsPlayer && careerStatsPlayer.from_year) {
+      rookieYear = careerStatsPlayer.from_year;
+    } else if (currentDbPlayer && currentDbPlayer.draftClass) {
+      rookieYear = parseInt(currentDbPlayer.draftClass, 10);
+    }
+
+    var achievements = {
+      isHOF: careerStatsPlayer ? !!careerStatsPlayer.is_hof : false,
+      proBowlYears: [], // Could be populated from ALL_PLAYER_LOOKUP if available
+      allPro1stYears: [],
+      allPro2ndYears: [],
+      rookieYear: rookieYear
+    };
+
+    var yearsInLeague = rookieYear ? (year - rookieYear + 1) : 4;
+
     console.log('[DbPlayerCard] Calculating ratings from stats for year', year, 'position', position);
+    console.log('[DbPlayerCard] Player age:', playerAge, 'HOF:', achievements.isHOF, 'Years in league:', yearsInLeague);
 
     try {
-      var result = await window.electronAPI.database.calculateRatingFromStats(season, position);
+      var result = await window.electronAPI.database.calculateRatingFromStats({
+        stats: season,
+        position: position,
+        year: year,
+        targetYear: year + 1, // Ratings apply to the next year (Madden approach)
+        playerAge: playerAge,
+        achievements: achievements
+      });
 
       if (!result.success) {
         alert('Error calculating ratings: ' + result.error);
@@ -4638,6 +4921,388 @@
         window.showToast('Career stats refreshed', 'info');
       }
     }
+  }
+
+  /**
+   * Map PFR team abbreviations to Madden team names
+   * PFR uses abbreviations like "CHI", Madden uses names like "Bears"
+   */
+  var PFR_TO_MADDEN_TEAM = {
+    // Current teams
+    'ARI': 'Cards', 'ATL': 'Falcons', 'BAL': 'Ravens', 'BUF': 'Bills',
+    'CAR': 'Panthers', 'CHI': 'Bears', 'CIN': 'Bengals', 'CLE': 'Browns',
+    'DAL': 'Cowboys', 'DEN': 'Broncos', 'DET': 'Lions', 'GB': 'Packers',
+    'GNB': 'Packers', 'HOU': 'Texans', 'IND': 'Colts', 'JAC': 'Jags',
+    'JAX': 'Jags', 'KC': 'Chiefs', 'KAN': 'Chiefs', 'LA': 'Rams',
+    'LAC': 'Chargers', 'LAR': 'Rams', 'LV': 'Raiders', 'LVR': 'Raiders',
+    'MIA': 'Dolphins', 'MIN': 'Vikings', 'NE': 'Pats', 'NWE': 'Pats',
+    'NO': 'Saints', 'NOR': 'Saints', 'NYG': 'Giants', 'NYJ': 'Jets',
+    'OAK': 'Raiders', 'PHI': 'Eagles', 'PIT': 'Steelers', 'SD': 'Chargers',
+    'SDG': 'Chargers', 'SEA': 'Seahawks', 'SF': 'Niners', 'SFO': '49ers',
+    'STL': 'Rams', 'TB': 'Buccs', 'TAM': 'Buccs', 'TEN': 'Titans',
+    'WAS': 'Commanders', 'WSH': 'Commanders',
+    // Historical teams - map to closest modern equivalent or keep as-is
+    'PHO': 'Cards', 'STL': 'Cards', // Phoenix/St. Louis Cardinals -> Cards
+    'BOS': 'Pats', // Boston Patriots -> Pats
+    'HOU': 'Titans', // Houston Oilers -> Titans (for historical purposes)
+    'CRD': 'Cards', // Chicago Cardinals
+    'RAM': 'Rams', // L.A. Rams historical
+    'RAI': 'Raiders', // Raiders historical
+    'CLT': 'Colts', // Baltimore Colts -> Colts
+    // Alternative formats
+    '49ers': '49ers', 'Bears': 'Bears', 'Bengals': 'Bengals', 'Bills': 'Bills',
+    'Broncos': 'Broncos', 'Browns': 'Browns', 'Buccs': 'Buccs', 'Cards': 'Cards',
+    'Chargers': 'Chargers', 'Chiefs': 'Chiefs', 'Colts': 'Colts', 'Cowboys': 'Cowboys',
+    'Dolphins': 'Dolphins', 'Eagles': 'Eagles', 'Falcons': 'Falcons', 'Giants': 'Giants',
+    'Jags': 'Jags', 'Jets': 'Jets', 'Lions': 'Lions', 'Packers': 'Packers',
+    'Panthers': 'Panthers', 'Pats': 'Pats', 'Raiders': 'Raiders', 'Rams': 'Rams',
+    'Ravens': 'Ravens', 'Commanders': 'Commanders', 'Saints': 'Saints', 'Seahawks': 'Seahawks',
+    'Steelers': 'Steelers', 'Texans': 'Texans', 'Titans': 'Titans', 'Vikings': 'Vikings', 'Niners': '49ers'
+  };
+
+  /**
+   * Convert PFR team abbreviation to Madden team name
+   */
+  function pfrToMaddenTeam(pfrTeam) {
+    if (!pfrTeam) return '';
+    var team = pfrTeam.trim().toUpperCase();
+    // Check direct mapping first
+    if (PFR_TO_MADDEN_TEAM[team]) return PFR_TO_MADDEN_TEAM[team];
+    // Check case-insensitive
+    var lowerTeam = pfrTeam.trim();
+    if (PFR_TO_MADDEN_TEAM[lowerTeam]) return PFR_TO_MADDEN_TEAM[lowerTeam];
+    // If already a team name, return as-is
+    var teamNames = ['Bears', 'Bengals', 'Bills', 'Broncos', 'Browns', 'Buccs', 'Cards', 'Chargers',
+                     'Chiefs', 'Colts', 'Cowboys', 'Dolphins', 'Eagles', 'Falcons', '49ers', 'Giants',
+                     'Jags', 'Jets', 'Lions', 'Packers', 'Panthers', 'Pats', 'Raiders', 'Rams',
+                     'Ravens', 'Commanders', 'Saints', 'Seahawks', 'Steelers', 'Texans', 'Titans', 'Vikings'];
+    for (var i = 0; i < teamNames.length; i++) {
+      if (teamNames[i].toLowerCase() === lowerTeam.toLowerCase()) return teamNames[i];
+    }
+    console.warn('[DbPlayerCard] Unknown team abbreviation:', pfrTeam);
+    return pfrTeam; // Return as-is if no mapping found
+  }
+
+  /**
+   * Bulk generate ratings for all years with stats
+   * Shows preview modal before applying
+   * Uses the Stats-Based OVR formula from docs/STATS_BASED_OVR_FORMULA.md
+   */
+  async function bulkGenerateRatings() {
+    if (!currentDbPlayerId || !currentDbPlayer) {
+      alert('Please select a player first');
+      return;
+    }
+
+    if (!careerStatsData || careerStatsData.length === 0) {
+      alert('No career stats available for this player.\n\nThis feature generates ratings from Pro-Football-Reference stats.');
+      return;
+    }
+
+    var position = currentDbPlayer.position || '';
+    if (!position) {
+      alert('Player position is required to generate ratings.\n\nPlease set the position on the Player Info tab first.');
+      return;
+    }
+
+    // Calculate base birth year for age calculations
+    var birthYear = null;
+    if (currentDbPlayer && currentDbPlayer.draftClass) {
+      var draftYear = parseInt(currentDbPlayer.draftClass, 10);
+      if (!isNaN(draftYear)) {
+        birthYear = draftYear - 22; // Assume drafted at age 22
+      }
+    } else if (careerStatsPlayer && careerStatsPlayer.from_year) {
+      birthYear = careerStatsPlayer.from_year - 22; // Assume first year at age 22
+    }
+
+    // Build base achievements object
+    // rookieYear is critical for career progression (rookies capped at 82, etc.)
+    var rookieYear = null;
+    if (careerStatsPlayer && careerStatsPlayer.from_year) {
+      rookieYear = careerStatsPlayer.from_year;
+    } else if (currentDbPlayer && currentDbPlayer.draftClass) {
+      rookieYear = parseInt(currentDbPlayer.draftClass, 10);
+    }
+
+    var achievements = {
+      isHOF: careerStatsPlayer ? !!careerStatsPlayer.is_hof : false,
+      proBowlYears: [], // Could be populated from ALL_PLAYER_LOOKUP if available
+      allPro1stYears: [],
+      allPro2ndYears: [],
+      rookieYear: rookieYear
+    };
+
+    console.log('[DbPlayerCard] Bulk generating ratings for', careerStatsData.length, 'years');
+    console.log('[DbPlayerCard] Rookie year:', rookieYear, 'Birth year estimate:', birthYear, 'HOF:', achievements.isHOF);
+
+    // Calculate ratings for all years with stats
+    var previewData = [];
+    var errors = [];
+
+    for (var i = 0; i < careerStatsData.length; i++) {
+      var season = careerStatsData[i];
+      var year = season.year;
+
+      // Calculate age for this specific year
+      var playerAge = birthYear ? ((year + 1) - birthYear) : 25;
+
+      try {
+        var result = await window.electronAPI.database.calculateRatingFromStats({
+          stats: season,
+          position: position,
+          year: year,
+          targetYear: year + 1, // Ratings apply to next year (Madden approach)
+          playerAge: playerAge,
+          achievements: achievements
+        });
+        if (result.success && result.ratings) {
+          // Convert PFR team abbreviation to Madden team name
+          var maddenTeam = pfrToMaddenTeam(season.team);
+          previewData.push({
+            year: season.year,
+            team: maddenTeam || '-',
+            stats: season,
+            ratings: result.ratings,
+            ovr: result.ratings.POVR || 50,
+            breakdown: result.breakdown || '',
+            selected: true // Default to selected
+          });
+        } else {
+          errors.push(season.year + ': ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        errors.push(season.year + ': ' + error.message);
+      }
+    }
+
+    if (previewData.length === 0) {
+      alert('Could not generate ratings for any year.\n\nErrors:\n' + errors.join('\n'));
+      return;
+    }
+
+    // Sort by year
+    previewData.sort(function(a, b) { return a.year - b.year; });
+
+    // Store for apply function
+    window._bulkRatingPreviewData = previewData;
+
+    // Show preview modal
+    showBulkRatingPreviewModal(previewData, errors);
+  }
+
+  /**
+   * Show the bulk rating preview modal
+   */
+  function showBulkRatingPreviewModal(previewData, errors) {
+    var modal = document.getElementById('bulkRatingPreviewModal');
+    var content = document.getElementById('bulkRatingPreviewContent');
+    var stats = document.getElementById('bulkRatingPreviewStats');
+
+    if (!modal || !content) {
+      console.error('[DbPlayerCard] Bulk rating preview modal not found');
+      return;
+    }
+
+    // Build preview table
+    var html = '<div style="margin-bottom: 16px;">' +
+      '<p style="color: #e0e0e0; margin: 0 0 8px 0;"><strong>' + (currentDbPlayer.firstName || '') + ' ' + (currentDbPlayer.lastName || '') + '</strong> - ' + (currentDbPlayer.position || '') + '</p>' +
+      '<p style="color: #888; font-size: 12px; margin: 0;">Select which years to apply ratings for:</p>' +
+    '</div>';
+
+    html += '<table style="width: 100%; border-collapse: collapse; font-size: 13px;">';
+    html += '<thead><tr style="background: #252535; border-bottom: 2px solid #444;">' +
+      '<th style="padding: 8px; text-align: center; width: 30px;"><input type="checkbox" id="bulkSelectAllYears" checked title="Select/Deselect All"></th>' +
+      '<th style="padding: 8px; text-align: left;">Year</th>' +
+      '<th style="padding: 8px; text-align: left;">Team</th>' +
+      '<th style="padding: 8px; text-align: center; color: #4caf50;">OVR</th>' +
+      '<th style="padding: 8px; text-align: center;">Key Stats</th>' +
+      '</tr></thead><tbody>';
+
+    previewData.forEach(function(item, idx) {
+      var keyStats = getKeyStatsDisplay(item.stats, currentDbPlayer.position);
+
+      html += '<tr style="border-bottom: 1px solid #333;">' +
+        '<td style="padding: 8px; text-align: center;"><input type="checkbox" class="bulk-year-checkbox" data-index="' + idx + '" checked></td>' +
+        '<td style="padding: 8px; color: #64b5f6;">' + item.year + '</td>' +
+        '<td style="padding: 8px;">' + item.team + '</td>' +
+        '<td style="padding: 8px; text-align: center; font-weight: bold; color: #4caf50;">' + item.ovr + '</td>' +
+        '<td style="padding: 8px; font-size: 11px; color: #aaa;">' + keyStats + '</td>' +
+      '</tr>';
+    });
+
+    html += '</tbody></table>';
+
+    if (errors.length > 0) {
+      html += '<div style="margin-top: 16px; padding: 12px; background: rgba(244, 67, 54, 0.1); border: 1px solid rgba(244, 67, 54, 0.3); border-radius: 4px;">' +
+        '<p style="color: #f44336; margin: 0 0 8px 0; font-weight: bold;">Warnings:</p>' +
+        '<ul style="margin: 0; padding-left: 20px; color: #ff8a80; font-size: 12px;">';
+      errors.forEach(function(err) {
+        html += '<li>' + err + '</li>';
+      });
+      html += '</ul></div>';
+    }
+
+    content.innerHTML = html;
+
+    // Update stats summary
+    var avgOvr = Math.round(previewData.reduce(function(sum, item) { return sum + item.ovr; }, 0) / previewData.length);
+    stats.innerHTML = previewData.length + ' years with ratings | Average OVR: ' + avgOvr;
+
+    // Set up select all checkbox
+    var selectAllCheckbox = document.getElementById('bulkSelectAllYears');
+    if (selectAllCheckbox) {
+      selectAllCheckbox.addEventListener('change', function() {
+        var checked = this.checked;
+        document.querySelectorAll('.bulk-year-checkbox').forEach(function(cb) {
+          cb.checked = checked;
+        });
+      });
+    }
+
+    // Show modal
+    modal.style.display = 'flex';
+  }
+
+  /**
+   * Get key stats display for a position
+   */
+  function getKeyStatsDisplay(stats, position) {
+    if (!stats) return '-';
+
+    var parts = [];
+
+    if (position === 'QB') {
+      if (stats.pass_att > 0) {
+        parts.push(stats.pass_cmp + '/' + stats.pass_att + ' Pass');
+        if (stats.pass_yds) parts.push(stats.pass_yds + ' Yds');
+        if (stats.pass_td) parts.push(stats.pass_td + ' TD');
+        if (stats.pass_int) parts.push(stats.pass_int + ' INT');
+      }
+    } else if (position === 'HB' || position === 'FB') {
+      if (stats.rush_att > 0) {
+        parts.push(stats.rush_att + ' Rush');
+        if (stats.rush_yds) parts.push(stats.rush_yds + ' Yds');
+        if (stats.rush_td) parts.push(stats.rush_td + ' TD');
+      }
+      if (stats.rec > 0) {
+        parts.push(stats.rec + ' Rec');
+      }
+    } else if (position === 'WR' || position === 'TE') {
+      if (stats.rec > 0) {
+        parts.push(stats.rec + ' Rec');
+        if (stats.rec_yds) parts.push(stats.rec_yds + ' Yds');
+        if (stats.rec_td) parts.push(stats.rec_td + ' TD');
+      }
+    } else if (['LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'].indexOf(position) !== -1) {
+      // Defensive positions
+      if (stats.tackles > 0) parts.push(stats.tackles + ' Tkl');
+      if (stats.sacks > 0) parts.push(stats.sacks + ' Sck');
+      if (stats.def_int > 0) parts.push(stats.def_int + ' INT');
+      if (stats.ff > 0) parts.push(stats.ff + ' FF');
+    } else if (['LT', 'LG', 'C', 'RG', 'RT'].indexOf(position) !== -1) {
+      parts.push('OL Stats');
+    }
+
+    return parts.length > 0 ? parts.join(', ') : '-';
+  }
+
+  /**
+   * Apply bulk ratings from preview
+   */
+  async function applyBulkRatings() {
+    var previewData = window._bulkRatingPreviewData;
+    if (!previewData || previewData.length === 0) {
+      alert('No ratings data to apply');
+      return;
+    }
+
+    // Get selected years
+    var selectedYears = [];
+    document.querySelectorAll('.bulk-year-checkbox:checked').forEach(function(cb) {
+      var idx = parseInt(cb.dataset.index, 10);
+      if (!isNaN(idx) && previewData[idx]) {
+        selectedYears.push(previewData[idx]);
+      }
+    });
+
+    if (selectedYears.length === 0) {
+      alert('Please select at least one year to apply ratings');
+      return;
+    }
+
+    console.log('[DbPlayerCard] Applying bulk ratings for', selectedYears.length, 'years');
+
+    var applied = 0;
+    var errors = [];
+
+    for (var i = 0; i < selectedYears.length; i++) {
+      var item = selectedYears[i];
+      try {
+        // Use the team from career stats (already mapped to Madden format via pfrToMaddenTeam)
+        // This ensures correct team is always used from PFR data
+        var teamToUse = item.team || '';
+
+        // Build season data with ratings
+        var seasonData = {
+          team: teamToUse,
+          position: currentDbPlayer.position,
+          ratings: item.ratings
+        };
+
+        // Save to database
+        var result;
+        if (isCustomPlayer) {
+          result = await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, item.year, seasonData);
+        } else {
+          result = await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, item.year, seasonData);
+        }
+
+        if (result.success) {
+          applied++;
+        } else {
+          errors.push(item.year + ': ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        errors.push(item.year + ': ' + error.message);
+      }
+    }
+
+    // Close modal
+    var modal = document.getElementById('bulkRatingPreviewModal');
+    if (modal) modal.style.display = 'none';
+
+    // Cleanup
+    window._bulkRatingPreviewData = null;
+
+    // Refresh the year selector and ratings table
+    await setupYearSelector(currentDbPlayer);
+    await renderRatingsAllYears();
+
+    // Show result
+    var message = 'Applied ratings to ' + applied + ' of ' + selectedYears.length + ' years.';
+    if (errors.length > 0) {
+      message += '\n\nErrors:\n' + errors.slice(0, 5).join('\n');
+      if (errors.length > 5) message += '\n...and ' + (errors.length - 5) + ' more';
+    }
+
+    alert(message);
+
+    hasUnsavedChanges = true;
+    updateSaveButtonState();
+
+    // Switch to ratings tab to see results
+    var ratingsTab = document.querySelector('.db-player-tab[data-tab="ratings"]');
+    if (ratingsTab) ratingsTab.click();
+  }
+
+  /**
+   * Close the bulk rating preview modal
+   */
+  function closeBulkRatingPreviewModal() {
+    var modal = document.getElementById('bulkRatingPreviewModal');
+    if (modal) modal.style.display = 'none';
+    window._bulkRatingPreviewData = null;
   }
 
   // Make functions available globally

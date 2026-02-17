@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="css/player-browser.css">
     <link rel="stylesheet" href="css/database-browser-layout.css">
     <link rel="stylesheet" href="css/database-coach-card.css">
+    <link rel="stylesheet" href="css/database-wizard.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -258,6 +259,8 @@
                 <div class="pagination-controls">
                     <button class="pagination-btn" id="playerBrowserPrevPage" disabled>« Previous</button>
                     <span class="pagination-info" id="playerBrowserPageInfo">Page 1</span>
+                    <input type="number" class="page-jump-input" id="playerBrowserPageJump" min="1" placeholder="Go to">
+                    <button class="pagination-btn page-jump-btn" id="playerBrowserGoToPage">Go</button>
                     <button class="pagination-btn" id="playerBrowserNextPage">Next »</button>
                 </div>
             </div>
@@ -322,6 +325,8 @@
                 <div class="pagination-controls">
                     <button class="pagination-btn" id="coachBrowserPrevPage" disabled>« Previous</button>
                     <span class="pagination-info" id="coachBrowserPageInfo">Page 1</span>
+                    <input type="number" class="page-jump-input" id="coachBrowserPageJump" min="1" placeholder="Go to">
+                    <button class="pagination-btn page-jump-btn" id="coachBrowserGoToPage">Go</button>
                     <button class="pagination-btn" id="coachBrowserNextPage">Next »</button>
                 </div>
             </div>
@@ -351,10 +356,109 @@
             <div class="modal-body">
                 <p style="color: #888; margin-bottom: 16px;">Manage your player database edits and custom players.</p>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button class="footer-btn footer-btn-primary" id="openDatabaseWizard" style="width: 100%;">Database Optimization Wizard</button>
                     <button class="footer-btn" id="resetAllEditsBtn" style="width: 100%;">Reset All Player Edits</button>
                     <button class="footer-btn" id="resetCustomPlayersBtn" style="width: 100%;">Delete All Custom Players</button>
                     <button class="footer-btn" id="viewHiddenPlayersBtn" style="width: 100%;">View Hidden Players</button>
                     <button class="footer-btn" id="exportDatabaseBtn" style="width: 100%;">Export Database</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Add Wizard Modal -->
+    <div id="bulkAddWizardModal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 450px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="bulkAddWizardTitle">Add Players to Roster</h3>
+                <button class="modal-close" id="closeBulkAddWizard">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="bulk-add-info" style="margin-bottom: 16px; padding: 12px; background: rgba(229, 192, 74, 0.1); border-radius: 6px; border: 1px solid rgba(229, 192, 74, 0.3);">
+                    <span id="bulkAddPlayerCount" style="color: #e5c04a; font-weight: 600;">0 players</span>
+                    <span style="color: #aaa;"> selected</span>
+                </div>
+
+                <div class="bulk-add-option" style="margin-bottom: 20px;">
+                    <label style="display: block; color: #ccc; margin-bottom: 8px; font-weight: 500;">Select Year Option:</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label class="bulk-add-radio" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #2a2a2a; border-radius: 6px; cursor: pointer; border: 1px solid #3a3a3a;">
+                            <input type="radio" name="yearOption" value="best" checked style="accent-color: #e5c04a;">
+                            <div>
+                                <div style="color: #fff; font-weight: 500;">Best Year</div>
+                                <div style="color: #888; font-size: 12px;">Use each player's highest OVR season</div>
+                            </div>
+                        </label>
+                        <label class="bulk-add-radio" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #2a2a2a; border-radius: 6px; cursor: pointer; border: 1px solid #3a3a3a;">
+                            <input type="radio" name="yearOption" value="rookie" style="accent-color: #e5c04a;">
+                            <div>
+                                <div style="color: #fff; font-weight: 500;">Rookie Year</div>
+                                <div style="color: #888; font-size: 12px;">Use each player's first NFL season</div>
+                            </div>
+                        </label>
+                        <label class="bulk-add-radio" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #2a2a2a; border-radius: 6px; cursor: pointer; border: 1px solid #3a3a3a;">
+                            <input type="radio" name="yearOption" value="worst" style="accent-color: #e5c04a;">
+                            <div>
+                                <div style="color: #fff; font-weight: 500;">Worst Year</div>
+                                <div style="color: #888; font-size: 12px;">Use each player's lowest OVR season</div>
+                            </div>
+                        </label>
+                        <label class="bulk-add-radio" style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #2a2a2a; border-radius: 6px; cursor: pointer; border: 1px solid #3a3a3a;">
+                            <input type="radio" name="yearOption" value="last" style="accent-color: #e5c04a;">
+                            <div>
+                                <div style="color: #fff; font-weight: 500;">Final Year</div>
+                                <div style="color: #888; font-size: 12px;">Use each player's last NFL season</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="bulk-add-progress" id="bulkAddProgress" style="display: none; margin-bottom: 16px;">
+                    <div style="color: #aaa; margin-bottom: 8px;">Adding players...</div>
+                    <div style="background: #2a2a2a; border-radius: 4px; height: 8px; overflow: hidden;">
+                        <div id="bulkAddProgressBar" style="background: #e5c04a; height: 100%; width: 0%; transition: width 0.2s;"></div>
+                    </div>
+                    <div id="bulkAddProgressText" style="color: #888; font-size: 12px; margin-top: 4px;">0 / 0</div>
+                </div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                    <button class="footer-btn" id="cancelBulkAdd">Cancel</button>
+                    <button class="footer-btn footer-btn-primary" id="confirmBulkAdd">Add Players</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generic Face Picker Modal -->
+    <div id="genericFacePickerModal" class="modal" style="display: none;">
+        <div class="modal-content generic-face-picker-content" style="width: 90%; max-width: 900px; max-height: 80vh;">
+            <div class="modal-header">
+                <h2 class="modal-title">Select Generic Face</h2>
+                <button class="modal-close" id="closeGenericFacePicker">&times;</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; max-height: 60vh;">
+                <div id="genericFaceGrid" class="generic-face-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; padding: 10px;">
+                    <div class="loading-spinner">Loading generic faces...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAM Picker Modal (sets PAM only, not PID) -->
+    <div id="pamPickerModal" class="modal" style="display: none;">
+        <div class="modal-content generic-face-picker-content" style="width: 90%; max-width: 900px; max-height: 80vh;">
+            <div class="modal-header">
+                <h2 class="modal-title">Select Generic PAM</h2>
+                <button class="modal-close" id="closePAMPicker">&times;</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; max-height: 60vh;">
+                <div style="margin-bottom: 15px; padding: 10px; background: #2a2a2a; border-radius: 4px; border-left: 3px solid #ff6b35;">
+                    <p style="margin: 0; font-size: 12px; color: #ccc;">
+                        <strong>Note:</strong> This will set the PAM (Player Assets/face code) only. The PID (Photo ID/portrait) will remain unchanged.
+                    </p>
+                </div>
+                <div id="pamPickerGrid" class="generic-face-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 10px; padding: 10px;">
+                    <div class="loading-spinner">Loading generic faces...</div>
                 </div>
             </div>
         </div>
@@ -507,13 +611,17 @@
                                 <input type="text" class="db-form-input" id="dbPlayerCommID" placeholder="Commentary ID">
                             </div>
                         </div>
-                        <div class="db-form-section-actions" style="margin-top: 12px;">
-                            <button type="button" class="db-btn db-btn-secondary" id="assignGenericFaceBtn" title="Choose a generic face from the face picker">
+                        <div class="db-form-section-actions" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button type="button" class="db-btn db-btn-secondary" id="assignGenericFaceBtn" title="Choose a generic face (sets both PID and PAM)">
                                 Choose Generic Face
+                            </button>
+                            <button type="button" class="db-btn db-btn-secondary" id="assignPAMOnlyBtn" title="Choose a PAM only (keeps existing PID/portrait)">
+                                Assign PAM Only
                             </button>
                         </div>
                         <p style="color: #a0a0a0; font-size: 12px; margin-top: 12px;">
-                            These IDs link the player to Madden assets like portraits and commentary. Use "Assign Generic Face" to assign a random generic face PID for players without portraits.
+                            <strong>Choose Generic Face:</strong> Sets both PID (portrait) and PAM (face code).<br>
+                            <strong>Assign PAM Only:</strong> Sets only the PAM (face code like 1_B_N_03), keeping the existing portrait.
                         </p>
                     </div>
                 </div>
@@ -680,11 +788,24 @@
 
                 <!-- Career Stats Tab -->
                 <div class="db-player-tab-content" id="tab-stats">
-                    <div class="db-year-selector">
-                        <label>Select Year:</label>
-                        <select id="dbStatsYearSelect">
-                            <option value="all">All Years (Table View)</option>
-                        </select>
+                    <div class="db-year-selector" style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label>Select Year:</label>
+                            <select id="dbStatsYearSelect">
+                                <option value="all">All Years (Table View)</option>
+                            </select>
+                        </div>
+                        <div class="stats-to-ratings-actions" style="display: flex; gap: 8px;">
+                            <button class="db-btn db-btn-secondary" id="btnCalculateRatingFromStats" title="Generate Madden ratings from the selected year's stats">
+                                Generate Ratings
+                            </button>
+                            <button class="db-btn db-btn-secondary" id="btnBulkGenerateRatings" title="Generate ratings for ALL years that have stats">
+                                Bulk Generate All Years
+                            </button>
+                        </div>
+                        <button class="db-btn db-btn-secondary" id="btnRefreshCareerStats" title="Reload career stats data" style="padding: 4px 8px; font-size: 12px;">
+                            Refresh
+                        </button>
                     </div>
 
                     <!-- All Years Stats Table View -->
@@ -764,6 +885,30 @@
                 <button class="db-btn db-btn-secondary" id="importNewPortraitBtn">Import New Portrait</button>
                 <button class="db-btn db-btn-secondary" id="cancelPortraitPickerBtn">Cancel</button>
                 <button class="db-btn db-btn-primary" id="confirmPortraitPickerBtn" disabled>Select</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Rating Generation Preview Modal -->
+    <div id="bulkRatingPreviewModal" class="modal" style="display: none; z-index: 26000;">
+        <div class="modal-content" style="width: 800px; max-width: 95vw; max-height: 85vh; background: #1a1a2e; border-radius: 8px;">
+            <div class="modal-header" style="padding: 16px 20px; border-bottom: 1px solid #333; background: #252535;">
+                <h3 class="modal-title" style="margin: 0; color: #fff;">Generate Ratings from Stats</h3>
+                <button class="modal-close" id="closeBulkRatingPreview" style="background: none; border: none; color: #888; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px; max-height: calc(85vh - 150px); overflow-y: auto;">
+                <div id="bulkRatingPreviewContent">
+                    <!-- Preview content will be populated dynamically -->
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; border-top: 1px solid #333; background: #1a1a2a;">
+                <div id="bulkRatingPreviewStats" style="color: #888; font-size: 13px;">
+                    <!-- Stats summary will be populated dynamically -->
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="db-btn db-btn-secondary" id="cancelBulkRatingPreview">Cancel</button>
+                    <button class="db-btn db-btn-primary" id="applyBulkRatings">Apply All Ratings</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1080,9 +1225,59 @@
         </div>
     </div>
 
+    <!-- Database Optimization Wizard Modal -->
+    <div id="databaseWizardModal" class="modal" style="display: none;">
+        <div class="modal-content wizard-modal-content">
+            <!-- Header -->
+            <div class="wizard-header">
+                <h2 class="wizard-title">Database Optimization Wizard</h2>
+                <button class="wizard-close" id="closeDatabaseWizard">&times;</button>
+            </div>
+
+            <!-- Progress Steps -->
+            <div class="wizard-progress">
+                <div class="wizard-step active" data-step="0">
+                    <span class="wizard-step-number">1</span>
+                    <span class="wizard-step-label">Welcome</span>
+                </div>
+                <div class="wizard-step" data-step="1">
+                    <span class="wizard-step-number">2</span>
+                    <span class="wizard-step-label">Options</span>
+                </div>
+                <div class="wizard-step" data-step="2">
+                    <span class="wizard-step-number">3</span>
+                    <span class="wizard-step-label">Preview</span>
+                </div>
+                <div class="wizard-step" data-step="3">
+                    <span class="wizard-step-number">4</span>
+                    <span class="wizard-step-label">Execute</span>
+                </div>
+                <div class="wizard-step" data-step="4">
+                    <span class="wizard-step-number">5</span>
+                    <span class="wizard-step-label">Summary</span>
+                </div>
+            </div>
+
+            <!-- Body - Content rendered dynamically by database-wizard.js -->
+            <div class="wizard-body"></div>
+
+            <!-- Footer -->
+            <div class="wizard-footer">
+                <div class="wizard-footer-left">
+                    <button class="wizard-btn wizard-btn-secondary" id="wizardPrevBtn" style="display: none;">Back</button>
+                </div>
+                <div class="wizard-footer-right">
+                    <button class="wizard-btn wizard-btn-primary" id="wizardNextBtn">Get Started</button>
+                    <button class="wizard-btn wizard-btn-success" id="wizardFinishBtn" style="display: none;">Finish</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="js/database-player-card.js"></script>
     <script src="js/database-coach-card.js"></script>
     <script src="js/coach-browser.js"></script>
+    <script src="js/database-wizard.js"></script>
     <script>
         /**
          * Database Browser - Three-Panel Layout
@@ -1305,6 +1500,23 @@
                 if (prevBtn) prevBtn.addEventListener('click', () => { if (currentPage > 1) { currentPage--; performSearch(); } });
                 if (nextBtn) nextBtn.addEventListener('click', () => { currentPage++; performSearch(); });
 
+                // Go to page
+                const pageJumpInput = document.getElementById('playerBrowserPageJump');
+                const goToPageBtn = document.getElementById('playerBrowserGoToPage');
+                if (goToPageBtn && pageJumpInput) {
+                    const goToPage = () => {
+                        const totalPages = Math.ceil(totalResults / pageSize) || 1;
+                        const targetPage = parseInt(pageJumpInput.value, 10);
+                        if (targetPage >= 1 && targetPage <= totalPages) {
+                            currentPage = targetPage;
+                            performSearch();
+                            pageJumpInput.value = '';
+                        }
+                    };
+                    goToPageBtn.addEventListener('click', goToPage);
+                    pageJumpInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') goToPage(); });
+                }
+
                 // Add new player
                 const addNewBtn = document.getElementById('addNewPlayerBtn');
                 if (addNewBtn) {
@@ -1326,6 +1538,115 @@
                     closeDbMgmt.addEventListener('click', () => dbModal.style.display = 'none');
                 }
 
+                // DB Management button handlers
+                const resetAllEditsBtn = document.getElementById('resetAllEditsBtn');
+                if (resetAllEditsBtn) {
+                    resetAllEditsBtn.addEventListener('click', async () => {
+                        if (confirm('Reset ALL player edits? This cannot be undone.')) {
+                            try {
+                                const result = await window.electronAPI.database.resetAllEdits();
+                                if (result.success) {
+                                    alert('All player edits have been reset.');
+                                    performSearch();
+                                } else {
+                                    alert('Failed to reset edits: ' + (result.error || 'Unknown error'));
+                                }
+                            } catch (e) {
+                                alert('Error: ' + e.message);
+                            }
+                        }
+                    });
+                }
+
+                const resetCustomPlayersBtn = document.getElementById('resetCustomPlayersBtn');
+                if (resetCustomPlayersBtn) {
+                    resetCustomPlayersBtn.addEventListener('click', async () => {
+                        if (confirm('Delete ALL custom players? This cannot be undone.')) {
+                            try {
+                                const result = await window.electronAPI.database.resetAllCustomPlayers();
+                                if (result.success) {
+                                    alert('All custom players have been deleted.');
+                                    performSearch();
+                                } else {
+                                    alert('Failed to delete custom players: ' + (result.error || 'Unknown error'));
+                                }
+                            } catch (e) {
+                                alert('Error: ' + e.message);
+                            }
+                        }
+                    });
+                }
+
+                const viewHiddenPlayersBtn = document.getElementById('viewHiddenPlayersBtn');
+                if (viewHiddenPlayersBtn) {
+                    viewHiddenPlayersBtn.addEventListener('click', async () => {
+                        try {
+                            const result = await window.electronAPI.database.getHiddenPlayersDetails();
+                            if (result.success && result.players && result.players.length > 0) {
+                                // Show hidden players in a simple list dialog
+                                const playerList = result.players.map(p =>
+                                    `${p.firstName} ${p.lastName} (${p.position || 'N/A'})`
+                                ).join('\n');
+
+                                const unhideAll = confirm(
+                                    `Found ${result.players.length} hidden player(s):\n\n` +
+                                    playerList.substring(0, 500) + (playerList.length > 500 ? '\n...' : '') +
+                                    '\n\nClick OK to unhide all, Cancel to keep hidden.'
+                                );
+
+                                if (unhideAll) {
+                                    for (const player of result.players) {
+                                        await window.electronAPI.database.unhidePlayer(player.internalId);
+                                    }
+                                    alert('All players have been unhidden.');
+                                    performSearch();
+                                }
+                            } else {
+                                alert('No hidden players found.');
+                            }
+                        } catch (e) {
+                            alert('Error loading hidden players: ' + e.message);
+                        }
+                    });
+                }
+
+                const exportDatabaseBtn = document.getElementById('exportDatabaseBtn');
+                if (exportDatabaseBtn) {
+                    exportDatabaseBtn.addEventListener('click', async () => {
+                        alert('Export feature coming soon. Your database is stored in the app data folder.');
+                    });
+                }
+
+                // Generic face picker modal close handler
+                const closeGenericFacePickerBtn = document.getElementById('closeGenericFacePicker');
+                const genericFacePickerModal = document.getElementById('genericFacePickerModal');
+                if (closeGenericFacePickerBtn && genericFacePickerModal) {
+                    closeGenericFacePickerBtn.addEventListener('click', () => {
+                        genericFacePickerModal.style.display = 'none';
+                    });
+                    // Also close on backdrop click
+                    genericFacePickerModal.addEventListener('click', (e) => {
+                        if (e.target === genericFacePickerModal) {
+                            genericFacePickerModal.style.display = 'none';
+                        }
+                    });
+                }
+
+                // PAM picker modal close handler
+                const closePAMPickerBtn = document.getElementById('closePAMPicker');
+                const pamPickerModal = document.getElementById('pamPickerModal');
+                if (closePAMPickerBtn && pamPickerModal) {
+                    closePAMPickerBtn.addEventListener('click', () => {
+                        pamPickerModal.style.display = 'none';
+                    });
+                    // Also close on backdrop click
+                    pamPickerModal.addEventListener('click', (e) => {
+                        if (e.target === pamPickerModal) {
+                            pamPickerModal.style.display = 'none';
+                        }
+                    });
+                }
+
                 // Select all checkbox
                 const selectAll = document.getElementById('selectAllPlayers');
                 if (selectAll) {
@@ -1341,6 +1662,160 @@
                             }
                         });
                         updateSelectionUI();
+                    });
+                }
+
+                // Bulk Add Wizard handlers
+                let bulkAddTarget = 'roster'; // 'roster' or 'draft'
+                const bulkAddModal = document.getElementById('bulkAddWizardModal');
+                const closeBulkAddBtn = document.getElementById('closeBulkAddWizard');
+                const cancelBulkAddBtn = document.getElementById('cancelBulkAdd');
+                const confirmBulkAddBtn = document.getElementById('confirmBulkAdd');
+
+                function showBulkAddWizard(target) {
+                    bulkAddTarget = target;
+                    const title = document.getElementById('bulkAddWizardTitle');
+                    const count = document.getElementById('bulkAddPlayerCount');
+                    title.textContent = target === 'roster' ? 'Add Players to Roster' : 'Add Players to Draft Class';
+                    count.textContent = selectedPlayerIds.size + ' player' + (selectedPlayerIds.size !== 1 ? 's' : '');
+                    document.getElementById('bulkAddProgress').style.display = 'none';
+                    confirmBulkAddBtn.disabled = false;
+                    bulkAddModal.style.display = 'flex';
+                }
+
+                function closeBulkAddWizard() {
+                    bulkAddModal.style.display = 'none';
+                }
+
+                if (closeBulkAddBtn) closeBulkAddBtn.addEventListener('click', closeBulkAddWizard);
+                if (cancelBulkAddBtn) cancelBulkAddBtn.addEventListener('click', closeBulkAddWizard);
+
+                if (confirmBulkAddBtn) {
+                    confirmBulkAddBtn.addEventListener('click', async () => {
+                        if (selectedPlayerIds.size === 0) return;
+
+                        const yearOption = document.querySelector('input[name="yearOption"]:checked').value;
+                        const playerIds = Array.from(selectedPlayerIds);
+                        console.log('[DatabaseBrowser] Bulk add:', playerIds.length, 'players to', bulkAddTarget, 'with option:', yearOption);
+
+                        // Show progress
+                        confirmBulkAddBtn.disabled = true;
+                        const progressDiv = document.getElementById('bulkAddProgress');
+                        const progressBar = document.getElementById('bulkAddProgressBar');
+                        const progressText = document.getElementById('bulkAddProgressText');
+                        progressDiv.style.display = 'block';
+                        progressBar.style.width = '0%';
+
+                        let added = 0;
+                        let failed = 0;
+
+                        for (let i = 0; i < playerIds.length; i++) {
+                            const playerId = playerIds[i];
+                            try {
+                                // Get player's available years to determine which year to use
+                                const yearsResult = await window.electronAPI.database.getPlayerAvailableYears(playerId);
+                                if (!yearsResult.success || !yearsResult.years || yearsResult.years.length === 0) {
+                                    console.warn('No years available for player', playerId);
+                                    failed++;
+                                    continue;
+                                }
+
+                                // Determine which year to use based on option
+                                let selectedYear;
+                                const years = yearsResult.years;
+
+                                if (yearOption === 'rookie') {
+                                    // Rookie = first/earliest year
+                                    selectedYear = Math.min(...years);
+                                } else if (yearOption === 'last') {
+                                    // Last/Final = most recent year
+                                    selectedYear = Math.max(...years);
+                                } else if (yearOption === 'best' || yearOption === 'worst') {
+                                    // Need to check OVR for each year to find best/worst
+                                    let bestYear = years[0];
+                                    let bestOvr = 0;
+                                    let worstYear = years[0];
+                                    let worstOvr = 999;
+
+                                    for (const year of years) {
+                                        try {
+                                            const playerData = bulkAddTarget === 'roster'
+                                                ? await window.electronAPI.database.getPlayerForRoster(playerId, year)
+                                                : await window.electronAPI.database.getPlayerForDraft(playerId, year);
+
+                                            if (playerData.success) {
+                                                const ovr = playerData.player?.POVR || playerData.prospect?.overall || 0;
+                                                if (ovr > bestOvr) { bestOvr = ovr; bestYear = year; }
+                                                if (ovr < worstOvr) { worstOvr = ovr; worstYear = year; }
+                                            }
+                                        } catch (e) {
+                                            console.warn('Error checking year', year, 'for player', playerId);
+                                        }
+                                    }
+
+                                    selectedYear = yearOption === 'best' ? bestYear : worstYear;
+                                } else {
+                                    selectedYear = yearsResult.defaultYear || years[0];
+                                }
+
+                                console.log('[DatabaseBrowser] Player', playerId, 'using year', selectedYear, '(' + yearOption + ')');
+
+                                // Send to main window with the selected year
+                                const result = await window.electronAPI.database.sendPlayerToMainWindow(playerId, bulkAddTarget, { year: selectedYear });
+                                if (result.success) {
+                                    added++;
+                                } else {
+                                    console.error('Failed to send player', playerId, ':', result.error);
+                                    failed++;
+                                }
+
+                                // Small delay to let main window process
+                                await new Promise(r => setTimeout(r, 100));
+
+                            } catch (e) {
+                                console.error('Error adding player', playerId, ':', e);
+                                failed++;
+                            }
+
+                            // Update progress
+                            const progress = ((i + 1) / playerIds.length) * 100;
+                            progressBar.style.width = progress + '%';
+                            progressText.textContent = (i + 1) + ' / ' + playerIds.length;
+                        }
+
+                        console.log('[DatabaseBrowser] Bulk add complete. Added:', added, 'Failed:', failed);
+
+                        // Clear selection and close
+                        selectedPlayerIds.clear();
+                        document.querySelectorAll('.player-select-checkbox').forEach(cb => cb.checked = false);
+                        const selectAllCb = document.getElementById('selectAllPlayers');
+                        if (selectAllCb) selectAllCb.checked = false;
+                        updateSelectionUI();
+
+                        setTimeout(() => {
+                            closeBulkAddWizard();
+                            if (failed > 0) {
+                                alert('Added ' + added + ' players. ' + failed + ' failed.');
+                            }
+                        }, 500);
+                    });
+                }
+
+                // Add Selected to Roster button - now shows wizard
+                const addToRosterBtn = document.getElementById('addSelectedToRosterBtn');
+                if (addToRosterBtn) {
+                    addToRosterBtn.addEventListener('click', () => {
+                        if (selectedPlayerIds.size === 0) return;
+                        showBulkAddWizard('roster');
+                    });
+                }
+
+                // Add Selected to Draft button - now shows wizard
+                const addToDraftBtn = document.getElementById('addSelectedToDraftBtn');
+                if (addToDraftBtn) {
+                    addToDraftBtn.addEventListener('click', () => {
+                        if (selectedPlayerIds.size === 0) return;
+                        showBulkAddWizard('draft');
                     });
                 }
             }
@@ -1665,10 +2140,12 @@
                 const pageInfo = document.getElementById('playerBrowserPageInfo');
                 const prevBtn = document.getElementById('playerBrowserPrevPage');
                 const nextBtn = document.getElementById('playerBrowserNextPage');
+                const pageJumpInput = document.getElementById('playerBrowserPageJump');
 
                 if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
                 if (prevBtn) prevBtn.disabled = currentPage <= 1;
                 if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+                if (pageJumpInput) pageJumpInput.max = totalPages;
             }
 
             /**
@@ -1680,8 +2157,12 @@
                 const draftBtn = document.getElementById('addSelectedToDraftBtn');
 
                 if (count > 0) {
-                    if (rosterBtn && browserMode === 'roster') rosterBtn.style.display = '';
-                    if (draftBtn && browserMode === 'draft') draftBtn.style.display = '';
+                    // Show both buttons when players are selected
+                    if (rosterBtn) rosterBtn.style.display = '';
+                    if (draftBtn) draftBtn.style.display = '';
+                    // Update button text to show count
+                    if (rosterBtn) rosterBtn.textContent = `+ ${count} to Roster`;
+                    if (draftBtn) draftBtn.textContent = `+ ${count} to Draft`;
                 } else {
                     if (rosterBtn) rosterBtn.style.display = 'none';
                     if (draftBtn) draftBtn.style.display = 'none';
@@ -1740,20 +2221,37 @@
 
             window.addToRoster = async function(playerId) {
                 try {
-                    if (window.electronAPI?.database?.getPlayer) {
-                        const result = await window.electronAPI.database.getPlayer(playerId);
+                    if (window.electronAPI?.database?.sendPlayerToMainWindow) {
+                        const result = await window.electronAPI.database.sendPlayerToMainWindow(playerId, 'roster');
                         if (result.success) {
-                            // Send to roster
-                            if (window.electronAPI?.window?.sendData) {
-                                await window.electronAPI.window.sendData('main', {
-                                    type: 'add-player-to-roster',
-                                    player: result.player
-                                });
-                            }
+                            console.log('[DatabaseBrowser] Player sent to roster, ID:', playerId);
+                        } else {
+                            console.error('[DatabaseBrowser] Failed to send player to roster:', result.error);
+                            alert(result.error || 'Failed to add player to roster');
                         }
+                    } else {
+                        console.error('[DatabaseBrowser] sendPlayerToMainWindow API not available');
                     }
                 } catch (e) {
                     console.error('Failed to add player to roster:', e);
+                }
+            };
+
+            window.addToDraft = async function(playerId) {
+                try {
+                    if (window.electronAPI?.database?.sendPlayerToMainWindow) {
+                        const result = await window.electronAPI.database.sendPlayerToMainWindow(playerId, 'draft');
+                        if (result.success) {
+                            console.log('[DatabaseBrowser] Player sent to draft, ID:', playerId);
+                        } else {
+                            console.error('[DatabaseBrowser] Failed to send player to draft:', result.error);
+                            alert(result.error || 'Failed to add player to draft');
+                        }
+                    } else {
+                        console.error('[DatabaseBrowser] sendPlayerToMainWindow API not available');
+                    }
+                } catch (e) {
+                    console.error('Failed to add player to draft:', e);
                 }
             };
 
