@@ -2525,9 +2525,9 @@
       }
 
       // Also refresh database browser search if available
-      if (typeof window.performSearch === 'function') {
+      if (typeof window.refreshDatabaseBrowser === 'function') {
         console.log('[DatabasePlayerCard] Refreshing database browser to show updated data');
-        window.performSearch();
+        window.refreshDatabaseBrowser();
       }
 
     } catch (error) {
@@ -4429,8 +4429,11 @@
       closePortraitPicker();
 
       // Refresh the main grid/list to show updated portrait
-      if (typeof window.performSearch === 'function') {
-        window.performSearch();
+      if (typeof window.refreshDatabaseBrowser === 'function') {
+        window.refreshDatabaseBrowser();
+      }
+      if (typeof window.refreshPlayerBrowser === 'function') {
+        window.refreshPlayerBrowser();
       }
 
       if (typeof window.showToast === 'function') {
