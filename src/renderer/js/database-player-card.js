@@ -1298,6 +1298,7 @@
     if (singleYearView) singleYearView.style.display = 'block';  // Always show detail editor
 
     var draftYear = parseInt(player.draftClass);
+    var playerPosition = player.position || player.pos || null;
 
     // PRIORITY 1: Get years from career stats database (PFR scraped data)
     // This is the source of truth for what years a player actually played
@@ -1307,7 +1308,8 @@
       var careerResult = await window.electronAPI.database.getCareerStats(
         player.firstName || player.first_name,
         player.lastName || player.last_name,
-        draftYear || null
+        draftYear || null,
+        playerPosition
       );
       if (careerResult.success && careerResult.stats && careerResult.stats.length > 0) {
         careerResult.stats.forEach(function(s) {
@@ -2520,6 +2522,12 @@
       if (typeof window.refreshPlayerBrowser === 'function') {
         console.log('[DatabasePlayerCard] Refreshing player browser to show updated data');
         window.refreshPlayerBrowser();
+      }
+
+      // Also refresh database browser search if available
+      if (typeof window.performSearch === 'function') {
+        console.log('[DatabasePlayerCard] Refreshing database browser to show updated data');
+        window.performSearch();
       }
 
     } catch (error) {
@@ -4414,8 +4422,16 @@
       hasUnsavedChanges = true;
       updateSaveButtonState();
 
+      // Reload the portrait display with new PID
+      await loadPlayerPortrait(selectedPickerPid);
+
       // Close modal and show success
       closePortraitPicker();
+
+      // Refresh the main grid/list to show updated portrait
+      if (typeof window.performSearch === 'function') {
+        window.performSearch();
+      }
 
       if (typeof window.showToast === 'function') {
         window.showToast('Portrait assigned! PID: ' + selectedPickerPid, 'success');
@@ -4457,15 +4473,16 @@
       return;
     }
 
-    // Get draft year to help disambiguate players with the same name
-    // (e.g., Chris Johnson WR 2005 vs Chris Johnson RB 2008)
+    // Get draft year and position to help disambiguate players with the same name
+    // (e.g., Eric Allen WR 1972 vs Eric Allen CB 1988)
     var draftYear = player.draftClass ? parseInt(player.draftClass, 10) : null;
     if (isNaN(draftYear)) draftYear = null;
+    var playerPosition = player.position || player.pos || null;
 
-    console.log('[DbPlayerCard] Loading career stats for:', firstName, lastName, draftYear ? '(draft ' + draftYear + ')' : '');
+    console.log('[DbPlayerCard] Loading career stats for:', firstName, lastName, draftYear ? '(draft ' + draftYear + ')' : '', playerPosition ? '(pos ' + playerPosition + ')' : '');
 
     try {
-      var result = await window.electronAPI.database.getCareerStats(firstName, lastName, draftYear);
+      var result = await window.electronAPI.database.getCareerStats(firstName, lastName, draftYear, playerPosition);
 
       if (!result.success) {
         console.error('[DbPlayerCard] Career stats error:', result.error);

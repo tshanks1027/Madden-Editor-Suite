@@ -33,6 +33,13 @@ import Database from 'better-sqlite3';
 import { app } from 'electron';
 import * as path from 'path';
 import { ovrWeightsCalculator } from '../services/rating-modes/OVRWeightsCalculator';
+import { ratingCalculator, MaddenRatings } from '../services/RatingCalculator';
+import { PlayerStats } from '../services/ScraperService';
+import {
+  statsBasedRatingService,
+  PlayerSeasonStats,
+  PlayerAchievements
+} from '../services/StatsBasedRatingService';
 
 // =============================================
 // SHARED HELPER: Get merged player PID
@@ -3885,56 +3892,86 @@ function getCareerStatsDb(): Database.Database | null {
 /**
  * Handle: database:get-career-stats
  * Get all career stats for a player by name from the PFR scraped database
- * Optional draftYear parameter helps disambiguate players with the same name
+ * Uses draftYear and position to disambiguate players with the same name
  */
-ipcMain.handle('database:get-career-stats', async (event, firstName: string, lastName: string, draftYear?: number) => {
+ipcMain.handle('database:get-career-stats', async (event, firstName: string, lastName: string, draftYear?: number, position?: string) => {
   try {
     const db = getCareerStatsDb();
     if (!db) {
       return { success: false, error: 'Career stats database not available' };
     }
 
-    console.log(`[database-handlers] Getting career stats for ${firstName} ${lastName}${draftYear ? ` (draft ${draftYear})` : ''}`);
+    console.log(`[database-handlers] Getting career stats for ${firstName} ${lastName}${draftYear ? ` (draft ${draftYear})` : ''}${position ? ` (pos ${position})` : ''}`);
 
-    // First find the player's PFR ID
-    // If draftYear is provided, use it to disambiguate players with the same name
-    // (e.g., Chris Johnson WR 2005 vs Chris Johnson RB 2008)
+    // First find the player's PFR ID with proper disambiguation
+    // Priority: 1) Name + draft year, 2) Name + position group, 3) NONE (don't fallback to wrong player)
     let player: any;
+
+    // Helper to check if positions are in the same group
+    const positionGroups: { [key: string]: string[] } = {
+      'QB': ['QB'],
+      'RB': ['RB', 'HB', 'FB'],
+      'WR': ['WR', 'FL', 'SE'],
+      'TE': ['TE'],
+      'OL': ['LT', 'LG', 'C', 'RG', 'RT', 'OT', 'OG', 'T', 'G'],
+      'DL': ['DE', 'DT', 'LE', 'RE', 'NT', 'DL'],
+      'LB': ['MLB', 'OLB', 'ILB', 'LOLB', 'ROLB', 'LB'],
+      'DB': ['CB', 'FS', 'SS', 'S', 'DB', 'RCB', 'LCB'],
+      'K': ['K', 'P', 'PK']
+    };
+
+    const getPositionGroup = (pos: string): string | null => {
+      if (!pos) return null;
+      const upperPos = pos.toUpperCase();
+      for (const [group, positions] of Object.entries(positionGroups)) {
+        if (positions.includes(upperPos)) return group;
+      }
+      return null;
+    };
+
     if (draftYear) {
-      // Use from_year to match draft year (from_year is typically their first NFL season)
+      // Try to match by draft year first (within ±2 years for flexibility)
       const playerQuery = db.prepare(`
         SELECT pfr_id, position, from_year, to_year, is_hof
         FROM players
         WHERE first_name = ? AND last_name = ?
-        AND (from_year = ? OR from_year = ? OR from_year = ?)
+        AND from_year BETWEEN ? AND ?
         LIMIT 1
       `);
-      // Check draft year and adjacent years since from_year may differ slightly
-      player = playerQuery.get(firstName, lastName, draftYear, draftYear - 1, draftYear + 1) as any;
+      player = playerQuery.get(firstName, lastName, draftYear - 2, draftYear + 2) as any;
 
-      // If no match with draft year, fall back to name-only search
-      if (!player) {
-        console.log(`[database-handlers] No match with draft year ${draftYear}, falling back to name search`);
-        const fallbackQuery = db.prepare(`
+      if (player) {
+        console.log(`[database-handlers] Matched by draft year: ${player.pfr_id} (${player.position}, ${player.from_year})`);
+      }
+    }
+
+    // If no match by draft year and we have position, try position group matching
+    if (!player && position) {
+      const inputGroup = getPositionGroup(position);
+      if (inputGroup) {
+        // Get all players with this name
+        const allPlayersQuery = db.prepare(`
           SELECT pfr_id, position, from_year, to_year, is_hof
           FROM players
           WHERE first_name = ? AND last_name = ?
-          LIMIT 1
         `);
-        player = fallbackQuery.get(firstName, lastName) as any;
+        const allPlayers = allPlayersQuery.all(firstName, lastName) as any[];
+
+        // Find one in the same position group
+        for (const p of allPlayers) {
+          const pGroup = getPositionGroup(p.position);
+          if (pGroup === inputGroup) {
+            player = p;
+            console.log(`[database-handlers] Matched by position group ${inputGroup}: ${player.pfr_id} (${player.position}, ${player.from_year})`);
+            break;
+          }
+        }
       }
-    } else {
-      const playerQuery = db.prepare(`
-        SELECT pfr_id, position, from_year, to_year, is_hof
-        FROM players
-        WHERE first_name = ? AND last_name = ?
-        LIMIT 1
-      `);
-      player = playerQuery.get(firstName, lastName) as any;
     }
 
+    // IMPORTANT: Do NOT fall back to wrong player - if we can't match properly, return empty
     if (!player) {
-      console.log(`[database-handlers] No career stats found for ${firstName} ${lastName}`);
+      console.log(`[database-handlers] No career stats match for ${firstName} ${lastName} (draft: ${draftYear}, pos: ${position})`);
       return { success: true, stats: [], player: null };
     }
 
@@ -4019,262 +4056,172 @@ ipcMain.handle('database:get-career-stats-by-year', async (event, firstName: str
 
 /**
  * Handle: database:calculate-rating-from-stats
- * Calculate Madden ratings based on career stats for a given position
- * This is a simplified formula - can be expanded based on position
+ * Calculate Madden ratings based on career stats following the documented formula
+ * in docs/STATS_BASED_OVR_FORMULA.md
+ *
+ * Key factors:
+ * 1. Position Performance Score from stats
+ * 2. Era normalization (14 vs 16 vs 17 game seasons, passing era)
+ * 3. Achievement bonuses (Pro Bowl, All-Pro, HOF)
+ * 4. Age curves by position
+ * 5. Archetype detection from stats
  */
-ipcMain.handle('database:calculate-rating-from-stats', async (event, stats: any, position: string) => {
+ipcMain.handle('database:calculate-rating-from-stats', async (event, options: {
+  stats: any,
+  position: string,
+  year: number,
+  targetYear?: number, // Year we're generating ratings for (defaults to stats year + 1)
+  playerAge?: number,
+  achievements?: {
+    proBowlYears?: number[],
+    allPro1stYears?: number[],
+    allPro2ndYears?: number[],
+    isHOF?: boolean,
+    draftRound?: number
+  }
+}) => {
   try {
+    const { stats, position, year, targetYear, playerAge, achievements } = options;
+
     if (!stats) {
       return { success: false, error: 'No stats provided' };
     }
 
-    console.log(`[database-handlers] Calculating ratings from stats for position ${position}`);
+    console.log(`[database-handlers] Calculating ratings from stats for ${position} year ${year}`);
+    console.log(`[database-handlers] Input stats:`, stats);
+    console.log(`[database-handlers] Player age: ${playerAge}, HOF: ${achievements?.isHOF}`);
 
-    const pos = position?.toUpperCase() || '';
-    const ratings: Record<string, number> = {};
+    // Convert incoming stats (snake_case from career stats DB) to PlayerSeasonStats format
+    const seasonStats: PlayerSeasonStats = {
+      year: year,
+      games: stats.games || stats.gamesPlayed || 14, // Default to 14 for old eras
+      gamesStarted: stats.games_started || stats.gamesStarted || stats.games || 0,
+      // Passing Stats
+      passAttempts: stats.pass_att || stats.passAttempts || 0,
+      passCompletions: stats.pass_cmp || stats.passCompletions || 0,
+      passYards: stats.pass_yds || stats.passYards || 0,
+      passTDs: stats.pass_td || stats.passTDs || 0,
+      passInt: stats.pass_int || stats.interceptions || 0,
+      passerRating: stats.pass_rating || stats.passerRating || 0,
+      // Rushing Stats
+      rushAttempts: stats.rush_att || stats.rushAttempts || 0,
+      rushYards: stats.rush_yds || stats.rushYards || 0,
+      rushTDs: stats.rush_td || stats.rushTDs || 0,
+      // Receiving Stats
+      receptions: stats.rec || stats.receptions || 0,
+      recYards: stats.rec_yds || stats.recYards || 0,
+      recTDs: stats.rec_td || stats.recTDs || 0,
+      targets: stats.targets || 0,
+      // Defensive Stats
+      tackles: stats.tackles || stats.solo_tackles || 0,
+      sacks: stats.sacks || 0,
+      interceptions: stats.def_int || stats.interceptionsCaught || 0,
+      forcedFumbles: stats.ff || stats.forcedFumbles || 0,
+      passDefended: stats.pd || stats.passDefended || 0,
+      // Kicking Stats
+      fgAttempts: stats.fg_att || stats.fgAttempts || 0,
+      fgMade: stats.fg_made || stats.fgMade || 0,
+      fgLong: stats.fg_long || stats.fgLong || 0,
+      xpAttempts: stats.xp_att || stats.xpAttempts || 0,
+      xpMade: stats.xp_made || stats.xpMade || 0,
+      // Punting
+      punts: stats.punts || 0,
+      puntYards: stats.punt_yds || stats.puntYards || 0,
+      puntInside20: stats.punt_in20 || stats.puntInside20 || 0,
+    };
 
-    // Base overall calculation depends on position
-    if (pos === 'QB') {
-      // QB ratings based on passing stats
-      const passRating = stats.pass_rating || 0;
-      const passYards = stats.pass_yds || 0;
-      const passTD = stats.pass_td || 0;
-      const passInt = stats.pass_int || 0;
-      const games = stats.games || 1;
+    // Build achievements object
+    const playerAchievements: PlayerAchievements = {
+      proBowlYears: achievements?.proBowlYears || [],
+      allPro1stYears: achievements?.allPro1stYears || [],
+      allPro2ndYears: achievements?.allPro2ndYears || [],
+      isHOF: achievements?.isHOF || false,
+      draftRound: achievements?.draftRound,
+    };
 
-      // Throw Power: Based on yards per game
-      const yardsPerGame = passYards / games;
-      ratings.PTHP = Math.min(99, Math.max(60, Math.round(70 + yardsPerGame / 25)));
+    // Calculate age for the target year (default: age in the stats year)
+    const age = playerAge || 25; // Default to 25 if unknown
+    const ratingYear = targetYear || year + 1; // Ratings for next year based on previous year stats
 
-      // Throw Accuracy Short/Medium/Deep - scaled from passer rating
-      const accBase = Math.min(99, Math.max(50, Math.round(passRating * 0.9)));
-      ratings.PTAS = Math.min(99, accBase + 5);  // Short accuracy slightly higher
-      ratings.PTAM = accBase;
-      ratings.PTAD = Math.max(50, accBase - 8);  // Deep accuracy slightly lower
+    // Use StatsBasedRatingService for proper calculation following the documented formula
+    const generatedRating = statsBasedRatingService.generateRating(
+      position,
+      seasonStats,
+      playerAchievements,
+      age,
+      ratingYear
+    );
 
-      // Throw Under Pressure - based on TD/INT ratio
-      const tdIntRatio = passInt > 0 ? passTD / passInt : passTD;
-      ratings.PTUP = Math.min(99, Math.max(50, Math.round(50 + tdIntRatio * 8)));
+    console.log(`[database-handlers] StatsBasedRatingService returned OVR: ${generatedRating.overall}`);
+    console.log(`[database-handlers] Breakdown: ${generatedRating.breakdown}`);
 
-      // Throw on Run
-      ratings.PTOR = Math.min(95, Math.max(55, Math.round(60 + passRating / 5)));
+    // Get full attribute distribution based on OVR and position
+    const attrs = statsBasedRatingService.distributeToAttributes(
+      generatedRating.overall,
+      position,
+      seasonStats
+    );
 
-      // Overall estimate
-      ratings.POVR = Math.min(99, Math.max(40, Math.round(
-        (ratings.PTHP * 0.15) +
-        (ratings.PTAS * 0.25) +
-        (ratings.PTAM * 0.25) +
-        (ratings.PTAD * 0.15) +
-        (ratings.PTUP * 0.1) +
-        (ratings.PTOR * 0.1)
-      )));
+    // Build the ratings object with all attributes
+    const ratings: Record<string, number> = {
+      ...attrs,
+      POVR: generatedRating.overall
+    };
 
-    } else if (pos === 'HB' || pos === 'RB' || pos === 'FB') {
-      // RB ratings based on rushing/receiving stats
-      const rushYards = stats.rush_yds || 0;
-      const rushAtt = stats.rush_att || 1;
-      const rushTD = stats.rush_td || 0;
-      const rec = stats.rec || 0;
-      const recYds = stats.rec_yds || 0;
-      const games = stats.games || 1;
+    console.log(`[database-handlers] Final ratings with OVR ${ratings.POVR}:`, ratings);
 
-      const ypc = rushYards / rushAtt;
-      const yardsPerGame = rushYards / games;
-
-      // Speed: Based on yards per carry and big play potential
-      ratings.PSPD = Math.min(99, Math.max(70, Math.round(75 + ypc * 3)));
-
-      // Acceleration
-      ratings.PACC = Math.min(99, Math.max(70, Math.round(73 + ypc * 3.5)));
-
-      // Agility
-      ratings.PAGI = Math.min(99, Math.max(65, Math.round(70 + ypc * 4)));
-
-      // Carrying
-      ratings.PCAR = Math.min(99, Math.max(65, Math.round(75 + rushTD / 2)));
-
-      // Break Tackle
-      ratings.PBKT = Math.min(99, Math.max(60, Math.round(65 + yardsPerGame / 8)));
-
-      // Catching (if they have receptions)
-      if (rec > 0) {
-        ratings.PCTH = Math.min(99, Math.max(50, Math.round(60 + rec / 2)));
+    return {
+      success: true,
+      ratings,
+      breakdown: generatedRating.breakdown,
+      details: {
+        baseScore: generatedRating.baseScore,
+        eraAdjustedOVR: generatedRating.eraAdjustedScore,
+        ageModifier: generatedRating.ageModifier,
+        achievementBonus: generatedRating.achievementBonus
       }
-
-      // Overall estimate
-      ratings.POVR = Math.min(99, Math.max(40, Math.round(
-        (ratings.PSPD * 0.2) +
-        (ratings.PACC * 0.15) +
-        (ratings.PAGI * 0.15) +
-        (ratings.PCAR * 0.25) +
-        (ratings.PBKT * 0.15) +
-        ((ratings.PCTH || 60) * 0.1)
-      )));
-
-    } else if (pos === 'WR' || pos === 'TE') {
-      // WR/TE ratings based on receiving stats
-      const rec = stats.rec || 0;
-      const recYds = stats.rec_yds || 0;
-      const recTD = stats.rec_td || 0;
-      const games = stats.games || 1;
-
-      const ypr = rec > 0 ? recYds / rec : 0;
-      const recPerGame = rec / games;
-
-      // Catching
-      ratings.PCTH = Math.min(99, Math.max(60, Math.round(70 + recPerGame * 2)));
-
-      // Catch in Traffic
-      ratings.PCIT = Math.min(99, Math.max(55, Math.round(65 + recTD / 2)));
-
-      // Spectacular Catch
-      ratings.PSPC = Math.min(99, Math.max(50, Math.round(60 + ypr / 2)));
-
-      // Short Route Running
-      ratings.PSRR = Math.min(99, Math.max(60, Math.round(65 + recPerGame * 2.5)));
-
-      // Medium Route Running
-      ratings.PMRR = Math.min(99, Math.max(55, Math.round(60 + recPerGame * 2)));
-
-      // Deep Route Running
-      ratings.PDRR = Math.min(99, Math.max(50, Math.round(55 + ypr / 1.5)));
-
-      // Release
-      ratings.PREL = Math.min(99, Math.max(55, Math.round(65 + recPerGame * 2)));
-
-      // Overall estimate
-      ratings.POVR = Math.min(99, Math.max(40, Math.round(
-        (ratings.PCTH * 0.25) +
-        (ratings.PCIT * 0.15) +
-        (ratings.PSPC * 0.1) +
-        (ratings.PSRR * 0.15) +
-        (ratings.PMRR * 0.15) +
-        (ratings.PDRR * 0.1) +
-        (ratings.PREL * 0.1)
-      )));
-
-    } else if (pos.includes('LB') || pos === 'SAM' || pos === 'MIKE' || pos === 'WILL') {
-      // Linebacker ratings
-      const tackles = stats.tackles || 0;
-      const sacks = stats.sacks || 0;
-      const defInt = stats.def_int || 0;
-      const ff = stats.ff || 0;
-      const games = stats.games || 1;
-
-      const tacklesPerGame = tackles / games;
-
-      // Tackle
-      ratings.PTAK = Math.min(99, Math.max(65, Math.round(70 + tacklesPerGame * 1.5)));
-
-      // Hit Power
-      ratings.PHTP = Math.min(99, Math.max(60, Math.round(65 + ff * 3 + sacks * 2)));
-
-      // Block Shedding
-      ratings.PBSH = Math.min(99, Math.max(55, Math.round(60 + tacklesPerGame)));
-
-      // Power/Finesse Moves (for pass rushers)
-      ratings.PPWM = Math.min(99, Math.max(50, Math.round(55 + sacks * 3)));
-      ratings.PFNM = Math.min(99, Math.max(50, Math.round(55 + sacks * 2.5)));
-
-      // Zone Coverage
-      ratings.PZCV = Math.min(99, Math.max(50, Math.round(55 + defInt * 5)));
-
-      // Overall estimate
-      ratings.POVR = Math.min(99, Math.max(40, Math.round(
-        (ratings.PTAK * 0.25) +
-        (ratings.PHTP * 0.15) +
-        (ratings.PBSH * 0.2) +
-        (ratings.PPWM * 0.1) +
-        (ratings.PFNM * 0.1) +
-        (ratings.PZCV * 0.2)
-      )));
-
-    } else if (pos === 'CB' || pos === 'FS' || pos === 'SS' || pos === 'S' || pos === 'DB') {
-      // Defensive back ratings
-      const tackles = stats.tackles || 0;
-      const defInt = stats.def_int || 0;
-      const ff = stats.ff || 0;
-      const games = stats.games || 1;
-
-      const tacklesPerGame = tackles / games;
-
-      // Man Coverage
-      ratings.PMCV = Math.min(99, Math.max(55, Math.round(65 + defInt * 4)));
-
-      // Zone Coverage
-      ratings.PZCV = Math.min(99, Math.max(55, Math.round(65 + defInt * 3.5)));
-
-      // Press
-      ratings.PPRS = Math.min(99, Math.max(50, Math.round(60 + tacklesPerGame)));
-
-      // Tackle
-      ratings.PTAK = Math.min(99, Math.max(55, Math.round(60 + tacklesPerGame * 1.2)));
-
-      // Hit Power
-      ratings.PHTP = Math.min(99, Math.max(45, Math.round(55 + ff * 5)));
-
-      // Overall estimate
-      ratings.POVR = Math.min(99, Math.max(40, Math.round(
-        (ratings.PMCV * 0.3) +
-        (ratings.PZCV * 0.25) +
-        (ratings.PPRS * 0.15) +
-        (ratings.PTAK * 0.2) +
-        (ratings.PHTP * 0.1)
-      )));
-
-    } else if (pos === 'DE' || pos === 'LEDG' || pos === 'REDG' || pos === 'DT' || pos === 'NT') {
-      // Defensive line ratings
-      const tackles = stats.tackles || 0;
-      const sacks = stats.sacks || 0;
-      const ff = stats.ff || 0;
-      const games = stats.games || 1;
-
-      const tacklesPerGame = tackles / games;
-      const sacksPerGame = sacks / games;
-
-      // Power Move
-      ratings.PPWM = Math.min(99, Math.max(55, Math.round(60 + sacks * 2)));
-
-      // Finesse Move
-      ratings.PFNM = Math.min(99, Math.max(50, Math.round(55 + sacksPerGame * 8)));
-
-      // Block Shedding
-      ratings.PBSH = Math.min(99, Math.max(55, Math.round(60 + tacklesPerGame * 1.5)));
-
-      // Tackle
-      ratings.PTAK = Math.min(99, Math.max(60, Math.round(65 + tacklesPerGame)));
-
-      // Hit Power
-      ratings.PHTP = Math.min(99, Math.max(55, Math.round(60 + ff * 4 + sacks)));
-
-      // Overall estimate
-      ratings.POVR = Math.min(99, Math.max(40, Math.round(
-        (ratings.PPWM * 0.25) +
-        (ratings.PFNM * 0.2) +
-        (ratings.PBSH * 0.2) +
-        (ratings.PTAK * 0.2) +
-        (ratings.PHTP * 0.15)
-      )));
-
-    } else {
-      // Generic fallback - just calculate a basic overall
-      const games = stats.games || 1;
-      ratings.POVR = Math.min(99, Math.max(40, Math.round(60 + (stats.games_started || 0) / games * 15)));
-    }
-
-    // Use OVRWeightsCalculator for proper POVR calculation (matches game formula)
-    if (ovrWeightsCalculator.isInitialized()) {
-      const calculatedOvr = ovrWeightsCalculator.calculateOVR(ratings, position);
-      // Floor of 40 for database-generated players (quality control)
-      ratings.POVR = Math.max(40, Math.min(99, calculatedOvr));
-      console.log(`[database-handlers] OVR recalculated via OVRWeightsCalculator: ${ratings.POVR}`);
-    }
-
-    console.log(`[database-handlers] Calculated ratings:`, ratings);
-
-    return { success: true, ratings };
+    };
   } catch (error) {
     console.error('[database-handlers] Error calculating rating from stats:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:distribute-ovr-to-ratings
+ * Generate individual ratings from an OVR value based on position
+ * Used when user sets OVR directly and wants ratings auto-populated
+ */
+ipcMain.handle('database:distribute-ovr-to-ratings', async (event, options: {
+  ovr: number,
+  position: string
+}) => {
+  try {
+    const { ovr, position } = options;
+
+    if (!ovr || ovr < 40 || ovr > 99) {
+      return { success: false, error: 'Invalid OVR value' };
+    }
+
+    if (!position) {
+      return { success: false, error: 'Position is required' };
+    }
+
+    console.log(`[database-handlers] Distributing OVR ${ovr} to ratings for ${position}`);
+
+    // Use StatsBasedRatingService to distribute OVR to attributes
+    // Pass empty stats since we're just distributing OVR
+    const attrs = statsBasedRatingService.distributeToAttributes(ovr, position, {
+      year: new Date().getFullYear(),
+      games: 16
+    });
+
+    return {
+      success: true,
+      ratings: attrs
+    };
+  } catch (error) {
+    console.error('[database-handlers] Error distributing OVR to ratings:', error);
     return { success: false, error: String(error) };
   }
 });

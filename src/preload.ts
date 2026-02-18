@@ -194,7 +194,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     calculateOVRAdjustments: (currentAttributes: any, targetOVR: number, position: string, archetype?: string) =>
       ipcRenderer.invoke('rating:calculate-ovr-adjustments', currentAttributes, targetOVR, position, archetype),
     getArchetypeWeights: (archetypeName: string) =>
-      ipcRenderer.invoke('rating:get-archetype-weights', archetypeName)
+      ipcRenderer.invoke('rating:get-archetype-weights', archetypeName),
+    // Archetype sync - ensures roster archetypes match what Madden assigns
+    syncArchetypeFromAttributes: (player: any, position: string) =>
+      ipcRenderer.invoke('rating:sync-archetype-from-attributes', player, position),
+    determineArchetype: (player: any, position: string) =>
+      ipcRenderer.invoke('rating:determine-archetype', player, position),
+    adjustAttributesForArchetype: (player: any, targetArchetype: string, position: string, baseOVR?: number) =>
+      ipcRenderer.invoke('rating:adjust-attributes-for-archetype', player, targetArchetype, position, baseOVR),
+    validateArchetypeConsistency: (player: any, position: string) =>
+      ipcRenderer.invoke('rating:validate-archetype-consistency', player, position)
   },
 
   // Update APIs
@@ -627,13 +636,28 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('database:get-player-available-years', internalId),
 
     // Career stats operations (from scraped PFR database)
-    // draftYear is optional but helps disambiguate players with the same name
-    getCareerStats: (firstName: string, lastName: string, draftYear?: number) =>
-      ipcRenderer.invoke('database:get-career-stats', firstName, lastName, draftYear),
+    // draftYear and position help disambiguate players with the same name
+    getCareerStats: (firstName: string, lastName: string, draftYear?: number, position?: string) =>
+      ipcRenderer.invoke('database:get-career-stats', firstName, lastName, draftYear, position),
     getCareerStatsByYear: (firstName: string, lastName: string, year: number) =>
       ipcRenderer.invoke('database:get-career-stats-by-year', firstName, lastName, year),
-    calculateRatingFromStats: (stats: any, position: string) =>
-      ipcRenderer.invoke('database:calculate-rating-from-stats', stats, position),
+    calculateRatingFromStats: (options: {
+      stats: any,
+      position: string,
+      year: number,
+      targetYear?: number,
+      playerAge?: number,
+      achievements?: {
+        proBowlYears?: number[],
+        allPro1stYears?: number[],
+        allPro2ndYears?: number[],
+        isHOF?: boolean,
+        draftRound?: number
+      }
+    }) =>
+      ipcRenderer.invoke('database:calculate-rating-from-stats', options),
+    distributeOVRToRatings: (options: { ovr: number, position: string }) =>
+      ipcRenderer.invoke('database:distribute-ovr-to-ratings', options),
     getPlayerSeasonYears: (internalId: number) =>
       ipcRenderer.invoke('database:get-player-season-years', internalId),
     getPlayersForFill: (options: {

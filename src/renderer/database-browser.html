@@ -366,6 +366,27 @@
         </div>
     </div>
 
+    <!-- Hidden Players Modal -->
+    <div id="hiddenPlayersModal" class="modal" style="display: none;">
+        <div class="modal-content" style="width: 600px; max-height: 80vh;">
+            <div class="modal-header">
+                <h3 class="modal-title">Hidden Players</h3>
+                <button class="modal-close" id="closeHiddenPlayers">×</button>
+            </div>
+            <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                <p style="color: #888; margin-bottom: 12px;">Select players to unhide. Click the unhide button next to each player or use "Unhide Selected" for multiple.</p>
+                <div id="hiddenPlayersList" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- Players will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; justify-content: space-between; padding-top: 16px; border-top: 1px solid #333;">
+                <button class="footer-btn" id="unhideSelectedBtn" style="background: #4caf50;">Unhide Selected</button>
+                <button class="footer-btn" id="unhideAllBtn" style="background: #ff9800;">Unhide All</button>
+                <button class="footer-btn" id="closeHiddenPlayersBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Bulk Add Wizard Modal -->
     <div id="bulkAddWizardModal" class="modal" style="display: none;">
         <div class="modal-content" style="width: 450px;">
@@ -1582,30 +1603,134 @@
                     viewHiddenPlayersBtn.addEventListener('click', async () => {
                         try {
                             const result = await window.electronAPI.database.getHiddenPlayersDetails();
+                            const modal = document.getElementById('hiddenPlayersModal');
+                            const listContainer = document.getElementById('hiddenPlayersList');
+
+                            if (!modal || !listContainer) {
+                                alert('Hidden players modal not found');
+                                return;
+                            }
+
                             if (result.success && result.players && result.players.length > 0) {
-                                // Show hidden players in a simple list dialog
-                                const playerList = result.players.map(p =>
-                                    `${p.firstName} ${p.lastName} (${p.position || 'N/A'})`
-                                ).join('\n');
+                                // Build the player list with checkboxes and unhide buttons
+                                let html = '';
+                                result.players.forEach((p, idx) => {
+                                    html += `
+                                        <div class="hidden-player-row" style="display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: #252525; border-radius: 6px;">
+                                            <input type="checkbox" id="unhide_${p.internalId}" data-player-id="${p.internalId}" style="width: 18px; height: 18px; cursor: pointer;">
+                                            <div style="flex: 1;">
+                                                <span style="color: #e0e0e0; font-weight: 500;">${p.firstName} ${p.lastName}</span>
+                                                <span style="color: #888; margin-left: 8px;">${p.position || 'N/A'}</span>
+                                                ${p.team ? `<span style="color: #64b5f6; margin-left: 8px;">${p.team}</span>` : ''}
+                                                ${p.draftClass ? `<span style="color: #888; margin-left: 8px;">(${p.draftClass})</span>` : ''}
+                                            </div>
+                                            <button class="unhide-single-btn" data-player-id="${p.internalId}" style="padding: 4px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Unhide</button>
+                                        </div>
+                                    `;
+                                });
+                                listContainer.innerHTML = html;
 
-                                const unhideAll = confirm(
-                                    `Found ${result.players.length} hidden player(s):\n\n` +
-                                    playerList.substring(0, 500) + (playerList.length > 500 ? '\n...' : '') +
-                                    '\n\nClick OK to unhide all, Cancel to keep hidden.'
-                                );
+                                // Add click handlers for individual unhide buttons
+                                listContainer.querySelectorAll('.unhide-single-btn').forEach(btn => {
+                                    btn.addEventListener('click', async (e) => {
+                                        const playerId = parseInt(e.target.dataset.playerId);
+                                        try {
+                                            await window.electronAPI.database.unhidePlayer(playerId);
+                                            e.target.closest('.hidden-player-row').remove();
+                                            // Check if list is now empty
+                                            if (listContainer.querySelectorAll('.hidden-player-row').length === 0) {
+                                                listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No hidden players.</p>';
+                                            }
+                                            performSearch();
+                                        } catch (err) {
+                                            alert('Error unhiding player: ' + err.message);
+                                        }
+                                    });
+                                });
 
-                                if (unhideAll) {
-                                    for (const player of result.players) {
-                                        await window.electronAPI.database.unhidePlayer(player.internalId);
-                                    }
-                                    alert('All players have been unhidden.');
-                                    performSearch();
-                                }
+                                // Close DB Management modal and show Hidden Players modal
+                                document.getElementById('dbManagementModal').style.display = 'none';
+                                modal.style.display = 'flex';
                             } else {
-                                alert('No hidden players found.');
+                                listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No hidden players found.</p>';
+                                document.getElementById('dbManagementModal').style.display = 'none';
+                                modal.style.display = 'flex';
                             }
                         } catch (e) {
                             alert('Error loading hidden players: ' + e.message);
+                        }
+                    });
+                }
+
+                // Hidden Players Modal handlers
+                const closeHiddenPlayersBtn = document.getElementById('closeHiddenPlayers');
+                const closeHiddenPlayersBtn2 = document.getElementById('closeHiddenPlayersBtn');
+                const hiddenPlayersModal = document.getElementById('hiddenPlayersModal');
+
+                [closeHiddenPlayersBtn, closeHiddenPlayersBtn2].forEach(btn => {
+                    if (btn) {
+                        btn.addEventListener('click', () => {
+                            if (hiddenPlayersModal) hiddenPlayersModal.style.display = 'none';
+                        });
+                    }
+                });
+
+                // Unhide Selected button
+                const unhideSelectedBtn = document.getElementById('unhideSelectedBtn');
+                if (unhideSelectedBtn) {
+                    unhideSelectedBtn.addEventListener('click', async () => {
+                        const checkboxes = document.querySelectorAll('#hiddenPlayersList input[type="checkbox"]:checked');
+                        if (checkboxes.length === 0) {
+                            alert('Please select at least one player to unhide.');
+                            return;
+                        }
+                        try {
+                            for (const cb of checkboxes) {
+                                const playerId = parseInt(cb.dataset.playerId);
+                                await window.electronAPI.database.unhidePlayer(playerId);
+                                cb.closest('.hidden-player-row').remove();
+                            }
+                            const listContainer = document.getElementById('hiddenPlayersList');
+                            if (listContainer.querySelectorAll('.hidden-player-row').length === 0) {
+                                listContainer.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No hidden players.</p>';
+                            }
+                            performSearch();
+                            alert(`${checkboxes.length} player(s) unhidden.`);
+                        } catch (e) {
+                            alert('Error unhiding players: ' + e.message);
+                        }
+                    });
+                }
+
+                // Unhide All button
+                const unhideAllBtn = document.getElementById('unhideAllBtn');
+                if (unhideAllBtn) {
+                    unhideAllBtn.addEventListener('click', async () => {
+                        const rows = document.querySelectorAll('#hiddenPlayersList .hidden-player-row');
+                        if (rows.length === 0) {
+                            alert('No hidden players to unhide.');
+                            return;
+                        }
+                        if (!confirm(`Are you sure you want to unhide all ${rows.length} player(s)?`)) return;
+                        try {
+                            for (const row of rows) {
+                                const playerId = parseInt(row.querySelector('input[type="checkbox"]').dataset.playerId);
+                                await window.electronAPI.database.unhidePlayer(playerId);
+                            }
+                            document.getElementById('hiddenPlayersList').innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No hidden players.</p>';
+                            performSearch();
+                            alert(`All ${rows.length} player(s) unhidden.`);
+                        } catch (e) {
+                            alert('Error unhiding players: ' + e.message);
+                        }
+                    });
+                }
+
+                // Close hidden players modal on backdrop click
+                if (hiddenPlayersModal) {
+                    hiddenPlayersModal.addEventListener('click', (e) => {
+                        if (e.target === hiddenPlayersModal) {
+                            hiddenPlayersModal.style.display = 'none';
                         }
                     });
                 }

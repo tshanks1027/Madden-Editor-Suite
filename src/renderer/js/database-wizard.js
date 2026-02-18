@@ -636,6 +636,59 @@
   }
 
   // ========== DUPLICATES ==========
+  // Position groups for duplicate matching - only same group = potential duplicate
+  var POSITION_GROUPS = {
+    'QB': 'QB',
+    'HB': 'RB', 'RB': 'RB', 'FB': 'RB',
+    'WR': 'WR', 'FL': 'WR', 'SE': 'WR',
+    'TE': 'TE',
+    'LT': 'OL', 'LG': 'OL', 'C': 'OL', 'RG': 'OL', 'RT': 'OL', 'OT': 'OL', 'OG': 'OL', 'T': 'OL', 'G': 'OL',
+    'DE': 'DL', 'DT': 'DL', 'LE': 'DL', 'RE': 'DL', 'NT': 'DL', 'DL': 'DL',
+    'MLB': 'LB', 'OLB': 'LB', 'ILB': 'LB', 'LOLB': 'LB', 'ROLB': 'LB', 'LB': 'LB',
+    'CB': 'DB', 'FS': 'DB', 'SS': 'DB', 'S': 'DB', 'DB': 'DB', 'RCB': 'DB', 'LCB': 'DB',
+    'K': 'K', 'P': 'K', 'PK': 'K'
+  };
+
+  function getPositionGroup(pos) {
+    if (!pos) return null;
+    return POSITION_GROUPS[pos.toUpperCase()] || null;
+  }
+
+  function getPlayerYear(p) {
+    // Try to get a representative year for the player
+    if (p.draftClass) return parseInt(p.draftClass, 10);
+    if (p.careerFrom) return parseInt(p.careerFrom, 10);
+    return null;
+  }
+
+  function arePlayersSimilarEra(p1, p2) {
+    var year1 = getPlayerYear(p1);
+    var year2 = getPlayerYear(p2);
+    if (!year1 || !year2) return true; // If we don't have year data, can't exclude
+    // Players must be within 5 years to be considered potential duplicates
+    return Math.abs(year1 - year2) <= 5;
+  }
+
+  function areTrueDuplicates(p1, p2) {
+    // STRICT duplicate matching:
+    // 1. Must be in same position group (WR != CB)
+    // 2. Must be in similar era (within 5 years)
+    var group1 = getPositionGroup(p1.position);
+    var group2 = getPositionGroup(p2.position);
+
+    // If both have positions and they're different groups, NOT duplicates
+    if (group1 && group2 && group1 !== group2) {
+      return false;
+    }
+
+    // If careers are more than 5 years apart, NOT duplicates
+    if (!arePlayersSimilarEra(p1, p2)) {
+      return false;
+    }
+
+    return true;
+  }
+
   function loadDuplicatesData() {
     console.log('[Wizard] Loading duplicates data');
     previewData.duplicates = [];
@@ -648,7 +701,7 @@
       console.log('[Wizard] Got players for duplicate check:', result);
       if (!result || !result.success || !result.players) return;
 
-      var groups = {};
+      var nameGroups = {};
 
       result.players.forEach(function(p) {
         if (!p.firstName || !p.lastName) return;
@@ -660,32 +713,67 @@
           .replace(/[.']/g, '')
           .trim();
 
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(p);
+        if (!nameGroups[key]) nameGroups[key] = [];
+        nameGroups[key].push(p);
       });
 
-      // Find groups with duplicates
-      Object.keys(groups).forEach(function(key) {
-        var players = groups[key];
-        if (players.length > 1) {
-          // Score players - higher score = better data (keep this one)
-          players.sort(function(a, b) {
-            return scorePlayer(b) - scorePlayer(a);
-          });
+      // Find TRUE duplicates - same name AND same position group AND similar era
+      Object.keys(nameGroups).forEach(function(key) {
+        var players = nameGroups[key];
+        if (players.length <= 1) return;
 
-          previewData.duplicates.push({
-            name: key,
-            players: players,
-            keepPlayer: players[0],
-            hideCount: players.length - 1,
-            checked: true
-          });
+        // Find clusters of TRUE duplicates within this name group
+        var processed = [];
+
+        for (var i = 0; i < players.length; i++) {
+          if (processed.indexOf(i) >= 0) continue;
+
+          var cluster = [players[i]];
+          processed.push(i);
+
+          for (var j = i + 1; j < players.length; j++) {
+            if (processed.indexOf(j) >= 0) continue;
+
+            // Check if this player is a TRUE duplicate of any in the cluster
+            var isDuplicate = false;
+            for (var k = 0; k < cluster.length; k++) {
+              if (areTrueDuplicates(cluster[k], players[j])) {
+                isDuplicate = true;
+                break;
+              }
+            }
+
+            if (isDuplicate) {
+              cluster.push(players[j]);
+              processed.push(j);
+            }
+          }
+
+          // Only add if there are actual duplicates (more than 1 in cluster)
+          if (cluster.length > 1) {
+            // Score and sort - higher score = better data (keep this one)
+            cluster.sort(function(a, b) {
+              return scorePlayer(b) - scorePlayer(a);
+            });
+
+            var keepPlayer = cluster[0];
+            var year = getPlayerYear(keepPlayer);
+            var displayName = key + (year ? ' (' + year + ')' : '') + (keepPlayer.position ? ' - ' + keepPlayer.position : '');
+
+            previewData.duplicates.push({
+              name: displayName,
+              players: cluster,
+              keepPlayer: keepPlayer,
+              hideCount: cluster.length - 1,
+              checked: true
+            });
+          }
         }
       });
 
       // Limit to first 200 groups
       previewData.duplicates = previewData.duplicates.slice(0, 200);
-      console.log('[Wizard] Found', previewData.duplicates.length, 'duplicate groups');
+      console.log('[Wizard] Found', previewData.duplicates.length, 'TRUE duplicate groups (same position + era)');
     }).catch(function(e) {
       console.error('[Wizard] Error loading duplicates:', e);
     });
@@ -703,16 +791,28 @@
 
   function renderDuplicatesPreview() {
     var items = previewData.duplicates;
-    var html = '<h3 style="color:#e0e0e0;margin:0 0 8px">Duplicate Players Preview</h3><p style="color:#888;margin:0 0 16px">Select groups to resolve (' + items.length + ' found). Best player kept, others hidden:</p>';
+    var html = '<h3 style="color:#e0e0e0;margin:0 0 8px">Duplicate Players Preview</h3>';
+    html += '<p style="color:#888;margin:0 0 16px">Only showing TRUE duplicates (same name + same position group + same era). ' + items.length + ' groups found:</p>';
     if (items.length === 0) {
-      html += '<p style="color:#888;text-align:center;padding:40px">No duplicate players found.</p>';
+      html += '<p style="color:#4caf50;text-align:center;padding:40px">No duplicate players found! Players with same name but different positions or eras are correctly kept separate.</p>';
     } else {
       html += '<div style="margin-bottom:12px"><button onclick="window.wizardSelectAll(\'duplicates\',true)" class="wizard-btn-small">Select All</button> <button onclick="window.wizardSelectAll(\'duplicates\',false)" class="wizard-btn-small">Select None</button></div>';
       html += '<div class="wizard-item-list">';
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
         var keep = item.keepPlayer;
-        html += '<label class="wizard-item"><input type="checkbox" data-type="duplicates" data-index="' + i + '"' + (item.checked ? ' checked' : '') + '><span style="text-transform:capitalize">' + item.name + '</span><span class="wizard-item-detail">' + item.players.length + ' entries - keep ' + keep.firstName + ' ' + keep.lastName + (keep.position ? ' (' + keep.position + ')' : '') + '</span></label>';
+        var keepYear = getPlayerYear(keep);
+        var hideList = item.players.slice(1).map(function(p) {
+          return p.firstName + ' ' + p.lastName + (p.position ? ' ' + p.position : '') + (getPlayerYear(p) ? ' ' + getPlayerYear(p) : '');
+        }).join(', ');
+        html += '<label class="wizard-item" style="flex-direction:column;align-items:flex-start;gap:4px">';
+        html += '<div style="display:flex;align-items:center;gap:8px;width:100%">';
+        html += '<input type="checkbox" data-type="duplicates" data-index="' + i + '"' + (item.checked ? ' checked' : '') + '>';
+        html += '<span style="color:#4caf50;font-weight:500">KEEP: ' + keep.firstName + ' ' + keep.lastName + '</span>';
+        html += '<span style="color:#888">' + (keep.position || '?') + ' ' + (keepYear || '?') + '</span>';
+        html += '</div>';
+        html += '<div style="margin-left:26px;color:#f44336;font-size:11px">HIDE: ' + hideList + '</div>';
+        html += '</label>';
       }
       html += '</div>';
     }
