@@ -2161,12 +2161,11 @@ export class RosterGeneratorService {
         PKRT: syncedPlayer.PKRT,
       };
 
-      // Pass PLTY (numeric archetype ID) to calculator for proper conversion
+      // Pass PLTY (numeric archetype ID) to calculator for proper OVR formula
       const calculatedOvr = ovrWeightsCalculator.calculateOVR(
         attributes,
         positionName,
-        syncedPlayer.PLTY, // Pass the archetype ID for proper conversion
-        false // isDraftClass = false means use divisor 11 for roster/franchise
+        syncedPlayer.PLTY // Pass the archetype ID for proper conversion
       );
 
       // Floor of 40 for generated players (quality control)
@@ -2453,27 +2452,18 @@ export class RosterGeneratorService {
         PKRT: syncedPlayer.PKRT,
       };
 
-      // Pass PLTY (numeric archetype ID) to calculator for proper conversion
+      // Pass PLTY (numeric archetype ID) to calculator for proper OVR formula
       const archetypeId = syncedPlayer.PLTY;
       const calculatedOvr = ovrWeightsCalculator.calculateOVR(
         attributes,
         dbRow.position || 'HB',
-        archetypeId, // Pass the archetype ID for proper conversion
-        false // isDraftClass = false means use divisor 11 for roster/franchise
+        archetypeId // Pass the archetype ID for proper conversion
       );
 
-      // IMPORTANT: Only recalculate POVR if no user edit exists
-      // User edits are already merged into dbRow.ratings, so if POVR was set there,
-      // we should preserve that value instead of recalculating
-      const userEditedPOVR = dbRow.ratings?.POVR;
-      if (userEditedPOVR && userEditedPOVR > 0) {
-        // Preserve user-edited POVR (clamped to valid range)
-        syncedPlayer.POVR = Math.max(40, Math.min(99, userEditedPOVR));
-        console.log(`[RosterGeneratorService] Preserving user-edited POVR for ${dbRow.firstName} ${dbRow.lastName}: ${syncedPlayer.POVR}`);
-      } else {
-        // No user edit - use calculated value (clamped to 40-99)
-        syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
-      }
+      // ALWAYS recalculate POVR using the formula to match franchise
+      // The bundled database POVR values don't match franchise calculation
+      // Floor of 40 for database players (quality control)
+      syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
     }
 
     return syncedPlayer;

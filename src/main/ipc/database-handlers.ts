@@ -2469,12 +2469,11 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(rosterPlayer, positionName);
     syncedPlayer.ARCHETYPE = ArchetypeService.getArchetypeName(syncedPlayer.PLTY, positionName);
 
-    // Recalculate POVR using proper Madden formula to ensure it matches game calculation
+    // ALWAYS recalculate POVR using proper Madden formula to match franchise
     if (ovrWeightsCalculator.isInitialized()) {
       const calculatedOvr = ovrWeightsCalculator.calculateOVR(syncedPlayer, positionName, syncedPlayer.PLTY);
       // Floor of 40 for database players (quality control)
       syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
-      console.log(`[database-handlers] Roster POVR recalculated via OVRWeightsCalculator: ${syncedPlayer.POVR}`);
     }
 
     return {
@@ -3018,10 +3017,10 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
         PKPW: syncedProspect.kickPower || 70, PKAC: syncedProspect.kickAccuracy || 70,
         PKRT: syncedProspect.kickReturn || 70
       };
+      // ALWAYS recalculate OVR using proper Madden formula to match franchise
       const calculatedOvr = ovrWeightsCalculator.calculateOVR(ovrAttributes, prospect.positionName || 'HB', syncedProspect.archetype, true);
       // Floor of 40 for database players (quality control)
       syncedProspect.overall = Math.max(40, Math.min(99, calculatedOvr));
-      console.log(`[database-handlers] Draft OVR recalculated via OVRWeightsCalculator: ${syncedProspect.overall}`);
     }
 
     // Debug log what we're returning
@@ -4223,6 +4222,59 @@ ipcMain.handle('database:distribute-ovr-to-ratings', async (event, options: {
     };
   } catch (error) {
     console.error('[database-handlers] Error distributing OVR to ratings:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:debug-user-edits
+ * Diagnostic handler to check what's in user-edits.db for a given year
+ */
+ipcMain.handle('database:debug-user-edits', async (event, year: number) => {
+  try {
+    console.log(`[database-handlers] DEBUG: Checking user-edits.db for year ${year}`);
+
+    // Get summary of all years with edits
+    const yearsSummary = userDatabaseService.getSeasonEditYearsSummary();
+    console.log('[database-handlers] All years with edits:', yearsSummary);
+
+    // Get all edits for the specific year
+    const editsMap = userDatabaseService.getAllSeasonEditsForYear(year);
+    console.log(`[database-handlers] Edits for year ${year}: ${editsMap.size}`);
+
+    // Convert to array for return
+    const editsArray = Array.from(editsMap.entries()).map(([playerId, ratings]) => {
+      // Also look up the player name
+      const player = lookupService.getPlayerByInternalId(playerId);
+      return {
+        playerId,
+        playerName: player ? `${player.firstName} ${player.lastName}` : 'Unknown',
+        POVR: ratings.POVR,
+        ratingsCount: Object.keys(ratings).length
+      };
+    });
+
+    // Sort by POVR descending
+    editsArray.sort((a, b) => (b.POVR || 0) - (a.POVR || 0));
+
+    // Get database player IDs for comparison
+    const dbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
+    const sampleDbIds = dbPlayers.slice(0, 10).map(p => ({
+      playerId: p.playerId,
+      name: `${p.firstName} ${p.lastName}`,
+      bundledPOVR: p.ratings?.POVR
+    }));
+
+    return {
+      success: true,
+      yearsSummary,
+      editsForYear: editsArray.slice(0, 20), // Top 20 by OVR
+      totalEditsForYear: editsMap.size,
+      sampleDbPlayers: sampleDbIds,
+      totalDbPlayers: dbPlayers.length
+    };
+  } catch (error) {
+    console.error('[database-handlers] debug-user-edits error:', error);
     return { success: false, error: String(error) };
   }
 });
