@@ -55,6 +55,7 @@ export interface PlayerEdit {
   careerTo?: number;
   bodyType?: string;
   handedness?: number;
+  isHof?: boolean;
   editedAt?: string;
 }
 
@@ -278,6 +279,9 @@ class UserDatabaseService {
         fs.mkdirSync(this.backupPath, { recursive: true });
       }
 
+      // Copy bundled base databases on first run (if they exist and user hasn't customized yet)
+      await this.copyBundledDatabases();
+
       // Initialize databases
       await this.initializeEditsDatabase();
       await this.initializeCustomDatabase();
@@ -287,6 +291,48 @@ class UserDatabaseService {
     } catch (error) {
       console.error('[UserDatabaseService] Initialization failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Copy bundled base databases from the app package to userData on first run.
+   * This allows custom portraits and edits to be bundled with the installer.
+   */
+  private async copyBundledDatabases(): Promise<void> {
+    // Determine bundled database location based on packaged vs dev mode
+    const bundledPath = app.isPackaged
+      ? path.join(app.getAppPath(), '.vite', 'build', 'data', 'user-database')
+      : path.join(app.getAppPath(), 'data', 'user-database');
+
+    if (!fs.existsSync(bundledPath)) {
+      console.log('[UserDatabaseService] No bundled user-database found, skipping copy');
+      return;
+    }
+
+    const dbFiles = ['user-edits.db', 'custom-players.db'];
+
+    for (const dbFile of dbFiles) {
+      const srcPath = path.join(bundledPath, dbFile);
+      const destPath = path.join(this.userDataPath, dbFile);
+
+      // Always copy bundled database (overwrite existing)
+      if (fs.existsSync(srcPath)) {
+        try {
+          const srcStats = fs.statSync(srcPath);
+          const destExists = fs.existsSync(destPath);
+          const destStats = destExists ? fs.statSync(destPath) : null;
+
+          // Copy if dest doesn't exist OR bundled is larger (has more data)
+          if (!destExists || srcStats.size > (destStats?.size || 0)) {
+            fs.copyFileSync(srcPath, destPath);
+            console.log(`[UserDatabaseService] Copied bundled ${dbFile} to user data (${srcStats.size} bytes)`);
+          } else {
+            console.log(`[UserDatabaseService] ${dbFile} already exists with equal/more data, keeping existing`);
+          }
+        } catch (err) {
+          console.error(`[UserDatabaseService] Failed to copy ${dbFile}:`, err);
+        }
+      }
     }
   }
 
@@ -335,6 +381,12 @@ class UserDatabaseService {
     }
     try {
       this.editsDb.exec(`ALTER TABLE player_edits ADD COLUMN handedness INTEGER`);
+    } catch {
+      // Column already exists
+    }
+    // Migration: add is_hof column for Hall of Fame status
+    try {
+      this.editsDb.exec(`ALTER TABLE player_edits ADD COLUMN is_hof INTEGER DEFAULT 0`);
     } catch {
       // Column already exists
     }
@@ -725,6 +777,7 @@ class UserDatabaseService {
       if (edits.careerTo !== undefined) { updates.push('career_to = ?'); values.push(edits.careerTo); }
       if (edits.bodyType !== undefined) { updates.push('body_type = ?'); values.push(edits.bodyType); }
       if (edits.handedness !== undefined) { updates.push('handedness = ?'); values.push(edits.handedness); }
+      if (edits.isHof !== undefined) { updates.push('is_hof = ?'); values.push(edits.isHof ? 1 : 0); }
 
       if (updates.length > 0) {
         updates.push("edited_at = datetime('now')");
@@ -736,8 +789,8 @@ class UserDatabaseService {
       this.editsDb.prepare(`
         INSERT INTO player_edits (original_id, first_name, last_name, college_id, race, height, weight,
                                    hometown, home_state, draft_class, draft_round, draft_pick, career_from, career_to,
-                                   body_type, handedness)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                   body_type, handedness, is_hof)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         originalId,
         edits.firstName ?? null,
@@ -754,7 +807,8 @@ class UserDatabaseService {
         edits.careerFrom ?? null,
         edits.careerTo ?? null,
         edits.bodyType ?? null,
-        edits.handedness ?? null
+        edits.handedness ?? null,
+        edits.isHof !== undefined ? (edits.isHof ? 1 : 0) : null
       );
     }
 
@@ -784,6 +838,7 @@ class UserDatabaseService {
       careerTo: row.career_to as number | undefined,
       bodyType: row.body_type as string | undefined,
       handedness: row.handedness as number | undefined,
+      isHof: row.is_hof === 1 ? true : (row.is_hof === 0 ? false : undefined),
       editedAt: row.edited_at as string | undefined
     };
   }
@@ -821,6 +876,7 @@ class UserDatabaseService {
         careerTo: row.career_to as number | undefined,
         bodyType: row.body_type as string | undefined,
         handedness: row.handedness as number | undefined,
+        isHof: row.is_hof === 1 ? true : (row.is_hof === 0 ? false : undefined),
         editedAt: row.edited_at as string | undefined
       });
     }
@@ -918,6 +974,23 @@ class UserDatabaseService {
   public saveAppearanceEdit(originalPlayerId: number, edits: Partial<AppearanceEdit>): void {
     if (!this.editsDb) throw new Error('Edits database not initialized');
 
+    // Get existing values first to merge (don't wipe out existing data)
+    const existing = this.getAppearanceEdit(originalPlayerId);
+
+    // Merge existing values with new edits - new values take precedence, but undefined doesn't overwrite
+    const merged = {
+      maddenPid: edits.maddenPid !== undefined ? edits.maddenPid : (existing?.maddenPid ?? null),
+      maddenPam: edits.maddenPam !== undefined ? edits.maddenPam : (existing?.maddenPam ?? null),
+      maddenPlpo: edits.maddenPlpo !== undefined ? edits.maddenPlpo : (existing?.maddenPlpo ?? null),
+      maddenCommid: edits.maddenCommid !== undefined ? edits.maddenCommid : (existing?.maddenCommid ?? null),
+      maddenPghe: edits.maddenPghe !== undefined ? edits.maddenPghe : (existing?.maddenPghe ?? null),
+      maddenPfcg: edits.maddenPfcg !== undefined ? edits.maddenPfcg : (existing?.maddenPfcg ?? null),
+      maddenGpan: edits.maddenGpan !== undefined ? edits.maddenGpan : (existing?.maddenGpan ?? null),
+      maddenGslp: edits.maddenGslp !== undefined ? edits.maddenGslp : (existing?.maddenGslp ?? null),
+      maddenCpvf: edits.maddenCpvf !== undefined ? edits.maddenCpvf : (existing?.maddenCpvf ?? null),
+      maddenSkinTone: edits.maddenSkinTone !== undefined ? edits.maddenSkinTone : (existing?.maddenSkinTone ?? null),
+    };
+
     this.editsDb.prepare(`
       INSERT OR REPLACE INTO appearance_edits (
         original_player_id, madden_pid, madden_pam, madden_plpo, madden_commid,
@@ -926,19 +999,19 @@ class UserDatabaseService {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       originalPlayerId,
-      edits.maddenPid ?? null,
-      edits.maddenPam ?? null,
-      edits.maddenPlpo ?? null,
-      edits.maddenCommid ?? null,
-      edits.maddenPghe ?? null,
-      edits.maddenPfcg ?? null,
-      edits.maddenGpan ?? null,
-      edits.maddenGslp ?? null,
-      edits.maddenCpvf ?? null,
-      edits.maddenSkinTone ?? null
+      merged.maddenPid,
+      merged.maddenPam,
+      merged.maddenPlpo,
+      merged.maddenCommid,
+      merged.maddenPghe,
+      merged.maddenPfcg,
+      merged.maddenGpan,
+      merged.maddenGslp,
+      merged.maddenCpvf,
+      merged.maddenSkinTone
     );
 
-    console.log(`[UserDatabaseService] Saved appearance edit for player_id=${originalPlayerId} (PGHE=${edits.maddenPghe ?? 'null'})`);
+    console.log(`[UserDatabaseService] Saved appearance edit for player_id=${originalPlayerId} (PAM=${merged.maddenPam ?? 'null'}, PGHE=${merged.maddenPghe ?? 'null'})`);
   }
 
   public getAppearanceEdit(originalPlayerId: number): AppearanceEdit | null {

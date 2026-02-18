@@ -1037,6 +1037,7 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       ...(playerEdit?.draftPick !== undefined && { pick: String(playerEdit.draftPick) }),
       ...(playerEdit?.careerFrom !== undefined && { careerFrom: playerEdit.careerFrom }),
       ...(playerEdit?.careerTo !== undefined && { careerTo: playerEdit.careerTo }),
+      ...(playerEdit?.isHof !== undefined && { isHOF: playerEdit.isHof }),
       ...(appearanceEdit?.maddenPam && { pam: appearanceEdit.maddenPam }),
       ...(appearanceEdit?.maddenPlpo && { plpo: appearanceEdit.maddenPlpo }),
       // commID priority: user edit > auto-filled from lookup > original
@@ -1289,7 +1290,7 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
         draftPick: playerEdit?.draftPick ?? p.pick,
         careerFrom: playerEdit?.careerFrom ?? p.careerFrom,
         careerTo: playerEdit?.careerTo ?? p.careerTo,
-        isHof: p.isHOF || false,
+        isHof: playerEdit?.isHof !== undefined ? playerEdit.isHof : (p.isHOF || false),
         isCustom: false,
         hasEdits: !!playerEdit || !!appearanceEdit // Flag includes appearance edits
       };
@@ -1685,7 +1686,7 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
         draftPick: playerEdit?.draftPick ?? p.pick,
         careerFrom: playerEdit?.careerFrom ?? p.careerFrom,
         careerTo: playerEdit?.careerTo ?? p.careerTo,
-        isHof: p.isHOF || false,
+        isHof: playerEdit?.isHof !== undefined ? playerEdit.isHof : (p.isHOF || false),
         isCustom: false,
         hasEdits: !!playerEdit || !!appearanceEdit
       };

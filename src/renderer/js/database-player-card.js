@@ -2335,7 +2335,8 @@
         draftRound: getValue('dbPlayerDraftRound'),
         draftPick: getIntValue('dbPlayerDraftPick'),
         careerFrom: getIntValue('dbPlayerCareerFrom'),
-        careerTo: getIntValue('dbPlayerCareerTo')
+        careerTo: getIntValue('dbPlayerCareerTo'),
+        isHof: document.getElementById('dbPlayerHOF')?.checked || false
       };
       console.log('[DatabasePlayerCard] Saving playerEdits:', playerEdits);
 
