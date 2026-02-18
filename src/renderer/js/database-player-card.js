@@ -2314,7 +2314,10 @@
       }
     }
 
-    if (!currentDbPlayerId) return;
+    if (currentDbPlayerId === null || currentDbPlayerId === undefined) {
+      console.error('[DatabasePlayerCard] Cannot save: no player loaded');
+      return;
+    }
 
     try {
       // Collect player edits
@@ -2386,13 +2389,17 @@
         }
       } else {
         // Original database players: use separate edit tables
+        console.log('[DatabasePlayerCard] Saving player edit for ID:', currentDbPlayerId);
         var playerResult = await window.electronAPI.database.savePlayerEdit(currentDbPlayerId, playerEdits);
+        console.log('[DatabasePlayerCard] savePlayerEdit result:', playerResult);
         if (!playerResult.success) {
           throw new Error(playerResult.error || 'Failed to save player edits');
         }
 
         // Save appearance edits
+        console.log('[DatabasePlayerCard] Saving appearance edit for ID:', currentDbPlayerId);
         var appearanceResult = await window.electronAPI.database.saveAppearanceEdit(currentDbPlayerId, appearanceEdits);
+        console.log('[DatabasePlayerCard] saveAppearanceEdit result:', appearanceResult);
         if (!appearanceResult.success) {
           throw new Error(appearanceResult.error || 'Failed to save appearance edits');
         }
