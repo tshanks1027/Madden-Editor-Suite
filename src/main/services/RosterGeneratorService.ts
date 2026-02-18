@@ -652,8 +652,56 @@ export class RosterGeneratorService {
     console.log('[RosterGeneratorService] ===== GENERATING SINGLE YEAR =====');
     console.log('[RosterGeneratorService] Requested year:', year);
 
+    // Show all years that have edits in user-edits.db
+    const yearsSummary = userDatabaseService.getSeasonEditYearsSummary();
+    console.log('[RosterGeneratorService] Years with edits in user-edits.db:', yearsSummary.map(y => `${y.year}(${y.count})`).join(', ') || 'NONE');
+
     // Query database for all players in this year
     const dbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
+    console.log(`[RosterGeneratorService] Loaded ${dbPlayers.length} players for year ${year}`);
+
+    // BULK LOAD all user edits for this year (single query, O(1) lookup per player)
+    const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(year);
+    console.log(`[RosterGeneratorService] User edits found for year ${year}: ${userEditsMap.size}`);
+
+    // DEBUG: Show sample player IDs from both sources to diagnose mismatch
+    if (userEditsMap.size > 0 && dbPlayers.length > 0) {
+      const sampleEditIds = Array.from(userEditsMap.keys()).slice(0, 5);
+      const samplePlayerIds = dbPlayers.slice(0, 5).map(p => p.playerId);
+      console.log('[RosterGeneratorService] DEBUG - Sample edit IDs:', sampleEditIds);
+      console.log('[RosterGeneratorService] DEBUG - Sample player IDs from DB:', samplePlayerIds);
+
+      // Check for specific players that should be edited
+      for (const [editId, ratings] of Array.from(userEditsMap.entries()).slice(0, 3)) {
+        const matchingPlayer = dbPlayers.find(p => p.playerId === editId);
+        if (matchingPlayer) {
+          console.log(`[RosterGeneratorService] MATCH: Edit ID ${editId} -> ${matchingPlayer.firstName} ${matchingPlayer.lastName}, POVR in edit: ${ratings.POVR}, POVR in DB: ${matchingPlayer.ratings?.POVR}`);
+        } else {
+          console.log(`[RosterGeneratorService] NO MATCH: Edit ID ${editId} not found in dbPlayers`);
+        }
+      }
+    }
+
+    // Merge user edits into players BEFORE any sorting/selection
+    let mergeCount = 0;
+    for (const player of dbPlayers) {
+      if (player.playerId && userEditsMap.has(player.playerId)) {
+        const userRatings = userEditsMap.get(player.playerId)!;
+        const beforePOVR = player.ratings?.POVR;
+        // Override bundled ratings with user-edited values
+        for (const [field, value] of Object.entries(userRatings)) {
+          if (value !== null && value !== undefined) {
+            player.ratings[field] = value;
+          }
+        }
+        mergeCount++;
+        // Log the merge for first few players
+        if (mergeCount <= 3) {
+          console.log(`[RosterGeneratorService] MERGED: ${player.firstName} ${player.lastName} (ID ${player.playerId}), POVR: ${beforePOVR} -> ${player.ratings.POVR}`);
+        }
+      }
+    }
+    console.log(`[RosterGeneratorService] Merged user edits into ${mergeCount} players`);
 
     // Also get custom players for this year (stored in this.rosterData during init)
     const customPlayers = this.rosterData.get(year) || [];
@@ -832,6 +880,22 @@ export class RosterGeneratorService {
     for (let y = startYear; y <= endYear; y++) {
       // Query database for each year
       const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+
+      // BULK LOAD user edits for this year
+      const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
+
+      // Merge user edits into players
+      for (const player of yearPlayers) {
+        if (player.playerId && userEditsMap.has(player.playerId)) {
+          const userRatings = userEditsMap.get(player.playerId)!;
+          for (const [field, value] of Object.entries(userRatings)) {
+            if (value !== null && value !== undefined) {
+              player.ratings[field] = value;
+            }
+          }
+        }
+      }
+
       allDbPlayers.push(...yearPlayers.map(p => ({ ...p, _year: y, _source: 'db' })));
 
       // Also get custom players for this year
@@ -1127,6 +1191,8 @@ export class RosterGeneratorService {
           PCMT: lookupService.getCommentaryId(lastName) || 0, // Commentary ID - looked up by last name
           // DON'T SET PSKI - BLBM handles it
           PGHE: genericFace.pghe,
+          // CRITICAL: PLRC must match GENR first digit for consistent skin tone
+          PLRC: parseInt(genericFace.pam.match(/^gen_(\d+)/)?.[1] || '1') || fillerRace,
           _race: fillerRace, // Race for BLBM GENR/SKNT assignment
           PCOL: college,
           PHSN: state,
@@ -1295,6 +1361,21 @@ export class RosterGeneratorService {
     for (let y = startYear - 5; y < startYear; y++) {
       const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
 
+      // BULK LOAD user edits for this year
+      const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
+
+      // Merge user edits into players
+      for (const player of yearPlayers) {
+        if (player.playerId && userEditsMap.has(player.playerId)) {
+          const userRatings = userEditsMap.get(player.playerId)!;
+          for (const [field, value] of Object.entries(userRatings)) {
+            if (value !== null && value !== undefined) {
+              player.ratings[field] = value;
+            }
+          }
+        }
+      }
+
       for (const dbRow of yearPlayers) {
         const enriched = await this.enrichPlayerFromDb(dbRow, y);
 
@@ -1424,6 +1505,21 @@ export class RosterGeneratorService {
     for (let y = year - 5; y < year; y++) {
       const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
       console.log(`[RosterGeneratorService]   Year ${y}: ${yearPlayers.length} players in database`);
+
+      // BULK LOAD user edits for this year
+      const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
+
+      // Merge user edits into players
+      for (const player of yearPlayers) {
+        if (player.playerId && userEditsMap.has(player.playerId)) {
+          const userRatings = userEditsMap.get(player.playerId)!;
+          for (const [field, value] of Object.entries(userRatings)) {
+            if (value !== null && value !== undefined) {
+              player.ratings[field] = value;
+            }
+          }
+        }
+      }
 
       // Filter FIRST before enriching
       yearPlayers.forEach((p: any) => {
@@ -1645,6 +1741,8 @@ export class RosterGeneratorService {
       PGHE: genericFace.pghe, // Generic head ID from race-matched face
       // DON'T SET PSKI - BLBM handles it
       PLPL: 0, // Generic face marker (number, not string)
+      // CRITICAL: PLRC must match GENR first digit for consistent skin tone
+      PLRC: parseInt(genericFace.pam.match(/^gen_(\d+)/)?.[1] || '1') || fillerRace,
       _race: fillerRace, // Store race for BLBM GENR/SKNT assignment
 
       // Contract fields (Free Agent - minimum 1-year contract)
@@ -1732,16 +1830,31 @@ export class RosterGeneratorService {
     // Fill missing ratings from CSV
     const ratings = this.fillMissingRatings(csvRow);
 
+    // Get player internal ID for user edit lookup (needed before PID handling)
+    const playerNameKey = `${csvRow.First_Name}|${csvRow.Last_Name}`;
+    const playerInternalId = this.nameToInternalId.get(playerNameKey);
+
+    // CRITICAL: Merge user-edited ratings from database
+    // This ensures generators pull ratings that users have edited in the database browser
+    if (playerInternalId) {
+      const userSeasonEdit = userDatabaseService.getSeasonEdit(playerInternalId, year);
+      if (userSeasonEdit?.ratings) {
+        console.log(`[RosterGeneratorService] Merging user edits for ${csvRow.First_Name} ${csvRow.Last_Name} (year ${year}):`, Object.keys(userSeasonEdit.ratings));
+        // Merge user edits into ratings - user edits override CSV values
+        for (const [field, value] of Object.entries(userSeasonEdit.ratings)) {
+          if (value !== null && value !== undefined) {
+            (ratings as any)[field] = value;
+          }
+        }
+      }
+    }
+
     // Handle PID/PAM - validate PID exists in portrait mapping before using it
     let playerPID = parseInt(csvRow.PID) || 0;
     let playerPAM = String(csvRow.PAM || '');
     const csvRace = parseInt(csvRow.Race) || 1; // Get race from CSV
 
     // Check for custom portrait assignment FIRST (user-uploaded portraits, PID 12000+)
-    // Use exact database player ID for reliable lookup (not name matching)
-    const playerNameKey = `${csvRow.First_Name}|${csvRow.Last_Name}`;
-    const playerInternalId = this.nameToInternalId.get(playerNameKey);
-
     // Look up custom portrait by exact database player ID (most reliable method)
     const customPortraitPID = playerInternalId
       ? userDatabaseService.getCustomPortraitByPlayerId(playerInternalId)
@@ -1885,6 +1998,12 @@ export class RosterGeneratorService {
       PWGT: Math.max(1, (parseInt(csvRow.Weight) || 200) - 159), // Weight stored as offset: real_weight - 159 (so 200lbs = 41)
       TGID: teamCode,                  // Team ID (numeric)
       PCBT: this.determinePCBT(csvRow),  // Body type (0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy)
+      // CRITICAL: PLRC must match the skin tone of the assigned face
+      // For generic faces (PEPS starts with "gen_"), extract from first digit (e.g., "gen_7_..." -> 7)
+      // For real faces, use csvRace
+      PLRC: (pepsValue && pepsValue.startsWith('gen_'))
+        ? (parseInt(pepsValue.match(/^gen_(\d+)/)?.[1] || '1') || csvRace)
+        : csvRace,
 
       // IDs - Use processed PID/PAM (generic if original was 0)
       PSXP: playerPID,       // Player ID (PID) - Generic face if CSV had 0
@@ -2077,6 +2196,7 @@ export class RosterGeneratorService {
     const teamCode = await this.lookupTeamCode(dbRow.team);
 
     // Get ratings from database - fill missing values
+    // Note: User edits are already merged into dbRow.ratings BEFORE this method is called
     const ratings = this.fillMissingRatingsFromDb(dbRow.ratings || {});
 
     // Handle PID/PAM from database
@@ -2252,6 +2372,12 @@ export class RosterGeneratorService {
       PYRP: yearsPro,
       PROL: this.determineDevTrait(ratings.POVR || 50),
       PGHE: pgheValue,
+      // CRITICAL: PLRC must match GENR first digit for consistent skin tone
+      // For generic faces (PEPS starts with "gen_"), extract from first digit
+      // For real faces, use dbRace
+      PLRC: (pepsValue && pepsValue.startsWith('gen_'))
+        ? (parseInt(pepsValue.match(/^gen_(\d+)/)?.[1] || '1') || dbRace)
+        : dbRace,
 
       // Contract
       ...this.generatePlayerContract(dbRow.position || 'HB', ratings.POVR || 50, year, yearsPro, dbRow.age || 25),
@@ -2336,9 +2462,18 @@ export class RosterGeneratorService {
         false // isDraftClass = false means use divisor 11 for roster/franchise
       );
 
-      // Update POVR with calculated value (clamped to 40-99)
-      // Floor of 40 for generated players (quality control)
-      syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+      // IMPORTANT: Only recalculate POVR if no user edit exists
+      // User edits are already merged into dbRow.ratings, so if POVR was set there,
+      // we should preserve that value instead of recalculating
+      const userEditedPOVR = dbRow.ratings?.POVR;
+      if (userEditedPOVR && userEditedPOVR > 0) {
+        // Preserve user-edited POVR (clamped to valid range)
+        syncedPlayer.POVR = Math.max(40, Math.min(99, userEditedPOVR));
+        console.log(`[RosterGeneratorService] Preserving user-edited POVR for ${dbRow.firstName} ${dbRow.lastName}: ${syncedPlayer.POVR}`);
+      } else {
+        // No user edit - use calculated value (clamped to 40-99)
+        syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+      }
     }
 
     return syncedPlayer;

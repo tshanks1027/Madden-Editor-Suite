@@ -780,6 +780,19 @@ class GenericFaceService {
         console.log(`[GenericFaceService] ${playerName}: PID=${psxp}, PLPL=${plpl} -> race=${race} -> GENR=${finalGenr}, SKNT=${finalSknt}`);
       }
 
+      // CRITICAL VALIDATION: Ensure GENR first digit matches SKNT
+      // The game extracts skin tone from the first character of GENR (e.g., "gen_7_B_N_019" -> 7)
+      // If there's a mismatch, the player's skin color will be inconsistent
+      if (finalGenr && finalSknt) {
+        const genrMatch = finalGenr.match(/^gen_(\d+)/);
+        const genrSkinTone = genrMatch ? parseInt(genrMatch[1]) : null;
+        if (genrSkinTone !== null && genrSkinTone !== finalSknt) {
+          console.warn(`[GenericFaceService] MISMATCH DETECTED for ${playerName}: GENR skin tone=${genrSkinTone}, SKNT=${finalSknt} - forcing SKNT to match GENR`);
+          // Force SKNT to match GENR first digit - the GENR determines visual appearance
+          finalSknt = genrSkinTone;
+        }
+      }
+
       // Update GENR
       let genrUpdated = false;
       if (fields['GENR']) {
@@ -1147,8 +1160,9 @@ class GenericFaceService {
   }
 
   /**
-   * Sync SKNT (skin tone) in BLBM for ALL players from PLRC in PLAY
-   * This ensures the game reads the correct skin tone (game uses SKNT in BLBM)
+   * Sync SKNT (skin tone) in BLBM for ALL players
+   * For GENERIC faces (PLPL=0): SKNT MUST match GENR first digit
+   * For REAL faces (PLPL=100): SKNT can come from PLRC
    * @param file - The loaded roster file object
    * @param players - Array of player data from PLAY table
    * @returns Number of players updated
@@ -1171,6 +1185,7 @@ class GenericFaceService {
     console.log(`[GenericFaceService] Syncing SKNT for ${Math.min(players.length, blbm._records.length)} players`);
 
     let updatedCount = 0;
+    let genericFixed = 0;
 
     for (let i = 0; i < players.length && i < blbm._records.length; i++) {
       const player = players[i];
@@ -1179,30 +1194,65 @@ class GenericFaceService {
 
       if (!fields) continue;
 
-      const plrc = player.PLRC;
-      // Validate PLRC is in range 1-7
-      if (plrc === undefined || plrc === null || plrc < 1 || plrc > 7) continue;
-
+      const plpl = player.PLPL;
+      const isGenericFace = plpl === 0 || plpl === '0';
       const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
 
-      // Update SKNT to match PLRC (if SKNT field exists)
+      // Determine target SKNT
+      let targetSknt = null;
+
+      if (isGenericFace) {
+        // CRITICAL: For generic faces, SKNT MUST match GENR first digit
+        // Extract skin tone from GENR field (e.g., "gen_7_B_N_019" -> 7)
+        const genr = fields['GENR']?.value ?? fields['GENR']?._value;
+        if (genr && typeof genr === 'string') {
+          const genrMatch = genr.match(/^gen_(\d+)/);
+          if (genrMatch) {
+            targetSknt = parseInt(genrMatch[1]);
+          }
+        }
+        // Fallback to PEPS if GENR not available
+        if (targetSknt === null) {
+          const peps = player.PEPS;
+          if (peps && typeof peps === 'string' && peps.startsWith('gen_')) {
+            const pepsMatch = peps.match(/^gen_(\d+)/);
+            if (pepsMatch) {
+              targetSknt = parseInt(pepsMatch[1]);
+            }
+          }
+        }
+      }
+
+      // For real faces, use PLRC
+      if (targetSknt === null) {
+        const plrc = player.PLRC;
+        if (plrc !== undefined && plrc !== null && plrc >= 1 && plrc <= 7) {
+          targetSknt = plrc;
+        }
+      }
+
+      // Skip if no valid target SKNT
+      if (targetSknt === null || targetSknt < 1 || targetSknt > 7) continue;
+
+      // Update SKNT (if SKNT field exists)
       if (fields['SKNT']) {
         const currentSknt = fields['SKNT'].value ?? fields['SKNT']._value;
-        if (currentSknt !== plrc) {
+        if (currentSknt !== targetSknt) {
           if (fields['SKNT'].value !== undefined) {
-            fields['SKNT'].value = plrc;
+            fields['SKNT'].value = targetSknt;
           } else if (fields['SKNT']._value !== undefined) {
-            fields['SKNT']._value = plrc;
+            fields['SKNT']._value = targetSknt;
           }
           updatedCount++;
+          if (isGenericFace) genericFixed++;
           if (updatedCount <= 10) {
-            console.log(`[GenericFaceService] ${playerName}: SKNT ${currentSknt} -> ${plrc}`);
+            console.log(`[GenericFaceService] ${playerName}: SKNT ${currentSknt} -> ${targetSknt} (${isGenericFace ? 'generic-from-GENR' : 'real-from-PLRC'})`);
           }
         }
       }
     }
 
-    console.log(`[GenericFaceService] ===== SKNT SYNC COMPLETE: ${updatedCount} players updated =====`);
+    console.log(`[GenericFaceService] ===== SKNT SYNC COMPLETE: ${updatedCount} players updated (${genericFixed} generic faces fixed from GENR) =====`);
     return updatedCount;
   }
 }

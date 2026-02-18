@@ -170,7 +170,7 @@ async function parseRosterFile(filePath) {
         position: sample.PPOS,
         age: sample.PAGE,
         birthday: sample.PLBD,
-        archetype: sample.PLTY,
+        archetype: sample.PLTY,  // PLHY is the archetype field (not PLTY)
         PEPS: sample.PEPS,
         PCBT: sample.PCBT  // Body type
       });
@@ -206,6 +206,7 @@ async function parseRosterFile(filePath) {
       console.log('[RosterParser] Total fields:', allFields.length);
 
       // Check for birthday/age/archetype fields specifically
+      // PLTY is the archetype field that franchise reads
       const birthdayFields = allFields.filter(f => f.toLowerCase().includes('birth') || f === 'PLBD' || f === 'PAGE' || f === 'PLTY');
       console.log('[RosterParser] Birthday/Age/Archetype fields found:', birthdayFields.join(', '));
 
@@ -547,6 +548,40 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
                 if (Object.prototype.hasOwnProperty.call(parsed, 'size')) parsed.size = actualWeight;
               }
 
+              // CRITICAL: Also update loadoutElements with slotType "characterbodytype"
+              // The game reads body type from BOTH the top-level bodyType AND the loadout element
+              // PCBT values: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+              const BODY_TYPE_ASSET_NAMES_HDR = ['standard_bodytype', 'thin_bodytype', 'muscular_bodytype', 'heavy_bodytype', 'lean_bodytype'];
+              const bodyTypeAssetHdr = BODY_TYPE_ASSET_NAMES_HDR[player.PCBT] || 'standard_bodytype';
+              if (parsed.loadouts && Array.isArray(parsed.loadouts)) {
+                for (const loadout of parsed.loadouts) {
+                  if (loadout.loadoutElements && Array.isArray(loadout.loadoutElements)) {
+                    for (const element of loadout.loadoutElements) {
+                      if (element.slotType && element.slotType.toLowerCase() === 'characterbodytype') {
+                        element.itemAssetName = bodyTypeAssetHdr;
+                      }
+                    }
+                  }
+                }
+              }
+
+              // CRITICAL: Sync skinTone from PLRC (race value 1-7)
+              // The game reads skinTone from CharacterVisuals JSON when editing a player
+              const plrc = player.PLRC;
+              if (plrc !== undefined && plrc !== null && plrc >= 1 && plrc <= 7) {
+                if (Object.prototype.hasOwnProperty.call(parsed, 'skinTone')) {
+                  parsed.skinTone = plrc;
+                }
+              }
+
+              // Sync genericHeadName if player has PEPS (PAM/GENR value)
+              const peps = player.PEPS;
+              if (peps && typeof peps === 'string' && peps.startsWith('gen_')) {
+                if (Object.prototype.hasOwnProperty.call(parsed, 'genericHeadName')) {
+                  parsed.genericHeadName = peps;
+                }
+              }
+
               const newStr = JSON.stringify(parsed);
               const origLen = pos.end - pos.start;
               if (newStr.length <= origLen) {
@@ -655,6 +690,45 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
                   if (Object.prototype.hasOwnProperty.call(item.json, 'wlbs')) item.json.wlbs = actualWeight;
                   if (Object.prototype.hasOwnProperty.call(item.json, 'size')) item.json.size = actualWeight;
                 }
+
+                // CRITICAL: Also update loadoutElements with slotType "characterbodytype"
+                // The game reads body type from BOTH the top-level bodyType AND the loadout element
+                // PCBT values: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+                const BODY_TYPE_ASSET_NAMES = ['standard_bodytype', 'thin_bodytype', 'muscular_bodytype', 'heavy_bodytype', 'lean_bodytype'];
+                const bodyTypeAsset = BODY_TYPE_ASSET_NAMES[player.PCBT] || 'standard_bodytype';
+                if (item.json.loadouts && Array.isArray(item.json.loadouts)) {
+                  for (const loadout of item.json.loadouts) {
+                    if (loadout.loadoutElements && Array.isArray(loadout.loadoutElements)) {
+                      for (const element of loadout.loadoutElements) {
+                        if (element.slotType && element.slotType.toLowerCase() === 'characterbodytype') {
+                          element.itemAssetName = bodyTypeAsset;
+                        }
+                      }
+                    }
+                  }
+                }
+
+                // CRITICAL: Sync skinTone from PLRC (race value 1-7)
+                // The game reads skinTone from CharacterVisuals JSON when editing a player
+                // This must match SKNT in BLBM for consistent appearance
+                const plrc = player.PLRC;
+                if (plrc !== undefined && plrc !== null && plrc >= 1 && plrc <= 7) {
+                  if (Object.prototype.hasOwnProperty.call(item.json, 'skinTone')) {
+                    item.json.skinTone = plrc;
+                  }
+                }
+
+                // Sync genericHeadName if player has PEPS (PAM/GENR value)
+                // For generic faces, PEPS contains the GENR value like "gen_7_B_N_019"
+                const peps = player.PEPS;
+                if (peps && typeof peps === 'string' && peps.startsWith('gen_')) {
+                  if (Object.prototype.hasOwnProperty.call(item.json, 'genericHeadName')) {
+                    item.json.genericHeadName = peps;
+                  }
+                  // Also extract and sync genericHead number if present
+                  // genericHead is typically 3000+ range IDs
+                }
+
                 modified = true;
               }
             }
