@@ -1613,10 +1613,19 @@
         teamOptionsHtml += '<option value="' + (team.abbr || team.name) + '">' + (team.abbr || team.name) + '</option>';
       });
 
-      // Styles
+      // Styles - wider inputs for easier typing, hide spin buttons
       var stickyThStyle = 'position: sticky; top: 0; z-index: 10; padding: 6px 4px; border-bottom: 2px solid var(--border-color); background: #1a1a1a; color: #fff; font-weight: 600; font-size: 11px; white-space: nowrap;';
-      var inputStyle = 'width: 38px; text-align: center; background: #252525; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 2px 1px; font-size: 11px;';
-      var selectStyle = 'width: 60px; background: #252525; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 2px; font-size: 11px;';
+      var inputStyle = 'width: 42px; text-align: center; background: #252525; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 3px 2px; font-size: 12px; -moz-appearance: textfield;';
+      var selectStyle = 'width: 70px; background: #252525; color: #e0e0e0; border: 1px solid #444; border-radius: 3px; padding: 2px; font-size: 11px;';
+
+      // Add CSS to hide number input spinners (WebKit/Blink browsers)
+      var styleEl = document.getElementById('ratings-table-style');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'ratings-table-style';
+        styleEl.textContent = '.ratings-table input[type=number]::-webkit-outer-spin-button, .ratings-table input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } .ratings-table input[type=number] { -moz-appearance: textfield; } .ratings-table input:focus { outline: 2px solid #4caf50; border-color: #4caf50; }';
+        document.head.appendChild(styleEl);
+      }
 
       // Build table
       var deleteButtonStyle = 'background: transparent; border: none; color: #f44336; cursor: pointer; font-size: 14px; padding: 2px 6px; opacity: 0.7; transition: opacity 0.2s;';
@@ -1654,22 +1663,22 @@
           html += '<option value="' + abbr + '"' + selected + '>' + abbr + '</option>';
         });
         html += '</select></td>';
-        // Age
-        html += '<td style="padding: 2px; text-align: center;"><input type="number" min="18" max="50" style="' + inputStyle + '" data-year="' + yr + '" data-field="age" value="' + (s.age || '') + '" onchange="window.saveAllYearsRatingEdit(this)"></td>';
-        // All rating columns
+        // Age - editable input, saves on blur or Enter key
+        html += '<td style="padding: 2px; text-align: center;"><input type="number" min="18" max="50" style="' + inputStyle + '" data-year="' + yr + '" data-field="age" value="' + (s.age || '') + '" onblur="window.saveAllYearsRatingEdit(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}"></td>';
+        // All rating columns - editable inputs, save on blur or Enter key
         ratingColumns.forEach(function(col) {
           var val = r[col.field] || '';
           var style = inputStyle;
           if (col.highlight) {
             style += ' font-weight: bold; color: #4caf50; background: #1a2a1a;';
           }
-          html += '<td style="padding: 2px; text-align: center;"><input type="number" min="0" max="99" style="' + style + '" data-year="' + yr + '" data-field="' + col.field + '" value="' + val + '" onchange="window.saveAllYearsRatingEdit(this)"></td>';
+          html += '<td style="padding: 2px; text-align: center;"><input type="number" min="0" max="99" style="' + style + '" data-year="' + yr + '" data-field="' + col.field + '" value="' + val + '" onblur="window.saveAllYearsRatingEdit(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}"></td>';
         });
         html += '</tr>';
       });
 
       html += '</tbody></table>';
-      html += '<p style="color: #888; font-size: 10px; margin-top: 6px;">Scroll horizontally to see all ratings. Edit values directly or click year to view full form.</p>';
+      html += '<p style="color: #888; font-size: 10px; margin-top: 6px;">Type directly in cells to edit. Press Enter or click away to save. Click year to view full form.</p>';
 
       container.innerHTML = html;
 
