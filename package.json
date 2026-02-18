@@ -1,7 +1,7 @@
 {
   "name": "madden-editor-suite",
   "productName": "madden-editor-suite",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Professional Madden NFL file editor with 17+ specialized tools for roster, franchise, and visual customization",
   "main": ".vite/build/main.js",
   "scripts": {
@@ -75,7 +75,7 @@
     "sql.js": "^1.14.0",
     "tailwindcss": "^4.1.13",
     "ts-jest": "^29.4.4",
-    "typescript": "~4.5.4",
+    "typescript": "^5.9.3",
     "vite": "^5.4.20"
   },
   "dependencies": {
