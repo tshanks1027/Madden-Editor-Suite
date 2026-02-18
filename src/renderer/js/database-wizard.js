@@ -349,21 +349,32 @@
       return Promise.resolve();
     }
 
-    return window.electronAPI.database.getAllPlayers({ limit: 5000 }).then(function(result) {
+    return window.electronAPI.database.getAllPlayers({ limit: 50000 }).then(function(result) {
       console.log('[Wizard] Got players:', result);
       if (!result || !result.success || !result.players) return [];
 
       var validPlayers = result.players.filter(function(p) {
         return p.firstName && p.lastName && p.position;
-      }).slice(0, 500);
+      });
 
       console.log('[Wizard] Checking', validPlayers.length, 'players for career stats');
 
-      var promises = validPlayers.map(function(p) {
-        return checkPlayerForRatings(p);
-      });
+      // Process in batches to avoid memory issues and show progress
+      var batchSize = 100;
+      var batches = [];
+      for (var i = 0; i < validPlayers.length; i += batchSize) {
+        batches.push(validPlayers.slice(i, i + batchSize));
+      }
 
-      return Promise.all(promises);
+      return batches.reduce(function(promise, batch, batchIndex) {
+        return promise.then(function() {
+          console.log('[Wizard] Processing ratings batch', batchIndex + 1, 'of', batches.length);
+          var promises = batch.map(function(p) {
+            return checkPlayerForRatings(p);
+          });
+          return Promise.all(promises);
+        });
+      }, Promise.resolve());
     }).then(function() {
       console.log('[Wizard] Found', previewData.betterRatings.length, 'players needing ratings');
     }).catch(function(e) {
@@ -504,7 +515,7 @@
       return Promise.resolve();
     }
 
-    return window.electronAPI.database.getAllPlayers({ limit: 10000 }).then(function(result) {
+    return window.electronAPI.database.getAllPlayers({ limit: 50000 }).then(function(result) {
       console.log('[Wizard] Got players for PAM check:', result);
       if (!result || !result.success || !result.players) return [];
 
@@ -514,11 +525,22 @@
 
       console.log('[Wizard] Found', playersWithPid.length, 'players with PIDs');
 
-      var promises = playersWithPid.slice(0, 500).map(function(p) {
-        return checkPlayerForPAM(p);
-      });
+      // Process in batches to avoid memory issues
+      var batchSize = 100;
+      var batches = [];
+      for (var i = 0; i < playersWithPid.length; i += batchSize) {
+        batches.push(playersWithPid.slice(i, i + batchSize));
+      }
 
-      return Promise.all(promises);
+      return batches.reduce(function(promise, batch, batchIndex) {
+        return promise.then(function() {
+          console.log('[Wizard] Processing PAM batch', batchIndex + 1, 'of', batches.length);
+          var promises = batch.map(function(p) {
+            return checkPlayerForPAM(p);
+          });
+          return Promise.all(promises);
+        });
+      }, Promise.resolve());
     }).then(function() {
       console.log('[Wizard] Found', previewData.assignPAM.length, 'players needing PAM');
     }).catch(function(e) {
@@ -697,8 +719,8 @@
       return Promise.resolve();
     }
 
-    return window.electronAPI.database.getAllPlayers({ limit: 10000 }).then(function(result) {
-      console.log('[Wizard] Got players for duplicate check:', result);
+    return window.electronAPI.database.getAllPlayers({ limit: 50000 }).then(function(result) {
+      console.log('[Wizard] Got players for duplicate check:', result.players ? result.players.length : 0, 'players');
       if (!result || !result.success || !result.players) return;
 
       var nameGroups = {};
@@ -771,8 +793,7 @@
         }
       });
 
-      // Limit to first 200 groups
-      previewData.duplicates = previewData.duplicates.slice(0, 200);
+      // No limit - process all duplicate groups
       console.log('[Wizard] Found', previewData.duplicates.length, 'TRUE duplicate groups (same position + era)');
     }).catch(function(e) {
       console.error('[Wizard] Error loading duplicates:', e);
