@@ -1275,7 +1275,8 @@
   }
 
   /**
-   * Set up the year selector based on player's career span
+   * Set up the year selector based on player's career stats
+   * FIXED: Now uses career stats database (PFR scraped data) as the source of truth
    */
   async function setupYearSelector(player) {
     var yearSelect = document.getElementById('dbPlayerYearSelect');
@@ -1296,62 +1297,82 @@
     if (allYearsView) allYearsView.style.display = 'block';  // Always show all-years table
     if (singleYearView) singleYearView.style.display = 'block';  // Always show detail editor
 
-    // Get career span info
     var draftYear = parseInt(player.draftClass);
-    var careerFrom = parseInt(player.careerFrom);
-    var careerTo = parseInt(player.careerTo);
 
-    // Determine the start year (earliest of draft year or career from)
-    var startYear = draftYear;
-    if (!startYear || isNaN(startYear)) {
-      startYear = careerFrom;
-    } else if (careerFrom && !isNaN(careerFrom) && careerFrom < startYear) {
-      startYear = careerFrom;
+    // PRIORITY 1: Get years from career stats database (PFR scraped data)
+    // This is the source of truth for what years a player actually played
+    var careerStatsYears = [];
+    var careerStatsTeams = {}; // Map year -> team
+    try {
+      var careerResult = await window.electronAPI.database.getCareerStats(
+        player.firstName || player.first_name,
+        player.lastName || player.last_name,
+        draftYear || null
+      );
+      if (careerResult.success && careerResult.stats && careerResult.stats.length > 0) {
+        careerResult.stats.forEach(function(s) {
+          careerStatsYears.push(s.year);
+          careerStatsTeams[s.year] = s.team; // Store team for each year
+        });
+        console.log('[DbPlayerCard] Career stats from PFR:', careerStatsYears.length, 'seasons');
+        // Store for later use in ratings population
+        window._careerStatsTeams = careerStatsTeams;
+      }
+    } catch (error) {
+      console.warn('[DbPlayerCard] Could not fetch career stats:', error);
     }
 
-    // Determine end year
-    var endYear = careerTo;
-    if (!endYear || isNaN(endYear)) {
-      endYear = new Date().getFullYear();
-    }
-
-    // Fetch actual years with season data from database (to mark which have data)
+    // PRIORITY 2: Get years with existing season/rating edits
     var yearsWithData = [];
     try {
       var result = await window.electronAPI.database.getPlayerSeasonYears(player.internalId);
       if (result.success && result.years && result.years.length > 0) {
         yearsWithData = result.years;
-        console.log('[DbPlayerCard] Found', yearsWithData.length, 'seasons with data');
+        console.log('[DbPlayerCard] Found', yearsWithData.length, 'seasons with existing ratings');
       }
     } catch (error) {
       console.error('[DbPlayerCard] Error fetching season years:', error);
     }
 
-    // Build full year range from start to end
-    if (startYear && endYear && !isNaN(startYear) && !isNaN(endYear)) {
-      for (var year = startYear; year <= endYear; year++) {
-        availableYears.push(year);
+    // COMBINE: Use career stats years as primary source, merge with existing edits
+    // Only show years where player actually played (from career stats)
+    var allYearsSet = {};
+    careerStatsYears.forEach(function(y) { allYearsSet[y] = true; });
+    yearsWithData.forEach(function(y) { allYearsSet[y] = true; });
+
+    availableYears = Object.keys(allYearsSet).map(function(y) { return parseInt(y); }).sort(function(a, b) { return a - b; });
+
+    // FALLBACK: Only if NO career stats AND no existing data
+    if (availableYears.length === 0) {
+      var careerFrom = parseInt(player.careerFrom);
+      var careerTo = parseInt(player.careerTo);
+
+      if (careerFrom && careerTo && !isNaN(careerFrom) && !isNaN(careerTo)) {
+        for (var year = careerFrom; year <= careerTo; year++) {
+          availableYears.push(year);
+        }
+        console.log('[DbPlayerCard] Fallback to career span:', careerFrom, '-', careerTo);
+      } else if (careerFrom && !isNaN(careerFrom)) {
+        // Only start year - use reasonable 15 year max career
+        var maxEnd = Math.min(careerFrom + 15, new Date().getFullYear());
+        for (var year = careerFrom; year <= maxEnd; year++) {
+          availableYears.push(year);
+        }
+        console.log('[DbPlayerCard] Fallback with start only:', careerFrom, '-', maxEnd);
       }
-      console.log('[DbPlayerCard] Career span:', startYear, '-', endYear, '(' + availableYears.length + ' years)');
-    } else {
-      // Fallback - just use years with data
-      availableYears = yearsWithData.slice();
-      console.log('[DbPlayerCard] Using only years with data:', availableYears.length);
     }
+
+    console.log('[DbPlayerCard] Final years:', availableYears.length,
+      availableYears.length > 0 ? '(' + availableYears[0] + '-' + availableYears[availableYears.length - 1] + ')' : '');
 
     // Populate dropdown
     availableYears.forEach(function(year) {
       var opt = document.createElement('option');
       opt.value = year;
-      // Mark special years
       var label = year.toString();
-      if (year === draftYear) {
-        label += ' (Draft)';
-      }
-      // Mark if has data
-      if (yearsWithData.indexOf(year) !== -1) {
-        label += ' *'; // Asterisk indicates year has season data
-      }
+      if (year === draftYear) label += ' (Draft)';
+      if (careerStatsYears.indexOf(year) !== -1) label += ' *'; // Has career stats
+      if (yearsWithData.indexOf(year) !== -1) label += ' ✓'; // Has rating edits
       opt.textContent = label;
       yearSelect.appendChild(opt);
     });
@@ -1456,6 +1477,7 @@
 
   /**
    * Render all years ratings overview table with editable inputs
+   * FIXED: Now uses career stats teams as source of truth
    */
   async function renderRatingsAllYears() {
     console.log('[DbPlayerCard] renderRatingsAllYears called');
@@ -1479,6 +1501,9 @@
     }
 
     container.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 20px;">Loading all years...</p>';
+
+    // Get career stats teams (stored from setupYearSelector)
+    var careerStatsTeams = window._careerStatsTeams || {};
 
     // Get team options for dropdown from team_lookup.csv
     var teamOptions = [];
@@ -1506,8 +1531,17 @@
         } else {
           result = await window.electronAPI.database.getMergedPlayerSeason(currentDbPlayerId, year);
         }
-        // Include all years, even those without data yet
-        allSeasonsData.push({ year: year, season: result.success && result.season ? result.season : null });
+
+        // Get team from career stats if not in season data
+        var season = result.success && result.season ? result.season : {};
+        if (!season.team && careerStatsTeams[year]) {
+          season.team = pfrToMaddenTeam(careerStatsTeams[year]);
+        } else if (season.team) {
+          // Convert existing team if it's a PFR code
+          season.team = pfrToMaddenTeam(season.team) || season.team;
+        }
+
+        allSeasonsData.push({ year: year, season: season });
       }
 
       // Define all rating columns - grouped by category
