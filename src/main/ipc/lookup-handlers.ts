@@ -176,6 +176,71 @@ ipcMain.handle('lookup:get-pid-portrait-mapping', async (event) => {
 });
 
 /**
+ * Handle: lookup:get-pid-lookup
+ * Load PID -> Name mappings directly from PID_lookup.csv
+ * This is the authoritative source for Player Pic column
+ */
+ipcMain.handle('lookup:get-pid-lookup', async (event) => {
+  const fs = require('fs');
+  const path = require('path');
+  const { app } = require('electron');
+
+  try {
+    // Try multiple paths for both dev and packaged builds
+    const possiblePaths = [
+      path.join(app.getAppPath(), 'data', 'lookups', 'PID_lookup.csv'),
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PID_lookup.csv'),
+      path.join(__dirname, 'data', 'lookups', 'PID_lookup.csv'),
+      path.join(__dirname, '..', 'data', 'lookups', 'PID_lookup.csv'),
+      path.join(__dirname, '..', '..', 'data', 'lookups', 'PID_lookup.csv')
+    ];
+
+    let dataPath = '';
+    for (const testPath of possiblePaths) {
+      if (fs.existsSync(testPath)) {
+        dataPath = testPath;
+        break;
+      }
+    }
+
+    if (!dataPath) {
+      console.error('[PID Lookup] PID_lookup.csv not found in any path!');
+      return [];
+    }
+
+    console.log('[PID Lookup] Loading from:', dataPath);
+
+    const content = fs.readFileSync(dataPath, 'utf-8');
+    const lines = content.split('\n');
+
+    const mappings: Array<{pid: number, name: string}> = [];
+
+    // Parse CSV (skip header line)
+    // Format: PSXP,Player Pic
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = line.split(',');
+      if (parts.length < 2) continue;
+
+      const pid = parseInt(parts[0].trim());
+      const name = parts[1].trim();
+
+      if (!isNaN(pid) && name) {
+        mappings.push({ pid, name });
+      }
+    }
+
+    console.log(`[PID Lookup] Loaded ${mappings.length} PID -> Name mappings`);
+    return mappings;
+  } catch (error) {
+    console.error('Error loading PID_lookup.csv:', error);
+    return [];
+  }
+});
+
+/**
  * Handle: lookup:get-status
  * Get lookup service status/debugging info
  */

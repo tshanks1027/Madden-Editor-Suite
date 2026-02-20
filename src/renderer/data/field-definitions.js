@@ -558,7 +558,7 @@ export async function loadLookupData() {
             let skippedCount = 0;
 
             pidPortraitMapping.forEach(mapping => {
-                // Only add if PID is NOT already mapped (preserves real player portraits from ALL_PLAYER_LOOKUP)
+                // Only add PLPO if PID is NOT already mapped (preserves real player portraits from ALL_PLAYER_LOOKUP)
                 if (!LOOKUP_DATA.plpos.has(mapping.pid)) {
                     LOOKUP_DATA.plpos.set(mapping.pid, mapping.portrait);
                     LOOKUP_DATA.plpoToPid.set(mapping.portrait, mapping.pid);
@@ -575,6 +575,13 @@ export async function loadLookupData() {
                         fullName: mapping.name
                     });
                 }
+
+                // CRITICAL: Also add to pids and pidsCapitalized for AG-Grid valueGetter
+                // This ensures generic face PIDs show "Generic Face" in Player Pic column
+                if (!LOOKUP_DATA.pids.has(mapping.pid)) {
+                    LOOKUP_DATA.pids.set(mapping.pid, mapping.name);
+                    LOOKUP_DATA.pidsCapitalized.set(mapping.pid, mapping.name);
+                }
             });
 
             console.log(`Added ${addedCount} PIDs from PID_Portrait_Mapping.csv`);
@@ -586,6 +593,23 @@ export async function loadLookupData() {
 
         console.log(`Total PLPO mappings: ${LOOKUP_DATA.plpos.size}`);
         console.log(`Total PLPO->PID reverse mappings: ${LOOKUP_DATA.plpoToPid.size}`);
+
+        // CRITICAL: Load PID_lookup.csv as the AUTHORITATIVE source for PID -> Name mapping
+        // This OVERWRITES any incorrect mappings from other sources
+        try {
+            const pidLookup = await window.electronAPI.lookup.getPIDLookup();
+            console.log(`Loading PID_lookup.csv as authoritative source: ${pidLookup.length} entries`);
+
+            pidLookup.forEach(entry => {
+                // Overwrite pids and pidsCapitalized with the correct data from PID_lookup.csv
+                LOOKUP_DATA.pids.set(entry.pid, entry.name);
+                LOOKUP_DATA.pidsCapitalized.set(entry.pid, entry.name);
+            });
+
+            console.log(`PID_lookup.csv loaded: pids.size=${LOOKUP_DATA.pids.size}, pidsCapitalized.size=${LOOKUP_DATA.pidsCapitalized.size}`);
+        } catch (error) {
+            console.error('Failed to load PID_lookup.csv:', error);
+        }
 
         console.log('Lookup data loaded successfully');
         console.log(`Colleges: ${LOOKUP_DATA.colleges.size}, States: ${LOOKUP_DATA.states.size}, PIDs: ${LOOKUP_DATA.pids.size}, PLPOs: ${LOOKUP_DATA.plpos.size}`);
@@ -810,13 +834,30 @@ export function getPlayerNameFromPID(pid, playerData = null) {
         return null;
     }
 
-    // Check PID_lookup.csv for player name
-    const nameData = LOOKUP_DATA.pidNames.get(pid);
+    // Normalize PID to number for consistent Map lookups
+    const pidNum = typeof pid === 'string' ? parseInt(pid) : pid;
+
+    // FIRST: Check if this PID is a generic face PID via PLPO mapping
+    // This MUST be checked before pidNames lookup because some generic PIDs
+    // incorrectly appear in player lookups with wrong names
+    // Try both number and string keys since Map may have mixed key types
+    const plpo = LOOKUP_DATA.plpos.get(pidNum) || LOOKUP_DATA.plpos.get(pid);
+    if (plpo && typeof plpo === 'string') {
+        // Check if it's a generic face (handles both "gen_X_X_XXX" and "plpo_generic_X_XXX" formats)
+        if (plpo.startsWith('gen_') || plpo.includes('generic')) {
+            // Generic faces should show "Generic Face" in Player Pic column
+            return 'Generic Face';
+        }
+    }
+
+    // SECOND: Check PID_lookup.csv for player name (only for non-generic PIDs)
+    // Try both number and string keys since Map may have mixed key types
+    const nameData = LOOKUP_DATA.pidNames.get(pidNum) || LOOKUP_DATA.pidNames.get(pid);
 
     // Debug logging for first 5 lookups
     if (!window._pidLookupCount) window._pidLookupCount = 0;
     if (window._pidLookupCount < 5) {
-        console.log(`[getPlayerNameFromPID] PID=${pid}, nameData="${nameData?.fullName}", pidNames.size=${LOOKUP_DATA.pidNames.size}`);
+        console.log(`[getPlayerNameFromPID] PID=${pid} (${typeof pid}), pidNum=${pidNum}, plpo="${plpo}", nameData="${nameData?.fullName}", plpos.size=${LOOKUP_DATA.plpos.size}`);
         window._pidLookupCount++;
     }
 
@@ -824,15 +865,8 @@ export function getPlayerNameFromPID(pid, playerData = null) {
         return nameData.fullName;
     }
 
-    // If PID not found in ALL_PLAYER_LOOKUP, check PLPO
-    const plpo = LOOKUP_DATA.plpos.get(pid);
+    // THIRD: If no player name found, try to extract from PLPO
     if (plpo && typeof plpo === 'string') {
-        // Check if it's a generic face (handles both "gen_X_X_XXX" and "plpo_generic_X_XXX" formats)
-        if (plpo.startsWith('gen_') || plpo.includes('generic')) {
-            // Generic faces should show "Generic Face" in Player Pic column
-            return 'Generic Face';
-        }
-
         // Real player with portrait but not in lookup - extract name from PLPO
         // e.g., "plpo_CodringtonBrandon" → "Codrington Brandon"
         const nameMatch = plpo.match(/plpo_(.+)/);

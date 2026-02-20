@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getStatus: () => ipcRenderer.invoke('lookup:get-status'),
     getDropdownOptions: (fileName: string) => ipcRenderer.invoke('lookup:get-dropdown-options', fileName),
     getPIDPortraitMapping: () => ipcRenderer.invoke('lookup:get-pid-portrait-mapping'),
+    getPIDLookup: () => ipcRenderer.invoke('lookup:get-pid-lookup'),
     // Coach lookup methods
     getCoachPAMOptions: () => ipcRenderer.invoke('lookup:get-coach-pam-options'),
     getCoachByPID: (pid: number) => ipcRenderer.invoke('lookup:get-coach-by-pid', pid),
@@ -698,6 +699,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Debug handler for Warren Moon issue
     debugWarrenMoon: () => ipcRenderer.invoke('database:debug-warren-moon'),
+
+    // Debug handler for user edits diagnostic
+    debugUserEdits: (year: number) => ipcRenderer.invoke('database:debug-user-edits', year),
 
     // Draft class push to database
     analyzeDraftClassPush: (prospects: any[], draftYear: number) =>
