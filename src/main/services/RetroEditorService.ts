@@ -2930,6 +2930,7 @@ ${fieldsList}
 
     const warnings: string[] = [];
     let gamesUpdated = 0;
+    const updatedRecordIndices = new Set<number>(); // Track which records we assign historical games to
 
     // Group schedule games by week for easier matching
     const gamesByWeek = new Map<number, typeof schedule.games>();
@@ -3014,16 +3015,12 @@ ${fieldsList}
         if (!historicalGames || historicalGames.length === 0) {
           // No historical games for this week - this happens when:
           // - Madden week >= maxHistoricalWeek (e.g., Madden week 17+ for 17-week seasons)
-          // FIX: Do NOT mark as OffSeason - this causes Madden to crash when simming!
-          // Instead, leave these games untouched with their original matchups.
-          // Madden will still sim these games but with the original teams.
+          // These slots will be converted to practice games in the next pass
           if (historicalWeekNum > maxHistoricalWeek) {
             console.log(`[RetroEditorService] >>> Madden Week ${maddenWeekNum} → Historical Week ${historicalWeekNum} BEYOND SEASON END (max=${maxHistoricalWeek})`);
-            console.log(`[RetroEditorService] >>> SKIPPING ${franchiseGames.length} games (leaving untouched to prevent crash)`);
-            warnings.push(`Week ${maddenWeekNum}: Beyond historical season - leaving ${franchiseGames.length} games untouched`);
-            // Do NOT modify these games - leave them as-is to prevent crash
+            console.log(`[RetroEditorService] >>> ${franchiseGames.length} games will be converted to practice games`);
           } else {
-            warnings.push(`No historical games for week ${maddenWeekNum}`);
+            console.log(`[RetroEditorService] No historical games for week ${maddenWeekNum}`);
           }
           continue;
         }
@@ -3052,6 +3049,8 @@ ${fieldsList}
             // Reset GameStatus to Unplayed (important: existing slots may have been simmed)
             franchiseRecord.GameStatus = 'Unplayed';
 
+            // Track this record as updated with historical data
+            updatedRecordIndices.add(franchiseRecord.index);
             gamesUpdated++;
 
             // Log first few updates for debugging
@@ -3067,14 +3066,10 @@ ${fieldsList}
           }
         }
 
-        // Handle extra game slots when historical has fewer games (e.g., 28-team era with 14 games/week)
-        // FIX: Do NOT mark as OffSeason - this causes Madden to crash when simming!
-        // Instead, leave these games untouched with their original matchups.
+        // Track extra game slots for conversion to practice games later
         if (franchiseGames.length > historicalGames.length) {
           const extraCount = franchiseGames.length - historicalGames.length;
-          console.log(`[RetroEditorService] Week ${maddenWeekNum}: SKIPPING ${extraCount} extra slots (leaving untouched to prevent crash)`);
-          warnings.push(`Week ${maddenWeekNum}: ${extraCount} extra game slots left untouched (historical had ${historicalGames.length} games)`);
-          // Do NOT modify these games - leave them as-is to prevent crash
+          console.log(`[RetroEditorService] Week ${maddenWeekNum}: ${extraCount} extra slots to convert to practice games`);
         }
       } catch (weekErr: any) {
         console.error(`[RetroEditorService] Error processing week ${maddenWeekNum}:`, weekErr.message);
@@ -3083,6 +3078,83 @@ ${fieldsList}
     }
 
     console.log(`[RetroEditorService] Updated ${gamesUpdated} regular season games`);
+
+    // ====== CONVERT EXCESS GAME SLOTS TO PRACTICE GAMES ======
+    // Following Sinthros' approach: unused RegularSeason slots become practice games
+    // This is REQUIRED for historical seasons with fewer games (14-game era, 16-game era)
+    // Key fields to set:
+    // - IsPractice = true
+    // - SeasonWeekType = 'OffSeason'
+    // - HomeTeam = AwayTeam = same practice team
+    // - SeasonGameNum = 0
+    // - Reset stat caches to ZERO_REF
+    console.log(`[RetroEditorService] ====== CONVERTING EXCESS SLOTS TO PRACTICE GAMES ======`);
+
+    // Get a practice team reference (use first team in the mapping)
+    const practiceTeamIndex = 0; // Chicago Bears (TeamIndex 0)
+    const practiceTeamRef = createTeamRef(practiceTeamIndex);
+    console.log(`[RetroEditorService] Practice team ref: ${practiceTeamRef} (TeamIndex ${practiceTeamIndex})`);
+
+    let practiceGamesCreated = 0;
+
+    // Find all RegularSeason game slots that weren't assigned historical games
+    console.log(`[RetroEditorService] Records updated with historical games: ${updatedRecordIndices.size}`);
+
+    for (const record of gameTable.records) {
+      if (record.isEmpty) continue;
+
+      const weekType = getGameField(record, 'SeasonWeekType');
+      const isRegularSeason = weekType === 1 || weekType === SEASON_WEEK_TYPES.RegularSeason || weekType === 'RegularSeason';
+      if (!isRegularSeason) continue;
+
+      // Skip records that were already updated with historical games
+      if (updatedRecordIndices.has(record.index)) {
+        continue;
+      }
+
+      // This slot needs to be converted to a practice game
+      try {
+        // Reset stat caches to ZERO_REF (critical for preventing crashes)
+        try { record.GameGoal = ZERO_REF; } catch (e) {}
+        try { record.GameSetup = ZERO_REF; } catch (e) {}
+        try { record.HomePlayerStatCache = ZERO_REF; } catch (e) {}
+        try { record.HomeTeamStatCache = ZERO_REF; } catch (e) {}
+        try { record.InjuryCache = ZERO_REF; } catch (e) {}
+        try { record.AwayPlayerStatCache = ZERO_REF; } catch (e) {}
+        try { record.AwayTeamStatCache = ZERO_REF; } catch (e) {}
+        try { record.ScoringSummaries = ZERO_REF; } catch (e) {}
+        try { record.Stadium = ZERO_REF; } catch (e) {}
+
+        // Set practice game properties
+        record.HomeTeam = practiceTeamRef;
+        record.AwayTeam = practiceTeamRef;
+        record.IsPractice = true;
+        setGameField(record, 'SeasonWeekType', 'OffSeason');
+        record.SeasonGameNum = 0;
+        record.GameStatus = 'Unplayed';
+
+        // Reset other fields
+        try { record.DayOfWeek = 'Sunday'; } catch (e) {}
+        try { record.TimeOfDay = 780; } catch (e) {}
+        try { record.ChristmasFlag = false; } catch (e) {}
+        try { record.NewYearsFlag = false; } catch (e) {}
+        try { record.ThanksgivingFlag = false; } catch (e) {}
+
+        practiceGamesCreated++;
+
+        if (practiceGamesCreated <= 5) {
+          const weekNum = getGameField(record, 'SeasonWeek');
+          console.log(`[RetroEditorService] Converted record ${record.index} (week ${weekNum}) to practice game`);
+        }
+      } catch (err: any) {
+        console.warn(`[RetroEditorService] Failed to convert slot to practice game:`, err.message);
+      }
+    }
+
+    console.log(`[RetroEditorService] Converted ${practiceGamesCreated} excess slots to practice games`);
+    if (practiceGamesCreated > 0) {
+      warnings.push(`Converted ${practiceGamesCreated} excess game slots to practice games (historical season had fewer games)`);
+    }
 
     // ====== PRESEASON HANDLING ======
     // IMPORTANT: Do NOT modify preseason - keep Madden's default preseason structure
