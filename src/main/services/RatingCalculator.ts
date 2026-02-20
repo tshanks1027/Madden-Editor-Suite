@@ -134,9 +134,9 @@ export class RatingCalculator {
       Object.assign(ratings, this.calculateReceiverRatings(stats));
     } else if (['T', 'G', 'C', 'OT', 'OG', 'LT', 'LG', 'RG', 'RT'].includes(position)) {
       Object.assign(ratings, this.calculateOLineRatings(stats));
-    } else if (['DE', 'DT', 'NT'].includes(position)) {
+    } else if (['DE', 'DT', 'NT', 'LEDG', 'REDG'].includes(position)) {
       Object.assign(ratings, this.calculateDLineRatings(stats));
-    } else if (['LB', 'MLB', 'OLB', 'ILB', 'SAM', 'Mike', 'WILL'].includes(position)) {
+    } else if (['LB', 'MLB', 'OLB', 'ILB', 'SAM', 'Mike', 'MIKE', 'WILL'].includes(position)) {
       Object.assign(ratings, this.calculateLBRatings(stats));
     } else if (['CB', 'FS', 'SS', 'S'].includes(position)) {
       Object.assign(ratings, this.calculateDBRatings(stats));

@@ -603,13 +603,26 @@ export class OVRWeightsCalculator {
       return { ovr: 50, archetype: null, breakdown: {} };
     }
 
-    // Find archetype
+    // Find archetype - must handle numeric IDs the same way as calculateOVR
     let archetypeName: string | null;
-    if (archetype && this.weights.has(archetype)) {
-      archetypeName = archetype;
-    } else if (archetype) {
-      const prefixed = `${jsonPos}_${archetype}`;
-      archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(attributes, jsonPos);
+    if (archetype !== undefined && archetype !== null) {
+      // CRITICAL: Handle numeric archetype IDs (0-67) - same as calculateOVR
+      const numericId = Number(archetype);
+      if (!isNaN(numericId) && numericId >= 0 && numericId <= 67) {
+        const formulaName = ARCHETYPE_ID_TO_FORMULA[numericId];
+        if (formulaName && this.weights.has(formulaName)) {
+          archetypeName = formulaName;
+        } else {
+          archetypeName = this.findArchetype(attributes, jsonPos);
+        }
+      } else if (this.weights.has(String(archetype))) {
+        // String archetype name provided directly
+        archetypeName = String(archetype);
+      } else {
+        // Try prefixing with position
+        const prefixed = `${jsonPos}_${archetype}`;
+        archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(attributes, jsonPos);
+      }
     } else {
       archetypeName = this.findArchetype(attributes, jsonPos);
     }
@@ -802,13 +815,28 @@ export class OVRWeightsCalculator {
       return null;
     }
 
-    // Find archetype
+    // Find archetype - must handle numeric IDs the same way as calculateOVR
     let archetypeName: string | null;
-    if (archetype && this.weights.has(archetype)) {
-      archetypeName = archetype;
-    } else if (archetype) {
-      const prefixed = `${jsonPos}_${archetype}`;
-      archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(currentAttributes, jsonPos);
+    if (archetype !== undefined && archetype !== null) {
+      // CRITICAL: Handle numeric archetype IDs (0-67) - same as calculateOVR
+      const numericId = Number(archetype);
+      if (!isNaN(numericId) && numericId >= 0 && numericId <= 67) {
+        const formulaName = ARCHETYPE_ID_TO_FORMULA[numericId];
+        if (formulaName && this.weights.has(formulaName)) {
+          archetypeName = formulaName;
+          console.log(`[OVRWeightsCalculator] Adjustment: Converted archetype ID ${numericId} -> ${formulaName}`);
+        } else {
+          console.warn(`[OVRWeightsCalculator] Unknown archetype ID ${numericId}, using auto-detect`);
+          archetypeName = this.findArchetype(currentAttributes, jsonPos);
+        }
+      } else if (this.weights.has(String(archetype))) {
+        // String archetype name provided directly
+        archetypeName = String(archetype);
+      } else {
+        // Try prefixing with position
+        const prefixed = `${jsonPos}_${archetype}`;
+        archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(currentAttributes, jsonPos);
+      }
     } else {
       archetypeName = this.findArchetype(currentAttributes, jsonPos);
     }

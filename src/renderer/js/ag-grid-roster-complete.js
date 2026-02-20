@@ -17,6 +17,9 @@ import {
 import { FastSelectEditor } from './FastSelectEditor.js';
 import { getTeamById } from '../data/team-data.js';
 
+// Flag to prevent recursive OVR change handling and skip OVR recalc during adjustment
+let _isAdjustingOVR = false;
+
 // Team colors for row styling
 const TEAM_COLORS = {
     'ARI': { primary: '#97233F', secondary: '#FFB612' },  // Cardinals: Cardinal red / Gold
@@ -553,6 +556,7 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             };
 
             // Value getter: display archetype name from ARCHETYPE field or look up from PLTY
+            // NOTE: PLTY is what franchise reads (PLTY is the archetype field)
             colDef.valueGetter = (params) => {
                 if (!params.data) return '';
                 // Prefer pre-calculated ARCHETYPE display name
@@ -1063,7 +1067,10 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
                     'PSTA', 'PINJ', 'PTGH'];
 
-                if (ratingFields.includes(fieldName) && event.newValue !== event.oldValue) {
+                // Skip OVR recalculation if we're in the middle of adjusting ratings for a target OVR
+                // (the _isAdjustingOVR flag is set by handleAGGridOVRChange)
+                console.log(`[AG-Grid DEBUG] Rating change check: field=${fieldName}, isRating=${ratingFields.includes(fieldName)}, changed=${event.newValue !== event.oldValue}, _isAdjustingOVR=${_isAdjustingOVR}`);
+                if (ratingFields.includes(fieldName) && event.newValue !== event.oldValue && !_isAdjustingOVR) {
                     console.log(`[AG-Grid] Rating field ${fieldName} changed from ${event.oldValue} to ${event.newValue}, recalculating OVR...`);
 
                     // Build attributes from player data
@@ -1074,51 +1081,173 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                         }
                     }
 
+                    // Debug: log key rating values being used
+                    console.log(`[AG-Grid OVR DEBUG] Key ratings for recalc: PPBK=${attributes.PPBK}, PPBF=${attributes.PPBF}, PPBS=${attributes.PPBS}, PAWR=${attributes.PAWR}`);
+
                     // Get position name
                     const positionId = actualPlayer.PPOS;
                     const positionName = POSITION_MAPPINGS[positionId] || 'QB';
-                    const archetype = actualPlayer.PLTY;
 
-                    // Calculate new OVR
-                    if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRMadden) {
-                        window.electronAPI.rating.calculateOVRMadden(positionName, attributes, archetype)
-                            .then(newOVR => {
+                    // Calculate OVR using BEST archetype (matches what game does)
+                    // The game auto-assigns the archetype that produces the highest OVR
+                    console.log(`[AG-Grid] Calculating OVR for ALL archetypes of ${positionName} to find best match...`);
+                    if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRForArchetypes) {
+                        window.electronAPI.rating.calculateOVRForArchetypes(attributes, positionName)
+                            .then(results => {
+                                if (!results || results.length === 0) {
+                                    console.error('[AG-Grid] No archetypes returned for position:', positionName);
+                                    return;
+                                }
+
+                                // Results are sorted by OVR descending - first is the best
+                                const bestArchetype = results[0];
+                                const newOVR = bestArchetype.ovr;
+                                const newArchetypeId = bestArchetype.id;
+                                const newArchetypeName = bestArchetype.name;
+
                                 const oldOVR = parseInt(actualPlayer.POVR) || 50;
-                                if (newOVR !== oldOVR) {
-                                    console.log(`[AG-Grid] OVR recalculated: ${oldOVR} → ${newOVR}`);
+                                const oldArchetypeId = actualPlayer.PLTY;
+                                const displayedOVR = parseInt(event.data.POVR) || 50;
 
-                                    // Update player data
-                                    actualPlayer.POVR = newOVR;
-                                    event.data.POVR = newOVR;
+                                console.log(`[AG-Grid] Best archetype: ${newArchetypeName} (ID: ${newArchetypeId}) with OVR: ${newOVR}`);
+                                console.log(`[AG-Grid] OVR change: ${displayedOVR} → ${newOVR}, Archetype: ${oldArchetypeId} → ${newArchetypeId}`);
+
+                                // Update OVR in ALL data sources
+                                actualPlayer.POVR = newOVR;
+                                event.data.POVR = newOVR;
+                                if (playerIndex !== -1) {
+                                    app.players[playerIndex].POVR = newOVR;
+                                }
+
+                                // Also update archetype if it changed
+                                if (newArchetypeId !== oldArchetypeId) {
+                                    console.log(`[AG-Grid] Auto-updating archetype: ${oldArchetypeId} → ${newArchetypeId} (${newArchetypeName})`);
+                                    actualPlayer.PLTY = newArchetypeId;
+                                    actualPlayer.ARCHETYPE = newArchetypeName;
+                                    event.data.PLTY = newArchetypeId;
+                                    event.data.ARCHETYPE = newArchetypeName;
                                     if (playerIndex !== -1) {
-                                        app.players[playerIndex].POVR = newOVR;
+                                        app.players[playerIndex].PLTY = newArchetypeId;
+                                        app.players[playerIndex].ARCHETYPE = newArchetypeName;
                                     }
+                                }
 
-                                    // Refresh the OVR cell in the grid
-                                    event.api.refreshCells({
-                                        rowNodes: [event.node],
-                                        columns: ['POVR'],
-                                        force: true
-                                    });
-
-                                    // Also update the card view OVR display
-                                    const cardOvrEl = document.getElementById('cardPlayerOVR');
-                                    if (cardOvrEl) {
-                                        cardOvrEl.textContent = newOVR;
+                                // Also update filteredPlayers
+                                const filteredIdx = app.filteredPlayers ? app.filteredPlayers.findIndex(p =>
+                                    (p.PFNA === actualPlayer.PFNA && p.PLNA === actualPlayer.PLNA) || p === actualPlayer
+                                ) : -1;
+                                if (filteredIdx !== -1 && app.filteredPlayers) {
+                                    app.filteredPlayers[filteredIdx].POVR = newOVR;
+                                    if (newArchetypeId !== oldArchetypeId) {
+                                        app.filteredPlayers[filteredIdx].PLTY = newArchetypeId;
+                                        app.filteredPlayers[filteredIdx].ARCHETYPE = newArchetypeName;
                                     }
+                                }
 
-                                    // Update currentPlayerCardData if it exists
-                                    if (app.currentPlayerCardData) {
-                                        app.currentPlayerCardData.POVR = newOVR;
+                                // Refresh the OVR and archetype cells in the grid
+                                const columnsToRefresh = ['POVR'];
+                                if (newArchetypeId !== oldArchetypeId) {
+                                    columnsToRefresh.push('PLTY');
+                                }
+                                event.api.refreshCells({
+                                    rowNodes: [event.node],
+                                    columns: columnsToRefresh,
+                                    force: true
+                                });
+
+                                // Also update the card view OVR display
+                                const cardOvrEl = document.getElementById('cardPlayerOVR');
+                                if (cardOvrEl) {
+                                    cardOvrEl.textContent = newOVR;
+                                }
+
+                                // Update currentPlayerCardData if it exists
+                                if (app.currentPlayerCardData) {
+                                    app.currentPlayerCardData.POVR = newOVR;
+                                    if (newArchetypeId !== oldArchetypeId) {
+                                        app.currentPlayerCardData.PLTY = newArchetypeId;
+                                        app.currentPlayerCardData.ARCHETYPE = newArchetypeName;
                                     }
                                 }
                             })
                             .catch(err => {
-                                console.warn('[AG-Grid] Could not recalculate OVR:', err);
+                                console.error('[AG-Grid] OVR calculation FAILED:', err);
                             });
+                    } else {
+                        console.error('[AG-Grid] calculateOVRForArchetypes API not available!');
                     }
                 }
                 // ========== END AUTO-RECALCULATE OVR ==========
+
+                // ========== ARCHETYPE CHANGE → ADJUST RATINGS ==========
+                if (fieldName === 'PLTY' || fieldName === 'ARCHETYPE') {
+                    const positionId = actualPlayer.PPOS;
+                    const positionName = POSITION_MAPPINGS[positionId] || 'QB';
+                    const newArchetypeId = actualPlayer.PLTY;
+                    const currentOVR = parseInt(actualPlayer.POVR) || 75;
+
+                    // Get archetype name for the new ID
+                    if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.getArchetypeName) {
+                        window.electronAPI.rating.getArchetypeName(newArchetypeId, positionName)
+                            .then(archetypeName => {
+                                console.log(`[AG-Grid] Archetype changed to ${archetypeName} (${newArchetypeId}), adjusting ratings...`);
+
+                                // Call adjustAttributesForArchetype to get suggested ratings
+                                if (window.electronAPI.rating.adjustAttributesForArchetype) {
+                                    window.electronAPI.rating.adjustAttributesForArchetype(actualPlayer, archetypeName, positionName, currentOVR)
+                                        .then(adjustedPlayer => {
+                                            if (adjustedPlayer) {
+                                                // List of rating fields to potentially update
+                                                const ratingFieldsToUpdate = ['PSPD', 'PACC', 'PAGI', 'PSTR', 'PJMP', 'PAWR', 'PBCV', 'PCAR', 'PCTH',
+                                                    'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPLA', 'PBSK',
+                                                    'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
+                                                    'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
+                                                    'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
+                                                    'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT'];
+
+                                                const changedColumns = [];
+                                                for (const field of ratingFieldsToUpdate) {
+                                                    if (adjustedPlayer[field] !== undefined && adjustedPlayer[field] !== actualPlayer[field]) {
+                                                        actualPlayer[field] = adjustedPlayer[field];
+                                                        event.data[field] = adjustedPlayer[field];
+                                                        if (playerIndex !== -1) {
+                                                            app.players[playerIndex][field] = adjustedPlayer[field];
+                                                        }
+                                                        changedColumns.push(field);
+                                                    }
+                                                }
+
+                                                // Also update OVR if changed
+                                                if (adjustedPlayer.POVR !== undefined && adjustedPlayer.POVR !== actualPlayer.POVR) {
+                                                    actualPlayer.POVR = adjustedPlayer.POVR;
+                                                    event.data.POVR = adjustedPlayer.POVR;
+                                                    if (playerIndex !== -1) {
+                                                        app.players[playerIndex].POVR = adjustedPlayer.POVR;
+                                                    }
+                                                    changedColumns.push('POVR');
+                                                }
+
+                                                if (changedColumns.length > 0) {
+                                                    console.log(`[AG-Grid] Updated ${changedColumns.length} fields for archetype ${archetypeName}`);
+                                                    event.api.refreshCells({
+                                                        rowNodes: [event.node],
+                                                        columns: changedColumns,
+                                                        force: true
+                                                    });
+                                                }
+                                            }
+                                        })
+                                        .catch(err => {
+                                            console.warn('[AG-Grid] Could not adjust ratings for archetype:', err);
+                                        });
+                                }
+                            })
+                            .catch(err => {
+                                console.warn('[AG-Grid] Could not get archetype name:', err);
+                            });
+                    }
+                }
+                // ========== END ARCHETYPE CHANGE ==========
 
                 // If PLAYERPIC or PSXP changed, refresh the portrait column AND update race
                 if (fieldName === 'PLAYERPIC' || fieldName === 'PSXP') {
@@ -1908,12 +2037,19 @@ export function destroyAGGrid(app) {
  * Handle OVR change in AG-Grid - prompt user to adjust ratings
  */
 async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app, gridApi) {
+    // Prevent recursive calls
+    if (_isAdjustingOVR) {
+        console.log('[AG-Grid OVR] Skipping recursive call');
+        return;
+    }
+    _isAdjustingOVR = true;
+
     console.log('[AG-Grid OVR] handleAGGridOVRChange called:', oldOVR, '->', newOVR);
 
     // Get position name from position ID (M26 codes)
     const positionMap = {
         0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
-        8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike',
+        8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'MIKE',
         15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
     };
     const position = positionMap[player.PPOS] || 'QB';
@@ -1937,7 +2073,7 @@ async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app, gridApi)
         }
     }
 
-    // Get archetype if available
+    // Get archetype if available (PLTY is what franchise reads)
     const archetype = player.PLTY !== undefined ? player.PLTY : undefined;
 
     try {
@@ -1953,11 +2089,74 @@ async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app, gridApi)
             return;
         }
 
-        // Show the adjustment dialog
-        showAGGridOVRAdjustmentDialog(node, player, playerName, oldOVR, newOVR, result, app, gridApi);
+        // AUTO-APPLY adjustments instead of showing dialog
+        // This ensures attributes are scaled when OVR is changed
+        console.log(`[AG-Grid OVR] Auto-applying ${Object.keys(result.adjustments).length} rating adjustments to achieve OVR ${result.newOVR}`);
+
+        // Find the player in all data stores
+        const playerIndex = app.players.findIndex(p =>
+            (p.PFNA === player.PFNA && p.PLNA === player.PLNA) || p === player
+        );
+        const filteredIndex = app.filteredPlayers ? app.filteredPlayers.findIndex(p =>
+            (p.PFNA === player.PFNA && p.PLNA === player.PLNA) || p === player
+        ) : -1;
+
+        const changedColumns = [];
+        for (const [fieldCode, adj] of Object.entries(result.adjustments)) {
+            const newValue = adj.suggested;
+
+            // Update ALL data sources to ensure consistency
+            player[fieldCode] = newValue;
+            node.data[fieldCode] = newValue;
+
+            // Update app.players
+            if (playerIndex !== -1) {
+                app.players[playerIndex][fieldCode] = newValue;
+            }
+
+            // Update app.filteredPlayers (critical for OVR recalculation)
+            if (filteredIndex !== -1 && app.filteredPlayers) {
+                app.filteredPlayers[filteredIndex][fieldCode] = newValue;
+            }
+
+            changedColumns.push(fieldCode);
+            console.log(`[AG-Grid OVR] ${adj.name}: ${adj.current} → ${newValue}`);
+        }
+
+        // Also update POVR to the achieved OVR in all data sources
+        const achievedOVR = result.newOVR;
+        player.POVR = achievedOVR;
+        node.data.POVR = achievedOVR;
+        if (playerIndex !== -1) {
+            app.players[playerIndex].POVR = achievedOVR;
+        }
+        if (filteredIndex !== -1 && app.filteredPlayers) {
+            app.filteredPlayers[filteredIndex].POVR = achievedOVR;
+        }
+        changedColumns.push('POVR');
+
+        // Refresh the changed cells in the grid
+        if (changedColumns.length > 0 && gridApi) {
+            gridApi.refreshCells({
+                rowNodes: [node],
+                columns: changedColumns,
+                force: true
+            });
+        }
+
+        // Mark as having unsaved changes
+        app.hasUnsavedChanges = true;
+        if (app.updateSaveButton) {
+            app.updateSaveButton();
+        }
+
+        console.log(`[AG-Grid OVR] Successfully adjusted ${changedColumns.length} attributes for ${playerName}`);
 
     } catch (error) {
         console.error('[AG-Grid OVR] Error calculating adjustments:', error);
+    } finally {
+        // Always reset the flag
+        _isAdjustingOVR = false;
     }
 }
 

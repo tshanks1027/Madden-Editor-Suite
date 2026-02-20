@@ -118,7 +118,7 @@ export const MADDEN_FIELDS = {
 
     // Additional system fields
     'PGID': { display: 'Player ID', shortDisplay: 'ID', type: 'numeric', editable: false, width: 80, min: 0, max: 99999 },
-    'POVR': { display: 'Overall Rating', shortDisplay: 'OVR', type: 'numeric', editable: false, width: 70, min: 0, max: 99 },
+    'POVR': { display: 'Overall Rating', shortDisplay: 'OVR', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
     'POID': { display: 'Presentation ID', shortDisplay: 'POID', type: 'numeric', editable: true, width: 80, min: 0, max: 99999 },
     'PCMT': { display: 'Commentary ID', shortDisplay: 'PCMT', type: 'numeric', editable: true, width: 80, min: 0, max: 99999 },
 
@@ -127,7 +127,8 @@ export const MADDEN_FIELDS = {
     'PDRO': { display: 'Draft Rank', shortDisplay: 'Rank', type: 'numeric', editable: false, width: 80, min: 0, max: 500 },
 
     // Archetype (editable lookup field - converts between archetype ID and name)
-    // Uses PLTY (Player Type) field from roster files, options depend on player position
+    // Uses PLTY field from roster files, options depend on player position
+    // NOTE: PLTY is what franchise reads (PLTY is the archetype field)
     'ARCHETYPE': {
         display: 'Archetype',
         shortDisplay: 'Archetype',
@@ -214,7 +215,7 @@ export const SIMPLIFIED_FIELDS = [
 // MUST match position_lookup.csv exactly
 export const POSITION_MAPPINGS = {
     0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C', 8: 'RG', 9: 'RT',
-    10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'Mike', 15: 'WILL', 16: 'CB',
+    10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'MIKE', 15: 'WILL', 16: 'CB',
     17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
 };
 
