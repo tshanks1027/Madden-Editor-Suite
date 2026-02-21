@@ -1316,13 +1316,29 @@ export async function initializeDraftAGGrid(app, container, prospects) {
 
                 // Get position name
                 const positionName = prospect.position || 'QB';
-                const archetype = prospect.archetypeId || 0;
 
-                // Calculate new OVR
-                if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRMadden) {
-                    window.electronAPI.rating.calculateOVRMadden(positionName, attributes, archetype)
-                        .then(newOVR => {
+                // Calculate OVR using calculateOVRForArchetypes - SAME as roster editor
+                // This tests ALL archetypes and picks the BEST one (highest OVR)
+                if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRForArchetypes) {
+                    window.electronAPI.rating.calculateOVRForArchetypes(attributes, positionName)
+                        .then(results => {
+                            if (!results || results.length === 0) {
+                                console.error('[Draft AG-Grid] No archetypes returned for position:', positionName);
+                                return;
+                            }
+
+                            // Results are sorted by OVR descending - first is the BEST
+                            const bestArchetype = results[0];
+                            const newOVR = bestArchetype.ovr;
+                            const newArchetypeId = bestArchetype.id;
+                            const newArchetypeName = bestArchetype.name;
+
                             const oldOVR = parseInt(prospect.overall) || 50;
+                            const oldArchetypeId = prospect.archetypeId;
+
+                            console.log(`[Draft AG-Grid] Best archetype: ${newArchetypeName} (ID: ${newArchetypeId}) with OVR: ${newOVR}`);
+
+                            // Update OVR if changed
                             if (newOVR !== oldOVR) {
                                 console.log(`[Draft AG-Grid] OVR recalculated: ${oldOVR} → ${newOVR}`);
 
@@ -1343,11 +1359,126 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                                     cardOvrEl.textContent = newOVR;
                                 }
                             }
+
+                            // Update archetype if changed
+                            if (newArchetypeId !== oldArchetypeId) {
+                                console.log(`[Draft AG-Grid] Archetype sync: ${oldArchetypeId} → ${newArchetypeId} (${newArchetypeName})`);
+
+                                // Update prospect data
+                                prospect.archetypeId = newArchetypeId;
+                                prospect.archetype = newArchetypeName;
+                                event.data.archetypeId = newArchetypeId;
+                                event.data.archetype = newArchetypeName;
+
+                                // Refresh the archetype cell in the grid
+                                event.api.refreshCells({
+                                    rowNodes: [event.node],
+                                    columns: ['archetype'],
+                                    force: true
+                                });
+                            }
                         })
-                        .catch(err => console.error('[Draft AG-Grid] OVR calculation error:', err));
+                        .catch(err => console.warn('[Draft AG-Grid] Could not sync archetype:', err));
                 }
+                // ========== END ARCHETYPE SYNC ==========
             }
             // ========== END AUTO-RECALCULATE OVR ==========
+
+            // ========== ARCHETYPE CHANGE → ADJUST RATINGS ==========
+            if (fieldName === 'archetype') {
+                const positionName = event.data.position || 'QB';
+                const newArchetypeName = event.newValue;
+                const currentOVR = parseInt(event.data.overall) || 75;
+
+                console.log(`[Draft AG-Grid] Archetype changed to ${newArchetypeName}, adjusting ratings...`);
+
+                // Build current attributes
+                const prospect = event.data;
+                const currentAttributes = {
+                    PSPD: parseInt(prospect.speed) || 50,
+                    PACC: parseInt(prospect.acceleration) || 50,
+                    PAGI: parseInt(prospect.agility) || 50,
+                    PSTR: parseInt(prospect.strength) || 50,
+                    PJMP: parseInt(prospect.jumping) || 50,
+                    PAWR: parseInt(prospect.awareness) || 50,
+                    PTHP: parseInt(prospect.throwPower) || 50,
+                    PTAS: parseInt(prospect.throwAccuracyShort) || 50,
+                    PTAM: parseInt(prospect.throwAccuracyMid) || 50,
+                    PTAD: parseInt(prospect.throwAccuracyDeep) || 50,
+                    PPBK: parseInt(prospect.passBlock) || 50,
+                    PRBK: parseInt(prospect.runBlock) || 50,
+                    PTAK: parseInt(prospect.tackle) || 50,
+                    PLHT: parseInt(prospect.hitPower) || 50,
+                    PLMC: parseInt(prospect.manCoverage) || 50,
+                    PLZC: parseInt(prospect.zoneCoverage) || 50,
+                    PLPR: parseInt(prospect.press) || 50,
+                    PLPU: parseInt(prospect.pursuit) || 50,
+                    PFMS: parseInt(prospect.finesseMoves) || 50,
+                    PBSG: parseInt(prospect.blockShed) || 50,
+                    PLPE: parseInt(prospect.powerMoves) || 50,
+                    PKPW: parseInt(prospect.kickPower) || 50,
+                    PKAC: parseInt(prospect.kickAccuracy) || 50,
+                    PCTH: parseInt(prospect.catching) || 50,
+                    PLRL: parseInt(prospect.release) || 50,
+                    SRRN: parseInt(prospect.routeRunningShort) || 50,
+                    PMRR: parseInt(prospect.routeRunningMid) || 50,
+                    PDRR: parseInt(prospect.routeRunningDeep) || 50,
+                    PBKT: parseInt(prospect.breakTackle) || 50,
+                    PLTR: parseInt(prospect.trucking) || 50,
+                    PELU: parseInt(prospect.elusiveness) || 50,
+                    PLSM: parseInt(prospect.spinMove) || 50,
+                    PLJM: parseInt(prospect.jukeMoves) || 50,
+                    PLSA: parseInt(prospect.stiffArm) || 50,
+                    PLIB: parseInt(prospect.impactBlocking) || 50
+                };
+
+                if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.adjustAttributesForArchetype) {
+                    window.electronAPI.rating.adjustAttributesForArchetype(currentAttributes, newArchetypeName, positionName, currentOVR)
+                        .then(adjustedPlayer => {
+                            if (adjustedPlayer) {
+                                // Map field codes back to draft prospect field names
+                                const fieldMapping = {
+                                    PSPD: 'speed', PACC: 'acceleration', PAGI: 'agility', PSTR: 'strength',
+                                    PJMP: 'jumping', PAWR: 'awareness', PTHP: 'throwPower',
+                                    PTAS: 'throwAccuracyShort', PTAM: 'throwAccuracyMid', PTAD: 'throwAccuracyDeep',
+                                    PPBK: 'passBlock', PRBK: 'runBlock', PTAK: 'tackle', PLHT: 'hitPower',
+                                    PLMC: 'manCoverage', PLZC: 'zoneCoverage', PLPR: 'press', PLPU: 'pursuit',
+                                    PFMS: 'finesseMoves', PBSG: 'blockShed', PLPE: 'powerMoves',
+                                    PKPW: 'kickPower', PKAC: 'kickAccuracy', PCTH: 'catching', PLRL: 'release',
+                                    SRRN: 'routeRunningShort', PMRR: 'routeRunningMid', PDRR: 'routeRunningDeep',
+                                    PBKT: 'breakTackle', PLTR: 'trucking', PELU: 'elusiveness',
+                                    PLSM: 'spinMove', PLJM: 'jukeMoves', PLSA: 'stiffArm', PLIB: 'impactBlocking'
+                                };
+
+                                const changedColumns = [];
+                                for (const [fieldCode, draftField] of Object.entries(fieldMapping)) {
+                                    if (adjustedPlayer[fieldCode] !== undefined && adjustedPlayer[fieldCode] !== prospect[draftField]) {
+                                        prospect[draftField] = adjustedPlayer[fieldCode];
+                                        event.data[draftField] = adjustedPlayer[fieldCode];
+                                        changedColumns.push(draftField);
+                                    }
+                                }
+
+                                // Update archetype ID
+                                if (adjustedPlayer.PLTY !== undefined) {
+                                    prospect.archetypeId = adjustedPlayer.PLTY;
+                                    event.data.archetypeId = adjustedPlayer.PLTY;
+                                }
+
+                                if (changedColumns.length > 0) {
+                                    console.log(`[Draft AG-Grid] Updated ${changedColumns.length} fields for archetype ${newArchetypeName}`);
+                                    event.api.refreshCells({
+                                        rowNodes: [event.node],
+                                        columns: changedColumns,
+                                        force: true
+                                    });
+                                }
+                            }
+                        })
+                        .catch(err => console.warn('[Draft AG-Grid] Could not adjust ratings for archetype:', err));
+                }
+            }
+            // ========== END ARCHETYPE CHANGE ==========
         },
 
         onCellContextMenu: (event) => {
@@ -2365,11 +2496,11 @@ function showPushConfirmationModal(app, analysis, draftYear) {
                                     <span>Race</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="draft-bio-bodytype">
+                                    <input type="checkbox" id="draft-bio-bodytype" checked>
                                     <span>Body Type</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="draft-bio-handedness">
+                                    <input type="checkbox" id="draft-bio-handedness" checked>
                                     <span>Handedness</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
@@ -2436,17 +2567,29 @@ function showPushConfirmationModal(app, analysis, draftYear) {
 
                     ${totalNew > 0 ? `
                         <div class="new-details" style="margin-top: 20px;">
-                            <details>
-                                <summary style="cursor: pointer; color: #4CAF50;">Show ${totalNew} new player(s) to be created</summary>
-                                <div style="margin-top: 10px; max-height: 250px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 13px;">
-                                    ${newPlayers.map(item => {
-                                        const name = `${item.prospect.firstName || ''} ${item.prospect.lastName || ''}`.trim();
-                                        const pos = item.prospect.position || '?';
-                                        const ovr = item.prospect.overall || item.prospect.POVR || '?';
-                                        return `<div style="padding: 2px 0;">${name} <span style="color: #666;">(${pos}, ${ovr} OVR)</span></div>`;
-                                    }).join('')}
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h4 style="margin: 0; color: #4CAF50;">${totalNew} New Player(s) to Create</h4>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="draft-new-select-all" style="padding: 6px 12px; background: #1a5a1a; border: 1px solid #2a7a2a; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        Select All
+                                    </button>
+                                    <button id="draft-new-select-none" style="padding: 6px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        Deselect All
+                                    </button>
                                 </div>
-                            </details>
+                            </div>
+                            <div id="draft-new-players-list" style="max-height: 300px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 13px;">
+                                ${newPlayers.map((item, idx) => {
+                                    const name = `${item.prospect.firstName || ''} ${item.prospect.lastName || ''}`.trim();
+                                    const pos = item.prospect.position || '?';
+                                    const ovr = item.prospect.overall || item.prospect.POVR || '?';
+                                    return `<label style="display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer;">
+                                        <input type="checkbox" class="draft-new-player-checkbox" data-index="${item.prospectIndex}" checked>
+                                        <span>${name}</span>
+                                        <span style="color: #666;">(${pos}, ${ovr} OVR)</span>
+                                    </label>`;
+                                }).join('')}
+                            </div>
                         </div>
                     ` : ''}
                 </div>
@@ -2570,6 +2713,29 @@ function showPushConfirmationModal(app, analysis, draftYear) {
         });
     });
 
+    // New players checkbox handlers
+    const executeBtn = document.getElementById('push-db-execute-btn');
+
+    function updateDraftPushButtonText() {
+        const checkedCount = document.querySelectorAll('.draft-new-player-checkbox:checked').length;
+        const total = totalExisting + checkedCount;
+        executeBtn.textContent = `Push ${total} Players to Database`;
+    }
+
+    document.getElementById('draft-new-select-all')?.addEventListener('click', () => {
+        document.querySelectorAll('.draft-new-player-checkbox').forEach(cb => cb.checked = true);
+        updateDraftPushButtonText();
+    });
+
+    document.getElementById('draft-new-select-none')?.addEventListener('click', () => {
+        document.querySelectorAll('.draft-new-player-checkbox').forEach(cb => cb.checked = false);
+        updateDraftPushButtonText();
+    });
+
+    document.querySelectorAll('.draft-new-player-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateDraftPushButtonText);
+    });
+
     // Execute push handler
     document.getElementById('push-db-execute-btn').addEventListener('click', async () => {
         // Gather resolutions from radio buttons
@@ -2596,8 +2762,8 @@ function showPushConfirmationModal(app, analysis, draftYear) {
             weight: document.getElementById('draft-bio-weight')?.checked ?? true,
             homeState: document.getElementById('draft-bio-homestate')?.checked ?? true,
             race: document.getElementById('draft-bio-race')?.checked ?? true,
-            bodyType: document.getElementById('draft-bio-bodytype')?.checked ?? false,
-            handedness: document.getElementById('draft-bio-handedness')?.checked ?? false,
+            bodyType: document.getElementById('draft-bio-bodytype')?.checked ?? true,
+            handedness: document.getElementById('draft-bio-handedness')?.checked ?? true,
             pid: document.getElementById('draft-bio-pid')?.checked ?? true,
             pam: document.getElementById('draft-bio-pam')?.checked ?? true
         };
@@ -2606,14 +2772,25 @@ function showPushConfirmationModal(app, analysis, draftYear) {
         const overwriteExistingSeasons = document.getElementById('overwrite-seasons-checkbox')?.checked ?? true;
         const fillEmptyBioFields = document.getElementById('fill-empty-bio-checkbox')?.checked ?? true;
 
+        // Get selected new player indices
+        const selectedNewIndices = new Set();
+        document.querySelectorAll('.draft-new-player-checkbox:checked').forEach(cb => {
+            selectedNewIndices.add(parseInt(cb.dataset.index));
+        });
+
+        // Filter analysis to only include selected new players
+        const filteredAnalysis = {
+            ...analysis,
+            newPlayers: analysis.newPlayers.filter(item => selectedNewIndices.has(item.prospectIndex))
+        };
+
         // Disable button and show progress
-        const executeBtn = document.getElementById('push-db-execute-btn');
         executeBtn.disabled = true;
         executeBtn.textContent = 'Pushing...';
 
         try {
             const response = await window.electronAPI.database.executeDraftClassPush(
-                analysis,
+                filteredAnalysis,
                 resolutions,
                 { pushMode, bioFieldOptions, overwriteExistingSeasons, fillEmptyBioFields }
             );

@@ -254,6 +254,7 @@
                     <button class="footer-btn footer-btn-primary" id="addNewPlayerBtn">+ Add Player</button>
                     <button class="footer-btn" id="addSelectedToRosterBtn" style="display: none;">+ Selected to Roster</button>
                     <button class="footer-btn" id="addSelectedToDraftBtn" style="display: none;">+ Selected to Draft</button>
+                    <button class="footer-btn" id="mergeSelectedPlayersBtn" style="display: none;">Merge Selected</button>
                     <button class="footer-btn" id="openDbManagement">Manage Database</button>
                 </div>
                 <div class="pagination-controls">
@@ -1307,6 +1308,27 @@
         (function() {
             'use strict';
 
+            // Simple toast notification function
+            window.showToast = function(message, type = 'info') {
+                let toast = document.getElementById('database-toast');
+                if (!toast) {
+                    toast = document.createElement('div');
+                    toast.id = 'database-toast';
+                    toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; padding: 12px 24px; border-radius: 6px; color: white; font-weight: 500; z-index: 10000; opacity: 0; transition: opacity 0.3s ease; pointer-events: none;';
+                    document.body.appendChild(toast);
+                }
+                const colors = {
+                    success: '#22c55e',
+                    error: '#ef4444',
+                    info: '#3b82f6',
+                    warning: '#f59e0b'
+                };
+                toast.style.backgroundColor = colors[type] || colors.info;
+                toast.textContent = message;
+                toast.style.opacity = '1';
+                setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+            };
+
             // Module state
             let searchTimeout = null;
             let currentResults = [];
@@ -1943,6 +1965,143 @@
                         showBulkAddWizard('draft');
                     });
                 }
+
+                // Merge Selected Players button
+                const mergeBtn = document.getElementById('mergeSelectedPlayersBtn');
+                if (mergeBtn) {
+                    mergeBtn.addEventListener('click', () => {
+                        if (selectedPlayerIds.size < 2) return;
+                        showMergePlayersModal();
+                    });
+                }
+            }
+
+            /**
+             * Show merge players modal
+             */
+            async function showMergePlayersModal() {
+                const playerIds = Array.from(selectedPlayerIds);
+                const players = playerIds.map(id => currentResults.find(p => p.internalId === id)).filter(p => p);
+
+                if (players.length < 2) {
+                    alert('Please select at least 2 players to merge.');
+                    return;
+                }
+
+                // Check for mix of custom and bundled players
+                const hasCustom = players.some(p => p.isCustom);
+                const hasBundled = players.some(p => !p.isCustom);
+
+                if (hasCustom && hasBundled) {
+                    alert('Cannot merge custom players with bundled players. Please select only custom players or only bundled players.');
+                    return;
+                }
+
+                // For bundled players, we can only merge custom season data (user edits)
+                // The base bundled data stays unchanged
+                const isCustomMerge = hasCustom;
+
+                const modalHtml = `
+                    <div id="mergePlayersModal" class="modal" style="display: flex;">
+                        <div class="modal-content" style="max-width: 600px; width: 90%;">
+                            <div class="modal-header">
+                                <h2 class="modal-title">Merge Players</h2>
+                                <button class="modal-close" id="closeMergeModal">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <p style="margin-bottom: 15px; color: #aaa;">
+                                    Select which player to keep. All season data from other players will be copied to the selected player, then the duplicates will be deleted.
+                                </p>
+
+                                <div style="margin-bottom: 20px;">
+                                    <label style="font-weight: bold; display: block; margin-bottom: 10px;">Keep this player (primary):</label>
+                                    <div id="mergePrimaryOptions" style="display: flex; flex-direction: column; gap: 8px;">
+                                        ${players.map((p, i) => `
+                                            <label style="display: flex; align-items: center; gap: 10px; padding: 10px; background: #1a1a1a; border-radius: 4px; cursor: pointer; border: 2px solid ${i === 0 ? '#4CAF50' : 'transparent'};" class="merge-player-option" data-index="${i}">
+                                                <input type="radio" name="mergePrimary" value="${p.internalId}" ${i === 0 ? 'checked' : ''}>
+                                                <div>
+                                                    <div style="font-weight: bold;">${p.firstName} ${p.lastName}</div>
+                                                    <div style="font-size: 12px; color: #888;">
+                                                        ${p.position || '?'} | ${p.college || 'Unknown college'} |
+                                                        Career: ${p.careerFrom || '?'}-${p.careerTo || '?'}
+                                                        ${p.isCustom ? ' | <span style="color: #ff9800;">Custom</span>' : ''}
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </div>
+
+                                <div style="background: #252525; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                                    <h4 style="margin: 0 0 10px 0; color: #4CAF50;">What will happen:</h4>
+                                    <ul style="margin: 0; padding-left: 20px; color: #ccc;">
+                                        <li>Season data from all selected players will be merged into the primary player</li>
+                                        <li>If there are overlapping seasons, the primary player's data takes priority</li>
+                                        <li>The other ${players.length - 1} player(s) will be deleted</li>
+                                        ${!isCustomMerge ? '<li style="color: #ff9800;">Note: Original bundled data cannot be changed, only custom edits will be merged</li>' : ''}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: flex-end; gap: 10px; padding: 15px 20px; border-top: 1px solid #333;">
+                                <button id="cancelMergeBtn" style="padding: 10px 20px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer;">Cancel</button>
+                                <button id="confirmMergeBtn" style="padding: 10px 20px; background: #4CAF50; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">Merge Players</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+                const modal = document.getElementById('mergePlayersModal');
+
+                // Radio button styling
+                modal.querySelectorAll('input[name="mergePrimary"]').forEach(radio => {
+                    radio.addEventListener('change', () => {
+                        modal.querySelectorAll('.merge-player-option').forEach(opt => {
+                            opt.style.borderColor = 'transparent';
+                        });
+                        radio.closest('.merge-player-option').style.borderColor = '#4CAF50';
+                    });
+                });
+
+                // Close handlers
+                const closeModal = () => modal.remove();
+                document.getElementById('closeMergeModal').addEventListener('click', closeModal);
+                document.getElementById('cancelMergeBtn').addEventListener('click', closeModal);
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) closeModal();
+                });
+
+                // Confirm merge
+                document.getElementById('confirmMergeBtn').addEventListener('click', async () => {
+                    const primaryId = parseInt(modal.querySelector('input[name="mergePrimary"]:checked').value);
+                    const secondaryIds = playerIds.filter(id => id !== primaryId);
+
+                    const confirmBtn = document.getElementById('confirmMergeBtn');
+                    confirmBtn.disabled = true;
+                    confirmBtn.textContent = 'Merging...';
+
+                    try {
+                        const result = await window.electronAPI.database.mergePlayers(primaryId, secondaryIds, isCustomMerge);
+
+                        if (result.success) {
+                            closeModal();
+                            selectedPlayerIds.clear();
+                            updateSelectionUI();
+                            await performSearch();
+                            alert(`Successfully merged ${players.length} players. ${result.seasonsMerged || 0} season(s) merged.`);
+                        } else {
+                            alert('Error merging players: ' + (result.error || 'Unknown error'));
+                            confirmBtn.disabled = false;
+                            confirmBtn.textContent = 'Merge Players';
+                        }
+                    } catch (error) {
+                        console.error('Merge error:', error);
+                        alert('Error merging players: ' + error.message);
+                        confirmBtn.disabled = false;
+                        confirmBtn.textContent = 'Merge Players';
+                    }
+                });
             }
 
             /**
@@ -2053,15 +2212,25 @@
                 }
             }
 
+            // Track pending refresh requests when a search is in progress
+            let pendingRefresh = false;
+
             /**
              * Perform search with all filters
+             * @param {boolean} isRefreshRequest - Whether this is a refresh request (queue if busy)
              */
-            async function performSearch() {
+            async function performSearch(isRefreshRequest) {
                 if (isLoading) {
-                    console.warn('[DatabaseBrowser] Search already in progress');
+                    if (isRefreshRequest) {
+                        console.log('[DatabaseBrowser] Search in progress, queueing refresh');
+                        pendingRefresh = true;
+                    } else {
+                        console.warn('[DatabaseBrowser] Search already in progress');
+                    }
                     return;
                 }
                 isLoading = true;
+                pendingRefresh = false;
                 console.log('[DatabaseBrowser] performSearch starting...');
 
                 const resultsDiv = document.getElementById('playerBrowserResults');
@@ -2180,6 +2349,14 @@
                 } finally {
                     isLoading = false;
                     console.log('[DatabaseBrowser] performSearch complete, displayed', currentResults.length, 'results');
+
+                    // Check if a refresh was requested while we were searching
+                    if (pendingRefresh) {
+                        console.log('[DatabaseBrowser] Processing queued refresh request');
+                        pendingRefresh = false;
+                        // Use setTimeout to allow UI to update before re-searching
+                        setTimeout(() => performSearch(true), 50);
+                    }
                 }
             }
 
@@ -2246,7 +2423,8 @@
                             <div>${hofBadge}</div>
                             <div class="row-actions">
                                 <button class="row-btn" onclick="event.stopPropagation(); window.viewDbPlayer(${playerId}, ${isCustom})">View</button>
-                                <button class="row-btn row-btn-add" onclick="event.stopPropagation(); window.addToRoster(${playerId})">Add</button>
+                                <button class="row-btn row-btn-add" onclick="event.stopPropagation(); window.addToRoster(${playerId})">+Roster</button>
+                                <button class="row-btn row-btn-add" onclick="event.stopPropagation(); window.addToDraft(${playerId})" style="background: #4a6da7;">+Draft</button>
                             </div>
                         </div>
                     `;
@@ -2280,6 +2458,7 @@
                 const count = selectedPlayerIds.size;
                 const rosterBtn = document.getElementById('addSelectedToRosterBtn');
                 const draftBtn = document.getElementById('addSelectedToDraftBtn');
+                const mergeBtn = document.getElementById('mergeSelectedPlayersBtn');
 
                 if (count > 0) {
                     // Show both buttons when players are selected
@@ -2291,6 +2470,16 @@
                 } else {
                     if (rosterBtn) rosterBtn.style.display = 'none';
                     if (draftBtn) draftBtn.style.display = 'none';
+                }
+
+                // Show merge button only when 2+ players are selected
+                if (mergeBtn) {
+                    if (count >= 2) {
+                        mergeBtn.style.display = '';
+                        mergeBtn.textContent = `Merge ${count} Players`;
+                    } else {
+                        mergeBtn.style.display = 'none';
+                    }
                 }
             }
 
@@ -2329,6 +2518,7 @@
                             <div class="preview-actions">
                                 <button class="preview-btn preview-btn-primary" onclick="window.viewDbPlayer(${playerId}, ${isCustom})">View Full Details</button>
                                 <button class="preview-btn preview-btn-secondary" onclick="window.addToRoster(${playerId})">Add to Roster</button>
+                                <button class="preview-btn preview-btn-secondary" onclick="window.addToDraft(${playerId})">Add to Draft</button>
                             </div>
                         `;
                     }
@@ -2386,8 +2576,11 @@
                 }
             };
 
-            // Expose refresh function
-            window.refreshDatabaseBrowser = performSearch;
+            // Expose refresh function (marks as refresh request so it queues if search in progress)
+            window.refreshDatabaseBrowser = function() {
+                console.log('[DatabaseBrowser] refreshDatabaseBrowser called');
+                performSearch(true);
+            };
 
             // Initialize on DOM ready
             if (document.readyState === 'loading') {

@@ -3912,6 +3912,74 @@ ipcMain.handle('database:execute-roster-push', async (
   }
 });
 
+/**
+ * Handle: database:merge-players
+ * Merge multiple players into one, copying all season data
+ */
+ipcMain.handle('database:merge-players', async (
+  event,
+  primaryPlayerId: number,
+  secondaryPlayerIds: number[],
+  isCustomMerge: boolean
+) => {
+  try {
+    console.log(`[database-handlers] Merging players: primary=${primaryPlayerId}, secondary=[${secondaryPlayerIds.join(', ')}], isCustom=${isCustomMerge}`);
+    await userDatabaseService.waitForReady();
+
+    let seasonsMerged = 0;
+
+    if (isCustomMerge) {
+      // Merging custom players
+      for (const secondaryId of secondaryPlayerIds) {
+        // Get all seasons from secondary player
+        const secondarySeasons = userDatabaseService.getCustomPlayerSeasons(secondaryId);
+
+        for (const season of secondarySeasons) {
+          // Check if primary already has this year
+          const existingSeason = userDatabaseService.getCustomPlayerSeason(primaryPlayerId, season.year);
+          if (!existingSeason) {
+            // Copy season to primary player
+            userDatabaseService.saveCustomPlayerSeason(primaryPlayerId, season.year, season);
+            seasonsMerged++;
+            console.log(`[database-handlers] Copied season ${season.year} from custom player ${secondaryId} to ${primaryPlayerId}`);
+          }
+        }
+
+        // Delete the secondary custom player
+        userDatabaseService.deleteCustomPlayer(secondaryId);
+        console.log(`[database-handlers] Deleted custom player ${secondaryId}`);
+      }
+    } else {
+      // Merging bundled players (only user edits can be merged)
+      for (const secondaryId of secondaryPlayerIds) {
+        // Get all season edits from secondary player
+        const secondaryEdits = userDatabaseService.getSeasonEditsForPlayer(secondaryId);
+
+        for (const edit of secondaryEdits) {
+          // Check if primary already has edits for this year
+          const existingEdit = userDatabaseService.getSeasonEdit(primaryPlayerId, edit.year);
+          if (!existingEdit) {
+            // Copy season edit to primary player
+            userDatabaseService.saveSeasonEdit(primaryPlayerId, edit.year, edit);
+            seasonsMerged++;
+            console.log(`[database-handlers] Copied season edit ${edit.year} from bundled player ${secondaryId} to ${primaryPlayerId}`);
+          }
+        }
+
+        // Clear all edits from secondary bundled player (don't delete - it's bundled)
+        userDatabaseService.clearPlayerSeasons(secondaryId);
+        console.log(`[database-handlers] Cleared edits from bundled player ${secondaryId}`);
+      }
+    }
+
+    console.log(`[database-handlers] Merge complete: ${seasonsMerged} seasons merged`);
+    return { success: true, seasonsMerged };
+  } catch (error) {
+    console.error('[database-handlers] Error merging players:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
 // =============================================
 // CAREER STATS OPERATIONS (PFR Scraped Data)
 // =============================================

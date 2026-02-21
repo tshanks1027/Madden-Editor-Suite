@@ -943,7 +943,8 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             // Update the original player object
             const rowIndex = event.node.rowIndex;
             const filteredIndex = app.paginatedPlayerIndices ? app.paginatedPlayerIndices[rowIndex] : rowIndex;
-            const actualPlayer = app.filteredPlayers[filteredIndex];
+            // Use event.node.data as fallback - paginatedPlayerIndices may be stale when players added via applyTransaction
+            const actualPlayer = app.filteredPlayers?.[filteredIndex] || event.node.data;
 
             if (actualPlayer) {
                 const fieldName = event.colDef.field;
@@ -2073,8 +2074,19 @@ async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app, gridApi)
         }
     }
 
+    // DEBUG: Log what attributes were collected
+    const attrCount = Object.keys(attributes).length;
+    console.log(`[AG-Grid OVR] Collected ${attrCount} attributes from player`);
+    if (attrCount === 0) {
+        console.log('[AG-Grid OVR] WARNING: No attributes found! Player keys:', Object.keys(player).slice(0, 20));
+    } else {
+        // Log a few key attributes for OT position (PPBK, PRBK, PSTR)
+        console.log(`[AG-Grid OVR] Sample attrs: PPBK=${attributes.PPBK}, PRBK=${attributes.PRBK}, PSTR=${attributes.PSTR}, PSPD=${attributes.PSPD}`);
+    }
+
     // Get archetype if available (PLTY is what franchise reads)
     const archetype = player.PLTY !== undefined ? player.PLTY : undefined;
+    console.log(`[AG-Grid OVR] Archetype from player.PLTY: ${archetype}`);
 
     try {
         // Call the backend to calculate adjustments
@@ -2084,8 +2096,24 @@ async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app, gridApi)
         );
         console.log('[AG-Grid OVR] Result:', result);
 
-        if (!result || Object.keys(result.adjustments).length === 0) {
-            console.log('[AG-Grid OVR] No adjustments calculated');
+        if (!result) {
+            console.log('[AG-Grid OVR] No result returned from backend');
+            return;
+        }
+
+        // Check if target is already achieved (no adjustments needed)
+        if (Object.keys(result.adjustments).length === 0) {
+            // The player's current ratings already produce the target OVR
+            console.log(`[AG-Grid OVR] Ratings already achieve OVR ${result.newOVR} - no adjustments needed`);
+
+            // If the displayed OVR differs from calculated, this means POVR was stale
+            // Just update the display to show the correct calculated OVR
+            if (result.newOVR !== newOVR) {
+                console.log(`[AG-Grid OVR] Note: Target ${newOVR} differs from calculated ${result.newOVR}`);
+            }
+
+            // The OVR change has already been applied to the cell, so we're done
+            _isAdjustingOVR = false;
             return;
         }
 
@@ -2360,6 +2388,29 @@ export async function openRosterPushToDatabaseDialog(app) {
     }
 
     console.log(`[Push to DB] Analyzing ${players.length} players for year ${seasonYear}`);
+
+    // DEBUG: Check player objects before sending to backend
+    if (players.length > 0) {
+        const firstPlayer = players[0];
+        const allKeys = Object.keys(firstPlayer);
+        // Check ALL 4-character codes that look like ratings (start with P or S, 4 chars)
+        const allRatingKeys = allKeys.filter(k => k.length === 4 && (k.startsWith('P') || k.startsWith('S')));
+        console.log(`[Push to DB] FRONTEND CHECK - First player: ${firstPlayer.PFNA} ${firstPlayer.PLNA}`);
+        console.log(`[Push to DB] FRONTEND CHECK - Total keys: ${allKeys.length}`);
+        console.log(`[Push to DB] FRONTEND CHECK - ALL rating-like keys (${allRatingKeys.length}): ${allRatingKeys.join(', ')}`);
+        console.log(`[Push to DB] FRONTEND CHECK - Sample values: POVR=${firstPlayer.POVR}, PSPD=${firstPlayer.PSPD}, PSTA=${firstPlayer.PSTA}, PBKT=${firstPlayer.PBKT}, PLTR=${firstPlayer.PLTR}`);
+
+        // DEBUG: Specifically check bio fields that aren't pushing
+        console.log(`[Push to DB] BIO FIELDS CHECK - First player ${firstPlayer.PFNA} ${firstPlayer.PLNA}:`);
+        console.log(`  - PHGT (height): ${firstPlayer.PHGT} (type: ${typeof firstPlayer.PHGT})`);
+        console.log(`  - PWGT (weight): ${firstPlayer.PWGT} (type: ${typeof firstPlayer.PWGT})`);
+        console.log(`  - PHSN (homeState): ${firstPlayer.PHSN} (type: ${typeof firstPlayer.PHSN})`);
+        console.log(`  - PCOL (college): ${firstPlayer.PCOL} (type: ${typeof firstPlayer.PCOL})`);
+        console.log(`  - PHTN (hometown): ${firstPlayer.PHTN} (type: ${typeof firstPlayer.PHTN})`);
+        console.log(`  - PLRC (race): ${firstPlayer.PLRC} (type: ${typeof firstPlayer.PLRC})`);
+        console.log(`  - PCBT (bodyType): ${firstPlayer.PCBT} (type: ${typeof firstPlayer.PCBT})`);
+        console.log(`  - PHAN (handedness): ${firstPlayer.PHAN} (type: ${typeof firstPlayer.PHAN})`);
+    }
 
     // Show year selection dialog first
     const yearSelectHTML = `
@@ -2645,31 +2696,31 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
                                     <span>Position</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="roster-bio-college">
+                                    <input type="checkbox" id="roster-bio-college" checked>
                                     <span>College</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="roster-bio-height">
+                                    <input type="checkbox" id="roster-bio-height" checked>
                                     <span>Height</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="roster-bio-weight">
+                                    <input type="checkbox" id="roster-bio-weight" checked>
                                     <span>Weight</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="roster-bio-homestate">
+                                    <input type="checkbox" id="roster-bio-homestate" checked>
                                     <span>Home State</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="roster-bio-race">
+                                    <input type="checkbox" id="roster-bio-race" checked>
                                     <span>Race</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="roster-bio-bodytype">
+                                    <input type="checkbox" id="roster-bio-bodytype" checked>
                                     <span>Body Type</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                    <input type="checkbox" id="roster-bio-handedness">
+                                    <input type="checkbox" id="roster-bio-handedness" checked>
                                     <span>Handedness</span>
                                 </label>
                                 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
@@ -2692,8 +2743,8 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
 
                     <div style="margin-bottom: 15px;">
                         <label>
-                            <input type="checkbox" id="roster-fill-empty-bio-checkbox" checked>
-                            Automatically fill empty bio fields (only for fields selected above)
+                            <input type="checkbox" id="roster-fill-empty-bio-checkbox">
+                            Only fill empty bio fields (leave unchecked to overwrite existing data)
                         </label>
                     </div>
 
@@ -2738,19 +2789,31 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
 
                     ${totalNew > 0 ? `
                         <div class="new-details" style="margin-top: 20px;">
-                            <details>
-                                <summary style="cursor: pointer; color: #4CAF50;">Show ${totalNew} new player(s) to be created</summary>
-                                <div style="margin-top: 10px; max-height: 250px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 13px;">
-                                    ${newPlayers.map(item => {
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h4 style="margin: 0; color: #4CAF50;">${totalNew} New Player(s) to Create</h4>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="roster-new-select-all" style="padding: 6px 12px; background: #1a5a1a; border: 1px solid #2a7a2a; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        Select All
+                                    </button>
+                                    <button id="roster-new-select-none" style="padding: 6px 12px; background: #333; border: 1px solid #555; color: #fff; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                        Deselect All
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="roster-new-players-list" style="max-height: 300px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 4px; font-size: 13px;">
+                                ${newPlayers.map((item, idx) => {
         const firstName = item.player.PFNA || item.player.firstName || '';
         const lastName = item.player.PLNA || item.player.lastName || '';
         const name = `${firstName} ${lastName}`.trim();
         const pos = item.player.PPOS !== undefined ? POSITION_MAPPINGS[item.player.PPOS] : '?';
         const ovr = item.player.POVR || '?';
-        return `<div style="padding: 2px 0;">${name} <span style="color: #666;">(${pos}, ${ovr} OVR)</span></div>`;
+        return `<label style="display: flex; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer;">
+                                        <input type="checkbox" class="roster-new-player-checkbox" data-index="${item.playerIndex}" checked>
+                                        <span>${name}</span>
+                                        <span style="color: #666;">(${pos}, ${ovr} OVR)</span>
+                                    </label>`;
     }).join('')}
-                                </div>
-                            </details>
+                            </div>
                         </div>
                     ` : ''}
                 </div>
@@ -2873,6 +2936,29 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
         });
     });
 
+    // New players checkbox handlers
+    const executeBtn = document.getElementById('roster-push-db-execute-btn');
+
+    function updateRosterPushButtonText() {
+        const checkedCount = document.querySelectorAll('.roster-new-player-checkbox:checked').length;
+        const total = totalExisting + checkedCount;
+        executeBtn.textContent = `Push ${total} Players to Database`;
+    }
+
+    document.getElementById('roster-new-select-all')?.addEventListener('click', () => {
+        document.querySelectorAll('.roster-new-player-checkbox').forEach(cb => cb.checked = true);
+        updateRosterPushButtonText();
+    });
+
+    document.getElementById('roster-new-select-none')?.addEventListener('click', () => {
+        document.querySelectorAll('.roster-new-player-checkbox').forEach(cb => cb.checked = false);
+        updateRosterPushButtonText();
+    });
+
+    document.querySelectorAll('.roster-new-player-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateRosterPushButtonText);
+    });
+
     // Execute push handler
     document.getElementById('roster-push-db-execute-btn').addEventListener('click', async () => {
         // Gather resolutions from radio buttons
@@ -2890,34 +2976,59 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
         const pushMode = document.querySelector('input[name="roster-push-mode"]:checked')?.value || 'all';
 
         // Get bio field options (only relevant for "all" mode)
+        // Defaults should be TRUE to match checked checkboxes in HTML
         const bioFieldOptions = {
             team: document.getElementById('roster-bio-team')?.checked ?? true,
             jersey: document.getElementById('roster-bio-jersey')?.checked ?? true,
             archetype: document.getElementById('roster-bio-archetype')?.checked ?? true,
             position: document.getElementById('roster-bio-position')?.checked ?? true,
-            college: document.getElementById('roster-bio-college')?.checked ?? false,
-            height: document.getElementById('roster-bio-height')?.checked ?? false,
-            weight: document.getElementById('roster-bio-weight')?.checked ?? false,
-            homeState: document.getElementById('roster-bio-homestate')?.checked ?? false,
-            race: document.getElementById('roster-bio-race')?.checked ?? false,
-            bodyType: document.getElementById('roster-bio-bodytype')?.checked ?? false,
-            handedness: document.getElementById('roster-bio-handedness')?.checked ?? false,
+            college: document.getElementById('roster-bio-college')?.checked ?? true,
+            height: document.getElementById('roster-bio-height')?.checked ?? true,
+            weight: document.getElementById('roster-bio-weight')?.checked ?? true,
+            homeState: document.getElementById('roster-bio-homestate')?.checked ?? true,
+            race: document.getElementById('roster-bio-race')?.checked ?? true,
+            bodyType: document.getElementById('roster-bio-bodytype')?.checked ?? true,
+            handedness: document.getElementById('roster-bio-handedness')?.checked ?? true,
             pid: document.getElementById('roster-bio-pid')?.checked ?? true,
             pam: document.getElementById('roster-bio-pam')?.checked ?? true
         };
 
         // Get other options
         const overwriteExistingSeasons = document.getElementById('roster-overwrite-seasons-checkbox')?.checked ?? true;
-        const fillEmptyBioFields = document.getElementById('roster-fill-empty-bio-checkbox')?.checked ?? true;
+        const fillEmptyBioFields = document.getElementById('roster-fill-empty-bio-checkbox')?.checked ?? false;
+
+        // DEBUG: Log bio field options being used
+        console.log('[Push to DB] EXECUTE - bioFieldOptions:', bioFieldOptions);
+        console.log('[Push to DB] EXECUTE - fillEmptyBioFields:', fillEmptyBioFields);
+        console.log('[Push to DB] EXECUTE - pushMode:', pushMode);
+
+        // DEBUG: Log first player in analysis to see if bio fields exist
+        if (analysis.existingBundled && analysis.existingBundled.length > 0) {
+            const firstBundled = analysis.existingBundled[0];
+            console.log('[Push to DB] EXECUTE - First bundled player in analysis:', firstBundled.player?.PFNA, firstBundled.player?.PLNA);
+            console.log('[Push to DB] EXECUTE - Player PHGT:', firstBundled.player?.PHGT, 'PWGT:', firstBundled.player?.PWGT, 'PHSN:', firstBundled.player?.PHSN);
+            console.log('[Push to DB] EXECUTE - All player keys:', Object.keys(firstBundled.player || {}).join(', '));
+        }
+
+        // Get selected new player indices
+        const selectedNewIndices = new Set();
+        document.querySelectorAll('.roster-new-player-checkbox:checked').forEach(cb => {
+            selectedNewIndices.add(parseInt(cb.dataset.index));
+        });
+
+        // Filter analysis to only include selected new players
+        const filteredAnalysis = {
+            ...analysis,
+            newPlayers: analysis.newPlayers.filter(item => selectedNewIndices.has(item.playerIndex))
+        };
 
         // Disable button and show progress
-        const executeBtn = document.getElementById('roster-push-db-execute-btn');
         executeBtn.disabled = true;
         executeBtn.textContent = 'Pushing...';
 
         try {
             const response = await window.electronAPI.database.executeRosterPush(
-                analysis,
+                filteredAnalysis,
                 resolutions,
                 { pushMode, bioFieldOptions, overwriteExistingSeasons, fillEmptyBioFields }
             );

@@ -724,9 +724,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
     executeRosterPush: (
       analysis: any,
       resolutions: any[],
-      options?: { overwriteExistingSeasons?: boolean; fillEmptyBioFields?: boolean }
+      options?: {
+        pushMode?: 'all' | 'ratings';
+        bioFieldOptions?: {
+          team?: boolean;
+          jersey?: boolean;
+          archetype?: boolean;
+          position?: boolean;
+          college?: boolean;
+          height?: boolean;
+          weight?: boolean;
+          homeState?: boolean;
+          race?: boolean;
+          bodyType?: boolean;
+          handedness?: boolean;
+          pid?: boolean;
+          pam?: boolean;
+        };
+        overwriteExistingSeasons?: boolean;
+        fillEmptyBioFields?: boolean;
+      }
     ) =>
-      ipcRenderer.invoke('database:execute-roster-push', analysis, resolutions, options)
+      ipcRenderer.invoke('database:execute-roster-push', analysis, resolutions, options),
+
+    // Merge duplicate players
+    mergePlayers: (primaryPlayerId: number, secondaryPlayerIds: number[], isCustomMerge: boolean) =>
+      ipcRenderer.invoke('database:merge-players', primaryPlayerId, secondaryPlayerIds, isCustomMerge)
   },
 
   // Coach Database APIs (Edit coach database, custom coaches)

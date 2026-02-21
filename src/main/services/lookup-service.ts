@@ -844,6 +844,7 @@ export class LookupService {
       av: row.av || 0,
       devTrait: row.dev_trait || '',
       ratings: {
+        // Original field names from database
         POVR: row.POVR, PSPD: row.PSPD, PACC: row.PACC, PSTR: row.PSTR, PAGI: row.PAGI,
         PAWR: row.PAWR, PCTH: row.PCTH, PCAR: row.PCAR, PTHP: row.PTHP, PKPW: row.PKPW,
         PKAC: row.PKAC, PRBK: row.PRBK, PPBK: row.PPBK, PTAK: row.PTAK, PBTK: row.PBTK,
@@ -855,7 +856,25 @@ export class LookupService {
         PSPC: row.PSPC, PCIT: row.PCIT, PSRR: row.PSRR, PMRR: row.PMRR, PDRR: row.PDRR,
         PHTP: row.PHTP, PPRS: row.PPRS, PREL: row.PREL, PTAS: row.PTAS, PTAM: row.PTAM,
         PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT, PLTR: row.PLTR,
-        PELU: row.PELU
+        PELU: row.PELU,
+        // OVR Calculator field aliases (these are used by OVRWeightsCalculator)
+        PLPU: row.PPUR,   // Pursuit (OVR calc) = PPUR (db)
+        PLPR: row.PPRC,   // Play Recognition (OVR calc) = PPRC (db)
+        PLHT: row.PHTP,   // Hit Power (OVR calc) = PHTP (db)
+        PLPM: row.PPWM,   // Power Moves (OVR calc) = PPWM (db)
+        PFMS: row.PFNM,   // Finesse Moves (OVR calc) = PFNM (db)
+        PBSG: row.PBSH,   // Block Shedding (OVR calc) = PBSH (db)
+        // M26 field name aliases (frontend uses these)
+        PPWR: row.PTHP,   // Throw Power (M26) = PTHP (old)
+        PSTM: row.PSTA,   // Stamina (M26) = PSTA (old)
+        PSFA: row.PSTF,   // Stiff Arm (M26) = PSTF (old)
+        PSPN: row.PSPM,   // Spin Move (M26) = PSPM (old)
+        PJKM: row.PJUM,   // Juke Move (M26) = PJUM (old)
+        PIBK: row.PIBL,   // Impact Blocking (M26) = PIBL (old)
+        PHIT: row.PHTP,   // Hit Power (M26) = PHTP (old)
+        PFMV: row.PFNM,   // Finesse Moves (M26) = PFNM (old)
+        PRNS: row.PRBP,   // Run Block Power (M26) = PRBP (old)
+        PKPR: row.PKPW    // Kick Power (M26) = PKPW (old)
       }
     }));
   }
@@ -903,6 +922,13 @@ export class LookupService {
         PHTP: row.PHTP, PPRS: row.PPRS, PREL: row.PREL, PTAS: row.PTAS, PTAM: row.PTAM,
         PTAD: row.PTAD, PPLA: row.PPLA, PTOR: row.PTOR, PKRT: row.PKRT, PLTR: row.PLTR,
         PELU: row.PELU,
+        // OVR Calculator field aliases (these are used by OVRWeightsCalculator)
+        PLPU: row.PPUR,   // Pursuit (OVR calc) = PPUR (db)
+        PLPR: row.PPRC,   // Play Recognition (OVR calc) = PPRC (db)
+        PLHT: row.PHTP,   // Hit Power (OVR calc) = PHTP (db)
+        PLPM: row.PPWM,   // Power Moves (OVR calc) = PPWM (db)
+        PFMS: row.PFNM,   // Finesse Moves (OVR calc) = PFNM (db)
+        PBSG: row.PBSH,   // Block Shedding (OVR calc) = PBSH (db)
         // M26 field name aliases (frontend uses these)
         PPWR: row.PTHP,   // Throw Power (M26) = PTHP (old)
         PSTM: row.PSTA,   // Stamina (M26) = PSTA (old)
@@ -1381,23 +1407,77 @@ export class LookupService {
     return null;
   }
 
-  // Find player by name who was active during a given season year (career span includes the year)
-  public findPlayerByNameActiveInYear(firstName: string, lastName: string, seasonYear: number): FullDataEntry | null {
-    const normalizedFirst = firstName.toLowerCase().trim();
-    const normalizedLast = lastName.toLowerCase().trim();
+  // Normalize a name for matching: lowercase, remove suffixes, extra spaces, punctuation
+  private normalizeName(name: string): string {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .trim()
+      // Remove common suffixes
+      .replace(/\s+(jr\.?|sr\.?|ii|iii|iv|v)$/i, '')
+      // Remove periods and extra spaces
+      .replace(/\./g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
 
+  // Find player by name who was active during a given season year (career span includes the year)
+  // For historical/custom rosters, we prioritize matching by name over strict career span checks
+  public findPlayerByNameActiveInYear(firstName: string, lastName: string, seasonYear: number): FullDataEntry | null {
+    const normalizedFirst = this.normalizeName(firstName);
+    const normalizedLast = this.normalizeName(lastName);
+
+    let bestMatch: FullDataEntry | null = null;
+    let bestMatchScore = 0; // Higher is better: 2 = within career, 1 = name match only
+
+    // First pass: exact match after normalization
     for (const [id, entry] of this.fullDataCache) {
-      if (entry.firstName.toLowerCase() === normalizedFirst &&
-          entry.lastName.toLowerCase() === normalizedLast) {
+      const entryFirst = this.normalizeName(entry.firstName);
+      const entryLast = this.normalizeName(entry.lastName);
+
+      if (entryFirst === normalizedFirst && entryLast === normalizedLast) {
         // Check if career span includes this year
         const from = entry.careerFrom || 0;
         const to = entry.careerTo || 9999;
-        if (seasonYear >= from && seasonYear <= to) {
+        const withinCareer = seasonYear >= from && seasonYear <= to;
+
+        if (withinCareer) {
+          // Perfect match - within career span
           return entry;
+        } else if (bestMatchScore < 1) {
+          // Name matches but outside career span - keep as fallback
+          bestMatch = entry;
+          bestMatchScore = 1;
         }
       }
     }
-    return null;
+
+    // Second pass: try matching with first initial only (e.g., "D. McNabb" vs "Donovan McNabb")
+    if (normalizedFirst.length === 1) {
+      for (const [id, entry] of this.fullDataCache) {
+        const entryFirst = this.normalizeName(entry.firstName);
+        const entryLast = this.normalizeName(entry.lastName);
+
+        if (entryFirst.startsWith(normalizedFirst) && entryLast === normalizedLast) {
+          const from = entry.careerFrom || 0;
+          const to = entry.careerTo || 9999;
+          const withinCareer = seasonYear >= from && seasonYear <= to;
+
+          if (withinCareer) {
+            return entry;
+          } else if (bestMatchScore < 1) {
+            bestMatch = entry;
+            bestMatchScore = 1;
+          }
+        }
+      }
+    }
+
+    // Return best match even if outside career span (for custom/historical rosters)
+    if (bestMatch) {
+      console.log(`[lookup-service] Name match for "${firstName} ${lastName}" found but outside career span (year ${seasonYear}, career ${bestMatch.careerFrom}-${bestMatch.careerTo})`);
+    }
+    return bestMatch;
   }
 
   // Look up a coach by name (for retro editor - check if coach has a portrait in game)
