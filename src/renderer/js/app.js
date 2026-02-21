@@ -11065,17 +11065,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Restore focus to the main window after IPC from database browser
             // This fixes the issue where keyboard input stops working after adding a player
-            setTimeout(() => {
-                window.focus();
-                // Also try to focus an interactive element in the active panel
+            // Use Electron IPC to focus window at OS level (critical for Windows)
+            const focusActiveElement = () => {
                 const activePanel = document.querySelector('.tab-content.active, .editor-panel:not([style*="display: none"])');
                 if (activePanel) {
                     const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled])');
                     if (focusTarget) {
                         focusTarget.focus();
+                        console.log('[App] Restored focus to active panel element after database add');
                     }
                 }
-            }, 100);
+            };
+
+            if (window.electronAPI?.window?.focus) {
+                window.electronAPI.window.focus().then(() => {
+                    setTimeout(focusActiveElement, 50);
+                }).catch(() => {
+                    setTimeout(focusActiveElement, 50);
+                });
+            } else {
+                setTimeout(focusActiveElement, 100);
+            }
         });
     }
 

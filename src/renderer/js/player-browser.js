@@ -385,18 +385,32 @@
   /**
    * Restore focus to the active editor panel (grid or input).
    * This is a universal fallback for when player browser is not open.
+   * Uses Electron IPC to restore OS-level window focus first.
    */
   function restoreFocusToActivePanel() {
-    setTimeout(() => {
-      window.focus();
+    const focusElement = () => {
       const activePanel = document.querySelector('.tab-content.active, .editor-panel:not([style*="display: none"])');
       if (activePanel) {
         const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled])');
         if (focusTarget) {
           focusTarget.focus();
+          console.log('[PlayerBrowser] Restored focus to active panel element');
         }
       }
-    }, 50);
+    };
+
+    // Use Electron IPC to focus the window at OS level (critical for Windows)
+    if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
+      window.electronAPI.window.focus().then(() => {
+        setTimeout(focusElement, 50);
+      }).catch(err => {
+        console.error('[PlayerBrowser] IPC window focus failed:', err);
+        setTimeout(focusElement, 50);
+      });
+    } else {
+      window.focus();
+      setTimeout(focusElement, 50);
+    }
   }
 
   /**
