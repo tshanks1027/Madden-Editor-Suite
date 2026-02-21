@@ -600,6 +600,7 @@
       archetype: prospectData.archetype || 0,
       college: prospectData.college,
       homeState: prospectData.homeState,
+      homeTown: prospectData.homeTown || '',
       age: prospectData.age,
       PID: prospectData.PID,
       PEPS: prospectData.PEPS,

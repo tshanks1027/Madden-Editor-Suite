@@ -924,6 +924,7 @@
           archetype: prospectData.archetypeName || prospectData.archetype || 0,
           college: prospectData.collegeName || prospectData.college || 0,
           homeState: prospectData.homeStateName || prospectData.homeState || '',
+          homeTown: prospectData.homeTown || '',
           age: prospectData.age,
           PID: prospectData.PID,
           PEPS: prospectData.PEPS,
@@ -1127,6 +1128,43 @@
       }
 
       const playerData = result.player;
+
+      // DEBUG: Check ALL ratings in received player data
+      const allKeys = Object.keys(playerData);
+      const ratingKeys = allKeys.filter(k => k.length === 4 && (k.startsWith('P') || k.startsWith('S')));
+      console.log(`[PlayerBrowser] RECEIVED playerData - ${playerData.PFNA} ${playerData.PLNA}`);
+      console.log(`[PlayerBrowser] RECEIVED playerData - Total keys: ${allKeys.length}, Rating keys (${ratingKeys.length})`);
+      console.log(`[PlayerBrowser] RECEIVED playerData - PPBK=${playerData.PPBK}, PRBK=${playerData.PRBK}, POVR=${playerData.POVR}`);
+
+      // CRITICAL: Recalculate POVR from ratings using calculateOVRForArchetypes
+      // This is the SAME method used by roster editor - tests ALL archetypes, picks BEST
+      // Without this, stored POVR might be stale/incorrect, causing OVR adjustment to fail
+      try {
+        const positionMap = {
+          0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
+          8: 'RG', 9: 'RT', 10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'MIKE',
+          15: 'WILL', 16: 'CB', 17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+        };
+        const posName = positionMap[playerData.PPOS] || 'QB';
+
+        // Use calculateOVRForArchetypes - SAME as roster editor
+        const archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(playerData, posName);
+
+        if (archetypeResults && archetypeResults.length > 0) {
+          // First result is the BEST archetype (sorted by OVR descending)
+          const bestArchetype = archetypeResults[0];
+          const calculatedOVR = bestArchetype.ovr;
+
+          if (calculatedOVR && calculatedOVR !== playerData.POVR) {
+            console.log(`[PlayerBrowser] Recalculated POVR: stored=${playerData.POVR}, calculated=${calculatedOVR} (best archetype: ${bestArchetype.name}) - UPDATING`);
+            playerData.POVR = calculatedOVR;
+            // Also update archetype to the best one
+            playerData.PLTY = bestArchetype.id;
+          }
+        }
+      } catch (err) {
+        console.warn('[PlayerBrowser] Could not recalculate POVR:', err.message);
+      }
 
       // Set the selected team
       playerData.TGID = selectedTeamId;
@@ -1407,6 +1445,7 @@
         archetype: getValueOrFallback(prospectData.archetypeName, prospectData.archetype, 0),
         college: getValueOrFallback(prospectData.collegeName, prospectData.college, 0),
         homeState: getValueOrFallback(prospectData.homeStateName, prospectData.homeState, ''),
+        homeTown: prospectData.homeTown || '',
         age: prospectData.age,
         PID: prospectData.PID,
         PEPS: prospectData.PEPS,
@@ -1791,6 +1830,12 @@
 
       const playerData = result.player;
 
+      // DEBUG: Check ratings in received player data (directAddToRoster)
+      const directRatingKeys = Object.keys(playerData).filter(k => ['POVR', 'PSPD', 'PACC', 'PSTR', 'PAGI', 'PJMP', 'PSTA', 'PAWR'].includes(k));
+      console.log(`[PlayerBrowser] directAddToRoster RECEIVED - ${playerData.PFNA} ${playerData.PLNA}`);
+      console.log(`[PlayerBrowser] directAddToRoster RECEIVED - Rating keys: ${directRatingKeys.join(', ') || 'NONE'}`);
+      console.log(`[PlayerBrowser] directAddToRoster RECEIVED - POVR=${playerData.POVR}, PSPD=${playerData.PSPD}, PACC=${playerData.PACC}`);
+
       // Set the selected team
       playerData.TGID = selectedTeamId;
 
@@ -1876,11 +1921,21 @@
 
     try {
       // Check if draft class is loaded or created (supports AG-Grid or Handsontable)
+      // If not, auto-create an empty draft class for convenience
 
       if (!window.app || (!window.app.draftAgGrid && !window.app.draftGrid)) {
-        alert('Please load or create a draft class first.\n\nUse "Open Draft Class" to load an existing file, or "New Draft Class" to start fresh.');
-        restoreFocusToSearch();
-        return;
+        console.log('[PlayerBrowser] No draft class loaded, auto-creating new one');
+        if (window.app && typeof window.app.createNewDraftClass === 'function') {
+          await window.app.createNewDraftClass();
+          // Wait a moment for grid to initialize
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        // Re-check after auto-create
+        if (!window.app || (!window.app.draftAgGrid && !window.app.draftGrid)) {
+          alert('Could not create draft class. Please try using "New Draft Class" from the Draft Class Editor.');
+          restoreFocusToSearch();
+          return;
+        }
       }
 
       // Get available years for the player
@@ -2059,6 +2114,7 @@
         archetype: getValueOrFallback(prospectData.archetypeName, prospectData.archetype, 0),
         college: getValueOrFallback(prospectData.collegeName, prospectData.college, 0),
         homeState: getValueOrFallback(prospectData.homeStateName, prospectData.homeState, ''),
+        homeTown: prospectData.homeTown || '',
         age: prospectData.age,
         PID: prospectData.PID,
         PEPS: prospectData.PEPS,

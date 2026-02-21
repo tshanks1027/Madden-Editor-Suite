@@ -41,6 +41,48 @@ import {
   PlayerAchievements
 } from '../services/StatsBasedRatingService';
 
+// Map database field codes to OVR calculator field codes
+// CRITICAL: This MUST match the mapping in database-player-card.js exactly
+// This ensures ONE calculation produces the same result everywhere
+const DB_TO_OVR_FIELD_MAP: { [key: string]: string } = {
+  'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI', 'PJMP': 'PJMP',
+  'PSTM': 'PSTA', 'PSTA': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',
+  'PCOD': 'PELU', 'PELU': 'PELU', 'PBCV': 'PBCV',
+  'PBTK': 'PBKT', 'PBKT': 'PBKT', 'PTRK': 'PLTR', 'PLTR': 'PLTR',
+  'PSFA': 'PLSA', 'PLSA': 'PLSA', 'PSPN': 'PLSM', 'PLSM': 'PLSM',
+  'PJKM': 'PLJM', 'PLJM': 'PLJM', 'PCAR': 'PCAR',
+  'PTAS': 'PTAS', 'PTAM': 'PTAM', 'PTAD': 'PTAD',
+  'PTOR': 'PTOR', 'PTUP': 'PTUP', 'PPWR': 'PTHP', 'PTHP': 'PTHP',
+  'PCTH': 'PCTH', 'PSPC': 'PLSC', 'PLSC': 'PLSC', 'PCIT': 'PLCI', 'PLCI': 'PLCI',
+  'PSRR': 'SRRN', 'SRRN': 'SRRN', 'PMRR': 'PMRR', 'PDRR': 'PDRR',
+  'PREL': 'PLRL', 'PLRL': 'PLRL',
+  'PRBK': 'PRBK', 'PPBK': 'PPBK', 'PIBK': 'PLIB', 'PLIB': 'PLIB', 'PLBK': 'PLBK',
+  'PFMS': 'PFMS', 'PRNS': 'PRBF', 'PRBS': 'PRBS',  // PRNS in DB = Run Block Finesse (PRBF)
+  'PPBF': 'PPBF', 'PPBP': 'PPBS', 'PPBS': 'PPBS',  // PPBP in DB = Pass Block Power (PPBS), PPBS stays PPBS
+  'PRBF': 'PRBF', 'PTAK': 'PTAK',
+  'PHIT': 'PLHT', 'PLHT': 'PLHT',
+  'PFMV': 'PFMS', 'PPWM': 'PLPM', 'PLPM': 'PLPM',
+  'PBSH': 'PBSG', 'PBSG': 'PBSG',
+  'PPUR': 'PLPU', 'PLPU': 'PLPU',  // PPUR in old CSV = Pursuit, maps to PLPU
+  'PPRC': 'PLPR', 'PLPR': 'PLPR',  // PPRC in old CSV = Play Recognition, maps to PLPR
+  'PPLA': 'PPLA',  // Play Action stays as Play Action (QB attribute)
+  'PMCV': 'PLMC', 'PLMC': 'PLMC', 'PZCV': 'PLZC', 'PLZC': 'PLZC',
+  'PPRS': 'PLPE', 'PLPE': 'PLPE', 'PBSK': 'PBSK',
+  'PKAC': 'PKAC', 'PKPR': 'PKPR', 'PKRT': 'PKRT'
+};
+
+// Helper function to map database ratings to OVR calculator format
+function mapRatingsForOVR(ratings: { [key: string]: number }): { [key: string]: number } {
+  const mapped: { [key: string]: number } = {};
+  for (const [dbField, value] of Object.entries(ratings)) {
+    const ovrField = DB_TO_OVR_FIELD_MAP[dbField] || dbField;
+    if (value !== null && value !== undefined && !isNaN(Number(value))) {
+      mapped[ovrField] = Number(value);
+    }
+  }
+  return mapped;
+}
+
 // =============================================
 // SHARED HELPER: Get merged player PID
 // This ensures list and card show the same PID
@@ -55,7 +97,11 @@ import {
 function getEffectivePid(internalId: number, originalPid: number | undefined): number {
   // 1. Check appearance edits
   const appearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
+  console.log('[getEffectivePid] DEBUG - internalId:', internalId, 'originalPid:', originalPid);
+  console.log('[getEffectivePid] DEBUG - appearanceEdit:', appearanceEdit);
+  console.log('[getEffectivePid] DEBUG - appearanceEdit?.maddenPid:', appearanceEdit?.maddenPid);
   if (appearanceEdit?.maddenPid != null) {
+    console.log('[getEffectivePid] DEBUG - Returning maddenPid from appearance edit:', appearanceEdit.maddenPid);
     return appearanceEdit.maddenPid;
   }
 
@@ -229,6 +275,10 @@ ipcMain.handle('database:delete-custom-player-season', async (event, customPlaye
 ipcMain.handle('database:save-appearance-edit', async (event, originalPlayerId: number, edits: Partial<AppearanceEdit>) => {
   try {
     await userDatabaseService.waitForReady();
+    console.log('[database-handlers] save-appearance-edit: DEBUG - playerId:', originalPlayerId);
+    console.log('[database-handlers] save-appearance-edit: DEBUG - edits.maddenPid:', edits.maddenPid);
+    console.log('[database-handlers] save-appearance-edit: DEBUG - edits.maddenPam:', edits.maddenPam);
+    console.log('[database-handlers] save-appearance-edit: DEBUG - full edits:', JSON.stringify(edits));
     userDatabaseService.saveAppearanceEdit(originalPlayerId, edits);
     return { success: true };
   } catch (error) {
@@ -455,8 +505,11 @@ ipcMain.handle('database:get-all-custom-players', async (event) => {
 ipcMain.handle('database:delete-custom-player', async (event, id: number) => {
   try {
     await userDatabaseService.waitForReady();
-    userDatabaseService.deleteCustomPlayer(id);
-    return { success: true };
+    const deleted = userDatabaseService.deleteCustomPlayer(id);
+    if (!deleted) {
+      console.warn(`[database-handlers] Custom player ${id} not found or already deleted`);
+    }
+    return { success: true, deleted };
   } catch (error) {
     console.error('[database-handlers] Error deleting custom player:', error);
     return { success: false, error: String(error) };
@@ -1012,7 +1065,10 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
     }
 
     // Get effective PID using shared helper (same logic as list)
+    console.log('[database-handlers] get-merged-player: DEBUG - original.pid:', original.pid);
+    console.log('[database-handlers] get-merged-player: DEBUG - appearanceEdit?.maddenPid:', appearanceEdit?.maddenPid);
     const resolvedPid = getEffectivePid(internalId, original.pid);
+    console.log('[database-handlers] get-merged-player: DEBUG - resolvedPid:', resolvedPid);
 
     // Merge edits over original data
     const merged = {
@@ -1043,10 +1099,10 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
       // commID priority: user edit > auto-filled from lookup > original
       ...(appearanceEdit?.maddenCommid && { commID: appearanceEdit.maddenCommid }),
       ...(!appearanceEdit?.maddenCommid && autoFilledCommID && { commID: autoFilledCommID }),
-      // Apply PGHE matched set for generic faces
+      // Apply PGHE matched set for generic faces (use !== undefined to allow 0 and empty string)
       ...(appearanceEdit?.maddenPghe !== undefined && { pghe: appearanceEdit.maddenPghe }),
-      ...(appearanceEdit?.maddenPfcg && { pfcg: appearanceEdit.maddenPfcg }),
-      ...(appearanceEdit?.maddenGpan && { gpan: appearanceEdit.maddenGpan }),
+      ...(appearanceEdit?.maddenPfcg !== undefined && { pfcg: appearanceEdit.maddenPfcg }),
+      ...(appearanceEdit?.maddenGpan !== undefined && { gpan: appearanceEdit.maddenGpan }),
       ...(appearanceEdit?.maddenGslp !== undefined && { gslp: appearanceEdit.maddenGslp }),
       ...(appearanceEdit?.maddenCpvf !== undefined && { cpvf: appearanceEdit.maddenCpvf }),
       ...(appearanceEdit?.maddenSkinTone !== undefined && { skinTone: appearanceEdit.maddenSkinTone }),
@@ -1093,7 +1149,10 @@ ipcMain.handle('database:get-merged-player-season', async (event, internalId: nu
 
     // Get user edits for this season
     const seasonEdit = userDatabaseService.getSeasonEdit(internalId, year);
-    console.log(`[database-handlers] Season edit:`, seasonEdit ? 'EXISTS' : 'NULL');
+    console.log(`[database-handlers] Season edit for internalId=${internalId}, year=${year}:`, seasonEdit ? 'EXISTS' : 'NULL');
+    if (seasonEdit) {
+      console.log(`[database-handlers] Season edit details: POVR=${seasonEdit.ratings?.POVR}, team=${seasonEdit.team}, position=${seasonEdit.position}`);
+    }
 
     if (!originalSeason && !seasonEdit) {
       console.log(`[database-handlers] No season data found for internalId=${internalId}, year=${year}`);
@@ -2221,21 +2280,25 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     let effectiveRace = player.race;
     let rosterPgheIndex: number | undefined; // Track PGHE index for roster player
 
-    // Check if player has valid PID and PAM
+    // Check if player has valid PID and PAM from original data
     const hasValidPID = !isEmptyPID(player.pid);
     const hasValidPAM = !isEmptyPAM(player.pam);
 
-    if (hasValidPAM && typeof player.pam === 'string' && !player.pam.startsWith('gen_')) {
-      // Player has a real face scan PAM
-      pam = player.pam;
-      pid = hasValidPID ? player.pid : 0;
-    } else if (rosterStoredPgheData) {
-      // Player has stored PGHE data from database - use it instead of random
+    // PRIORITY ORDER:
+    // 1. User-assigned generic face from appearance edits (FIRST - user choice takes precedence)
+    // 2. Original real face scan PAM (only if user hasn't assigned a different face)
+    // 3. Random generic face
+    if (rosterStoredPgheData) {
+      // Player has stored PGHE data from database - use it (user explicitly assigned this face)
       pid = rosterStoredPgheData.psxp;
       pam = rosterStoredPgheData.genr; // Roster uses PEPS=GENR for generic faces
       effectiveRace = rosterStoredPgheData.skinTone;
       rosterPgheIndex = rosterStoredPgheData.pghe;
       console.log(`[database-handlers] Using stored PGHE face for roster ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, PGHE=${rosterPgheIndex}, skinTone=${effectiveRace}`);
+    } else if (hasValidPAM && typeof player.pam === 'string' && !player.pam.startsWith('gen_')) {
+      // Player has a real face scan PAM (and user hasn't assigned a different face)
+      pam = player.pam;
+      pid = hasValidPID ? player.pid : 0;
     } else {
       // Player needs generic face - determine race if unknown
       if (effectiveRace === undefined || effectiveRace === null) {
@@ -2321,7 +2384,8 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PCBT: getRosterBodyType(positionName, weight, heightInches), // Body type based on position/size
       PHLM: 0, // Helmet style
       PVSL: 0, // Visor style
-      PHSN: rosterHomeStateId, // Home state
+      PHSN: rosterHomeStateId, // Home state (numeric ID)
+      PHTN: player.hometown || '', // Hometown (city name string)
       PLBD: 0, // Birthday (will calculate if needed)
       PCMT: rosterCommId, // Commentary ID - auto-filled from lookup
       POID: rosterCommId, // Presentation ID - same as PCMT
@@ -2367,25 +2431,25 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       rosterPlayer.PSTA = r.PSTA || 85;
       rosterPlayer.PINJ = r.PINJ || 85;
       rosterPlayer.PTGH = r.PTGH || 70;
-      rosterPlayer.PLPU = r.PPUR || 70; // PPUR in db = PLPU (pursuit)
-      rosterPlayer.PLPR = r.PPRC || 70; // PPRC in db = PLPR (play recognition)
+      rosterPlayer.PLPU = r.PLPU || r.PPUR || 70; // DB uses PLPU, old CSV uses PPUR (pursuit)
+      rosterPlayer.PLPR = r.PLPR || r.PPRC || 70; // DB uses PLPR, old CSV uses PPRC (play recognition)
       rosterPlayer.PLMC = r.PMCV || 70; // PMCV in db = PLMC (man coverage)
       rosterPlayer.PLZC = r.PZCV || 70; // PZCV in db = PLZC (zone coverage)
       rosterPlayer.PLPE = r.PPRS || 70; // PPRS in db = PLPE (press)
-      rosterPlayer.PLHT = r.PHTP || 70; // PHTP in db = PLHT (hit power)
+      rosterPlayer.PLHT = r.PHIT || 70; // PHIT in db = PLHT (hit power)
       rosterPlayer.PBSG = r.PBSH || 70; // PBSH in db = PBSG (block shedding)
       rosterPlayer.PLPM = r.PPWM || 70; // PPWM in db = PLPM (power moves)
-      rosterPlayer.PFMS = r.PFNM || 70; // PFNM in db = PFMS (finesse moves)
+      rosterPlayer.PFMS = r.PFMV || 70; // PFMV in db = PFMS (finesse moves)
       rosterPlayer.PTAS = r.PTAS || 70;
       rosterPlayer.PTAM = r.PTAM || 70;
       rosterPlayer.PTAD = r.PTAD || 70;
-      rosterPlayer.PPLA = r.PPLA || 70;
+      rosterPlayer.PPLA = r.PPLA || 70;  // Play Action (QB attribute)
       rosterPlayer.PTOR = r.PTOR || 70;
       rosterPlayer.PTUP = r.PTUP || 70;
       rosterPlayer.PBCV = r.PBCV || 70;
-      rosterPlayer.PLJM = r.PJUM || 70; // PJUM in db = PLJM (juke move)
-      rosterPlayer.PLSM = r.PSPM || 70; // PSPM in db = PLSM (spin move)
-      rosterPlayer.PLSA = r.PSTF || 70; // PSTF in db = PLSA (stiff arm)
+      rosterPlayer.PLJM = r.PJKM || 70; // PJKM in db = PLJM (juke move)
+      rosterPlayer.PLSM = r.PSPN || 70; // PSPN in db = PLSM (spin move)
+      rosterPlayer.PLSA = r.PSFA || 70; // PSFA in db = PLSA (stiff arm)
       rosterPlayer.PLTR = r.PLTR || r.PTRK || 70; // PTRK or PLTR (trucking)
       rosterPlayer.PELU = r.PCOD || 70; // PCOD in db = PELU (change of direction)
       rosterPlayer.PLRL = r.PREL || 70; // PREL in db = PLRL (release)
@@ -2394,8 +2458,8 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       rosterPlayer.PDRR = r.PDRR || 70;
       rosterPlayer.PLCI = r.PCIT || 70; // PCIT in db = PLCI (catch in traffic)
       rosterPlayer.PLSC = r.PSPC || 70; // PSPC in db = PLSC (spectacular catch)
-      rosterPlayer.PLIB = r.PIBL || 70; // PIBL in db = PLIB (impact blocking)
-      rosterPlayer.PLBK = r.PLDB || 70; // PLDB in db = PLBK (lead block)
+      rosterPlayer.PLIB = r.PIBK || 70; // PIBK in db = PLIB (impact blocking)
+      rosterPlayer.PLBK = r.PLBK || 70; // PLBK in db = PLBK (lead block)
       rosterPlayer.PPBF = r.PPBF || 70;
       rosterPlayer.PPBS = r.PPBP || 70; // PPBP in db = PPBS (pass block power/strength)
       rosterPlayer.PRBF = r.PRBF || 70;
@@ -2465,20 +2529,19 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       availableYears = [year];
     }
 
-    // Sync archetype based on player attributes - ensures PLTY matches what Madden will auto-assign
-    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(rosterPlayer, positionName);
-    syncedPlayer.ARCHETYPE = ArchetypeService.getArchetypeName(syncedPlayer.PLTY, positionName);
+    // Use database POVR directly - it's already calculated correctly in the database player card
+    // DO NOT recalculate here - that causes OVR mismatches
+    rosterPlayer.ARCHETYPE = ArchetypeService.getArchetypeName(rosterPlayer.PLTY, positionName);
 
-    // ALWAYS recalculate POVR using proper Madden formula to match franchise
-    if (ovrWeightsCalculator.isInitialized()) {
-      const calculatedOvr = ovrWeightsCalculator.calculateOVR(syncedPlayer, positionName, syncedPlayer.PLTY);
-      // Floor of 40 for database players (quality control)
-      syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
-    }
+    // DEBUG: Log ratings being returned
+    const ratingKeys = Object.keys(rosterPlayer).filter(k => ['POVR', 'PSPD', 'PACC', 'PSTR', 'PAGI', 'PJMP', 'PSTA', 'PAWR'].includes(k));
+    console.log(`[database-handlers] getPlayerForRoster RETURNING - ${player.firstName} ${player.lastName}`);
+    console.log(`[database-handlers] getPlayerForRoster RETURNING - Rating keys: ${ratingKeys.join(', ')}`);
+    console.log(`[database-handlers] getPlayerForRoster RETURNING - POVR=${rosterPlayer.POVR}, PSPD=${rosterPlayer.PSPD}, PACC=${rosterPlayer.PACC}`);
 
     return {
       success: true,
-      player: syncedPlayer,
+      player: rosterPlayer,
       playerName: `${player.firstName} ${player.lastName}`,
       availableYears,
       selectedYear: year
@@ -2705,21 +2768,33 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     let effectiveRace = player.race;
     let pgheIndex: number | undefined; // Track PGHE index for prospect
 
-    // Check if player has valid PID and PAM
-    const hasValidPID = !isEmptyPID(player.pid);
-    const hasValidPAM = !isEmptyPAM(player.pam);
+    // Check if player has valid PID and PAM - check user appearance edit FIRST, then fall back to original
+    const userEditedPam = draftAppearanceEdit?.maddenPam;
+    const userEditedPid = draftAppearanceEdit?.maddenPid;
 
-    if (hasValidPAM && typeof player.pam === 'string' && !player.pam.startsWith('gen_')) {
-      // Player has a real face scan PAM
+    // User-edited PAM takes priority (if it's a real face scan, not generic)
+    const hasUserEditedRealPAM = userEditedPam && typeof userEditedPam === 'string' &&
+                                  userEditedPam.trim() !== '' && !userEditedPam.startsWith('gen_');
+    const hasValidPID = !isEmptyPID(userEditedPid) || !isEmptyPID(player.pid);
+    const hasValidPAM = hasUserEditedRealPAM || (!isEmptyPAM(player.pam) && typeof player.pam === 'string' && !player.pam.startsWith('gen_'));
+
+    if (hasUserEditedRealPAM) {
+      // User assigned a real face scan PAM in database player card
+      pam = userEditedPam;
+      pid = userEditedPid && !isEmptyPID(userEditedPid) ? userEditedPid : (hasValidPID ? player.pid : 0);
+      console.log(`[database-handlers] Using USER-EDITED PAM for ${player.firstName} ${player.lastName}: PAM='${pam}', PID=${pid}`);
+    } else if (hasValidPAM && typeof player.pam === 'string' && !player.pam.startsWith('gen_')) {
+      // Player has a real face scan PAM from original database
       pam = player.pam;
-      pid = hasValidPID ? player.pid : 0;
+      pid = !isEmptyPID(player.pid) ? player.pid : 0;
+      console.log(`[database-handlers] Using ORIGINAL PAM for ${player.firstName} ${player.lastName}: PAM='${pam}', PID=${pid}`);
     } else if (storedPgheData) {
-      // Player has stored PGHE data from database - use it instead of random
+      // Player has stored PGHE data from database - use the GENR value as PAM for portrait display
       pid = storedPgheData.psxp;
-      pam = ''; // Draft class uses blank PAM, face determined by PGHE/skinTone
+      pam = storedPgheData.genr || ''; // Use GENR value (e.g., gen_1_B_B_005) as PAM for Asset ID column
       effectiveRace = storedPgheData.skinTone;
       pgheIndex = storedPgheData.pghe;
-      console.log(`[database-handlers] Using stored PGHE face for ${player.firstName} ${player.lastName}: PID=${pid}, PGHE=${pgheIndex}, skinTone=${effectiveRace}`);
+      console.log(`[database-handlers] Using stored PGHE face for ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}', PGHE=${pgheIndex}, skinTone=${effectiveRace}`);
     } else {
       // Player needs generic face - determine race if unknown
       if (effectiveRace === undefined || effectiveRace === null) {
@@ -2811,6 +2886,7 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       // Basic info - include both IDs and names for grid compatibility
       homeState: homeStateId,
       homeStateName: homeStateName,
+      homeTown: player.hometown || '',  // Hometown city (camelCase to match draft grid field)
       college: collegeId,
       collegeName: collegeName,
       age: age,
@@ -2913,7 +2989,7 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       prospect.throwAccuracyDeep = r.PTAD || 70;
       prospect.throwOnTheRun = r.PTOR || 70;
       prospect.throwUnderPressure = r.PTUP || 70;
-      prospect.playAction = r.PPLA || 70;
+      prospect.playAction = r.PPLA || 70;  // Play Action (QB attribute)
       prospect.breakSack = r.PBRS || 70;
 
       // Blocking
@@ -2923,17 +2999,17 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       prospect.runBlock = r.PRBK || 70;
       prospect.runBlockPower = r.PRBP || 70;
       prospect.runBlockFinesse = r.PRBF || 70;
-      prospect.leadBlock = r.PLDB || 70;
-      prospect.impactBlocking = r.PIBL || 70;
+      prospect.leadBlock = r.PLBK || 70;  // Database uses PLBK
+      prospect.impactBlocking = r.PIBK || 70;  // Database uses PIBK
 
       // Defense
       prospect.tackle = r.PTAK || 70;
-      prospect.hitPower = r.PHTP || 70;
-      prospect.powerMoves = r.PPWM || 70;
-      prospect.finesseMoves = r.PFNM || 70;
-      prospect.blockShedding = r.PBSH || 70;
-      prospect.pursuit = r.PPUR || 70;
-      prospect.playRecognition = r.PPRC || 70;
+      prospect.hitPower = r.PLHT || r.PHIT || r.PHTP || 70;  // DB uses PLHT
+      prospect.powerMoves = r.PLPM || r.PPWM || 70;  // DB uses PLPM
+      prospect.finesseMoves = r.PFMS || r.PFMV || r.PFNM || 70;  // DB uses PFMS
+      prospect.blockShedding = r.PBSG || r.PBSH || 70;  // DB uses PBSG
+      prospect.pursuit = r.PLPU || r.PPUR || 70;  // DB uses PLPU, old CSV uses PPUR
+      prospect.playRecognition = r.PLPR || r.PPRC || 70;  // DB uses PLPR, old CSV uses PPRC
       prospect.manCoverage = r.PMCV || 70;
       prospect.zoneCoverage = r.PZCV || 70;
       prospect.pressCoverage = r.PPRS || 70;
@@ -2985,43 +3061,8 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     const syncedProspect = ArchetypeSyncService.syncArchetypeFromAttributes(prospect, prospect.positionName || 'HB');
     syncedProspect.archetypeName = ArchetypeService.getArchetypeName(syncedProspect.archetype, prospect.positionName || 'HB');
 
-    // Recalculate overall using proper Madden formula to ensure it matches game calculation
-    if (ovrWeightsCalculator.isInitialized()) {
-      // Convert prospect human-readable names to Madden field codes for OVR calculation
-      const ovrAttributes: Record<string, number> = {
-        PSPD: syncedProspect.speed || 70, PACC: syncedProspect.acceleration || 70,
-        PAGI: syncedProspect.agility || 70, PSTR: syncedProspect.strength || 70,
-        PAWR: syncedProspect.awareness || 70, PJMP: syncedProspect.jumping || 70,
-        PSTA: syncedProspect.stamina || 85, PELU: syncedProspect.changeOfDirection || 70,
-        PTGH: syncedProspect.toughness || 70, PINJ: syncedProspect.injury || 85,
-        PCAR: syncedProspect.carrying || 70, PBCV: syncedProspect.ballCarrierVision || 70,
-        PBKT: syncedProspect.breakTackle || 70, PLTR: syncedProspect.trucking || 70,
-        PLSA: syncedProspect.stiffArm || 70, PLSM: syncedProspect.spinMove || 70,
-        PLJM: syncedProspect.jukeMove || 70, PCTH: syncedProspect.catching || 70,
-        PLCI: syncedProspect.catchInTraffic || 70, PLSC: syncedProspect.spectacularCatch || 70,
-        SRRN: syncedProspect.shortRouteRunning || 70, PMRR: syncedProspect.mediumRouteRunning || 70,
-        PDRR: syncedProspect.deepRouteRunning || 70, PLRL: syncedProspect.release || 70,
-        PTHP: syncedProspect.throwPower || 70, PTAS: syncedProspect.throwAccuracyShort || 70,
-        PTAM: syncedProspect.throwAccuracyMid || 70, PTAD: syncedProspect.throwAccuracyDeep || 70,
-        PTOR: syncedProspect.throwOnTheRun || 70, PTUP: syncedProspect.throwUnderPressure || 70,
-        PPLA: syncedProspect.playAction || 70, PBSK: syncedProspect.breakSack || 70,
-        PPBK: syncedProspect.passBlock || 70, PPBS: syncedProspect.passBlockPower || 70,
-        PPBF: syncedProspect.passBlockFinesse || 70, PRBK: syncedProspect.runBlock || 70,
-        PRBS: syncedProspect.runBlockPower || 70, PRBF: syncedProspect.runBlockFinesse || 70,
-        PLBK: syncedProspect.leadBlock || 70, PLIB: syncedProspect.impactBlocking || 70,
-        PTAK: syncedProspect.tackle || 70, PLHT: syncedProspect.hitPower || 70,
-        PLPM: syncedProspect.powerMoves || 70, PFMS: syncedProspect.finesseMoves || 70,
-        PBSG: syncedProspect.blockShedding || 70, PLPU: syncedProspect.pursuit || 70,
-        PLPR: syncedProspect.playRecognition || 70, PLMC: syncedProspect.manCoverage || 70,
-        PLZC: syncedProspect.zoneCoverage || 70, PLPE: syncedProspect.pressCoverage || 70,
-        PKPW: syncedProspect.kickPower || 70, PKAC: syncedProspect.kickAccuracy || 70,
-        PKRT: syncedProspect.kickReturn || 70
-      };
-      // ALWAYS recalculate OVR using proper Madden formula to match franchise
-      const calculatedOvr = ovrWeightsCalculator.calculateOVR(ovrAttributes, prospect.positionName || 'HB', syncedProspect.archetype, true);
-      // Floor of 40 for database players (quality control)
-      syncedProspect.overall = Math.max(40, Math.min(99, calculatedOvr));
-    }
+    // Use database POVR directly - DO NOT recalculate here
+    // The database player card already calculated OVR correctly
 
     // Debug log what we're returning
     console.log(`[database-handlers] FINAL prospect data for ${player.firstName} ${player.lastName}:`);
@@ -3834,10 +3875,30 @@ ipcMain.handle('database:execute-roster-push', async (
   event,
   analysis: RosterPushAnalysisResult,
   resolutions: RosterFieldResolution[],
-  options?: { overwriteExistingSeasons?: boolean; fillEmptyBioFields?: boolean }
+  options?: {
+    pushMode?: 'all' | 'ratings';
+    bioFieldOptions?: {
+      team?: boolean;
+      jersey?: boolean;
+      archetype?: boolean;
+      position?: boolean;
+      college?: boolean;
+      height?: boolean;
+      weight?: boolean;
+      homeState?: boolean;
+      race?: boolean;
+      bodyType?: boolean;
+      handedness?: boolean;
+      pid?: boolean;
+      pam?: boolean;
+    };
+    overwriteExistingSeasons?: boolean;
+    fillEmptyBioFields?: boolean;
+  }
 ) => {
   try {
     console.log(`[database-handlers] Executing roster push for year ${analysis.seasonYear}`);
+    console.log(`[database-handlers] Push options:`, JSON.stringify(options, null, 2));
     await userDatabaseService.waitForReady();
     const result = await rosterDatabaseService.executePush(analysis, resolutions, options);
     return { success: true, result };
@@ -4155,20 +4216,51 @@ ipcMain.handle('database:calculate-rating-from-stats', async (event, options: {
     console.log(`[database-handlers] StatsBasedRatingService returned OVR: ${generatedRating.overall}`);
     console.log(`[database-handlers] Breakdown: ${generatedRating.breakdown}`);
 
-    // Get full attribute distribution based on OVR and position
-    const attrs = statsBasedRatingService.distributeToAttributes(
-      generatedRating.overall,
-      position,
-      seasonStats
-    );
+    // CRITICAL: Use OVRWeightsCalculator to properly distribute ratings
+    // This ensures the generated ratings will calculate back to the target OVR
+    // using Madden's exact weighted formula
 
-    // Build the ratings object with all attributes
-    const ratings: Record<string, number> = {
-      ...attrs,
-      POVR: generatedRating.overall
+    // Start with base attributes at 70
+    const baseAttrs: { [key: string]: number } = {
+      PSPD: 70, PACC: 70, PSTR: 70, PAGI: 70, PAWR: 70, PJMP: 70, PSTA: 80, PINJ: 85, PTGH: 75,
+      PELU: 70, PTHP: 50, PTAS: 50, PTAM: 50, PTAD: 50, PTOR: 50, PTUP: 50, PPLA: 50, PBSK: 50,
+      PCAR: 70, PBCV: 70, PBKT: 70, PLTR: 70, PLSA: 70, PLSM: 70, PLJM: 70,
+      PCTH: 70, PLCI: 70, PLSC: 70, SRRN: 70, PMRR: 70, PDRR: 70, PLRL: 70,
+      PRBK: 70, PPBK: 70, PPBF: 70, PPBS: 70, PRBF: 70, PRBS: 70, PLIB: 70, PLBK: 70,
+      PTAK: 70, PLHT: 70, PBSG: 70, PLPU: 70, PLPR: 70, PLMC: 70, PLZC: 70, PLPE: 70,
+      PLPM: 70, PFMS: 70, PKPW: 50, PKAC: 50, PKRT: 50
     };
 
-    console.log(`[database-handlers] Final ratings with OVR ${ratings.POVR}:`, ratings);
+    // Use the weighted OVR calculator to find adjustments needed to reach target OVR
+    const adjustResult = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+      baseAttrs,
+      generatedRating.overall,
+      position
+    );
+
+    let ratings: Record<string, number>;
+    if (adjustResult) {
+      // Apply adjustments to base attributes
+      ratings = { ...baseAttrs };
+      for (const [fieldCode, adj] of Object.entries(adjustResult.adjustments)) {
+        ratings[fieldCode] = adj.suggested;
+      }
+      // CRITICAL: Set POVR to what the ratings ACTUALLY calculate to, not the target
+      // This ensures database POVR matches what Madden will calculate from the ratings
+      ratings.POVR = adjustResult.newOVR;
+      console.log(`[database-handlers] Used weighted formula: target=${generatedRating.overall}, achieved=${adjustResult.newOVR}, archetype=${adjustResult.archetype}`);
+    } else {
+      // Fallback to old method if weighted calc fails
+      const attrs = statsBasedRatingService.distributeToAttributes(
+        generatedRating.overall,
+        position,
+        seasonStats
+      );
+      ratings = { ...attrs, POVR: generatedRating.overall };
+      console.log(`[database-handlers] Fallback to simple distribution for OVR ${ratings.POVR}`);
+    }
+
+    console.log(`[database-handlers] Final ratings with OVR ${ratings.POVR}`);
 
     return {
       success: true,
@@ -4191,6 +4283,7 @@ ipcMain.handle('database:calculate-rating-from-stats', async (event, options: {
  * Handle: database:distribute-ovr-to-ratings
  * Generate individual ratings from an OVR value based on position
  * Used when user sets OVR directly and wants ratings auto-populated
+ * Also determines archetype from the generated ratings
  */
 ipcMain.handle('database:distribute-ovr-to-ratings', async (event, options: {
   ovr: number,
@@ -4207,18 +4300,53 @@ ipcMain.handle('database:distribute-ovr-to-ratings', async (event, options: {
       return { success: false, error: 'Position is required' };
     }
 
-    console.log(`[database-handlers] Distributing OVR ${ovr} to ratings for ${position}`);
+    console.log(`[database-handlers] Distributing OVR ${ovr} to ratings for ${position} using weighted formula`);
 
-    // Use StatsBasedRatingService to distribute OVR to attributes
-    // Pass empty stats since we're just distributing OVR
-    const attrs = statsBasedRatingService.distributeToAttributes(ovr, position, {
-      year: new Date().getFullYear(),
-      games: 16
-    });
+    // CRITICAL: Use OVRWeightsCalculator to properly distribute ratings
+    // This uses the same formula Madden uses to calculate OVR, ensuring consistency
+
+    // Start with base attributes at 70 (reasonable middle ground)
+    const baseAttrs: { [key: string]: number } = {
+      PSPD: 70, PACC: 70, PSTR: 70, PAGI: 70, PAWR: 70, PJMP: 70, PSTA: 80, PINJ: 85, PTGH: 75,
+      PELU: 70, PTHP: 50, PTAS: 50, PTAM: 50, PTAD: 50, PTOR: 50, PTUP: 50, PPLA: 50, PBSK: 50,
+      PCAR: 70, PBCV: 70, PBKT: 70, PLTR: 70, PLSA: 70, PLSM: 70, PLJM: 70,
+      PCTH: 70, PLCI: 70, PLSC: 70, SRRN: 70, PMRR: 70, PDRR: 70, PLRL: 70,
+      PRBK: 70, PPBK: 70, PPBF: 70, PPBS: 70, PRBF: 70, PRBS: 70, PLIB: 70, PLBK: 70,
+      PTAK: 70, PLHT: 70, PBSG: 70, PLPU: 70, PLPR: 70, PLMC: 70, PLZC: 70, PLPE: 70,
+      PLPM: 70, PFMS: 70, PKPW: 50, PKAC: 50, PKRT: 50
+    };
+
+    // Use the weighted OVR calculator to find adjustments needed to reach target OVR
+    const result = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+      baseAttrs,
+      ovr,
+      position
+    );
+
+    if (!result) {
+      console.error('[database-handlers] Failed to calculate adjustments for target OVR');
+      return { success: false, error: 'Failed to calculate rating distribution' };
+    }
+
+    // Apply adjustments to base attributes
+    const finalAttrs = { ...baseAttrs };
+    for (const [fieldCode, adj] of Object.entries(result.adjustments)) {
+      finalAttrs[fieldCode] = adj.suggested;
+    }
+
+    // CRITICAL: Set POVR to what the ratings ACTUALLY calculate to, not the target
+    // This ensures database POVR matches what Madden will calculate from the ratings
+    finalAttrs.POVR = result.newOVR;
+
+    console.log(`[database-handlers] Distributed OVR ${ovr} -> achieved OVR ${result.newOVR} with archetype ${result.archetype}`);
+    console.log(`[database-handlers] Adjusted ${Object.keys(result.adjustments).length} attributes`);
 
     return {
       success: true,
-      ratings: attrs
+      ratings: finalAttrs,
+      archetype: result.archetype,
+      archetypeId: result.archetype ?
+        Object.entries(ovrWeightsCalculator.getArchetypeWeights(result.archetype) || {}).length : 0
     };
   } catch (error) {
     console.error('[database-handlers] Error distributing OVR to ratings:', error);
@@ -4243,14 +4371,15 @@ ipcMain.handle('database:debug-user-edits', async (event, year: number) => {
     console.log(`[database-handlers] Edits for year ${year}: ${editsMap.size}`);
 
     // Convert to array for return
-    const editsArray = Array.from(editsMap.entries()).map(([playerId, ratings]) => {
+    const editsArray = Array.from(editsMap.entries()).map(([playerId, userEdit]) => {
       // Also look up the player name
       const player = lookupService.getPlayerByInternalId(playerId);
       return {
         playerId,
         playerName: player ? `${player.firstName} ${player.lastName}` : 'Unknown',
-        POVR: ratings.POVR,
-        ratingsCount: Object.keys(ratings).length
+        POVR: userEdit.ratings.POVR,
+        position: userEdit.position,
+        ratingsCount: Object.keys(userEdit.ratings).length
       };
     });
 
