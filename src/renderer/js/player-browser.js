@@ -383,10 +383,28 @@
   }
 
   /**
+   * Restore focus to the active editor panel (grid or input).
+   * This is a universal fallback for when player browser is not open.
+   */
+  function restoreFocusToActivePanel() {
+    setTimeout(() => {
+      window.focus();
+      const activePanel = document.querySelector('.tab-content.active, .editor-panel:not([style*="display: none"])');
+      if (activePanel) {
+        const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled])');
+        if (focusTarget) {
+          focusTarget.focus();
+        }
+      }
+    }, 50);
+  }
+
+  /**
    * Restore focus to the player browser search input.
    * This should be called after any operation that steals focus (dialogs, modals, etc.)
    * IMPORTANT: This is the centralized focus restoration function for the player browser.
    * Uses Electron IPC to restore OS-level window focus before focusing the DOM element.
+   * Falls back to restoring focus to the active editor panel if player browser is not open.
    */
   function restoreFocusToSearch() {
     // Only restore focus if player browser is visible AND no overlay modals are visible
@@ -395,7 +413,9 @@
     const dbManagementModal = document.getElementById('dbManagementModal');
 
     if (!browserModal || browserModal.style.display === 'none' || browserModal.style.display === '') {
-      return; // Browser not open
+      // Browser not open - restore focus to active editor panel instead
+      restoreFocusToActivePanel();
+      return;
     }
 
     if (playerCardModal && playerCardModal.style.display !== 'none' && playerCardModal.style.display !== '') {
@@ -1104,7 +1124,7 @@
     if (modal) modal.style.display = 'none';
     pendingRosterAdd = null;
     pendingReplaceInfo = null; // Clear replacement info too
-    restoreFocusToSearch();
+    restoreFocusToSearch(); // This now handles both player browser and active panel fallback
   }
 
   async function confirmAddToRoster() {
@@ -1348,7 +1368,7 @@
     const modal = document.getElementById('addToDraftModal');
     if (modal) modal.style.display = 'none';
     pendingDraftAdd = null;
-    restoreFocusToSearch();
+    restoreFocusToSearch(); // This now handles both player browser and active panel fallback
   }
 
   async function confirmAddToDraft() {
