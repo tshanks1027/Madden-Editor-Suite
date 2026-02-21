@@ -3789,6 +3789,10 @@ ipcMain.handle('database:send-player-to-main', async (event, internalId: number,
     console.log(`[database-handlers] Forwarding validated player ID ${numericId} to main window`);
     mainWindow.webContents.send('database:player-from-browser', numericId, target, options);
 
+    // Focus the main window so keyboard input works after the add operation
+    // This fixes the issue where users can't type after adding a player from the database browser
+    mainWindow.focus();
+
     return { success: true };
   } catch (error) {
     console.error('[database-handlers] Error sending player to main:', error);

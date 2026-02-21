@@ -964,6 +964,7 @@ class MaddenEditorApp {
                     console.log(`[app.js] Loaded ${this.injuredPGIDs.size} injured player PGIDs`);
 
                     // Pre-process calculated fields (Archetype) to avoid [object Promise] in grid
+                    // NOTE: PLTY is what franchise reads (PLTY is the archetype field)
                     this.updateLoadingProgress('Converting archetypes...', 80);
                     this.players = await Promise.all(this.players.map(async player => {
                         // Convert Archetype (async IPC call)
@@ -2207,7 +2208,7 @@ class MaddenEditorApp {
             }
         }
 
-        // Get current archetype if available
+        // Get current archetype if available (PLTY is what franchise reads)
         const currentArchetype = player['PLTY'] !== undefined ? player['PLTY'] : undefined;
 
         try {
@@ -2419,6 +2420,7 @@ class MaddenEditorApp {
     /**
      * Recalculate OVR for a row when rating attributes change
      * Also finds the best archetype and updates PLTY if it differs
+     * NOTE: PLTY is what franchise reads (PLTY is the archetype field)
      * @param {number} row - Grid row index
      */
     async recalculateOVRForRow(row) {
@@ -2459,30 +2461,24 @@ class MaddenEditorApp {
             const archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
 
             if (archetypeResults && archetypeResults.length > 0) {
-                // The first result is the best archetype (sorted by OVR descending)
+                // The first result is the BEST archetype (sorted by OVR descending)
+                // Use the best archetype's OVR directly - SAME as roster editor
                 const bestArchetype = archetypeResults[0];
-
-                // Calculate OVR using the current archetype
-                const newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, currentArchetype);
+                const newOVR = bestArchetype.ovr;
                 const oldOVR = parseInt(player['POVR']) || 50;
 
                 // Update OVR if changed
                 if (newOVR !== oldOVR) {
                     player['POVR'] = newOVR;
                     this.updateGridCell(row, 'POVR', newOVR, 'ovrRecalc');
-                    console.log(`[OVR Recalc] Updated OVR: ${oldOVR} → ${newOVR}`);
+                    console.log(`[OVR Recalc] Updated OVR: ${oldOVR} → ${newOVR} (best archetype: ${bestArchetype.name})`);
                 }
 
-                // Update archetype if a different one gives better OVR
-                if (currentArchetype !== bestArchetype.id && bestArchetype.ovr > newOVR) {
+                // Update archetype to the best one (like roster editor does)
+                if (currentArchetype !== bestArchetype.id) {
                     player['PLTY'] = bestArchetype.id;
                     this.updateGridCell(row, 'PLTY', bestArchetype.id, 'ovrRecalc');
-
-                    // Recalculate OVR with the new best archetype
-                    const betterOVR = bestArchetype.ovr;
-                    player['POVR'] = betterOVR;
-                    this.updateGridCell(row, 'POVR', betterOVR, 'ovrRecalc');
-                    console.log(`[OVR Recalc] Updated archetype to ${bestArchetype.name} (${bestArchetype.id}), OVR: ${newOVR} → ${betterOVR}`);
+                    console.log(`[OVR Recalc] Updated archetype to ${bestArchetype.name} (${bestArchetype.id})`);
                 }
             }
         } catch (error) {
@@ -2507,7 +2503,7 @@ class MaddenEditorApp {
             changes.push(`${adj.name}: ${adj.current} → ${adj.suggested}`);
         }
 
-        // Update archetype if selected
+        // Update archetype if selected (PLTY is what franchise reads)
         if (selectedArchetypeId !== undefined) {
             const oldArchetype = this.players[playerIndex]['PLTY'];
             this.players[playerIndex]['PLTY'] = selectedArchetypeId;
@@ -9646,16 +9642,16 @@ class MaddenEditorApp {
         const container = document.getElementById('draftCardRatings');
         if (!container) return;
 
-        // Position aliasing - convert old position codes to current ones
+        // Position aliasing - convert old position codes to M26 format
         const POSITION_ALIASES = {
-            'SAM': 'LOLB',
-            'Mike': 'MLB',
-            'MIKE': 'MLB',
-            'WILL': 'ROLB',
+            'MLB': 'MIKE',
+            'LOLB': 'WILL',
+            'ROLB': 'SAM',
             'LE': 'LEDG',
             'RE': 'REDG',
-            'OLB': 'LOLB',
-            'DE': 'LEDG'
+            'OLB': 'SAM',
+            'DE': 'LEDG',
+            'Mike': 'MIKE'  // Normalize case
         };
 
         const rawPosition = prospect.position;
@@ -9747,16 +9743,16 @@ class MaddenEditorApp {
         const container = document.getElementById('draftCardTraitsContainer');
         if (!container) return;
 
-        // Position aliasing - convert old position codes to current ones
+        // Position aliasing - convert old position codes to M26 format
         const POSITION_ALIASES = {
-            'SAM': 'LOLB',
-            'Mike': 'MLB',
-            'MIKE': 'MLB',
-            'WILL': 'ROLB',
+            'MLB': 'MIKE',
+            'LOLB': 'WILL',
+            'ROLB': 'SAM',
             'LE': 'LEDG',
             'RE': 'REDG',
-            'OLB': 'LOLB',  // Generic OLB maps to LOLB
-            'DE': 'LEDG'    // Generic DE maps to LEDG
+            'OLB': 'SAM',
+            'DE': 'LEDG',
+            'Mike': 'MIKE'  // Normalize case
         };
 
         const rawPosition = prospect.position;
@@ -9782,14 +9778,14 @@ class MaddenEditorApp {
             POSSESSION: { display: 'Possession Receiver', category: 'Ball Carrier', positions: ['WR', 'TE'] },
             RAC: { display: 'RAC Receiver', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
             // Defensive Traits (includes both old and M26 position codes)
-            BIGHITTER: { display: 'Big Hitter', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            BIGHITTER: { display: 'Big Hitter', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
             BOUNCER: { display: 'Bouncer', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
             FLYSWATTER: { display: 'Fly Swatter', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
-            HAMMERHEAD: { display: 'Hammerhead', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-            PLAYBALL: { display: 'Play Ball', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            HAMMERHEAD: { display: 'Hammerhead', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+            PLAYBALL: { display: 'Play Ball', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
             PLAYDEFENDER: { display: 'Play Defender', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
-            SAFETACKLER: { display: 'Safe Tackler', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-            STRIPSBALL: { display: 'Strips Ball', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+            SAFETACKLER: { display: 'Safe Tackler', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+            STRIPSBALL: { display: 'Strips Ball', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
             // Pass Rush Traits
             FINESSERUSHER: { display: 'Finesse Rusher', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
             POWERRUSHER: { display: 'Power Rusher', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
@@ -9799,8 +9795,8 @@ class MaddenEditorApp {
             PLAYBALLAGGRESSIVE: { display: 'Play Ball Aggressive', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
             PLAYBALLCONSERVATIVE: { display: 'Play Ball Conservative', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
             // Other
-            DISCIPLINED: { display: 'Disciplined', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-            GASGUZZLER: { display: 'Gas Guzzler', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] }
+            DISCIPLINED: { display: 'Disciplined', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+            GASGUZZLER: { display: 'Gas Guzzler', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] }
         };
 
         // Get traits for this position
@@ -10488,12 +10484,12 @@ class MaddenEditorApp {
         // Trait definitions for roster files (TR* fields)
         // These map to actual roster file fields (includes both old and M26 position codes)
         const ROSTER_TRAITS = {
-            TRBH: { display: 'Big Hitter', description: 'Powerful hits on ball carriers', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS', 'LEDG', 'REDG', 'DT'] },
+            TRBH: { display: 'Big Hitter', description: 'Powerful hits on ball carriers', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS', 'LEDG', 'REDG', 'DT'] },
             TRCB: { display: 'Cover Ball', description: 'Protects the ball in traffic', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
-            TRSB: { display: 'Strips Ball', description: 'Goes for forced fumbles', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS', 'LEDG', 'REDG', 'DT'] },
+            TRSB: { display: 'Strips Ball', description: 'Goes for forced fumbles', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS', 'LEDG', 'REDG', 'DT'] },
             TRTA: { display: 'Throw Away', description: 'Throws ball away under pressure', category: 'QB', positions: ['QB'] },
-            TRFB: { display: 'Force Fumble', description: 'Punch out attempts', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-            TRSW: { display: 'Swat Ball', description: 'Swats passes instead of intercepting', category: 'Defense', positions: ['CB', 'FS', 'SS', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL'] },
+            TRFB: { display: 'Force Fumble', description: 'Punch out attempts', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+            TRSW: { display: 'Swat Ball', description: 'Swats passes instead of intercepting', category: 'Defense', positions: ['CB', 'FS', 'SS', 'SAM', 'MIKE', 'WILL'] },
             TRHM: { display: 'Highlight Reel', description: 'Makes spectacular plays', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
             TRFK: { display: 'Fake Out', description: 'Effective juke/spin moves', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
             TRFY: { display: 'Scrambler', description: 'Likes to run when plays break down', category: 'QB', positions: ['QB'] },
@@ -10501,7 +10497,7 @@ class MaddenEditorApp {
             TRJR: { display: 'Jump Routes', description: 'Jumps passing lanes', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
             TRDO: { display: 'Drops Open', description: 'May drop easy catches', category: 'Other', positions: ['WR', 'TE', 'HB', 'FB'] },
             TRDS: { display: 'Deep Streak', description: 'Excels at deep routes', category: 'Ball Carrier', positions: ['WR', 'TE'] },
-            TRCL: { display: 'Clutch', description: 'Performs better in key moments', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS', 'K', 'P'] },
+            TRCL: { display: 'Clutch', description: 'Performs better in key moments', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS', 'K', 'P'] },
             TRTL: { display: 'Tight Lines', description: 'Stays in blocking lanes', category: 'Blocking', positions: ['LT', 'LG', 'C', 'RG', 'RT', 'TE', 'FB'] },
             TRTS: { display: 'Tough Situation', description: 'Performs under pressure', category: 'Other', positions: ['QB', 'K', 'P'] },
             TRWU: { display: 'Warm Up', description: 'Gets better during game', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE'] }
@@ -10516,7 +10512,7 @@ class MaddenEditorApp {
             Other: { display: 'Other', color: '#607D8B' }
         };
 
-        const POSITION_ALIASES = { 'Mike': 'MLB', 'MIKE': 'MLB', 'SAM': 'LOLB', 'WILL': 'ROLB', 'LE': 'LEDG', 'RE': 'REDG', 'OLB': 'LOLB', 'DE': 'LEDG' };
+        const POSITION_ALIASES = { 'MLB': 'MIKE', 'Mike': 'MIKE', 'LOLB': 'WILL', 'ROLB': 'SAM', 'LE': 'LEDG', 'RE': 'REDG', 'OLB': 'SAM', 'DE': 'LEDG' };
 
         // Get normalized position
         const normalizedPosition = POSITION_ALIASES[position] || position;
@@ -11054,18 +11050,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // If options provided (batch add from database browser), use direct add without modal
             if (options && target === 'roster' && typeof window.directAddToRoster === 'function') {
-                window.directAddToRoster(numericId, options.teamId, options.year);
+                await window.directAddToRoster(numericId, options.teamId, options.year);
             } else if (options && target === 'draft' && typeof window.directAddToDraft === 'function') {
-                window.directAddToDraft(numericId, options.year);
+                await window.directAddToDraft(numericId, options.year);
             }
             // Otherwise use existing functions with modal flow
             else if (target === 'roster' && typeof window.addToRoster === 'function') {
-                window.addToRoster(numericId);
+                await window.addToRoster(numericId);
             } else if (target === 'draft' && typeof window.addToDraft === 'function') {
-                window.addToDraft(numericId);
+                await window.addToDraft(numericId);
             } else {
                 console.error('[App] addToRoster/addToDraft functions not available');
             }
+
+            // Restore focus to the main window after IPC from database browser
+            // This fixes the issue where keyboard input stops working after adding a player
+            setTimeout(() => {
+                window.focus();
+                // Also try to focus an interactive element in the active panel
+                const activePanel = document.querySelector('.tab-content.active, .editor-panel:not([style*="display: none"])');
+                if (activePanel) {
+                    const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled])');
+                    if (focusTarget) {
+                        focusTarget.focus();
+                    }
+                }
+            }, 100);
         });
     }
 
