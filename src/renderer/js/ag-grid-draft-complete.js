@@ -49,11 +49,10 @@ class DraftPortraitCellRenderer {
 
         const prospect = data;
         const pid = prospect ? (prospect.PID || 0) : 0;
-        const peps = prospect ? (prospect.PEPS || prospect.visuals?.genericHeadName) : null;
 
-        // Real players (PID > 0): use PID cache key
-        // Generic players (PID == 0): use PEPS/PAM cache key
-        const cacheKey = pid > 0 ? `pid_${pid}` : (peps ? `pam_${peps}` : 'pam_none');
+        // Portrait: ALWAYS use PID (PAM only affects in-game face model)
+        // PIDs like 731, 2583 map to generic face portraits
+        const cacheKey = `pid_${pid}`;
 
         if (app.portraitCache.has(cacheKey)) {
             const imageData = app.portraitCache.get(cacheKey);
@@ -989,44 +988,25 @@ export async function initializeDraftAGGrid(app, container, prospects) {
 
     transformedProspects.forEach(prospect => {
         const pid = prospect.PID || 0;
-        const peps = prospect.PEPS || prospect.visuals?.genericHeadName || prospect.assetName;
 
-        if (pid > 0) {
-            // Real player PID - backend will skip developer portraits automatically
-            const cacheKey = `pid_${pid}`;
-            if (!app.portraitCache.has(cacheKey)) {
-                app.portraitCache.set(cacheKey, 'loading');
-                portraitsToLoad++;
+        // Portrait: ALWAYS use PID (PAM only affects in-game face model)
+        // PIDs like 731, 2583 map to generic face portraits
+        const cacheKey = `pid_${pid}`;
 
-                window.electronAPI.portrait.getByPID(pid).then(imageData => {
-                    app.portraitCache.set(cacheKey, imageData || null);
-                    portraitsLoaded++;
-                    if (portraitsLoaded === portraitsToLoad && app.draftAgGrid) {
-                        app.draftAgGrid.refreshCells({ columns: ['_portrait'], force: true });
-                    }
-                }).catch(() => {
-                    app.portraitCache.set(cacheKey, null);
-                    portraitsLoaded++;
-                });
-            }
-        } else if (peps && typeof peps === 'string') {
-            // Generic face - load by PAM
-            const cacheKey = `pam_${peps}`;
-            if (!app.portraitCache.has(cacheKey)) {
-                app.portraitCache.set(cacheKey, 'loading');
-                portraitsToLoad++;
+        if (!app.portraitCache.has(cacheKey) && pid > 0) {
+            app.portraitCache.set(cacheKey, 'loading');
+            portraitsToLoad++;
 
-                window.electronAPI.portrait.getImageDataByPam(peps).then(imageData => {
-                    app.portraitCache.set(cacheKey, imageData || null);
-                    portraitsLoaded++;
-                    if (portraitsLoaded === portraitsToLoad && app.draftAgGrid) {
-                        app.draftAgGrid.refreshCells({ columns: ['_portrait'], force: true });
-                    }
-                }).catch(() => {
-                    app.portraitCache.set(cacheKey, null);
-                    portraitsLoaded++;
-                });
-            }
+            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                app.portraitCache.set(cacheKey, imageData || null);
+                portraitsLoaded++;
+                if (portraitsLoaded === portraitsToLoad && app.draftAgGrid) {
+                    app.draftAgGrid.refreshCells({ columns: ['_portrait'], force: true });
+                }
+            }).catch(() => {
+                app.portraitCache.set(cacheKey, null);
+                portraitsLoaded++;
+            });
         }
     });
 

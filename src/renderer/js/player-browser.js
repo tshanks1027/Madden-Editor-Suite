@@ -1282,21 +1282,33 @@
       }
 
       // Pre-load portrait for the new player so it displays immediately
-      // MUST use same cache key logic as cell renderer: check PAM first, then PID
+      // Portrait: ALWAYS use PID (PAM only affects in-game face model)
       const pid = playerData.PSXP;
-      const pam = playerData.PEPS;
-      const isGenericPam = pam && typeof pam === 'string' &&
-          (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
       const hasValidPid = pid && pid > 0;
-      const cacheKey = isGenericPam ? `pam_${pam}` : (hasValidPid ? `pid_${pid}` : null);
+      const cacheKey = hasValidPid ? `pid_${pid}` : null;
 
-      console.log('[PlayerBrowser] Portrait pre-load: PID=' + pid + ', PAM=' + pam + ', cacheKey=' + cacheKey);
+      console.log('[PlayerBrowser] Portrait pre-load: PID=' + pid + ', cacheKey=' + cacheKey);
 
       if (cacheKey && !window.app.portraitCache.has(cacheKey)) {
-        if (isGenericPam && window.electronAPI?.portrait?.getImageDataByPam) {
-          // Generic face - load by PAM
-          console.log('[PlayerBrowser] Pre-loading generic portrait for PAM:', pam);
-          window.electronAPI.portrait.getImageDataByPam(pam).then(imageData => {
+        // Custom portraits (PID >= 12000) use getImageDataByPid directly
+        const CUSTOM_PORTRAIT_PID_START = 12000;
+        const isCustomPortrait = parseInt(pid) >= CUSTOM_PORTRAIT_PID_START;
+        console.log('[PlayerBrowser] Pre-loading portrait for PID:', pid, isCustomPortrait ? '(custom)' : '(standard)');
+
+        if (isCustomPortrait && window.electronAPI?.portrait?.getImageDataByPid) {
+          // Custom portrait - use getImageDataByPid to get the actual image
+          window.electronAPI.portrait.getImageDataByPid(pid).then(imageData => {
+            if (imageData && imageData.length > 0) {
+              window.app.portraitCache.set(cacheKey, imageData);
+              console.log('[PlayerBrowser] Custom portrait cached:', cacheKey, 'data length:', imageData.length);
+              if (window.app.agGrid) {
+                window.app.agGrid.redrawRows();
+              }
+            }
+          }).catch(err => console.error('[PlayerBrowser] Error loading custom portrait:', err));
+        } else if (window.electronAPI?.portrait?.getByPID) {
+          // Standard portrait - use getByPID (works for real players and generic faces)
+          window.electronAPI.portrait.getByPID(pid).then(imageData => {
             if (imageData && imageData.length > 0) {
               window.app.portraitCache.set(cacheKey, imageData);
               console.log('[PlayerBrowser] Portrait cached:', cacheKey, 'data length:', imageData.length);
@@ -1305,36 +1317,6 @@
               }
             }
           }).catch(err => console.error('[PlayerBrowser] Error loading portrait:', err));
-        } else if (hasValidPid) {
-          // Real face - load by PID
-          // Custom portraits (PID >= 12000) use getImageDataByPid directly
-          const CUSTOM_PORTRAIT_PID_START = 12000;
-          const isCustomPortrait = parseInt(pid) >= CUSTOM_PORTRAIT_PID_START;
-          console.log('[PlayerBrowser] Pre-loading portrait for PID:', pid, isCustomPortrait ? '(custom)' : '(standard)');
-
-          if (isCustomPortrait && window.electronAPI?.portrait?.getImageDataByPid) {
-            // Custom portrait - use getImageDataByPid to get the actual image
-            window.electronAPI.portrait.getImageDataByPid(pid).then(imageData => {
-              if (imageData && imageData.length > 0) {
-                window.app.portraitCache.set(cacheKey, imageData);
-                console.log('[PlayerBrowser] Custom portrait cached:', cacheKey, 'data length:', imageData.length);
-                if (window.app.agGrid) {
-                  window.app.agGrid.redrawRows();
-                }
-              }
-            }).catch(err => console.error('[PlayerBrowser] Error loading custom portrait:', err));
-          } else if (window.electronAPI?.portrait?.getByPID) {
-            // Standard portrait - use getByPID
-            window.electronAPI.portrait.getByPID(pid).then(imageData => {
-              if (imageData && imageData.length > 0) {
-                window.app.portraitCache.set(cacheKey, imageData);
-                console.log('[PlayerBrowser] Portrait cached:', cacheKey, 'data length:', imageData.length);
-                if (window.app.agGrid) {
-                  window.app.agGrid.redrawRows();
-                }
-              }
-            }).catch(err => console.error('[PlayerBrowser] Error loading portrait:', err));
-          }
         }
       }
 
@@ -1910,18 +1892,15 @@
         }, 'roster');
       }
 
-      // Pre-load portrait
+      // Pre-load portrait - ALWAYS use PID (PAM only affects in-game face model)
       const pid = playerData.PSXP;
-      const pam = playerData.PEPS;
-      const isGenericPam = pam && typeof pam === 'string' &&
-          (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
       const hasValidPid = pid && pid > 0;
-      const cacheKey = isGenericPam ? `pam_${pam}` : (hasValidPid ? `pid_${pid}` : null);
+      const cacheKey = hasValidPid ? `pid_${pid}` : null;
 
-      console.log('[PlayerBrowser] Portrait pre-load: PID=' + pid + ', PAM=' + pam + ', cacheKey=' + cacheKey);
+      console.log('[PlayerBrowser] Portrait pre-load: PID=' + pid + ', cacheKey=' + cacheKey);
 
       if (cacheKey && !window.app.portraitCache.has(cacheKey)) {
-        if (hasValidPid && window.electronAPI?.portrait?.getByPID) {
+        if (window.electronAPI?.portrait?.getByPID) {
           window.electronAPI.portrait.getByPID(pid).then(imageData => {
             if (imageData && imageData.length > 0) {
               window.app.portraitCache.set(cacheKey, imageData);

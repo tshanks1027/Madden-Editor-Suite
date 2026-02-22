@@ -1357,34 +1357,20 @@ class MaddenEditorApp {
         if (psxpIndex !== -1) {
             paginatedPlayers.forEach((player) => {
                 const pid = this.getPlayerFieldValue(player, 'PSXP');
-                const pam = this.getPlayerFieldValue(player, 'PEPS');
 
-                // Check if this is a generic face based on PAM
-                const isGenericPam = pam && typeof pam === 'string' &&
-                    (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
-
+                // Portrait display: ALWAYS use PID-based lookup
+                // PAM (PEPS) only affects in-game face model, not displayed portrait
+                // This allows users to set generic PAM while keeping real player portraits
                 if (pid !== null && pid !== undefined) {
-                    const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
+                    const cacheKey = `pid_${pid}`;
 
                     if (!this.portraitCache.has(cacheKey)) {
                         this.portraitCache.set(cacheKey, 'loading');
                         portraitsToLoad++;
 
-                        if (isGenericPam) {
-                            // Generic faces - load by PAM
-                            window.electronAPI.portrait.getImageDataByPam(pam).then((imageData) => {
-                                this.portraitCache.set(cacheKey, imageData || null);
-                                portraitsLoaded++;
-                                if (portraitsLoaded === portraitsToLoad && this.agGrid) {
-                                    this.agGrid.refreshCells({ force: true });
-                                }
-                            }).catch(() => {
-                                this.portraitCache.set(cacheKey, null);
-                                portraitsLoaded++;
-                            });
-                        } else if (pid > 0) {
-                            // Real faces - only load from verified PID mapping (not developer portraits)
-                            // getByPID will return null if PID isn't in verified database
+                        if (pid > 0) {
+                            // Load portrait by PID - works for both real players and generic faces
+                            // PIDs like 731, 2583 map to generic face portraits in PID_Portrait_Mapping.csv
                             window.electronAPI.portrait.getByPID(pid).then((imageData) => {
                                 this.portraitCache.set(cacheKey, imageData || null);
                                 portraitsLoaded++;
@@ -1477,7 +1463,8 @@ class MaddenEditorApp {
                 (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
 
             // Use PAM as cache key for generic faces, PID for real faces
-            const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
+            // Portrait: ALWAYS use PID (PAM only affects in-game face model)
+            const cacheKey = `pid_${pid}`;
 
             // ONLY use cache - never trigger new loads during render
             if (this.portraitCache.has(cacheKey)) {
@@ -5716,33 +5703,18 @@ class MaddenEditorApp {
 
         for (const player of paginatedPlayers) {
             const pid = player.PSXP;
-            const pam = player.PEPS;
 
-            // Check if this is a generic face based on PAM
-            const isGenericPam = pam && typeof pam === 'string' &&
-                (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
-
-            // Use PAM as cache key for generic faces, PID for real faces
-            const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
+            // Portrait: ALWAYS use PID (PAM only affects in-game face model)
+            // PIDs like 731, 2583 map to generic face portraits in PID_Portrait_Mapping.csv
+            const cacheKey = `pid_${pid}`;
 
             // Skip if already in cache
             if (this.portraitCache.has(cacheKey)) continue;
 
             this.portraitCache.set(cacheKey, 'loading');
 
-            if (isGenericPam) {
-                // Load by PAM for generic faces (PAM is already in gen_ format)
-                const promise = window.electronAPI.portrait.getImageDataByPam(pam)
-                    .then((imageData) => {
-                        this.portraitCache.set(cacheKey, imageData || null);
-                    })
-                    .catch((err) => {
-                        console.error(`Error loading PAM portrait ${pam}:`, err);
-                        this.portraitCache.set(cacheKey, null);
-                    });
-                loadPromises.push(promise);
-            } else if (pid !== null && pid !== undefined) {
-                // Load by PID for real faces
+            if (pid !== null && pid !== undefined && pid > 0) {
+                // Load portrait by PID - works for both real players and generic faces
                 const promise = window.electronAPI.portrait.getByPID(pid)
                     .then((imageData) => {
                         this.portraitCache.set(cacheKey, imageData || null);
@@ -6329,7 +6301,8 @@ class MaddenEditorApp {
                 (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
 
             // Use PAM-based cache key for generic faces, PID-based for real faces
-            const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
+            // Portrait: ALWAYS use PID (PAM only affects in-game face model)
+            const cacheKey = `pid_${pid}`;
 
             // ONLY use cache - never trigger new loads during render
             if (this.portraitCache.has(cacheKey)) {
@@ -7005,40 +6978,27 @@ class MaddenEditorApp {
             }
 
             const pid = parseInt(prospect.PID);
-            const pam = prospect.PEPS;
 
-            // Check if this is a generic face based on PAM
-            const isGenericPam = pam && typeof pam === 'string' &&
-                (pam.startsWith('gen_') || pam.startsWith('plpo_generic_') || pam.includes('generic'));
-
-            const cacheKey = isGenericPam ? `pam_${pam}` : `pid_${pid}`;
+            // Portrait: ALWAYS use PID (PAM only affects in-game face model)
+            // PIDs like 731, 2583 map to generic face portraits
+            const cacheKey = `pid_${pid}`;
 
             if (!this.portraitCache.has(cacheKey)) {
-                draftPortraitsToLoad.push({ pid, pam, isGenericPam, cacheKey });
+                draftPortraitsToLoad.push({ pid, cacheKey });
             }
         });
 
-        // Load portraits in parallel - by PAM for generic faces, by PID for real faces
-        const loadPromises = draftPortraitsToLoad.map(({ pid, pam, isGenericPam, cacheKey }) => {
+        // Load portraits in parallel by PID
+        const loadPromises = draftPortraitsToLoad.map(({ pid, cacheKey }) => {
             this.portraitCache.set(cacheKey, 'loading');
 
-            if (isGenericPam) {
-                return window.electronAPI.portrait.getImageDataByPam(pam)
-                    .then((imageData) => {
-                        this.portraitCache.set(cacheKey, imageData || null);
-                    })
-                    .catch(() => {
-                        this.portraitCache.set(cacheKey, null);
-                    });
-            } else {
-                return window.electronAPI.portrait.getByPID(pid)
-                    .then((imageData) => {
-                        this.portraitCache.set(cacheKey, imageData || null);
-                    })
-                    .catch(() => {
-                        this.portraitCache.set(cacheKey, null);
-                    });
-            }
+            return window.electronAPI.portrait.getByPID(pid)
+                .then((imageData) => {
+                    this.portraitCache.set(cacheKey, imageData || null);
+                })
+                .catch(() => {
+                    this.portraitCache.set(cacheKey, null);
+                });
         });
 
         // Wait for all portraits to load, then render once
