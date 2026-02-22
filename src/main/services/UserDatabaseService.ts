@@ -20,18 +20,18 @@ import { lookupService } from './lookup-service';
 const RATING_FIELDS = [
   // Core ratings
   'POVR',  // Overall
-  // Physical
+  // Physical - PCOD is the canonical name for Change of Direction (roster uses PELU)
   'PSPD', 'PACC', 'PSTR', 'PAGI', 'PJMP', 'PSTM', 'PINJ', 'PTGH', 'PAWR', 'PCOD',
-  // Running
-  'PBCV', 'PBTK', 'PTRK', 'PELU', 'PSFA', 'PSPN', 'PJKM', 'PCAR',
+  // Running - PELU removed as it's the same as PCOD
+  'PBCV', 'PBTK', 'PTRK', 'PSFA', 'PSPN', 'PJKM', 'PCAR',
   // Passing
   'PTHA', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPWR', 'PPLA',
   // Receiving
   'PCTH', 'PSPC', 'PCIT', 'PSRR', 'PMRR', 'PDRR', 'PREL',
   // Blocking
-  'PRBK', 'PPBK', 'PIBK', 'PLBK', 'PFMS', 'PRNS', 'PPBS', 'PPBP',
+  'PRBK', 'PPBK', 'PIBK', 'PLBK', 'PFMS', 'PRNS', 'PPBS', 'PPBP', 'PRBS', 'PPBF',
   // Defense
-  'PTAK', 'PHIT', 'PPRS', 'PFMV', 'PPWM', 'PBSH', 'PPRC',
+  'PTAK', 'PHIT', 'PPRS', 'PFMV', 'PPWM', 'PBSH', 'PPRC', 'PPUR',
   // Coverage
   'PMCV', 'PZCV',
   // Kicking
@@ -1205,6 +1205,62 @@ class UserDatabaseService {
         editedAt: row.edited_at as string | undefined
       };
     });
+  }
+
+  /**
+   * Get a summary of all years that have season edits
+   * Returns array of {year, count} objects
+   */
+  public getSeasonEditYearsSummary(): Array<{ year: number; count: number }> {
+    if (!this.editsDb) return [];
+
+    const rows = this.editsDb.prepare(`
+      SELECT year, COUNT(*) as count
+      FROM season_edits
+      GROUP BY year
+      ORDER BY year
+    `).all() as Array<{ year: number; count: number }>;
+
+    return rows;
+  }
+
+  /**
+   * Get all season edits for a specific year
+   * Returns a Map of originalPlayerId -> SeasonEdit for fast lookup
+   */
+  public getAllSeasonEditsForYear(year: number): Map<number, SeasonEdit> {
+    if (!this.editsDb) return new Map();
+
+    const rows = this.editsDb.prepare('SELECT * FROM season_edits WHERE year = ?')
+      .all(year) as Record<string, unknown>[];
+
+    const editsMap = new Map<number, SeasonEdit>();
+
+    for (const row of rows) {
+      const ratings: { [key: string]: number } = {};
+      for (const field of RATING_FIELDS) {
+        if (row[field] !== null && row[field] !== undefined) {
+          ratings[field] = row[field] as number;
+        }
+      }
+
+      const edit: SeasonEdit = {
+        id: row.id as number,
+        originalPlayerId: row.original_player_id as number,
+        year: row.year as number,
+        team: row.team as string | undefined,
+        jersey: row.jersey as number | undefined,
+        age: row.age as number | undefined,
+        position: row.position as string | undefined,
+        archetype: row.archetype as string | undefined,
+        ratings,
+        editedAt: row.edited_at as string | undefined
+      };
+
+      editsMap.set(edit.originalPlayerId, edit);
+    }
+
+    return editsMap;
   }
 
   // =============================================
