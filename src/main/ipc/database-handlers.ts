@@ -4276,7 +4276,7 @@ ipcMain.handle('database:calculate-rating-from-stats', async (event, options: {
     const age = playerAge || 25; // Default to 25 if unknown
     const ratingYear = targetYear || year + 1; // Ratings for next year based on previous year stats
 
-    // Use StatsBasedRatingService for proper calculation following the documented formula
+    // Use StatsBasedRatingService to calculate a target OVR from stats
     const generatedRating = statsBasedRatingService.generateRating(
       position,
       seasonStats,
@@ -4285,52 +4285,52 @@ ipcMain.handle('database:calculate-rating-from-stats', async (event, options: {
       ratingYear
     );
 
-    console.log(`[database-handlers] StatsBasedRatingService returned OVR: ${generatedRating.overall}`);
+    console.log(`[database-handlers] StatsBasedRatingService returned target OVR: ${generatedRating.overall}`);
     console.log(`[database-handlers] Breakdown: ${generatedRating.breakdown}`);
 
-    // CRITICAL: Use OVRWeightsCalculator to properly distribute ratings
-    // This ensures the generated ratings will calculate back to the target OVR
-    // using Madden's exact weighted formula
-
-    // Start with base attributes at 70
-    const baseAttrs: { [key: string]: number } = {
-      PSPD: 70, PACC: 70, PSTR: 70, PAGI: 70, PAWR: 70, PJMP: 70, PSTA: 80, PINJ: 85, PTGH: 75,
-      PELU: 70, PTHP: 50, PTAS: 50, PTAM: 50, PTAD: 50, PTOR: 50, PTUP: 50, PPLA: 50, PBSK: 50,
-      PCAR: 70, PBCV: 70, PBKT: 70, PLTR: 70, PLSA: 70, PLSM: 70, PLJM: 70,
-      PCTH: 70, PLCI: 70, PLSC: 70, SRRN: 70, PMRR: 70, PDRR: 70, PLRL: 70,
-      PRBK: 70, PPBK: 70, PPBF: 70, PPBS: 70, PRBF: 70, PRBS: 70, PLIB: 70, PLBK: 70,
-      PTAK: 70, PLHT: 70, PBSG: 70, PLPU: 70, PLPR: 70, PLMC: 70, PLZC: 70, PLPE: 70,
-      PLPM: 70, PFMS: 70, PKPW: 50, PKAC: 50, PKRT: 50
-    };
-
-    // Use the weighted OVR calculator to find adjustments needed to reach target OVR
-    const adjustResult = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
-      baseAttrs,
+    // STEP 1: Generate ALL position-appropriate ratings from stats using StatsBasedRatingService
+    // This fills ALL ratings (physical, passing, running, receiving, blocking, defense, kicking)
+    // based on position and detected archetype
+    const distributedAttrs = statsBasedRatingService.distributeToAttributes(
       generatedRating.overall,
-      position
+      position,
+      seasonStats
     );
 
-    let ratings: Record<string, number>;
+    console.log(`[database-handlers] Step 1: Distributed ${Object.keys(distributedAttrs).length} ratings for ${position}`);
+
+    // STEP 2: Use OVRWeightsCalculator to fine-tune OVR-affecting attributes
+    // This ensures the final OVR matches the game's exact formula
+    const bestArchetype = ovrWeightsCalculator.findBestArchetype(distributedAttrs, position, false);
+    const archetypeName = bestArchetype?.archetype || undefined;
+
+    // Calculate adjustments needed to reach target OVR from the distributed attributes
+    const adjustResult = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+      distributedAttrs,
+      generatedRating.overall,
+      position,
+      archetypeName
+    );
+
+    // STEP 3: Merge - start with all distributed ratings, then apply OVR adjustments
+    let ratings: Record<string, number> = { ...distributedAttrs };
+
     if (adjustResult) {
-      // Apply adjustments to base attributes
-      ratings = { ...baseAttrs };
+      // Apply OVR-affecting adjustments on top of the distributed ratings
       for (const [fieldCode, adj] of Object.entries(adjustResult.adjustments)) {
         ratings[fieldCode] = adj.suggested;
       }
-      // CRITICAL: Set POVR to what the ratings ACTUALLY calculate to, not the target
-      // This ensures database POVR matches what Madden will calculate from the ratings
+      // Set POVR to what the ratings ACTUALLY calculate to using the game's formula
       ratings.POVR = adjustResult.newOVR;
-      console.log(`[database-handlers] Used weighted formula: target=${generatedRating.overall}, achieved=${adjustResult.newOVR}, archetype=${adjustResult.archetype}`);
+      console.log(`[database-handlers] Step 2: Applied game formula adjustments - target=${generatedRating.overall}, achieved=${adjustResult.newOVR}, archetype=${adjustResult.archetype}`);
     } else {
-      // Fallback to old method if weighted calc fails
-      const attrs = statsBasedRatingService.distributeToAttributes(
-        generatedRating.overall,
-        position,
-        seasonStats
-      );
-      ratings = { ...attrs, POVR: generatedRating.overall };
-      console.log(`[database-handlers] Fallback to simple distribution for OVR ${ratings.POVR}`);
+      // Fallback: Calculate OVR from distributed attributes using game formula
+      const calculatedOVR = ovrWeightsCalculator.calculateOVR(distributedAttrs, position);
+      ratings.POVR = calculatedOVR;
+      console.log(`[database-handlers] Step 2: No adjustments needed - game-calculated OVR=${calculatedOVR}`);
     }
+
+    console.log(`[database-handlers] Final: ${Object.keys(ratings).length} total ratings, OVR=${ratings.POVR}`)
 
     console.log(`[database-handlers] Final ratings with OVR ${ratings.POVR}`);
 
@@ -4372,53 +4372,68 @@ ipcMain.handle('database:distribute-ovr-to-ratings', async (event, options: {
       return { success: false, error: 'Position is required' };
     }
 
-    console.log(`[database-handlers] Distributing OVR ${ovr} to ratings for ${position} using weighted formula`);
+    console.log(`[database-handlers] Distributing OVR ${ovr} to ratings for ${position} using game formula`);
 
-    // CRITICAL: Use OVRWeightsCalculator to properly distribute ratings
-    // This uses the same formula Madden uses to calculate OVR, ensuring consistency
-
-    // Start with base attributes at 70 (reasonable middle ground)
-    const baseAttrs: { [key: string]: number } = {
-      PSPD: 70, PACC: 70, PSTR: 70, PAGI: 70, PAWR: 70, PJMP: 70, PSTA: 80, PINJ: 85, PTGH: 75,
-      PELU: 70, PTHP: 50, PTAS: 50, PTAM: 50, PTAD: 50, PTOR: 50, PTUP: 50, PPLA: 50, PBSK: 50,
-      PCAR: 70, PBCV: 70, PBKT: 70, PLTR: 70, PLSA: 70, PLSM: 70, PLJM: 70,
-      PCTH: 70, PLCI: 70, PLSC: 70, SRRN: 70, PMRR: 70, PDRR: 70, PLRL: 70,
-      PRBK: 70, PPBK: 70, PPBF: 70, PPBS: 70, PRBF: 70, PRBS: 70, PLIB: 70, PLBK: 70,
-      PTAK: 70, PLHT: 70, PBSG: 70, PLPU: 70, PLPR: 70, PLMC: 70, PLZC: 70, PLPE: 70,
-      PLPM: 70, PFMS: 70, PKPW: 50, PKAC: 50, PKRT: 50
+    // STEP 1: Generate ALL position-appropriate ratings using StatsBasedRatingService
+    // Use empty stats - the service will use position defaults
+    const emptyStats: PlayerSeasonStats = {
+      year: 2024,
+      games: 16,
+      gamesStarted: 16,
+      passAttempts: 0, passCompletions: 0, passYards: 0, passTDs: 0, passInt: 0, passerRating: 0,
+      rushAttempts: 0, rushYards: 0, rushTDs: 0,
+      receptions: 0, recYards: 0, recTDs: 0, targets: 0,
+      tackles: 0, sacks: 0, interceptions: 0, forcedFumbles: 0, passDefended: 0,
+      fgAttempts: 0, fgMade: 0, fgLong: 0, xpAttempts: 0, xpMade: 0,
+      punts: 0, puntYards: 0, puntInside20: 0
     };
+
+    const distributedAttrs = statsBasedRatingService.distributeToAttributes(
+      ovr,
+      position,
+      emptyStats
+    );
+
+    console.log(`[database-handlers] Step 1: Distributed ${Object.keys(distributedAttrs).length} ratings for ${position}`);
+
+    // STEP 2: Find best archetype and fine-tune OVR-affecting attributes
+    const bestArchetype = ovrWeightsCalculator.findBestArchetype(distributedAttrs, position, false);
+    const archetypeName = bestArchetype?.archetype || undefined;
 
     // Use the weighted OVR calculator to find adjustments needed to reach target OVR
     const result = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
-      baseAttrs,
+      distributedAttrs,
       ovr,
-      position
+      position,
+      archetypeName
     );
 
-    if (!result) {
-      console.error('[database-handlers] Failed to calculate adjustments for target OVR');
-      return { success: false, error: 'Failed to calculate rating distribution' };
+    // STEP 3: Merge - start with all distributed ratings, then apply OVR adjustments
+    const finalAttrs: { [key: string]: number } = { ...distributedAttrs };
+
+    if (result) {
+      for (const [fieldCode, adj] of Object.entries(result.adjustments)) {
+        finalAttrs[fieldCode] = adj.suggested;
+      }
+      // Set POVR to what the ratings ACTUALLY calculate to using the game's formula
+      finalAttrs.POVR = result.newOVR;
+      console.log(`[database-handlers] Step 2: Applied game formula - target=${ovr}, achieved=${result.newOVR}, archetype=${result.archetype}`);
+    } else {
+      // Fallback: Calculate OVR from distributed attributes using game formula
+      const calculatedOVR = ovrWeightsCalculator.calculateOVR(distributedAttrs, position);
+      finalAttrs.POVR = calculatedOVR;
+      console.log(`[database-handlers] Step 2: No adjustments needed - game-calculated OVR=${calculatedOVR}`);
     }
 
-    // Apply adjustments to base attributes
-    const finalAttrs = { ...baseAttrs };
-    for (const [fieldCode, adj] of Object.entries(result.adjustments)) {
-      finalAttrs[fieldCode] = adj.suggested;
-    }
+    console.log(`[database-handlers] Final: ${Object.keys(finalAttrs).length} total ratings, OVR=${finalAttrs.POVR}`);
 
-    // CRITICAL: Set POVR to what the ratings ACTUALLY calculate to, not the target
-    // This ensures database POVR matches what Madden will calculate from the ratings
-    finalAttrs.POVR = result.newOVR;
-
-    console.log(`[database-handlers] Distributed OVR ${ovr} -> achieved OVR ${result.newOVR} with archetype ${result.archetype}`);
-    console.log(`[database-handlers] Adjusted ${Object.keys(result.adjustments).length} attributes`);
-
+    const finalArchetype = result?.archetype || archetypeName || undefined;
     return {
       success: true,
       ratings: finalAttrs,
-      archetype: result.archetype,
-      archetypeId: result.archetype ?
-        Object.entries(ovrWeightsCalculator.getArchetypeWeights(result.archetype) || {}).length : 0
+      archetype: finalArchetype,
+      archetypeId: finalArchetype ?
+        Object.entries(ovrWeightsCalculator.getArchetypeWeights(finalArchetype) || {}).length : 0
     };
   } catch (error) {
     console.error('[database-handlers] Error distributing OVR to ratings:', error);

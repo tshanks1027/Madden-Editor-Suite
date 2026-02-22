@@ -64,18 +64,18 @@ registerCustomPortraitHandlers();
 registerCustomCoachPortraitHandlers();
 registerLogoHandlers();
 
-// Register window focus handler - simple focus without visual disruption
-// Used to ensure keyboard input works after various operations
-ipcMain.handle('window:focus', async () => {
-  const windows = BrowserWindow.getAllWindows();
-  const focusedWindow = windows.find(w => !w.isDestroyed());
-  if (focusedWindow) {
-    // Simple focus - no blur/refocus which causes visual flash
-    focusedWindow.focus();
-    focusedWindow.webContents.focus();
+// Register window focus handler for Windows keyboard input restoration
+ipcMain.handle('window:focus', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win && !win.isDestroyed()) {
+    // Use show() which brings window to front and focuses it
+    win.show();
+    win.focus();
+    // Also focus the webContents to ensure keyboard input works
+    win.webContents.focus();
     return { success: true };
   }
-  return { success: false, error: 'No window available' };
+  return { success: false };
 });
 
 // Get app version

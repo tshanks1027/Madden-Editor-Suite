@@ -22,6 +22,7 @@
   const RATING_FIELDS = [
     // Core ratings
     { field: 'POVR', label: 'Overall', category: 'core' },
+    // Physical - these use DB field names
     { field: 'PSPD', label: 'Speed', category: 'physical' },
     { field: 'PACC', label: 'Acceleration', category: 'physical' },
     { field: 'PSTR', label: 'Strength', category: 'physical' },
@@ -32,14 +33,15 @@
     { field: 'PTGH', label: 'Toughness', category: 'physical' },
     { field: 'PAWR', label: 'Awareness', category: 'mental' },
     { field: 'PCOD', label: 'Change of Direction', category: 'physical' },
+    // Running - DB field names
     { field: 'PBCV', label: 'Ball Carrier Vision', category: 'running' },
     { field: 'PBTK', label: 'Break Tackle', category: 'running' },
     { field: 'PTRK', label: 'Trucking', category: 'running' },
-    { field: 'PELU', label: 'Elusiveness', category: 'running' },
     { field: 'PSFA', label: 'Stiff Arm', category: 'running' },
     { field: 'PSPN', label: 'Spin Move', category: 'running' },
     { field: 'PJKM', label: 'Juke Move', category: 'running' },
     { field: 'PCAR', label: 'Carrying', category: 'running' },
+    // Passing - DB field names
     { field: 'PTHA', label: 'Throw Accuracy', category: 'passing' },
     { field: 'PTAS', label: 'Throw Accuracy Short', category: 'passing' },
     { field: 'PTAM', label: 'Throw Accuracy Mid', category: 'passing' },
@@ -47,7 +49,8 @@
     { field: 'PTOR', label: 'Throw on the Run', category: 'passing' },
     { field: 'PTUP', label: 'Throw Under Pressure', category: 'passing' },
     { field: 'PPWR', label: 'Throw Power', category: 'passing' },
-    { field: 'PPBK', label: 'Play Action', category: 'passing' },
+    { field: 'PPLA', label: 'Play Action', category: 'passing' },
+    // Receiving - DB field names
     { field: 'PCTH', label: 'Catching', category: 'receiving' },
     { field: 'PSPC', label: 'Spectacular Catch', category: 'receiving' },
     { field: 'PCIT', label: 'Catch in Traffic', category: 'receiving' },
@@ -55,25 +58,28 @@
     { field: 'PMRR', label: 'Medium Route Running', category: 'receiving' },
     { field: 'PDRR', label: 'Deep Route Running', category: 'receiving' },
     { field: 'PREL', label: 'Release', category: 'receiving' },
+    // Blocking - DB field names
     { field: 'PRBK', label: 'Run Block', category: 'blocking' },
     { field: 'PPBK', label: 'Pass Block', category: 'blocking' },
     { field: 'PIBK', label: 'Impact Blocking', category: 'blocking' },
     { field: 'PLBK', label: 'Lead Block', category: 'blocking' },
-    { field: 'PFMS', label: 'Run Block Finesse', category: 'blocking' },
-    { field: 'PRNS', label: 'Run Block Power', category: 'blocking' },
-    { field: 'PPBS', label: 'Pass Block Finesse', category: 'blocking' },
+    { field: 'PRNS', label: 'Run Block Finesse', category: 'blocking' },
+    { field: 'PRBS', label: 'Run Block Power', category: 'blocking' },
+    { field: 'PPBF', label: 'Pass Block Finesse', category: 'blocking' },
     { field: 'PPBP', label: 'Pass Block Power', category: 'blocking' },
+    // Defense - DB field names
     { field: 'PTAK', label: 'Tackling', category: 'defense' },
     { field: 'PHIT', label: 'Hit Power', category: 'defense' },
-    { field: 'PPRS', label: 'Pass Rush', category: 'defense' },
+    { field: 'PPRS', label: 'Press', category: 'defense' },
     { field: 'PFMV', label: 'Finesse Moves', category: 'defense' },
     { field: 'PPWM', label: 'Power Moves', category: 'defense' },
     { field: 'PBSH', label: 'Block Shedding', category: 'defense' },
-    { field: 'PPRC', label: 'Pursuit', category: 'defense' },
-    { field: 'PPLA', label: 'Play Recognition', category: 'defense' },
+    { field: 'PPUR', label: 'Pursuit', category: 'defense' },
+    { field: 'PPRC', label: 'Play Recognition', category: 'defense' },
+    // Coverage - DB field names
     { field: 'PMCV', label: 'Man Coverage', category: 'coverage' },
     { field: 'PZCV', label: 'Zone Coverage', category: 'coverage' },
-    { field: 'PPRS', label: 'Press', category: 'coverage' },
+    // Kicking - DB field names
     { field: 'PKAC', label: 'Kick Accuracy', category: 'kicking' },
     { field: 'PKPR', label: 'Kick Power', category: 'kicking' },
     { field: 'PKRT', label: 'Kick Return', category: 'special' }
@@ -94,6 +100,48 @@
     special: 'Special Teams'
   };
 
+  // Map database player card field names to OVR calculator field codes
+  // CRITICAL: The OVRWeightsCalculator uses official Madden roster field codes
+  // The database may store data with different codes, so we map them here
+  const DB_TO_OVR_FIELD_MAP = {
+    'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI', 'PJMP': 'PJMP',
+    'PSTM': 'PSTA', 'PSTA': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',
+    'PCOD': 'PELU', 'PELU': 'PELU', 'PBCV': 'PBCV',
+    'PBTK': 'PBKT', 'PBKT': 'PBKT', 'PTRK': 'PLTR', 'PLTR': 'PLTR',
+    'PSFA': 'PLSA', 'PLSA': 'PLSA', 'PSPN': 'PLSM', 'PLSM': 'PLSM',
+    'PJKM': 'PLJM', 'PLJM': 'PLJM', 'PCAR': 'PCAR',
+    'PTAS': 'PTAS', 'PTAM': 'PTAM', 'PTAD': 'PTAD',
+    'PTOR': 'PTOR', 'PTUP': 'PTUP', 'PPWR': 'PTHP', 'PTHP': 'PTHP',
+    'PCTH': 'PCTH', 'PSPC': 'PLSC', 'PLSC': 'PLSC', 'PCIT': 'PLCI', 'PLCI': 'PLCI',
+    'PSRR': 'SRRN', 'SRRN': 'SRRN', 'PMRR': 'PMRR', 'PDRR': 'PDRR',
+    'PREL': 'PLRL', 'PLRL': 'PLRL',
+    'PRBK': 'PRBK', 'PPBK': 'PPBK', 'PIBK': 'PLIB', 'PLIB': 'PLIB', 'PLBK': 'PLBK',
+    'PFMS': 'PFMS', 'PRNS': 'PRBF', 'PRBS': 'PRBS', 'PRBF': 'PRBF',  // PRNS in DB = Run Block Finesse (PRBF)
+    'PPBF': 'PPBF', 'PPBP': 'PPBS', 'PPBS': 'PPBS',  // PPBP in DB = Pass Block Power (PPBS)
+    'PTAK': 'PTAK',
+    'PHIT': 'PLHT', 'PLHT': 'PLHT',
+    'PFMV': 'PFMS', 'PPWM': 'PLPM', 'PLPM': 'PLPM',
+    'PBSH': 'PBSG', 'PBSG': 'PBSG',
+    'PPUR': 'PLPU', 'PLPU': 'PLPU',  // PPUR in old CSV = Pursuit, maps to PLPU
+    'PPRC': 'PLPR', 'PLPR': 'PLPR',  // PPRC in old CSV = Play Recognition, maps to PLPR
+    'PPLA': 'PPLA',  // Play Action stays as Play Action (QB attribute)
+    'PMCV': 'PLMC', 'PLMC': 'PLMC', 'PZCV': 'PLZC', 'PLZC': 'PLZC',
+    'PPRS': 'PLPE', 'PLPE': 'PLPE', 'PBSK': 'PBSK',
+    'PKAC': 'PKAC', 'PKPR': 'PKPR', 'PKRT': 'PKRT'
+  };
+
+  // Reverse map: OVR calculator field codes to database field names
+  // This converts roster/OVR codes to what's stored in the DB
+  const OVR_TO_DB_FIELD_MAP = {
+    'PSTA': 'PSTM', 'PELU': 'PCOD', 'PBKT': 'PBTK', 'PLTR': 'PTRK',
+    'PLSA': 'PSFA', 'PLSM': 'PSPN', 'PLJM': 'PJKM', 'PTHP': 'PPWR',
+    'PLSC': 'PSPC', 'PLCI': 'PCIT', 'SRRN': 'PSRR', 'PLRL': 'PREL',
+    'PLIB': 'PIBK', 'PRBF': 'PRNS', 'PRBS': 'PRBS', 'PPBF': 'PPBF', 'PPBS': 'PPBP',
+    'PLHT': 'PHIT', 'PLPM': 'PPWM', 'PBSG': 'PBSH', 'PFMS': 'PFMV',
+    'PLPU': 'PPUR', 'PLPR': 'PPRC', 'PPLA': 'PPLA',
+    'PLMC': 'PMCV', 'PLZC': 'PZCV', 'PLPE': 'PPRS'
+  };
+
   /**
    * Initialize the database player card module
    */
@@ -105,6 +153,23 @@
 
     // Load dropdown options
     await loadDropdownOptions();
+
+    // DEBUG: Track focus issues - log when modal inputs receive/lose focus
+    var modal = document.getElementById('dbPlayerCardModal');
+    if (modal) {
+      modal.addEventListener('focusin', function(e) {
+        console.log('[DEBUG] Focus IN:', e.target.tagName, e.target.id || e.target.className);
+      });
+      modal.addEventListener('focusout', function(e) {
+        console.log('[DEBUG] Focus OUT:', e.target.tagName, e.target.id || e.target.className, '-> new focus:', document.activeElement?.tagName, document.activeElement?.id);
+      });
+      // DEBUG: Track if clicks are being received
+      modal.addEventListener('click', function(e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+          console.log('[DEBUG] Click on input:', e.target.tagName, e.target.id, 'disabled:', e.target.disabled, 'readonly:', e.target.readOnly);
+        }
+      }, true);
+    }
 
     console.log('[DatabasePlayerCard] Initialized');
   }
@@ -268,12 +333,20 @@
       });
     }
 
-    // Track changes on all inputs
+    // Track changes on all inputs - use both 'input' (immediate) and 'change' (on blur) events
     document.querySelectorAll('#dbPlayerCardModal input, #dbPlayerCardModal select').forEach(function(input) {
+      // 'change' fires on blur for text inputs, immediately for selects
       input.addEventListener('change', function() {
         hasUnsavedChanges = true;
         updateSaveButtonState();
       });
+      // 'input' fires immediately on every keystroke for text inputs
+      if (input.type !== 'checkbox' && input.tagName !== 'SELECT') {
+        input.addEventListener('input', function() {
+          hasUnsavedChanges = true;
+          updateSaveButtonState();
+        });
+      }
     });
 
     // PID change listener - update portrait when PID changes
@@ -616,6 +689,13 @@
             pam: result.data.maddenPam, // maddenPam, not pam
             plpo: result.data.maddenPlpo, // maddenPlpo, not plpo
             commID: result.data.maddenCommid, // maddenCommid, not commID
+            // PGHE fields for generic face support
+            pghe: result.data.maddenPghe,
+            pfcg: result.data.maddenPfcg,
+            gpan: result.data.maddenGpan,
+            gslp: result.data.maddenGslp,
+            cpvf: result.data.maddenCpvf,
+            skinTone: result.data.maddenSkinTone,
             isCustom: true
           };
         }
@@ -868,24 +948,24 @@
     WHIRLWIND: { display: 'Whirlwind', description: 'Ball carrier spins through contact effectively', category: 'Ball Carrier', positions: ['HB', 'FB', 'WR', 'TE'] },
 
     // Defensive Traits - Position-specific (includes both old and M26 position codes)
-    BIGHITTER: { display: 'Big Hitter', description: 'Defender delivers powerful hits', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    BIGHITTER: { display: 'Big Hitter', description: 'Defender delivers powerful hits', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
     BOUNCER: { display: 'Bouncer', description: 'Defender bounces off blocks effectively', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
     BULL: { display: 'Bull Rush', description: 'Pass rusher uses power to push through blockers', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
-    DISCIPLINED: { display: 'Disciplined', description: 'Player rarely commits penalties', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    DISCIPLINED: { display: 'Disciplined', description: 'Player rarely commits penalties', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
     FLYSWATTER: { display: 'Fly Swatter', description: 'Defender swats down passes at the line', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
-    HAMMERHEAD: { display: 'Hammerhead', description: 'Defender uses head-first tackling style', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-    HEADHUNTER: { display: 'Head Hunter', description: 'Defender targets ball carriers aggressively', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-    KNEECAPBITER: { display: 'Kneecap Biter', description: 'Defender goes low for tackles', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-    PLAYBALL: { display: 'Play Ball', description: 'Defender goes for interceptions', category: 'Defense', positions: ['LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    HAMMERHEAD: { display: 'Hammerhead', description: 'Defender uses head-first tackling style', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+    HEADHUNTER: { display: 'Head Hunter', description: 'Defender targets ball carriers aggressively', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+    KNEECAPBITER: { display: 'Kneecap Biter', description: 'Defender goes low for tackles', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+    PLAYBALL: { display: 'Play Ball', description: 'Defender goes for interceptions', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
     PLAYBALLAGGRESSIVE: { display: 'Play Ball Aggressive', description: 'Defender aggressively attacks the ball', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
     PLAYBALLCONSERVATIVE: { display: 'Play Ball Conservative', description: 'Defender plays it safe and goes for swats', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
     PLAYRECEIVER: { display: 'Play Receiver', description: 'Defender focuses on the receiver, not the ball', category: 'Defense', positions: ['CB', 'FS', 'SS'] },
     PLAYDEFENDER: { display: 'Play Defender', description: 'Defender focuses on the offensive player', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
-    PUNCHITOUT: { display: 'Punch It Out', description: 'Defender goes for forced fumbles', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-    SAFETACKLER: { display: 'Safe Tackler', description: 'Defender wraps up for secure tackles', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    PUNCHITOUT: { display: 'Punch It Out', description: 'Defender goes for forced fumbles', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+    SAFETACKLER: { display: 'Safe Tackler', description: 'Defender wraps up for secure tackles', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
     SEDENTARY: { display: 'Sedentary', description: 'Defender is slow to react', category: 'Defense', positions: ['LEDG', 'REDG', 'DT'] },
-    STRIPSBALL: { display: 'Strips Ball', description: 'Defender actively tries to strip the ball', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
-    UNDISCIPLINED: { display: 'Undisciplined', description: 'Player commits penalties more often', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    STRIPSBALL: { display: 'Strips Ball', description: 'Defender actively tries to strip the ball', category: 'Defense', positions: ['LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+    UNDISCIPLINED: { display: 'Undisciplined', description: 'Player commits penalties more often', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
 
     // Pass Rusher Traits - DL/Edge and edge-rushing LBs only
     FINESSERUSHER: { display: 'Finesse Rusher', description: 'Pass rusher uses speed and agility moves', category: 'Pass Rush', positions: ['LEDG', 'REDG', 'DT', 'LOLB', 'ROLB', 'SAM', 'WILL'] },
@@ -903,12 +983,12 @@
     DIVECELEBRATION: { display: 'Dive Celebration', description: 'Player dives into the end zone', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE'] },
     DOUBLEBACK: { display: 'Double Back', description: 'Ball carrier reverses field', category: 'Other', positions: ['HB', 'FB', 'WR', 'TE'] },
     EARLYCELEBRATION: { display: 'Early Celebration', description: 'Player celebrates before crossing goal line', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE'] },
-    GASGUZZLER: { display: 'Gas Guzzler', description: 'Player tires out faster', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'LOLB', 'MLB', 'ROLB', 'SAM', 'Mike', 'WILL', 'CB', 'FS', 'SS'] },
+    GASGUZZLER: { display: 'Gas Guzzler', description: 'Player tires out faster', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
     JAMMER: { display: 'Red Zone Jammer', description: 'Defender excels in red zone coverage', category: 'Other', positions: ['CB', 'FS', 'SS'] }
   };
 
   const POSITION_ALIASES = {
-    'Mike': 'MLB', 'SAM': 'LOLB', 'WILL': 'ROLB', 'LE': 'LEDG', 'RE': 'REDG'
+    'MLB': 'MIKE', 'Mike': 'MIKE', 'LOLB': 'WILL', 'ROLB': 'SAM', 'LE': 'LEDG', 'RE': 'REDG'
   };
 
   const TRAIT_CATEGORIES = {
@@ -1162,7 +1242,27 @@
     setValue('dbPlayerHeight', player.height || '');
     setValue('dbPlayerWeight', player.weight || '');
     setValue('dbPlayerRace', player.race !== undefined ? player.race : '');
-    setValue('dbPlayerHomeState', player.homeState || '');
+    // homeState can be either a numeric ID or a state name string
+    // The dropdown uses numeric IDs as values, so we need to convert name to ID if needed
+    var homeStateVal = player.homeState;
+    if (homeStateVal !== undefined && homeStateVal !== null && homeStateVal !== '') {
+      var stateSelect = document.getElementById('dbPlayerHomeState');
+      if (stateSelect) {
+        // Check if it's already a valid numeric ID
+        var foundById = Array.from(stateSelect.options).find(opt => opt.value === String(homeStateVal));
+        if (!foundById) {
+          // It's a state name, find the corresponding ID
+          var homeStateLower = String(homeStateVal).toLowerCase();
+          var foundByName = Array.from(stateSelect.options).find(opt =>
+            opt.textContent.toLowerCase() === homeStateLower
+          );
+          if (foundByName) {
+            homeStateVal = foundByName.value;
+          }
+        }
+      }
+    }
+    setValue('dbPlayerHomeState', homeStateVal || '');
     // bodyType comes as "0.0" string from DB, need to convert to int for dropdown match
     var bodyTypeVal = player.bodyType !== undefined ? Math.floor(parseFloat(player.bodyType)) : '';
     setValue('dbPlayerBodyType', bodyTypeVal);
@@ -1179,16 +1279,20 @@
     setValue('dbPlayerCareerTo', player.careerTo || '');
 
     // Madden IDs - API uses 'pid', 'pam', 'plpo', 'commID'
-    // Use custom portrait PID if assigned, otherwise use stored PID
-    var effectivePid = customPortraitPid || player.pid || '';
+    // Priority: player.pid (from appearance edits/merged data) > customPortraitPid > empty
+    // The player.pid already includes appearance edit PID via getEffectivePid in getMergedPlayer
+    // Only fall back to customPortraitPid if player.pid is not set
+    var effectivePid = player.pid || customPortraitPid || '';
     setValue('dbPlayerPID', effectivePid);
     setValue('dbPlayerPAM', player.pam || '');
     setValue('dbPlayerPLPO', player.plpo || '');
     setValue('dbPlayerCommID', player.commID || '');
 
-    // If we have a custom portrait PID, log it for debugging
-    if (customPortraitPid) {
-      console.log('[DatabasePlayerCard] Using custom portrait PID:', customPortraitPid, 'instead of stored PID:', player.pid);
+    // Log which PID source was used for debugging
+    if (player.pid) {
+      console.log('[DatabasePlayerCard] Using player.pid from merged data:', player.pid);
+    } else if (customPortraitPid) {
+      console.log('[DatabasePlayerCard] Using fallback custom portrait PID:', customPortraitPid);
     }
 
     // Stats
@@ -1547,6 +1651,7 @@
       }
 
       // Define all rating columns - grouped by category
+      // CRITICAL: Use DB field names (PCOD, PPUR, etc.) NOT roster field names (PELU, PLPU)
       var ratingColumns = [
         // Core
         { field: 'POVR', label: 'OVR', highlight: true },
@@ -1556,51 +1661,55 @@
         { field: 'PAGI', label: 'AGI' },
         { field: 'PAWR', label: 'AWR' },
         { field: 'PJMP', label: 'JMP' },
-        { field: 'PSTM', label: 'STA' },
+        { field: 'PSTM', label: 'STA' },  // DB uses PSTM, roster uses PSTA
         { field: 'PINJ', label: 'INJ' },
         { field: 'PTGH', label: 'TGH' },
-        { field: 'PCOD', label: 'COD' },
+        { field: 'PCOD', label: 'COD' },  // DB uses PCOD, roster uses PELU
         // Passing
-        { field: 'PPWR', label: 'THP', category: 'pass' },
+        { field: 'PPWR', label: 'THP', category: 'pass' },  // DB uses PPWR, roster uses PTHP
         { field: 'PTAS', label: 'TAS', category: 'pass' },
         { field: 'PTAM', label: 'TAM', category: 'pass' },
         { field: 'PTAD', label: 'TAD', category: 'pass' },
         { field: 'PTOR', label: 'TOR', category: 'pass' },
         { field: 'PTUP', label: 'TUP', category: 'pass' },
+        { field: 'PPLA', label: 'PAC', category: 'pass' },
         // Running
         { field: 'PCAR', label: 'CAR', category: 'run' },
         { field: 'PBCV', label: 'BCV', category: 'run' },
-        { field: 'PBTK', label: 'BTK', category: 'run' },
-        { field: 'PTRK', label: 'TRK', category: 'run' },
-        { field: 'PELU', label: 'ELU', category: 'run' },
-        { field: 'PSFA', label: 'SFA', category: 'run' },
-        { field: 'PSPN', label: 'SPN', category: 'run' },
-        { field: 'PJKM', label: 'JKM', category: 'run' },
+        { field: 'PBTK', label: 'BTK', category: 'run' },  // DB uses PBTK, roster uses PBKT
+        { field: 'PTRK', label: 'TRK', category: 'run' },  // DB uses PTRK, roster uses PLTR
+        { field: 'PSFA', label: 'SFA', category: 'run' },  // DB uses PSFA, roster uses PLSA
+        { field: 'PSPN', label: 'SPN', category: 'run' },  // DB uses PSPN, roster uses PLSM
+        { field: 'PJKM', label: 'JKM', category: 'run' },  // DB uses PJKM, roster uses PLJM
         // Receiving
         { field: 'PCTH', label: 'CTH', category: 'rec' },
-        { field: 'PSPC', label: 'SPC', category: 'rec' },
-        { field: 'PCIT', label: 'CIT', category: 'rec' },
-        { field: 'PSRR', label: 'SRR', category: 'rec' },
+        { field: 'PSPC', label: 'SPC', category: 'rec' },  // DB uses PSPC, roster uses PLSC
+        { field: 'PCIT', label: 'CIT', category: 'rec' },  // DB uses PCIT, roster uses PLCI
+        { field: 'PSRR', label: 'SRR', category: 'rec' },  // DB uses PSRR, roster uses SRRN
         { field: 'PMRR', label: 'MRR', category: 'rec' },
         { field: 'PDRR', label: 'DRR', category: 'rec' },
-        { field: 'PREL', label: 'RLS', category: 'rec' },
+        { field: 'PREL', label: 'RLS', category: 'rec' },  // DB uses PREL, roster uses PLRL
         // Blocking
         { field: 'PRBK', label: 'RBK', category: 'blk' },
-        { field: 'PPBK2', label: 'PBK', category: 'blk' },
-        { field: 'PIBK', label: 'IBL', category: 'blk' },
+        { field: 'PPBK', label: 'PBK', category: 'blk' },
+        { field: 'PIBK', label: 'IBL', category: 'blk' },  // DB uses PIBK, roster uses PLIB
         { field: 'PLBK', label: 'LBK', category: 'blk' },
+        { field: 'PRNS', label: 'RBF', category: 'blk' },  // Run Block Finesse - DB uses PRNS, roster uses PRBF
+        { field: 'PRBS', label: 'RBS', category: 'blk' },  // Run Block Strength/Power
+        { field: 'PPBF', label: 'PBF', category: 'blk' },  // Pass Block Finesse
+        { field: 'PPBP', label: 'PBS', category: 'blk' },  // Pass Block Power - DB uses PPBP, roster uses PPBS
         // Defense
         { field: 'PTAK', label: 'TAK', category: 'def' },
-        { field: 'PHIT', label: 'POW', category: 'def' },
-        { field: 'PPWM', label: 'PMV', category: 'def' },
-        { field: 'PFMV', label: 'FMV', category: 'def' },
-        { field: 'PBSH', label: 'BSH', category: 'def' },
-        { field: 'PPRC', label: 'PUR', category: 'def' },
-        { field: 'PPLA', label: 'PRC', category: 'def' },
+        { field: 'PHIT', label: 'POW', category: 'def' },  // DB uses PHIT, roster uses PLHT
+        { field: 'PPWM', label: 'PMV', category: 'def' },  // DB uses PPWM, roster uses PLPM
+        { field: 'PFMV', label: 'FMV', category: 'def' },  // DB uses PFMV, roster uses PFMS
+        { field: 'PBSH', label: 'BSH', category: 'def' },  // DB uses PBSH, roster uses PBSG
+        { field: 'PPUR', label: 'PUR', category: 'def' },  // DB uses PPUR, roster uses PLPU
+        { field: 'PPRC', label: 'PRC', category: 'def' },  // DB uses PPRC, roster uses PLPR
         // Coverage
-        { field: 'PMCV', label: 'MCV', category: 'cov' },
-        { field: 'PZCV', label: 'ZCV', category: 'cov' },
-        { field: 'PPRS', label: 'PRS', category: 'cov' },
+        { field: 'PMCV', label: 'MCV', category: 'cov' },  // DB uses PMCV, roster uses PLMC
+        { field: 'PZCV', label: 'ZCV', category: 'cov' },  // DB uses PZCV, roster uses PLZC
+        { field: 'PPRS', label: 'PRS', category: 'cov' },  // DB uses PPRS, roster uses PLPE
         // Kicking
         { field: 'PKPR', label: 'KPW', category: 'kick' },
         { field: 'PKAC', label: 'KAC', category: 'kick' },
@@ -1663,16 +1772,16 @@
           html += '<option value="' + abbr + '"' + selected + '>' + abbr + '</option>';
         });
         html += '</select></td>';
-        // Age - editable input, saves on blur or Enter key
-        html += '<td style="padding: 2px; text-align: center;"><input type="number" min="18" max="50" style="' + inputStyle + '" data-year="' + yr + '" data-field="age" value="' + (s.age || '') + '" onblur="window.saveAllYearsRatingEdit(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}"></td>';
-        // All rating columns - editable inputs, save on blur or Enter key
+        // Age - editable input, saves after short delay on blur to not interfere with focus
+        html += '<td style="padding: 2px; text-align: center;"><input type="number" min="18" max="50" style="' + inputStyle + '" data-year="' + yr + '" data-field="age" value="' + (s.age || '') + '" onblur="var el=this;setTimeout(function(){window.saveAllYearsRatingEdit(el)},50)" onkeydown="if(event.key===\'Enter\'){this.blur();}"></td>';
+        // All rating columns - editable inputs
         ratingColumns.forEach(function(col) {
           var val = r[col.field] || '';
           var style = inputStyle;
           if (col.highlight) {
             style += ' font-weight: bold; color: #4caf50; background: #1a2a1a;';
           }
-          html += '<td style="padding: 2px; text-align: center;"><input type="number" min="0" max="99" style="' + style + '" data-year="' + yr + '" data-field="' + col.field + '" value="' + val + '" onblur="window.saveAllYearsRatingEdit(this)" onkeydown="if(event.key===\'Enter\'){this.blur();}"></td>';
+          html += '<td style="padding: 2px; text-align: center;"><input type="number" min="0" max="99" style="' + style + '" data-year="' + yr + '" data-field="' + col.field + '" value="' + val + '" onblur="var el=this;setTimeout(function(){window.saveAllYearsRatingEdit(el)},50)" onkeydown="if(event.key===\'Enter\'){this.blur();}"></td>';
         });
         html += '</tr>';
       });
@@ -1682,10 +1791,283 @@
 
       container.innerHTML = html;
 
+      // CRITICAL: Recalculate OVR for all rows after table is rendered
+      // This ensures displayed OVR matches what the calculation produces
+      // Uses the SAME calculation as roster editor (calculateOVRForArchetypes)
+      var position = currentDbPlayer ? currentDbPlayer.position : null;
+      if (position) {
+        var rows = container.querySelectorAll('tbody tr');
+        for (var rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+          var row = rows[rowIdx];
+          var ovrInput = row.querySelector('input[data-field="POVR"]');
+          if (!ovrInput) continue;
+
+          // Collect all rating values from this row
+          var attributes = {};
+          var inputs = row.querySelectorAll('input[data-field]');
+          inputs.forEach(function(inp) {
+            var field = inp.dataset.field;
+            var val = inp.value ? parseInt(inp.value, 10) : 0;
+            if (field && field !== 'age' && field !== 'POVR' && !isNaN(val) && val > 0) {
+              // Map to the OVR calculator's expected field code
+              var ovrFieldCode = DB_TO_OVR_FIELD_MAP[field] || field;
+              attributes[ovrFieldCode] = val;
+            }
+          });
+
+          // Only recalculate if we have enough attributes
+          if (Object.keys(attributes).length >= 5) {
+            try {
+              var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+              if (archetypeResults && archetypeResults.length > 0) {
+                var bestOVR = archetypeResults[0].ovr;
+                var storedOVR = parseInt(ovrInput.value) || 0;
+                if (bestOVR !== storedOVR) {
+                  console.log('[DbPlayerCard] Row', rowIdx, 'OVR mismatch: stored=' + storedOVR + ', calculated=' + bestOVR + ' - updating display');
+                  ovrInput.value = bestOVR;
+                }
+              }
+            } catch (e) {
+              console.warn('[DbPlayerCard] Could not recalculate OVR for row', rowIdx, ':', e.message);
+            }
+          }
+        }
+      }
+
+      // Setup right-click context menu for fill operations
+      setupRatingsTableContextMenu(container);
+
     } catch (error) {
       console.error('[DbPlayerCard] Error loading all years ratings:', error);
       container.innerHTML = '<p style="color: #f44336; text-align: center; padding: 20px;">Error loading ratings: ' + error.message + '</p>';
     }
+  }
+
+  /**
+   * Setup right-click context menu for ratings table fill operations
+   */
+  function setupRatingsTableContextMenu(tableContainer) {
+
+    // Create context menu if it doesn't exist
+    var menuId = 'ratings-fill-context-menu';
+    var menu = document.getElementById(menuId);
+    if (!menu) {
+      menu = document.createElement('div');
+      menu.id = menuId;
+      menu.style.cssText = 'position: fixed; display: none; background: #2a2a2a; border: 1px solid #555; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 999999; min-width: 180px; padding: 4px 0;';
+      var menuItemStyle = 'padding: 8px 16px; cursor: pointer; color: #e0e0e0; font-size: 13px; transition: background 0.15s;';
+      menu.innerHTML = '<div id="fill-down-option" style="' + menuItemStyle + '">' +
+        '<span style="margin-right: 8px;">&#x2193;</span> Fill Empty Below</div>' +
+        '<div id="fill-down-increment-option" style="' + menuItemStyle + ' display: none;">' +
+        '<span style="margin-right: 8px;">&#x2193;</span> Fill Below (+1 each)</div>' +
+        '<div style="border-top: 1px solid #444; margin: 4px 0;"></div>' +
+        '<div id="fill-all-option" style="' + menuItemStyle + '">' +
+        '<span style="margin-right: 8px;">&#x2195;</span> Fill All Empty</div>' +
+        '<div id="fill-all-increment-option" style="' + menuItemStyle + ' display: none;">' +
+        '<span style="margin-right: 8px;">&#x2195;</span> Fill All (+1 each)</div>';
+      document.body.appendChild(menu);
+
+      // Add hover effects
+      menu.querySelectorAll('div[id]').forEach(function(item) {
+        item.addEventListener('mouseenter', function() { this.style.background = '#3a3a3a'; });
+        item.addEventListener('mouseleave', function() { this.style.background = ''; });
+      });
+
+      // Hide menu on click elsewhere (but not on right-click)
+      // Use mousedown instead of click to avoid race with contextmenu
+      document.addEventListener('mousedown', function(e) {
+        // Don't hide on right-click (button 2)
+        if (e.button === 2) return;
+        // Don't hide if clicking inside the menu
+        if (menu.contains(e.target)) return;
+        menu.style.display = 'none';
+      });
+
+      // Setup click handlers once (store tableContainer reference on menu)
+      document.getElementById('fill-down-option').onclick = async function() {
+        var ctx = menu._contextData;
+        if (!ctx) return;
+        menu.style.display = 'none';
+        await fillColumnValues(ctx.tableContainer, ctx.input, 'down', false);
+      };
+
+      document.getElementById('fill-down-increment-option').onclick = async function() {
+        var ctx = menu._contextData;
+        if (!ctx) return;
+        menu.style.display = 'none';
+        await fillColumnValues(ctx.tableContainer, ctx.input, 'down', true);
+      };
+
+      document.getElementById('fill-all-option').onclick = async function() {
+        var ctx = menu._contextData;
+        if (!ctx) return;
+        menu.style.display = 'none';
+        await fillColumnValues(ctx.tableContainer, ctx.input, 'all', false);
+      };
+
+      document.getElementById('fill-all-increment-option').onclick = async function() {
+        var ctx = menu._contextData;
+        if (!ctx) return;
+        menu.style.display = 'none';
+        await fillColumnValues(ctx.tableContainer, ctx.input, 'all', true);
+      };
+    }
+
+    // Add context menu to all inputs in the table
+    var inputs = tableContainer.querySelectorAll('input[data-field]');
+    inputs.forEach(function(input) {
+      input.addEventListener('contextmenu', function(e) {
+        var value = input.value ? parseInt(input.value, 10) : null;
+
+        // Only show menu if cell has a value
+        if (value === null || isNaN(value)) {
+          return; // Let default context menu show
+        }
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Get menu element
+        var menuEl = document.getElementById('ratings-fill-context-menu');
+        if (!menuEl) return;
+
+        // Store context data on the menu element
+        menuEl._contextData = {
+          input: input,
+          tableContainer: tableContainer
+        };
+
+        var field = input.dataset.field;
+        var isAge = (field === 'age');
+
+        // Show/hide increment options based on field type
+        document.getElementById('fill-down-increment-option').style.display = isAge ? 'block' : 'none';
+        document.getElementById('fill-all-increment-option').style.display = isAge ? 'block' : 'none';
+
+        // Position and show menu
+        menuEl.style.left = e.clientX + 'px';
+        menuEl.style.top = e.clientY + 'px';
+        menuEl.style.display = 'block';
+
+        // Ensure menu stays in viewport
+        var rect = menuEl.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+          menuEl.style.left = (window.innerWidth - rect.width - 10) + 'px';
+        }
+        if (rect.bottom > window.innerHeight) {
+          menuEl.style.top = (window.innerHeight - rect.height - 10) + 'px';
+        }
+      });
+    });
+  }
+
+  /**
+   * Fill column values from a source cell
+   * @param {HTMLElement} tableContainer - The table container
+   * @param {HTMLInputElement} sourceInput - The source input with the value
+   * @param {string} direction - 'down' for below only, 'all' for entire column
+   * @param {boolean} increment - If true, add 1 per row (for age)
+   */
+  async function fillColumnValues(tableContainer, sourceInput, direction, increment) {
+    var field = sourceInput.dataset.field;
+    var sourceYear = parseInt(sourceInput.dataset.year, 10);
+    var sourceValue = parseInt(sourceInput.value, 10);
+
+    if (isNaN(sourceValue)) {
+      console.warn('[DbPlayerCard] Cannot fill - source value is not a number');
+      return;
+    }
+
+    // Get all inputs for this field
+    var allInputs = tableContainer.querySelectorAll('input[data-field="' + field + '"]');
+    var inputsArray = Array.from(allInputs);
+
+    // Find source index
+    var sourceIndex = -1;
+    for (var i = 0; i < inputsArray.length; i++) {
+      if (parseInt(inputsArray[i].dataset.year, 10) === sourceYear) {
+        sourceIndex = i;
+        break;
+      }
+    }
+
+    if (sourceIndex === -1) {
+      console.error('[DbPlayerCard] Could not find source cell');
+      return;
+    }
+
+    // Determine which cells to fill
+    var startIndex = (direction === 'all') ? 0 : sourceIndex + 1;
+    var endIndex = inputsArray.length;
+
+    var filledCount = 0;
+    var errors = [];
+
+    for (var idx = startIndex; idx < endIndex; idx++) {
+      var input = inputsArray[idx];
+      var currentValue = input.value ? parseInt(input.value, 10) : null;
+
+      // Skip if cell already has a value (only fill empty)
+      if (currentValue !== null && !isNaN(currentValue)) {
+        continue;
+      }
+
+      // Skip the source cell itself
+      if (idx === sourceIndex) {
+        continue;
+      }
+
+      // Calculate value (with increment if requested)
+      var newValue;
+      if (increment) {
+        // Calculate offset from source
+        var offset = idx - sourceIndex;
+        newValue = sourceValue + offset;
+        // Clamp age to valid range
+        if (field === 'age') {
+          newValue = Math.max(18, Math.min(50, newValue));
+        }
+      } else {
+        newValue = sourceValue;
+      }
+
+      // Clamp rating values
+      if (field !== 'age') {
+        newValue = Math.max(0, Math.min(99, newValue));
+      }
+
+      // Set value in UI
+      input.value = newValue;
+
+      // Save to database
+      try {
+        await saveAllYearsRatingEdit(input);
+        filledCount++;
+
+        // Visual feedback
+        input.style.backgroundColor = 'rgba(33, 150, 243, 0.3)';
+        setTimeout(function(el) {
+          return function() { el.style.backgroundColor = ''; };
+        }(input), 800);
+      } catch (e) {
+        errors.push(e.message);
+        console.error('[DbPlayerCard] Error filling cell:', e);
+      }
+    }
+
+    // Show result
+    var message = 'Filled ' + filledCount + ' cell(s)';
+    if (increment) {
+      message += ' with increment';
+    }
+    if (errors.length > 0) {
+      message += ' (' + errors.length + ' errors)';
+    }
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, errors.length > 0 ? 'warning' : 'success');
+    }
+
+    console.log('[DbPlayerCard] ' + message);
   }
 
   /**
@@ -1714,7 +2096,6 @@
 
     try {
       if (field === 'age' || field === 'team') {
-        // Age and Team are season fields, not ratings
         var seasonData = {};
         seasonData[field] = value;
         if (isCustomPlayer) {
@@ -1723,14 +2104,12 @@
           await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, seasonData);
         }
 
-        // If team changed, refresh career stats to show updated team
         if (field === 'team' && currentDbPlayer && careerStatsData) {
           setTimeout(async function() {
             await renderCareerStatsAllYears(careerStatsData);
           }, 100);
         }
       } else {
-        // Rating fields
         var ratings = {};
         ratings[field] = value;
         if (isCustomPlayer) {
@@ -1739,8 +2118,6 @@
           await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, { ratings: ratings });
         }
 
-        // If OVR was changed, distribute to ratings
-        // If a rating was changed, recalculate OVR
         if (field === 'POVR') {
           await distributeOVRToRatingsForRow(input, year, value);
         } else {
@@ -1751,14 +2128,10 @@
       // Visual feedback
       if (isSelect) {
         input.style.outline = '2px solid rgba(76, 175, 80, 0.6)';
-        setTimeout(function() {
-          input.style.outline = '';
-        }, 500);
+        setTimeout(function() { input.style.outline = ''; }, 500);
       } else {
         input.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
-        setTimeout(function() {
-          input.style.backgroundColor = '';
-        }, 500);
+        setTimeout(function() { input.style.backgroundColor = ''; }, 500);
       }
 
       hasUnsavedChanges = true;
@@ -1782,49 +2155,58 @@
 
   /**
    * Recalculate OVR for a row in the all-years table when a rating changes
+   * Also syncs archetype to match what Madden will assign based on ratings
    */
   async function recalculateOVRForRow(changedInput, year) {
     // Find the row containing this input
     var row = changedInput.closest('tr');
     if (!row) return;
 
-    // Get position and archetype from the player
+    // Get position from the player
     var position = currentDbPlayer ? currentDbPlayer.position : null;
     if (!position) {
       console.log('[DbPlayerCard] No position for OVR calculation');
       return;
     }
 
-    // Collect all rating values from the row
+    // Collect all rating values from the row, mapping to OVR calculator field codes
     var attributes = {};
     var inputs = row.querySelectorAll('input[data-field]');
     inputs.forEach(function(inp) {
       var field = inp.dataset.field;
       var val = inp.value ? parseInt(inp.value, 10) : 0;
       if (field && field !== 'age' && !isNaN(val)) {
-        attributes[field] = val;
+        // Map to the OVR calculator's expected field code
+        var ovrFieldCode = DB_TO_OVR_FIELD_MAP[field] || field;
+        attributes[ovrFieldCode] = val;
       }
     });
 
-    // Get archetype - try from season data or default
-    var archetype = '';
+    // CRITICAL: Use calculateOVRForArchetypes like roster editor does
+    // This tests ALL archetypes and picks the BEST one (highest OVR)
+    // This is the SAME method used by the roster editor for consistency
     try {
-      var result;
-      if (isCustomPlayer) {
-        result = await window.electronAPI.database.getCustomPlayerSeason(currentDbPlayerId, year);
-        if (result.success && result.data) archetype = result.data.archetype || '';
-      } else {
-        result = await window.electronAPI.database.getMergedPlayerSeason(currentDbPlayerId, year);
-        if (result.success && result.season) archetype = result.season.archetype || '';
-      }
-    } catch (e) {
-      console.log('[DbPlayerCard] Could not get archetype for OVR calc');
-    }
+      var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
 
-    // Calculate new OVR
-    try {
-      var newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, archetype);
-      console.log('[DbPlayerCard] Recalculated OVR for year', year, ':', newOVR);
+      if (!archetypeResults || archetypeResults.length === 0) {
+        console.error('[DbPlayerCard] No archetypes returned for position:', position);
+        return;
+      }
+
+      // Results are sorted by OVR descending - first is the BEST
+      var bestArchetype = archetypeResults[0];
+      var newOVR = bestArchetype.ovr;
+      var archetype = bestArchetype.name;
+      var archetypeId = bestArchetype.id;
+
+      console.log('[DbPlayerCard] Best archetype for year', year, ':', archetype, '(ID:', archetypeId, ') with OVR:', newOVR);
+
+      // Save the synced archetype to database
+      if (isCustomPlayer) {
+        await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, { archetype: archetype });
+      } else {
+        await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, { archetype: archetype });
+      }
 
       // Find and update the OVR input in this row
       var ovrInput = row.querySelector('input[data-field="POVR"]');
@@ -1853,6 +2235,7 @@
   /**
    * Distribute OVR to ratings for a row in the all-years table
    * When user sets an OVR directly, generate appropriate ratings
+   * Also determines and saves the archetype from the generated ratings
    */
   async function distributeOVRToRatingsForRow(ovrInput, year, targetOVR) {
     if (!targetOVR || targetOVR < 40 || targetOVR > 99) {
@@ -1872,7 +2255,7 @@
     console.log('[DbPlayerCard] Distributing OVR', targetOVR, 'to ratings for position', position);
 
     try {
-      // Call the backend to generate ratings from OVR
+      // Call the backend to generate ratings from OVR (also returns archetype)
       var result = await window.electronAPI.database.distributeOVRToRatings({
         ovr: targetOVR,
         position: position
@@ -1900,14 +2283,21 @@
         }
       });
 
-      // Save all ratings to database
-      if (isCustomPlayer) {
-        await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, { ratings: ratings });
-      } else {
-        await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, { ratings: ratings });
+      // Build save data with both ratings and archetype
+      var saveData = { ratings: ratings };
+      if (result.archetype) {
+        saveData.archetype = result.archetype;
+        console.log('[DbPlayerCard] Also saving archetype:', result.archetype);
       }
 
-      console.log('[DbPlayerCard] Distributed OVR to', Object.keys(ratings).length, 'rating fields');
+      // Save ratings and archetype to database
+      if (isCustomPlayer) {
+        await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, saveData);
+      } else {
+        await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, saveData);
+      }
+
+      console.log('[DbPlayerCard] Distributed OVR to', Object.keys(ratings).length, 'rating fields with archetype:', result.archetype);
 
     } catch (error) {
       console.error('[DbPlayerCard] Error distributing OVR:', error);
@@ -2020,6 +2410,11 @@
         console.log('[DbPlayerCard] No season data found for year:', year);
         originalSeasonData = null;
         clearRatingsForm();
+      }
+
+      // Restore OS-level window focus after IPC call (critical for Windows keyboard input)
+      if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
+        window.electronAPI.window.focus().catch(function() {});
       }
     } catch (error) {
       console.error('[DatabasePlayerCard] Failed to load ratings:', error);
@@ -2353,6 +2748,12 @@
       console.log('[DatabasePlayerCard] Saving playerEdits:', playerEdits);
 
       // Collect appearance edits (including PGHE matched set if assigned)
+      var pidInputEl = document.getElementById('dbPlayerPID');
+      var pidInputValue = pidInputEl ? pidInputEl.value : 'NO_ELEMENT';
+      console.log('[DatabasePlayerCard] DEBUG - PID input element:', pidInputEl);
+      console.log('[DatabasePlayerCard] DEBUG - PID input raw value:', pidInputValue);
+      console.log('[DatabasePlayerCard] DEBUG - PID parsed value:', getIntValue('dbPlayerPID'));
+
       var appearanceEdits = {
         maddenPid: getIntValue('dbPlayerPID'),
         maddenPam: getValue('dbPlayerPAM'),
@@ -2369,7 +2770,8 @@
         appearanceEdits.maddenGslp = pghe.gslp;
         appearanceEdits.maddenCpvf = pghe.cpvf;
         appearanceEdits.maddenSkinTone = pghe.skinTone;
-        console.log('[DatabasePlayerCard] Including PGHE data in appearance save:', pghe);
+        appearanceEdits.isGenericFace = true;  // EXPLICIT FLAG: this is a generic face
+        console.log('[DatabasePlayerCard] Including PGHE data in appearance save:', pghe, 'isGenericFace=true');
       }
 
       // Collect trait edits
@@ -2384,11 +2786,19 @@
       // Save player edits - use different API for custom vs original players
       if (isCustomPlayer) {
         // Custom players: combine all edits into single updateCustomPlayer call
+        // Include PGHE fields for generic face support
         var customUpdates = Object.assign({}, playerEdits, {
           maddenPid: appearanceEdits.maddenPid,
           maddenPam: appearanceEdits.maddenPam,
           maddenPlpo: appearanceEdits.maddenPlpo,
           maddenCommid: appearanceEdits.maddenCommid,
+          maddenPghe: appearanceEdits.maddenPghe,
+          maddenPfcg: appearanceEdits.maddenPfcg,
+          maddenGpan: appearanceEdits.maddenGpan,
+          maddenGslp: appearanceEdits.maddenGslp,
+          maddenCpvf: appearanceEdits.maddenCpvf,
+          maddenSkinTone: appearanceEdits.maddenSkinTone,
+          isGenericFace: appearanceEdits.isGenericFace,
           has3DModel: playerEdits.has3DModel
         });
         console.log('[DatabasePlayerCard] Saving custom player updates:', customUpdates);
@@ -2528,9 +2938,28 @@
         saveBtn.disabled = true;
         setTimeout(function() {
           saveBtn.textContent = originalText;
+          // Re-enable save button - updateSaveButtonState will handle proper state
           saveBtn.disabled = false;
         }, 1500);
       }
+
+      // Ensure all inputs in the modal are enabled after save (safety check)
+      var modal = document.getElementById('dbPlayerCardModal');
+      if (modal) {
+        modal.querySelectorAll('input:not([type="checkbox"]), select, textarea').forEach(function(el) {
+          // Only re-enable if it shouldn't be permanently disabled
+          if (!el.classList.contains('permanently-disabled')) {
+            el.disabled = false;
+          }
+        });
+        // Also ensure modal doesn't block pointer events if hidden
+        if (modal.style.display === 'none') {
+          modal.style.pointerEvents = 'none';
+        }
+      }
+
+      // Ensure no element is stealing focus
+      console.log('[DatabasePlayerCard] Save complete. Active element:', document.activeElement?.tagName, document.activeElement?.id);
 
       // NOTE: Removed restoreFocusAfterSave() - it was stealing focus from other inputs
       // and preventing users from typing in the search box after save
@@ -2545,6 +2974,35 @@
       if (typeof window.refreshDatabaseBrowser === 'function') {
         console.log('[DatabasePlayerCard] Refreshing database browser to show updated data');
         window.refreshDatabaseBrowser();
+      }
+
+      // Restore OS-level window focus (critical for Windows keyboard input)
+      // After browser refreshes, keyboard focus can be lost at the OS level
+      var focusModalElement = function() {
+        // Focus the modal itself or an input within it to restore keyboard input
+        var modal = document.getElementById('dbPlayerCardModal');
+        if (modal && modal.style.display !== 'none') {
+          // Try to focus a visible input, or fall back to the modal itself
+          var visibleInput = modal.querySelector('.db-player-tab-content.active input:not([type="hidden"]):not([disabled])');
+          if (visibleInput) {
+            visibleInput.focus();
+            console.log('[DatabasePlayerCard] Focused input after save:', visibleInput.id || visibleInput.className);
+          } else {
+            modal.focus();
+            console.log('[DatabasePlayerCard] Focused modal after save');
+          }
+        }
+      };
+      if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
+        window.electronAPI.window.focus().then(function() {
+          console.log('[DatabasePlayerCard] OS-level window focus restored after save');
+          setTimeout(focusModalElement, 50);
+        }).catch(function(err) {
+          console.warn('[DatabasePlayerCard] Failed to restore window focus:', err);
+          setTimeout(focusModalElement, 50);
+        });
+      } else {
+        setTimeout(focusModalElement, 100);
       }
 
     } catch (error) {
@@ -2755,14 +3213,19 @@
       window.showToast(message, 'success');
     }
 
-    // 4. Refresh browser then restore focus
+    // 4. Refresh BOTH browsers (player browser in main window, database browser in database window)
     if (window.refreshPlayerBrowser) {
       window.refreshPlayerBrowser();
+    }
+    if (window.refreshDatabaseBrowser) {
+      console.log('[DatabasePlayerCard] Refreshing database browser after delete');
+      window.refreshDatabaseBrowser();
     }
 
     // 5. Force focus to search box after refresh completes
     var focusSearch = function() {
-      var search = document.getElementById('playerBrowserSearch');
+      // Try database browser search first (quickSearchInput), then player browser
+      var search = document.getElementById('quickSearchInput') || document.getElementById('playerBrowserSearch');
       if (search) {
         search.focus();
       }
@@ -3129,8 +3592,23 @@
   async function addPlayerToRoster() {
     if (!currentDbPlayerId) return;
 
-    // This will be implemented in Phase 4
-    alert('Add to Roster functionality will be available soon!');
+    try {
+      if (window.electronAPI?.database?.sendPlayerToMainWindow) {
+        const result = await window.electronAPI.database.sendPlayerToMainWindow(currentDbPlayerId, 'roster');
+        if (result.success) {
+          console.log('[DbPlayerCard] Player sent to roster, ID:', currentDbPlayerId);
+        } else {
+          console.error('[DbPlayerCard] Failed to send player to roster:', result.error);
+          alert(result.error || 'Failed to add player to roster');
+        }
+      } else {
+        console.error('[DbPlayerCard] sendPlayerToMainWindow API not available');
+        alert('Failed to add player to roster - API not available');
+      }
+    } catch (e) {
+      console.error('[DbPlayerCard] Failed to add player to roster:', e);
+      alert('Failed to add player to roster: ' + e.message);
+    }
   }
 
   /**
@@ -3139,8 +3617,23 @@
   async function addPlayerToDraft() {
     if (!currentDbPlayerId) return;
 
-    // This will be implemented in Phase 4
-    alert('Add to Draft Class functionality will be available soon!');
+    try {
+      if (window.electronAPI?.database?.sendPlayerToMainWindow) {
+        const result = await window.electronAPI.database.sendPlayerToMainWindow(currentDbPlayerId, 'draft');
+        if (result.success) {
+          console.log('[DbPlayerCard] Player sent to draft, ID:', currentDbPlayerId);
+        } else {
+          console.error('[DbPlayerCard] Failed to send player to draft:', result.error);
+          alert(result.error || 'Failed to add player to draft');
+        }
+      } else {
+        console.error('[DbPlayerCard] sendPlayerToMainWindow API not available');
+        alert('Failed to add player to draft - API not available');
+      }
+    } catch (e) {
+      console.error('[DbPlayerCard] Failed to add player to draft:', e);
+      alert('Failed to add player to draft: ' + e.message);
+    }
   }
 
   /**
@@ -3228,36 +3721,6 @@
     }
   }
 
-  // Map database player card field names to OVR calculator field codes
-  var DB_TO_OVR_FIELD_MAP = {
-    'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI', 'PJMP': 'PJMP',
-    'PSTM': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',
-    'PCOD': 'PELU', 'PELU': 'PELU', 'PBCV': 'PBCV',
-    'PBTK': 'PBKT', 'PTRK': 'PLTR', 'PSFA': 'PLSA', 'PSPN': 'PLSM', 'PJKM': 'PLJM',
-    'PCAR': 'PCAR', 'PTAS': 'PTAS', 'PTAM': 'PTAM', 'PTAD': 'PTAD',
-    'PTOR': 'PTOR', 'PTUP': 'PTUP', 'PPWR': 'PTHP', 'PTHP': 'PTHP',
-    'PCTH': 'PCTH', 'PSPC': 'PLSC', 'PCIT': 'PLCI',
-    'PSRR': 'SRRN', 'SRRN': 'SRRN', 'PMRR': 'PMRR', 'PDRR': 'PDRR', 'PREL': 'PLRL', 'PLRL': 'PLRL',
-    'PRBK': 'PRBK', 'PPBK': 'PPBK', 'PIBK': 'PLIB', 'PLIB': 'PLIB', 'PLBK': 'PLBK',
-    'PFMS': 'PFMS', 'PRNS': 'PRBS', 'PRBS': 'PRBS', 'PPBS': 'PPBF', 'PPBF': 'PPBF', 'PPBP': 'PPBS',
-    'PRBF': 'PRBF', 'PTAK': 'PTAK', 'PHIT': 'PLHT', 'PLHT': 'PLHT',
-    'PFMV': 'PFMS', 'PPWM': 'PLPM', 'PLPM': 'PLPM', 'PBSH': 'PBSG', 'PBSG': 'PBSG',
-    'PPRC': 'PLPU', 'PLPU': 'PLPU', 'PPLA': 'PLPR', 'PLPR': 'PLPR',
-    'PMCV': 'PLMC', 'PLMC': 'PLMC', 'PZCV': 'PLZC', 'PLZC': 'PLZC',
-    'PPRS': 'PLPE', 'PLPE': 'PLPE', 'PBSK': 'PBSK',
-    'PKAC': 'PKAC', 'PKPR': 'PKPR', 'PKRT': 'PKRT'
-  };
-
-  // Reverse map: OVR calculator field codes to database player card field names
-  var OVR_TO_DB_FIELD_MAP = {
-    'PSTA': 'PSTM', 'PELU': 'PCOD', 'PBKT': 'PBTK', 'PLTR': 'PTRK',
-    'PLSA': 'PSFA', 'PLSM': 'PSPN', 'PLJM': 'PJKM', 'PTHP': 'PPWR',
-    'PLSC': 'PSPC', 'PLCI': 'PCIT', 'SRRN': 'PSRR', 'PLRL': 'PREL',
-    'PLIB': 'PIBK', 'PRBS': 'PRNS', 'PPBF': 'PPBS', 'PPBS': 'PPBP',
-    'PLHT': 'PHIT', 'PLPM': 'PPWM', 'PBSG': 'PBSH', 'PLPU': 'PPRC',
-    'PLPR': 'PPLA', 'PLMC': 'PMCV', 'PLZC': 'PZCV', 'PLPE': 'PPRS'
-  };
-
   /**
    * Recalculate OVR dynamically when rating attributes change
    * Also finds the best archetype and shows notification if different
@@ -3297,10 +3760,12 @@
 
       if (archetypeResults && archetypeResults.length > 0) {
         // The first result is the best archetype (sorted by OVR descending)
+        // Use the BEST archetype's OVR - SAME as roster editor
         var bestArchetype = archetypeResults[0];
+        var newOVR = bestArchetype.ovr;
+        var newArchetypeName = bestArchetype.name;
+        var newArchetypeId = bestArchetype.id;
 
-        // Calculate OVR using the current archetype name
-        var newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, currentArchetypeName);
         var ovrInput = document.getElementById('dbRating_POVR');
         var oldOVR = ovrInput ? parseInt(ovrInput.value) || 50 : 50;
 
@@ -3310,13 +3775,23 @@
         // Update OVR if changed
         if (newOVR !== oldOVR) {
           setValue('dbRating_POVR', newOVR);
-          console.log('[DbPlayerCard] OVR recalculated: ' + oldOVR + ' → ' + newOVR);
+          console.log('[DbPlayerCard] OVR recalculated: ' + oldOVR + ' → ' + newOVR + ' (best archetype: ' + newArchetypeName + ')');
         }
 
-        // Check if a different archetype gives better OVR
-        if (archetypeSelect && currentArchetypeName && currentArchetypeName !== bestArchetype.name && bestArchetype.ovr > newOVR) {
-          // Show notification about better archetype
-          showArchetypeChangeNotification(currentArchetypeName, bestArchetype.name, newOVR, bestArchetype.ovr);
+        // Update archetype to match the best one (like roster editor does)
+        if (archetypeSelect && currentArchetypeName !== newArchetypeName) {
+          console.log('[DbPlayerCard] Auto-updating archetype: ' + currentArchetypeName + ' → ' + newArchetypeName);
+          archetypeSelect.value = newArchetypeName;
+          // Save the archetype change
+          try {
+            if (isCustomPlayer) {
+              await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, selectedYear, { archetype: newArchetypeName });
+            } else {
+              await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, selectedYear, { archetype: newArchetypeName });
+            }
+          } catch (e) {
+            console.warn('[DbPlayerCard] Could not save archetype change:', e);
+          }
         }
 
         window._skipOvrRecalc = false;
@@ -4974,6 +5449,17 @@
         if (typeof window.showToast === 'function') {
           window.showToast('Ratings calculated from ' + year + ' stats (OVR: ' + ratings.POVR + ')', 'success');
         }
+
+        // Restore OS-level window focus after IPC and DOM updates (critical for Windows)
+        if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
+          window.electronAPI.window.focus().then(function() {
+            // Focus the OVR input so user can continue editing
+            setTimeout(function() {
+              var ovrInput = document.getElementById('dbRating_POVR');
+              if (ovrInput) ovrInput.focus();
+            }, 50);
+          }).catch(function() {});
+        }
       }, 100);
 
     } catch (error) {
@@ -5350,14 +5836,17 @@
     await setupYearSelector(currentDbPlayer);
     await renderRatingsAllYears();
 
-    // Show result
+    // Show result using toast instead of alert (alert breaks focus on Windows)
     var message = 'Applied ratings to ' + applied + ' of ' + selectedYears.length + ' years.';
     if (errors.length > 0) {
-      message += '\n\nErrors:\n' + errors.slice(0, 5).join('\n');
-      if (errors.length > 5) message += '\n...and ' + (errors.length - 5) + ' more';
+      message += ' (' + errors.length + ' errors)';
+      console.error('[DbPlayerCard] Bulk rating errors:', errors);
     }
-
-    alert(message);
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, errors.length > 0 ? 'warning' : 'success');
+    } else {
+      console.log('[DbPlayerCard] ' + message);
+    }
 
     hasUnsavedChanges = true;
     updateSaveButtonState();
@@ -5365,6 +5854,16 @@
     // Switch to ratings tab to see results
     var ratingsTab = document.querySelector('.db-player-tab[data-tab="ratings"]');
     if (ratingsTab) ratingsTab.click();
+
+    // Force focus on first input in table after a delay
+    setTimeout(function() {
+      var firstInput = document.querySelector('#ratingsAllYearsTable input');
+      if (firstInput) {
+        firstInput.focus();
+        firstInput.click();
+        console.log('[DbPlayerCard] Forced focus on first input');
+      }
+    }, 200);
   }
 
   /**
