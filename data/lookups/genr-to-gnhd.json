@@ -1,722 +1,1110 @@
 {
   "gen_1_B_N_011": {
-    "gnhd": 1,
+    "gnhd": 3380,
     "sknt": 1
   },
   "gen_1_B_G_01": {
-    "gnhd": 2,
+    "gnhd": 3455,
     "sknt": 1
   },
   "gen_2_BMH_S_004": {
-    "gnhd": 5,
+    "gnhd": 3771,
     "sknt": 1
   },
   "gen_7_B_N_07": {
-    "gnhd": 6,
+    "gnhd": 3696,
     "sknt": 8
   },
   "gen_2_B_B_005": {
-    "gnhd": 9,
+    "gnhd": 3381,
     "sknt": 1
   },
   "gen_1_B_S_001": {
-    "gnhd": 11,
+    "gnhd": 4064,
     "sknt": 1
   },
   "gen_1_B_S_002": {
-    "gnhd": 12,
+    "gnhd": 4065,
     "sknt": 1
   },
   "gen_2_H_B_005": {
-    "gnhd": 13,
+    "gnhd": 3365,
     "sknt": 1
   },
   "gen_1_H_B_009": {
-    "gnhd": 14,
+    "gnhd": 4073,
     "sknt": 1
   },
   "gen_2_H_G_01": {
-    "gnhd": 15,
+    "gnhd": 4195,
     "sknt": 1
   },
   "gen_1_H_N_010": {
-    "gnhd": 17,
+    "gnhd": 4313,
     "sknt": 1
   },
   "gen_2_H_MB_012": {
-    "gnhd": 19,
+    "gnhd": 4197,
     "sknt": 1
   },
   "gen_4_B_N_01": {
-    "gnhd": 21,
+    "gnhd": 3913,
     "sknt": 1
   },
   "gen_1_M_S_011": {
-    "gnhd": 22,
+    "gnhd": 4088,
     "sknt": 1
   },
   "gen_2_H_BD_03": {
-    "gnhd": 23,
+    "gnhd": 4144,
     "sknt": 2
   },
   "gen_2_B_N_0017": {
-    "gnhd": 24,
+    "gnhd": 3404,
     "sknt": 2
   },
   "gen_2_M_S_011": {
-    "gnhd": 25,
+    "gnhd": 4204,
     "sknt": 2
   },
   "gen_1_B_B_005": {
-    "gnhd": 26,
+    "gnhd": 4058,
     "sknt": 2
   },
   "gen_5_B_N_01": {
-    "gnhd": 27,
+    "gnhd": 3947,
     "sknt": 2
   },
   "gen_2_B_N_0011": {
-    "gnhd": 28,
+    "gnhd": 3667,
     "sknt": 2
   },
   "gen_2_B_N_0012": {
-    "gnhd": 29,
+    "gnhd": 3362,
     "sknt": 2
   },
   "gen_1_B_N_01": {
-    "gnhd": 30,
+    "gnhd": 4060,
     "sknt": 2
   },
   "gen_3_BMT_S_003": {
-    "gnhd": 34,
+    "gnhd": 4227,
     "sknt": 2
   },
   "gen_2_B_N_009": {
-    "gnhd": 37,
+    "gnhd": 4188,
     "sknt": 2
   },
   "gen_2_B_N_01": {
-    "gnhd": 38,
+    "gnhd": 3363,
     "sknt": 2
   },
   "gen_2_B_N_02": {
-    "gnhd": 39,
+    "gnhd": 3384,
     "sknt": 2
   },
   "gen_2_B_S_001": {
-    "gnhd": 41,
+    "gnhd": 4189,
     "sknt": 2
   },
   "gen_2_B_S_005": {
-    "gnhd": 42,
+    "gnhd": 4190,
     "sknt": 2
   },
   "gen_2_B_S_007": {
-    "gnhd": 44,
+    "gnhd": 3351,
     "sknt": 2
   },
   "gen_2_B_S_009": {
-    "gnhd": 46,
+    "gnhd": 3718,
     "sknt": 2
   },
   "gen_2_BMH_G_009": {
-    "gnhd": 47,
+    "gnhd": 4192,
     "sknt": 2
   },
   "gen_2_BMH_S_002": {
-    "gnhd": 48,
+    "gnhd": 4089,
     "sknt": 2
   },
   "gen_4_H_BD_01": {
-    "gnhd": 49,
+    "gnhd": 3902,
     "sknt": 2
   },
   "gen_2_BMH_S_010": {
-    "gnhd": 52,
+    "gnhd": 4094,
     "sknt": 2
   },
   "gen_2_H_B_004": {
-    "gnhd": 53,
+    "gnhd": 4135,
     "sknt": 2
   },
   "gen_2_H_B_010": {
-    "gnhd": 55,
+    "gnhd": 4193,
     "sknt": 2
   },
   "gen_2_M_B_02": {
-    "gnhd": 57,
+    "gnhd": 3816,
     "sknt": 2
   },
   "gen_2_H_GM_004": {
-    "gnhd": 62,
+    "gnhd": 4196,
     "sknt": 2
   },
   "gen_2_H_N_009": {
-    "gnhd": 63,
+    "gnhd": 4201,
     "sknt": 2
   },
   "gen_2_B_N_006": {
-    "gnhd": 64,
+    "gnhd": 4186,
     "sknt": 2
   },
   "gen_2_M_N_007": {
-    "gnhd": 66,
+    "gnhd": 4203,
     "sknt": 2
   },
   "gen_2_M_N_05": {
-    "gnhd": 68,
+    "gnhd": 3366,
     "sknt": 2
   },
   "gen_2_M_N_22": {
-    "gnhd": 69,
+    "gnhd": 4227,
     "sknt": 2
   },
   "gen_2_M_S_001": {
-    "gnhd": 70,
+    "gnhd": 4140,
     "sknt": 2
   },
   "gen_2_T_N_02": {
-    "gnhd": 73,
+    "gnhd": 3824,
     "sknt": 2
   },
   "gen_2_T_S_007": {
-    "gnhd": 74,
+    "gnhd": 4208,
     "sknt": 2
   },
   "gen_3_B_B_001": {
-    "gnhd": 76,
+    "gnhd": 4209,
     "sknt": 3
   },
   "gen_4_B_G_003": {
-    "gnhd": 77,
+    "gnhd": 3882,
     "sknt": 3
   },
   "gen_3_B_N_02": {
-    "gnhd": 84,
+    "gnhd": 3353,
     "sknt": 3
   },
   "gen_4_H_N_001": {
-    "gnhd": 85,
+    "gnhd": 0,
     "sknt": 3
   },
   "gen_3_B_S_011": {
-    "gnhd": 86,
+    "gnhd": 3370,
     "sknt": 3
   },
   "gen_2_B_N_0010": {
-    "gnhd": 87,
+    "gnhd": 3666,
     "sknt": 3
   },
   "gen_3_H_B_008": {
-    "gnhd": 88,
+    "gnhd": 3879,
     "sknt": 3
   },
   "gen_3_H_BD_01": {
-    "gnhd": 90,
+    "gnhd": 3880,
     "sknt": 3
   },
   "gen_3_H_MS_01": {
-    "gnhd": 91,
+    "gnhd": 3881,
     "sknt": 3
   },
   "gen_3_H_S_001": {
-    "gnhd": 93,
+    "gnhd": 3915,
     "sknt": 3
   },
   "gen_3_M_N_01": {
-    "gnhd": 94,
+    "gnhd": 3876,
     "sknt": 3
   },
   "gen_3_T_N_01": {
-    "gnhd": 97,
+    "gnhd": 3856,
     "sknt": 3
   },
   "gen_6_BHM_B_01": {
-    "gnhd": 98,
+    "gnhd": 4070,
     "sknt": 4
   },
   "gen_4_B_BM_01": {
-    "gnhd": 99,
+    "gnhd": 3372,
     "sknt": 4
   },
   "gen_7_M_BD_02": {
-    "gnhd": 102,
+    "gnhd": 3808,
     "sknt": 4
   },
   "gen_4_H_N_003": {
-    "gnhd": 103,
+    "gnhd": 3374,
     "sknt": 4
   },
   "gen_7_M_N_024": {
-    "gnhd": 104,
+    "gnhd": 3869,
     "sknt": 4
   },
   "gen_4_B_N_002": {
-    "gnhd": 106,
+    "gnhd": 3900,
     "sknt": 4
   },
   "gen_4_B_N_003": {
-    "gnhd": 107,
+    "gnhd": 3373,
     "sknt": 4
   },
   "gen_3_B_B_009": {
-    "gnhd": 108,
+    "gnhd": 3367,
     "sknt": 4
   },
   "gen_4_B_N_005": {
-    "gnhd": 109,
+    "gnhd": 3905,
     "sknt": 4
   },
   "gen_4_BHM_S_01": {
-    "gnhd": 111,
+    "gnhd": 3909,
     "sknt": 4
   },
   "gen_4_BM_B_001": {
-    "gnhd": 113,
+    "gnhd": 3903,
     "sknt": 4
   },
   "gen_4_H_N_004": {
-    "gnhd": 117,
+    "gnhd": 3872,
     "sknt": 4
   },
   "gen_4_M_BD_02": {
-    "gnhd": 119,
+    "gnhd": 3895,
     "sknt": 4
   },
   "gen_4_M_N_01": {
-    "gnhd": 121,
+    "gnhd": 3906,
     "sknt": 4
   },
   "gen_4_T_N_006": {
-    "gnhd": 123,
+    "gnhd": 3908,
     "sknt": 4
   },
   "gen_4_B_M_01": {
-    "gnhd": 124,
+    "gnhd": 3884,
     "sknt": 4
   },
   "gen_5_B_BD_02": {
-    "gnhd": 127,
+    "gnhd": 3945,
     "sknt": 5
   },
   "gen_5_B_BD_03": {
-    "gnhd": 128,
+    "gnhd": 3946,
     "sknt": 5
   },
   "gen_5_B_G_01": {
-    "gnhd": 129,
+    "gnhd": 3355,
     "sknt": 5
   },
   "gen_5_B_N_02": {
-    "gnhd": 133,
+    "gnhd": 3926,
     "sknt": 5
   },
   "gen_5_B_S_008": {
-    "gnhd": 137,
+    "gnhd": 0,
     "sknt": 5
   },
   "gen_5_BHTM_GS_001": {
-    "gnhd": 139,
+    "gnhd": 3938,
     "sknt": 5
   },
   "gen_5_BTM_N_004": {
-    "gnhd": 140,
+    "gnhd": 3939,
     "sknt": 5
   },
   "gen_5_H_BD_01": {
-    "gnhd": 141,
+    "gnhd": 3948,
     "sknt": 5
   },
   "gen_5_M_BD_02": {
-    "gnhd": 142,
+    "gnhd": 3957,
     "sknt": 5
   },
   "gen_5_H_MG_006": {
-    "gnhd": 144,
+    "gnhd": 3919,
     "sknt": 5
   },
   "gen_5_H_N_01": {
-    "gnhd": 145,
+    "gnhd": 3950,
     "sknt": 5
   },
   "gen_5_M_B_001": {
-    "gnhd": 146,
+    "gnhd": 3970,
     "sknt": 5
   },
   "gen_1_H_N_015": {
-    "gnhd": 148,
+    "gnhd": 4078,
     "sknt": 5
   },
   "gen_5_M_N_009": {
-    "gnhd": 150,
+    "gnhd": 3942,
     "sknt": 5
   },
   "gen_5_M_N_01": {
-    "gnhd": 151,
+    "gnhd": 3977,
     "sknt": 5
   },
   "gen_5_T_G_01": {
-    "gnhd": 153,
+    "gnhd": 3378,
     "sknt": 5
   },
   "gen_6_BMH_N_003": {
-    "gnhd": 155,
+    "gnhd": 3845,
     "sknt": 6
   },
   "gen_7_T_G_007": {
-    "gnhd": 157,
+    "gnhd": 3825,
     "sknt": 6
   },
   "gen_7_B_N_013": {
-    "gnhd": 158,
+    "gnhd": 4191,
     "sknt": 6
   },
   "gen_6_B_G_05": {
-    "gnhd": 159,
+    "gnhd": 3402,
     "sknt": 6
   },
   "gen_6_B_MS_01": {
-    "gnhd": 161,
+    "gnhd": 3755,
     "sknt": 6
   },
   "gen_7_B_G_007": {
-    "gnhd": 162,
+    "gnhd": 3778,
     "sknt": 6
   },
   "gen_7_T_N_001": {
-    "gnhd": 164,
+    "gnhd": 3846,
     "sknt": 6
   },
   "gen_6_B_N_004": {
-    "gnhd": 165,
+    "gnhd": 3760,
     "sknt": 6
   },
   "gen_6_B_N_005": {
-    "gnhd": 166,
+    "gnhd": 4059,
     "sknt": 6
   },
   "gen_6_B_N_007": {
-    "gnhd": 168,
+    "gnhd": 3400,
     "sknt": 6
   },
   "gen_6_B_N_009": {
-    "gnhd": 170,
+    "gnhd": 3410,
     "sknt": 6
   },
   "gen_6_B_N_01": {
-    "gnhd": 171,
+    "gnhd": 3757,
     "sknt": 6
   },
   "gen_6_B_N_02": {
-    "gnhd": 172,
+    "gnhd": 3758,
     "sknt": 6
   },
   "gen_6_B_N_03": {
-    "gnhd": 173,
+    "gnhd": 3759,
     "sknt": 6
   },
   "gen_6_B_G_04": {
-    "gnhd": 177,
+    "gnhd": 3357,
     "sknt": 6
   },
   "gen_6_BHM_G_002": {
-    "gnhd": 178,
+    "gnhd": 3762,
     "sknt": 6
   },
   "gen_6_BM_MG_008": {
-    "gnhd": 179,
+    "gnhd": 3763,
     "sknt": 6
   },
   "gen_6_BMH_G_010": {
-    "gnhd": 182,
+    "gnhd": 3765,
     "sknt": 6
   },
   "gen_7_BMT_MG_002": {
-    "gnhd": 184,
+    "gnhd": 3844,
     "sknt": 6
   },
   "gen_6_H_B_002": {
-    "gnhd": 185,
+    "gnhd": 3767,
     "sknt": 6
   },
   "gen_6_H_BD_01": {
-    "gnhd": 186,
+    "gnhd": 3768,
     "sknt": 6
   },
   "gen_6_H_G_01": {
-    "gnhd": 188,
+    "gnhd": 3660,
     "sknt": 6
   },
   "gen_6_H_N_001": {
-    "gnhd": 191,
+    "gnhd": 3664,
     "sknt": 6
   },
   "gen_6_H_N_01": {
-    "gnhd": 193,
+    "gnhd": 3665,
     "sknt": 6
   },
   "gen_6_H_N_20": {
-    "gnhd": 194,
+    "gnhd": 3669,
     "sknt": 6
   },
   "gen_6_B_G_03": {
-    "gnhd": 195,
+    "gnhd": 3350,
     "sknt": 6
   },
   "gen_5_T_GM_003": {
-    "gnhd": 196,
+    "gnhd": 3963,
     "sknt": 6
   },
   "gen_6_M_N_009": {
-    "gnhd": 197,
+    "gnhd": 3491,
     "sknt": 6
   },
   "gen_6_M_N_01": {
-    "gnhd": 198,
+    "gnhd": 3638,
     "sknt": 6
   },
   "gen_6_M_N_02": {
-    "gnhd": 199,
+    "gnhd": 3704,
     "sknt": 6
   },
   "gen_6_T_G_005": {
-    "gnhd": 201,
+    "gnhd": 3769,
     "sknt": 6
   },
   "gen_6_T_MG_006": {
-    "gnhd": 202,
+    "gnhd": 3770,
     "sknt": 6
   },
   "gen_6_T_N_009": {
-    "gnhd": 203,
+    "gnhd": 3737,
     "sknt": 6
   },
   "gen_7_B_B_001": {
-    "gnhd": 204,
+    "gnhd": 3554,
     "sknt": 7
   },
   "gen_7_B_B_009": {
-    "gnhd": 207,
+    "gnhd": 3772,
     "sknt": 7
   },
   "gen_7_B_G_0010": {
-    "gnhd": 208,
+    "gnhd": 4086,
     "sknt": 7
   },
   "gen_7_B_N_009": {
-    "gnhd": 210,
+    "gnhd": 3830,
     "sknt": 7
   },
   "gen_6_H_MS_01": {
-    "gnhd": 211,
+    "gnhd": 3663,
     "sknt": 7
   },
   "gen_7_B_N_08": {
-    "gnhd": 212,
+    "gnhd": 3640,
     "sknt": 7
   },
   "gen_7_B_G_009": {
-    "gnhd": 213,
+    "gnhd": 3777,
     "sknt": 7
   },
   "gen_7_B_N_0010": {
-    "gnhd": 214,
+    "gnhd": 4087,
     "sknt": 7
   },
   "gen_7_B_N_0011": {
-    "gnhd": 215,
+    "gnhd": 3379,
     "sknt": 7
   },
   "gen_6_B_N_0010": {
-    "gnhd": 216,
+    "gnhd": 3358,
     "sknt": 7
   },
   "gen_7_B_N_0013": {
-    "gnhd": 217,
+    "gnhd": 4091,
     "sknt": 7
   },
   "gen_7_BHM_S_010": {
-    "gnhd": 218,
+    "gnhd": 3787,
     "sknt": 7
   },
   "gen_7_B_N_007": {
-    "gnhd": 220,
+    "gnhd": 3828,
     "sknt": 7
   },
   "gen_7_B_N_011": {
-    "gnhd": 222,
+    "gnhd": 4093,
     "sknt": 7
   },
   "gen_7_H_G_02": {
-    "gnhd": 223,
+    "gnhd": 3465,
     "sknt": 7
   },
   "gen_7_B_N_017": {
-    "gnhd": 224,
+    "gnhd": 4205,
     "sknt": 7
   },
   "gen_5_H_BD_02": {
-    "gnhd": 225,
+    "gnhd": 3949,
     "sknt": 7
   },
   "gen_7_B_N_015": {
-    "gnhd": 226,
+    "gnhd": 3401,
     "sknt": 7
   },
   "gen_7_M_N_005": {
-    "gnhd": 228,
+    "gnhd": 3347,
     "sknt": 7
   },
   "gen_7_B_N_018": {
-    "gnhd": 229,
+    "gnhd": 4206,
     "sknt": 7
   },
   "gen_7_B_N_019": {
-    "gnhd": 230,
+    "gnhd": 4207,
     "sknt": 7
   },
   "gen_7_B_N_06": {
-    "gnhd": 231,
+    "gnhd": 3566,
     "sknt": 7
   },
   "gen_7_B_G_005": {
-    "gnhd": 232,
+    "gnhd": 3782,
     "sknt": 7
   },
   "gen_7_B_N_09": {
-    "gnhd": 234,
+    "gnhd": 4211,
     "sknt": 7
   },
   "gen_7_B_S_004": {
-    "gnhd": 235,
+    "gnhd": 3832,
     "sknt": 7
   },
   "gen_7_B_S_005": {
-    "gnhd": 236,
+    "gnhd": 4212,
     "sknt": 7
   },
   "gen_7_BHM_MG_007": {
-    "gnhd": 238,
+    "gnhd": 3858,
     "sknt": 7
   },
   "gen_7_BHM_MG_022": {
-    "gnhd": 239,
+    "gnhd": 3857,
     "sknt": 7
   },
   "gen_7_BHM_N_004": {
-    "gnhd": 241,
+    "gnhd": 3778,
     "sknt": 7
   },
   "gen_7_BMH_B_006": {
-    "gnhd": 243,
+    "gnhd": 3858,
     "sknt": 7
   },
   "gen_7_H_BD_03": {
-    "gnhd": 244,
+    "gnhd": 3473,
     "sknt": 7
   },
   "gen_7_BMH_GS_005": {
-    "gnhd": 245,
+    "gnhd": 3468,
     "sknt": 7
   },
   "gen_7_B_N_012": {
-    "gnhd": 249,
+    "gnhd": 4187,
     "sknt": 7
   },
   "gen_7_BMH_MG_020": {
-    "gnhd": 250,
+    "gnhd": 3819,
     "sknt": 7
   },
   "gen_7_BMH_S_008": {
-    "gnhd": 251,
+    "gnhd": 3651,
     "sknt": 7
   },
   "gen_7_B_N_016": {
-    "gnhd": 254,
+    "gnhd": 4202,
     "sknt": 7
   },
   "gen_7_BTM_MG_006": {
-    "gnhd": 258,
+    "gnhd": 3861,
     "sknt": 7
   },
   "gen_7_BTM_N_007": {
-    "gnhd": 259,
+    "gnhd": 3862,
     "sknt": 7
   },
   "gen_7_H_B_010": {
-    "gnhd": 260,
+    "gnhd": 4215,
     "sknt": 7
   },
   "gen_7_H_BMS_013": {
-    "gnhd": 262,
+    "gnhd": 3474,
     "sknt": 7
   },
   "gen_7_H_G_001": {
-    "gnhd": 263,
+    "gnhd": 3475,
     "sknt": 7
   },
   "gen_7_H_G_004": {
-    "gnhd": 264,
+    "gnhd": 3477,
     "sknt": 7
   },
   "gen_7_H_G_006": {
-    "gnhd": 265,
+    "gnhd": 3479,
     "sknt": 7
   },
   "gen_7_H_N_006": {
-    "gnhd": 266,
+    "gnhd": 3674,
     "sknt": 7
   },
   "gen_7_H_N_01": {
-    "gnhd": 270,
+    "gnhd": 3611,
     "sknt": 7
   },
   "gen_7_BMH_MG_008": {
-    "gnhd": 271,
+    "gnhd": 3657,
     "sknt": 7
   },
   "gen_6_B_N_0011": {
-    "gnhd": 272,
+    "gnhd": 3406,
     "sknt": 7
   },
   "gen_7_M_BM_014": {
-    "gnhd": 274,
+    "gnhd": 3809,
     "sknt": 7
   },
   "gen_4_H_N_002": {
-    "gnhd": 277,
+    "gnhd": 3871,
     "sknt": 7
   },
   "gen_7_M_MB_009": {
-    "gnhd": 278,
+    "gnhd": 3522,
     "sknt": 7
   },
   "gen_7_M_N_001": {
-    "gnhd": 281,
+    "gnhd": 3842,
     "sknt": 7
   },
   "gen_7_M_N_006": {
-    "gnhd": 283,
+    "gnhd": 3348,
     "sknt": 7
   },
   "gen_7_T_B_006": {
-    "gnhd": 285,
+    "gnhd": 3349,
     "sknt": 7
   },
   "gen_7_T_N_009": {
-    "gnhd": 289,
+    "gnhd": 3787,
     "sknt": 7
   },
   "gen_7_T_S_004": {
-    "gnhd": 290,
+    "gnhd": 3870,
     "sknt": 7
   },
   "gen_1_T_S_004": {
-    "gnhd": 450,
+    "gnhd": 4092,
     "sknt": 1
   },
   "gen_4_M_N_001": {
-    "gnhd": 451,
+    "gnhd": 3905,
     "sknt": 4
+  },
+  "gen_7_M_MG_025": {
+    "gnhd": 3846,
+    "sknt": 7
+  },
+  "gen_7_T_G_004": {
+    "gnhd": 3852,
+    "sknt": 7
+  },
+  "gen_7_M_G_005": {
+    "gnhd": 3346,
+    "sknt": 7
+  },
+  "gen_7_M_G_004": {
+    "gnhd": 3810,
+    "sknt": 7
+  },
+  "gen_7_M_GS_015": {
+    "gnhd": 3571,
+    "sknt": 7
+  },
+  "gen_7_M_B_01": {
+    "gnhd": 4222,
+    "sknt": 7
+  },
+  "gen_7_M_BD_01": {
+    "gnhd": 3807,
+    "sknt": 7
+  },
+  "gen_7_H_G_009": {
+    "gnhd": 3480,
+    "sknt": 7
+  },
+  "gen_7_B_N_014": {
+    "gnhd": 4198,
+    "sknt": 7
+  },
+  "gen_7_B_N_0014": {
+    "gnhd": 4092,
+    "sknt": 7
+  },
+  "gen_7_B_N_0012": {
+    "gnhd": 4090,
+    "sknt": 7
+  },
+  "gen_7_B_G_008": {
+    "gnhd": 3789,
+    "sknt": 7
+  },
+  "gen_7_B_G_004": {
+    "gnhd": 3385,
+    "sknt": 7
+  },
+  "gen_7_B_B_005": {
+    "gnhd": 4085,
+    "sknt": 7
+  },
+  "gen_7_B_B_002": {
+    "gnhd": 4084,
+    "sknt": 7
+  },
+  "gen_7_BTM_B_021": {
+    "gnhd": 3860,
+    "sknt": 7
+  },
+  "gen_7_BMT_M_009": {
+    "gnhd": 3721,
+    "sknt": 7
+  },
+  "gen_7_BMT_BM_012": {
+    "gnhd": 3555,
+    "sknt": 7
+  },
+  "gen_7_BMTH_N_003": {
+    "gnhd": 3846,
+    "sknt": 7
+  },
+  "gen_7_BMH_MG_003": {
+    "gnhd": 3809,
+    "sknt": 7
+  },
+  "gen_7_BMH_MG_001": {
+    "gnhd": 3581,
+    "sknt": 7
+  },
+  "gen_7_BMH_MB_019": {
+    "gnhd": 3657,
+    "sknt": 7
+  },
+  "gen_7_BMH_GS_011": {
+    "gnhd": 3844,
+    "sknt": 7
+  },
+  "gen_7_BHM_N_002": {
+    "gnhd": 3866,
+    "sknt": 7
+  },
+  "gen_7_BHM_MG_001": {
+    "gnhd": 3851,
+    "sknt": 7
+  },
+  "gen_6_N_MG_009": {
+    "gnhd": 4082,
+    "sknt": 6
+  },
+  "gen_6_M_G_01": {
+    "gnhd": 4080,
+    "sknt": 6
+  },
+  "gen_6_M_MB_011": {
+    "gnhd": 3711,
+    "sknt": 6
+  },
+  "gen_6_H_N_006": {
+    "gnhd": 4077,
+    "sknt": 6
+  },
+  "gen_6_H_G_012": {
+    "gnhd": 3846,
+    "sknt": 6
+  },
+  "gen_6_H_BM_02": {
+    "gnhd": 4076,
+    "sknt": 6
+  },
+  "gen_6_B_S_02": {
+    "gnhd": 4069,
+    "sknt": 6
+  },
+  "gen_6_B_N_008": {
+    "gnhd": 4067,
+    "sknt": 6
+  },
+  "gen_6_B_N_006": {
+    "gnhd": 4066,
+    "sknt": 6
+  },
+  "gen_6_B_N_003": {
+    "gnhd": 3975,
+    "sknt": 6
+  },
+  "gen_6_B_G_06": {
+    "gnhd": 3403,
+    "sknt": 6
+  },
+  "gen_6_B_G_005": {
+    "gnhd": 3466,
+    "sknt": 6
+  },
+  "gen_6_B_G_01": {
+    "gnhd": 3965,
+    "sknt": 6
+  },
+  "gen_6_BTM_BM_001": {
+    "gnhd": 3766,
+    "sknt": 6
+  },
+  "gen_6_BM_N_009": {
+    "gnhd": 3764,
+    "sknt": 6
+  },
+  "gen_5_M_M_005": {
+    "gnhd": 3958,
+    "sknt": 5
+  },
+  "gen_5_M_N_02": {
+    "gnhd": 3917,
+    "sknt": 5
+  },
+  "gen_5_H_G_01": {
+    "gnhd": 3952,
+    "sknt": 5
+  },
+  "gen_5_B_S_003": {
+    "gnhd": 3356,
+    "sknt": 5
+  },
+  "gen_5_B_S_002": {
+    "gnhd": 3943,
+    "sknt": 5
+  },
+  "gen_5_B_N_03": {
+    "gnhd": 3377,
+    "sknt": 5
+  },
+  "gen_5_B_G_02": {
+    "gnhd": 3924,
+    "sknt": 5
+  },
+  "gen_5_B_MS_02": {
+    "gnhd": 3955,
+    "sknt": 5
+  },
+  "gen_5_BHM_M_002": {
+    "gnhd": 3937,
+    "sknt": 5
+  },
+  "gen_4_T_N_007": {
+    "gnhd": 3354,
+    "sknt": 4
+  },
+  "gen_4_M_M_005": {
+    "gnhd": 3875,
+    "sknt": 4
+  },
+  "gen_4_T_G_01": {
+    "gnhd": 3375,
+    "sknt": 4
+  },
+  "gen_4_H_N_005": {
+    "gnhd": 3912,
+    "sknt": 4
+  },
+  "gen_4_B_N_02": {
+    "gnhd": 3907,
+    "sknt": 4
+  },
+  "gen_4_B_N_004": {
+    "gnhd": 3386,
+    "sknt": 4
+  },
+  "gen_4_B_MS_03": {
+    "gnhd": 3901,
+    "sknt": 4
+  },
+  "gen_4_B_MS_02": {
+    "gnhd": 3911,
+    "sknt": 4
+  },
+  "gen_4_B_MS_01": {
+    "gnhd": 3422,
+    "sknt": 4
+  },
+  "gen_4_B_G_004": {
+    "gnhd": 3883,
+    "sknt": 4
+  },
+  "gen_4_B_B_004": {
+    "gnhd": 3371,
+    "sknt": 4
+  },
+  "gen_3_T_N_004": {
+    "gnhd": 3910,
+    "sknt": 3
+  },
+  "gen_3_H_N_01": {
+    "gnhd": 3854,
+    "sknt": 3
+  },
+  "gen_3_H_B_01": {
+    "gnhd": 3853,
+    "sknt": 3
+  },
+  "gen_3_B_S_010": {
+    "gnhd": 3871,
+    "sknt": 3
+  },
+  "gen_3_B_N_007": {
+    "gnhd": 3368,
+    "sknt": 3
+  },
+  "gen_3_B_N_01": {
+    "gnhd": 3369,
+    "sknt": 3
+  },
+  "gen_3_B_N_004": {
+    "gnhd": 4213,
+    "sknt": 3
+  },
+  "gen_3_B_B_01": {
+    "gnhd": 3352,
+    "sknt": 3
+  },
+  "gen_3_B_BD_02": {
+    "gnhd": 4210,
+    "sknt": 3
+  },
+  "gen_2_T_N_01": {
+    "gnhd": 3821,
+    "sknt": 2
+  },
+  "gen_2_M_N_04": {
+    "gnhd": 4287,
+    "sknt": 2
+  },
+  "gen_2_M_B_01": {
+    "gnhd": 3811,
+    "sknt": 2
+  },
+  "gen_2_H_N_007": {
+    "gnhd": 4200,
+    "sknt": 2
+  },
+  "gen_2_H_N_006": {
+    "gnhd": 4199,
+    "sknt": 2
+  },
+  "gen_2_H_G_02": {
+    "gnhd": 3806,
+    "sknt": 2
+  },
+  "gen_2_B_S_006": {
+    "gnhd": 3364,
+    "sknt": 2
+  },
+  "gen_2_B_N_03": {
+    "gnhd": 3673,
+    "sknt": 2
+  },
+  "gen_2_B_N_0018": {
+    "gnhd": 3407,
+    "sknt": 2
+  },
+  "gen_2_B_N_0015": {
+    "gnhd": 3671,
+    "sknt": 2
+  },
+  "gen_2_B_N_0016": {
+    "gnhd": 3405,
+    "sknt": 2
+  },
+  "gen_2_B_N_0014": {
+    "gnhd": 3383,
+    "sknt": 2
+  },
+  "gen_2_B_N_0013": {
+    "gnhd": 3382,
+    "sknt": 2
+  },
+  "gen_2_B_B_006": {
+    "gnhd": 3662,
+    "sknt": 2
+  },
+  "gen_2_B_B_004": {
+    "gnhd": 4094,
+    "sknt": 2
+  },
+  "gen_2_B_BD_03": {
+    "gnhd": 4184,
+    "sknt": 2
+  },
+  "gen_2_BMH_S_003": {
+    "gnhd": 3756,
+    "sknt": 2
+  },
+  "gen_1_H_S_008": {
+    "gnhd": 4081,
+    "sknt": 1
+  },
+  "gen_1_M_N_02": {
+    "gnhd": 4083,
+    "sknt": 1
+  },
+  "gen_1_H_S_003": {
+    "gnhd": 4079,
+    "sknt": 1
+  },
+  "gen_1_H_BD_02": {
+    "gnhd": 4075,
+    "sknt": 1
+  },
+  "gen_1_H_BD_01": {
+    "gnhd": 4074,
+    "sknt": 1
+  },
+  "gen_1_B_N_03": {
+    "gnhd": 3360,
+    "sknt": 1
+  },
+  "gen_1_B_N_010": {
+    "gnhd": 4063,
+    "sknt": 1
+  },
+  "gen_1_B_N_02": {
+    "gnhd": 4061,
+    "sknt": 1
+  },
+  "gen_1_B_N_007": {
+    "gnhd": 4062,
+    "sknt": 1
+  },
+  "gen_1_B_N_0012": {
+    "gnhd": 3359,
+    "sknt": 1
+  },
+  "gen_1_BM_MB_005": {
+    "gnhd": 4071,
+    "sknt": 1
   }
 }

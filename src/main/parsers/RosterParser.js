@@ -150,6 +150,57 @@ async function parseRosterFile(filePath) {
         }
 
         console.log(`[RosterParser] SKNT->PLRC sync results: ${skntSyncedCount} synced, ${skntSkippedNoField} missing SKNT, ${skntSkippedNoChange} already matched`);
+
+        // CRITICAL: Sync GENR from BLBM to PEPS for generic face players
+        // This ensures faces assigned via face picker persist after reload
+        let genrSyncedCount = 0;
+        let genrSkippedNoField = 0;
+        let genrSkippedNotGeneric = 0;
+
+        for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+          const player = players[i];
+          const plpl = player.PLPL;
+          const isGenericFace = plpl === 0 || plpl === '0';
+
+          // Only sync GENR for generic face players
+          if (!isGenericFace) {
+            genrSkippedNotGeneric++;
+            continue;
+          }
+
+          const blbmRec = blbm._records[i];
+          const fields = blbmRec.fields || blbmRec._fields;
+
+          if (!fields || !fields['GENR']) {
+            genrSkippedNoField++;
+            continue;
+          }
+
+          const genr = fields['GENR'].value ?? fields['GENR']._value;
+          const currentPeps = player.PEPS;
+
+          // If BLBM has a valid GENR value and PEPS doesn't match, sync it
+          if (genr && typeof genr === 'string' && genr.startsWith('gen_')) {
+            if (currentPeps !== genr) {
+              players[i].PEPS = genr;
+              // Also set assignedGenr for consistency with face picker flow
+              players[i].assignedGenr = genr;
+              // Get SKNT from BLBM for assignedSknt
+              const sknt = fields['SKNT']?.value ?? fields['SKNT']?._value;
+              if (sknt !== undefined && sknt !== null) {
+                players[i].assignedSknt = sknt;
+              }
+              genrSyncedCount++;
+
+              // Log first 5 synced players for debugging
+              if (genrSyncedCount <= 5) {
+                console.log(`[RosterParser] GENR sync: ${player.PFNA} ${player.PLNA} PEPS="${currentPeps}" -> "${genr}"`);
+              }
+            }
+          }
+        }
+
+        console.log(`[RosterParser] GENR->PEPS sync results: ${genrSyncedCount} synced, ${genrSkippedNoField} missing GENR, ${genrSkippedNotGeneric} not generic`);
       } else {
         console.log('[RosterParser] WARNING: No BLBM table found for BTYP sync');
       }
@@ -174,6 +225,24 @@ async function parseRosterFile(filePath) {
         PEPS: sample.PEPS,
         PCBT: sample.PCBT  // Body type
       });
+
+      // DEBUG: Check if bio fields exist in roster file
+      console.log('[RosterParser] *** BIO FIELDS FROM ROSTER FILE ***');
+      console.log(`  PHGT (height): ${sample.PHGT} (exists: ${sample.hasOwnProperty('PHGT')})`);
+      console.log(`  PWGT (weight): ${sample.PWGT} (exists: ${sample.hasOwnProperty('PWGT')})`);
+      console.log(`  PHSN (homeState): ${sample.PHSN} (exists: ${sample.hasOwnProperty('PHSN')})`);
+      console.log(`  PCOL (college): ${sample.PCOL} (exists: ${sample.hasOwnProperty('PCOL')})`);
+      console.log(`  PHTN (hometown): ${sample.PHTN} (exists: ${sample.hasOwnProperty('PHTN')})`);
+      console.log(`  PLRC (race): ${sample.PLRC} (exists: ${sample.hasOwnProperty('PLRC')})`);
+      console.log(`  All fields (${allFields.length}): ${allFields.join(', ')}`);
+
+      // Check if height/weight/state fields exist under different names
+      const heightLikeFields = allFields.filter(f => f.includes('HGT') || f.includes('HEIGHT') || f.includes('hgt'));
+      const weightLikeFields = allFields.filter(f => f.includes('WGT') || f.includes('WEIGHT') || f.includes('wgt'));
+      const stateLikeFields = allFields.filter(f => f.includes('HSN') || f.includes('STATE') || f.includes('state'));
+      console.log(`  Height-like fields: ${heightLikeFields.join(', ') || 'NONE'}`);
+      console.log(`  Weight-like fields: ${weightLikeFields.join(', ') || 'NONE'}`);
+      console.log(`  State-like fields: ${stateLikeFields.join(', ') || 'NONE'}`);
 
       // Debug: Log PCBT values for first 10 players
       console.log('[RosterParser] *** PCBT LOAD DEBUG - First 10 players ***');

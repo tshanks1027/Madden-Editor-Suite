@@ -35,6 +35,10 @@ let verifiedGenrBySkinTone = null;
 let facePickerToGenrMapping = null;
 let genrToFacePickerMapping = null;
 
+// GENR -> GNHD mapping (numeric head ID required for face persistence)
+// When GNHD is 0 with CNID=0, the game may reset faces after save/reload
+let genrToGnhdMapping = null;
+
 function loadFacePickerMapping() {
   if (facePickerToGenrMapping) return facePickerToGenrMapping;
 
@@ -83,6 +87,54 @@ function loadGenrToFacePickerMapping() {
   }
   console.warn('[GenericFaceService] genr-to-face-picker.json not found');
   return null;
+}
+
+/**
+ * Load GENR -> GNHD mapping for proper face persistence
+ * GNHD (Generic Head Number) is required for faces to persist after save/reload
+ */
+function loadGenrToGnhdMapping() {
+  if (genrToGnhdMapping) return genrToGnhdMapping;
+
+  const possiblePaths = [
+    path.join(__dirname, '..', 'data', 'lookups', 'genr-to-gnhd.json'),
+    path.join(__dirname, '..', '..', 'data', 'lookups', 'genr-to-gnhd.json'),
+    path.join(process.cwd(), 'data', 'lookups', 'genr-to-gnhd.json'),
+    path.join(process.cwd(), '.vite', 'build', 'data', 'lookups', 'genr-to-gnhd.json')
+  ];
+
+  for (const mappingPath of possiblePaths) {
+    if (fs.existsSync(mappingPath)) {
+      try {
+        genrToGnhdMapping = JSON.parse(fs.readFileSync(mappingPath, 'utf8'));
+        console.log(`[GenericFaceService] Loaded ${Object.keys(genrToGnhdMapping).length} GENR->GNHD mappings`);
+        return genrToGnhdMapping;
+      } catch (e) {
+        console.error('[GenericFaceService] Error loading GENR->GNHD mapping:', e.message);
+      }
+    }
+  }
+  console.warn('[GenericFaceService] genr-to-gnhd.json not found - faces may not persist after save');
+  return null;
+}
+
+/**
+ * Get GNHD value for a GENR code
+ * Returns the numeric GNHD or 0 if not found
+ */
+function getGnhdForGenr(genr) {
+  loadGenrToGnhdMapping();
+  if (!genrToGnhdMapping || !genr) return 0;
+
+  const mapping = genrToGnhdMapping[genr];
+  if (mapping && typeof mapping === 'object' && mapping.gnhd !== undefined) {
+    return mapping.gnhd;
+  }
+  // Direct numeric value
+  if (typeof mapping === 'number') {
+    return mapping;
+  }
+  return 0;
 }
 
 /**
@@ -686,13 +738,51 @@ class GenericFaceService {
       }
 
       // Get GENR and SKNT - priority:
-      // 1. PEPS contains generic portrait name (e.g., "plpo_generic_6_B_G_03") -> convert to GENR
-      // 2. assignedGenr/_genr properties (legacy)
-      // 3. Derive from race (random)
+      // 1. assignedGenr/assignedSknt (user explicitly selected via face picker)
+      // 2. Existing BLBM GENR/SKNT (preserve previously saved face)
+      // 3. PEPS contains generic portrait name (e.g., "plpo_generic_6_B_G_03") -> convert to GENR
+      // 4. Derive from race (random) - ONLY if no existing face
       let finalGenr, finalSknt;
 
-      // FIRST: Check if PEPS contains a generic portrait/GENR value
-      if (hasGenericPEPS && peps) {
+      // ZERO: Check existing BLBM GENR first - we may want to preserve it
+      const existingGenr = fields['GENR']?.value ?? fields['GENR']?._value;
+      const existingSknt = fields['SKNT']?.value ?? fields['SKNT']?._value;
+      const hasValidExistingGenr = existingGenr && typeof existingGenr === 'string' &&
+                                    existingGenr.startsWith('gen_') && isValidGenr(existingGenr);
+
+      // FIRST: Check for explicit assignedGenr/assignedSknt (user selected via face picker)
+      const playerGenr = player.assignedGenr ?? player._genr;
+      const playerSknt = player.assignedSknt ?? player._sknt;
+
+      if (playerGenr && playerSknt !== undefined && playerSknt !== null) {
+        if (isValidGenr(playerGenr)) {
+          finalGenr = playerGenr;
+          finalSknt = playerSknt;
+          if (isDebugPlayer || updatedCount < 5) {
+            console.log(`[GenericFaceService] ✓ Using explicit assignedGenr="${finalGenr}", assignedSknt=${finalSknt} for ${playerName}`);
+          }
+        } else {
+          finalSknt = playerSknt;
+          finalGenr = getRandomGenrFromCatalog(finalSknt);
+          if (!finalGenr) {
+            finalGenr = this.getGenrForSknt(finalSknt);
+          }
+          if (isDebugPlayer || updatedCount < 5) {
+            console.log(`[GenericFaceService] ⚠ INVALID assignedGenr="${playerGenr}" - using random: "${finalGenr}" for ${playerName}`);
+          }
+        }
+      }
+      // SECOND: Preserve existing BLBM GENR if valid (game already has a face assigned)
+      else if (hasValidExistingGenr && existingSknt >= 1 && existingSknt <= 7) {
+        finalGenr = existingGenr;
+        finalSknt = existingSknt;
+        if (isDebugPlayer || updatedCount < 5) {
+          console.log(`[GenericFaceService] ✓ Preserving existing BLBM GENR="${finalGenr}", SKNT=${finalSknt} for ${playerName}`);
+        }
+        // Still need to update GNHD even if preserving GENR
+      }
+      // THIRD: Check if PEPS contains a generic portrait/GENR value
+      else if (hasGenericPEPS && peps) {
         let derivedGenr = peps;
         let derivedSknt = null;
 
@@ -740,38 +830,16 @@ class GenericFaceService {
           }
         }
       }
-      // SECOND: Check for explicit assignedGenr/assignedSknt or legacy _genr/_sknt
+      // FOURTH: No face found anywhere - derive from race (random selection)
+      // This should only happen for brand new players with no face assigned
       else {
-        const playerGenr = player.assignedGenr ?? player._genr;
-        const playerSknt = player.assignedSknt ?? player._sknt;
-
-        if (playerGenr && playerSknt !== undefined && playerSknt !== null) {
-          if (isValidGenr(playerGenr)) {
-            finalGenr = playerGenr;
-            finalSknt = playerSknt;
-            if (isDebugPlayer || updatedCount < 5) {
-              console.log(`[GenericFaceService] ✓ Using explicit assignedGenr="${finalGenr}", assignedSknt=${finalSknt} for ${playerName}`);
-            }
-          } else {
-            finalSknt = playerSknt;
-            finalGenr = getRandomGenrFromCatalog(finalSknt);
-            if (!finalGenr) {
-              finalGenr = this.getGenrForSknt(finalSknt);
-            }
-            if (isDebugPlayer || updatedCount < 5) {
-              console.log(`[GenericFaceService] ⚠ INVALID assignedGenr="${playerGenr}" - using random: "${finalGenr}" for ${playerName}`);
-            }
-          }
-        } else {
-          // THIRD: No explicit values - derive from race (random selection)
-          finalSknt = this.getSkntForRace(race);
-          finalGenr = getRandomGenrFromCatalog(finalSknt);
-          if (!finalGenr) {
-            finalGenr = this.getGenrForSknt(finalSknt);
-          }
-          if (isDebugPlayer || updatedCount < 5) {
-            console.log(`[GenericFaceService] ✗ No PEPS/assignedGenr for ${playerName}, deriving from race=${race} -> GENR=${finalGenr}`);
-          }
+        finalSknt = this.getSkntForRace(race);
+        finalGenr = getRandomGenrFromCatalog(finalSknt);
+        if (!finalGenr) {
+          finalGenr = this.getGenrForSknt(finalSknt);
+        }
+        if (isDebugPlayer || updatedCount < 5) {
+          console.log(`[GenericFaceService] ✗ No existing face for ${playerName}, deriving from race=${race} -> GENR=${finalGenr}`);
         }
       }
 
@@ -837,27 +905,29 @@ class GenericFaceService {
         console.log(`  WARNING: No SKNT field found!`);
       }
 
-      // GNHD (Generic Head Number) should be 0 when CNID=0
-      // When CNID=0, the game uses GENR to determine face, not GNHD
-      // Verified by ROSTER-GENHEADTEST: all 264 faces had GNHD=0
+      // GNHD (Generic Head Number) - required for face persistence!
+      // When CNID=0, the game uses GNHD + GENR to determine and persist the face
+      // Setting GNHD=0 causes faces to reset after save/reload
+      // Use the genr-to-gnhd lookup to get the correct GNHD value for this GENR
       let gnhdUpdated = false;
+      const targetGnhd = getGnhdForGenr(finalGenr);
       if (fields['GNHD']) {
         if (fields['GNHD'].value !== undefined) {
           const oldGnhd = fields['GNHD'].value;
-          if (oldGnhd !== 0) {
-            fields['GNHD'].value = 0;
+          if (oldGnhd !== targetGnhd) {
+            fields['GNHD'].value = targetGnhd;
             gnhdUpdated = true;
             if (isDebugPlayer || updatedCount < 5) {
-              console.log(`  GNHD: ${oldGnhd} -> 0 (must be 0 when CNID=0)`);
+              console.log(`  GNHD: ${oldGnhd} -> ${targetGnhd} (from GENR lookup)`);
             }
           }
         } else if (fields['GNHD']._value !== undefined) {
           const oldGnhd = fields['GNHD']._value;
-          if (oldGnhd !== 0) {
-            fields['GNHD']._value = 0;
+          if (oldGnhd !== targetGnhd) {
+            fields['GNHD']._value = targetGnhd;
             gnhdUpdated = true;
             if (isDebugPlayer || updatedCount < 5) {
-              console.log(`  GNHD: ${oldGnhd} -> 0 (must be 0 when CNID=0)`);
+              console.log(`  GNHD: ${oldGnhd} -> ${targetGnhd} (from GENR lookup)`);
             }
           }
         }
@@ -1006,7 +1076,7 @@ class GenericFaceService {
       updatedCount++;
 
       if (updatedCount <= 5) {
-        console.log(`[GenericFaceService] Updated ${playerName} (index ${i}): GENR=${finalGenr}, SKNT=${finalSknt}, CNID=0`);
+        console.log(`[GenericFaceService] Updated ${playerName} (index ${i}): GENR=${finalGenr}, SKNT=${finalSknt}, GNHD=${targetGnhd}, CNID=0`);
       }
     }
 
@@ -1262,5 +1332,6 @@ const genericFaceService = new GenericFaceService();
 module.exports = {
   genericFaceService,
   getGenrForFacePickerNum,
-  getFacePickerNumsForGenr
+  getFacePickerNumsForGenr,
+  getGnhdForGenr
 };
