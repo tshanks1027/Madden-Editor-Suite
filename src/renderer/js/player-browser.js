@@ -812,8 +812,35 @@
     let successCount = 0;
     let errorCount = 0;
 
+    // Pre-collect available GENERIC Free Agent slot indices (from bottom of list)
+    // Only collect slots with low PID (generic template players, not real players just added)
+    const availableSlots = [];
+    for (let i = window.app.players.length - 1; i >= 0; i--) {
+      const p = window.app.players[i];
+      const pid = p.PSXP || 0;
+      // Generic Free Agent: team 1009 AND low PID (template filler)
+      if (p.TGID === 1009 && pid < 100) {
+        availableSlots.push(i);
+      }
+    }
+
+    // Fallback: if not enough generic slots, also include low-OVR Free Agents
+    if (availableSlots.length < playerIds.length) {
+      for (let i = window.app.players.length - 1; i >= 0; i--) {
+        const p = window.app.players[i];
+        if (p.TGID === 1009 && (p.POVR || 99) < 50 && !availableSlots.includes(i)) {
+          availableSlots.push(i);
+        }
+      }
+    }
+
+    if (availableSlots.length < playerIds.length) {
+      alert(`Not enough generic Free Agent slots available.\nNeed: ${playerIds.length}, Available: ${availableSlots.length}\n\nPlease remove some Free Agents first.`);
+      return;
+    }
+
     // Show progress
-    console.log('[PlayerBrowser] Adding', playerIds.length, 'players to roster...');
+    console.log('[PlayerBrowser] Adding', playerIds.length, 'players to roster, replacing', playerIds.length, 'bottom Free Agents...');
 
     for (const internalId of playerIds) {
       try {
@@ -838,18 +865,26 @@
         const playerData = result.player;
         playerData.TGID = teamId;
 
-        // Generate unique PGID
-        const maxPGID = window.app.players.reduce((max, p) => Math.max(max, p.PGID || 0), 0);
-        playerData.PGID = maxPGID + 1 + successCount;
-        if (!playerData.POID) {
-          playerData.POID = playerData.PGID;
-        }
+        // Get the next available Free Agent slot (bottom-most first)
+        const replaceIndex = availableSlots.shift();
+        const replacePlayer = window.app.players[replaceIndex];
 
-        // Add to grid and data
+        // Keep the slot PGID
+        playerData.PGID = replacePlayer.PGID;
+        playerData.POID = replacePlayer.POID || replacePlayer.PGID;
+
+        console.log('[PlayerBrowser] Batch: Replacing slot', replaceIndex, 'PGID:', playerData.PGID, 'with', playerData.PFNA, playerData.PLNA);
+
+        // Replace in array
+        window.app.players[replaceIndex] = playerData;
+
+        // Update grid
         if (window.app.agGrid) {
-          window.app.agGrid.applyTransaction({ add: [playerData] });
+          window.app.agGrid.applyTransaction({
+            remove: [replacePlayer],
+            add: [playerData]
+          });
         }
-        window.app.players.push(playerData);
 
         successCount++;
       } catch (error) {
@@ -1144,7 +1179,7 @@
   async function confirmAddToRoster() {
     if (!pendingRosterAdd) return;
 
-    const { internalId, firstName, lastName, position, playerName } = pendingRosterAdd;
+    const { internalId, firstName, lastName, position, playerName, displayedPid, isCustomPlayer } = pendingRosterAdd;
     const teamSelect = document.getElementById('addToRosterTeam');
     const yearSelect = document.getElementById('addToRosterYear');
 
@@ -1162,6 +1197,13 @@
       }
 
       const playerData = result.player;
+
+      // CRITICAL: If a PID was passed from the database browser, use it directly
+      // This ensures the PID shown in the browser is the one that ends up on the roster
+      if (displayedPid && displayedPid > 0) {
+        console.log(`[PlayerBrowser] Using PID from database browser: ${displayedPid} (overriding ${playerData.PSXP})`);
+        playerData.PSXP = displayedPid;
+      }
 
       // DEBUG: Check ALL ratings in received player data
       const allKeys = Object.keys(playerData);
@@ -1237,25 +1279,58 @@
         // Clear replacement info
         pendingReplaceInfo = null;
       } else {
-        // Normal add (roster wasn't full) - just push to the end
-        if (window.app.agGrid) {
-          window.app.agGrid.applyTransaction({
-            add: [playerData]
-          });
-        }
-
+        // Normal add - ALWAYS replace a bottom Free Agent slot (roster has fixed capacity)
         if (window.app.players) {
-          // Generate a unique PGID for the new player
-          const maxPGID = window.app.players.reduce((max, p) => Math.max(max, p.PGID || 0), 0);
-          playerData.PGID = maxPGID + 1;
-          // Only set POID if not already provided from database lookup
-          if (!playerData.POID) {
-            playerData.POID = playerData.PGID; // Fallback: POID matches PGID if not in database
-          }
-          console.log('[PlayerBrowser] Assigned new PGID:', playerData.PGID, 'POID:', playerData.POID);
+          // Find bottom-most GENERIC Free Agent to replace (low PID = template filler)
+          let replaceIndex = -1;
+          let replacePlayer = null;
 
-          window.app.players.push(playerData);
+          // First pass: look for generic Free Agents (low PID)
+          for (let i = window.app.players.length - 1; i >= 0; i--) {
+            const p = window.app.players[i];
+            const pid = p.PSXP || 0;
+            if (p.TGID === 1009 && pid < 100) {
+              replaceIndex = i;
+              replacePlayer = p;
+              break;
+            }
+          }
+
+          // Fallback: if no generic Free Agents, find any Free Agent with low overall
+          if (replaceIndex === -1) {
+            for (let i = window.app.players.length - 1; i >= 0; i--) {
+              const p = window.app.players[i];
+              if (p.TGID === 1009 && (p.POVR || 99) < 50) {
+                replaceIndex = i;
+                replacePlayer = p;
+                break;
+              }
+            }
+          }
+
+          if (replaceIndex === -1) {
+            console.error('[PlayerBrowser] No generic Free Agent slot available!');
+            alert('No generic Free Agent slot available. Remove a Free Agent first.');
+            document.getElementById('addToRosterModal').style.display = 'none';
+            return;
+          }
+
+          // Keep the slot PGID
+          playerData.PGID = replacePlayer.PGID;
+          playerData.POID = replacePlayer.POID || replacePlayer.PGID;
+          console.log('[PlayerBrowser] Replacing bottom FA at index:', replaceIndex, 'PGID:', playerData.PGID);
+
+          // Replace in array at same index
+          window.app.players[replaceIndex] = playerData;
           window.app.filteredPlayers = window.app.players.slice();
+
+          // Update grid
+          if (window.app.agGrid) {
+            window.app.agGrid.applyTransaction({
+              remove: [replacePlayer],
+              add: [playerData]
+            });
+          }
         }
       }
 
@@ -1667,8 +1742,10 @@
     }
   }
 
-  window.addToRoster = async function(internalId) {
-    console.log('[PlayerBrowser] Add to roster called with:', internalId, 'type:', typeof internalId);
+  // options.pid = PID from database browser display (so we don't lose it in re-lookups)
+  // options.isCustom = whether this is a custom player
+  window.addToRoster = async function(internalId, options) {
+    console.log('[PlayerBrowser] Add to roster called with:', internalId, 'type:', typeof internalId, 'options:', options);
 
     // Validate internalId
     if (internalId === undefined || internalId === null) {
@@ -1780,7 +1857,7 @@
         console.log('[PlayerBrowser] Will replace player at index', idx, ':', lowestName.trim(), 'OVR:', lowestOVR);
       }
 
-      // Store pending data
+      // Store pending data (including PID from database browser if passed)
       pendingRosterAdd = {
         internalId,
         firstName,
@@ -1788,7 +1865,9 @@
         position,
         playerName,
         years,
-        defaultYear
+        defaultYear,
+        displayedPid: options?.pid,  // PID shown in database browser - use this!
+        isCustomPlayer: options?.isCustom
       };
 
       // Populate and show modal
@@ -1817,8 +1896,10 @@
   };
 
   // Direct add to roster without modal (for batch operations from database browser)
-  window.directAddToRoster = async function(internalId, teamId, year) {
-    console.log('[PlayerBrowser] Direct add to roster:', internalId, 'teamId:', teamId, 'year:', year);
+  // options.pid = PID from database browser display (so we don't lose it in re-lookups)
+  // options.isCustom = whether this is a custom player
+  window.directAddToRoster = async function(internalId, teamId, year, options) {
+    console.log('[PlayerBrowser] Direct add to roster:', internalId, 'teamId:', teamId, 'year:', year, 'options:', options);
 
     try {
       // Check if roster is loaded or created
@@ -1851,28 +1932,73 @@
       console.log(`[PlayerBrowser] directAddToRoster RECEIVED - ${playerData.PFNA} ${playerData.PLNA}`);
       console.log(`[PlayerBrowser] directAddToRoster RECEIVED - Rating keys: ${directRatingKeys.join(', ') || 'NONE'}`);
       console.log(`[PlayerBrowser] directAddToRoster RECEIVED - POVR=${playerData.POVR}, PSPD=${playerData.PSPD}, PACC=${playerData.PACC}`);
+      console.log(`[PlayerBrowser] directAddToRoster RECEIVED - PSXP (PID)=${playerData.PSXP}, options.pid=${options?.pid}`);
+
+      // CRITICAL: If a PID was passed from the database browser, use it directly
+      // This ensures the PID shown in the browser is the one that ends up on the roster
+      if (options?.pid && options.pid > 0) {
+        console.log(`[PlayerBrowser] Using PID from database browser: ${options.pid} (overriding ${playerData.PSXP})`);
+        playerData.PSXP = options.pid;
+      }
 
       // Set the selected team
       playerData.TGID = selectedTeamId;
 
-      // Add to grid (normal add - no replacement handling for batch operations)
-      if (window.app.agGrid) {
-        window.app.agGrid.applyTransaction({
-          add: [playerData]
-        });
-      }
-
+      // CRITICAL FIX: Replace an existing Free Agent slot instead of pushing beyond template capacity
+      // The roster template has fixed slots (3124), pushing to the end puts players beyond save capacity
+      // User requirement: Replace bottom Free Agents (search from end of array backwards)
+      // IMPORTANT: Only replace GENERIC Free Agents (low PID) - not real players just added
       if (window.app.players) {
-        // Generate a unique PGID for the new player
-        const maxPGID = window.app.players.reduce((max, p) => Math.max(max, p.PGID || 0), 0);
-        playerData.PGID = maxPGID + 1;
-        if (!playerData.POID) {
-          playerData.POID = playerData.PGID;
-        }
-        console.log('[PlayerBrowser] Assigned new PGID:', playerData.PGID, 'POID:', playerData.POID);
+        // Find a replaceable Free Agent slot (TGID=1009 with low PID) - search from bottom of list
+        let replaceIndex = -1;
+        let replacePlayer = null;
 
-        window.app.players.push(playerData);
+        // Search backwards from the end of the array to find bottom Free Agents
+        // Only consider generic players (PID < 100 or PID = 0) - real players have PIDs like 2000+
+        for (let i = window.app.players.length - 1; i >= 0; i--) {
+          const p = window.app.players[i];
+          const pid = p.PSXP || 0;
+          // Free Agent team AND generic player (low PID means template filler, not real player)
+          if (p.TGID === 1009 && pid < 100) {
+            replaceIndex = i;
+            replacePlayer = p;
+            break; // Take the first (bottom-most) generic Free Agent we find
+          }
+        }
+
+        // Fallback: if no generic Free Agents, find any Free Agent with low overall
+        if (replaceIndex === -1) {
+          for (let i = window.app.players.length - 1; i >= 0; i--) {
+            const p = window.app.players[i];
+            if (p.TGID === 1009 && (p.POVR || 99) < 50) {
+              replaceIndex = i;
+              replacePlayer = p;
+              break;
+            }
+          }
+        }
+
+        if (replaceIndex === -1) {
+          console.error('[PlayerBrowser] No Free Agent slot available to replace!');
+          return { success: false, error: 'No Free Agent slot available. Remove a Free Agent first.' };
+        }
+
+        // Keep the PGID from the replaced slot - this is the record slot identity
+        playerData.PGID = replacePlayer.PGID;
+        playerData.POID = replacePlayer.POID || replacePlayer.PGID;
+        console.log('[PlayerBrowser] Replacing slot at index:', replaceIndex, 'PGID:', playerData.PGID, 'was:', replacePlayer.PFNA, replacePlayer.PLNA);
+
+        // Replace in the array at the same index (keeps within template capacity)
+        window.app.players[replaceIndex] = playerData;
         window.app.filteredPlayers = window.app.players.slice();
+
+        // Update grid - remove old row and add new one (AG-Grid needs row identity change)
+        if (window.app.agGrid) {
+          window.app.agGrid.applyTransaction({
+            remove: [replacePlayer],
+            add: [playerData]
+          });
+        }
       }
 
       // Mark roster as modified

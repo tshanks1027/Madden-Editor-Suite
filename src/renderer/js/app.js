@@ -3981,24 +3981,70 @@ class MaddenEditorApp {
                 // NO backup creation - we only write to the chosen file
                 console.log('[app.js] Calling saveRosterFile with chosen path...');
 
-                // PRE-SAVE SYNC: Ensure all assignedGenr/assignedSknt/assignedRace values from filteredPlayers are in this.players
-                // This handles cases where AG-Grid updates might not be on the same object references
-                // NOTE: Using non-underscore property names because IPC strips underscore-prefixed properties!
+                // CRITICAL PRE-SAVE SYNC: Sync ALL player data from AG-Grid to this.players
+                // This ensures we don't lose any edits due to reference mismatches
+                console.log('[app.js] PRE-SAVE SYNC: Starting comprehensive data sync from AG-Grid...');
+
+                // Build a map of PGID -> player for quick lookup
+                const playersMap = new Map();
+                for (const player of this.players) {
+                    if (player.PGID !== undefined) {
+                        playersMap.set(player.PGID, player);
+                    }
+                }
+
+                // Get ALL rows from AG-Grid and sync back to this.players
                 let syncedCount = 0;
+                let addedCount = 0;
+                let fieldsUpdated = 0;
+
+                if (this.agGrid) {
+                    this.agGrid.forEachNode(node => {
+                        if (!node.data) return;
+
+                        const gridPlayer = node.data;
+                        const pgid = gridPlayer.PGID;
+
+                        // Find matching player in this.players by PGID
+                        let mainPlayer = playersMap.get(pgid);
+
+                        if (!mainPlayer) {
+                            // CRITICAL: Player exists in grid but NOT in this.players!
+                            // This can happen after imports. Add them now to prevent data loss.
+                            console.log(`[app.js] PRE-SAVE SYNC: Adding missing player ${gridPlayer.PFNA} ${gridPlayer.PLNA} (PGID: ${pgid})`);
+                            this.players.push(gridPlayer);
+                            playersMap.set(pgid, gridPlayer);
+                            addedCount++;
+                            return;
+                        }
+
+                        // If same reference, no need to sync
+                        if (mainPlayer === gridPlayer) return;
+
+                        // Different references - sync ALL fields from grid to main player
+                        for (const field of Object.keys(gridPlayer)) {
+                            if (field.startsWith('_')) continue; // Skip internal fields
+                            if (mainPlayer[field] !== gridPlayer[field]) {
+                                mainPlayer[field] = gridPlayer[field];
+                                fieldsUpdated++;
+                            }
+                        }
+                        syncedCount++;
+                    });
+                }
+
+                console.log(`[app.js] PRE-SAVE SYNC: Synced ${syncedCount} players, added ${addedCount} missing players, updated ${fieldsUpdated} fields`);
+
+                // Also sync from filteredPlayers for face-related properties
                 for (const filteredPlayer of this.filteredPlayers) {
                     if (filteredPlayer.assignedGenr || filteredPlayer.assignedSknt !== undefined || filteredPlayer.assignedRace !== undefined) {
-                        // Find matching player in this.players by PGID (unique identifier)
-                        const mainPlayer = this.players.find(p => p.PGID === filteredPlayer.PGID);
+                        const mainPlayer = playersMap.get(filteredPlayer.PGID);
                         if (mainPlayer && mainPlayer !== filteredPlayer) {
                             if (filteredPlayer.assignedGenr) mainPlayer.assignedGenr = filteredPlayer.assignedGenr;
                             if (filteredPlayer.assignedSknt !== undefined) mainPlayer.assignedSknt = filteredPlayer.assignedSknt;
                             if (filteredPlayer.assignedRace !== undefined) mainPlayer.assignedRace = filteredPlayer.assignedRace;
-                            syncedCount++;
                         }
                     }
-                }
-                if (syncedCount > 0) {
-                    console.log(`[app.js] PRE-SAVE SYNC: Synced ${syncedCount} players' assignedGenr/assignedSknt/assignedRace from filteredPlayers`);
                 }
 
                 // DEBUG: Check if assignedGenr and assignedSknt are present before sending
@@ -4770,33 +4816,35 @@ class MaddenEditorApp {
                 return;
             }
 
-            // CRITICAL: Get the player data from AG-Grid's row node directly
-            // This works for both paginated players AND newly added players (via applyTransaction)
-            let player;
-            if (isRoster && this.agGrid) {
-                // Get the row node from AG-Grid by display index
-                const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
-                if (rowNode && rowNode.data) {
-                    player = rowNode.data;
-                    console.log(`[GenericFacePicker] Got player from AG-Grid rowNode at index ${gridRowIndex}:`, player.PFNA, player.PLNA);
-                } else {
-                    // Fallback to pagination mapping if rowNode not found
-                    let actualDataIndex = gridRowIndex;
-                    if (this.paginatedPlayerIndices && this.paginatedPlayerIndices[gridRowIndex] !== undefined) {
-                        actualDataIndex = this.paginatedPlayerIndices[gridRowIndex];
-                        console.log(`[GenericFacePicker] Mapped grid row ${gridRowIndex} to data index ${actualDataIndex} via paginatedPlayerIndices`);
+            // CRITICAL FIX: Use the stored player reference from when face picker was opened
+            // This is more reliable than looking up by display index which can become stale
+            // after filtering, sorting, or editing operations
+            let player = this.currentFacePickerPlayer;
+
+            // Verify the player still exists in our data array
+            // This handles the case where the player was deleted while the picker was open
+            if (isRoster && dataArray) {
+                // Check if player reference is still in filteredPlayers
+                if (!dataArray.includes(player)) {
+                    // Try to find by unique identifier (name + original PID)
+                    const storedPsxp = player.PSXP;
+                    const storedName = `${player.PFNA} ${player.PLNA}`;
+                    const foundPlayer = dataArray.find(p =>
+                        p.PFNA === player.PFNA && p.PLNA === player.PLNA &&
+                        (p.PSXP === storedPsxp || p.originalPsxp === storedPsxp)
+                    );
+                    if (foundPlayer) {
+                        player = foundPlayer;
+                        console.log(`[GenericFacePicker] Found player by name/PID lookup: ${storedName}`);
+                    } else {
+                        console.warn(`[GenericFacePicker] Could not find player ${storedName} in current data`);
                     }
-                    player = dataArray[actualDataIndex];
                 }
-            } else {
-                // Non-roster (draft class) - use direct index
-                player = dataArray[gridRowIndex];
             }
 
             if (!player) {
-                console.error(`[GenericFacePicker] No player found at grid index ${gridRowIndex}`);
-                console.error(`  - dataArray.length: ${dataArray.length}`);
-                console.error(`  - paginatedPlayerIndices: ${this.paginatedPlayerIndices}`);
+                console.error(`[GenericFacePicker] No player context available`);
+                alert('Player context lost. Please close this dialog and try again.');
                 return;
             }
 
@@ -4849,19 +4897,30 @@ class MaddenEditorApp {
                 console.warn(`[GenericFacePicker] Could not get race for PID ${pid}:`, err);
             }
 
+            // Check if "PAM Only" checkbox is enabled (only applies to roster, not draft class)
+            // PAM Only mode: Only update PEPS (in-game face model), keep PID and portrait unchanged
+            const pamOnlyCheckbox = document.getElementById('pamOnlyCheckbox');
+            const isPamOnly = isRoster && pamOnlyCheckbox && pamOnlyCheckbox.checked;
+            console.log(`[GenericFacePicker] PAM Only mode: ${isPamOnly}`);
+
             if (isRoster) {
+
                 // Roster player - update the actual player object in filteredPlayers
                 const oldPID = player.PSXP;
                 const oldRace = player.PLRC;
-                player.PSXP = pid;
-                player.PLAYERPIC = 'Generic Face'; // Update Player Pic field
+
+                // Only update PID and Player Pic if NOT in PAM-only mode
+                if (!isPamOnly) {
+                    player.PSXP = pid;
+                    player.PLAYERPIC = 'Generic Face'; // Update Player Pic field
+                }
 
                 // CRITICAL: Set PEPS (PAM) to GENR format for in-game face assignment
                 // Use verifiedGenr if available, otherwise convert portrait key to GENR format
                 const pepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
                 if (pepsValue) {
                     player.PEPS = pepsValue;
-                    console.log(`[GenericFacePicker] Set player.PEPS to "${pepsValue}"`);
+                    console.log(`[GenericFacePicker] Set player.PEPS to "${pepsValue}"${isPamOnly ? ' (PAM only mode - portrait unchanged)' : ''}`);
                 }
 
                 // CRITICAL: Use VERIFIED GENR/SKNT values for exact face matching
@@ -4889,71 +4948,71 @@ class MaddenEditorApp {
                 }
 
                 // CRITICAL: Sync assignedGenr/assignedSknt/PEPS to this.players array to ensure persistence
+                // Use PGID for reliable matching - indexOf may fail after grid rebuilds
                 if (genrValue) {
-                    const playerIndex = this.players.indexOf(player);
-                    if (playerIndex >= 0) {
-                        this.players[playerIndex].assignedGenr = player.assignedGenr;
-                        this.players[playerIndex].assignedSknt = player.assignedSknt;
-                        this.players[playerIndex].PEPS = player.PEPS;
-                        this.players[playerIndex].PSXP = player.PSXP;
-                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
-                    } else {
-                        // Fallback: search by unique identifier (PSXP + name combination)
-                        const originalPlayer = this.players.find(p =>
-                            p.PFNA === player.PFNA && p.PLNA === player.PLNA &&
-                            (p.PSXP === player.PSXP || p.PSXP === oldPID)
-                        );
-                        if (originalPlayer) {
-                            originalPlayer.assignedGenr = player.assignedGenr;
-                            originalPlayer.assignedSknt = player.assignedSknt;
-                            originalPlayer.PEPS = player.PEPS;
+                    // Find by PGID first (most reliable), then name as fallback
+                    const originalPlayer = this.players.find(p => p.PGID === player.PGID) ||
+                        this.players.find(p => p.PFNA === player.PFNA && p.PLNA === player.PLNA);
+
+                    if (originalPlayer) {
+                        originalPlayer.assignedGenr = player.assignedGenr;
+                        originalPlayer.assignedSknt = player.assignedSknt;
+                        originalPlayer.PEPS = player.PEPS;
+                        if (!isPamOnly) {
                             originalPlayer.PSXP = player.PSXP;
-                            console.log(`[GenericFacePicker] Synced to this.players via name/PID search - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
-                        } else {
-                            console.warn(`[GenericFacePicker] Could not find player in this.players to sync assignedGenr/assignedSknt/PEPS!`);
                         }
+                        const playerIndex = this.players.indexOf(originalPlayer);
+                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] via PGID ${player.PGID} - PEPS="${player.PEPS}"${isPamOnly ? ' (PAM only)' : `, PSXP=${player.PSXP}`}`);
+                    } else {
+                        console.warn(`[GenericFacePicker] Could not find player PGID=${player.PGID} in this.players to sync!`);
                     }
                 }
 
-                if (newRace !== null) {
+                // Only update race if NOT in PAM-only mode
+                if (newRace !== null && !isPamOnly) {
                     player.PLRC = newRace;
                     player.assignedRace = newRace; // Also update assignedRace for BLBM GENR/SKNT assignment
                 }
 
                 // CRITICAL: Set PGHE (Player Generic Head) for the face model
                 // PGHE controls which face MODEL appears in-game (values 1-290)
-                const blackPGHEs = [6, 42, 57, 64, 79, 89, 101, 102, 108, 114, 131, 138, 143, 148, 160, 161, 164, 190, 209, 210, 211, 224, 230, 255, 257, 267, 274, 280];
-                const whitePGHEs = [11, 12, 18, 24, 50, 54, 55, 56, 85, 90, 146, 154, 155, 158, 176, 202, 212, 227, 239, 243, 245, 253, 256, 264, 290];
-                const sharedPGHEs = [1, 7, 21, 25, 27, 34, 36, 53, 59, 62, 67, 77, 84, 93, 99, 100, 109, 119, 120, 128, 132, 139, 142, 147, 157, 162, 183, 188, 200, 232, 246, 247, 261, 271, 273, 278, 282, 286, 287, 288];
+                // Only update PGHE if NOT in PAM-only mode (PAM-only just changes in-game face model reference)
+                if (!isPamOnly) {
+                    const blackPGHEs = [6, 42, 57, 64, 79, 89, 101, 102, 108, 114, 131, 138, 143, 148, 160, 161, 164, 190, 209, 210, 211, 224, 230, 255, 257, 267, 274, 280];
+                    const whitePGHEs = [11, 12, 18, 24, 50, 54, 55, 56, 85, 90, 146, 154, 155, 158, 176, 202, 212, 227, 239, 243, 245, 253, 256, 264, 290];
+                    const sharedPGHEs = [1, 7, 21, 25, 27, 34, 36, 53, 59, 62, 67, 77, 84, 93, 99, 100, 109, 119, 120, 128, 132, 139, 142, 147, 157, 162, 183, 188, 200, 232, 246, 247, 261, 271, 273, 278, 282, 286, 287, 288];
 
-                const raceForPGHE = newRace !== null ? newRace : (player.PLRC ?? 7);
-                let pghePool;
-                if (raceForPGHE === 7) {
-                    pghePool = [...blackPGHEs, ...sharedPGHEs];
-                } else if (raceForPGHE === 1) {
-                    pghePool = [...whitePGHEs, ...sharedPGHEs];
-                } else {
-                    pghePool = sharedPGHEs;
-                }
-
-                const oldPGHE = player.PGHE;
-                player.PGHE = pghePool[Math.floor(Math.random() * pghePool.length)];
-                console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to ${player.PGHE} (race=${raceForPGHE})`);
-
-                // Sync PGHE to this.players array
-                const pghePlayerIndex = this.players.indexOf(player);
-                if (pghePlayerIndex >= 0) {
-                    this.players[pghePlayerIndex].PGHE = player.PGHE;
-                } else {
-                    const originalPlayer = this.players.find(p =>
-                        p.PFNA === player.PFNA && p.PLNA === player.PLNA
-                    );
-                    if (originalPlayer) {
-                        originalPlayer.PGHE = player.PGHE;
+                    const raceForPGHE = newRace !== null ? newRace : (player.PLRC ?? 7);
+                    let pghePool;
+                    if (raceForPGHE === 7) {
+                        pghePool = [...blackPGHEs, ...sharedPGHEs];
+                    } else if (raceForPGHE === 1) {
+                        pghePool = [...whitePGHEs, ...sharedPGHEs];
+                    } else {
+                        pghePool = sharedPGHEs;
                     }
-                }
 
-                console.log(`[GenericFacePicker] Updated player.PSXP from ${oldPID} to ${pid}`);
+                    const oldPGHE = player.PGHE;
+                    player.PGHE = pghePool[Math.floor(Math.random() * pghePool.length)];
+                    console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to ${player.PGHE} (race=${raceForPGHE})`);
+
+                    // Sync PGHE to this.players array
+                    const pghePlayerIndex = this.players.indexOf(player);
+                    if (pghePlayerIndex >= 0) {
+                        this.players[pghePlayerIndex].PGHE = player.PGHE;
+                    } else {
+                        const originalPlayer = this.players.find(p =>
+                            p.PFNA === player.PFNA && p.PLNA === player.PLNA
+                        );
+                        if (originalPlayer) {
+                            originalPlayer.PGHE = player.PGHE;
+                        }
+                    }
+
+                    console.log(`[GenericFacePicker] Updated player.PSXP from ${oldPID} to ${pid}`);
+                } else {
+                    console.log(`[GenericFacePicker] PAM-only mode: Skipping PGHE and PSXP changes`);
+                }
                 console.log(`[GenericFacePicker] Updated player.PLAYERPIC to "Generic Face"`);
                 if (newRace !== null) {
                     console.log(`[GenericFacePicker] Updated player.PLRC from ${oldRace} to ${newRace}`);
@@ -4969,19 +5028,21 @@ class MaddenEditorApp {
 
             // PERFORMANCE FIX: Don't await portrait loading - update grid immediately
             // Load portrait in background, cell will show "loading..." then auto-update when ready
-            // CRITICAL: For generic faces, use PAM-based cache key (matches grid renderer logic)
+            // In PAM-only mode, portrait doesn't change - use existing PID cache key
+            // Otherwise use PID-based cache for the new generic face PID
             const pepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
-            const cacheKey = pepsValue ? `pam_${pepsValue}` : `pid_${pid}`;
 
-            if (!this.portraitCache.has(cacheKey)) {
+            // PAM-only mode: portrait stays the same (existing player's PID), only in-game face changes
+            // Normal mode: portrait changes to match the new generic PID
+            const existingPid = isRoster ? player.PSXP : player.PID;
+            const cacheKey = isPamOnly ? `pid_${existingPid}` : `pid_${pid}`;
+
+            if (!isPamOnly && !this.portraitCache.has(cacheKey)) {
                 console.log(`[GenericFacePicker] Starting portrait load in background: ${cacheKey}`);
                 this.portraitCache.set(cacheKey, 'loading');
 
-                // Load in background (no await)
-                // For generic faces, load by PAM; for real faces, load by PID
-                const loadPromise = pepsValue
-                    ? window.electronAPI.portrait.getImageDataByPam(pepsValue)
-                    : window.electronAPI.portrait.getByPID(pid);
+                // Load portrait by PID
+                const loadPromise = window.electronAPI.portrait.getByPID(pid);
 
                 loadPromise.then(imageData => {
                     if (imageData && imageData.length > 0) {
@@ -5007,7 +5068,7 @@ class MaddenEditorApp {
                     this.portraitCache.set(cacheKey, null);
                 });
             } else {
-                console.log(`[GenericFacePicker] Portrait already in cache: ${cacheKey}`);
+                console.log(`[GenericFacePicker] Portrait already in cache or PAM-only mode: ${cacheKey}`);
             }
 
             console.log(`[GenericFacePicker] Updating grid display...`);
@@ -5015,20 +5076,46 @@ class MaddenEditorApp {
             if (isRoster && this.agGrid) {
                 // AG-Grid: Get the row node and update data through API (not direct modification)
                 // This ensures AG-Grid detects the change and properly refreshes
-                const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
+                // FIX: Use forEachNode to find row by PGID (unique identifier), not object reference
+                // Object references become stale after grid rebuilds (filtering, sorting, etc.)
+                let rowNode = null;
+                const playerPGID = player.PGID;
+                const playerName = `${player.PFNA} ${player.PLNA}`;
+                this.agGrid.forEachNode(node => {
+                    // Match by PGID first (most reliable), then by name as fallback
+                    if (node.data && (node.data.PGID === playerPGID ||
+                        (node.data.PFNA === player.PFNA && node.data.PLNA === player.PLNA))) {
+                        rowNode = node;
+                        // Also update our player reference to the current grid data
+                        player = node.data;
+                    }
+                });
+
+                // Fallback to display index if direct reference not found
+                if (!rowNode) {
+                    rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
+                    if (rowNode) {
+                        console.log(`[GenericFacePicker] Used fallback display index ${gridRowIndex}`);
+                        player = rowNode.data; // Update reference to current grid data
+                    }
+                }
+
                 if (rowNode) {
                     // Update via AG-Grid API - this triggers proper cell refresh
-                    rowNode.setDataValue('PSXP', pid);
-                    rowNode.setDataValue('PLAYERPIC', 'Generic Face');
+                    // In PAM-only mode, only update PEPS (the in-game face model) - leave PID and portrait unchanged
+                    if (!isPamOnly) {
+                        rowNode.setDataValue('PSXP', pid);
+                        rowNode.setDataValue('PLAYERPIC', 'Generic Face');
+                    }
                     // CRITICAL: Use GENR format for PEPS (PAM), not portrait key format
                     const gridPepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
                     if (gridPepsValue) {
                         rowNode.setDataValue('PEPS', gridPepsValue);
                     }
-                    if (newRace !== null) {
+                    if (newRace !== null && !isPamOnly) {
                         rowNode.setDataValue('PLRC', newRace);
                     }
-                    console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid}, PLAYERPIC=Generic Face, PEPS=${gridPepsValue}, PLRC=${newRace}`);
+                    console.log(`[GenericFacePicker] Updated row via setDataValue:${isPamOnly ? ' (PAM only)' : ` PSXP=${pid}, PLAYERPIC=Generic Face,`} PEPS=${gridPepsValue}${isPamOnly ? '' : `, PLRC=${newRace}`}`);
 
                     // Force refresh the portrait column specifically
                     this.agGrid.refreshCells({
@@ -5038,20 +5125,37 @@ class MaddenEditorApp {
                     });
                     console.log(`[GenericFacePicker] Portrait cell refreshed for row ${gridRowIndex}`);
                 } else {
-                    console.error(`[GenericFacePicker] Could not find row node at index ${gridRowIndex}`);
+                    console.error(`[GenericFacePicker] Could not find row node for player ${player.PFNA} ${player.PLNA}`);
+                    // Show error to user since face won't update
+                    alert(`Could not update face for ${player.PFNA} ${player.PLNA}. Please try again.`);
                 }
             } else if (isDraftAgGrid) {
                 // AG-Grid: Get the row node and update data through API
-                const rowNode = grid.getDisplayedRowAtIndex(gridRowIndex);
+                // FIX: Use forEachNode to find row by player data reference
+                let rowNode = null;
+                grid.forEachNode(node => {
+                    if (node.data === player) {
+                        rowNode = node;
+                    }
+                });
+
+                // Fallback to display index
+                if (!rowNode) {
+                    rowNode = grid.getDisplayedRowAtIndex(gridRowIndex);
+                }
+
                 if (rowNode) {
                     // Update via AG-Grid API
-                    rowNode.setDataValue('PID', pid);
-                    rowNode.setDataValue('playerPic', 'Generic Face');
+                    // In PAM-only mode, only update PEPS - leave PID and portrait unchanged
+                    if (!isPamOnly) {
+                        rowNode.setDataValue('PID', pid);
+                        rowNode.setDataValue('playerPic', 'Generic Face');
+                    }
                     const gridPepsValue = verifiedGenr || (portrait ? portrait.replace('plpo_generic_', 'gen_') : null);
                     if (gridPepsValue) {
                         rowNode.setDataValue('PEPS', gridPepsValue);
                     }
-                    console.log(`[GenericFacePicker] Updated draft row via setDataValue: PID=${pid}, playerPic=Generic Face, PEPS=${gridPepsValue}`);
+                    console.log(`[GenericFacePicker] Updated draft row via setDataValue:${isPamOnly ? ' (PAM only)' : ` PID=${pid}, playerPic=Generic Face,`} PEPS=${gridPepsValue}`);
 
                     // Force refresh the portrait column
                     grid.refreshCells({
@@ -5060,25 +5164,32 @@ class MaddenEditorApp {
                         force: true
                     });
                 } else {
-                    console.error(`[GenericFacePicker] Could not find draft row node at index ${gridRowIndex}`);
+                    console.error(`[GenericFacePicker] Could not find draft row node for player`);
+                    alert(`Could not update face for ${player.firstName || player.PFNA} ${player.lastName || player.PLNA}. Please try again.`);
                 }
             } else if (isDraft) {
                 // Handsontable: Use setDataAtCell to update the grid
                 const changes = [];
 
                 // Update portrait cell (column 0) - just set row index to trigger portrait renderer
+                // In PAM-only mode, portrait doesn't change but we still need to refresh
                 changes.push([gridRowIndex, 0, gridRowIndex]);
 
-                // Update PID column if found
-                if (pidColumnIndex >= 0) {
-                    changes.push([gridRowIndex, pidColumnIndex, pid]);
-                    console.log(`[GenericFacePicker] Queuing PID update: row ${gridRowIndex}, col ${pidColumnIndex}, value ${pid}`);
-                }
+                // In PAM-only mode, only update PEPS - skip PID and Player Pic changes
+                if (!isPamOnly) {
+                    // Update PID column if found
+                    if (pidColumnIndex >= 0) {
+                        changes.push([gridRowIndex, pidColumnIndex, pid]);
+                        console.log(`[GenericFacePicker] Queuing PID update: row ${gridRowIndex}, col ${pidColumnIndex}, value ${pid}`);
+                    }
 
-                // Update Player Pic column if found
-                if (playerPicColumnIndex >= 0) {
-                    changes.push([gridRowIndex, playerPicColumnIndex, 'Generic Face']);
-                    console.log(`[GenericFacePicker] Queuing Player Pic update: row ${gridRowIndex}, col ${playerPicColumnIndex}, value "Generic Face"`);
+                    // Update Player Pic column if found
+                    if (playerPicColumnIndex >= 0) {
+                        changes.push([gridRowIndex, playerPicColumnIndex, 'Generic Face']);
+                        console.log(`[GenericFacePicker] Queuing Player Pic update: row ${gridRowIndex}, col ${playerPicColumnIndex}, value "Generic Face"`);
+                    }
+                } else {
+                    console.log(`[GenericFacePicker] PAM-only mode: Skipping PID and Player Pic updates in Handsontable`);
                 }
 
                 // Apply all changes in one batch
@@ -5254,17 +5365,30 @@ class MaddenEditorApp {
                 player.PEPS = pamValue;
                 console.log(`[PAMPicker] Set roster PEPS to: ${pamValue}`);
 
-                // Update portrait cache for new PAM
-                const cacheKey = `pam_${pamValue}`;
-                if (portrait && !this.portraitCache.has(cacheKey)) {
-                    // Try to load portrait for this PAM
-                    try {
-                        const imageData = await window.electronAPI.portrait.getByPAM(pamValue);
-                        if (imageData) {
-                            this.portraitCache.set(cacheKey, imageData);
-                        }
-                    } catch (e) {
-                        console.log('[PAMPicker] Could not load portrait for new PAM:', e);
+                // CRITICAL: Sync PEPS to this.players array to ensure persistence when saving
+                const playerIndex = this.players.indexOf(player);
+                if (playerIndex >= 0) {
+                    this.players[playerIndex].PEPS = pamValue;
+                    console.log(`[PAMPicker] Synced PEPS to this.players[${playerIndex}]`);
+                } else {
+                    // Fallback: search by unique identifier
+                    const originalPlayer = this.players.find(p =>
+                        p.PFNA === player.PFNA && p.PLNA === player.PLNA && p.PSXP === player.PSXP
+                    );
+                    if (originalPlayer) {
+                        originalPlayer.PEPS = pamValue;
+                        console.log(`[PAMPicker] Synced PEPS to this.players via name/PID search`);
+                    } else {
+                        console.warn(`[PAMPicker] Could not find player in this.players to sync PEPS!`);
+                    }
+                }
+
+                // Update AG-Grid via setDataValue to ensure it detects the change
+                if (this.agGrid && gridRowIndex !== null) {
+                    const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
+                    if (rowNode) {
+                        rowNode.setDataValue('PEPS', pamValue);
+                        console.log(`[PAMPicker] Updated AG-Grid row ${gridRowIndex} PEPS via setDataValue`);
                     }
                 }
 
@@ -10842,6 +10966,34 @@ window.closeErrorModal = function () {
 document.addEventListener('DOMContentLoaded', async () => {
     window.app = new MaddenEditorApp();
 
+    // GLOBAL FOCUS FIX for Windows/Electron
+    // After dialogs (save, open, etc.), Electron doesn't properly return focus to the renderer.
+    // This causes the "can't type/click after save" issue that has existed since v1.
+    window.addEventListener('focus', () => {
+        // When window regains focus, ensure the active grid can receive input
+        setTimeout(() => {
+            const activeEl = document.activeElement;
+            // If focus is stuck on body or document, try to restore it to the grid
+            if (activeEl === document.body || activeEl === document.documentElement) {
+                const gridEl = document.querySelector('.ag-root-wrapper');
+                if (gridEl) {
+                    gridEl.setAttribute('tabindex', '0');
+                    gridEl.focus();
+                    console.log('[Focus Fix] Restored focus to grid after window focus');
+                }
+            }
+        }, 100);
+    });
+
+    // Also fix focus on any click in the grid area
+    document.addEventListener('mousedown', (e) => {
+        const gridWrapper = e.target.closest('.ag-root-wrapper');
+        if (gridWrapper && document.activeElement === document.body) {
+            gridWrapper.setAttribute('tabindex', '0');
+            gridWrapper.focus();
+        }
+    }, true);
+
     // Load and display app version
     try {
         console.log('[App] Loading app version...');
@@ -11008,17 +11160,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             console.log('[App] Validated player ID:', numericId, 'Forwarding to', target);
 
-            // If options provided (batch add from database browser), use direct add without modal
-            if (options && target === 'roster' && typeof window.directAddToRoster === 'function') {
-                await window.directAddToRoster(numericId, options.teamId, options.year);
-            } else if (options && target === 'draft' && typeof window.directAddToDraft === 'function') {
-                await window.directAddToDraft(numericId, options.year);
+            // Extract PID from options - this is the displayed PID from the database browser
+            // We pass it directly so it doesn't get lost in re-lookups
+            const displayedPid = options?.pid;
+            const isCustomPlayer = options?.isCustom;
+            console.log('[App] PID from database browser:', displayedPid, 'isCustom:', isCustomPlayer);
+
+            // Only use direct add (skip modal) if teamId or year were explicitly provided
+            // Otherwise show the modal to let user choose team/year
+            const hasExplicitTeamOrYear = options?.teamId !== undefined || options?.year !== undefined;
+
+            if (hasExplicitTeamOrYear && target === 'roster' && typeof window.directAddToRoster === 'function') {
+                await window.directAddToRoster(numericId, options.teamId, options.year, { pid: displayedPid, isCustom: isCustomPlayer });
+            } else if (hasExplicitTeamOrYear && target === 'draft' && typeof window.directAddToDraft === 'function') {
+                await window.directAddToDraft(numericId, options.year, { pid: displayedPid, isCustom: isCustomPlayer });
             }
-            // Otherwise use existing functions with modal flow
+            // Use modal flow - pass PID so it's preserved through the modal
             else if (target === 'roster' && typeof window.addToRoster === 'function') {
-                await window.addToRoster(numericId);
+                await window.addToRoster(numericId, { pid: displayedPid, isCustom: isCustomPlayer });
             } else if (target === 'draft' && typeof window.addToDraft === 'function') {
-                await window.addToDraft(numericId);
+                await window.addToDraft(numericId, { pid: displayedPid, isCustom: isCustomPlayer });
             } else {
                 console.error('[App] addToRoster/addToDraft functions not available');
             }

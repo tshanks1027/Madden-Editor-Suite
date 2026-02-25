@@ -532,15 +532,55 @@
     // Set the team ID
     playerData.TGID = teamId;
 
-    // Add to grid
+    // CRITICAL: Replace bottom Free Agent slot instead of pushing beyond template capacity
+    if (!window.app.players) {
+      throw new Error('Players array not available');
+    }
+
+    // Find bottom-most GENERIC Free Agent slot to replace (low PID = template filler)
+    let replaceIndex = -1;
+    let replacePlayer = null;
+
+    // First pass: look for generic Free Agents (low PID)
+    for (let i = window.app.players.length - 1; i >= 0; i--) {
+      const p = window.app.players[i];
+      const pid = p.PSXP || 0;
+      if (p.TGID === 1009 && pid < 100) {
+        replaceIndex = i;
+        replacePlayer = p;
+        break;
+      }
+    }
+
+    // Fallback: if no generic Free Agents, find any Free Agent with low overall
+    if (replaceIndex === -1) {
+      for (let i = window.app.players.length - 1; i >= 0; i--) {
+        const p = window.app.players[i];
+        if (p.TGID === 1009 && (p.POVR || 99) < 50) {
+          replaceIndex = i;
+          replacePlayer = p;
+          break;
+        }
+      }
+    }
+
+    if (replaceIndex === -1) {
+      throw new Error('No generic Free Agent slot available to replace');
+    }
+
+    // Keep the slot PGID
+    playerData.PGID = replacePlayer.PGID;
+    playerData.POID = replacePlayer.POID || replacePlayer.PGID;
+    console.log('[FillRemaining] Replacing slot', replaceIndex, 'with', playerData.PFNA, playerData.PLNA);
+
+    // Replace in array at same index
+    window.app.players[replaceIndex] = playerData;
+
+    // Update grid
     window.app.agGrid.applyTransaction({
+      remove: [replacePlayer],
       add: [playerData]
     });
-
-    // Also add to app.players array for consistency
-    if (window.app.players) {
-      window.app.players.push(playerData);
-    }
 
     // Mark as modified
     if (window.app.rosterModified !== undefined) {
