@@ -265,6 +265,82 @@ ipcMain.handle('database:delete-custom-player-season', async (event, customPlaye
 });
 
 // =============================================
+// CUSTOM PORTRAIT PIDs FOR DROPDOWN
+// =============================================
+
+/**
+ * Handle: database:get-all-custom-pids
+ * Get all custom player PIDs with names for PLAYERPIC dropdown
+ * Returns PIDs from both custom_players.madden_pid AND appearance_edits.madden_pid
+ */
+ipcMain.handle('database:get-all-custom-pids', async () => {
+  try {
+    await userDatabaseService.waitForReady();
+
+    const customPids: Array<{ pid: number; name: string }> = [];
+    const seenPids = new Set<number>();
+
+    // 1. Get PIDs from custom_players table
+    const customPlayers = userDatabaseService.getAllCustomPlayers();
+    for (const player of customPlayers) {
+      if (player.maddenPid && player.maddenPid > 0 && !seenPids.has(player.maddenPid)) {
+        seenPids.add(player.maddenPid);
+        customPids.push({
+          pid: player.maddenPid,
+          name: `${player.firstName || ''} ${player.lastName || ''}`.trim() || `Custom ${player.maddenPid}`
+        });
+      }
+    }
+
+    // 2. Get PIDs from appearance_edits table (for original players with custom portraits)
+    const appearanceEdits = userDatabaseService.getAllAppearanceEdits();
+    for (const [playerId, edit] of appearanceEdits) {
+      if (edit.maddenPid && edit.maddenPid > 0 && !seenPids.has(edit.maddenPid)) {
+        // Look up the original player's name
+        const player = lookupService.getPlayerByInternalId(playerId);
+        const name = player ? `${player.firstName || ''} ${player.lastName || ''}`.trim() : `Player ${playerId}`;
+        seenPids.add(edit.maddenPid);
+        customPids.push({
+          pid: edit.maddenPid,
+          name: name
+        });
+      }
+    }
+
+    // 3. Get PIDs from custom_portraits table (Portrait Manager imports with assigned names)
+    // This ensures portraits imported via Portrait Manager appear in the PLAYERPIC dropdown
+    const customPortraits = userDatabaseService.getAllCustomPortraits();
+    for (const portrait of customPortraits) {
+      if (portrait.pid && !seenPids.has(portrait.pid)) {
+        // Use playerName if set, otherwise derive from filename or use generic label
+        let name = portrait.playerName;
+        if (!name && portrait.originalFilename) {
+          // Try to extract name from filename (e.g., "John_Smith.png" -> "John Smith")
+          name = portrait.originalFilename
+            .replace(/\.[^.]+$/, '') // Remove extension
+            .replace(/[_-]/g, ' ')   // Replace underscores/dashes with spaces
+            .trim();
+        }
+        if (!name) {
+          name = `Portrait ${portrait.pid}`;
+        }
+        seenPids.add(portrait.pid);
+        customPids.push({
+          pid: portrait.pid,
+          name: name
+        });
+      }
+    }
+
+    console.log(`[database-handlers] get-all-custom-pids: Found ${customPids.length} custom PIDs (from custom_players, appearance_edits, and custom_portraits)`);
+    return { success: true, pids: customPids };
+  } catch (error) {
+    console.error('[database-handlers] Error getting custom PIDs:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// =============================================
 // APPEARANCE EDIT OPERATIONS
 // =============================================
 
@@ -1536,10 +1612,14 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
       });
     }
 
-    // Apply PID filter to custom players
+    // Apply PID filter to custom players - check BOTH base maddenPid AND appearance edits
     if (options?.pid !== undefined && options.pid !== null) {
       const searchPid = options.pid;
-      customPlayers = customPlayers.filter(p => p.maddenPid === searchPid);
+      customPlayers = customPlayers.filter(p => {
+        // Check appearance edit PID first (portrait manager), then base maddenPid
+        const effectivePid = appearanceEditPids.get(p.id) ?? p.maddenPid ?? 0;
+        return effectivePid === searchPid;
+      });
     }
 
     // Apply college filter to custom players (need to resolve collegeId to name first) - EXACT match
@@ -2086,20 +2166,64 @@ function isEmptyPID(pid: any): boolean {
 /**
  * Handle: database:get-player-for-roster
  * Get player data formatted for roster editor with ratings for a specific year
+ * IMPORTANT: Supports both original database players AND custom players
  */
 ipcMain.handle('database:get-player-for-roster', async (event, internalId: number, year: number) => {
   try {
     await lookupService.waitForReady();
     await userDatabaseService.waitForReady();
 
-    // Get player base data
-    const originalPlayer = lookupService.getPlayerByInternalId(internalId);
-    if (!originalPlayer) {
-      return { success: false, error: 'Player not found' };
+    console.log(`[database-handlers] ========== GET PLAYER FOR ROSTER ==========`);
+    console.log(`[database-handlers] Requested: internalId=${internalId}, year=${year}`);
+
+    // First check if this is a custom player
+    // Custom players store their maddenPid directly, not in appearance_edits
+    const customPlayer = userDatabaseService.getCustomPlayer(internalId);
+    console.log(`[database-handlers] getCustomPlayer(${internalId}) returned:`, customPlayer ? `${customPlayer.firstName} ${customPlayer.lastName}` : 'null');
+    let isCustomPlayer = false;
+    let originalPlayer: any = null;
+    let customPlayerPid: number | undefined;
+    let customPlayerPam: string | undefined;
+
+    if (customPlayer) {
+      // This is a CUSTOM player - use custom player data
+      isCustomPlayer = true;
+      customPlayerPid = customPlayer.maddenPid;
+      customPlayerPam = customPlayer.maddenPam;
+      console.log(`[database-handlers] Found CUSTOM player: ${customPlayer.firstName} ${customPlayer.lastName}, maddenPid=${customPlayerPid}, maddenPam=${customPlayerPam}`);
+
+      // Convert custom player to the same format as originalPlayer for downstream compatibility
+      originalPlayer = {
+        internalId: customPlayer.id,
+        firstName: customPlayer.firstName,
+        lastName: customPlayer.lastName,
+        position: customPlayer.position,
+        college: customPlayer.collegeId !== undefined ? lookupService.getDisplayName('college_lookup.csv', customPlayer.collegeId) : '',
+        height: customPlayer.height,
+        weight: customPlayer.weight,
+        race: customPlayer.race,
+        homeState: customPlayer.homeState !== undefined ? lookupService.getDisplayName('state_lookup.csv', customPlayer.homeState) : '',
+        hometown: customPlayer.hometown,
+        draftClass: customPlayer.draftClass,
+        draftRound: customPlayer.draftRound,
+        draftPick: customPlayer.draftPick,
+        careerFrom: customPlayer.careerFrom,
+        careerTo: customPlayer.careerTo,
+        pid: customPlayerPid || 0,
+        pam: customPlayerPam || '',
+        bodyType: customPlayer.bodyType,
+        handedness: customPlayer.handedness
+      };
+    } else {
+      // Try original database player
+      originalPlayer = lookupService.getPlayerByInternalId(internalId);
+      if (!originalPlayer) {
+        return { success: false, error: 'Player not found' };
+      }
     }
 
-    // Get user edits and merge with original data
-    const playerEdit = userDatabaseService.getPlayerEdit(internalId);
+    // Get user edits and merge with original data (only for original players, custom players use direct data)
+    const playerEdit = isCustomPlayer ? null : userDatabaseService.getPlayerEdit(internalId);
 
     // Convert homeState ID to name if user edited it (stored as ID)
     let rosterEditedHomeStateName: string | undefined;
@@ -2246,7 +2370,22 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     let rosterAppearanceEdit: ReturnType<typeof userDatabaseService.getAppearanceEdit> = undefined;
 
     try {
+      // DEBUG: Also get ALL appearance edits to see what's stored
+      const allEdits = userDatabaseService.getAllAppearanceEdits();
+      console.log(`[database-handlers] DEBUG: Total appearance edits in DB: ${allEdits.size}`);
+      if (allEdits.size > 0) {
+        // Log first 5 entries to see what's stored
+        let count = 0;
+        for (const [playerId, edit] of allEdits) {
+          if (count++ < 5) {
+            console.log(`[database-handlers] DEBUG: Edit for player ${playerId}: maddenPid=${edit.maddenPid}`);
+          }
+        }
+      }
+
       rosterAppearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
+      console.log(`[database-handlers] Appearance edit for ${player.firstName} ${player.lastName} (ID ${internalId}):`,
+        rosterAppearanceEdit ? `maddenPid=${rosterAppearanceEdit.maddenPid}, maddenPghe=${rosterAppearanceEdit.maddenPghe}, maddenPfcg=${rosterAppearanceEdit.maddenPfcg}` : 'none');
 
       // Check if appearance edit has VALID generic face data
       // IMPORTANT: PGHE=0 is NOT valid, must be > 0 to be a real face index
@@ -2284,17 +2423,42 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
     const hasValidPID = !isEmptyPID(player.pid);
     const hasValidPAM = !isEmptyPAM(player.pam);
 
+    console.log(`[database-handlers] PID DECISION FACTORS for ${player.firstName} ${player.lastName}:`);
+    console.log(`  - isCustomPlayer: ${isCustomPlayer}`);
+    console.log(`  - customPlayerPid: ${customPlayerPid}`);
+    console.log(`  - customPlayerPam: ${customPlayerPam}`);
+    console.log(`  - rosterStoredPgheData: ${rosterStoredPgheData ? JSON.stringify(rosterStoredPgheData) : 'null'}`);
+    console.log(`  - rosterAppearanceEdit: ${rosterAppearanceEdit ? JSON.stringify(rosterAppearanceEdit) : 'null'}`);
+    console.log(`  - player.pid: ${player.pid}, hasValidPID: ${hasValidPID}`);
+    console.log(`  - player.pam: ${player.pam}, hasValidPAM: ${hasValidPAM}`);
+
     // PRIORITY ORDER:
+    // 0. Custom player with PID set directly (custom players store maddenPid in custom_players table)
     // 1. User-assigned generic face from appearance edits (FIRST - user choice takes precedence)
-    // 2. Original real face scan PAM (only if user hasn't assigned a different face)
-    // 3. Random generic face
-    if (rosterStoredPgheData) {
+    // 2. User-assigned PID only (no generic face) - portrait manager custom PID
+    // 3. Original real face scan PAM (only if user hasn't assigned a different face)
+    // 4. Random generic face
+    if (isCustomPlayer && customPlayerPid && customPlayerPid > 0) {
+      // CUSTOM player has PID set directly in custom_players table
+      pid = customPlayerPid;
+      // Use custom player's PAM if set, otherwise blank
+      pam = (customPlayerPam && !customPlayerPam.startsWith('gen_')) ? customPlayerPam : '';
+      console.log(`[database-handlers] Using CUSTOM player PID for roster ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}'`);
+    } else if (rosterStoredPgheData) {
       // Player has stored PGHE data from database - use it (user explicitly assigned this face)
       pid = rosterStoredPgheData.psxp;
       pam = rosterStoredPgheData.genr; // Roster uses PEPS=GENR for generic faces
       effectiveRace = rosterStoredPgheData.skinTone;
       rosterPgheIndex = rosterStoredPgheData.pghe;
       console.log(`[database-handlers] Using stored PGHE face for roster ${player.firstName} ${player.lastName}: PID=${pid}, PAM=${pam}, PGHE=${rosterPgheIndex}, skinTone=${effectiveRace}`);
+    } else if (rosterAppearanceEdit?.maddenPid && rosterAppearanceEdit.maddenPid > 0) {
+      // User assigned a PID in portrait manager but no generic face - use that PID
+      pid = rosterAppearanceEdit.maddenPid;
+      // Also check appearance edit PAM
+      const editPam = rosterAppearanceEdit.maddenPam;
+      pam = (editPam && !editPam.startsWith('gen_')) ? editPam :
+            (hasValidPAM && typeof player.pam === 'string' && !player.pam.startsWith('gen_')) ? player.pam : '';
+      console.log(`[database-handlers] Using portrait manager PID for roster ${player.firstName} ${player.lastName}: PID=${pid}, PAM='${pam}'`);
     } else if (hasValidPAM && typeof player.pam === 'string' && !player.pam.startsWith('gen_')) {
       // Player has a real face scan PAM (and user hasn't assigned a different face)
       pam = player.pam;
@@ -3276,18 +3440,49 @@ ipcMain.handle('database:get-players-for-fill', async (
 /**
  * Handle: database:get-player-available-years
  * Get available years for a player (for year selector dropdown)
+ * IMPORTANT: Supports both original database players AND custom players
  */
 ipcMain.handle('database:get-player-available-years', async (event, internalId: number) => {
   try {
     await lookupService.waitForReady();
+    await userDatabaseService.waitForReady();
 
-    const player = lookupService.getPlayerByInternalId(internalId);
-    if (!player) {
-      return { success: false, error: 'Player not found' };
+    // First check if this is a custom player
+    const customPlayer = userDatabaseService.getCustomPlayer(internalId);
+    let player: any = null;
+    let isCustomPlayer = false;
+
+    if (customPlayer) {
+      // This is a CUSTOM player
+      isCustomPlayer = true;
+      player = {
+        firstName: customPlayer.firstName,
+        lastName: customPlayer.lastName,
+        careerFrom: customPlayer.careerFrom,
+        careerTo: customPlayer.careerTo,
+        draftClass: customPlayer.draftClass
+      };
+      console.log(`[database-handlers] get-player-available-years: Found CUSTOM player: ${player.firstName} ${player.lastName}`);
+    } else {
+      // Try original database player
+      player = lookupService.getPlayerByInternalId(internalId);
+      if (!player) {
+        return { success: false, error: 'Player not found' };
+      }
     }
 
-    const seasons = lookupService.getPlayerSeasons(internalId);
-    const availableYears = seasons.map(s => s.year).sort((a, b) => b - a);
+    // Get seasons - custom players have seasons in custom_player_seasons table
+    let availableYears: number[] = [];
+
+    if (isCustomPlayer) {
+      const customSeasons = userDatabaseService.getCustomPlayerSeasons(internalId);
+      if (customSeasons && customSeasons.length > 0) {
+        availableYears = customSeasons.map(s => s.year).sort((a, b) => b - a);
+      }
+    } else {
+      const seasons = lookupService.getPlayerSeasons(internalId);
+      availableYears = seasons.map(s => s.year).sort((a, b) => b - a);
+    }
 
     // If no seasons in database, use career range
     // FIX: Handle pre-1970 players that may have careerFrom/careerTo or draftClass
@@ -3753,9 +3948,10 @@ ipcMain.handle('database:debug-warren-moon', async () => {
  * Send a player from the database browser to the main editor window
  * This enables the bulk add feature when database browser is a separate window
  */
-ipcMain.handle('database:send-player-to-main', async (event, internalId: number, target: 'roster' | 'draft', options?: { teamId?: number; year?: number | null }) => {
+ipcMain.handle('database:send-player-to-main', async (event, internalId: number, target: 'roster' | 'draft', options?: { teamId?: number; year?: number | null; pid?: number; isCustom?: boolean }) => {
   try {
     console.log(`[database-handlers] Sending player ${internalId} (type: ${typeof internalId}) to ${target} with options:`, options);
+    console.log(`[database-handlers] PID passed from browser: ${options?.pid}, isCustom: ${options?.isCustom}`);
 
     // Validate internalId
     if (internalId === undefined || internalId === null) {
@@ -3785,8 +3981,8 @@ ipcMain.handle('database:send-player-to-main', async (event, internalId: number,
       return { success: false, error: 'Main editor window not found. Please open the editor first.' };
     }
 
-    // Send the player to the main window using validated numeric ID
-    console.log(`[database-handlers] Forwarding validated player ID ${numericId} to main window`);
+    // Send the player to the main window using validated numeric ID, including PID
+    console.log(`[database-handlers] Forwarding validated player ID ${numericId} to main window with PID=${options?.pid}`);
     mainWindow.webContents.send('database:player-from-browser', numericId, target, options);
 
     // Focus the main window so keyboard input works after the add operation

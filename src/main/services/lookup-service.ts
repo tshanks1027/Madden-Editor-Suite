@@ -1392,18 +1392,52 @@ export class LookupService {
     return this.coachCache.get(pid)?.pam;
   }
 
-  // Find player by name and draft year (for saving bio data from roster editor)
-  public findPlayerByNameAndYear(firstName: string, lastName: string, draftYear: number): FullDataEntry | null {
+  // Find player by name and year (for saving bio data from roster editor)
+  // Matches by name AND checks if the year falls within the player's career span
+  // This allows editing a player in any year of their career, not just their draft year
+  public findPlayerByNameAndYear(firstName: string, lastName: string, year: number): FullDataEntry | null {
     const normalizedFirst = firstName.toLowerCase().trim();
     const normalizedLast = lastName.toLowerCase().trim();
 
+    // First pass: look for exact name match where year is within career span
+    for (const [id, entry] of this.fullDataCache) {
+      if (entry.firstName.toLowerCase() === normalizedFirst &&
+          entry.lastName.toLowerCase() === normalizedLast) {
+        // Check if year is within player's career span
+        const careerFrom = parseInt(entry.careerFrom) || 0;
+        const careerTo = parseInt(entry.careerTo) || 9999;
+        const draftClass = parseInt(entry.draftClass) || 0;
+
+        // Match if: year equals draft class, OR year is within career span
+        if (draftClass === year || (year >= careerFrom && year <= careerTo)) {
+          return entry;
+        }
+      }
+    }
+
+    // Second pass: if no career match, try exact name match with draft class
+    // (for players where we might not have career span data)
     for (const [id, entry] of this.fullDataCache) {
       if (entry.firstName.toLowerCase() === normalizedFirst &&
           entry.lastName.toLowerCase() === normalizedLast &&
-          entry.draftClass === String(draftYear)) {
+          entry.draftClass === String(year)) {
         return entry;
       }
     }
+
+    // Third pass: just match by name (if only one player with that name)
+    const nameMatches: FullDataEntry[] = [];
+    for (const [id, entry] of this.fullDataCache) {
+      if (entry.firstName.toLowerCase() === normalizedFirst &&
+          entry.lastName.toLowerCase() === normalizedLast) {
+        nameMatches.push(entry);
+      }
+    }
+    if (nameMatches.length === 1) {
+      console.log(`[LookupService] findPlayerByNameAndYear: Found unique name match for ${firstName} ${lastName} (year ${year} outside career span)`);
+      return nameMatches[0];
+    }
+
     return null;
   }
 

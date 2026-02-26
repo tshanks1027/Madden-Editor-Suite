@@ -4618,6 +4618,12 @@ class MaddenEditorApp {
         this.currentFacePickerPlayer = player;
         this.currentFacePickerRowIndex = rowIndex;
 
+        // Reset PAM Only checkbox to unchecked each time the picker opens
+        const pamOnlyCheckbox = document.getElementById('pamOnlyCheckbox');
+        if (pamOnlyCheckbox) {
+            pamOnlyCheckbox.checked = false;
+        }
+
         // Show modal
         modal.style.display = 'flex';
 
@@ -4968,8 +4974,9 @@ class MaddenEditorApp {
                     }
                 }
 
-                // Only update race if NOT in PAM-only mode
-                if (newRace !== null && !isPamOnly) {
+                // Always update race based on the selected generic face (including PAM-only mode)
+                // This ensures the player's race matches the skin tone of the in-game face model
+                if (newRace !== null) {
                     player.PLRC = newRace;
                     player.assignedRace = newRace; // Also update assignedRace for BLBM GENR/SKNT assignment
                 }
@@ -10966,9 +10973,100 @@ window.closeErrorModal = function () {
 document.addEventListener('DOMContentLoaded', async () => {
     window.app = new MaddenEditorApp();
 
+    // Expose showToast globally for use by player-browser.js and other modules
+    // This allows non-blocking notifications instead of alert() which steals focus
+    window.showToast = (message, type = 'info') => {
+        if (window.app && window.app.showToast) {
+            window.app.showToast(message, type);
+        } else {
+            // Fallback: create toast directly if app not ready
+            let toast = document.getElementById('app-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'app-toast';
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    padding: 12px 24px;
+                    border-radius: 6px;
+                    color: white;
+                    font-size: 14px;
+                    z-index: 10001;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                    max-width: 400px;
+                `;
+                document.body.appendChild(toast);
+            }
+            const colors = { success: '#4caf50', error: '#f44336', info: '#2196f3' };
+            toast.style.background = colors[type] || colors.info;
+            toast.textContent = message;
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 3000);
+        }
+    };
+
     // GLOBAL FOCUS FIX for Windows/Electron
     // After dialogs (save, open, etc.), Electron doesn't properly return focus to the renderer.
     // This causes the "can't type/click after save" issue that has existed since v1.
+
+    /**
+     * Global function to restore focus to the active editor (AG-Grid).
+     * Uses Electron IPC to focus the window at OS level first, then focuses the grid.
+     * This is the single source of truth for focus restoration across all modules.
+     */
+    window.restoreEditorFocus = async () => {
+        const doFocus = () => {
+            // Find the active panel's grid
+            const activePanel = document.querySelector('.tab-content.active, .editor-panel:not([style*="display: none"])');
+            let gridEl = null;
+
+            if (activePanel) {
+                gridEl = activePanel.querySelector('.ag-root-wrapper');
+            }
+
+            // Fallback to any visible grid
+            if (!gridEl) {
+                gridEl = document.querySelector('.ag-root-wrapper');
+            }
+
+            if (gridEl) {
+                // Make sure the grid wrapper is focusable
+                gridEl.setAttribute('tabindex', '0');
+                gridEl.focus();
+                console.log('[Focus Fix] Restored focus to grid');
+                return true;
+            }
+
+            // Fallback to any visible input
+            const input = document.querySelector('input:not([type="hidden"]):not([disabled]):not([readonly])');
+            if (input) {
+                input.focus();
+                console.log('[Focus Fix] Restored focus to input');
+                return true;
+            }
+
+            return false;
+        };
+
+        // Use Electron IPC to focus the window at OS level (critical for Windows)
+        if (window.electronAPI?.window?.focus) {
+            try {
+                await window.electronAPI.window.focus();
+                // Small delay to let OS focus take effect
+                setTimeout(doFocus, 50);
+            } catch (err) {
+                console.warn('[Focus Fix] IPC focus failed, trying direct focus:', err);
+                setTimeout(doFocus, 50);
+            }
+        } else {
+            // Fallback without IPC
+            window.focus();
+            setTimeout(doFocus, 50);
+        }
+    };
+
     window.addEventListener('focus', () => {
         // When window regains focus, ensure the active grid can receive input
         setTimeout(() => {
@@ -11186,26 +11284,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Restore focus to the main window after IPC from database browser
             // This fixes the issue where keyboard input stops working after adding a player
-            // Use Electron IPC to focus window at OS level (critical for Windows)
-            const focusActiveElement = () => {
-                const activePanel = document.querySelector('.tab-content.active, .editor-panel:not([style*="display: none"])');
-                if (activePanel) {
-                    const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled])');
-                    if (focusTarget) {
-                        focusTarget.focus();
-                        console.log('[App] Restored focus to active panel element after database add');
-                    }
-                }
-            };
-
-            if (window.electronAPI?.window?.focus) {
-                window.electronAPI.window.focus().then(() => {
-                    setTimeout(focusActiveElement, 50);
-                }).catch(() => {
-                    setTimeout(focusActiveElement, 50);
-                });
-            } else {
-                setTimeout(focusActiveElement, 100);
+            // Use the global restoreEditorFocus function which properly handles OS-level focus
+            if (window.restoreEditorFocus) {
+                window.restoreEditorFocus();
             }
         });
     }

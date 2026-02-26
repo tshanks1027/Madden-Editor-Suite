@@ -23,6 +23,8 @@ import { scraperDebugLogger } from '../utils/DebugLogger';
 import { rosterGeneratorService } from './RosterGeneratorService';
 import { playerDataService, RookieStats } from './generator/PlayerDataService';
 import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
+import { userDatabaseService } from './UserDatabaseService';
+import { lookupService } from './lookup-service';
 import { app } from 'electron';
 import Papa from 'papaparse';
 import * as fs from 'fs';
@@ -98,6 +100,100 @@ const NFL_TEAMS = [
   { abbr: 'was', name: 'Washington Commanders', id: 26 }, // WAS in Madden
   { abbr: 'fa', name: 'Free Agent', id: 1009 }           // FA in Madden
 ];
+
+/**
+ * Get Madden team ID from PFR team abbreviation, accounting for historical relocations
+ * @param teamAbbr - Pro Football Reference team abbreviation (lowercase)
+ * @param year - The year of the roster (used for ambiguous cases like St. Louis)
+ * @returns Madden team ID (1009 = Free Agent if not found)
+ */
+function getHistoricalTeamId(teamAbbr: string, year: number): number {
+  const abbr = teamAbbr.toLowerCase();
+
+  // Year-aware mappings for teams that shared city names
+  // St. Louis: Cardinals (1960-1987), Rams (1995-2015)
+  if (abbr === 'stl') {
+    if (year <= 1987) {
+      return 7;  // Arizona Cardinals (inherited St. Louis Cardinals history)
+    } else if (year >= 1995 && year <= 2015) {
+      return 24; // Los Angeles Rams (were St. Louis Rams 1995-2015)
+    }
+    // 1988-1994: Cardinals were in Phoenix, Rams were in LA - 'stl' shouldn't appear
+    return 1009; // Free Agent (shouldn't happen)
+  }
+
+  // Baltimore: Colts (1953-1983), Ravens (1996-present)
+  if (abbr === 'bal') {
+    if (year <= 1983) {
+      return 10; // Indianapolis Colts (inherited Baltimore Colts history)
+    } else if (year >= 1996) {
+      return 25; // Baltimore Ravens (expansion team, NOT Colts successor)
+    }
+    // 1984-1995: No NFL team in Baltimore
+    return 1009; // Free Agent
+  }
+
+  // LA Raiders (1982-1994) vs LA Rams (1946-1994, 2016+)
+  // PFR uses 'lar' for LA Rams historically, but we need to distinguish Raiders years
+  if (abbr === 'lar') {
+    // LA Raiders were in LA from 1982-1994
+    // LA Rams were in LA from 1946-1994, then St. Louis 1995-2015, then back to LA 2016+
+    // Since both teams overlapped in LA 1982-1994, check the context
+    // For roster generation, 'lar' typically refers to LA Rams in PFR
+    // Oakland/LA Raiders use 'rai' or 'oak' in PFR
+    return 24; // LA Rams
+  }
+
+  // Historical team mappings (franchise continuity)
+  const historicalMap: Record<string, number> = {
+    // Houston Oilers (1960-1996) -> Tennessee Titans
+    'oti': 30,
+    'hst': 30,
+
+    // Houston Texans (2002-present) - NOT the Oilers
+    'htx': 32,
+    'hou': 32, // Modern Houston = Texans
+
+    // Colts franchise (Baltimore 1953-1983, Indianapolis 1984+)
+    'clt': 10,
+    'ind': 10,
+    'blt': 10,
+
+    // Cardinals franchise (Chicago -> St. Louis -> Phoenix -> Arizona)
+    'crd': 7,
+    'pho': 7,  // Phoenix Cardinals (1988-1993)
+    'ari': 7,
+
+    // Rams franchise
+    'ram': 24,
+    'lar': 24,
+    'sla': 24, // St. Louis Rams
+
+    // Boston/New England Patriots
+    'bos': 22,
+    'nwe': 22,
+
+    // Oakland/LA/Las Vegas Raiders
+    'oak': 23,
+    'rai': 23,
+    'lvr': 23,
+
+    // San Diego/LA Chargers
+    'sdg': 8,
+    'lac': 8,
+
+    // Ravens (expansion 1996, NOT Colts)
+    'rav': 25,
+  };
+
+  if (historicalMap[abbr] !== undefined) {
+    return historicalMap[abbr];
+  }
+
+  // Standard lookup from NFL_TEAMS
+  const teamObj = NFL_TEAMS.find(t => t.abbr === abbr);
+  return teamObj ? teamObj.id : 1009;
+}
 
 /**
  * Roster Creator Service Class
@@ -513,8 +609,35 @@ export class RosterCreatorService {
   private convertRookieStatsToRosterPlayer(
     stats: RookieStats,
     teamId: number,
-    idx: number
+    idx: number,
+    year?: number
   ): RosterPlayer {
+    // CRITICAL: Merge user-edited ratings from database
+    // This ensures generators pull ratings that users have edited in the database browser
+    if (year && stats.firstName && stats.lastName) {
+      // Look up the player's internal ID via lookupService
+      const playerEntry = lookupService.findPlayerByNameAndYear(
+        stats.firstName,
+        stats.lastName,
+        stats.draftYear || year
+      );
+
+      if (playerEntry?.internalId) {
+        const userSeasonEdit = userDatabaseService.getSeasonEdit(playerEntry.internalId, year);
+        if (userSeasonEdit?.ratings) {
+          console.log(`[RosterCreatorService] Merging user edits for ${stats.firstName} ${stats.lastName} (year ${year}):`, Object.keys(userSeasonEdit.ratings));
+          // Merge user edits into stats - user edits override lookup values
+          for (const [field, value] of Object.entries(userSeasonEdit.ratings)) {
+            if (value !== null && value !== undefined) {
+              // Map field names from uppercase to lowercase for RookieStats
+              const lowerField = field.toLowerCase();
+              (stats as any)[lowerField] = value;
+            }
+          }
+        }
+      }
+    }
+
     // Get race from lookup or default
     const race = 7; // Default to black (most common in NFL)
 
@@ -643,8 +766,28 @@ export class RosterCreatorService {
         PLRL: rosterPlayer.PREL, PKRT: rosterPlayer.PKRT,
       };
       const calculatedOvr = ovrWeightsCalculator.calculateOVR(attributes, stats.position || 'HB');
-      // Floor of 40 for generated players (quality control)
-      rosterPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+
+      // OVR floor of 55 - if below, BOOST RATINGS to achieve 55 (don't just clamp display)
+      const OVR_FLOOR = 55;
+      if (calculatedOvr < OVR_FLOOR) {
+        const adjustment = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+          attributes,
+          OVR_FLOOR,
+          stats.position || 'HB'
+        );
+        if (adjustment && adjustment.adjustments) {
+          for (const [fieldCode, adj] of Object.entries(adjustment.adjustments)) {
+            if ((rosterPlayer as any)[fieldCode] !== undefined) {
+              (rosterPlayer as any)[fieldCode] = Math.max(40, Math.min(99, adj.suggested));
+            }
+          }
+          rosterPlayer.POVR = adjustment.newOVR;
+        } else {
+          rosterPlayer.POVR = OVR_FLOOR;
+        }
+      } else {
+        rosterPlayer.POVR = Math.min(99, calculatedOvr);
+      }
     }
 
     return rosterPlayer;
@@ -682,7 +825,7 @@ export class RosterCreatorService {
 
     const players: RosterPlayer[] = [];
     for (let i = 0; i < rookieStats.length; i++) {
-      const player = this.convertRookieStatsToRosterPlayer(rookieStats[i], teamId, i);
+      const player = this.convertRookieStatsToRosterPlayer(rookieStats[i], teamId, i, year);
       players.push(player);
     }
 
@@ -768,14 +911,13 @@ export class RosterCreatorService {
 
         let teamIndex = 0;
         for (const teamAbbr of teamsForYear) {
-          const teamObj = NFL_TEAMS.find(t => t.abbr === teamAbbr);
-          const teamId = teamObj ? teamObj.id : 1009;
+          // Use historical team mapping with year awareness
+          const teamId = getHistoricalTeamId(teamAbbr, year);
 
-          // Extra logging for 'oti' specifically
-          if (teamAbbr === 'oti') {
-            console.log(`[RosterCreatorService] >>> Processing OTI (Titans/Oilers):`);
-            console.log(`[RosterCreatorService]     teamObj found: ${!!teamObj}`);
-            console.log(`[RosterCreatorService]     teamId: ${teamId} (should be 30 for Titans)`);
+          // Extra logging for historical teams
+          if (['oti', 'bal', 'stl', 'bos', 'oak', 'sdg'].includes(teamAbbr)) {
+            console.log(`[RosterCreatorService] >>> Processing historical team ${teamAbbr.toUpperCase()}:`);
+            console.log(`[RosterCreatorService]     year: ${year}, teamId: ${teamId}`);
           }
 
           const players = await this.getPlayersFromLookup(teamAbbr, year, teamId);
@@ -941,27 +1083,13 @@ export class RosterCreatorService {
       // Convert GeneratedPlayer format to RosterPlayer format
       const rosterPlayers: RosterPlayer[] = generatedPlayers.map((player: GeneratedPlayer, idx: number) => {
         // Find team ID from team abbreviation (Pro Football Reference abbr -> Madden team ID)
+        // Uses year-aware historical team mapping for relocated franchises
         const teamAbbr = player.team?.toLowerCase() || '';
-
-        // DIRECT TEAM ID MAPPING - bypass lookup for known teams
-        // This is the guaranteed fix for historical teams like OTI (Oilers -> Titans)
-        let teamId: number;
-
-        if (teamAbbr === 'oti') {
-          // Houston Oilers -> Tennessee Titans (TGID 30)
-          teamId = 30;
-        } else if (teamAbbr === 'htx') {
-          // Houston Texans (TGID 32)
-          teamId = 32;
-        } else {
-          // Standard lookup for other teams
-          const teamObj = NFL_TEAMS.find(t => t.abbr === teamAbbr);
-          teamId = teamObj ? teamObj.id : 1009; // 1009 = Free Agent
-        }
+        const teamId = getHistoricalTeamId(teamAbbr, year);
 
         // DEBUG: Log team mapping for first 5 players
         if (idx < 5) {
-          console.log(`[RosterCreatorService] Player ${idx + 1} team mapping: "${player.team}" -> TGID ${teamId}`);
+          console.log(`[RosterCreatorService] Player ${idx + 1} team mapping: "${player.team}" (year ${year}) -> TGID ${teamId}`);
         }
 
         // Warn about unmapped teams (went to Free Agent)
@@ -969,10 +1097,10 @@ export class RosterCreatorService {
           console.warn(`[RosterCreatorService] ⚠️ Unmapped team abbreviation: "${player.team}" for player ${player.PFNA || player.firstName} ${player.PLNA || player.lastName}`);
         }
 
-        // DEBUG: Track OTI (Titans/Oilers) players specifically
-        if (player.team?.toLowerCase() === 'oti') {
+        // DEBUG: Track historical team players
+        if (['oti', 'bal', 'stl', 'bos', 'oak'].includes(teamAbbr)) {
           if (idx < 10) {
-            console.log(`[RosterCreatorService] OTI player: ${player.firstName || player.PFNA} ${player.lastName || player.PLNA} -> Team ID ${teamId}`);
+            console.log(`[RosterCreatorService] Historical team player: ${player.firstName || player.PFNA} ${player.lastName || player.PLNA} (${teamAbbr.toUpperCase()}) -> Team ID ${teamId}`);
           }
         }
 
@@ -1112,8 +1240,29 @@ export class RosterCreatorService {
             PLRL: rosterPlayer.PLRL, PKRT: rosterPlayer.PKRT,
           };
           const calculatedOvr = ovrWeightsCalculator.calculateOVR(attributes, player.positionCode, rosterPlayer.PLTY);
-          // Floor of 40 for generated players (quality control)
-          rosterPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+
+          // OVR floor of 55 - if below, BOOST RATINGS to achieve 55
+          const OVR_FLOOR = 55;
+          if (calculatedOvr < OVR_FLOOR) {
+            const adjustment = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+              attributes,
+              OVR_FLOOR,
+              player.positionCode,
+              rosterPlayer.PLTY
+            );
+            if (adjustment && adjustment.adjustments) {
+              for (const [fieldCode, adj] of Object.entries(adjustment.adjustments)) {
+                if ((rosterPlayer as any)[fieldCode] !== undefined) {
+                  (rosterPlayer as any)[fieldCode] = Math.max(40, Math.min(99, adj.suggested));
+                }
+              }
+              rosterPlayer.POVR = adjustment.newOVR;
+            } else {
+              rosterPlayer.POVR = OVR_FLOOR;
+            }
+          } else {
+            rosterPlayer.POVR = Math.min(99, calculatedOvr);
+          }
         }
 
         return rosterPlayer;
@@ -1593,8 +1742,29 @@ export class RosterCreatorService {
             PLRL: rosterPlayer.PLRL, PKRT: rosterPlayer.PKRT,
           };
           const calculatedOvr = ovrWeightsCalculator.calculateOVR(attributes, rosterPlayer.PPOS, rosterPlayer.PLTY);
-          // Floor of 40 for generated players (quality control)
-          rosterPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+
+          // OVR floor of 55 - if below, BOOST RATINGS to achieve 55
+          const OVR_FLOOR = 55;
+          if (calculatedOvr < OVR_FLOOR) {
+            const adjustment = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+              attributes,
+              OVR_FLOOR,
+              rosterPlayer.PPOS,
+              rosterPlayer.PLTY
+            );
+            if (adjustment && adjustment.adjustments) {
+              for (const [fieldCode, adj] of Object.entries(adjustment.adjustments)) {
+                if ((rosterPlayer as any)[fieldCode] !== undefined) {
+                  (rosterPlayer as any)[fieldCode] = Math.max(40, Math.min(99, adj.suggested));
+                }
+              }
+              rosterPlayer.POVR = adjustment.newOVR;
+            } else {
+              rosterPlayer.POVR = OVR_FLOOR;
+            }
+          } else {
+            rosterPlayer.POVR = Math.min(99, calculatedOvr);
+          }
         }
 
         freeAgentPlayers.push(rosterPlayer);
@@ -1872,8 +2042,29 @@ export class RosterCreatorService {
         PLRL: player.PLRL as number, PKRT: player.PKRT as number,
       };
       const calculatedOvr = ovrWeightsCalculator.calculateOVR(attributes, position, player.PLTY);
-      // Floor of 40 for generated players (quality control)
-      player.POVR = Math.max(40, Math.min(99, calculatedOvr));
+
+      // OVR floor of 55 - if below, BOOST RATINGS to achieve 55
+      const OVR_FLOOR = 55;
+      if (calculatedOvr < OVR_FLOOR) {
+        const adjustment = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+          attributes,
+          OVR_FLOOR,
+          position,
+          player.PLTY
+        );
+        if (adjustment && adjustment.adjustments) {
+          for (const [fieldCode, adj] of Object.entries(adjustment.adjustments)) {
+            if ((player as any)[fieldCode] !== undefined) {
+              (player as any)[fieldCode] = Math.max(40, Math.min(99, adj.suggested));
+            }
+          }
+          player.POVR = adjustment.newOVR;
+        } else {
+          player.POVR = OVR_FLOOR;
+        }
+      } else {
+        player.POVR = Math.min(99, calculatedOvr);
+      }
     }
 
     return player;

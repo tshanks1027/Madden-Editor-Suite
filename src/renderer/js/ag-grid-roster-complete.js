@@ -507,6 +507,34 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
 
             colDef.editable = true;
             colDef.singleClickEdit = true; // Allow single click to edit
+
+            // CRITICAL: Prevent AG-Grid from intercepting keyboard events during editing
+            // Without this, AG-Grid may eat keypress/input events
+            colDef.suppressKeyboardEvent = (params) => {
+                // When editing, suppress ALL keyboard events so they go to the editor input
+                return params.editing;
+            };
+
+            // FIX: Add filter support for PLAYERPIC column
+            // filterValueGetter uses the same logic as valueGetter so searches work on player names
+            colDef.filter = 'agTextColumnFilter';
+            colDef.filterValueGetter = (params) => {
+                if (!params.data) return null;
+                const pid = parseInt(params.data.PSXP) || 0;
+                if (!pid) return null;
+                const playerName = pidMap.get(pid);
+                if (playerName) return playerName;
+                // Custom portrait PIDs or unknown - return player's name
+                const CUSTOM_PORTRAIT_PID_START = 12000;
+                if (pid >= CUSTOM_PORTRAIT_PID_START) {
+                    const lastName = params.data.PLNA || '';
+                    const firstName = params.data.PFNA || '';
+                    if (lastName || firstName) return `${lastName}, ${firstName}`;
+                    return `Custom (${pid})`;
+                }
+                return `PID: ${pid}`;
+            };
+
             console.log('[AG-Grid] PLAYERPIC column configured with', playerNames.length, 'player names');
         } else if (fieldDef.type === 'archetype') {
             console.log('[AG-Grid] Configuring ARCHETYPE column with position-dependent dropdown');
@@ -845,20 +873,20 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
         // Handle cell editing stopped - ensure focus returns to grid for seamless editing flow
         onCellEditingStopped: (event) => {
             console.log('[AG-Grid] Cell editing stopped:', event.colDef?.field);
-            // Use setTimeout to allow the click event to complete before potentially
-            // restoring focus. This prevents the "can't click another cell" issue.
+            // Use setTimeout to allow the click event to complete before restoring focus
             setTimeout(() => {
                 const activeEl = document.activeElement;
                 const gridEl = container.querySelector('.ag-root-wrapper');
-                // Only restore focus if nothing else has captured it (like another editor)
+                // If focus is lost (on body or outside container), restore it to the grid
                 if (activeEl === document.body || !container.contains(activeEl)) {
                     if (gridEl) {
-                        // Don't use gridEl.focus() directly as it can interfere
-                        // Just ensure the grid is ready for the next click
-                        console.log('[AG-Grid] Focus was outside grid, ready for next edit');
+                        // ACTUALLY restore focus - the old code just logged
+                        gridEl.setAttribute('tabindex', '0');
+                        gridEl.focus();
+                        console.log('[AG-Grid] Focus restored to grid after edit');
                     }
                 }
-            }, 10);
+            }, 50);
         },
 
         // Handle cell clicks - manually start editing if cell is editable
@@ -873,8 +901,9 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
             });
 
             // WORKAROUND: Manually start editing if the column is editable
-            // AG-Grid v34 may not automatically start editing on single click
-            if (event.colDef?.editable) {
+            // BUT skip if column already has singleClickEdit (to avoid double-edit)
+            // AG-Grid v34 may not automatically start editing on single click for some columns
+            if (event.colDef?.editable && !event.colDef?.singleClickEdit) {
                 console.log('[AG-Grid] Starting edit manually for:', event.colDef.field);
                 event.api.startEditingCell({
                     rowIndex: event.rowIndex,
@@ -966,14 +995,31 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
                 actualPlayer[fieldName] = valueToStore;
 
-                // Find in main players array and update
-                const playerIndex = app.players.findIndex(p => p === actualPlayer);
+                // CRITICAL FIX: Find in main players array and update
+                // First try by reference (fast), then fallback to PGID (reliable)
+                let playerIndex = app.players.findIndex(p => p === actualPlayer);
+
+                // CRITICAL: If reference equality fails (common after imports), find by PGID
+                if (playerIndex === -1 && actualPlayer.PGID !== undefined) {
+                    playerIndex = app.players.findIndex(p => p.PGID === actualPlayer.PGID);
+                    if (playerIndex !== -1) {
+                        console.log(`[AG-Grid] Found player by PGID fallback: ${actualPlayer.PFNA} ${actualPlayer.PLNA} (PGID: ${actualPlayer.PGID})`);
+                    }
+                }
+
                 if (playerIndex !== -1) {
                     app.players[playerIndex][fieldName] = valueToStore;
                     // Debug logging for key fields
-                    if (['PHAN', 'PROL', 'PCBT', 'PWGT'].includes(fieldName)) {
+                    if (['PHAN', 'PROL', 'PCBT', 'PWGT', 'POVR', 'PEPS'].includes(fieldName)) {
                         console.log(`[AG-Grid DEBUG] Updated app.players[${playerIndex}].${fieldName} = ${valueToStore}`);
                     }
+                } else {
+                    // CRITICAL: Player not found in app.players - this is a bug that causes data loss!
+                    console.error(`[AG-Grid] *** CRITICAL: Player ${actualPlayer.PFNA} ${actualPlayer.PLNA} NOT FOUND in app.players! Edit will NOT be saved! ***`);
+                    console.error(`[AG-Grid] Player PGID: ${actualPlayer.PGID}, app.players.length: ${app.players.length}`);
+                    // Force add the actualPlayer to app.players to prevent data loss
+                    app.players.push(actualPlayer);
+                    console.log(`[AG-Grid] Added missing player to app.players (now ${app.players.length} players)`);
                 }
 
                 // ========== BODY TYPE / WEIGHT LINKING ==========
@@ -1745,15 +1791,6 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
     // Create grid
     const gridApi = createGrid(container, gridOptions);
-
-    // DEBUG: Add click handler to container to verify clicks are reaching the DOM
-    container.addEventListener('click', (e) => {
-        console.log('[AG-Grid DEBUG] Container clicked:', {
-            target: e.target.tagName,
-            className: e.target.className,
-            cellValue: e.target.textContent?.substring(0, 50)
-        });
-    }, true); // Use capture phase
 
     // Store reference
     app.agGrid = gridApi;

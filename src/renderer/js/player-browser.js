@@ -385,14 +385,25 @@
   /**
    * Restore focus to the active editor panel (grid or input).
    * This is a universal fallback for when player browser is not open.
-   * Uses Electron IPC to restore OS-level window focus first.
+   * Uses the global restoreEditorFocus function when available.
    */
   function restoreFocusToActivePanel() {
+    // Use global function if available (set up by app.js)
+    if (window.restoreEditorFocus) {
+      window.restoreEditorFocus();
+      return;
+    }
+
+    // Fallback implementation
     const focusElement = () => {
       const activePanel = document.querySelector('.tab-content.active, .editor-panel:not([style*="display: none"])');
       if (activePanel) {
         const focusTarget = activePanel.querySelector('.ag-root-wrapper, input:not([type="hidden"]):not([disabled])');
         if (focusTarget) {
+          // Ensure AG-Grid wrapper is focusable
+          if (focusTarget.classList.contains('ag-root-wrapper')) {
+            focusTarget.setAttribute('tabindex', '0');
+          }
           focusTarget.focus();
           console.log('[PlayerBrowser] Restored focus to active panel element');
         }
@@ -911,13 +922,19 @@
     // Clear selection
     clearSelection();
 
-    // Show result
-    let resultMsg = 'Added ' + successCount + ' player(s) to roster.';
+    // Show result using non-blocking toast for success, alert for errors
     if (errorCount > 0) {
-      resultMsg += '\n' + errorCount + ' player(s) failed to add.';
+      alert('Added ' + successCount + ' player(s) to roster.\n' + errorCount + ' player(s) failed to add.');
+    } else if (window.showToast) {
+      window.showToast('Added ' + successCount + ' player(s) to roster', 'success');
     }
-    alert(resultMsg);
-    restoreFocusToSearch();
+
+    // Restore focus to editor
+    if (window.restoreEditorFocus) {
+      window.restoreEditorFocus();
+    } else {
+      restoreFocusToSearch();
+    }
   }
 
   /**
@@ -1068,13 +1085,19 @@
     // Clear selection
     clearSelection();
 
-    // Show result
-    let resultMsg = 'Added ' + successCount + ' player(s) to draft class.';
+    // Show result using non-blocking toast for success, alert for errors
     if (errorCount > 0) {
-      resultMsg += '\n' + errorCount + ' player(s) failed to add.';
+      alert('Added ' + successCount + ' player(s) to draft class.\n' + errorCount + ' player(s) failed to add.');
+    } else if (window.showToast) {
+      window.showToast('Added ' + successCount + ' player(s) to draft class', 'success');
     }
-    alert(resultMsg);
-    restoreFocusToSearch();
+
+    // Restore focus to editor
+    if (window.restoreEditorFocus) {
+      window.restoreEditorFocus();
+    } else {
+      restoreFocusToSearch();
+    }
   }
 
   /**
@@ -1397,18 +1420,31 @@
 
       console.log('[PlayerBrowser] Added player to roster:', playerName, selectedYear, 'Team:', selectedTeamName);
 
-      // Close modal and show success
+      // Close modal and show success using non-blocking toast
       closeAddToRosterModal();
-      alert('Successfully added ' + playerName + ' (' + selectedYear + ') to ' + selectedTeamName + '!');
 
-      // Restore focus after alert is dismissed
-      restoreFocusToSearch();
+      // Use non-blocking toast notification instead of alert() to prevent focus loss
+      if (window.showToast) {
+        window.showToast('Added ' + playerName + ' (' + selectedYear + ') to ' + selectedTeamName, 'success');
+      }
+
+      // Restore focus to editor using the global focus restoration
+      if (window.restoreEditorFocus) {
+        window.restoreEditorFocus();
+      } else {
+        restoreFocusToSearch();
+      }
 
     } catch (error) {
       console.error('[PlayerBrowser] Error adding to roster:', error);
+      // Keep alert for errors - user needs to see these
       alert('Failed to add player to roster: ' + error.message);
       closeAddToRosterModal();
-      restoreFocusToSearch();
+      if (window.restoreEditorFocus) {
+        window.restoreEditorFocus();
+      } else {
+        restoreFocusToSearch();
+      }
     }
   }
 
@@ -1727,18 +1763,31 @@
 
       console.log('[PlayerBrowser] Added player to draft class:', playerName, selectedYear, 'at slot', targetSlot);
 
-      // Close modal and show success
+      // Close modal and show success using non-blocking toast
       closeAddToDraftModal();
-      alert('Successfully added ' + playerName + ' (' + selectedYear + ') to draft class at ' + roundDisplay + '!');
 
-      // Restore focus after alert is dismissed
-      restoreFocusToSearch();
+      // Use non-blocking toast notification instead of alert() to prevent focus loss
+      if (window.showToast) {
+        window.showToast('Added ' + playerName + ' (' + selectedYear + ') to draft at ' + roundDisplay, 'success');
+      }
+
+      // Restore focus to editor using the global focus restoration
+      if (window.restoreEditorFocus) {
+        window.restoreEditorFocus();
+      } else {
+        restoreFocusToSearch();
+      }
 
     } catch (error) {
       console.error('[PlayerBrowser] Error adding to draft:', error);
+      // Keep alert for errors - user needs to see these
       alert('Failed to add player to draft class: ' + error.message);
       closeAddToDraftModal();
-      restoreFocusToSearch();
+      if (window.restoreEditorFocus) {
+        window.restoreEditorFocus();
+      } else {
+        restoreFocusToSearch();
+      }
     }
   }
 
