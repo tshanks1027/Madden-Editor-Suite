@@ -19,7 +19,7 @@ ipcMain.handle('lookup:get-display-name', async (event, fileName: string, id: nu
     return lookupService.getDisplayName(fileName, id);
   } catch (error) {
     console.error('Error getting display name:', error);
-    return id.toString();
+    return id != null ? id.toString() : '';
   }
 });
 

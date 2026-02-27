@@ -1108,10 +1108,10 @@ export class LookupService {
     const lookup = this.cache[fileName];
     if (!lookup) {
       console.warn(`Lookup file not found: ${fileName}`);
-      return id.toString();
+      return id != null ? String(id) : '';
     }
 
-    return lookup.get(id) || id.toString();
+    return lookup.get(id) || (id != null ? String(id) : '');
   }
 
   // Convert display name to numeric ID
@@ -1551,6 +1551,14 @@ export class LookupService {
     maddenPam: string;
     maddenPlpo: string;
     maddenCommid: string;
+    // Extended appearance fields (set by user edits)
+    maddenPghe?: number;
+    maddenPfcg?: string;
+    maddenGpan?: string;
+    maddenGslp?: number;
+    maddenCpvf?: number;
+    maddenSkinTone?: number;
+    isGenericFace?: boolean;
     // Bio data
     college: string;
     race: number | null;

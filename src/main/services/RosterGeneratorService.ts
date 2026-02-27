@@ -28,8 +28,50 @@ import { contractService } from './ContractService';
 import { ArchetypeSyncService } from './ArchetypeSyncService';
 import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
 
+// Map database field codes to OVR calculator field codes
+// CRITICAL: This MUST match the mapping in database-player-card.js exactly
+// This ensures ONE calculation produces the same result everywhere
+const DB_TO_OVR_FIELD_MAP: { [key: string]: string } = {
+  'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI', 'PJMP': 'PJMP',
+  'PSTM': 'PSTA', 'PSTA': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',
+  'PCOD': 'PELU', 'PELU': 'PELU', 'PBCV': 'PBCV',
+  'PBTK': 'PBKT', 'PBKT': 'PBKT', 'PTRK': 'PLTR', 'PLTR': 'PLTR',
+  'PSFA': 'PLSA', 'PLSA': 'PLSA', 'PSPN': 'PLSM', 'PLSM': 'PLSM',
+  'PJKM': 'PLJM', 'PLJM': 'PLJM', 'PCAR': 'PCAR',
+  'PTAS': 'PTAS', 'PTAM': 'PTAM', 'PTAD': 'PTAD',
+  'PTOR': 'PTOR', 'PTUP': 'PTUP', 'PPWR': 'PTHP', 'PTHP': 'PTHP',
+  'PCTH': 'PCTH', 'PSPC': 'PLSC', 'PLSC': 'PLSC', 'PCIT': 'PLCI', 'PLCI': 'PLCI',
+  'PSRR': 'SRRN', 'SRRN': 'SRRN', 'PMRR': 'PMRR', 'PDRR': 'PDRR',
+  'PREL': 'PLRL', 'PLRL': 'PLRL',
+  'PRBK': 'PRBK', 'PPBK': 'PPBK', 'PIBK': 'PLIB', 'PLIB': 'PLIB', 'PLBK': 'PLBK',
+  'PFMS': 'PFMS', 'PRNS': 'PRBS', 'PRBS': 'PRBS',
+  'PPBS': 'PPBF', 'PPBF': 'PPBF', 'PPBP': 'PPBS',
+  'PRBF': 'PRBF', 'PTAK': 'PTAK',
+  'PHIT': 'PLHT', 'PLHT': 'PLHT',
+  'PFMV': 'PFMS', 'PPWM': 'PLPM', 'PLPM': 'PLPM',
+  'PBSH': 'PBSG', 'PBSG': 'PBSG',
+  'PPUR': 'PLPU', 'PLPU': 'PLPU',  // PPUR in old CSV = Pursuit, maps to PLPU
+  'PPRC': 'PLPR', 'PLPR': 'PLPR',  // PPRC in old CSV = Play Recognition, maps to PLPR
+  'PPLA': 'PPLA',  // Play Action stays as Play Action (QB attribute)
+  'PMCV': 'PLMC', 'PLMC': 'PLMC', 'PZCV': 'PLZC', 'PLZC': 'PLZC',
+  'PPRS': 'PLPE', 'PLPE': 'PLPE', 'PBSK': 'PBSK',
+  'PKAC': 'PKAC', 'PKPR': 'PKPR', 'PKRT': 'PKRT'
+};
+
+// Helper function to map database ratings to OVR calculator format
+function mapRatingsForOVR(ratings: { [key: string]: number }): { [key: string]: number } {
+  const mapped: { [key: string]: number } = {};
+  for (const [dbField, value] of Object.entries(ratings)) {
+    const ovrField = DB_TO_OVR_FIELD_MAP[dbField] || dbField;
+    if (value !== null && value !== undefined && !isNaN(value)) {
+      mapped[ovrField] = value;
+    }
+  }
+  return mapped;
+}
+
 export interface RosterPlayer {
-  // Basic Info
+  // Basic Info (lowercase format)
   firstName: string;
   lastName: string;
   position: string;
@@ -39,15 +81,36 @@ export interface RosterPlayer {
   weight: number;
   team: string;
 
-  // IDs
+  // Basic Info (UPPERCASE Madden field codes)
+  PFNA?: string;  // First Name
+  PLNA?: string;  // Last Name
+  PPOS?: number;  // Position code
+  PJEN?: number;  // Jersey number
+  PAGE?: number;  // Age
+  PHGT?: number;  // Height in inches
+  PWGT?: number;  // Weight (stored as actual - 159)
+  TGID?: number;  // Team ID
+  PCBT?: number;  // Body type
+  PHAN?: number;  // Handedness
+
+  // IDs (mixed formats)
   PID: number;
   PAM: string;
   PEPS: string;
   POID: number;  // Presentation ID for in-game commentary
+  PSXP?: number; // Player ID (PID) - Madden field code
+  PLPL?: number; // Player Asset (PAM) - 0 for generic, 100 for real
+  PCMT?: number; // Commentary ID
+  PGHE?: number; // Generic head equipment
+  PLAYERPIC?: string; // Player Pic display name
+  PLRC?: number; // Race
 
   // College & Home
   college: number;
   homeState: number;
+  PCOL?: number;  // College ID (Madden field code)
+  PHSN?: number;  // Home State ID (Madden field code)
+  PHTN?: string;  // Hometown (Madden field code)
 
   // Ratings
   POVR: number;
@@ -201,6 +264,7 @@ export class RosterGeneratorService {
   private templateData: any = null;
   private initialized: boolean = false;
   private genericPIDs: number[] = [];
+  private genericPIDSet: Set<number> = new Set(); // Fast lookup for generic face PIDs
   private validPIDs: Set<number> = new Set(); // ALL valid PIDs from PID_Portrait_Mapping.csv
   private pidToPAM: Map<number, string> = new Map(); // PID → PAM mapping from PID_Portrait_Mapping.csv
   private pidToPortrait: Map<number, string> = new Map(); // PID → Portrait name (for race filtering)
@@ -213,6 +277,7 @@ export class RosterGeneratorService {
   private pamRaceMapping: { white: string[]; hispanic: string[]; black: string[] } | null = null;
   private hofLookup: Map<string, boolean> = new Map(); // firstName|lastName -> isHOF
   private pidToCommID: Map<number, number> = new Map(); // PID → CommID (POID) mapping from ALL_PLAYER_LOOKUP.csv
+  private missedLookupCount: number = 0; // Track failed player lookups for debugging
   private homeLocationLookup: Map<string, { hometown: string; homeState: string }> = new Map(); // firstName|lastName -> hometown/homeState from ALL_PLAYER_LOOKUP.csv
   private customPortraitAssignments: Map<number, number> = new Map(); // databasePlayerId → customPID (from user assignments)
   private nameToInternalId: Map<string, number> = new Map(); // firstName|lastName -> internalId (for custom portrait lookup)
@@ -252,9 +317,19 @@ export class RosterGeneratorService {
       throw new Error(`ROSTER-Official template not found at: ${templatePath}`);
     }
 
-    this.templateData = await draftClassService.loadDraftClass(templatePath);
-    console.log('[RosterGeneratorService] Template loaded, version:', this.templateData.data._version);
-    console.log('[RosterGeneratorService] Template buffer size:', this.templateData.data._originalBuffer?.length || 0);
+    try {
+      console.log('[RosterGeneratorService] Calling draftClassService.loadDraftClass...');
+      this.templateData = await draftClassService.loadDraftClass(templatePath);
+      console.log('[RosterGeneratorService] loadDraftClass returned, checking data...');
+      console.log('[RosterGeneratorService] templateData type:', typeof this.templateData);
+      console.log('[RosterGeneratorService] templateData.data type:', typeof this.templateData?.data);
+      console.log('[RosterGeneratorService] Template loaded, version:', this.templateData?.data?._version || 'UNKNOWN');
+      console.log('[RosterGeneratorService] Template buffer size:', this.templateData?.data?._originalBuffer?.length || 0);
+    } catch (loadError: any) {
+      console.error('[RosterGeneratorService] TEMPLATE LOAD ERROR:', loadError.message);
+      console.error('[RosterGeneratorService] Stack:', loadError.stack);
+      throw new Error(`Failed to load template: ${loadError.message}`);
+    }
 
     // Initialize PGHE lookup service for generic face assignment
     try {
@@ -349,6 +424,9 @@ export class RosterGeneratorService {
         .map((row: any) => parseInt(row.PID))
         .filter((pid: number) => !isNaN(pid));
 
+      // Build Set for O(1) lookup of generic PIDs
+      this.genericPIDSet = new Set(this.genericPIDs);
+
       console.log('[RosterGeneratorService] Loaded', this.validPIDs.size, 'total valid PIDs');
       console.log('[RosterGeneratorService] Loaded', this.pidToPAM.size, 'PID → PAM mappings');
       console.log('[RosterGeneratorService] Loaded', this.pidToPortrait.size, 'PID → Portrait mappings');
@@ -377,6 +455,8 @@ export class RosterGeneratorService {
         2717, 2718, 2719, 2720, 2721, 2743, 2745, 2748, 2749,
         2751, 2753
       ];
+      // Build Set for O(1) lookup
+      this.genericPIDSet = new Set(this.genericPIDs);
       // Also populate validPIDs with fallback set
       this.genericPIDs.forEach(pid => this.validPIDs.add(pid));
     }
@@ -604,13 +684,18 @@ export class RosterGeneratorService {
    * Generate roster based on options
    */
   async generate(options: RosterGeneratorOptions): Promise<GeneratedRoster> {
-    if (!this.initialized) {
-      await this.initialize();
-    }
+    try {
+      console.log('[RosterGeneratorService] ===== GENERATE ROSTER START =====');
 
-    console.log('[RosterGeneratorService] ===== GENERATE ROSTER =====');
-    console.log('[RosterGeneratorService] Mode:', options.mode);
-    console.log('[RosterGeneratorService] Options:', JSON.stringify(options));
+      if (!this.initialized) {
+        console.log('[RosterGeneratorService] Not initialized, calling initialize()...');
+        await this.initialize();
+        console.log('[RosterGeneratorService] Initialization complete');
+      }
+
+      console.log('[RosterGeneratorService] ===== GENERATE ROSTER =====');
+      console.log('[RosterGeneratorService] Mode:', options.mode);
+      console.log('[RosterGeneratorService] Options:', JSON.stringify(options));
 
     let players: RosterPlayer[];
     let metadata: any;
@@ -635,12 +720,27 @@ export class RosterGeneratorService {
 
     console.log('[RosterGeneratorService] Generated', players.length, 'players');
 
+    // Safely access templateData
+    console.log('[RosterGeneratorService] Accessing templateData...');
+    console.log('[RosterGeneratorService] templateData exists:', !!this.templateData);
+    console.log('[RosterGeneratorService] templateData.data exists:', !!this.templateData?.data);
+
+    const originalBuffer = this.templateData?.data?._originalBuffer;
+    console.log('[RosterGeneratorService] originalBuffer exists:', !!originalBuffer);
+
     return {
       players,
       metadata,
-      _originalBuffer: this.templateData.data._originalBuffer,
+      _originalBuffer: originalBuffer,
       _version: 'M26'
     };
+    } catch (error: any) {
+      console.error('[RosterGeneratorService] ===== GENERATE ERROR =====');
+      console.error('[RosterGeneratorService] Error message:', error.message);
+      console.error('[RosterGeneratorService] Error stack:', error.stack);
+      console.error('[RosterGeneratorService] ================================');
+      throw error;
+    }
   }
 
   /**
@@ -664,6 +764,10 @@ export class RosterGeneratorService {
     const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(year);
     console.log(`[RosterGeneratorService] User edits found for year ${year}: ${userEditsMap.size}`);
 
+    // BULK LOAD appearance edits (PID, PAM, PGHE, etc.) - these are NOT year-specific
+    const appearanceEditsMap = userDatabaseService.getAllAppearanceEdits();
+    console.log(`[RosterGeneratorService] Appearance edits found: ${appearanceEditsMap.size}`);
+
     // DEBUG: Show sample player IDs from both sources to diagnose mismatch
     if (userEditsMap.size > 0 && dbPlayers.length > 0) {
       const sampleEditIds = Array.from(userEditsMap.keys()).slice(0, 5);
@@ -672,36 +776,178 @@ export class RosterGeneratorService {
       console.log('[RosterGeneratorService] DEBUG - Sample player IDs from DB:', samplePlayerIds);
 
       // Check for specific players that should be edited
-      for (const [editId, ratings] of Array.from(userEditsMap.entries()).slice(0, 3)) {
+      for (const [editId, userEdit] of Array.from(userEditsMap.entries()).slice(0, 3)) {
         const matchingPlayer = dbPlayers.find(p => p.playerId === editId);
         if (matchingPlayer) {
-          console.log(`[RosterGeneratorService] MATCH: Edit ID ${editId} -> ${matchingPlayer.firstName} ${matchingPlayer.lastName}, POVR in edit: ${ratings.POVR}, POVR in DB: ${matchingPlayer.ratings?.POVR}`);
+          console.log(`[RosterGeneratorService] MATCH: Edit ID ${editId} -> ${matchingPlayer.firstName} ${matchingPlayer.lastName}, POVR in edit: ${userEdit.ratings.POVR}, pos in edit: ${userEdit.position || 'N/A'}, POVR in DB: ${matchingPlayer.ratings?.POVR}`);
         } else {
           console.log(`[RosterGeneratorService] NO MATCH: Edit ID ${editId} not found in dbPlayers`);
         }
       }
     }
 
+    // Build a name-based index for user edits (fallback when ID doesn't match)
+    const userEditsByName = new Map<string, any>();
+    for (const [editId, edit] of userEditsMap.entries()) {
+      // We need to look up the player name from the bundled database
+      const player = lookupService.getPlayerByInternalId(editId);
+      if (player) {
+        const nameKey = `${player.firstName}|${player.lastName}`.toLowerCase();
+        userEditsByName.set(nameKey, { edit, playerId: editId });
+      }
+    }
+    console.log(`[RosterGeneratorService] Built name-based index with ${userEditsByName.size} entries for fallback lookup`);
+
     // Merge user edits into players BEFORE any sorting/selection
+    // User edits override BOTH ratings AND position/team/archetype
     let mergeCount = 0;
+    let fallbackMergeCount = 0;
     for (const player of dbPlayers) {
+      let userEdit = null;
+
+      // Try direct ID match first
       if (player.playerId && userEditsMap.has(player.playerId)) {
-        const userRatings = userEditsMap.get(player.playerId)!;
-        const beforePOVR = player.ratings?.POVR;
-        // Override bundled ratings with user-edited values
-        for (const [field, value] of Object.entries(userRatings)) {
-          if (value !== null && value !== undefined) {
-            player.ratings[field] = value;
+        userEdit = userEditsMap.get(player.playerId)!;
+      } else {
+        // Fallback: Try name-based lookup
+        const nameKey = `${player.firstName}|${player.lastName}`.toLowerCase();
+        const fallback = userEditsByName.get(nameKey);
+        if (fallback) {
+          userEdit = fallback.edit;
+          fallbackMergeCount++;
+          if (fallbackMergeCount <= 3) {
+            console.log(`[RosterGeneratorService] FALLBACK MATCH: ${player.firstName} ${player.lastName} - DB playerId=${player.playerId}, edit playerId=${fallback.playerId}`);
           }
         }
+      }
+
+      if (userEdit) {
+        const beforePOVR = player.ratings?.POVR;
+        const beforePosition = player.position;
+
+        // Override bundled ratings with user-edited values
+        for (const [field, value] of Object.entries(userEdit.ratings)) {
+          if (value !== null && value !== undefined) {
+            player.ratings[field] = value as number;
+          }
+        }
+
+        // CRITICAL: Override position/team/archetype from user edits
+        // This ensures user edit positions (LG, LEDG, etc.) override bundled DB positions
+        if (userEdit.position) {
+          player.position = userEdit.position;
+        }
+        if (userEdit.team) {
+          player.team = userEdit.team;
+        }
+        if (userEdit.archetype) {
+          player.archetype = userEdit.archetype;
+        }
+
         mergeCount++;
         // Log the merge for first few players
-        if (mergeCount <= 3) {
-          console.log(`[RosterGeneratorService] MERGED: ${player.firstName} ${player.lastName} (ID ${player.playerId}), POVR: ${beforePOVR} -> ${player.ratings.POVR}`);
+        if (mergeCount <= 5) {
+          console.log(`[RosterGeneratorService] MERGED: ${player.firstName} ${player.lastName} (ID ${player.playerId}), POVR: ${beforePOVR} -> ${player.ratings.POVR}, Position: ${beforePosition} -> ${player.position}`);
         }
       }
     }
-    console.log(`[RosterGeneratorService] Merged user edits into ${mergeCount} players`);
+    console.log(`[RosterGeneratorService] Merged user edits into ${mergeCount} players (${fallbackMergeCount} via name fallback)`);
+
+    // Build name-based index for appearance edits
+    const appearanceEditsByName = new Map<string, any>();
+    for (const [editId, edit] of appearanceEditsMap.entries()) {
+      const player = lookupService.getPlayerByInternalId(editId);
+      if (player) {
+        const nameKey = `${player.firstName}|${player.lastName}`.toLowerCase();
+        appearanceEditsByName.set(nameKey, edit);
+      }
+    }
+
+    // Merge appearance edits (PID, PAM, PGHE, etc.) into players
+    let appearanceMergeCount = 0;
+    for (const player of dbPlayers) {
+      let appearanceEdit = null;
+
+      // Try direct ID match first
+      if (player.playerId && appearanceEditsMap.has(player.playerId)) {
+        appearanceEdit = appearanceEditsMap.get(player.playerId)!;
+      } else {
+        // Fallback: Try name-based lookup
+        const nameKey = `${player.firstName}|${player.lastName}`.toLowerCase();
+        appearanceEdit = appearanceEditsByName.get(nameKey);
+      }
+
+      if (appearanceEdit) {
+        if (appearanceEdit.maddenPid !== undefined) player.maddenPid = appearanceEdit.maddenPid;
+        if (appearanceEdit.maddenPam !== undefined) player.maddenPam = appearanceEdit.maddenPam;
+        if (appearanceEdit.maddenPlpo !== undefined) player.maddenPlpo = appearanceEdit.maddenPlpo;
+        if (appearanceEdit.maddenPghe !== undefined) player.maddenPghe = appearanceEdit.maddenPghe;
+        if (appearanceEdit.maddenPfcg !== undefined) player.maddenPfcg = appearanceEdit.maddenPfcg;
+        if (appearanceEdit.maddenGpan !== undefined) player.maddenGpan = appearanceEdit.maddenGpan;
+        if (appearanceEdit.maddenGslp !== undefined) player.maddenGslp = appearanceEdit.maddenGslp;
+        if (appearanceEdit.maddenCpvf !== undefined) player.maddenCpvf = appearanceEdit.maddenCpvf;
+        if (appearanceEdit.maddenSkinTone !== undefined) player.maddenSkinTone = appearanceEdit.maddenSkinTone;
+        if (appearanceEdit.isGenericFace !== undefined) player.isGenericFace = appearanceEdit.isGenericFace;
+
+        // FIX: Add portrait manager PIDs to validPIDs so they don't get rejected
+        if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) {
+          this.validPIDs.add(appearanceEdit.maddenPid);
+        }
+
+        appearanceMergeCount++;
+        if (appearanceMergeCount <= 5) {
+          console.log(`[RosterGeneratorService] APPEARANCE MERGED: ${player.firstName} ${player.lastName} (ID ${player.playerId}), PID=${player.maddenPid}, PAM=${player.maddenPam}, isGenericFace=${player.isGenericFace}`);
+        }
+      }
+    }
+    console.log(`[RosterGeneratorService] Merged appearance edits into ${appearanceMergeCount} players (added PIDs to validPIDs)`);
+
+    // BULK LOAD player edits (bio fields: height, weight, college, homeState, etc.) - NOT year-specific
+    const bioEditsMap = userDatabaseService.getAllPlayerEdits();
+    console.log(`[RosterGeneratorService] Bio edits found: ${bioEditsMap.size}`);
+
+    // Build name-based index for bio edits
+    const bioEditsByName = new Map<string, any>();
+    for (const [editId, edit] of bioEditsMap.entries()) {
+      const player = lookupService.getPlayerByInternalId(editId);
+      if (player) {
+        const nameKey = `${player.firstName}|${player.lastName}`.toLowerCase();
+        bioEditsByName.set(nameKey, edit);
+      }
+    }
+
+    // Merge bio edits into players
+    let bioMergeCount = 0;
+    for (const player of dbPlayers) {
+      let bioEdit = null;
+
+      // Try direct ID match first
+      if (player.playerId && bioEditsMap.has(player.playerId)) {
+        bioEdit = bioEditsMap.get(player.playerId)!;
+      } else {
+        // Fallback: Try name-based lookup
+        const nameKey = `${player.firstName}|${player.lastName}`.toLowerCase();
+        bioEdit = bioEditsByName.get(nameKey);
+      }
+
+      if (bioEdit) {
+        // Apply bio edits to player
+        if (bioEdit.height !== undefined) player.height = bioEdit.height;
+        if (bioEdit.weight !== undefined) player.weight = bioEdit.weight;
+        if (bioEdit.collegeId !== undefined) player.college = lookupService.getDisplayName('college_lookup.csv', bioEdit.collegeId) || player.college;
+        if (bioEdit.homeState !== undefined) player.homeState = bioEdit.homeState;
+        if (bioEdit.hometown !== undefined) player.hometown = bioEdit.hometown;
+        if (bioEdit.race !== undefined) player.race = bioEdit.race;
+        if (bioEdit.bodyType !== undefined) (player as any).bodyType = bioEdit.bodyType;
+        if (bioEdit.handedness !== undefined) (player as any).handedness = bioEdit.handedness;
+
+        bioMergeCount++;
+        if (bioMergeCount <= 3) {
+          console.log(`[RosterGeneratorService] BIO MERGED: ${player.firstName} ${player.lastName} (ID ${player.playerId}), height=${bioEdit.height}, weight=${bioEdit.weight}, college=${bioEdit.collegeId}, homeState=${bioEdit.homeState}`);
+        }
+      }
+    }
+    console.log(`[RosterGeneratorService] Merged bio edits into ${bioMergeCount} players`);
 
     // Also get custom players for this year (stored in this.rosterData during init)
     const customPlayers = this.rosterData.get(year) || [];
@@ -884,14 +1130,41 @@ export class RosterGeneratorService {
       // BULK LOAD user edits for this year
       const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
 
-      // Merge user edits into players
+      // BULK LOAD appearance edits (PID, PAM, PGHE, etc.)
+      const appearanceEditsMap = userDatabaseService.getAllAppearanceEdits();
+
+      // Merge user edits into players (ratings AND position/team/archetype)
       for (const player of yearPlayers) {
         if (player.playerId && userEditsMap.has(player.playerId)) {
-          const userRatings = userEditsMap.get(player.playerId)!;
-          for (const [field, value] of Object.entries(userRatings)) {
+          const userEdit = userEditsMap.get(player.playerId)!;
+          // Apply ratings
+          for (const [field, value] of Object.entries(userEdit.ratings)) {
             if (value !== null && value !== undefined) {
               player.ratings[field] = value;
             }
+          }
+          // Apply position/team/archetype overrides
+          if (userEdit.position) player.position = userEdit.position;
+          if (userEdit.team) player.team = userEdit.team;
+          if (userEdit.archetype) player.archetype = userEdit.archetype;
+        }
+
+        // Merge appearance edits (PID, PAM, PLPO, PGHE, etc.)
+        if (player.playerId && appearanceEditsMap.has(player.playerId)) {
+          const appearanceEdit = appearanceEditsMap.get(player.playerId)!;
+          if (appearanceEdit.maddenPid !== undefined) player.maddenPid = appearanceEdit.maddenPid;
+          if (appearanceEdit.maddenPam !== undefined) player.maddenPam = appearanceEdit.maddenPam;
+          if (appearanceEdit.maddenPlpo !== undefined) player.maddenPlpo = appearanceEdit.maddenPlpo;
+          if (appearanceEdit.maddenPghe !== undefined) player.maddenPghe = appearanceEdit.maddenPghe;
+          if (appearanceEdit.maddenPfcg !== undefined) player.maddenPfcg = appearanceEdit.maddenPfcg;
+          if (appearanceEdit.maddenGpan !== undefined) player.maddenGpan = appearanceEdit.maddenGpan;
+          if (appearanceEdit.maddenGslp !== undefined) player.maddenGslp = appearanceEdit.maddenGslp;
+          if (appearanceEdit.maddenCpvf !== undefined) player.maddenCpvf = appearanceEdit.maddenCpvf;
+          if (appearanceEdit.maddenSkinTone !== undefined) player.maddenSkinTone = appearanceEdit.maddenSkinTone;
+          if (appearanceEdit.isGenericFace !== undefined) player.isGenericFace = appearanceEdit.isGenericFace;
+          // FIX: Add portrait manager PIDs to validPIDs
+          if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) {
+            this.validPIDs.add(appearanceEdit.maddenPid);
           }
         }
       }
@@ -1256,7 +1529,6 @@ export class RosterGeneratorService {
           PBTY: 'Athletic',
           PYRS: 0,
           PFHO: 0,
-          PHSN: 5,
           PHTC: 0,
           PYER: 2024
         } as RosterPlayer;
@@ -1358,20 +1630,47 @@ export class RosterGeneratorService {
     );
 
     // Scan 5 years BEFORE the selected range - query database
+    // BULK LOAD appearance edits ONCE (not per-year)
+    const appearanceEditsMapFA = userDatabaseService.getAllAppearanceEdits();
+
     for (let y = startYear - 5; y < startYear; y++) {
       const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
 
       // BULK LOAD user edits for this year
       const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
 
-      // Merge user edits into players
+      // Merge user edits into players (ratings AND position/team/archetype)
       for (const player of yearPlayers) {
         if (player.playerId && userEditsMap.has(player.playerId)) {
-          const userRatings = userEditsMap.get(player.playerId)!;
-          for (const [field, value] of Object.entries(userRatings)) {
+          const userEdit = userEditsMap.get(player.playerId)!;
+          // Apply ratings
+          for (const [field, value] of Object.entries(userEdit.ratings)) {
             if (value !== null && value !== undefined) {
               player.ratings[field] = value;
             }
+          }
+          // Apply position/team/archetype overrides
+          if (userEdit.position) player.position = userEdit.position;
+          if (userEdit.team) player.team = userEdit.team;
+          if (userEdit.archetype) player.archetype = userEdit.archetype;
+        }
+
+        // Merge appearance edits (PID, PAM, PLPO, PGHE, etc.)
+        if (player.playerId && appearanceEditsMapFA.has(player.playerId)) {
+          const appearanceEdit = appearanceEditsMapFA.get(player.playerId)!;
+          if (appearanceEdit.maddenPid !== undefined) player.maddenPid = appearanceEdit.maddenPid;
+          if (appearanceEdit.maddenPam !== undefined) player.maddenPam = appearanceEdit.maddenPam;
+          if (appearanceEdit.maddenPlpo !== undefined) player.maddenPlpo = appearanceEdit.maddenPlpo;
+          if (appearanceEdit.maddenPghe !== undefined) player.maddenPghe = appearanceEdit.maddenPghe;
+          if (appearanceEdit.maddenPfcg !== undefined) player.maddenPfcg = appearanceEdit.maddenPfcg;
+          if (appearanceEdit.maddenGpan !== undefined) player.maddenGpan = appearanceEdit.maddenGpan;
+          if (appearanceEdit.maddenGslp !== undefined) player.maddenGslp = appearanceEdit.maddenGslp;
+          if (appearanceEdit.maddenCpvf !== undefined) player.maddenCpvf = appearanceEdit.maddenCpvf;
+          if (appearanceEdit.maddenSkinTone !== undefined) player.maddenSkinTone = appearanceEdit.maddenSkinTone;
+          if (appearanceEdit.isGenericFace !== undefined) player.isGenericFace = appearanceEdit.isGenericFace;
+          // FIX: Add portrait manager PIDs to validPIDs
+          if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) {
+            this.validPIDs.add(appearanceEdit.maddenPid);
           }
         }
       }
@@ -1502,6 +1801,10 @@ export class RosterGeneratorService {
 
     // Look back 5 years - query database directly
     console.log('[RosterGeneratorService] Searching for free agents in years', year - 5, 'to', year - 1, '...');
+
+    // BULK LOAD appearance edits ONCE (not per-year)
+    const appearanceEditsMapFA2 = userDatabaseService.getAllAppearanceEdits();
+
     for (let y = year - 5; y < year; y++) {
       const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
       console.log(`[RosterGeneratorService]   Year ${y}: ${yearPlayers.length} players in database`);
@@ -1509,14 +1812,38 @@ export class RosterGeneratorService {
       // BULK LOAD user edits for this year
       const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
 
-      // Merge user edits into players
+      // Merge user edits into players (ratings AND position/team/archetype)
       for (const player of yearPlayers) {
         if (player.playerId && userEditsMap.has(player.playerId)) {
-          const userRatings = userEditsMap.get(player.playerId)!;
-          for (const [field, value] of Object.entries(userRatings)) {
+          const userEdit = userEditsMap.get(player.playerId)!;
+          // Apply ratings
+          for (const [field, value] of Object.entries(userEdit.ratings)) {
             if (value !== null && value !== undefined) {
               player.ratings[field] = value;
             }
+          }
+          // Apply position/team/archetype overrides
+          if (userEdit.position) player.position = userEdit.position;
+          if (userEdit.team) player.team = userEdit.team;
+          if (userEdit.archetype) player.archetype = userEdit.archetype;
+        }
+
+        // Merge appearance edits (PID, PAM, PLPO, PGHE, etc.)
+        if (player.playerId && appearanceEditsMapFA2.has(player.playerId)) {
+          const appearanceEdit = appearanceEditsMapFA2.get(player.playerId)!;
+          if (appearanceEdit.maddenPid !== undefined) player.maddenPid = appearanceEdit.maddenPid;
+          if (appearanceEdit.maddenPam !== undefined) player.maddenPam = appearanceEdit.maddenPam;
+          if (appearanceEdit.maddenPlpo !== undefined) player.maddenPlpo = appearanceEdit.maddenPlpo;
+          if (appearanceEdit.maddenPghe !== undefined) player.maddenPghe = appearanceEdit.maddenPghe;
+          if (appearanceEdit.maddenPfcg !== undefined) player.maddenPfcg = appearanceEdit.maddenPfcg;
+          if (appearanceEdit.maddenGpan !== undefined) player.maddenGpan = appearanceEdit.maddenGpan;
+          if (appearanceEdit.maddenGslp !== undefined) player.maddenGslp = appearanceEdit.maddenGslp;
+          if (appearanceEdit.maddenCpvf !== undefined) player.maddenCpvf = appearanceEdit.maddenCpvf;
+          if (appearanceEdit.maddenSkinTone !== undefined) player.maddenSkinTone = appearanceEdit.maddenSkinTone;
+          if (appearanceEdit.isGenericFace !== undefined) player.isGenericFace = appearanceEdit.isGenericFace;
+          // FIX: Add portrait manager PIDs to validPIDs
+          if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) {
+            this.validPIDs.add(appearanceEdit.maddenPid);
           }
         }
       }
@@ -1728,7 +2055,6 @@ export class RosterGeneratorService {
       PPOS: positionCode,
       PAGE: 23 + Math.floor(Math.random() * 5),
       PSXP: genericFace.pid, // PID from race-matched generic face
-      PEPS: genericFace.pam, // GENR from PGHE lookup - matched set with pid and pghe
       PHGT: 70 + Math.floor(Math.random() * 10),
       PWGT: 180 + Math.floor(Math.random() * 80),
       PCOL: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
@@ -1831,8 +2157,37 @@ export class RosterGeneratorService {
     const ratings = this.fillMissingRatings(csvRow);
 
     // Get player internal ID for user edit lookup (needed before PID handling)
-    const playerNameKey = `${csvRow.First_Name}|${csvRow.Last_Name}`;
-    const playerInternalId = this.nameToInternalId.get(playerNameKey);
+    // CRITICAL: Use multiple lookup methods to find the player
+    // Method 1: Direct name key lookup (fastest)
+    const playerNameKey = `${cleanFirstName}|${cleanLastName}`;
+    let playerInternalId = this.nameToInternalId.get(playerNameKey);
+
+    // Method 2: If direct lookup fails, try case-insensitive lookup
+    if (!playerInternalId) {
+      const lowerKey = playerNameKey.toLowerCase();
+      for (const [key, id] of this.nameToInternalId.entries()) {
+        if (key.toLowerCase() === lowerKey) {
+          playerInternalId = id;
+          console.log(`[RosterGeneratorService] Found player via case-insensitive match: ${cleanFirstName} ${cleanLastName} -> ID ${id}`);
+          break;
+        }
+      }
+    }
+
+    // Method 3: If still not found, try the database lookup service (handles fuzzy matching)
+    if (!playerInternalId) {
+      const bundledPlayer = lookupService.findPlayerByNameActiveInYear(cleanFirstName, cleanLastName, year);
+      if (bundledPlayer?.internalId) {
+        playerInternalId = bundledPlayer.internalId;
+        console.log(`[RosterGeneratorService] Found player via DB lookup: ${cleanFirstName} ${cleanLastName} -> ID ${playerInternalId}`);
+      }
+    }
+
+    // Debug: Log when player not found at all (for first 5 misses per generation)
+    if (!playerInternalId && this.missedLookupCount < 5) {
+      console.log(`[RosterGeneratorService] WARNING: Could not find internal ID for ${cleanFirstName} ${cleanLastName} (year ${year})`);
+      this.missedLookupCount++;
+    }
 
     // CRITICAL: Merge user-edited ratings from database
     // This ensures generators pull ratings that users have edited in the database browser
@@ -1849,10 +2204,30 @@ export class RosterGeneratorService {
       }
     }
 
+    // CRITICAL: Get user bio edits and appearance edits for this player
+    // This ensures bio fields (height, weight, college, homeState, etc.) and PID/PAM pushed from roster editor are used
+    let userBioEdits: any = null;
+    let userAppearanceEdits: any = null;
+    if (playerInternalId) {
+      userBioEdits = userDatabaseService.getPlayerEdit(playerInternalId);
+      userAppearanceEdits = userDatabaseService.getAppearanceEdit(playerInternalId);
+      if (userBioEdits || userAppearanceEdits) {
+        console.log(`[RosterGeneratorService] Found user edits for ${csvRow.First_Name} ${csvRow.Last_Name}: bio=${!!userBioEdits}, appearance=${!!userAppearanceEdits}`);
+        if (userBioEdits) {
+          console.log(`  Bio edits: height=${userBioEdits.height}, weight=${userBioEdits.weight}, college=${userBioEdits.collegeId}, homeState=${userBioEdits.homeState}, handedness=${userBioEdits.handedness}`);
+        }
+        if (userAppearanceEdits) {
+          console.log(`  Appearance edits: PID=${userAppearanceEdits.maddenPid}, PAM=${userAppearanceEdits.maddenPam}`);
+        }
+      }
+    }
+
     // Handle PID/PAM - validate PID exists in portrait mapping before using it
-    let playerPID = parseInt(csvRow.PID) || 0;
-    let playerPAM = String(csvRow.PAM || '');
-    const csvRace = parseInt(csvRow.Race) || 1; // Get race from CSV
+    // CRITICAL: Check user appearance edits FIRST, then fall back to CSV
+    let playerPID = userAppearanceEdits?.maddenPid ?? (parseInt(csvRow.PID) || 0);
+    let playerPAM = userAppearanceEdits?.maddenPam ?? String(csvRow.PAM || '');
+    // CRITICAL: Use user-edited race if available
+    const csvRace = userBioEdits?.race ?? (parseInt(csvRow.Race) || 1); // Get race from user edits or CSV
 
     // Check for custom portrait assignment FIRST (user-uploaded portraits, PID 12000+)
     // Look up custom portrait by exact database player ID (most reliable method)
@@ -1986,6 +2361,28 @@ export class RosterGeneratorService {
       yearsPro = parseInt(csvRow.Years_Pro ?? csvRow.YearsPro ?? 0) || 0;
     }
 
+    // CRITICAL: Apply user bio edits - these override CSV values when user has edited in roster editor
+    // Height: userBioEdits stores actual height in inches
+    const finalHeight = userBioEdits?.height ?? (parseInt(csvRow.Height) || 72);
+    // Weight: userBioEdits stores actual weight in lbs, need to convert to Madden format (actual - 159)
+    const finalWeight = userBioEdits?.weight
+      ? Math.max(1, userBioEdits.weight - 159)
+      : Math.max(1, (parseInt(csvRow.Weight) || 200) - 159);
+    // College: userBioEdits stores collegeId as numeric ID, CSV stores as string name
+    const finalCollege = userBioEdits?.collegeId ?? await this.lookupCollege(csvRow.College);
+    // HomeState: userBioEdits stores as string name, need to convert to numeric ID
+    const csvHomeState = this.homeLocationLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`)?.homeState || '';
+    const finalHomeState = userBioEdits?.homeState
+      ? await this.lookupStateByName(userBioEdits.homeState)
+      : await this.lookupStateByName(csvHomeState);
+    // Hometown: userBioEdits stores as string
+    const csvHometown = this.homeLocationLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`)?.hometown || '';
+    const finalHometown = userBioEdits?.hometown ?? csvHometown;
+    // Handedness: userBioEdits stores as numeric (0=Right, 1=Left)
+    const finalHandedness = userBioEdits?.handedness ?? (parseInt(csvRow.Handedness) || 0);
+    // BodyType: userBioEdits stores as numeric, or use position-based determination
+    const finalBodyType = userBioEdits?.bodyType ?? this.determinePCBT(csvRow);
+
     // Map CSV field names to UPPERCASE roster editor field codes
     const player: any = {
       // Basic Info (use UPPERCASE field codes that app.js expects!)
@@ -1994,30 +2391,30 @@ export class RosterGeneratorService {
       PPOS: positionCode,              // Position code (numeric)
       PJEN: parseInt(csvRow.Jersey) || 0,  // Jersey number
       PAGE: parseInt(csvRow.Age) || 25,     // Age
-      PHGT: parseInt(csvRow.Height) || 72,  // Height in inches
-      PWGT: Math.max(1, (parseInt(csvRow.Weight) || 200) - 159), // Weight stored as offset: real_weight - 159 (so 200lbs = 41)
+      PHGT: finalHeight,  // Height in inches (from user edits or CSV)
+      PWGT: finalWeight,  // Weight stored as offset (from user edits or CSV)
       TGID: teamCode,                  // Team ID (numeric)
-      PCBT: this.determinePCBT(csvRow),  // Body type (0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy)
+      PCBT: finalBodyType,  // Body type (from user edits or position-based)
+      PHAN: finalHandedness, // Handedness (from user edits or CSV)
       // CRITICAL: PLRC must match the skin tone of the assigned face
       // For generic faces (PEPS starts with "gen_"), extract from first digit (e.g., "gen_7_..." -> 7)
-      // For real faces, use csvRace
+      // For real faces, use csvRace (which already considers user edits)
       PLRC: (pepsValue && pepsValue.startsWith('gen_'))
         ? (parseInt(pepsValue.match(/^gen_(\d+)/)?.[1] || '1') || csvRace)
         : csvRace,
 
       // IDs - Use processed PID/PAM (generic if original was 0)
-      PSXP: playerPID,       // Player ID (PID) - Generic face if CSV had 0
+      PSXP: playerPID,       // Player ID (PID) - from user edits or CSV
       PLPL: plplValue,        // Player Asset (PAM) - 0 for generic, 100 for real face
       PEPS: pepsValue,        // PAM code - blank for custom portraits
       PLAYERPIC: playerPicValue, // Player Pic display name (format: "Last, First" for custom portraits)
       POID: this.pidToCommID.get(playerPID) || 0, // Presentation ID for in-game commentary
       PCMT: lookupService.getCommentaryId(cleanLastName) || 0, // Commentary ID - looked up by clean last name
 
-      // College & Home - LOOKUP from CSV strings and ALL_PLAYER_LOOKUP.csv home location data
-      PCOL: await this.lookupCollege(csvRow.College), // College is string, needs lookup
-      // Use actual home location from ALL_PLAYER_LOOKUP.csv, not inferred from college
-      PHSN: await this.lookupStateByName(this.homeLocationLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`)?.homeState || ''),
-      PHTN: this.homeLocationLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`)?.hometown || '', // Hometown from ALL_PLAYER_LOOKUP.csv
+      // College & Home - Use user edits if available, otherwise CSV/lookup data
+      PCOL: finalCollege,
+      PHSN: finalHomeState,
+      PHTN: finalHometown,
 
       // Ratings (all numeric - already using correct field codes)
       POVR: parseInt(ratings.POVR) || 50,
@@ -2057,8 +2454,8 @@ export class RosterGeneratorService {
       PLPM: parseInt(ratings.PLPM) || parseInt(ratings.PPWM) || 50,  // Power Moves (db: PPWM)
       PFMS: parseInt(ratings.PFMS) || parseInt(ratings.PFMV) || parseInt(ratings.PFNM) || 50,  // Finesse Moves (db: PFMV)
       PBSG: parseInt(ratings.PBSG) || parseInt(ratings.PBSH) || 50,  // Block Shedding (db: PBSH)
-      PLPU: parseInt(ratings.PLPU) || parseInt(ratings.PPUR) || 50,  // Pursuit
-      PLPR: parseInt(ratings.PLPR) || parseInt(ratings.PPRC) || 50,  // Play Recognition (db: PPRC)
+      PLPU: parseInt(ratings.PLPU) || parseInt(ratings.PPUR) || 50,  // Pursuit (db: PLPU, old CSV: PPUR)
+      PLPR: parseInt(ratings.PLPR) || parseInt(ratings.PPRC) || 50,  // Play Recognition (db: PLPR, old CSV: PPRC)
       PLMC: parseInt(ratings.PLMC) || parseInt(ratings.PMCV) || 50,  // Man Coverage (db: PMCV)
       PLZC: parseInt(ratings.PLZC) || parseInt(ratings.PZCV) || 50,  // Zone Coverage (db: PZCV)
       PLSC: parseInt(ratings.PLSC) || parseInt(ratings.PSPC) || 50,  // Spectacular Catch (db: PSPC)
@@ -2074,7 +2471,7 @@ export class RosterGeneratorService {
       PTAS: parseInt(ratings.PTAS) || 50,
       PTAM: parseInt(ratings.PTAM) || 50,
       PTAD: parseInt(ratings.PTAD) || 50,
-      PPLA: parseInt(ratings.PPLA) || 50,
+      PPLA: parseInt(ratings.PPLA) || 50,  // Play Action (QB attribute)
       PTOR: parseInt(ratings.PTOR) || 50,
       PKRT: parseInt(ratings.PKRT) || 50,
       PBSK: parseInt(ratings.PBSK) || 50,  // Break Sack
@@ -2168,8 +2565,32 @@ export class RosterGeneratorService {
         syncedPlayer.PLTY // Pass the archetype ID for proper conversion
       );
 
-      // Floor of 40 for generated players (quality control)
-      syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+      // OVR floor of 55 - if below, BOOST RATINGS to achieve 55 (don't just clamp display)
+      const OVR_FLOOR = 55;
+      if (calculatedOvr < OVR_FLOOR) {
+        // Use weight-proportional adjustment to boost ratings to achieve floor OVR
+        const adjustment = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+          attributes,
+          OVR_FLOOR,
+          positionName,
+          syncedPlayer.PLTY
+        );
+
+        if (adjustment && adjustment.adjustments) {
+          // Apply the rating boosts
+          for (const [fieldCode, adj] of Object.entries(adjustment.adjustments)) {
+            if ((syncedPlayer as any)[fieldCode] !== undefined) {
+              (syncedPlayer as any)[fieldCode] = Math.max(40, Math.min(99, adj.suggested));
+            }
+          }
+          syncedPlayer.POVR = adjustment.newOVR;
+        } else {
+          // Fallback: just set to floor
+          syncedPlayer.POVR = OVR_FLOOR;
+        }
+      } else {
+        syncedPlayer.POVR = Math.min(99, calculatedOvr);
+      }
     }
 
     return syncedPlayer;
@@ -2199,18 +2620,22 @@ export class RosterGeneratorService {
     const ratings = this.fillMissingRatingsFromDb(dbRow.ratings || {});
 
     // Handle PID/PAM from database
+    // Priority: dbRow.maddenPid (already merged with appearance edits) > customPortraitPID > 0
     let playerPID = dbRow.maddenPid || 0;
     let playerPAM = dbRow.maddenPam || '';
     const dbRace = dbRow.race || 1;
     const playerInternalId = dbRow.playerId;
 
-    // Check for custom portrait (PID 12000+) - single fast lookup by player ID
-    const customPortraitPID = playerInternalId
-      ? userDatabaseService.getCustomPortraitByPlayerId(playerInternalId)
-      : null;
+    // Only check for custom portrait if no PID from appearance edits/database
+    // This ensures user-assigned generic faces take priority over old custom portrait assignments
+    if (!playerPID) {
+      const customPortraitPID = playerInternalId
+        ? userDatabaseService.getCustomPortraitByPlayerId(playerInternalId)
+        : null;
 
-    if (customPortraitPID) {
-      playerPID = customPortraitPID;
+      if (customPortraitPID) {
+        playerPID = customPortraitPID;
+      }
     }
 
     // Variables for generic face handling
@@ -2220,47 +2645,81 @@ export class RosterGeneratorService {
     let pepsValue: string = '';
     let playerPicValue: string = '';
 
-    // Validate PID and handle generic face assignment
-    // Custom portraits (>= 12000) and valid PIDs skip generic face
+    // PID determines everything - photo, Player Pic, and PAM should all match
+    // Check if PID is in the list of known generic face PIDs
+    const isGenericPID = this.genericPIDSet.has(playerPID);
     const isCustomPortraitPID = playerPID >= 12000;
+
+    // DEBUG: Check specific PIDs
+    if (playerPID === 4058 || playerPID === 4074 || playerPID === 4060) {
+      console.log(`[enrichPlayerFromDb DEBUG] ${cleanFirstName} ${cleanLastName}: PID=${playerPID}, isGenericPID=${isGenericPID}, genericPIDSet.size=${this.genericPIDSet.size}, has4058=${this.genericPIDSet.has(4058)}`);
+    }
+
     if (playerPID === 0 || (!isCustomPortraitPID && !this.validPIDs.has(playerPID))) {
-      // Assign generic face
+      // No valid PID - assign a generic face
       isGenericFace = true;
       const genericFace = this.selectGenericFaceByRace(dbRace);
       playerPID = genericFace.pid;
       plplValue = 0;
       pepsValue = genericFace.pam;
       pgheValue = genericFace.pghe;
-    } else {
-      // Has valid PID - check portrait type
-      const mappedPAM = this.pidToPAM.get(playerPID);
-      const mappedPortrait = this.pidToPortrait.get(playerPID);
-      const isCustomPortrait = playerPID >= 12000;
-      const isLegendPortrait = mappedPortrait && mappedPortrait.includes('legends');
-      const isGenericPortrait = mappedPortrait && mappedPortrait.includes('generic');
-
-      if (isCustomPortrait || isLegendPortrait || (!isGenericPortrait && mappedPortrait)) {
-        // Real face
-        plplValue = 100;
-        if (isCustomPortrait) {
-          pepsValue = '';
-          playerPicValue = `${cleanLastName}, ${cleanFirstName}`;
+      playerPicValue = 'Face, Generic';
+    } else if (isGenericPID) {
+      // PID is a known generic face PID - all columns should show "generic"
+      isGenericFace = true;
+      plplValue = 0;
+      // Priority: playerPAM (from database) > pgheLookupService > pidToPAM fallback
+      if (playerPAM) {
+        pepsValue = playerPAM;
+        pgheValue = this.pidToPGHE.get(playerPID) || 0;
+        console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Using DB PAM="${playerPAM}" for generic PID ${playerPID}`);
+      } else {
+        // Look up from PGHE service which has complete PID → GENR mappings
+        const pgheEntry = pgheLookupService.getByPID(playerPID);
+        if (pgheEntry) {
+          pepsValue = pgheEntry.genr;
+          pgheValue = pgheEntry.pghe;
+          console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: PGHE lookup for PID ${playerPID} -> GENR="${pgheEntry.genr}"`);
         } else {
-          pepsValue = mappedPAM || '';
-          playerPicValue = mappedPortrait || '';
+          // Fallback to cached mappings
+          pepsValue = this.pidToPAM.get(playerPID) || '';
+          pgheValue = this.pidToPGHE.get(playerPID) || 0;
+          console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Fallback for PID ${playerPID} -> PEPS="${pepsValue}" (pidToPAM)`);
         }
-      } else if (isGenericPortrait) {
-        // Generic face portrait
+      }
+      playerPicValue = 'Face, Generic';
+    } else if (isCustomPortraitPID) {
+      // Custom portrait (PID >= 12000) - BUT check if database has generic face PAM
+      // Some generic faces may have PIDs >= 12000 that aren't in genericPIDSet
+      if (playerPAM && playerPAM.startsWith('gen_')) {
+        // Database has a generic face PAM - preserve it
         isGenericFace = true;
         plplValue = 0;
-        const genericFace = this.selectGenericFaceByRace(dbRace);
-        playerPID = genericFace.pid;
-        pepsValue = genericFace.pam;
-        pgheValue = genericFace.pghe;
+        pepsValue = playerPAM;
+        pgheValue = this.pidToPGHE.get(playerPID) || 0;
+        playerPicValue = 'Face, Generic';
+        console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Custom PID ${playerPID} has generic PAM="${playerPAM}", treating as generic face`);
       } else {
-        // Keep PID as real face
+        // True custom portrait - use player's name
         plplValue = 100;
-        pepsValue = mappedPAM || '';
+        pepsValue = '';
+        playerPicValue = `${cleanLastName}, ${cleanFirstName}`;
+      }
+    } else {
+      // Real player PID - look up the mapped portrait name
+      const mappedPAM = this.pidToPAM.get(playerPID);
+      const mappedPortrait = this.pidToPortrait.get(playerPID);
+
+      if (mappedPortrait) {
+        plplValue = 100;
+        // Use mapped PAM, fallback to database PAM if available
+        pepsValue = mappedPAM || playerPAM || '';
+        playerPicValue = mappedPortrait;
+      } else {
+        // No portrait mapping found - keep PID, use as real face
+        plplValue = 100;
+        // Use mapped PAM, fallback to database PAM if available
+        pepsValue = mappedPAM || playerPAM || '';
       }
     }
 
@@ -2292,6 +2751,7 @@ export class RosterGeneratorService {
       PWGT: Math.max(1, (dbRow.weight || 200) - 159),
       TGID: teamCode,
       PCBT: this.determinePCBTFromDb(dbRow),
+      PHAN: dbRow.handedness ?? 0,  // Handedness: 0=Right, 1=Left (default to right-handed)
 
       // IDs
       PSXP: playerPID,
@@ -2343,8 +2803,8 @@ export class RosterGeneratorService {
       PLPM: ratings.PLPM || ratings.PPWM || 50,  // Power Moves (db: PPWM)
       PFMS: ratings.PFMS || ratings.PFMV || ratings.PFNM || 50,  // Finesse Moves (db: PFMV)
       PBSG: ratings.PBSG || ratings.PBSH || 50,  // Block Shedding (db: PBSH)
-      PLPU: ratings.PLPU || ratings.PPUR || 50,  // Pursuit
-      PLPR: ratings.PLPR || ratings.PPRC || 50,  // Play Recognition (db: PPRC)
+      PLPU: ratings.PLPU || ratings.PPUR || 50,  // Pursuit (db: PLPU, old CSV: PPUR)
+      PLPR: ratings.PLPR || ratings.PPRC || 50,  // Play Recognition (db: PLPR, old CSV: PPRC)
       PLMC: ratings.PLMC || ratings.PMCV || 50,  // Man Coverage (db: PMCV)
       PLZC: ratings.PLZC || ratings.PZCV || 50,  // Zone Coverage (db: PZCV)
       PLSC: ratings.PLSC || ratings.PSPC || 50,  // Spectacular Catch (db: PSPC)
@@ -2360,7 +2820,7 @@ export class RosterGeneratorService {
       PTAS: ratings.PTAS || 50,
       PTAM: ratings.PTAM || 50,
       PTAD: ratings.PTAD || 50,
-      PPLA: ratings.PPLA || 50,
+      PPLA: ratings.PPLA || 50,  // Play Action (QB attribute)
       PTOR: ratings.PTOR || 50,
       PKRT: ratings.PKRT || 50,
       PBSK: ratings.PBSK || 50,
@@ -2389,13 +2849,14 @@ export class RosterGeneratorService {
       _isHOF: dbRow.isHof || false
     };
 
-    // Sync archetype based on player attributes - ensures PLTY matches what Madden will auto-assign
-    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, dbRow.position || 'HB');
+    // Sync archetype based on player attributes
+    // This predicts what Madden will auto-assign
+    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
 
-    // CRITICAL: Recalculate POVR using the correct M26 formula (sum of weights / 11)
-    // This ensures roster POVR matches what Madden calculates during franchise import
+    // CRITICAL: Recalculate POVR using the correct M26 formula
+    // Madden RECALCULATES OVR from ratings when importing roster to franchise
+    // So we MUST calculate POVR to match what Madden will show, not use stored value
     if (ovrWeightsCalculator.isInitialized()) {
-      // Map roster field codes to OVRWeightsCalculator attribute names
       const attributes: Record<string, number> = {
         PSPD: syncedPlayer.PSPD,
         PACC: syncedPlayer.PACC,
@@ -2453,17 +2914,38 @@ export class RosterGeneratorService {
       };
 
       // Pass PLTY (numeric archetype ID) to calculator for proper OVR formula
-      const archetypeId = syncedPlayer.PLTY;
       const calculatedOvr = ovrWeightsCalculator.calculateOVR(
         attributes,
-        dbRow.position || 'HB',
-        archetypeId // Pass the archetype ID for proper conversion
+        positionName,
+        syncedPlayer.PLTY // Pass the archetype ID for proper conversion
       );
 
-      // ALWAYS recalculate POVR using the formula to match franchise
-      // The bundled database POVR values don't match franchise calculation
-      // Floor of 40 for database players (quality control)
-      syncedPlayer.POVR = Math.max(40, Math.min(99, calculatedOvr));
+      // OVR floor of 55 - if below, BOOST RATINGS to achieve 55 (don't just clamp display)
+      const OVR_FLOOR = 55;
+      if (calculatedOvr < OVR_FLOOR) {
+        // Use weight-proportional adjustment to boost ratings to achieve floor OVR
+        const adjustment = ovrWeightsCalculator.calculateAdjustmentsForTargetOVR(
+          attributes,
+          OVR_FLOOR,
+          positionName,
+          syncedPlayer.PLTY
+        );
+
+        if (adjustment && adjustment.adjustments) {
+          // Apply the rating boosts
+          for (const [fieldCode, adj] of Object.entries(adjustment.adjustments)) {
+            if ((syncedPlayer as any)[fieldCode] !== undefined) {
+              (syncedPlayer as any)[fieldCode] = Math.max(40, Math.min(99, adj.suggested));
+            }
+          }
+          syncedPlayer.POVR = adjustment.newOVR;
+        } else {
+          // Fallback: just set to floor
+          syncedPlayer.POVR = OVR_FLOOR;
+        }
+      } else {
+        syncedPlayer.POVR = Math.min(99, calculatedOvr);
+      }
     }
 
     return syncedPlayer;
@@ -3070,12 +3552,22 @@ export class RosterGeneratorService {
    * Lookup college ID from name
    * Handles abbreviated names from CSV (e.g., "Appalach. St." -> "Appalachian State")
    */
-  private async lookupCollege(collegeName: string): Promise<number> {
-    if (!collegeName || collegeName.trim() === '') {
+  private async lookupCollege(collegeName: string | number | null | undefined): Promise<number> {
+    // Handle null/undefined/empty
+    if (collegeName === null || collegeName === undefined || collegeName === '') {
       return 0; // N/A - No college specified
     }
 
-    const cleanName = collegeName.trim();
+    // If it's already a number, it's a college ID - return it directly
+    if (typeof collegeName === 'number') {
+      return collegeName;
+    }
+
+    // Convert to string and trim
+    const cleanName = String(collegeName).trim();
+    if (cleanName === '') {
+      return 0;
+    }
 
     try {
       // First try direct lookup using lookupService
@@ -3237,16 +3729,28 @@ export class RosterGeneratorService {
    * Lookup state ID directly by state name
    * Takes a state name like "Tennessee" and returns the PHSN ID (41)
    */
-  private async lookupStateByName(stateName: string): Promise<number> {
-    if (!stateName || stateName === '') {
+  private async lookupStateByName(stateName: string | number | null | undefined): Promise<number> {
+    // Handle null/undefined/empty
+    if (stateName === null || stateName === undefined || stateName === '') {
       return 50; // Non-US (default for missing data)
+    }
+
+    // If it's already a number, it's a state ID - return it directly
+    if (typeof stateName === 'number') {
+      return stateName;
+    }
+
+    // Convert to string and handle empty
+    const cleanName = String(stateName).trim();
+    if (cleanName === '') {
+      return 50;
     }
 
     try {
       const options = await lookupService.getDropdownOptions('state_lookup.csv');
       // Case-insensitive match
       const match = options.find((opt: any) =>
-        opt.name.toLowerCase() === stateName.toLowerCase()
+        opt.name.toLowerCase() === cleanName.toLowerCase()
       );
       if (match) {
         return match.id;

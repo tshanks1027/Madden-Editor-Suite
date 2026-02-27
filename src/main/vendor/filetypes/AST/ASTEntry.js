@@ -259,7 +259,7 @@ class ASTEntry {
     };
 
     get descriptionString() {
-        return this._description.toString().replace(/\0[\s\S]*$/g,'');
+        return this._description ? this._description.toString().replace(/\0[\s\S]*$/g,'') : '';
     };
 
     get isCompressed() {
