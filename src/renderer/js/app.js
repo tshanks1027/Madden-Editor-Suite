@@ -11104,6 +11104,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             versionEl.textContent = 'v' + version;
             console.log('[App] Version set to:', versionEl.textContent);
         }
+        // Also set roster editor version display
+        const rosterVersionEl = document.getElementById('rosterVersionText');
+        if (rosterVersionEl) {
+            rosterVersionEl.textContent = 'v' + version;
+        }
     } catch (e) {
         console.error('[App] Could not get app version:', e);
     }
