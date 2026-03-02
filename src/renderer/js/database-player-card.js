@@ -2617,7 +2617,7 @@
           throw new Error(result.error || 'Failed to create player');
         }
 
-        console.log('[DatabasePlayerCard] Player created with ID:', result.playerId);
+        console.log('[DatabasePlayerCard] Player created with ID:', result.id);
 
         // Save initial season data (ratings, position, archetype) if any ratings were entered
         var initialYear = playerData.draftClass || playerData.careerFrom || new Date().getFullYear();
@@ -2637,12 +2637,12 @@
                 options.incrementAge = true;
               }
               var allYearsResult = await window.electronAPI.database.saveCustomPlayerSeasonAllYears(
-                result.playerId, seasonData, options
+                result.id, seasonData, options
               );
               console.log('[DatabasePlayerCard] Saved initial season to all years:', allYearsResult);
             } else {
               // Save to just the initial year
-              await window.electronAPI.database.saveCustomPlayerSeason(result.playerId, initialYear, seasonData);
+              await window.electronAPI.database.saveCustomPlayerSeason(result.id, initialYear, seasonData);
               console.log('[DatabasePlayerCard] Saved initial season for year:', initialYear);
             }
           } catch (seasonError) {
@@ -2661,7 +2661,7 @@
           try {
             await window.electronAPI.customPortrait.updateMetadata(pendingPortraitPid, {
               playerName: firstName + ' ' + lastName,
-              databasePlayerId: result.playerId
+              databasePlayerId: result.id
             });
             console.log('[DatabasePlayerCard] Portrait metadata updated successfully');
 
@@ -4896,8 +4896,8 @@
     try {
       // Update player's PID based on type
       if (currentPlayerSource === 'custom') {
-        // Custom player - update custom_players table
-        await window.electronAPI.database.updateCustomPlayer(currentDbPlayerId, { pid: selectedPickerPid });
+        // Custom player - update custom_players table (must use maddenPid field name)
+        await window.electronAPI.database.updateCustomPlayer(currentDbPlayerId, { maddenPid: selectedPickerPid });
       } else {
         // Database player - save appearance edit
         await window.electronAPI.database.saveAppearanceEdit(currentDbPlayerId, { maddenPid: selectedPickerPid });
