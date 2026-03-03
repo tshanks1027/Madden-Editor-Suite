@@ -145,6 +145,30 @@ class MaddenEditorApp {
             this.hideSplashScreen();
         }, 2000);
 
+        // Initialize portrait service first to ensure it's ready for portrait loading
+        try {
+            const portraitResult = await window.electronAPI.portrait.initialize();
+            if (portraitResult.success) {
+                console.log(`[init] Portrait service initialized with ${portraitResult.count} portraits, ${portraitResult.pidCount || 'unknown'} PIDs mapped`);
+
+                // TEST: Load a few specific portraits to verify the service is working
+                const testPids = [2583, 2717, 5623, 4067];
+                console.log(`[init] Testing portrait loading for PIDs: ${testPids.join(', ')}`);
+                for (const testPid of testPids) {
+                    try {
+                        const testData = await window.electronAPI.portrait.getByPID(testPid);
+                        console.log(`[init] Test PID ${testPid}: ${testData ? `OK (${testData.length} chars)` : 'NULL'}`);
+                    } catch (e) {
+                        console.error(`[init] Test PID ${testPid}: ERROR`, e);
+                    }
+                }
+            } else {
+                console.error('[init] Portrait service initialization failed:', portraitResult.error);
+            }
+        } catch (err) {
+            console.error('[init] Error initializing portrait service:', err);
+        }
+
         // Load lookup data first
         await loadLookupData();
 
@@ -932,6 +956,13 @@ class MaddenEditorApp {
         // Reset new roster flag when loading a file
         this._isNewRoster = false;
 
+        // Clear portrait cache to ensure fresh load of all portraits
+        // This prevents stale/failed portraits from previous sessions
+        if (this.portraitCache) {
+            this.portraitCache.clear();
+            console.log('[loadRosterFile] Cleared portrait cache');
+        }
+
         this.setStatus('Loading file...');
         this.showLoading(true, 'Initializing...', 10);
 
@@ -1355,6 +1386,7 @@ class MaddenEditorApp {
         let portraitsLoaded = 0;
 
         if (psxpIndex !== -1) {
+            const pidsToLoad = [];
             paginatedPlayers.forEach((player) => {
                 const pid = this.getPlayerFieldValue(player, 'PSXP');
 
@@ -1367,17 +1399,25 @@ class MaddenEditorApp {
                     if (!this.portraitCache.has(cacheKey)) {
                         this.portraitCache.set(cacheKey, 'loading');
                         portraitsToLoad++;
+                        pidsToLoad.push(pid);
 
                         if (pid > 0) {
                             // Load portrait by PID - works for both real players and generic faces
                             // PIDs like 731, 2583 map to generic face portraits in PID_Portrait_Mapping.csv
                             window.electronAPI.portrait.getByPID(pid).then((imageData) => {
+                                const hasData = imageData && imageData.length > 100;
+                                // Log failures and high PIDs (legends/real players) for debugging
+                                if (!hasData || pid >= 5000) {
+                                    console.log(`[Portrait] PID ${pid}: ${hasData ? 'OK' : 'NO DATA'} (${imageData ? imageData.length : 0} bytes)`);
+                                }
                                 this.portraitCache.set(cacheKey, imageData || null);
                                 portraitsLoaded++;
                                 if (portraitsLoaded === portraitsToLoad && this.agGrid) {
+                                    console.log(`[Portrait] All ${portraitsLoaded} portraits loaded, refreshing grid`);
                                     this.agGrid.refreshCells({ force: true });
                                 }
-                            }).catch(() => {
+                            }).catch((err) => {
+                                console.error(`[Portrait] PID ${pid}: ERROR`, err);
                                 this.portraitCache.set(cacheKey, null);
                                 portraitsLoaded++;
                             });
@@ -1389,6 +1429,7 @@ class MaddenEditorApp {
                     }
                 }
             });
+            console.log(`[Portrait] Loading ${portraitsToLoad} portraits for PIDs:`, pidsToLoad.slice(0, 10), pidsToLoad.length > 10 ? `... and ${pidsToLoad.length - 10} more` : '');
         }
 
         // Initialize AG-Grid roster table
@@ -2110,9 +2151,9 @@ class MaddenEditorApp {
                         // Convert numeric values
                         convertedValue = parseInt(newValue) || 0;
 
-                        // Handle weight conversion: display value 160+ lbs = roster value 1+
+                        // Handle weight conversion: display value 160+ lbs = roster value 0+
                         if (fieldName === 'PWGT') {
-                            convertedValue = convertedValue - 159;
+                            convertedValue = convertedValue - 160;
                         }
 
                         // Handle PID changes - update Player Pic automatically
@@ -3660,7 +3701,73 @@ class MaddenEditorApp {
     filterPlayers() {
         // Reset to first page when filtering
         this.currentPage = 1;
+
+        // If AG-Grid already exists, just update the row data instead of recreating the grid
+        // This prevents the cursor from jumping when typing in the search box
+        if (this.agGrid) {
+            this.applyFiltersAndSort();
+            // Update pagination info
+            this.totalPages = Math.ceil(this.filteredPlayers.length / this.rowsPerPage);
+            const startIndex = (this.currentPage - 1) * this.rowsPerPage;
+            const endIndex = Math.min(startIndex + this.rowsPerPage, this.filteredPlayers.length);
+            const paginatedPlayers = this.filteredPlayers.slice(startIndex, endIndex);
+
+            // Update the grid data without destroying/recreating
+            this.agGrid.setGridOption('rowData', paginatedPlayers);
+
+            // Load portraits for newly visible players that aren't in the cache
+            this.loadPortraitsForPlayers(paginatedPlayers);
+
+            // Update pagination controls
+            this.updatePaginationUI();
+            this.updateStats();
+            return;
+        }
+
+        // Grid doesn't exist yet, do full render
         this.renderRoster();
+    }
+
+    /**
+     * Load portraits for a list of players that are not yet in the cache.
+     * This is called when filtering/pagination changes to ensure all visible players have portraits.
+     */
+    loadPortraitsForPlayers(players) {
+        let portraitsToLoad = 0;
+        let portraitsLoaded = 0;
+
+        players.forEach((player) => {
+            const pid = this.getPlayerFieldValue(player, 'PSXP');
+
+            if (pid !== null && pid !== undefined && pid > 0) {
+                const cacheKey = `pid_${pid}`;
+
+                // Only load if not already in cache
+                if (!this.portraitCache.has(cacheKey)) {
+                    this.portraitCache.set(cacheKey, 'loading');
+                    portraitsToLoad++;
+
+                    window.electronAPI.portrait.getByPID(pid).then((imageData) => {
+                        this.portraitCache.set(cacheKey, imageData || null);
+                        portraitsLoaded++;
+
+                        // Refresh grid when all portraits are loaded
+                        if (portraitsLoaded === portraitsToLoad && this.agGrid) {
+                            console.log(`[Portrait] Filter: loaded ${portraitsLoaded} portraits, refreshing grid`);
+                            this.agGrid.refreshCells({ force: true });
+                        }
+                    }).catch((err) => {
+                        console.error(`[Portrait] PID ${pid}: ERROR`, err);
+                        this.portraitCache.set(cacheKey, null);
+                        portraitsLoaded++;
+                    });
+                }
+            }
+        });
+
+        if (portraitsToLoad > 0) {
+            console.log(`[Portrait] Filter: loading ${portraitsToLoad} portraits for newly visible players`);
+        }
     }
 
     updateVisibleFields() {
@@ -4723,7 +4830,26 @@ class MaddenEditorApp {
                 console.error('[loadGenericFaces] Could not load verified mapping:', e);
             }
 
-            // Get PID_Portrait_Mapping.csv data for portrait images
+            // CRITICAL: Get PGHE data which contains the CORRECT game PIDs!
+            // PID_Portrait_Mapping.csv has wrong PIDs that don't work in-game
+            // PGHE_lookup.csv has the actual game PIDs that show portraits
+            let pgheData = [];
+            try {
+                await window.electronAPI.pghe.initialize();
+                pgheData = await window.electronAPI.pghe.getAll();
+                console.log(`[loadGenericFaces] Loaded ${pgheData.length} PGHE entries with correct game PIDs`);
+            } catch (e) {
+                console.error('[loadGenericFaces] Could not load PGHE data:', e);
+            }
+
+            // Build mapping from PFCG code to PGHE entry (which has correct PID)
+            // PFCG like "7_M_G_005" maps to portrait "plpo_generic_7_M_G_005"
+            const pfcgToPghe = new Map();
+            for (const entry of pgheData) {
+                pfcgToPghe.set(entry.pfcg.toLowerCase(), entry);
+            }
+
+            // Get PID_Portrait_Mapping.csv data for portrait images (to know which portraits exist)
             const mapping = await window.electronAPI.lookup.getPIDPortraitMapping();
 
             // Filter to only type='generic' entries
@@ -4736,14 +4862,31 @@ class MaddenEditorApp {
 
             console.log(`[loadGenericFaces] Filtered from ${allGenericFaces.length} to ${validGenericFaces.length} faces with verified GENR mappings`);
 
-            // Deduplicate by portrait - keep only first PID for each unique face appearance
-            // This ensures each face shows once even if multiple PIDs share the same portrait
+            // Deduplicate by portrait - keep only first entry for each unique face appearance
+            // CRITICAL: Override PID with PGHE PID for correct in-game portraits!
             const seenPortraits = new Set();
             const uniqueFaces = [];
 
             for (const face of validGenericFaces) {
                 if (!seenPortraits.has(face.portrait)) {
                     seenPortraits.add(face.portrait);
+
+                    // Extract PFCG code from portrait name: "plpo_generic_7_M_G_005" -> "7_M_G_005"
+                    const pfcgMatch = face.portrait.match(/plpo_generic_(.+)$/i);
+                    const pfcg = pfcgMatch ? pfcgMatch[1].toLowerCase() : null;
+
+                    // Look up the correct PGHE PID
+                    const pgheEntry = pfcg ? pfcgToPghe.get(pfcg) : null;
+
+                    if (pgheEntry) {
+                        // Use the PGHE PID - this is the PID that works in-game!
+                        face.pid = pgheEntry.psxp;
+                        face._pgheEntry = pgheEntry;
+                        console.log(`[loadGenericFaces] ${face.portrait}: Using PGHE PID ${pgheEntry.psxp} (was ${face.pid})`);
+                    } else {
+                        console.warn(`[loadGenericFaces] No PGHE entry for ${face.portrait} (PFCG: ${pfcg})`);
+                    }
+
                     // Attach the verified GENR/SKNT directly to the face object
                     const verifiedData = verifiedMapping[face.portrait];
                     face._verifiedGenr = verifiedData?.genr;
@@ -4759,7 +4902,7 @@ class MaddenEditorApp {
                 return toneA - toneB;
             });
 
-            console.log(`Loaded ${allGenericFaces.length} total generic entries, filtered to ${uniqueFaces.length} unique verified faces`);
+            console.log(`Loaded ${allGenericFaces.length} total generic entries, filtered to ${uniqueFaces.length} unique verified faces with PGHE PIDs`);
 
             return uniqueFaces;
         } catch (error) {
@@ -5044,38 +5187,29 @@ class MaddenEditorApp {
             const existingPid = isRoster ? player.PSXP : player.PID;
             const cacheKey = isPamOnly ? `pid_${existingPid}` : `pid_${pid}`;
 
-            if (!isPamOnly && !this.portraitCache.has(cacheKey)) {
-                console.log(`[GenericFacePicker] Starting portrait load in background: ${cacheKey}`);
+            // Load portrait immediately and wait for it before refreshing the grid
+            // This ensures the portrait is ready when we refresh the cells
+            const cachedPortrait = this.portraitCache.get(cacheKey);
+            if (!isPamOnly && (!cachedPortrait || cachedPortrait === 'loading')) {
+                console.log(`[GenericFacePicker] Loading portrait for cache key: ${cacheKey}`);
                 this.portraitCache.set(cacheKey, 'loading');
 
-                // Load portrait by PID
-                const loadPromise = window.electronAPI.portrait.getByPID(pid);
-
-                loadPromise.then(imageData => {
+                try {
+                    // Load portrait by PID - await it so we can refresh properly after
+                    const imageData = await window.electronAPI.portrait.getByPID(pid);
                     if (imageData && imageData.length > 0) {
                         this.portraitCache.set(cacheKey, imageData);
-                        console.log(`[GenericFacePicker] Portrait loaded in background, length: ${imageData.length}`);
-                        // Re-render to show the loaded portrait
-                        if (isRoster && this.agGrid) {
-                            // AG-Grid: refresh cells to update portrait display
-                            this.agGrid.refreshCells({ force: true });
-                        } else if (isDraftAgGrid && this.draftAgGrid) {
-                            // AG-Grid for draft: refresh cells
-                            this.draftAgGrid.refreshCells({ force: true });
-                        } else if (isDraft && grid && !grid.isDestroyed) {
-                            // Handsontable: render the grid
-                            grid.render();
-                        }
+                        console.log(`[GenericFacePicker] Portrait loaded, length: ${imageData.length}`);
                     } else {
                         this.portraitCache.set(cacheKey, null);
                         console.warn(`[GenericFacePicker] No portrait data for ${cacheKey}`);
                     }
-                }).catch(error => {
+                } catch (error) {
                     console.error(`[GenericFacePicker] Error loading portrait:`, error);
                     this.portraitCache.set(cacheKey, null);
-                });
-            } else {
-                console.log(`[GenericFacePicker] Portrait already in cache or PAM-only mode: ${cacheKey}`);
+                }
+            } else if (cachedPortrait && cachedPortrait !== 'loading') {
+                console.log(`[GenericFacePicker] Portrait already in cache: ${cacheKey}`);
             }
 
             console.log(`[GenericFacePicker] Updating grid display...`);
@@ -5088,6 +5222,8 @@ class MaddenEditorApp {
                 let rowNode = null;
                 const playerPGID = player.PGID;
                 const playerName = `${player.PFNA} ${player.PLNA}`;
+                console.log(`[GenericFacePicker] Searching for rowNode with PGID=${playerPGID}, name=${playerName}`);
+
                 this.agGrid.forEachNode(node => {
                     // Match by PGID first (most reliable), then by name as fallback
                     if (node.data && (node.data.PGID === playerPGID ||
@@ -5108,6 +5244,11 @@ class MaddenEditorApp {
                 }
 
                 if (rowNode) {
+                    const foundRowIndex = rowNode.rowIndex;
+                    const foundPGID = rowNode.data?.PGID;
+                    const foundPSXP = rowNode.data?.PSXP;
+                    console.log(`[GenericFacePicker] Found rowNode at index ${foundRowIndex}, PGID=${foundPGID}, current PSXP=${foundPSXP}`);
+
                     // Update via AG-Grid API - this triggers proper cell refresh
                     // In PAM-only mode, only update PEPS (the in-game face model) - leave PID and portrait unchanged
                     if (!isPamOnly) {
@@ -5122,7 +5263,10 @@ class MaddenEditorApp {
                     if (newRace !== null && !isPamOnly) {
                         rowNode.setDataValue('PLRC', newRace);
                     }
-                    console.log(`[GenericFacePicker] Updated row via setDataValue:${isPamOnly ? ' (PAM only)' : ` PSXP=${pid}, PLAYERPIC=Generic Face,`} PEPS=${gridPepsValue}${isPamOnly ? '' : `, PLRC=${newRace}`}`);
+
+                    // Verify the data was updated
+                    const verifyPSXP = rowNode.data?.PSXP;
+                    console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid} (verified: ${verifyPSXP}), PLAYERPIC=Generic Face, PEPS=${gridPepsValue}, PLRC=${newRace}`);
 
                     // Force refresh the portrait column specifically
                     this.agGrid.refreshCells({
@@ -5130,7 +5274,7 @@ class MaddenEditorApp {
                         columns: ['_portrait'],
                         force: true
                     });
-                    console.log(`[GenericFacePicker] Portrait cell refreshed for row ${gridRowIndex}`);
+                    console.log(`[GenericFacePicker] Portrait cell refreshed for row index ${foundRowIndex}`);
                 } else {
                     console.error(`[GenericFacePicker] Could not find row node for player ${player.PFNA} ${player.PLNA}`);
                     // Show error to user since face won't update
@@ -5488,6 +5632,40 @@ class MaddenEditorApp {
             }
         }
 
+        // Build a set of real player/legend PIDs from window.lookupData
+        // These PIDs should NEVER be modified by Fix Faces
+        const realPlayerPIDs = new Set();
+        const legendPIDs = new Set();
+
+        // Get PID types from portrait mapping if available
+        if (window.pidPortraitTypes) {
+            for (const [pid, type] of window.pidPortraitTypes.entries()) {
+                if (type === 'player') {
+                    realPlayerPIDs.add(pid);
+                } else if (type === 'legend') {
+                    legendPIDs.add(pid);
+                }
+            }
+            console.log(`[FixFaces] Loaded ${realPlayerPIDs.size} current player PIDs and ${legendPIDs.size} legend PIDs to protect`);
+        } else {
+            // Fallback: load the mapping now
+            try {
+                const mappings = await window.electronAPI.lookup.getPIDPortraitMapping();
+                if (mappings && mappings.length > 0) {
+                    for (const mapping of mappings) {
+                        if (mapping.type === 'player') {
+                            realPlayerPIDs.add(mapping.pid);
+                        } else if (mapping.type === 'legend') {
+                            legendPIDs.add(mapping.pid);
+                        }
+                    }
+                    console.log(`[FixFaces] Loaded ${realPlayerPIDs.size} current player PIDs and ${legendPIDs.size} legend PIDs to protect`);
+                }
+            } catch (e) {
+                console.warn('[FixFaces] Could not load PID portrait mapping:', e);
+            }
+        }
+
         for (const entry of dataSource) {
             // Get field values based on data type (roster vs draft class)
             const plpl = isDraftClass ? 0 : (entry.PLPL ?? 0); // Draft class = all generic by default
@@ -5497,22 +5675,60 @@ class MaddenEditorApp {
                 ? `${entry.firstName || ''} ${entry.lastName || ''}`.trim()
                 : `${entry.PFNA || ''} ${entry.PLNA || ''}`.trim();
 
-            // Determine if this is a generic face player
-            // For roster: PLPL=0 means generic face, PLPL=100 means real face scan
-            // For draft class: check if PAM is a real player PAM or generic
-            const isGenericFace = isDraftClass
-                ? (!peps || peps.startsWith('gen_') || peps.includes('generic') || existingPid === 0)
-                : (plpl === 0 || plpl === '0');
+            // Check if PID is a custom Portrait Manager assignment (12000+)
+            const CUSTOM_PORTRAIT_PID_START = 12000;
+            const hasCustomPortrait = existingPid && existingPid >= CUSTOM_PORTRAIT_PID_START;
 
-            // Check if PAM is for a real player (not generic)
+            // CRITICAL: Check if this PID belongs to a REAL in-game player or legend
+            // These PIDs should NEVER be modified - they have real face scans/portraits
+            const isRealPlayerPID = existingPid && realPlayerPIDs.has(existingPid);
+            const isLegendPID = existingPid && legendPIDs.has(existingPid);
+
+            // Skip players with custom Portrait Manager assignments (PID >= 12000)
+            if (hasCustomPortrait) {
+                skippedReal++;
+                console.log(`[FixFaces] Skipping ${playerName}: has Portrait Manager portrait (PID=${existingPid})`);
+                continue;
+            }
+
+            // Skip players with REAL in-game player PIDs
+            if (isRealPlayerPID) {
+                skippedReal++;
+                console.log(`[FixFaces] Skipping ${playerName}: has real in-game player PID (${existingPid})`);
+                continue;
+            }
+
+            // Skip players with LEGEND PIDs
+            if (isLegendPID) {
+                skippedReal++;
+                console.log(`[FixFaces] Skipping ${playerName}: has legend PID (${existingPid})`);
+                continue;
+            }
+
+            // Also skip if PLPL indicates a real face scan (PLPL != 0) for roster files
+            if (!isDraftClass && plpl !== 0 && plpl !== '0') {
+                skippedReal++;
+                console.log(`[FixFaces] Skipping ${playerName}: has real face scan (PLPL=${plpl})`);
+                continue;
+            }
+
+            // Check if PAM is for a real player (not generic) - skip these too
             const hasRealPAM = peps && typeof peps === 'string' && peps.length > 0 &&
                 !peps.startsWith('gen_') && !peps.includes('generic');
 
-            // Skip players with REAL faces (has real PAM or PLPL != 0) - don't touch their PID
-            if (!isGenericFace || hasRealPAM) {
+            if (hasRealPAM) {
                 skippedReal++;
+                console.log(`[FixFaces] Skipping ${playerName}: has real player PAM (${peps})`);
                 continue;
             }
+
+            // At this point, we have a player with:
+            // - No Portrait Manager assignment (PID < 12000)
+            // - Not a real in-game player PID
+            // - Not a legend PID
+            // - PLPL = 0 (generic face indicator) for roster
+            // - No real player PAM
+            // This player needs a proper generic face assignment
 
             // Get race from player's data
             let race = isDraftClass ? (entry.race || entry.skinTone) : entry.PLRC;
@@ -5887,6 +6103,12 @@ class MaddenEditorApp {
     async loadDraftClass(filePath) {
         try {
             console.log('Loading draft class:', filePath);
+
+            // Clear portrait cache to ensure fresh load of all portraits
+            if (this.portraitCache) {
+                this.portraitCache.clear();
+                console.log('[loadDraftClass] Cleared portrait cache');
+            }
 
             const result = await window.electronAPI.draftClass.load(filePath);
 

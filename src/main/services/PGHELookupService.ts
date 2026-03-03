@@ -38,34 +38,80 @@ class PGHELookupService {
     if (this.initialized) return;
 
     try {
-      // First, load verified-portrait-complete.json to know which faces have portraits
-      const verifiedPaths = [
-        path.join(process.cwd(), 'data', 'lookups', 'verified-portrait-complete.json'),
-        path.join(app.getAppPath(), 'data', 'lookups', 'verified-portrait-complete.json'),
-        path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'verified-portrait-complete.json'),
+      // CRITICAL: Load the ACTUAL portrait atlas to know which faces have images
+      // This is more reliable than verified-portrait-complete.json
+      const atlasPaths = [
+        path.join(process.cwd(), 'data', 'portrait-atlas.json'),
+        path.join(app.getAppPath(), 'data', 'portrait-atlas.json'),
+        path.join(app.getAppPath(), '.vite', 'build', 'data', 'portrait-atlas.json'),
       ];
 
-      let verifiedPath = '';
-      for (const p of verifiedPaths) {
+      const atlasGenericFaces = new Set<string>();
+      let atlasPath = '';
+      for (const p of atlasPaths) {
         if (fs.existsSync(p)) {
-          verifiedPath = p;
+          atlasPath = p;
           break;
         }
       }
 
-      if (verifiedPath) {
-        const verifiedContent = fs.readFileSync(verifiedPath, 'utf-8');
-        const verifiedData = JSON.parse(verifiedContent);
-        // Extract GENR values from verified portraits
-        for (const key of Object.keys(verifiedData)) {
-          const entry = verifiedData[key];
-          if (entry.genr) {
-            this.verifiedGenrs.add(entry.genr);
+      if (atlasPath) {
+        try {
+          const atlasContent = fs.readFileSync(atlasPath, 'utf-8');
+          const atlasData = JSON.parse(atlasContent);
+          // Extract generic face IDs that actually have images
+          if (atlasData.portraits && Array.isArray(atlasData.portraits)) {
+            for (const portrait of atlasData.portraits) {
+              if (portrait.category === 'generic' && portrait.id) {
+                // Convert atlas ID format to GENR format
+                // Atlas: "generic_1_B_B_005" -> GENR: "gen_1_B_B_005"
+                const genr = portrait.id.replace('generic_', 'gen_');
+                atlasGenericFaces.add(genr);
+              }
+            }
+          }
+          console.log(`[PGHELookup] Found ${atlasGenericFaces.size} generic faces with actual portrait images in atlas`);
+        } catch (e) {
+          console.error('[PGHELookup] Error loading portrait atlas:', e);
+        }
+      }
+
+      // If atlas loaded, use it as the source of truth for which faces have images
+      if (atlasGenericFaces.size > 0) {
+        atlasGenericFaces.forEach(genr => {
+          this.verifiedGenrs.add(genr);
+        });
+        console.log(`[PGHELookup] Using ${this.verifiedGenrs.size} faces from portrait atlas`);
+      } else {
+        // Fallback: load verified-portrait-complete.json
+        const verifiedPaths = [
+          path.join(process.cwd(), 'data', 'lookups', 'verified-portrait-complete.json'),
+          path.join(app.getAppPath(), 'data', 'lookups', 'verified-portrait-complete.json'),
+          path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'verified-portrait-complete.json'),
+        ];
+
+        let verifiedPath = '';
+        for (const p of verifiedPaths) {
+          if (fs.existsSync(p)) {
+            verifiedPath = p;
+            break;
           }
         }
-        console.log(`[PGHELookup] Loaded ${this.verifiedGenrs.size} verified portrait GENRs`);
-      } else {
-        console.warn('[PGHELookup] verified-portrait-complete.json not found - will use all faces');
+
+        if (verifiedPath) {
+          const verifiedContent = fs.readFileSync(verifiedPath, 'utf-8');
+          const verifiedData = JSON.parse(verifiedContent);
+          // Extract GENR values from verified portraits
+          for (const key of Object.keys(verifiedData)) {
+            const entry = verifiedData[key];
+            if (entry.genr) {
+              this.verifiedGenrs.add(entry.genr);
+            }
+          }
+          console.log(`[PGHELookup] Fallback: loaded ${this.verifiedGenrs.size} verified portrait GENRs`);
+        } else {
+          console.warn('[PGHELookup] No portrait atlas or verified file found - will use all faces');
+        }
       }
 
       // Find CSV file

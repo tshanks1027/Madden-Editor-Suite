@@ -7,6 +7,7 @@ import { createGrid, ModuleRegistry, AllCommunityModule } from 'ag-grid-communit
 import {
     getFieldDefinition,
     getLookupValue,
+    getLookupOptions,
     TEAM_MAPPINGS,
     POSITION_MAPPINGS,
     onBodyTypeChange,
@@ -65,9 +66,19 @@ ModuleRegistry.registerModules([AllCommunityModule]);
  */
 class PortraitCellRenderer {
     init(params) {
-        const { app, data } = params;
-
+        this.params = params;
+        this.app = params.app;
         this.eGui = document.createElement('div');
+        this.renderContent();
+    }
+
+    renderContent() {
+        const params = this.params;
+        const app = this.app;
+        // CRITICAL: Always read fresh data from params.data, not a stale closure
+        const player = params.data;
+        const pid = player ? player.PSXP : null;
+
         this.eGui.className = 'portrait-cell';
         this.eGui.style.cssText = `
             display: flex;
@@ -78,9 +89,7 @@ class PortraitCellRenderer {
             padding: 2px;
             position: relative;
         `;
-
-        const player = data;
-        const pid = player ? player.PSXP : null;
+        this.eGui.innerHTML = ''; // Clear previous content
 
         // Portrait display: ALWAYS use PID-based lookup
         // PAM (PEPS) only affects in-game face model, not displayed portrait
@@ -88,17 +97,22 @@ class PortraitCellRenderer {
         const hasValidPid = pid && pid > 0;
         const cacheKey = hasValidPid ? `pid_${pid}` : `pid_0`;
 
-        if (app.portraitCache.has(cacheKey)) {
-            const imageData = app.portraitCache.get(cacheKey);
-            if (imageData && imageData !== 'loading') {
-                const img = document.createElement('img');
-                img.src = imageData;
-                img.style.cssText = 'width: 64px; height: 64px; object-fit: cover; cursor: context-menu;';
-                img.alt = 'Player Portrait';
-                this.eGui.appendChild(img);
-            } else {
-                this.eGui.innerHTML = '<div style="width:64px;height:64px;background:#333;display:flex;align-items:center;justify-content:center;font-size:32px;">👤</div>';
-            }
+        const hasCache = app.portraitCache.has(cacheKey);
+        const imageData = hasCache ? app.portraitCache.get(cacheKey) : null;
+        const isLoading = imageData === 'loading';
+        const hasData = imageData && imageData !== 'loading' && imageData.length > 100;
+
+        // Debug log for first 10 rows
+        if (params.node.rowIndex < 10) {
+            console.log(`[CellRenderer] Row ${params.node.rowIndex} PID ${pid}: cache=${hasCache}, loading=${isLoading}, hasData=${hasData}, dataLen=${imageData ? imageData.length : 0}`);
+        }
+
+        if (hasData) {
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.style.cssText = 'width: 64px; height: 64px; object-fit: cover; cursor: context-menu;';
+            img.alt = 'Player Portrait';
+            this.eGui.appendChild(img);
         } else {
             this.eGui.innerHTML = '<div style="width:64px;height:64px;background:#333;display:flex;align-items:center;justify-content:center;font-size:32px;">👤</div>';
         }
@@ -131,20 +145,22 @@ class PortraitCellRenderer {
             this.eGui.appendChild(injuryIcon);
         }
 
-        // Click handler to show player card - pass actual player data, not index
-        this.eGui.addEventListener('click', () => {
-            if (player) {
-                app.openPlayerCard(player, params.node.rowIndex);
+        // Click handler to show player card - use arrow function to get fresh data
+        this.eGui.onclick = () => {
+            const currentPlayer = this.params.data;
+            if (currentPlayer) {
+                app.openPlayerCard(currentPlayer, this.params.node.rowIndex);
             }
-        });
+        };
 
-        // Right-click context menu for face picker
-        this.eGui.addEventListener('contextmenu', (e) => {
+        // Right-click context menu for face picker - use arrow function to get fresh data
+        this.eGui.oncontextmenu = (e) => {
             e.preventDefault();
-            if (player) {
-                app.openGenericFacePicker(player, params.node.rowIndex);
+            const currentPlayer = this.params.data;
+            if (currentPlayer) {
+                app.openGenericFacePicker(currentPlayer, this.params.node.rowIndex);
             }
-        });
+        };
     }
 
     getGui() {
@@ -152,11 +168,18 @@ class PortraitCellRenderer {
     }
 
     refresh(params) {
-        return false; // Force re-create on data change
+        // Update params reference and re-render with fresh data
+        this.params = params;
+        this.renderContent();
+        return true; // Tell AG-Grid we handled the refresh
     }
 
     destroy() {
-        // Cleanup
+        // Cleanup event handlers
+        if (this.eGui) {
+            this.eGui.onclick = null;
+            this.eGui.oncontextmenu = null;
+        }
     }
 }
 
@@ -695,10 +718,55 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
 
                 console.log(`[AG-Grid]   Configured ${fieldName} dropdown with ${fieldDef.options.length} options`);
             } else {
-                // No dropdown options - just display human-readable names
-                colDef.valueFormatter = (params) => {
-                    return getLookupValue(fieldDef.lookup, params.value) || params.value;
+                // No inline options - use getLookupOptions() to build lookup maps dynamically
+                // This ensures State, Position, College, etc. display properly when players are added
+                const lookupOptions = getLookupOptions(fieldDef.lookup);
+                const valueToDisplay = {};
+                const displayToValue = {};
+                lookupOptions.forEach(opt => {
+                    valueToDisplay[opt.value] = opt.label;
+                    displayToValue[opt.label] = opt.value;
+                });
+
+                console.log(`[AG-Grid] Dynamic lookup ${fieldName} (${fieldDef.lookup}): ${lookupOptions.length} options`);
+
+                // Value getter to convert ID to display name (CRITICAL: ensures proper display)
+                colDef.valueGetter = (params) => {
+                    const id = params.data[fieldName];
+                    const display = valueToDisplay[id];
+                    // Return display name if found, otherwise return raw value
+                    return display !== undefined ? display : id;
                 };
+
+                // Make editable with dropdown if options exist and field is editable
+                if (lookupOptions.length > 0 && !fieldDef.readOnly) {
+                    colDef.editable = true;
+                    colDef.singleClickEdit = true;
+                    colDef.cellEditor = FastSelectEditor;
+                    colDef.cellEditorParams = {
+                        values: lookupOptions.map(opt => opt.label)
+                    };
+
+                    // Value setter to convert display name back to ID
+                    colDef.valueSetter = (params) => {
+                        const displayName = params.newValue;
+                        const id = displayToValue[displayName];
+                        if (id !== undefined) {
+                            params.data[fieldName] = id;
+                            return true;
+                        }
+                        return false;
+                    };
+
+                    // Add dropdown visual indicator
+                    colDef.cellRenderer = (params) => {
+                        const value = params.value || '';
+                        return `<div style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 100%; padding: 0 8px;">
+                            <span>${value}</span>
+                            <span style="color: #999; font-size: 12px;">▼</span>
+                        </div>`;
+                    };
+                }
             }
         } else if (fieldDef.type === 'number' || fieldDef.type === 'numeric') {
             // Number editor with validation
@@ -1309,29 +1377,42 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                         });
                     }
 
-                    // Load new portrait into cache
+                    // Load new portrait into cache (only if not already cached)
                     if (pid && window.electronAPI && window.electronAPI.portrait) {
                         const cacheKey = `pid_${pid}`;
-                        window.electronAPI.portrait.getByPID(pid).then(imageData => {
-                            if (imageData && imageData.length > 0) {
-                                app.portraitCache.set(cacheKey, imageData);
-                                console.log('[AG-Grid] Portrait cached for PID:', pid);
-                            }
-                            // Refresh portrait and PLAYERPIC cells for this row
+                        const cachedPortrait = app.portraitCache.get(cacheKey);
+
+                        // Only load if not already in cache (face picker may have already loaded it)
+                        if (!cachedPortrait || cachedPortrait === 'loading') {
+                            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                                if (imageData && imageData.length > 0) {
+                                    app.portraitCache.set(cacheKey, imageData);
+                                    console.log('[AG-Grid] Portrait cached for PID:', pid);
+                                }
+                                // Refresh portrait and PLAYERPIC cells for this row
+                                event.api.refreshCells({
+                                    rowNodes: [event.node],
+                                    columns: ['_portrait', 'PLAYERPIC'],
+                                    force: true
+                                });
+                            }).catch(err => {
+                                console.error('[AG-Grid] Error loading portrait:', err);
+                                // Still refresh to show placeholder
+                                event.api.refreshCells({
+                                    rowNodes: [event.node],
+                                    columns: ['_portrait', 'PLAYERPIC'],
+                                    force: true
+                                });
+                            });
+                        } else {
+                            // Portrait already in cache, just refresh the display
+                            console.log('[AG-Grid] Portrait already cached for PID:', pid);
                             event.api.refreshCells({
                                 rowNodes: [event.node],
                                 columns: ['_portrait', 'PLAYERPIC'],
                                 force: true
                             });
-                        }).catch(err => {
-                            console.error('[AG-Grid] Error loading portrait:', err);
-                            // Still refresh to show placeholder
-                            event.api.refreshCells({
-                                rowNodes: [event.node],
-                                columns: ['_portrait', 'PLAYERPIC'],
-                                force: true
-                            });
-                        });
+                        }
                     } else {
                         // No PID, refresh to clear portrait and PLAYERPIC
                         event.api.refreshCells({
@@ -2404,13 +2485,24 @@ export async function openRosterPushToDatabaseDialog(app) {
     }
 
     // Determine season year from file name or fallback to current year
+    // Extract just the filename (not full path) to avoid matching years from directory names
     let seasonYear = new Date().getFullYear();
-    if (app.rosterFilePath) {
-        const yearMatch = app.rosterFilePath.match(/(\d{4})/);
+    // FIXED: Use app.currentFile (the actual property) instead of app.rosterFilePath (doesn't exist)
+    if (app.currentFile) {
+        // Get just the filename from the full path
+        const fileName = app.currentFile.split(/[/\\]/).pop() || '';
+        console.log(`[Push to DB] Extracting year from filename: "${fileName}"`);
+
+        // Try to find a year in the filename (prioritize ROSTER-YYYY pattern)
+        const rosterYearMatch = fileName.match(/ROSTER[_-]?(\d{4})/i);
+        const genericYearMatch = fileName.match(/(\d{4})/);
+
+        const yearMatch = rosterYearMatch || genericYearMatch;
         if (yearMatch) {
             const extractedYear = parseInt(yearMatch[1]);
             if (extractedYear >= 1936 && extractedYear <= 2100) {
                 seasonYear = extractedYear;
+                console.log(`[Push to DB] Extracted year ${seasonYear} from filename`);
             }
         }
     }
