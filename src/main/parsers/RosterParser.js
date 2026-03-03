@@ -61,7 +61,7 @@ async function parseRosterFile(filePath) {
 
     console.log('[RosterParser] Found PLAY table with', playerTable.records.length, 'players');
 
-    // Extract player data
+    // Extract player data - just read what's in the file, no syncing
     const players = [];
     for (const record of playerTable.records) {
       const player = {};
@@ -76,138 +76,58 @@ async function parseRosterFile(filePath) {
 
     console.log('[RosterParser] Successfully extracted', players.length, 'players');
 
-    // CRITICAL: Read BTYP from BLBM and update PCBT to show actual in-game body type
-    // The game reads body type from BTYP in BLBM, not PCBT in PLAY!
-    try {
-      const blob = file.BLOB?.records?.[0];
-      const blbm = blob?.fields?.['BLBM']?.value;
+    // CRITICAL DEBUG: Check for duplicate players in the RAW file data
+    console.log('[RosterParser] *** DUPLICATE CHECK ON RAW FILE DATA ***');
 
-      if (blbm && blbm._records) {
-        console.log('[RosterParser] Syncing PCBT from BTYP (BLBM) - showing actual in-game values');
-        console.log(`[RosterParser] BLBM has ${blbm._records.length} records`);
-        let syncedCount = 0;
-        let skippedNoBTYP = 0;
-        let skippedNoChange = 0;
-        const BODY_NAMES = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
-
-        for (let i = 0; i < players.length && i < blbm._records.length; i++) {
-          const blbmRec = blbm._records[i];
-          const fields = blbmRec.fields || blbmRec._fields;
-
-          if (!fields || !fields['BTYP']) {
-            skippedNoBTYP++;
-            continue;
-          }
-
-          const btyp = fields['BTYP'].value ?? fields['BTYP']._value;
-          const pcbt = players[i].PCBT;
-
-          // Log first 5 players for debugging
-          if (i < 5) {
-            console.log(`[RosterParser] Player ${i} (${players[i].PFNA} ${players[i].PLNA}): PCBT=${pcbt}(${BODY_NAMES[pcbt] || '?'}), BTYP=${btyp}(${BODY_NAMES[btyp] || '?'})`);
-          }
-
-          if (btyp !== undefined && btyp !== null && pcbt !== btyp) {
-            players[i].PCBT = btyp;
-            syncedCount++;
-          } else {
-            skippedNoChange++;
-          }
-        }
-
-        console.log(`[RosterParser] BTYP sync results: ${syncedCount} synced, ${skippedNoBTYP} missing BTYP, ${skippedNoChange} already matched`);
-
-        // Also sync SKNT (skin tone) to PLRC
-        let skntSyncedCount = 0;
-        let skntSkippedNoField = 0;
-        let skntSkippedNoChange = 0;
-
-        for (let i = 0; i < players.length && i < blbm._records.length; i++) {
-          const blbmRec = blbm._records[i];
-          const fields = blbmRec.fields || blbmRec._fields;
-
-          if (!fields || !fields['SKNT']) {
-            skntSkippedNoField++;
-            continue;
-          }
-
-          const sknt = fields['SKNT'].value ?? fields['SKNT']._value;
-          const plrc = players[i].PLRC;
-
-          if (sknt !== undefined && sknt !== null && sknt >= 1 && sknt <= 7) {
-            if (plrc !== sknt) {
-              players[i].PLRC = sknt;
-              skntSyncedCount++;
-            } else {
-              skntSkippedNoChange++;
-            }
-          } else {
-            // Default PLRC to 4 (middle skin tone) if SKNT is invalid
-            if (!plrc || plrc < 1 || plrc > 7) {
-              players[i].PLRC = 4;
-            }
-          }
-        }
-
-        console.log(`[RosterParser] SKNT->PLRC sync results: ${skntSyncedCount} synced, ${skntSkippedNoField} missing SKNT, ${skntSkippedNoChange} already matched`);
-
-        // CRITICAL: Sync GENR from BLBM to PEPS for generic face players
-        // This ensures faces assigned via face picker persist after reload
-        let genrSyncedCount = 0;
-        let genrSkippedNoField = 0;
-        let genrSkippedNotGeneric = 0;
-
-        for (let i = 0; i < players.length && i < blbm._records.length; i++) {
-          const player = players[i];
-          const plpl = player.PLPL;
-          const isGenericFace = plpl === 0 || plpl === '0';
-
-          // Only sync GENR for generic face players
-          if (!isGenericFace) {
-            genrSkippedNotGeneric++;
-            continue;
-          }
-
-          const blbmRec = blbm._records[i];
-          const fields = blbmRec.fields || blbmRec._fields;
-
-          if (!fields || !fields['GENR']) {
-            genrSkippedNoField++;
-            continue;
-          }
-
-          const genr = fields['GENR'].value ?? fields['GENR']._value;
-          const currentPeps = player.PEPS;
-
-          // If BLBM has a valid GENR value and PEPS doesn't match, sync it
-          if (genr && typeof genr === 'string' && genr.startsWith('gen_')) {
-            if (currentPeps !== genr) {
-              players[i].PEPS = genr;
-              // Also set assignedGenr for consistency with face picker flow
-              players[i].assignedGenr = genr;
-              // Get SKNT from BLBM for assignedSknt
-              const sknt = fields['SKNT']?.value ?? fields['SKNT']?._value;
-              if (sknt !== undefined && sknt !== null) {
-                players[i].assignedSknt = sknt;
-              }
-              genrSyncedCount++;
-
-              // Log first 5 synced players for debugging
-              if (genrSyncedCount <= 5) {
-                console.log(`[RosterParser] GENR sync: ${player.PFNA} ${player.PLNA} PEPS="${currentPeps}" -> "${genr}"`);
-              }
-            }
-          }
-        }
-
-        console.log(`[RosterParser] GENR->PEPS sync results: ${genrSyncedCount} synced, ${genrSkippedNoField} missing GENR, ${genrSkippedNotGeneric} not generic`);
-      } else {
-        console.log('[RosterParser] WARNING: No BLBM table found for BTYP sync');
+    // Check for duplicate PGIDs (should be unique identifiers)
+    const pgidCounts = new Map();
+    players.forEach((p, idx) => {
+      if (p.PGID !== undefined && p.PGID !== null) {
+        if (!pgidCounts.has(p.PGID)) pgidCounts.set(p.PGID, []);
+        pgidCounts.get(p.PGID).push({ idx, name: `${p.PFNA} ${p.PLNA}`, team: p.TGID });
       }
-    } catch (btypErr) {
-      console.warn('[RosterParser] Failed to sync PCBT from BTYP:', btypErr.message);
-      // Non-fatal - continue with PCBT values as-is
+    });
+    const duplicatePGIDs = [...pgidCounts.entries()].filter(([k, v]) => v.length > 1);
+    console.log(`[RosterParser] DUPLICATE PGIDs IN FILE: ${duplicatePGIDs.length}`);
+    if (duplicatePGIDs.length > 0) {
+      console.log('[RosterParser] ⚠️ CRITICAL: FILE HAS DUPLICATE PGIDs (record identifiers)!');
+      duplicatePGIDs.slice(0, 10).forEach(([pgid, entries]) => {
+        console.log(`  PGID ${pgid}: ${entries.length} records`);
+        entries.forEach(e => console.log(`    Row ${e.idx}: ${e.name} (Team ${e.team})`));
+      });
     }
+
+    // Check for duplicate names
+    const nameTeamCounts = new Map();
+    players.forEach((p, idx) => {
+      const key = `${p.PFNA}|${p.PLNA}|${p.TGID}`;
+      if (!nameTeamCounts.has(key)) nameTeamCounts.set(key, []);
+      nameTeamCounts.get(key).push({ idx, pgid: p.PGID, pid: p.PSXP });
+    });
+    const duplicates = [...nameTeamCounts.entries()].filter(([k, v]) => v.length > 1);
+    console.log(`[RosterParser] DUPLICATE NAMES IN FILE: ${duplicates.length} players appear multiple times`);
+    if (duplicates.length > 0) {
+      console.log('[RosterParser] ⚠️ WARNING: FILE CONTAINS DUPLICATE NAME ENTRIES!');
+      duplicates.slice(0, 10).forEach(([key, entries]) => {
+        const [fn, ln, tgid] = key.split('|');
+        console.log(`  "${fn} ${ln}" (Team ${tgid}): ${entries.length} copies`);
+        entries.forEach(e => console.log(`    Row ${e.idx}: PGID=${e.pgid}, PID=${e.pid}`));
+      });
+    }
+
+    // Check consecutive identical rows
+    let consecutiveDupes = 0;
+    for (let i = 1; i < players.length; i++) {
+      const prev = players[i-1];
+      const curr = players[i];
+      if (prev.PFNA === curr.PFNA && prev.PLNA === curr.PLNA && prev.PSXP === curr.PSXP && prev.TGID === curr.TGID) {
+        consecutiveDupes++;
+        if (consecutiveDupes <= 5) {
+          console.log(`[RosterParser] CONSECUTIVE DUPE rows ${i-1}/${i}: ${curr.PFNA} ${curr.PLNA}`);
+        }
+      }
+    }
+    console.log(`[RosterParser] Total consecutive duplicates in raw file: ${consecutiveDupes}`);
 
     // Log sample player with ALL field names
     if (players.length > 0) {

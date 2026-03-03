@@ -88,7 +88,7 @@ export interface RosterPlayer {
   PJEN?: number;  // Jersey number
   PAGE?: number;  // Age
   PHGT?: number;  // Height in inches
-  PWGT?: number;  // Weight (stored as actual - 159)
+  PWGT?: number;  // Weight (stored as actual - 160)
   TGID?: number;  // Team ID
   PCBT?: number;  // Body type
   PHAN?: number;  // Handedness
@@ -977,8 +977,18 @@ export class RosterGeneratorService {
     // Group players by team - handle both database and custom formats
     const teamPlayers = new Map<string, any[]>();
 
+    // Track players we've already added (by name) to prevent duplicates
+    const addedPlayerNames = new Set<string>();
+
     // Add database players
     filteredDbPlayers.forEach(player => {
+      const playerKey = `${player.firstName}|${player.lastName}`.toLowerCase();
+      if (addedPlayerNames.has(playerKey)) {
+        console.log(`[RosterGeneratorService] Skipping duplicate DB player: ${player.firstName} ${player.lastName}`);
+        return;
+      }
+      addedPlayerNames.add(playerKey);
+
       const team = player.team || 'FA';
       if (!teamPlayers.has(team)) {
         teamPlayers.set(team, []);
@@ -987,7 +997,18 @@ export class RosterGeneratorService {
     });
 
     // Add custom players (they use CSV format with Season_Team)
+    // CRITICAL: Skip if player already exists from database
     customPlayers.forEach((player: any) => {
+      const firstName = player.First_Name || player.firstName || '';
+      const lastName = player.Last_Name || player.lastName || '';
+      const playerKey = `${firstName}|${lastName}`.toLowerCase();
+
+      if (addedPlayerNames.has(playerKey)) {
+        console.log(`[RosterGeneratorService] Skipping duplicate custom player: ${firstName} ${lastName} (already in DB)`);
+        return;
+      }
+      addedPlayerNames.add(playerKey);
+
       const team = player.Season_Team || 'FA';
       if (!teamPlayers.has(team)) {
         teamPlayers.set(team, []);
@@ -1455,7 +1476,7 @@ export class RosterGeneratorService {
           PJEN: Math.floor(Math.random() * 99) + 1,
           PAGE: age,
           PHGT: height,
-          PWGT: weight - 159, // Madden stores weight as (actual - 159)
+          PWGT: weight - 160, // Madden stores weight as (actual - 160)
           TGID: teamId,
           PSXP: genericFace.pid,
           PLPL: 0, // Generic face marker
@@ -2056,7 +2077,7 @@ export class RosterGeneratorService {
       PAGE: 23 + Math.floor(Math.random() * 5),
       PSXP: genericFace.pid, // PID from race-matched generic face
       PHGT: 70 + Math.floor(Math.random() * 10),
-      PWGT: 180 + Math.floor(Math.random() * 80),
+      PWGT: 20 + Math.floor(Math.random() * 80), // Offset: 20-99 = actual 180-259 lbs
       PCOL: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
       PHSN: Math.floor(Math.random() * 50),
       PJEN: Math.floor(Math.random() * 99) + 1,
@@ -2364,10 +2385,10 @@ export class RosterGeneratorService {
     // CRITICAL: Apply user bio edits - these override CSV values when user has edited in roster editor
     // Height: userBioEdits stores actual height in inches
     const finalHeight = userBioEdits?.height ?? (parseInt(csvRow.Height) || 72);
-    // Weight: userBioEdits stores actual weight in lbs, need to convert to Madden format (actual - 159)
+    // Weight: userBioEdits stores actual weight in lbs, need to convert to Madden format (actual - 160)
     const finalWeight = userBioEdits?.weight
-      ? Math.max(1, userBioEdits.weight - 159)
-      : Math.max(1, (parseInt(csvRow.Weight) || 200) - 159);
+      ? Math.max(1, userBioEdits.weight - 160)
+      : Math.max(1, (parseInt(csvRow.Weight) || 200) - 160);
     // College: userBioEdits stores collegeId as numeric ID, CSV stores as string name
     const finalCollege = userBioEdits?.collegeId ?? await this.lookupCollege(csvRow.College);
     // HomeState: userBioEdits stores as string name, need to convert to numeric ID
@@ -2748,7 +2769,7 @@ export class RosterGeneratorService {
       PJEN: dbRow.jersey || 0,
       PAGE: dbRow.age || 25,
       PHGT: dbRow.height || 72,
-      PWGT: Math.max(1, (dbRow.weight || 200) - 159),
+      PWGT: Math.max(1, (dbRow.weight || 200) - 160),
       TGID: teamCode,
       PCBT: this.determinePCBTFromDb(dbRow),
       PHAN: dbRow.handedness ?? 0,  // Handedness: 0=Right, 1=Left (default to right-handed)

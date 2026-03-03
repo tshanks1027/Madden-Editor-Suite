@@ -989,6 +989,45 @@ class MaddenEditorApp {
                     this.players = result.data.players || [];
                     this.originalData = result.data; // Store for saving
 
+                    // DEBUG: Check for duplicates immediately after receiving from parser
+                    console.log('[app.js] *** DUPLICATE CHECK ON RECEIVED DATA ***');
+                    const receivedPlayers = this.players;
+                    const nameTeamCounts = new Map();
+                    receivedPlayers.forEach((p, idx) => {
+                        const key = `${p.PFNA}|${p.PLNA}|${p.TGID}`;
+                        if (!nameTeamCounts.has(key)) nameTeamCounts.set(key, []);
+                        nameTeamCounts.get(key).push(idx);
+                    });
+                    const duplicates = [...nameTeamCounts.entries()].filter(([k, v]) => v.length > 1);
+                    console.log(`[app.js] DUPLICATES AFTER PARSE: ${duplicates.length} players appear multiple times`);
+
+                    // AUTO-FIX: Remove duplicates if found (keep first occurrence with highest POVR)
+                    if (duplicates.length > 0) {
+                        console.log('[app.js] ⚠️ AUTO-FIXING DUPLICATES IN LOADED DATA...');
+                        duplicates.slice(0, 10).forEach(([key, indices]) => {
+                            const [fn, ln, tgid] = key.split('|');
+                            console.log(`  "${fn} ${ln}" (Team ${tgid}): rows ${indices.join(', ')}`);
+                        });
+
+                        // Deduplicate: keep highest POVR for each name+team combination
+                        const uniquePlayers = new Map();
+                        this.players.forEach((player, idx) => {
+                            const key = `${player.PFNA}|${player.PLNA}|${player.TGID}`;
+                            const existing = uniquePlayers.get(key);
+                            if (!existing || (player.POVR > existing.POVR)) {
+                                uniquePlayers.set(key, player);
+                            }
+                        });
+
+                        const beforeCount = this.players.length;
+                        this.players = Array.from(uniquePlayers.values());
+                        const afterCount = this.players.length;
+                        console.log(`[app.js] ✅ DEDUPLICATION COMPLETE: ${beforeCount} → ${afterCount} players (removed ${beforeCount - afterCount} duplicates)`);
+
+                        // Show user a notification
+                        alert(`⚠️ This roster had ${beforeCount - afterCount} duplicate players which have been automatically removed.\n\nPlease save the file to fix it permanently.`);
+                    }
+
                     // Store injured player PGIDs as a Set for quick lookup
                     // Injuries are tracked in separate INJY table, linked by PGID
                     this.injuredPGIDs = new Set(result.data.injuredPGIDs || []);
@@ -4093,11 +4132,28 @@ class MaddenEditorApp {
                 console.log('[app.js] PRE-SAVE SYNC: Starting comprehensive data sync from AG-Grid...');
 
                 // Build a map of PGID -> player for quick lookup
+                // CRITICAL: Check for duplicate PGIDs which would cause data corruption
                 const playersMap = new Map();
+                const duplicatePGIDs = [];
                 for (const player of this.players) {
                     if (player.PGID !== undefined) {
+                        if (playersMap.has(player.PGID)) {
+                            duplicatePGIDs.push({
+                                pgid: player.PGID,
+                                first: playersMap.get(player.PGID),
+                                second: player
+                            });
+                        }
                         playersMap.set(player.PGID, player);
                     }
+                }
+
+                if (duplicatePGIDs.length > 0) {
+                    console.error('[app.js] ⚠️ CRITICAL: DUPLICATE PGIDs DETECTED IN this.players!');
+                    duplicatePGIDs.slice(0, 10).forEach(dup => {
+                        console.error(`  PGID ${dup.pgid}: "${dup.first.PFNA} ${dup.first.PLNA}" vs "${dup.second.PFNA} ${dup.second.PLNA}"`);
+                    });
+                    console.error(`  Total duplicate PGIDs: ${duplicatePGIDs.length}`);
                 }
 
                 // Get ALL rows from AG-Grid and sync back to this.players

@@ -52,6 +52,28 @@ const config: ForgeConfig = {
         /^\/test-results/,
         /^\/nul$/,  // Ignore Windows null device file
 
+        // CRITICAL: Exclude large dev/source folders (already built to .vite/)
+        /^\/src($|\/)/,          // Source code - compiled to .vite/build
+        /^\/data($|\/)/,         // Root data - copied to .vite/build/data
+        /^\/temp($|\/)/,         // Temp files from dev
+        /^\/FrostyToolsuite($|\/)/,  // Dev tool
+        /^\/scripts($|\/)/,      // Dev scripts
+        /^\/ralph-claude-code($|\/)/,  // Dev files
+        /^\/ui-mockups($|\/)/,   // Dev mockups
+        /^\/game-dev-workflow($|\/)/,  // Dev workflow
+        /^\/\.project-memory($|\/)/,   // Dev memory
+
+        // Exclude dev files in root
+        /^\/[^/]+\.js$/,         // Root JS files (dev scripts)
+        /^\/[^/]+\.mjs$/,        // Root MJS files
+        /^\/[^/]+\.ts$/,         // Root TS files (except in subdirs)
+        /^\/tsconfig\.json$/,
+        /^\/\.eslintrc/,
+        /^\/\.prettierrc/,
+        /^\/vite\..+\.config\.ts$/,
+        /^\/forge\.config\.ts$/,
+        /^\/electron-builder\.yml$/,
+
         // Exclude large testing/dev dependencies that shouldn't be in production
         /node_modules\/playwright($|\/)/,
         /node_modules\/@playwright($|\/)/,

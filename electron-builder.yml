@@ -17,9 +17,42 @@ files:
   - ".vite/renderer/**/*"
   - "package.json"
   - "node_modules/**/*"
+  # Exclude dev/test files from node_modules
   - "!node_modules/**/test"
   - "!node_modules/**/tests"
   - "!node_modules/**/*.md"
+  - "!node_modules/**/.github"
+  - "!node_modules/**/docs"
+  - "!node_modules/**/example"
+  - "!node_modules/**/examples"
+  # Exclude source code (already compiled to .vite/build)
+  - "!src/**/*"
+  # Exclude root data folder (already copied to .vite/build/data)
+  - "!data/**/*"
+  # Exclude temp/dev folders
+  - "!temp/**/*"
+  - "!FrostyToolsuite/**/*"
+  - "!scripts/**/*"
+  - "!ralph-claude-code/**/*"
+  - "!ui-mockups/**/*"
+  - "!game-dev-workflow/**/*"
+  - "!.project-memory/**/*"
+  - "!.claude/**/*"
+  - "!docs/**/*"
+  - "!tests/**/*"
+  # Exclude dev files
+  - "!**/*.ts"
+  - "!**/*.map"
+  - "!*.js"
+  - "!*.mjs"
+  - "!tsconfig.json"
+  - "!forge.config.ts"
+  - "!vite.*.config.ts"
+  - "!electron-builder.yml"
+  - "!.eslintrc*"
+  - "!.prettierrc*"
+  - "!.gitignore"
+  - "!*.md"
 
 win:
   target:
