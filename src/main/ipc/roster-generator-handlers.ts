@@ -225,7 +225,14 @@ ipcMain.handle('roster-generator:save', async (event, players: any[], templatePa
     if (templatePath === 'ROSTER-Official' || !templatePath) {
       const { app } = require('electron');
       const path = require('path');
-      resolvedTemplatePath = path.join(app.getAppPath(), 'data', 'Templates', 'ROSTER-Official');
+      const fs = require('fs');
+      // Check multiple paths for packaged vs dev builds
+      const possiblePaths = [
+        path.join(app.getAppPath(), '.vite', 'build', 'data', 'Templates', 'ROSTER-Official'),
+        path.join(app.getAppPath(), 'data', 'Templates', 'ROSTER-Official'),
+        path.join(process.cwd(), 'data', 'Templates', 'ROSTER-Official'),
+      ];
+      resolvedTemplatePath = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
       console.log('[roster-generator-handlers] Resolved template path:', resolvedTemplatePath);
     }
 
