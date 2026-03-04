@@ -62,7 +62,9 @@ async function parseRosterFile(filePath) {
     console.log('[RosterParser] Found PLAY table with', playerTable.records.length, 'players');
 
     // Extract player data - just read what's in the file, no syncing
+    // CRITICAL: Skip empty/unused record slots (they have no name or POVR=0)
     const players = [];
+    let skippedEmpty = 0;
     for (const record of playerTable.records) {
       const player = {};
 
@@ -71,10 +73,25 @@ async function parseRosterFile(filePath) {
         player[fieldName] = record.fields[fieldName].value;
       }
 
+      // Skip empty player slots (no name, or name is empty, or POVR is 0 with no name)
+      const firstName = (player.PFNA || '').trim();
+      const lastName = (player.PLNA || '').trim();
+      const hasName = firstName.length > 0 || lastName.length > 0;
+      const hasValidPOVR = player.POVR && player.POVR > 0;
+
+      // A player slot is empty if it has no name AND no valid overall rating
+      if (!hasName && !hasValidPOVR) {
+        skippedEmpty++;
+        continue;
+      }
+
       players.push(player);
     }
 
     console.log('[RosterParser] Successfully extracted', players.length, 'players');
+    if (skippedEmpty > 0) {
+      console.log(`[RosterParser] Skipped ${skippedEmpty} empty record slots`);
+    }
 
     // CRITICAL DEBUG: Check for duplicate players in the RAW file data
     console.log('[RosterParser] *** DUPLICATE CHECK ON RAW FILE DATA ***');
@@ -339,7 +356,7 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     const LOOKUP_STRING_TO_ID = {
       PCBT: { 'Standard': 0, 'Thin': 1, 'Muscular': 2, 'Heavy': 3, 'Lean': 4 },
       PHAN: { 'Right': 0, 'Left': 1 },
-      PROL: { 'Normal': 0, 'Star': 1, 'Superstar': 2, 'X-Factor': 3 }
+      PROL: { 'Normal': 0, 'Star': 1, 'Superstar': 2, 'X-Factor': 3, 'Hidden': 4 }
     };
 
     for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
@@ -400,6 +417,28 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
     console.log('[RosterParser] Updated', fieldsUpdated, 'field values');
     console.log('[RosterParser] Original record has', Object.keys(playerTable.records[0].fields).length, 'fields - all preserved');
+
+    // CRITICAL FIX: Clear unused record slots beyond players.length
+    // This prevents "ghost" duplicates from remaining in the file when players are removed
+    let clearedSlots = 0;
+    if (players.length < playerTable.records.length) {
+      console.log(`[RosterParser] *** CLEARING ${playerTable.records.length - players.length} UNUSED RECORD SLOTS ***`);
+      for (let i = players.length; i < playerTable.records.length; i++) {
+        const record = playerTable.records[i];
+        // Clear player identity fields to make this an "empty" slot
+        if (record.fields['PFNA']) record.fields['PFNA'].value = '';
+        if (record.fields['PLNA']) record.fields['PLNA'].value = '';
+        if (record.fields['PGID']) record.fields['PGID'].value = 0;
+        if (record.fields['TGID']) record.fields['TGID'].value = 1009; // Free agent team
+        if (record.fields['PSXP']) record.fields['PSXP'].value = 0; // Clear PID
+        if (record.fields['PEPS']) record.fields['PEPS'].value = ''; // Clear PAM
+        if (record.fields['POVR']) record.fields['POVR'].value = 0; // Clear overall
+        if (record.fields['PPOS']) record.fields['PPOS'].value = 0; // Clear position
+        if (record.fields['PAGE']) record.fields['PAGE'].value = 0; // Clear age
+        clearedSlots++;
+      }
+      console.log(`[RosterParser] Cleared ${clearedSlots} unused record slots`);
+    }
 
     // Track results for debugging
     let blbmUpdated = 0;

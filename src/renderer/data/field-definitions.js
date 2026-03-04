@@ -273,7 +273,8 @@ export let LOOKUP_DATA = {
         [0, 'Normal'],
         [1, 'Star'],
         [2, 'Superstar'],
-        [3, 'X-Factor']
+        [3, 'X-Factor'],
+        [4, 'Hidden']
     ]),
     bodytypes: new Map([
         [0, 'Standard'],
@@ -609,6 +610,28 @@ export async function loadLookupData() {
             console.log(`PID_lookup.csv loaded: pids.size=${LOOKUP_DATA.pids.size}, pidsCapitalized.size=${LOOKUP_DATA.pidsCapitalized.size}`);
         } catch (error) {
             console.error('Failed to load PID_lookup.csv:', error);
+        }
+
+        // IMPORTANT: Load custom portrait PIDs from database and add to dropdown
+        // This ensures custom player portraits appear in PLAYERPIC dropdown search
+        try {
+            if (window.electronAPI?.database?.getAllCustomPids) {
+                const result = await window.electronAPI.database.getAllCustomPids();
+                if (result.success && result.pids) {
+                    let customAdded = 0;
+                    result.pids.forEach(entry => {
+                        // Only add if not already in the map (don't overwrite standard PIDs)
+                        if (!LOOKUP_DATA.pidsCapitalized.has(entry.pid)) {
+                            LOOKUP_DATA.pids.set(entry.pid, entry.name);
+                            LOOKUP_DATA.pidsCapitalized.set(entry.pid, entry.name);
+                            customAdded++;
+                        }
+                    });
+                    console.log(`Custom portrait PIDs loaded: ${customAdded} new entries added, total pids now: ${LOOKUP_DATA.pidsCapitalized.size}`);
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to load custom portrait PIDs (non-critical):', error);
         }
 
         console.log('Lookup data loaded successfully');

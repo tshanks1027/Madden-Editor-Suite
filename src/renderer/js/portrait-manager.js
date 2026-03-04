@@ -223,7 +223,7 @@
           const id = player.internalId || player.id;
           if (player.draftClass) {
             const year = parseInt(player.draftClass, 10);
-            if (year >= 1960 && year <= 2030) {
+            if (year >= 1920 && year <= 2030) {
               playerYearMap.set(id, year);
             }
           }
@@ -243,7 +243,7 @@
 
       // Check filename for year
       if (p.originalFilename) {
-        const yearMatch = p.originalFilename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+        const yearMatch = p.originalFilename.match(/\b(19[2-9]\d|20[0-2]\d)\b/);
         if (yearMatch) {
           years.add(parseInt(yearMatch[1], 10));
           p._draftYear = parseInt(yearMatch[1], 10);
@@ -336,7 +336,7 @@
           if (p._draftYear === filterYear) return true;
           // Also check filename for year
           if (p.originalFilename) {
-            const yearMatch = p.originalFilename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+            const yearMatch = p.originalFilename.match(/\b(19[2-9]\d|20[0-2]\d)\b/);
             if (yearMatch && parseInt(yearMatch[1], 10) === filterYear) return true;
           }
           return false;
@@ -2751,6 +2751,12 @@
     // My Portraits modal filters
     document.getElementById('myPortraitsFilter')?.addEventListener('change', renderMyPortraitsGrid);
     document.getElementById('myPortraitsSort')?.addEventListener('change', renderMyPortraitsGrid);
+    // Search input - debounce to avoid too many renders while typing
+    let searchTimeout = null;
+    document.getElementById('myPortraitsSearch')?.addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(renderMyPortraitsGrid, 300);
+    });
 
     // Bundled search
     document.getElementById('btn-bundled-search')?.addEventListener('click', handleBundledSearchNew);
@@ -2809,6 +2815,10 @@
     }
   }
 
+  // Track render state to prevent concurrent renders
+  let renderInProgress = false;
+  let pendingRender = false;
+
   /**
    * Render the My Portraits grid in the modal
    */
@@ -2819,6 +2829,13 @@
     const sortEl = document.getElementById('myPortraitsSort');
 
     if (!grid) return;
+
+    // Prevent concurrent renders - queue if already rendering
+    if (renderInProgress) {
+      pendingRender = true;
+      return;
+    }
+    renderInProgress = true;
 
     // Refresh portraits data
     portraits = await window.electronAPI.customPortrait.list();
@@ -2832,7 +2849,7 @@
         const id = player.internalId || player.id;
         if (player.draftClass) {
           const year = parseInt(player.draftClass, 10);
-          if (year >= 1960 && year <= 2030) {
+          if (year >= 1920 && year <= 2030) {
             playerYearMap.set(id, year);
           }
         }
@@ -2842,27 +2859,33 @@
     }
 
     // Collect all available years and assign _year to portraits
+    // Priority: 1) Attached player's draft year, 2) stored year, 3) filename year
+    // Cascade through all sources until we find a year
     const years = new Set();
     portraits.forEach(p => {
-      // Check stored year
-      if (p.year) {
+      p._year = null; // Reset
+
+      // First priority: Use attached player's draft year
+      if (p.databasePlayerId && playerYearMap.has(p.databasePlayerId)) {
+        const y = playerYearMap.get(p.databasePlayerId);
+        years.add(y);
+        p._year = y;
+      }
+
+      // Second priority: stored year (if no year found yet)
+      if (!p._year && p.year) {
         years.add(p.year);
         p._year = p.year;
       }
-      // Check filename for year
-      else if (p.originalFilename) {
-        const match = p.originalFilename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+
+      // Third priority: filename year (if still no year found)
+      if (!p._year && p.originalFilename) {
+        const match = p.originalFilename.match(/\b(19[2-9]\d|20[0-2]\d)\b/);
         if (match) {
           const y = parseInt(match[1], 10);
           years.add(y);
           p._year = y;
         }
-      }
-      // Check assigned player's draft year
-      if (!p._year && p.databasePlayerId && playerYearMap.has(p.databasePlayerId)) {
-        const y = playerYearMap.get(p.databasePlayerId);
-        years.add(y);
-        p._year = y;
       }
     });
 
@@ -2887,14 +2910,46 @@
       filtered = filtered.filter(p => p._year === yf);
     }
 
+    // Filter by search term (name)
+    const searchEl = document.getElementById('myPortraitsSearch');
+    const searchTerm = (searchEl?.value || '').toLowerCase().trim();
+    if (searchTerm) {
+      filtered = filtered.filter(p => {
+        const name = (p.playerName || '').toLowerCase();
+        return name.includes(searchTerm);
+      });
+    }
+
     // Sort
     const sortBy = sortEl?.value || 'pid';
-    filtered.sort((a, b) => {
-      if (sortBy === 'pid') return (a.pid || 0) - (b.pid || 0);
-      if (sortBy === 'year') return (a.year || 0) - (b.year || 0);
-      if (sortBy === 'name') return (a.assignedName || '').localeCompare(b.assignedName || '');
-      return 0;
+
+    // Force sort by PID first to test
+    filtered = filtered.slice().sort((a, b) => {
+      const pidA = Number(a.pid) || 0;
+      const pidB = Number(b.pid) || 0;
+
+      if (sortBy === 'pid') {
+        return pidA - pidB;
+      }
+      if (sortBy === 'year') {
+        const yearA = Number(a._year) || Number(a.year) || 0;
+        const yearB = Number(b._year) || Number(b.year) || 0;
+        return yearA - yearB || pidA - pidB;
+      }
+      if (sortBy === 'name') {
+        const nameA = (a.playerName || '').toLowerCase();
+        const nameB = (b.playerName || '').toLowerCase();
+        if (!nameA && !nameB) return pidA - pidB;
+        if (!nameA) return 1;
+        if (!nameB) return -1;
+        const lastA = nameA.split(' ').pop();
+        const lastB = nameB.split(' ').pop();
+        return lastA.localeCompare(lastB) || nameA.localeCompare(nameB);
+      }
+      return pidA - pidB;
     });
+
+    console.log('[SORT] sortBy:', sortBy, 'First 10 PIDs after sort:', filtered.slice(0, 10).map(p => p.pid));
 
     // Update count
     if (countEl) countEl.textContent = `${filtered.length} portraits`;
@@ -2911,8 +2966,13 @@
       return;
     }
 
-    // Create cards and load images async
+    // Create all cards SYNCHRONOUSLY first to preserve sort order
+    // Then load images asynchronously
     grid.innerHTML = '';
+    const placeholderSvg = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+
+    // Create all DOM elements in correct order (synchronously)
+    const imageLoadPromises = [];
     for (const p of filtered) {
       const card = document.createElement('div');
       card.className = 'portrait-card';
@@ -2920,18 +2980,7 @@
 
       const img = document.createElement('img');
       img.alt = `Portrait ${p.pid}`;
-
-      // Load image async
-      try {
-        const imageData = await window.electronAPI.customPortrait.get(p.pid);
-        if (imageData) {
-          img.src = imageData;
-        } else {
-          img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
-        }
-      } catch (e) {
-        img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
-      }
+      img.src = placeholderSvg; // Start with placeholder
       card.appendChild(img);
 
       const pidEl = document.createElement('div');
@@ -2944,18 +2993,40 @@
       nameEl.textContent = p.playerName || 'Unassigned';
       card.appendChild(nameEl);
 
-      if (p.year) {
+      if (p._year || p.year) {
         const yearEl = document.createElement('div');
         yearEl.className = 'portrait-year';
-        yearEl.textContent = p.year;
+        yearEl.textContent = p._year || p.year;
         card.appendChild(yearEl);
       }
 
       grid.appendChild(card);
+
+      // Queue image loading (async, but DOM order already set)
+      const pid = p.pid;
+      imageLoadPromises.push(
+        window.electronAPI.customPortrait.get(pid)
+          .then(imageData => {
+            if (imageData) img.src = imageData;
+          })
+          .catch(() => {
+            // Keep placeholder on error
+          })
+      );
     }
 
     // Update badge
     updatePortraitCountBadge();
+
+    // Load all images in parallel (won't affect DOM order)
+    await Promise.all(imageLoadPromises);
+
+    // Mark render complete and check for pending renders
+    renderInProgress = false;
+    if (pendingRender) {
+      pendingRender = false;
+      renderMyPortraitsGrid();
+    }
   }
 
   /**
@@ -3199,7 +3270,7 @@
       const years = new Set();
       unassigned.forEach(p => {
         if (p.originalFilename) {
-          const yearMatch = p.originalFilename.match(/\b(19[6-9]\d|20[0-2]\d)\b/);
+          const yearMatch = p.originalFilename.match(/\b(19[2-9]\d|20[0-2]\d)\b/);
           if (yearMatch) {
             years.add(yearMatch[1]);
           }

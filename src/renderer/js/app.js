@@ -412,6 +412,11 @@ class MaddenEditorApp {
             this.removeAllInjuries();
         });
 
+        document.getElementById('toolsCleanDuplicatesBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.openDuplicateCleaner();
+        });
+
         document.getElementById('toolsFillFromDbBtn')?.addEventListener('click', () => {
             toolsPopup?.classList.remove('show');
             if (typeof window.openFillModal === 'function') {
@@ -988,45 +993,6 @@ class MaddenEditorApp {
                     // Extract players from the parse result
                     this.players = result.data.players || [];
                     this.originalData = result.data; // Store for saving
-
-                    // DEBUG: Check for duplicates immediately after receiving from parser
-                    console.log('[app.js] *** DUPLICATE CHECK ON RECEIVED DATA ***');
-                    const receivedPlayers = this.players;
-                    const nameTeamCounts = new Map();
-                    receivedPlayers.forEach((p, idx) => {
-                        const key = `${p.PFNA}|${p.PLNA}|${p.TGID}`;
-                        if (!nameTeamCounts.has(key)) nameTeamCounts.set(key, []);
-                        nameTeamCounts.get(key).push(idx);
-                    });
-                    const duplicates = [...nameTeamCounts.entries()].filter(([k, v]) => v.length > 1);
-                    console.log(`[app.js] DUPLICATES AFTER PARSE: ${duplicates.length} players appear multiple times`);
-
-                    // AUTO-FIX: Remove duplicates if found (keep first occurrence with highest POVR)
-                    if (duplicates.length > 0) {
-                        console.log('[app.js] ⚠️ AUTO-FIXING DUPLICATES IN LOADED DATA...');
-                        duplicates.slice(0, 10).forEach(([key, indices]) => {
-                            const [fn, ln, tgid] = key.split('|');
-                            console.log(`  "${fn} ${ln}" (Team ${tgid}): rows ${indices.join(', ')}`);
-                        });
-
-                        // Deduplicate: keep highest POVR for each name+team combination
-                        const uniquePlayers = new Map();
-                        this.players.forEach((player, idx) => {
-                            const key = `${player.PFNA}|${player.PLNA}|${player.TGID}`;
-                            const existing = uniquePlayers.get(key);
-                            if (!existing || (player.POVR > existing.POVR)) {
-                                uniquePlayers.set(key, player);
-                            }
-                        });
-
-                        const beforeCount = this.players.length;
-                        this.players = Array.from(uniquePlayers.values());
-                        const afterCount = this.players.length;
-                        console.log(`[app.js] ✅ DEDUPLICATION COMPLETE: ${beforeCount} → ${afterCount} players (removed ${beforeCount - afterCount} duplicates)`);
-
-                        // Show user a notification
-                        alert(`⚠️ This roster had ${beforeCount - afterCount} duplicate players which have been automatically removed.\n\nPlease save the file to fix it permanently.`);
-                    }
 
                     // Store injured player PGIDs as a Set for quick lookup
                     // Injuries are tracked in separate INJY table, linked by PGID
@@ -6083,6 +6049,231 @@ class MaddenEditorApp {
 
         this.showToast(`Removed injuries from ${count} player(s). SAVE to apply changes!`, 'success');
         console.log(`[RemoveAllInjuries] Removed injuries from ${count} players`);
+    }
+
+    /**
+     * Open the Duplicate Cleaner modal
+     */
+    openDuplicateCleaner() {
+        if (!this.players || this.players.length === 0) {
+            this.showToast('No roster loaded', 'error');
+            return;
+        }
+
+        const modal = document.getElementById('duplicateCleanerModal');
+        if (!modal) return;
+
+        // Reset state
+        document.getElementById('duplicateStatusText').textContent = 'Click "Scan for Duplicates" to begin.';
+        document.getElementById('duplicatesList').style.display = 'none';
+        document.getElementById('noDuplicatesMsg').style.display = 'none';
+        document.getElementById('removeAllDuplicatesBtn').style.display = 'none';
+        document.getElementById('duplicatesContainer').innerHTML = '';
+
+        // Show modal
+        modal.style.display = 'flex';
+
+        // Set up event listeners (only once)
+        if (!this._duplicateCleanerInitialized) {
+            this._duplicateCleanerInitialized = true;
+
+            document.getElementById('closeDuplicateCleanerBtn')?.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            document.getElementById('duplicateCleanerDoneBtn')?.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            document.getElementById('scanDuplicatesBtn')?.addEventListener('click', () => {
+                this.scanForDuplicates();
+            });
+
+            document.getElementById('removeAllDuplicatesBtn')?.addEventListener('click', () => {
+                this.removeSelectedDuplicates();
+            });
+
+            // Close on overlay click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.style.display = 'none';
+            });
+        }
+    }
+
+    /**
+     * Scan roster for duplicate players
+     */
+    scanForDuplicates() {
+        const statusText = document.getElementById('duplicateStatusText');
+        const container = document.getElementById('duplicatesContainer');
+        const listDiv = document.getElementById('duplicatesList');
+        const noMsg = document.getElementById('noDuplicatesMsg');
+        const removeBtn = document.getElementById('removeAllDuplicatesBtn');
+
+        statusText.textContent = 'Scanning...';
+        container.innerHTML = '';
+
+        // Find duplicates by name + team
+        const groups = new Map();
+        this.players.forEach((player, idx) => {
+            const key = `${(player.PFNA || '').toLowerCase()}|${(player.PLNA || '').toLowerCase()}|${player.TGID}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push({ player, idx });
+        });
+
+        // Filter to only groups with duplicates
+        const duplicates = [...groups.entries()].filter(([k, v]) => v.length > 1);
+
+        if (duplicates.length === 0) {
+            statusText.textContent = 'Scan complete - no duplicates found!';
+            listDiv.style.display = 'none';
+            noMsg.style.display = 'block';
+            removeBtn.style.display = 'none';
+            return;
+        }
+
+        const totalDupes = duplicates.reduce((sum, [k, v]) => sum + v.length - 1, 0);
+        statusText.textContent = `Found ${duplicates.length} duplicate groups (${totalDupes} extra copies to remove). Click a row to expand details.`;
+        listDiv.style.display = 'block';
+        noMsg.style.display = 'none';
+        removeBtn.style.display = 'inline-block';
+
+        // Get team lookup - use TEAM_MAPPINGS from field-definitions.js
+        const getTeamDisplay = (tgid) => {
+            const teamId = parseInt(tgid);
+            if (teamId === 0 || teamId === 1009) return 'FA';
+            return TEAM_MAPPINGS[teamId] || `Team ${teamId}`;
+        };
+
+        // Build UI for each duplicate group - COLLAPSIBLE
+        duplicates.forEach(([key, entries], groupIdx) => {
+            const [fn, ln, tgid] = key.split('|');
+            const teamName = getTeamDisplay(tgid);
+            const p = entries[0].player;
+            const posName = this.getPositionName ? this.getPositionName(p.PPOS) : `Pos ${p.PPOS}`;
+
+            const groupDiv = document.createElement('div');
+            groupDiv.style.cssText = 'background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border); overflow: hidden;';
+
+            // Collapsible header
+            groupDiv.innerHTML = `
+                <div class="dup-group-header" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; user-select: none;">
+                    <span class="dup-expand-icon" style="font-size: 12px; transition: transform 0.2s;">▶</span>
+                    <div style="flex: 1; display: flex; align-items: center; gap: 16px;">
+                        <strong style="color: var(--text-primary); min-width: 180px;">${p.PFNA} ${p.PLNA}</strong>
+                        <span style="background: #2196F3; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;">${teamName}</span>
+                        <span style="color: var(--text-secondary);">${posName}</span>
+                        <span style="color: var(--text-secondary);">OVR ${p.POVR || 0}</span>
+                    </div>
+                    <span style="background: #ff6b6b; color: white; padding: 2px 10px; border-radius: 12px; font-size: 0.85em;">${entries.length} copies</span>
+                </div>
+                <div class="dup-group-content" style="display: none; padding: 0 16px 16px 16px;">
+                    <div style="display: flex; flex-direction: column; gap: 8px;" id="duplicateGroup${groupIdx}"></div>
+                </div>
+            `;
+
+            // Toggle collapse on header click
+            const header = groupDiv.querySelector('.dup-group-header');
+            const content = groupDiv.querySelector('.dup-group-content');
+            const icon = groupDiv.querySelector('.dup-expand-icon');
+            header.addEventListener('click', () => {
+                const isExpanded = content.style.display !== 'none';
+                content.style.display = isExpanded ? 'none' : 'block';
+                icon.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(90deg)';
+            });
+
+            const entriesDiv = groupDiv.querySelector(`#duplicateGroup${groupIdx}`);
+
+            entries.forEach((entry, entryIdx) => {
+                const ep = entry.player;
+                const entryPosName = this.getPositionName ? this.getPositionName(ep.PPOS) : `Pos ${ep.PPOS}`;
+                const isFirst = entryIdx === 0;
+
+                const entryDiv = document.createElement('div');
+                entryDiv.style.cssText = 'display: flex; align-items: center; gap: 12px; padding: 10px; background: var(--bg-primary); border-radius: 6px; border: 1px solid var(--border);';
+                entryDiv.innerHTML = `
+                    <input type="checkbox" class="duplicate-checkbox" data-group="${groupIdx}" data-idx="${entry.idx}"
+                           ${isFirst ? '' : 'checked'} style="width: 18px; height: 18px; cursor: pointer;">
+                    <div style="flex: 1;">
+                        <div style="color: var(--text-primary);">
+                            <strong>OVR ${ep.POVR || 0}</strong> | ${entryPosName} | Age ${ep.PAGE || '?'} | PID: ${ep.PSXP || 'N/A'}
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 0.85em;">
+                            Row #${entry.idx} | PGID: ${ep.PGID || 'N/A'}
+                        </div>
+                    </div>
+                    <span class="dup-status-label" style="color: ${isFirst ? '#4CAF50' : '#ff6b6b'}; font-size: 0.85em; min-width: 70px; text-align: right;">
+                        ${isFirst ? '✓ Keep' : '✗ Remove'}
+                    </span>
+                `;
+
+                // Update label on checkbox change
+                const checkbox = entryDiv.querySelector('input');
+                const label = entryDiv.querySelector('.dup-status-label');
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        label.textContent = '✗ Remove';
+                        label.style.color = '#ff6b6b';
+                    } else {
+                        label.textContent = '✓ Keep';
+                        label.style.color = '#4CAF50';
+                    }
+                });
+
+                entriesDiv.appendChild(entryDiv);
+            });
+
+            container.appendChild(groupDiv);
+        });
+    }
+
+    /**
+     * Remove all selected duplicate players
+     */
+    removeSelectedDuplicates() {
+        const checkboxes = document.querySelectorAll('.duplicate-checkbox:checked');
+        if (checkboxes.length === 0) {
+            this.showToast('No duplicates selected for removal', 'info');
+            return;
+        }
+
+        // Collect indices to remove (in reverse order to not mess up indices)
+        const indicesToRemove = [];
+        checkboxes.forEach(cb => {
+            indicesToRemove.push(parseInt(cb.dataset.idx));
+        });
+
+        // Sort descending so we remove from end first
+        indicesToRemove.sort((a, b) => b - a);
+
+        console.log(`[DuplicateCleaner] Removing ${indicesToRemove.length} duplicate players at indices:`, indicesToRemove);
+
+        // Remove players
+        indicesToRemove.forEach(idx => {
+            const removed = this.players.splice(idx, 1)[0];
+            console.log(`  Removed: ${removed.PFNA} ${removed.PLNA} (Row ${idx})`);
+        });
+
+        // Update filtered players if exists
+        if (this.filteredPlayers) {
+            this.filteredPlayers = [...this.players];
+        }
+
+        // Mark as modified
+        this.hasUnsavedChanges = true;
+        const saveBtn = document.getElementById('saveRosterBtn');
+        if (saveBtn) saveBtn.style.display = 'inline-block';
+
+        // Refresh grid
+        if (window.agGridApi) {
+            window.agGridApi.setGridOption('rowData', this.players);
+        } else if (this.agGrid) {
+            this.agGrid.setGridOption('rowData', this.players);
+        }
+
+        // Update status and re-scan
+        this.showToast(`Removed ${indicesToRemove.length} duplicate player(s). SAVE to apply changes!`, 'success');
+        this.scanForDuplicates();
     }
 
     /**

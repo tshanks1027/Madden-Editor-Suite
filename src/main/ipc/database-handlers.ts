@@ -1147,29 +1147,31 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
     console.log('[database-handlers] get-merged-player: DEBUG - resolvedPid:', resolvedPid);
 
     // Merge edits over original data
+    // IMPORTANT: Use != null to catch both null and undefined, preventing NULL db values from overriding bundled data
     const merged = {
       ...original,
       // Include id for custom portrait lookup (aliased from internalId)
       id: internalId,
       // Override PID with resolved value
       pid: resolvedPid,
-      // Apply player edits (only non-null values)
+      // Apply player edits (only truthy/non-null values - don't let NULL override bundled data)
       ...(playerEdit?.firstName && { firstName: playerEdit.firstName }),
       ...(playerEdit?.lastName && { lastName: playerEdit.lastName }),
-      ...(playerEdit?.collegeId !== undefined && { college: String(playerEdit.collegeId) }),
-      ...(playerEdit?.race !== undefined && { race: playerEdit.race }),
-      ...(playerEdit?.height !== undefined && { height: playerEdit.height }),
-      ...(playerEdit?.weight !== undefined && { weight: playerEdit.weight }),
-      ...(playerEdit?.bodyType !== undefined && { bodyType: playerEdit.bodyType }),
-      ...(playerEdit?.handedness !== undefined && { handedness: playerEdit.handedness }),
+      ...(playerEdit?.collegeId != null && { college: String(playerEdit.collegeId) }),
+      ...(playerEdit?.race != null && { race: playerEdit.race }),
+      ...(playerEdit?.height != null && { height: playerEdit.height }),
+      ...(playerEdit?.weight != null && { weight: playerEdit.weight }),
+      ...(playerEdit?.bodyType != null && { bodyType: playerEdit.bodyType }),
+      ...(playerEdit?.handedness != null && { handedness: playerEdit.handedness }),
       ...(playerEdit?.hometown && { hometown: playerEdit.hometown }),
       ...(playerEdit?.homeState && { homeState: playerEdit.homeState }),
-      ...(playerEdit?.draftClass !== undefined && { draftClass: String(playerEdit.draftClass) }),
+      ...(playerEdit?.draftClass != null && { draftClass: String(playerEdit.draftClass) }),
       ...(playerEdit?.draftRound && { round: playerEdit.draftRound }),
-      ...(playerEdit?.draftPick !== undefined && { pick: String(playerEdit.draftPick) }),
-      ...(playerEdit?.careerFrom !== undefined && { careerFrom: playerEdit.careerFrom }),
-      ...(playerEdit?.careerTo !== undefined && { careerTo: playerEdit.careerTo }),
-      ...(playerEdit?.isHof !== undefined && { isHOF: playerEdit.isHof }),
+      ...(playerEdit?.draftPick != null && { pick: String(playerEdit.draftPick) }),
+      ...(playerEdit?.careerFrom != null && { careerFrom: playerEdit.careerFrom }),
+      ...(playerEdit?.careerTo != null && { careerTo: playerEdit.careerTo }),
+      ...(playerEdit?.isHof != null && { isHOF: playerEdit.isHof }),
+      ...(playerEdit?.position && { position: playerEdit.position }),
       ...(appearanceEdit?.maddenPam && { pam: appearanceEdit.maddenPam }),
       ...(appearanceEdit?.maddenPlpo && { plpo: appearanceEdit.maddenPlpo }),
       // commID priority: user edit > auto-filled from lookup > original
@@ -1189,6 +1191,8 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
     };
 
     console.log('[database-handlers] get-merged-player: Final merged bodyType:', merged.bodyType, 'handedness:', merged.handedness);
+    console.log('[database-handlers] get-merged-player: position:', merged.position, 'race:', merged.race, 'draftClass:', merged.draftClass);
+    console.log('[database-handlers] get-merged-player: original.position:', original.position, 'original.race:', original.race);
     return { success: true, player: merged };
   } catch (error) {
     console.error('[database-handlers] Error getting merged player:', error);
@@ -2649,7 +2653,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
           rosterPlayer.PROL = seasonData.devTrait;
         } else if (typeof seasonData.devTrait === 'string') {
           const devMap: Record<string, number> = {
-            'normal': 0, 'star': 1, 'superstar': 2, 'x-factor': 3, 'xfactor': 3
+            'normal': 0, 'star': 1, 'superstar': 2, 'x-factor': 3, 'xfactor': 3, 'hidden': 4
           };
           rosterPlayer.PROL = devMap[seasonData.devTrait.toLowerCase()] ?? 0;
         }
