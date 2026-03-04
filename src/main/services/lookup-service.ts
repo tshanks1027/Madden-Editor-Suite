@@ -98,8 +98,22 @@ export class LookupService {
   }
 
   private resolveDataPath(...segments: string[]): string {
-    // Use app.getAppPath() for both dev and packaged builds
-    return path.join(app.getAppPath(), 'data', ...segments);
+    // In packaged builds, data is in .vite/build/data
+    // In dev mode, data is in the project root data folder
+    const possiblePaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', ...segments),  // Packaged build
+      path.join(app.getAppPath(), 'data', ...segments),                     // Dev mode
+      path.join(process.cwd(), 'data', ...segments),                        // Fallback to cwd
+    ];
+
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p) || fs.existsSync(path.dirname(p))) {
+        return p;
+      }
+    }
+
+    // Default to packaged path
+    return possiblePaths[0];
   }
 
   private async initializeLookups(): Promise<void> {

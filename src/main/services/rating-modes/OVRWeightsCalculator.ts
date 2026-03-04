@@ -382,15 +382,19 @@ export class OVRWeightsCalculator {
    * Load weights from ovrweights.json
    */
   private loadWeights(): void {
-    let weightsPath: string;
+    // Check multiple paths for dev and packaged builds
+    const possiblePaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'ovrweights.json'),  // Packaged build
+      path.join(app.getAppPath(), 'data', 'lookups', 'ovrweights.json'),                     // Dev mode
+      path.join(process.cwd(), 'data', 'lookups', 'ovrweights.json'),                        // Fallback
+    ];
 
-    // Use app.getAppPath() for both dev and packaged builds
-    weightsPath = path.join(app.getAppPath(), 'data', 'lookups', 'ovrweights.json');
+    const weightsPath = possiblePaths.find(p => fs.existsSync(p));
 
     console.log('[OVRWeightsCalculator] Loading weights from:', weightsPath);
 
-    if (!fs.existsSync(weightsPath)) {
-      throw new Error(`Weights file not found: ${weightsPath}`);
+    if (!weightsPath) {
+      throw new Error(`Weights file not found in any location: ${possiblePaths.join(', ')}`);
     }
 
     const content = fs.readFileSync(weightsPath, 'utf-8');
@@ -796,6 +800,13 @@ export class OVRWeightsCalculator {
     position: string | number,
     archetype?: string
   ): { adjustments: { [fieldCode: string]: { current: number; suggested: number; weight: number; name: string } }; newOVR: number; archetype: string | null } | null {
+    console.log(`[OVRWeightsCalculator] calculateAdjustmentsForTargetOVR called:`);
+    console.log(`  - targetOVR: ${targetOVR}`);
+    console.log(`  - position: ${position}`);
+    console.log(`  - archetype: ${archetype}`);
+    console.log(`  - attributes count: ${Object.keys(currentAttributes).length}`);
+    console.log(`  - sample attrs: PPBK=${currentAttributes.PPBK}, PRBK=${currentAttributes.PRBK}, PSTR=${currentAttributes.PSTR}`);
+
     if (!this.initialized) {
       console.warn('[OVRWeightsCalculator] Weights not loaded');
       return null;
@@ -846,8 +857,11 @@ export class OVRWeightsCalculator {
       return null;
     }
 
+    console.log(`[OVRWeightsCalculator] Found archetype: ${archetypeName}`);
+
     const weights = this.weights.get(archetypeName);
     if (!weights) {
+      console.log('[OVRWeightsCalculator] No weights found for archetype:', archetypeName);
       return null;
     }
 
@@ -856,7 +870,10 @@ export class OVRWeightsCalculator {
     const currentOVR = breakdown.ovr;
     const ovrDelta = targetOVR - currentOVR;
 
+    console.log(`[OVRWeightsCalculator] Current OVR: ${currentOVR}, Target: ${targetOVR}, Delta: ${ovrDelta}`);
+
     if (ovrDelta === 0) {
+      console.log('[OVRWeightsCalculator] No change needed (delta is 0)');
       return { adjustments: {}, newOVR: currentOVR, archetype: archetypeName };
     }
 
@@ -881,9 +898,15 @@ export class OVRWeightsCalculator {
       }
     }
 
+    console.log(`[OVRWeightsCalculator] Found ${adjustableAttrs.length} adjustable attributes`);
     if (adjustableAttrs.length === 0) {
+      console.log('[OVRWeightsCalculator] No adjustable attributes found!');
       return null;
     }
+
+    // Log first few adjustable attrs
+    console.log('[OVRWeightsCalculator] Sample adjustable attrs:',
+      adjustableAttrs.slice(0, 5).map(a => `${a.fieldCode}=${a.current}(w:${a.weight})`).join(', '));
 
     // ITERATIVE WEIGHT-PROPORTIONAL ADJUSTMENT
     // We iterate because some attributes may hit limits (0 or 99), requiring redistribution
@@ -981,17 +1004,23 @@ export class OVRWeightsCalculator {
     // Build final adjustments object
     const adjustments: { [fieldCode: string]: { current: number; suggested: number; weight: number; name: string } } = {};
 
+    let changedCount = 0;
+    let unchangedCount = 0;
     for (const attr of adjustableAttrs) {
       // Only include if there's an actual change
       if (attr.suggested !== attr.current) {
+        changedCount++;
         adjustments[attr.fieldCode] = {
           current: attr.current,
           suggested: attr.suggested,
           weight: attr.weight,
           name: attr.name
         };
+      } else {
+        unchangedCount++;
       }
     }
+    console.log(`[OVRWeightsCalculator] Building adjustments: ${changedCount} changed, ${unchangedCount} unchanged`);
 
     // Calculate final OVR
     const newAttributes: PlayerAttributes = { ...currentAttributes };

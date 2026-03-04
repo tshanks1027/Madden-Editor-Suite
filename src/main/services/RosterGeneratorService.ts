@@ -28,6 +28,28 @@ import { contractService } from './ContractService';
 import { ArchetypeSyncService } from './ArchetypeSyncService';
 import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
 
+/**
+ * Resolve data path for both dev and packaged builds
+ * In packaged builds, data is in .vite/build/data
+ * In dev mode, data is in the project root data folder
+ */
+function resolveDataPath(...segments: string[]): string {
+  const possiblePaths = [
+    path.join(app.getAppPath(), '.vite', 'build', 'data', ...segments),  // Packaged build
+    path.join(app.getAppPath(), 'data', ...segments),                     // Dev mode
+    path.join(process.cwd(), 'data', ...segments),                        // Fallback to cwd
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+
+  // Default to first path (will show correct error if not found)
+  return possiblePaths[0];
+}
+
 // Map database field codes to OVR calculator field codes
 // CRITICAL: This MUST match the mapping in database-player-card.js exactly
 // This ensures ONE calculation produces the same result everywhere
@@ -310,7 +332,7 @@ export class RosterGeneratorService {
     // This is more memory efficient and ensures we always get fresh data
 
     // Load template
-    const templatePath = path.join(app.getAppPath(), 'data', 'Templates', 'ROSTER-Official');
+    const templatePath = resolveDataPath('Templates', 'ROSTER-Official');
     console.log('[RosterGeneratorService] Loading template from:', templatePath);
 
     if (!fs.existsSync(templatePath)) {
@@ -340,7 +362,7 @@ export class RosterGeneratorService {
     }
 
     // Load generic PIDs from PID_Portrait_Mapping.csv
-    const pidMappingPath = path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv');
+    const pidMappingPath = resolveDataPath('lookups', 'PID_Portrait_Mapping.csv');
     console.log('[RosterGeneratorService] Loading generic PIDs from:', pidMappingPath);
 
     if (fs.existsSync(pidMappingPath)) {
@@ -462,7 +484,7 @@ export class RosterGeneratorService {
     }
 
     // Load PAM race mapping for proper skin-tone matching
-    const pamRaceMappingPath = path.join(app.getAppPath(), 'data', 'lookups', 'pam-race-mapping.json');
+    const pamRaceMappingPath = resolveDataPath('lookups', 'pam-race-mapping.json');
     console.log('[RosterGeneratorService] Loading PAM race mapping from:', pamRaceMappingPath);
 
     if (fs.existsSync(pamRaceMappingPath)) {

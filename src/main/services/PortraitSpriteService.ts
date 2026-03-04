@@ -70,6 +70,7 @@ export class PortraitSpriteService {
 
     // Sprite sheets directory - check multiple locations
     const possibleSpritesPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'portrait-sprites'),  // Packaged build
       path.join(process.cwd(), 'data', 'portrait-sprites'),
       path.join(app.getAppPath(), 'data', 'portrait-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'portrait-sprites'), // For unpacked ASAR
@@ -87,6 +88,7 @@ export class PortraitSpriteService {
 
     // Atlas file path
     const possibleAtlasPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'portrait-atlas.json'),  // Packaged build
       path.join(process.cwd(), 'data', 'portrait-atlas.json'),
       path.join(app.getAppPath(), 'data', 'portrait-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'portrait-atlas.json'),
@@ -104,6 +106,7 @@ export class PortraitSpriteService {
 
     // PID Portrait Mapping CSV path
     const possibleMappingPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),  // Packaged build
       path.join(process.cwd(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
       path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
       path.join(app.getAppPath(), '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
@@ -121,6 +124,7 @@ export class PortraitSpriteService {
 
     // Developer portraits sprite sheets and atlas (PIDs 11000-11999)
     const possibleDevSpritesPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'developer-sprites'),  // Packaged build
       path.join(process.cwd(), 'data', 'developer-sprites'),
       path.join(app.getAppPath(), 'data', 'developer-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'developer-sprites'),
@@ -128,6 +132,7 @@ export class PortraitSpriteService {
     ];
 
     const possibleDevAtlasPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'developer-portrait-atlas.json'),  // Packaged build
       path.join(process.cwd(), 'data', 'developer-portrait-atlas.json'),
       path.join(app.getAppPath(), 'data', 'developer-portrait-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'developer-portrait-atlas.json'),
@@ -303,6 +308,7 @@ export class PortraitSpriteService {
   private async loadPGHEMapping(): Promise<void> {
     // Find PGHE_lookup.csv
     const possiblePaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PGHE_lookup.csv'),  // Packaged build
       path.join(process.cwd(), 'data', 'lookups', 'PGHE_lookup.csv'),
       path.join(app.getAppPath(), 'data', 'lookups', 'PGHE_lookup.csv'),
       path.join(app.getAppPath(), '..', '..', 'data', 'lookups', 'PGHE_lookup.csv'),
@@ -656,6 +662,14 @@ export class PortraitSpriteService {
    */
   public getPortraitCount(): number {
     return this.portraitMap.size;
+  }
+
+  /**
+   * Get number of PIDs mapped to portraits
+   * @returns Number of PIDs
+   */
+  public getPidCount(): number {
+    return this.pidMap.size;
   }
 
   /**
