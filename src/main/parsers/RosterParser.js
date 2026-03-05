@@ -272,6 +272,36 @@ async function parseRosterFile(filePath) {
     global.rosterFile = file;
     global.rosterHelper = helper;
 
+    // CRITICAL: Populate PLRC from BLBM's SKNT if not present in PLAY table
+    // The PLAY table in some templates may not have PLRC, but BLBM always has SKNT
+    const needsPlrcFallback = players.length > 0 && players[0].PLRC === undefined;
+    if (needsPlrcFallback) {
+      console.log('[RosterParser] PLRC not in PLAY table - loading from BLBM.SKNT as fallback');
+      try {
+        const blob = file.BLOB?.records?.[0];
+        const blbm = blob?.fields?.['BLBM']?.value;
+        if (blbm && blbm._records) {
+          let populatedCount = 0;
+          for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+            const blbmRec = blbm._records[i];
+            const fields = blbmRec.fields || blbmRec._fields;
+            if (fields && fields['SKNT']) {
+              const sknt = fields['SKNT'].value ?? fields['SKNT']._value;
+              if (sknt !== undefined && sknt >= 1 && sknt <= 7) {
+                players[i].PLRC = sknt;
+                populatedCount++;
+              }
+            }
+          }
+          console.log(`[RosterParser] Populated PLRC from SKNT for ${populatedCount} players`);
+        } else {
+          console.log('[RosterParser] Could not find BLBM table to populate PLRC');
+        }
+      } catch (blbmErr) {
+        console.warn('[RosterParser] Failed to populate PLRC from BLBM:', blbmErr.message);
+      }
+    }
+
     return {
       version: 2026, // Madden 26
       playerCount: players.length,
@@ -411,6 +441,12 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
           console.log(`[RosterParser] WARNING: Player ${i} has no PEPS field in record!`);
         } else if (fieldName === 'PHAN') {
           console.log(`[RosterParser] WARNING: Player ${i} has no PHAN field in record! Value would be: ${playerData[fieldName]}`);
+        } else if (fieldName === 'PLRC') {
+          console.log(`[RosterParser] WARNING: Player ${i} has no PLRC field in record! Value would be: ${playerData[fieldName]}`);
+          // List available fields for debugging
+          if (i === 0) {
+            console.log(`[RosterParser] Available record fields:`, Object.keys(record.fields).join(', '));
+          }
         }
       }
     }
