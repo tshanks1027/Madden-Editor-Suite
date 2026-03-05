@@ -1,16 +1,21 @@
 /**
  * Player Data Service
  *
- * Centralized service for loading and caching player data from CSV files.
+ * Centralized service for loading and caching player data from the DATABASE.
+ * Uses lookupService which reads from players.db SQLite database.
+ *
+ * THE DATABASE IS THE SINGLE SOURCE OF TRUTH - NO CSV FILES!
+ *
  * Provides access to:
- * - Historical NFL draft data (1936-2025) from ALL_PLAYER_LOOKUP.csv
- * - Future college prospects (2026+) from FutureDraft_Lookup_MERGED.csv
- * - Rookie stats and career data from ROSTER_lookup.csv
+ * - Historical NFL draft data (1936-2025) from database
+ * - Future college prospects (2026+) from database
+ * - Rookie stats and career data from database
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+import { lookupService, FullDataEntry } from '../lookup-service';
 
 // ===========================
 // INTERFACES
@@ -318,6 +323,8 @@ export class PlayerDataService {
   /**
    * Initialize all data caches
    * Can be called externally to preload data before heavy operations
+   *
+   * USES DATABASE VIA lookupService - NO CSV FILES!
    */
   public async initialize(): Promise<void> {
     if (this.isInitialized) {
@@ -325,15 +332,18 @@ export class PlayerDataService {
     }
 
     try {
-      console.log('[PlayerDataService] Initializing...');
+      console.log('[PlayerDataService] Initializing from DATABASE...');
 
-      // Load all 3 CSV files
-      await this.loadHistoricalPlayers();
-      await this.loadFutureProspects();
-      await this.loadRosterLookup();
+      // Wait for lookupService to be ready (it loads from players.db)
+      await lookupService.initialize();
+
+      // Load player data from database
+      await this.loadHistoricalPlayersFromDB();
+      await this.loadFutureProspectsFromDB();
+      await this.loadRosterLookupFromDB();
 
       this.isInitialized = true;
-      console.log('[PlayerDataService] Initialization complete');
+      console.log('[PlayerDataService] Initialization complete (DATABASE SOURCE)');
       console.log(`  - Historical players: ${this.allHistoricalPlayers.length}`);
       console.log(`  - Future prospects: ${this.allFutureProspects.length}`);
       console.log(`  - Roster lookup entries: ${this.rosterLookupCache.size}`);
@@ -344,79 +354,51 @@ export class PlayerDataService {
   }
 
   /**
-   * Load ALL_PLAYER_LOOKUP.csv (31,882 historical players 1936-2025)
+   * Load historical players from DATABASE via lookupService
+   * Database is the single source of truth!
    */
-  private async loadHistoricalPlayers(): Promise<void> {
-    const filePath = this.resolveDataPath('ALL_PLAYER_LOOKUP.csv');
+  private async loadHistoricalPlayersFromDB(): Promise<void> {
+    console.log('[PlayerDataService] Loading historical players from DATABASE...');
 
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Historical player lookup file not found: ${filePath}`);
+    // Get all players from the database via lookupService
+    const allPlayers = lookupService.getAllPlayers();
+
+    if (!allPlayers || allPlayers.length === 0) {
+      throw new Error('No players found in database. Ensure players.db is loaded.');
     }
 
-    const csvContent = fs.readFileSync(filePath, 'utf-8');
+    // Convert FullDataEntry to HistoricalPlayer format
+    for (const dbPlayer of allPlayers) {
+      const draftYear = parseInt(dbPlayer.draftClass);
 
-    if (!csvContent) {
-      throw new Error('ALL_PLAYER_LOOKUP.csv is empty or could not be read');
-    }
-
-    const lines = csvContent.trim().split('\n');
-
-    if (lines.length < 2) {
-      throw new Error('Invalid ALL_PLAYER_LOOKUP.csv format');
-    }
-
-    // Parse header
-    const header = this.parseCSVLine(lines[0]);
-    console.log(`[PlayerDataService] ALL_PLAYER_LOOKUP.csv columns:`, header);
-
-    // Parse data rows
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const parts = this.parseCSVLine(line);
-      if (parts.length < 26) continue; // Need at least 26 columns
+      // Skip future prospects (2026+) - they go in a separate cache
+      if (draftYear >= 2026) continue;
 
       const player: HistoricalPlayer = {
-        lastName: parts[0].trim(),
-        firstName: parts[1].trim(),
-        college: parts[2].trim(),
-        round: parts[3].trim(),
-        pick: parts[4].trim(),
-        draftClass: parseInt(parts[5].trim()),
-        position: parts[6].trim(),
-        jersey: parts[7].trim(),
-        photoID: parts[8] ? parseInt(parts[8].trim()) : undefined,
-        playerAssetsID: parts[9].trim(),
-        commID: parts[10].trim(),
-        plpo: parts[11].trim(),
-        height: parts[12] ? parseFloat(parts[12].trim()) : undefined,
-        weight: parts[13] ? parseFloat(parts[13].trim()) : undefined,
-        from: parts[14] ? parseFloat(parts[14].trim()) : undefined,
-        to: parts[15] ? parseFloat(parts[15].trim()) : undefined,
-        ap1: parts[16] ? parseFloat(parts[16].trim()) : undefined,
-        pb: parts[17] ? parseFloat(parts[17].trim()) : undefined,
-        st: parts[18] ? parseFloat(parts[18].trim()) : undefined,
-        wAV: parts[19] ? parseFloat(parts[19].trim()) : undefined,
-        league: parts[20].trim(),
-        race: parts[21].trim(),
-        // Parse "City, State" format from column 22
-        ...this.parseHomeLocation(parts[22].trim()),
-        wikiImageURL: parts[23].trim(),
-        pfrImageURL: parts[24].trim(),
-        isHOF: parts[25].trim().toLowerCase() === 'true'
+        lastName: dbPlayer.lastName,
+        firstName: dbPlayer.firstName,
+        college: dbPlayer.college,
+        round: dbPlayer.round,
+        pick: dbPlayer.pick,
+        draftClass: draftYear,
+        position: dbPlayer.position,
+        jersey: dbPlayer.jersey?.toString(),
+        photoID: dbPlayer.pid,
+        playerAssetsID: dbPlayer.pam,
+        commID: dbPlayer.commID,
+        plpo: dbPlayer.plpo,
+        height: dbPlayer.height,
+        weight: dbPlayer.weight,
+        from: dbPlayer.careerFrom,
+        to: dbPlayer.careerTo,
+        ap1: dbPlayer.ap1,
+        pb: dbPlayer.pb,
+        wAV: dbPlayer.wav,
+        race: dbPlayer.race?.toString(),
+        hometown: dbPlayer.hometown,
+        homeState: dbPlayer.homeState,
+        isHOF: dbPlayer.isHOF
       };
-
-      // DEBUG: Log first Joe Burrow found
-      if (player.firstName === 'Joe' && player.lastName === 'Burrow') {
-        console.log('[PlayerDataService] ✓ LOADED Joe Burrow from CSV:');
-        console.log(`  Position: "${player.position}"`);
-        console.log(`  Jersey: "${player.jersey}"`);
-        console.log(`  PhotoID: ${player.photoID}`);
-        console.log(`  PlayerAssetsID: "${player.playerAssetsID}"`);
-        console.log(`  Hometown: "${player.hometown}", HomeState: "${player.homeState}"`);
-        console.log(`  Draft Class: ${player.draftClass}`);
-      }
 
       this.allHistoricalPlayers.push(player);
 
@@ -429,81 +411,160 @@ export class PlayerDataService {
       }
     }
 
-    console.log(`[PlayerDataService] Loaded ${this.allHistoricalPlayers.length} historical players`);
+    console.log(`[PlayerDataService] Loaded ${this.allHistoricalPlayers.length} historical players from DATABASE`);
+  }
+
+  // DEPRECATED: CSV loading method - kept for reference only
+  private async loadHistoricalPlayers(): Promise<void> {
+    console.warn('[PlayerDataService] DEPRECATED: loadHistoricalPlayers() CSV method called. Use loadHistoricalPlayersFromDB() instead.');
+    return this.loadHistoricalPlayersFromDB();
   }
 
   /**
-   * Load FutureDraft_Lookup_MERGED.csv (16,332 prospects 2026+)
+   * Load future prospects from DATABASE via lookupService
+   * Database is the single source of truth!
    */
-  private async loadFutureProspects(): Promise<void> {
-    const filePath = this.resolveDataPath('FutureDraft_Lookup_MERGED.csv');
+  private async loadFutureProspectsFromDB(): Promise<void> {
+    console.log('[PlayerDataService] Loading future prospects from DATABASE...');
 
-    if (!fs.existsSync(filePath)) {
-      throw new Error(`Future draft lookup file not found: ${filePath}`);
-    }
+    // Get all players from the database via lookupService
+    const allPlayers = lookupService.getAllPlayers();
 
-    const csvContent = fs.readFileSync(filePath, 'utf-8');
+    // Filter for future prospects (2026+)
+    for (const dbPlayer of allPlayers) {
+      const draftYear = parseInt(dbPlayer.draftClass);
 
-    if (!csvContent) {
-      throw new Error('FutureDraft_Lookup_MERGED.csv is empty or could not be read');
-    }
-
-    const lines = csvContent.trim().split('\n');
-
-    if (lines.length < 2) {
-      throw new Error('Invalid FutureDraft_Lookup_MERGED.csv format');
-    }
-
-    // Parse header
-    const header = this.parseCSVLine(lines[0]);
-    console.log(`[PlayerDataService] FutureDraft_Lookup_MERGED.csv columns:`, header);
-
-    // Parse data rows
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const parts = this.parseCSVLine(line);
-      if (parts.length < 17) continue; // Need at least 17 columns
+      // Only include future prospects (2026+)
+      if (isNaN(draftYear) || draftYear < 2026) continue;
 
       const prospect: FutureProspect = {
-        lastName: parts[0].trim(),
-        firstName: parts[1].trim(),
-        college: parts[2].trim(),
-        rank: parts[3] ? parseFloat(parts[3].trim()) : undefined,
-        draftClass: parseInt(parts[4].trim()),
-        position: parts[5].trim(),
-        jersey: parts[6] ? parseInt(parts[6].trim()) : undefined,
-        height: parts[7] ? parseFloat(parts[7].trim()) : undefined,
-        weight: parts[8] ? parseFloat(parts[8].trim()) : undefined,
-        class: parts[9].trim(),
-        wAV: parts[10] ? parseFloat(parts[10].trim()) : undefined,
-        hometown: parts[11].trim(),
-        homestate: parts[12].trim(),
-        race: parts[13].trim(),
-        photo: parts[14].trim(),
-        archetype: parts[15].trim(),
-        archetypeDetailed: parts[16].trim()
+        lastName: dbPlayer.lastName,
+        firstName: dbPlayer.firstName,
+        college: dbPlayer.college,
+        draftClass: draftYear,
+        position: dbPlayer.position,
+        jersey: dbPlayer.jersey,
+        height: dbPlayer.height,
+        weight: dbPlayer.weight,
+        wAV: dbPlayer.wav,
+        hometown: dbPlayer.hometown,
+        homestate: dbPlayer.homeState,
+        race: dbPlayer.race?.toString()
       };
 
       this.allFutureProspects.push(prospect);
 
       // Cache by year
-      if (!isNaN(prospect.draftClass)) {
-        if (!this.futureProspectsCache.has(prospect.draftClass)) {
-          this.futureProspectsCache.set(prospect.draftClass, []);
-        }
-        this.futureProspectsCache.get(prospect.draftClass)!.push(prospect);
+      if (!this.futureProspectsCache.has(prospect.draftClass)) {
+        this.futureProspectsCache.set(prospect.draftClass, []);
       }
+      this.futureProspectsCache.get(prospect.draftClass)!.push(prospect);
     }
 
-    console.log(`[PlayerDataService] Loaded ${this.allFutureProspects.length} future prospects`);
+    console.log(`[PlayerDataService] Loaded ${this.allFutureProspects.length} future prospects from DATABASE`);
+  }
+
+  // DEPRECATED: CSV loading method - kept for reference only
+  private async loadFutureProspects(): Promise<void> {
+    console.warn('[PlayerDataService] DEPRECATED: loadFutureProspects() CSV method called. Use loadFutureProspectsFromDB() instead.');
+    return this.loadFutureProspectsFromDB();
   }
 
   /**
-   * Load ROSTER_lookup.csv (93,646 player-year entries 1970-2024)
+   * Load roster lookup data from DATABASE via lookupService
+   * Database is the single source of truth!
+   *
+   * NOTE: This populates the same cache structure for compatibility with
+   * existing code that uses getRookieStats()
    */
+  private async loadRosterLookupFromDB(): Promise<void> {
+    console.log('[PlayerDataService] Loading roster lookup from DATABASE...');
+
+    // Get all players from the database
+    const allPlayers = lookupService.getAllPlayers();
+
+    if (!allPlayers || allPlayers.length === 0) {
+      console.warn('[PlayerDataService] No players in database for roster lookup');
+      return;
+    }
+
+    let cachedCount = 0;
+
+    // For each player, cache by name and career years
+    for (const dbPlayer of allPlayers) {
+      const firstName = dbPlayer.firstName;
+      const lastName = dbPlayer.lastName;
+      const playerName = `${firstName} ${lastName}`;
+      const normalizedName = this.normalizeName(playerName);
+
+      // Cache for each year of their career
+      const careerFrom = dbPlayer.careerFrom || parseInt(dbPlayer.draftClass);
+      const careerTo = dbPlayer.careerTo || (careerFrom ? careerFrom + 5 : undefined);
+
+      if (!careerFrom || isNaN(careerFrom)) continue;
+
+      // Create basic stats from player data (ratings come from player_seasons if available)
+      for (let year = careerFrom; year <= (careerTo || careerFrom + 15); year++) {
+        const key = `${normalizedName}_${year}`;
+
+        // Get actual season ratings if available from database
+        const seasonData = lookupService.getPlayerRatingsForYear(dbPlayer.pid, year);
+
+        const stats: RookieStats = {
+          year: year,
+          playerName: playerName,
+          firstName: firstName,
+          lastName: lastName,
+          position: dbPlayer.position,
+          jersey: dbPlayer.jersey,
+          pid: dbPlayer.pid,
+          pam: dbPlayer.pam,
+          college: dbPlayer.college,
+          height: dbPlayer.height,
+          weight: dbPlayer.weight,
+          // If we have season data with ratings, use them
+          povr: seasonData?.ratings?.POVR,
+          archetype: seasonData?.archetype,
+          pspd: seasonData?.ratings?.PSPD,
+          pacc: seasonData?.ratings?.PACC,
+          pstr: seasonData?.ratings?.PSTR,
+          pagi: seasonData?.ratings?.PAGI,
+          pawr: seasonData?.ratings?.PAWR,
+          pcth: seasonData?.ratings?.PCTH,
+          pcar: seasonData?.ratings?.PCAR,
+          pthp: seasonData?.ratings?.PTHP,
+          prbk: seasonData?.ratings?.PRBK,
+          ppbk: seasonData?.ratings?.PPBK,
+          ptak: seasonData?.ratings?.PTAK,
+          pjmp: seasonData?.ratings?.PJMP,
+          pinj: seasonData?.ratings?.PINJ,
+          psta: seasonData?.ratings?.PSTA,
+          ptgh: seasonData?.ratings?.PTGH,
+          pbcv: seasonData?.ratings?.PBCV,
+          devTrait: seasonData?.devTrait,
+          av: seasonData?.av
+        };
+
+        if (!this.rosterLookupCache.has(key)) {
+          this.rosterLookupCache.set(key, []);
+        }
+        this.rosterLookupCache.get(key)!.push(stats);
+        cachedCount++;
+      }
+    }
+
+    console.log(`[PlayerDataService] Loaded ${cachedCount} roster lookup entries from DATABASE`);
+    console.log(`[PlayerDataService] Cache has ${this.rosterLookupCache.size} unique player-year keys`);
+  }
+
+  // DEPRECATED: CSV loading method - kept for reference only
   private async loadRosterLookup(): Promise<void> {
+    console.warn('[PlayerDataService] DEPRECATED: loadRosterLookup() CSV method called. Use loadRosterLookupFromDB() instead.');
+    return this.loadRosterLookupFromDB();
+  }
+
+  // LEGACY CSV PARSING CODE BELOW - WILL BE REMOVED IN FUTURE VERSION
+  private async loadRosterLookupLEGACY_CSV(): Promise<void> {
     const filePath = this.resolveDataPath('ROSTER_lookup.csv');
 
     console.log(`[PlayerDataService] ======= LOADING ROSTER_LOOKUP.CSV =======`);
