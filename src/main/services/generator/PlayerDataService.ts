@@ -335,7 +335,7 @@ export class PlayerDataService {
       console.log('[PlayerDataService] Initializing from DATABASE...');
 
       // Wait for lookupService to be ready (it loads from players.db)
-      await lookupService.initialize();
+      await lookupService.waitForReady();
 
       // Load player data from database
       await this.loadHistoricalPlayersFromDB();
