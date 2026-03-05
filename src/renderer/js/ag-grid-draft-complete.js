@@ -1535,6 +1535,10 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                                 }
                             });
                     });
+                } else if (action === 'delete-multiple') {
+                    // Enable multi-delete mode for draft class
+                    console.log('[Draft AG-Grid] Entering multi-delete mode');
+                    enterDraftMultiDeleteMode(app, event.api);
                 }
 
                 contextMenu.style.display = 'none';
@@ -2836,4 +2840,228 @@ function showPushConfirmationModal(app, analysis, draftYear) {
             executeBtn.textContent = `Push ${totalProspects} Players to Database`;
         }
     });
+}
+
+// =============================================
+// MULTI-DELETE MODE FOR DRAFT CLASS
+// =============================================
+
+/**
+ * Track multi-delete state for draft
+ */
+let _draftMultiDeleteState = {
+    active: false,
+    gridApi: null,
+    originalColumnDefs: null,
+    selectionListener: null
+};
+
+/**
+ * Enter multi-delete mode for draft class - adds checkbox selection column
+ */
+function enterDraftMultiDeleteMode(app, gridApi) {
+    if (_draftMultiDeleteState.active) {
+        console.log('[Draft Multi-Delete] Already in multi-delete mode');
+        return;
+    }
+
+    if (!gridApi) {
+        console.error('[Draft Multi-Delete] No grid API available');
+        return;
+    }
+
+    console.log('[Draft Multi-Delete] Entering multi-delete mode');
+
+    _draftMultiDeleteState.active = true;
+    _draftMultiDeleteState.gridApi = gridApi;
+
+    // Store original column state for restoration
+    _draftMultiDeleteState.originalColumnDefs = gridApi.getColumnDefs();
+
+    // Add checkbox selection column at the beginning
+    const checkboxColumn = {
+        headerName: '',
+        field: '_multiDeleteCheckbox',
+        width: 50,
+        pinned: 'left',
+        lockPosition: true,
+        checkboxSelection: true,
+        headerCheckboxSelection: true,
+        headerCheckboxSelectionFilteredOnly: true,
+        sortable: false,
+        filter: false,
+        editable: false,
+        suppressHeaderMenuButton: true,
+        suppressHeaderContextMenu: true,
+        cellStyle: { padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    };
+
+    // Get current column defs and prepend checkbox column
+    const currentColDefs = gridApi.getColumnDefs();
+    const newColDefs = [checkboxColumn, ...currentColDefs];
+    gridApi.setGridOption('columnDefs', newColDefs);
+
+    // Enable row selection mode
+    gridApi.setGridOption('rowSelection', {
+        mode: 'multiRow',
+        checkboxes: true,
+        headerCheckbox: true
+    });
+
+    // Show the multi-delete toolbar
+    const toolbar = document.getElementById('multi-delete-toolbar');
+    if (toolbar) {
+        toolbar.style.display = 'flex';
+        updateDraftMultiDeleteCount(0);
+    }
+
+    // Set up selection changed listener to update count
+    const selectionListener = (event) => {
+        const selectedRows = event.api.getSelectedRows();
+        updateDraftMultiDeleteCount(selectedRows.length);
+    };
+    gridApi.addEventListener('selectionChanged', selectionListener);
+    _draftMultiDeleteState.selectionListener = selectionListener;
+
+    // Wire up toolbar buttons
+    const confirmBtn = document.getElementById('multi-delete-confirm');
+    const cancelBtn = document.getElementById('multi-delete-cancel');
+
+    if (confirmBtn) {
+        confirmBtn.onclick = () => executeDraftMultiDelete(app, gridApi);
+    }
+    if (cancelBtn) {
+        cancelBtn.onclick = () => exitDraftMultiDeleteMode(gridApi);
+    }
+}
+
+/**
+ * Update the selected count in the toolbar for draft
+ */
+function updateDraftMultiDeleteCount(count) {
+    const countEl = document.getElementById('multi-delete-count');
+    if (countEl) {
+        countEl.textContent = count;
+    }
+
+    // Enable/disable delete button based on selection
+    const confirmBtn = document.getElementById('multi-delete-confirm');
+    if (confirmBtn) {
+        confirmBtn.disabled = count === 0;
+        confirmBtn.style.opacity = count === 0 ? '0.5' : '1';
+    }
+}
+
+/**
+ * Execute multi-delete for draft class after confirmation
+ */
+async function executeDraftMultiDelete(app, gridApi) {
+    const selectedRows = gridApi.getSelectedRows();
+    const count = selectedRows.length;
+
+    if (count === 0) {
+        alert('No prospects selected.');
+        return;
+    }
+
+    // Show confirmation dialog
+    const confirmMsg = `Are you sure you want to delete ${count} prospect${count > 1 ? 's' : ''}?\n\nThis action cannot be undone.`;
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    console.log(`[Draft Multi-Delete] Deleting ${count} prospects`);
+
+    // Create a Set of selected prospects for efficient lookup
+    const selectedSet = new Set(selectedRows);
+
+    // Get all current data and filter out selected
+    const allData = [];
+    gridApi.forEachNode(node => {
+        if (!selectedSet.has(node.data)) {
+            allData.push(node.data);
+        }
+    });
+
+    // Recalculate draft positions
+    allData.forEach((row, index) => {
+        row.draftPosition = index;
+        const pickNum = index + 1;
+        row.round = pickNum <= 224 ? Math.floor((pickNum - 1) / 32) + 1 : 8;
+    });
+
+    console.log(`[Draft Multi-Delete] Removed ${count} prospects. Remaining: ${allData.length}`);
+
+    // Update app arrays
+    if (app.draftProspects) {
+        app.draftProspects = allData;
+    }
+    if (app.filteredDraftProspects) {
+        app.filteredDraftProspects = allData;
+    }
+
+    // Mark as modified
+    app.hasUnsavedChanges = true;
+    if (app.updateSaveButton) {
+        app.updateSaveButton();
+    }
+
+    // Exit multi-delete mode
+    exitDraftMultiDeleteMode(gridApi);
+
+    // Refresh the grid with new data
+    gridApi.setGridOption('rowData', [...allData]);
+
+    // Show success message
+    app.showToast?.(`Deleted ${count} prospect${count > 1 ? 's' : ''}`, 'success')
+        || console.log(`[Draft Multi-Delete] Deleted ${count} prospect(s)`);
+}
+
+/**
+ * Exit multi-delete mode for draft class - restores original grid state
+ */
+function exitDraftMultiDeleteMode(gridApi) {
+    if (!_draftMultiDeleteState.active) {
+        return;
+    }
+
+    console.log('[Draft Multi-Delete] Exiting multi-delete mode');
+
+    // Remove selection listener
+    if (_draftMultiDeleteState.selectionListener && gridApi) {
+        gridApi.removeEventListener('selectionChanged', _draftMultiDeleteState.selectionListener);
+    }
+
+    // Deselect all
+    if (gridApi) {
+        gridApi.deselectAll();
+    }
+
+    // Restore original column definitions (without checkbox column)
+    if (_draftMultiDeleteState.originalColumnDefs && gridApi) {
+        gridApi.setGridOption('columnDefs', _draftMultiDeleteState.originalColumnDefs);
+    }
+
+    // Reset row selection to single
+    if (gridApi) {
+        gridApi.setGridOption('rowSelection', {
+            mode: 'singleRow',
+            checkboxes: false,
+            headerCheckbox: false
+        });
+    }
+
+    // Hide toolbar
+    const toolbar = document.getElementById('multi-delete-toolbar');
+    if (toolbar) {
+        toolbar.style.display = 'none';
+    }
+
+    // Reset state
+    _draftMultiDeleteState = {
+        active: false,
+        gridApi: null,
+        originalColumnDefs: null,
+        selectionListener: null
+    };
 }

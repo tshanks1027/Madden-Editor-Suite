@@ -1561,6 +1561,10 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     const player = event.data;
                     console.log('[AG-Grid] Opening PAM picker for player:', player.PFNA, player.PLNA);
                     app.openPAMPicker(player, rowIndex);
+                } else if (action === 'delete-multiple') {
+                    // Enable multi-delete mode
+                    console.log('[AG-Grid] Entering multi-delete mode');
+                    enterMultiDeleteMode(app, 'roster');
                 }
 
                 // Hide menu
@@ -3212,4 +3216,230 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
             executeBtn.textContent = `Push ${totalPlayers} Players to Database`;
         }
     });
+}
+
+// =============================================
+// MULTI-DELETE MODE
+// =============================================
+
+/**
+ * Track multi-delete state
+ */
+let _multiDeleteState = {
+    active: false,
+    editorType: null, // 'roster' or 'draft'
+    originalColumnDefs: null
+};
+
+/**
+ * Enter multi-delete mode - adds checkbox selection column and shows toolbar
+ */
+export function enterMultiDeleteMode(app, editorType = 'roster') {
+    if (_multiDeleteState.active) {
+        console.log('[Multi-Delete] Already in multi-delete mode');
+        return;
+    }
+
+    const grid = editorType === 'roster' ? app.agGrid : app.draftGrid;
+    if (!grid) {
+        console.error('[Multi-Delete] No grid available for', editorType);
+        return;
+    }
+
+    console.log('[Multi-Delete] Entering multi-delete mode for', editorType);
+
+    _multiDeleteState.active = true;
+    _multiDeleteState.editorType = editorType;
+
+    // Store original column state for restoration
+    _multiDeleteState.originalColumnDefs = grid.getColumnDefs();
+
+    // Add checkbox selection column at the beginning
+    const checkboxColumn = {
+        headerName: '',
+        field: '_multiDeleteCheckbox',
+        width: 50,
+        pinned: 'left',
+        lockPosition: true,
+        checkboxSelection: true,
+        headerCheckboxSelection: true,
+        headerCheckboxSelectionFilteredOnly: true,
+        sortable: false,
+        filter: false,
+        editable: false,
+        suppressHeaderMenuButton: true,
+        suppressHeaderContextMenu: true,
+        cellStyle: { padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+    };
+
+    // Get current column defs and prepend checkbox column
+    const currentColDefs = grid.getColumnDefs();
+    const newColDefs = [checkboxColumn, ...currentColDefs];
+    grid.setGridOption('columnDefs', newColDefs);
+
+    // Enable row selection mode
+    grid.setGridOption('rowSelection', {
+        mode: 'multiRow',
+        checkboxes: true,
+        headerCheckbox: true
+    });
+
+    // Show the multi-delete toolbar
+    const toolbar = document.getElementById('multi-delete-toolbar');
+    if (toolbar) {
+        toolbar.style.display = 'flex';
+        updateMultiDeleteCount(0);
+    }
+
+    // Set up selection changed listener to update count
+    const selectionListener = (event) => {
+        const selectedRows = event.api.getSelectedRows();
+        updateMultiDeleteCount(selectedRows.length);
+    };
+    grid.addEventListener('selectionChanged', selectionListener);
+    _multiDeleteState.selectionListener = selectionListener;
+
+    // Wire up toolbar buttons
+    const confirmBtn = document.getElementById('multi-delete-confirm');
+    const cancelBtn = document.getElementById('multi-delete-cancel');
+
+    if (confirmBtn) {
+        confirmBtn.onclick = () => executeMultiDelete(app, editorType, grid);
+    }
+    if (cancelBtn) {
+        cancelBtn.onclick = () => exitMultiDeleteMode(app, editorType, grid);
+    }
+}
+
+/**
+ * Update the selected count in the toolbar
+ */
+function updateMultiDeleteCount(count) {
+    const countEl = document.getElementById('multi-delete-count');
+    if (countEl) {
+        countEl.textContent = count;
+    }
+
+    // Enable/disable delete button based on selection
+    const confirmBtn = document.getElementById('multi-delete-confirm');
+    if (confirmBtn) {
+        confirmBtn.disabled = count === 0;
+        confirmBtn.style.opacity = count === 0 ? '0.5' : '1';
+    }
+}
+
+/**
+ * Execute multi-delete after confirmation
+ */
+async function executeMultiDelete(app, editorType, grid) {
+    const selectedRows = grid.getSelectedRows();
+    const count = selectedRows.length;
+
+    if (count === 0) {
+        alert('No players selected.');
+        return;
+    }
+
+    // Show confirmation dialog
+    const confirmMsg = `Are you sure you want to delete ${count} player${count > 1 ? 's' : ''}?\n\nThis action cannot be undone.`;
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    console.log(`[Multi-Delete] Deleting ${count} players from ${editorType}`);
+
+    // Determine which arrays to modify based on editor type
+    const mainArray = editorType === 'roster' ? app.players : app.draftProspects;
+    const filteredArray = editorType === 'roster' ? app.filteredPlayers : app.filteredDraftProspects;
+
+    // Remove selected players from both arrays
+    // Create a Set of selected players for efficient lookup
+    const selectedSet = new Set(selectedRows);
+
+    // Filter out selected players from main array
+    const newMainArray = mainArray.filter(p => !selectedSet.has(p));
+
+    // Filter out selected players from filtered array
+    const newFilteredArray = filteredArray ? filteredArray.filter(p => !selectedSet.has(p)) : null;
+
+    // Update the app arrays
+    if (editorType === 'roster') {
+        app.players = newMainArray;
+        app.filteredPlayers = newFilteredArray;
+    } else {
+        app.draftProspects = newMainArray;
+        app.filteredDraftProspects = newFilteredArray;
+    }
+
+    console.log(`[Multi-Delete] Removed ${count} players. Remaining: ${newMainArray.length}`);
+
+    // Mark as modified
+    app.hasUnsavedChanges = true;
+    const saveBtn = document.getElementById(editorType === 'roster' ? 'saveRosterBtn' : 'saveDraftBtn');
+    if (saveBtn) saveBtn.style.display = 'inline-block';
+
+    // Exit multi-delete mode and refresh grid
+    exitMultiDeleteMode(app, editorType, grid);
+
+    // Refresh the grid with new data
+    grid.setGridOption('rowData', [...(newFilteredArray || newMainArray)]);
+
+    // Refresh portraits if roster
+    if (editorType === 'roster') {
+        setTimeout(() => {
+            grid.refreshCells({
+                columns: ['_portrait', 'PLAYERPIC'],
+                force: true
+            });
+        }, 100);
+    }
+
+    // Show success message
+    app.showToast?.(`Deleted ${count} player${count > 1 ? 's' : ''}`, 'success')
+        || console.log(`[Multi-Delete] Deleted ${count} player(s)`);
+}
+
+/**
+ * Exit multi-delete mode - restores original grid state
+ */
+export function exitMultiDeleteMode(app, editorType, grid) {
+    if (!_multiDeleteState.active) {
+        return;
+    }
+
+    console.log('[Multi-Delete] Exiting multi-delete mode');
+
+    // Remove selection listener
+    if (_multiDeleteState.selectionListener) {
+        grid.removeEventListener('selectionChanged', _multiDeleteState.selectionListener);
+    }
+
+    // Deselect all
+    grid.deselectAll();
+
+    // Restore original column definitions (without checkbox column)
+    if (_multiDeleteState.originalColumnDefs) {
+        grid.setGridOption('columnDefs', _multiDeleteState.originalColumnDefs);
+    }
+
+    // Reset row selection to single
+    grid.setGridOption('rowSelection', {
+        mode: 'singleRow',
+        checkboxes: false,
+        headerCheckbox: false
+    });
+
+    // Hide toolbar
+    const toolbar = document.getElementById('multi-delete-toolbar');
+    if (toolbar) {
+        toolbar.style.display = 'none';
+    }
+
+    // Reset state
+    _multiDeleteState = {
+        active: false,
+        editorType: null,
+        originalColumnDefs: null,
+        selectionListener: null
+    };
 }

@@ -6468,6 +6468,10 @@
             <span class="context-menu-icon">🗑️</span>
             Delete Player
         </div>
+        <div class="context-menu-item" data-action="delete-multiple">
+            <span class="context-menu-icon">🗑️</span>
+            Delete Multiple...
+        </div>
         <div class="context-menu-separator"></div>
         <div class="context-menu-item" data-action="view-player-card">
             <span class="context-menu-icon">📋</span>
@@ -6494,6 +6498,10 @@
         <div class="context-menu-item" data-action="delete-player">
             <span class="context-menu-icon">🗑️</span>
             Delete Player
+        </div>
+        <div class="context-menu-item" data-action="delete-multiple">
+            <span class="context-menu-icon">🗑️</span>
+            Delete Multiple...
         </div>
         <div class="context-menu-separator"></div>
         <div class="context-menu-item" data-action="view-player-card">
@@ -6546,6 +6554,77 @@
             height: 1px;
             background: #444;
             margin: 4px 0;
+        }
+
+        .context-menu-item[data-action="delete-multiple"]:hover {
+            background: #5a2a2a;
+            color: #ff6b6b;
+        }
+    </style>
+
+    <!-- Multi-Delete Toolbar -->
+    <div id="multi-delete-toolbar" style="display: none;">
+        <div class="multi-delete-info">
+            <span id="multi-delete-count">0</span> players selected
+        </div>
+        <button id="multi-delete-confirm" class="multi-delete-btn danger">Delete Selected</button>
+        <button id="multi-delete-cancel" class="multi-delete-btn">Cancel</button>
+    </div>
+    <style>
+        #multi-delete-toolbar {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+            border: 2px solid #ff6b6b;
+            border-radius: 12px;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            z-index: 9999;
+            box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
+        }
+
+        .multi-delete-info {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        #multi-delete-count {
+            color: #ff6b6b;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .multi-delete-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .multi-delete-btn.danger {
+            background: #ff4444;
+            color: #fff;
+        }
+
+        .multi-delete-btn.danger:hover {
+            background: #ff6666;
+        }
+
+        .multi-delete-btn:not(.danger) {
+            background: #444;
+            color: #fff;
+        }
+
+        .multi-delete-btn:not(.danger):hover {
+            background: #555;
         }
     </style>
 
