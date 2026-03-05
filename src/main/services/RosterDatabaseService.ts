@@ -202,12 +202,49 @@ class RosterDatabaseService {
    * Generic heads follow the pattern gen_X_* where X indicates race category
    */
   public deriveRaceFromGenericHead(genericHeadName: string | null | undefined): number | null {
-    if (!genericHeadName) return null;
+    if (!genericHeadName) {
+      console.log(`[RosterDatabaseService] deriveRace: genericHeadName is null/undefined`);
+      return null;
+    }
 
-    const match = genericHeadName.match(/^gen_(\d+)_/i);
-    if (!match) return null;
+    console.log(`[RosterDatabaseService] deriveRace: Trying to match "${genericHeadName}"`);
+
+    // Try standard gen_X_ pattern first
+    let match = genericHeadName.match(/^gen_(\d+)_/i);
+
+    // If no match, try extracting number from anywhere in the string (e.g., "gen2_" or patterns like "2_aging")
+    if (!match) {
+      match = genericHeadName.match(/gen(\d+)/i);
+    }
+
+    // If still no match, try to find skin tone indicators in the name
+    if (!match) {
+      // Check for common naming patterns that indicate race
+      const lowerName = genericHeadName.toLowerCase();
+      if (lowerName.includes('_2_') || lowerName.startsWith('2_')) {
+        console.log(`[RosterDatabaseService] deriveRace: Found pattern indicating race 2 (African American)`);
+        return 7; // African American
+      }
+      if (lowerName.includes('_3_') || lowerName.startsWith('3_')) {
+        console.log(`[RosterDatabaseService] deriveRace: Found pattern indicating race 3 (Caucasian)`);
+        return 1; // Caucasian
+      }
+      if (lowerName.includes('_4_') || lowerName.startsWith('4_')) {
+        return 1; // Caucasian variant
+      }
+      if (lowerName.includes('_5_') || lowerName.startsWith('5_')) {
+        return 5; // Hispanic
+      }
+      if (lowerName.includes('_6_') || lowerName.startsWith('6_')) {
+        return 6; // Asian
+      }
+      console.log(`[RosterDatabaseService] deriveRace: No race pattern found in "${genericHeadName}"`);
+      return null;
+    }
 
     const category = parseInt(match[1]);
+    console.log(`[RosterDatabaseService] deriveRace: Matched category ${category} from "${genericHeadName}"`);
+
     const raceMap: Record<number, number> = {
       2: 7,  // African American
       3: 1,  // Caucasian
@@ -216,7 +253,9 @@ class RosterDatabaseService {
       6: 6   // Asian
     };
 
-    return raceMap[category] ?? null;
+    const result = raceMap[category] ?? null;
+    console.log(`[RosterDatabaseService] deriveRace: Returning race ${result} for category ${category}`);
+    return result;
   }
 
   /**
@@ -225,6 +264,45 @@ class RosterDatabaseService {
   private getTeamAbbr(teamId: number | undefined | null): string {
     if (teamId === undefined || teamId === null) return 'FA';
     return TEAM_ID_TO_ABBR[teamId] || 'FA';
+  }
+
+  /**
+   * Get team abbreviation with year validation
+   * Ensures teams that didn't exist in a given year are redirected to FA
+   * This normalizes storage so historical rosters don't have anachronistic team assignments
+   */
+  private getTeamAbbrForYear(teamId: number | undefined | null, year: number): string {
+    if (teamId === undefined || teamId === null) return 'FA';
+
+    const teamName = TEAM_ID_TO_ABBR[teamId];
+    if (!teamName) return 'FA';
+
+    // Validate team existed in the given year
+    // Ravens (TGID 25) - founded 1996
+    if (teamId === 25 && year < 1996) {
+      console.log(`[RosterDatabaseService] WARNING: Ravens (TGID 25) didn't exist in ${year}, redirecting to FA`);
+      return 'FA';
+    }
+
+    // Texans (TGID 32) - founded 2002
+    if (teamId === 32 && year < 2002) {
+      console.log(`[RosterDatabaseService] WARNING: Texans (TGID 32) didn't exist in ${year}, redirecting to FA`);
+      return 'FA';
+    }
+
+    // Jaguars (TGID 17) - founded 1995
+    if (teamId === 17 && year < 1995) {
+      console.log(`[RosterDatabaseService] WARNING: Jaguars (TGID 17) didn't exist in ${year}, redirecting to FA`);
+      return 'FA';
+    }
+
+    // Panthers (TGID 21) - founded 1995
+    if (teamId === 21 && year < 1995) {
+      console.log(`[RosterDatabaseService] WARNING: Panthers (TGID 21) didn't exist in ${year}, redirecting to FA`);
+      return 'FA';
+    }
+
+    return teamName;
   }
 
   /**
@@ -323,10 +401,24 @@ class RosterDatabaseService {
         continue;
       }
 
-      // Derive race from generic head if PID is 0
+      // Derive race from generic head (PEPS) when PLRC is not available
+      // This works for all players, not just those with generic faces (PID=0)
       const pid = player.PSXP || player.PID || 0;
       const genericHead = player.PEPS || player.pam;
-      const derivedRace = pid === 0 ? this.deriveRaceFromGenericHead(genericHead) : null;
+
+      // DEBUG: Log PEPS values for first few players
+      if (i < 5) {
+        console.log(`[RosterDatabaseService] Player ${i} "${firstName} ${lastName}": PEPS="${player.PEPS}", pam="${player.pam}", PLRC=${player.PLRC}`);
+      }
+
+      // Always try to derive race if PLRC is missing - the roster file might not have PLRC
+      const derivedRace = (player.PLRC === undefined || player.PLRC === null)
+        ? this.deriveRaceFromGenericHead(genericHead)
+        : null; // If PLRC exists, we'll use it directly
+
+      if (i < 5) {
+        console.log(`[RosterDatabaseService] Player ${i}: derivedRace=${derivedRace}`);
+      }
 
       // Try to find existing player by name
       // First check bundled database - find player who was active during this season year
@@ -933,6 +1025,14 @@ class RosterDatabaseService {
       if (bioFields.handedness && player.PHAN !== undefined) {
         bioEdits.handedness = player.PHAN;
       }
+      // Save position when checkbox is selected
+      if (bioFields.position && player.PPOS !== undefined) {
+        const positionName = this.getPositionName(player.PPOS);
+        if (positionName) {
+          bioEdits.position = positionName;
+          console.log(`[RosterDatabaseService] Saving position: PPOS=${player.PPOS} -> "${positionName}"`);
+        }
+      }
 
       // FILE-BASED DEBUG: Log decision logic for each bio field
       writeDebugLog(`\nBio field decision logic:`);
@@ -1099,6 +1199,14 @@ class RosterDatabaseService {
           bioUpdates.handedness = player.PHAN;
         }
       }
+      // Push position for custom players
+      if (bioFields.position && player.PPOS !== undefined) {
+        const positionName = this.getPositionName(player.PPOS);
+        if (positionName && (!fillEmptyBioFields || !currentPlayer.position)) {
+          bioUpdates.position = positionName;
+          console.log(`[RosterDatabaseService] Custom player: Saving position: PPOS=${player.PPOS} -> "${positionName}"`);
+        }
+      }
       // Push PID and PAM for custom players
       if (bioFields.pid && player.PSXP !== undefined) {
         if (!fillEmptyBioFields || !currentPlayer.maddenPid) {
@@ -1136,7 +1244,7 @@ class RosterDatabaseService {
 
     const season: Partial<CustomPlayerSeason> = {
       year,
-      team: bioFields.team ? this.getTeamAbbr(player.TGID) : undefined,
+      team: bioFields.team ? this.getTeamAbbrForYear(player.TGID, year) : undefined,
       jersey: bioFields.jersey ? player.PJEN : undefined,
       age: player.PAGE,
       position: bioFields.position ? (this.getPositionName(player.PPOS) || undefined) : undefined,
@@ -1174,7 +1282,7 @@ class RosterDatabaseService {
 
     // Only include bio fields if pushMode is 'all' and field is enabled
     if (pushMode === 'all') {
-      if (bioFields.team) season.team = this.getTeamAbbr(player.TGID);
+      if (bioFields.team) season.team = this.getTeamAbbrForYear(player.TGID, year);
       if (bioFields.jersey) season.jersey = player.PJEN;
       if (bioFields.position) season.position = this.getPositionName(player.PPOS) || undefined;
       if (bioFields.archetype) season.archetype = archetype;
@@ -1209,7 +1317,7 @@ class RosterDatabaseService {
 
     // Only include bio fields if pushMode is 'all' and field is enabled
     if (pushMode === 'all') {
-      if (bioFields.team) seasonEdits.team = this.getTeamAbbr(player.TGID);
+      if (bioFields.team) seasonEdits.team = this.getTeamAbbrForYear(player.TGID, year);
       if (bioFields.jersey) seasonEdits.jersey = player.PJEN;
       if (bioFields.position) seasonEdits.position = this.getPositionName(player.PPOS);
       if (bioFields.archetype) seasonEdits.archetype = archetype;

@@ -319,6 +319,33 @@ class MaddenEditorApp {
             this.filterPlayers();
         });
 
+        // Sort dropdown handler
+        const sortSelect = document.getElementById('v2SortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', (e) => {
+                const sortValue = e.target.value;
+                console.log('[SORT SELECT] Change event fired, value:', sortValue);
+
+                // Map dropdown values to field names
+                const fieldMap = {
+                    'OVR': 'POVR',
+                    'NAME': 'PLNA',
+                    'POS': 'PPOS',
+                    'AGE': 'PAGE'
+                };
+
+                const fieldName = fieldMap[sortValue];
+                if (fieldName) {
+                    // Set sort to descending for OVR (highest first), ascending for others
+                    const order = sortValue === 'OVR' ? 'desc' : 'asc';
+                    this.sortColumns = [{ column: fieldName, order: order }];
+                    console.log('[SORT SELECT] Set sortColumns to:', JSON.stringify(this.sortColumns));
+                    // filterPlayers() applies sort and updates the grid
+                    this.filterPlayers();
+                }
+            });
+        }
+
         // Roster search input
         document.getElementById('rosterSearchInput').addEventListener('input', (e) => {
             this.rosterSearchTerm = e.target.value.toLowerCase().trim();
@@ -4992,6 +5019,9 @@ class MaddenEditorApp {
             // after filtering, sorting, or editing operations
             let player = this.currentFacePickerPlayer;
 
+            // CRITICAL: Capture original PSXP BEFORE any modifications - needed for row matching
+            const originalPSXP = player.PSXP;
+
             // Verify the player still exists in our data array
             // This handles the case where the player was deleted while the picker was open
             if (isRoster && dataArray) {
@@ -5119,11 +5149,15 @@ class MaddenEditorApp {
                 }
 
                 // CRITICAL: Sync assignedGenr/assignedSknt/PEPS to this.players array to ensure persistence
-                // Use PGID for reliable matching - indexOf may fail after grid rebuilds
+                // Use STRICT matching - PGID + name OR name + originalPSXP (for FA/retired players)
                 if (genrValue) {
-                    // Find by PGID first (most reliable), then name as fallback
-                    const originalPlayer = this.players.find(p => p.PGID === player.PGID) ||
-                        this.players.find(p => p.PFNA === player.PFNA && p.PLNA === player.PLNA);
+                    // Find by PGID + name if PGID is valid, OR name + originalPSXP for FA players
+                    const originalPlayer = this.players.find(p => {
+                        const nameMatch = p.PFNA === player.PFNA && p.PLNA === player.PLNA;
+                        const pgidMatch = player.PGID && player.PGID !== 0 && p.PGID === player.PGID;
+                        const psxpMatch = p.PSXP === originalPSXP;
+                        return (pgidMatch && nameMatch) || (nameMatch && psxpMatch);
+                    });
 
                     if (originalPlayer) {
                         originalPlayer.assignedGenr = player.assignedGenr;
@@ -5133,9 +5167,9 @@ class MaddenEditorApp {
                             originalPlayer.PSXP = player.PSXP;
                         }
                         const playerIndex = this.players.indexOf(originalPlayer);
-                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] via PGID ${player.PGID} - PEPS="${player.PEPS}"${isPamOnly ? ' (PAM only)' : `, PSXP=${player.PSXP}`}`);
+                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] via name+PSXP=${originalPSXP} - PEPS="${player.PEPS}"${isPamOnly ? ' (PAM only)' : `, PSXP=${player.PSXP}`}`);
                     } else {
-                        console.warn(`[GenericFacePicker] Could not find player PGID=${player.PGID} in this.players to sync!`);
+                        console.warn(`[GenericFacePicker] Could not find player ${player.PFNA} ${player.PLNA} (originalPSXP=${originalPSXP}) in this.players to sync!`);
                     }
                 }
 
@@ -5168,14 +5202,18 @@ class MaddenEditorApp {
                     player.PGHE = pghePool[Math.floor(Math.random() * pghePool.length)];
                     console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to ${player.PGHE} (race=${raceForPGHE})`);
 
-                    // Sync PGHE to this.players array
+                    // Sync PGHE to this.players array using strict matching
                     const pghePlayerIndex = this.players.indexOf(player);
                     if (pghePlayerIndex >= 0) {
                         this.players[pghePlayerIndex].PGHE = player.PGHE;
                     } else {
-                        const originalPlayer = this.players.find(p =>
-                            p.PFNA === player.PFNA && p.PLNA === player.PLNA
-                        );
+                        // Use STRICT matching - name + originalPSXP for FA players
+                        const originalPlayer = this.players.find(p => {
+                            const nameMatch = p.PFNA === player.PFNA && p.PLNA === player.PLNA;
+                            const pgidMatch = player.PGID && player.PGID !== 0 && p.PGID === player.PGID;
+                            const psxpMatch = p.PSXP === originalPSXP;
+                            return (pgidMatch && nameMatch) || (nameMatch && psxpMatch);
+                        });
                         if (originalPlayer) {
                             originalPlayer.PGHE = player.PGHE;
                         }
@@ -5239,29 +5277,34 @@ class MaddenEditorApp {
             if (isRoster && this.agGrid) {
                 // AG-Grid: Get the row node and update data through API (not direct modification)
                 // This ensures AG-Grid detects the change and properly refreshes
-                // FIX: Use forEachNode to find row by PGID (unique identifier), not object reference
-                // Object references become stale after grid rebuilds (filtering, sorting, etc.)
+                // FIX: Use forEachNode with STRICT matching - require PSXP + name match
+                // PGID alone is unreliable for FA/retired players (often PGID=0)
                 let rowNode = null;
                 const playerPGID = player.PGID;
                 const playerName = `${player.PFNA} ${player.PLNA}`;
-                console.log(`[GenericFacePicker] Searching for rowNode with PGID=${playerPGID}, name=${playerName}`);
+                console.log(`[GenericFacePicker] Searching for rowNode with PGID=${playerPGID}, name=${playerName}, originalPSXP=${originalPSXP}`);
 
                 this.agGrid.forEachNode(node => {
-                    // Match by PGID first (most reliable), then by name as fallback
-                    if (node.data && (node.data.PGID === playerPGID ||
-                        (node.data.PFNA === player.PFNA && node.data.PLNA === player.PLNA))) {
+                    if (!node.data) return;
+
+                    // STRICT MATCH: Require name + PSXP match for reliable identification
+                    // This avoids matching the wrong player with same name or PGID=0
+                    const nameMatch = node.data.PFNA === player.PFNA && node.data.PLNA === player.PLNA;
+                    const psxpMatch = node.data.PSXP === originalPSXP;
+                    const pgidMatch = playerPGID && playerPGID !== 0 && node.data.PGID === playerPGID;
+
+                    // Best match: PGID + name (for players with valid PGID)
+                    // OR: name + PSXP (for FA/retired players where PGID may be 0)
+                    if ((pgidMatch && nameMatch) || (nameMatch && psxpMatch)) {
                         rowNode = node;
-                        // Also update our player reference to the current grid data
-                        player = node.data;
                     }
                 });
 
-                // Fallback to display index if direct reference not found
+                // Fallback to display index if strict match not found
                 if (!rowNode) {
                     rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
                     if (rowNode) {
                         console.log(`[GenericFacePicker] Used fallback display index ${gridRowIndex}`);
-                        player = rowNode.data; // Update reference to current grid data
                     }
                 }
 
@@ -6267,8 +6310,12 @@ class MaddenEditorApp {
         // Refresh grid
         if (window.agGridApi) {
             window.agGridApi.setGridOption('rowData', this.players);
+            // Force portrait column to re-render after row removal
+            window.agGridApi.refreshCells({ columns: ['_portrait'], force: true });
         } else if (this.agGrid) {
             this.agGrid.setGridOption('rowData', this.players);
+            // Force portrait column to re-render after row removal
+            this.agGrid.refreshCells({ columns: ['_portrait'], force: true });
         }
 
         // Update status and re-scan

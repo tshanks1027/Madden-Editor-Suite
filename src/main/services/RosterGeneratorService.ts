@@ -875,6 +875,82 @@ export class RosterGeneratorService {
     }
     console.log(`[RosterGeneratorService] Merged user edits into ${mergeCount} players (${fallbackMergeCount} via name fallback)`);
 
+    // FIX: Add players who have user edits but don't have season entries in bundled DB
+    // This happens when a user pushes a roster for a year where the player exists in bundled DB
+    // (matched by name) but doesn't have a player_seasons entry for that year
+    const dbPlayerIds = new Set(dbPlayers.map(p => p.playerId));
+    let addedFromEditsCount = 0;
+
+    for (const [editPlayerId, userEdit] of userEditsMap.entries()) {
+      // Skip if this player is already in dbPlayers
+      if (dbPlayerIds.has(editPlayerId)) {
+        continue;
+      }
+
+      // Look up the player's bio info from bundled database
+      const bundledPlayer = lookupService.getPlayerByInternalId(editPlayerId);
+      if (!bundledPlayer) {
+        continue; // Player not found in bundled DB, skip
+      }
+
+      // Create a synthetic player entry with the user edit data
+      // Note: FullDataEntry uses different field names than database player format
+      const syntheticPlayer = {
+        playerId: editPlayerId,
+        firstName: bundledPlayer.firstName,
+        lastName: bundledPlayer.lastName,
+        team: userEdit.team || 'FA',
+        jersey: userEdit.jersey || bundledPlayer.jersey || 0,
+        age: userEdit.age || 0,
+        position: userEdit.position || bundledPlayer.position || '',
+        archetype: userEdit.archetype || '',
+        games: 0,
+        gamesStarted: 0,
+        av: 0,
+        devTrait: '',
+        // Appearance IDs from bundled player (FullDataEntry field names)
+        maddenPid: bundledPlayer.pid || 0,
+        maddenPam: bundledPlayer.pam || '',
+        maddenPlpo: bundledPlayer.plpo || '',
+        maddenCommid: bundledPlayer.commID || '',
+        // Bio data from bundled player
+        college: bundledPlayer.college || '',
+        race: bundledPlayer.race,
+        height: bundledPlayer.height,
+        weight: bundledPlayer.weight,
+        hometown: bundledPlayer.hometown || '',
+        homeState: bundledPlayer.homeState || '',
+        // Draft info (FullDataEntry uses string for draftClass)
+        draftClass: bundledPlayer.draftClass ? parseInt(bundledPlayer.draftClass) : null,
+        draftRound: bundledPlayer.round || '',
+        draftPick: bundledPlayer.pick ? parseInt(bundledPlayer.pick) : null,
+        // Career info
+        careerFrom: bundledPlayer.careerFrom,
+        careerTo: bundledPlayer.careerTo,
+        isHof: bundledPlayer.isHOF === true,
+        // Ratings from user edit
+        ratings: { ...userEdit.ratings }
+      };
+
+      // DEBUG: Track Ravens players source
+      const editTeam = syntheticPlayer.team;
+      if (editTeam.toLowerCase() === 'ravens' || editTeam === 'RAV' || editTeam === 'BAL') {
+        console.log(`[RAVENS DEBUG] Synthetic player from user edit going to Ravens/BAL: ${syntheticPlayer.firstName} ${syntheticPlayer.lastName}, team="${editTeam}", playerId=${editPlayerId}, userEdit.team="${userEdit.team}"`);
+      }
+
+      dbPlayers.push(syntheticPlayer);
+      dbPlayerIds.add(editPlayerId);
+      addedFromEditsCount++;
+
+      if (addedFromEditsCount <= 5) {
+        console.log(`[RosterGeneratorService] ADDED from edits: ${syntheticPlayer.firstName} ${syntheticPlayer.lastName} (ID ${editPlayerId}), Team: ${syntheticPlayer.team}, POVR: ${syntheticPlayer.ratings.POVR}`);
+      }
+    }
+
+    if (addedFromEditsCount > 0) {
+      console.log(`[RosterGeneratorService] Added ${addedFromEditsCount} players from user edits (no bundled season entry)`);
+    }
+
     // Build name-based index for appearance edits
     const appearanceEditsByName = new Map<string, any>();
     for (const [editId, edit] of appearanceEditsMap.entries()) {
@@ -1012,6 +1088,10 @@ export class RosterGeneratorService {
       addedPlayerNames.add(playerKey);
 
       const team = player.team || 'FA';
+      // DEBUG: Track Ravens players source
+      if (team.toLowerCase() === 'ravens' || team === 'RAV' || team === 'BAL') {
+        console.log(`[RAVENS DEBUG] DB player going to Ravens/BAL: ${player.firstName} ${player.lastName}, team="${team}", playerId=${player.playerId}`);
+      }
       if (!teamPlayers.has(team)) {
         teamPlayers.set(team, []);
       }
@@ -1032,6 +1112,10 @@ export class RosterGeneratorService {
       addedPlayerNames.add(playerKey);
 
       const team = player.Season_Team || 'FA';
+      // DEBUG: Track Ravens players source
+      if (team.toLowerCase() === 'ravens' || team === 'RAV' || team === 'BAL') {
+        console.log(`[RAVENS DEBUG] Custom player going to Ravens/BAL: ${firstName} ${lastName}, team="${team}", customPlayerId=${player._customPlayerId}`);
+      }
       if (!teamPlayers.has(team)) {
         teamPlayers.set(team, []);
       }
@@ -1912,6 +1996,82 @@ export class RosterGeneratorService {
 
     console.log('[RosterGeneratorService] ✓ Found', freeAgentRawByName.size, 'unique free agents from 5-year lookback');
 
+    // RETIRED PLAYERS FALLBACK: If we didn't find enough players from seasonal data,
+    // check the master player database for players who RETIRED in the 5 years before the target year.
+    // This uses the career span data (careerFrom/careerTo) from ALL_PLAYER_LOOKUP.csv
+    const foundFromLookback = freeAgentRawByName.size;
+
+    if (foundFromLookback < 200) {
+      console.log('[RosterGeneratorService] Not enough FAs from seasonal data - checking database for recently retired players...');
+      console.log(`[RosterGeneratorService] Looking for players who retired between ${year - 5} and ${year - 1}...`);
+
+      // Get players who retired in the 5 years before the target year
+      const retiredPlayers = lookupService.getPlayersRetiredInRange(year - 5, year - 1);
+      console.log(`[RosterGeneratorService] Found ${retiredPlayers.length} players who retired in that range`);
+
+      for (const player of retiredPlayers) {
+        const nameKey = `${player.firstName}|${player.lastName}`;
+
+        // Skip if already in current roster or found from seasonal lookup
+        if (currentPlayerNames.has(nameKey)) continue;
+        if (freeAgentRawByName.has(nameKey)) continue;
+
+        // Calculate age at target year based on career data
+        // Assume average retirement age of ~32, career length from careerFrom to careerTo
+        const careerLength = (player.careerTo || year) - (player.careerFrom || year - 10);
+        const estimatedAge = 22 + careerLength + (year - (player.careerTo || year)); // Draft age + career + years since retirement
+
+        // Merge appearance edits if available
+        if (player.internalId && appearanceEditsMapFA2.has(player.internalId)) {
+          const appearanceEdit = appearanceEditsMapFA2.get(player.internalId)!;
+          if (appearanceEdit.maddenPid !== undefined) player.pid = appearanceEdit.maddenPid;
+          if (appearanceEdit.maddenPam !== undefined) player.pam = appearanceEdit.maddenPam;
+        }
+
+        // Create a player entry in database format for enrichment
+        // These are retired players, so give them declining ratings based on years since retirement
+        const yearsSinceRetirement = year - (player.careerTo || year - 1);
+        const baseOVR = 55 + Math.floor(Math.random() * 15); // 55-70 base OVR for retired vets
+        const ovrReduction = Math.min(yearsSinceRetirement * 5, 20); // 5 pts per year, max 20
+
+        // Create complete player entry with all required fields for enrichment
+        const retiredPlayerOVR = Math.max(40, baseOVR - ovrReduction);
+        freeAgentRawByName.set(nameKey, {
+          playerId: player.internalId,
+          firstName: player.firstName,
+          lastName: player.lastName,
+          position: player.position || 'HB',
+          archetype: null, // Will be auto-assigned based on position
+          team: 'FA',
+          age: Math.min(estimatedAge, 40), // Cap at 40
+          height: player.height || 72,
+          weight: player.weight || 200,
+          college: player.college || '',
+          homeState: player.homeState || '',
+          maddenPid: player.pid || 0,
+          maddenPam: player.pam || '',
+          maddenPlpo: player.plpo || '',
+          maddenPghe: 0, // Will be assigned during enrichment
+          race: player.race || 1,
+          // Complete ratings object - all will be filled from POVR during enrichment
+          ratings: {
+            POVR: retiredPlayerOVR,
+            PSPD: retiredPlayerOVR - 5,
+            PACC: retiredPlayerOVR - 5,
+            PSTR: retiredPlayerOVR - 10,
+            PAGI: retiredPlayerOVR - 5,
+            PAWR: retiredPlayerOVR - 10
+          },
+          _source: 'db', // Mark as database player for proper enrichment
+          _year: year,
+          _fromRetiredLookup: true,
+          _retiredIn: player.careerTo
+        });
+      }
+
+      console.log('[RosterGeneratorService] ✓ After retired player lookup: Found', freeAgentRawByName.size, 'total unique free agents');
+    }
+
     const targetSize = this.getTemplateRosterSize();
     const needed = targetSize - currentRoster.length;
 
@@ -2188,12 +2348,12 @@ export class RosterGeneratorService {
     // Parse archetype to numeric (0-67) - use MAPPED position name
     const archetype = await this.parseArchetype(csvRow.Archetype, positionName);
 
-    // Map team string to team code
-    const teamCode = await this.lookupTeamCode(csvRow.Season_Team);
+    // Map team string to team code (pass year for historical team relocations)
+    const teamCode = await this.lookupTeamCode(csvRow.Season_Team, year);
 
     // DEBUG: Log team lookup for key players
     if (csvRow.Last_Name === 'Montana' || csvRow.Last_Name === 'Unitas') {
-      console.log(`[TEAM DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Season_Team="${csvRow.Season_Team}" -> teamCode=${teamCode} (year=${csvRow.Season || 'unknown'})`);
+      console.log(`[TEAM DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Season_Team="${csvRow.Season_Team}" -> teamCode=${teamCode} (year=${year})`);
     }
 
     // Fill missing ratings from CSV
@@ -2655,8 +2815,8 @@ export class RosterGeneratorService {
     // Parse archetype to numeric (0-67)
     const archetype = await this.parseArchetype(dbRow.archetype, positionName);
 
-    // Map team string to team code
-    const teamCode = await this.lookupTeamCode(dbRow.team);
+    // Map team string to team code (pass year for historical team relocations)
+    const teamCode = await this.lookupTeamCode(dbRow.team, year);
 
     // Get ratings from database - fill missing values
     // Note: User edits are already merged into dbRow.ratings BEFORE this method is called
@@ -2781,6 +2941,16 @@ export class RosterGeneratorService {
 
     // Commentary ID lookup
     const commId = dbRow.maddenCommid ? parseInt(dbRow.maddenCommid) : 0;
+
+    // DEBUG: Catch any player being assigned to Ravens (TGID=25)
+    if (teamCode === 25) {
+      console.log(`[RAVENS ASSIGNMENT DEBUG] Player ${cleanFirstName} ${cleanLastName} getting TGID=25!`);
+      console.log(`  dbRow.team = "${dbRow.team}"`);
+      console.log(`  year = ${year}`);
+      console.log(`  teamCode = ${teamCode}`);
+      console.log(`  dbRow.playerId = ${dbRow.playerId}`);
+      console.log(`  College: ${dbRow.college}`);
+    }
 
     // Map to roster format
     const player: any = {
@@ -3915,10 +4085,83 @@ export class RosterGeneratorService {
 
   /**
    * Lookup team code from team name using team_lookup.csv
+   * Now year-aware for historical team relocations:
+   * - BAL before 1996 = Baltimore Colts (now Indianapolis Colts, ID 10)
+   * - BAL 1996+ = Baltimore Ravens (ID 25)
+   * - HOU before 1997 = Houston Oilers (now Tennessee Titans, ID 30)
+   * - HOU 2002+ = Houston Texans (ID 32)
    */
-  private async lookupTeamCode(teamName: string): Promise<number> {
+  private async lookupTeamCode(teamName: string, year?: number): Promise<number> {
     if (!teamName || teamName === '') {
       return 1009; // Default to Free Agent
+    }
+
+    // Handle historical team relocations based on year
+    const cleanName = teamName.trim().toUpperCase();
+
+    // DEBUG: Log all lookups that might result in Ravens
+    if (cleanName === 'BAL' || cleanName === 'RAVENS' || cleanName === 'RAV' ||
+        cleanName === 'BALTIMORE RAVENS' || teamName.toLowerCase().includes('raven')) {
+      console.log(`[RAVENS TEAM LOOKUP] Input: teamName="${teamName}", cleanName="${cleanName}", year=${year}`);
+    }
+
+    // BAL: Baltimore Colts (before 1984 move to Indy) vs Baltimore Ravens (1996+)
+    // Also handle full name 'BALTIMORE COLTS'
+    // Team IDs from team_lookup.csv: Colts=10, Ravens=25
+    // CRITICAL: If year is not provided, default to Colts (historical data is more likely pre-1996)
+    if (cleanName === 'BAL' || cleanName === 'BALTIMORE COLTS') {
+      if (cleanName === 'BALTIMORE COLTS') {
+        // Always map 'Baltimore Colts' to Colts regardless of year
+        console.log(`[TEAM LOOKUP] Baltimore Colts → Colts (ID 10)`);
+        return 10; // Colts
+      } else if (!year || year < 1996) {
+        // Baltimore Colts → Indianapolis Colts (ID 10)
+        // Default to Colts if no year provided (historical rosters are more common)
+        console.log(`[TEAM LOOKUP] ${cleanName} in ${year || 'unknown'} → Colts (pre-Ravens or no year)`);
+        return 10; // Colts
+      } else {
+        // BAL 1996+ = Baltimore Ravens (ID 25)
+        console.log(`[TEAM LOOKUP] BAL in ${year} → Ravens`);
+        return 25; // Ravens
+      }
+    }
+
+    // HOU: Houston Oilers (before 1997 move to Tennessee) vs Houston Texans (2002+)
+    // Also handle full name 'HOUSTON OILERS'
+    // Team IDs from team_lookup.csv: Titans=30, Texans=32
+    if (cleanName === 'HOU' || cleanName === 'HOUSTON OILERS') {
+      if (year && year < 1997) {
+        // Houston Oilers → Tennessee Titans (ID 30)
+        console.log(`[TEAM LOOKUP] ${cleanName} in ${year} → Titans (Oilers era)`);
+        return 30; // Titans
+      } else if (cleanName === 'HOUSTON OILERS') {
+        // Always map 'Houston Oilers' to Titans regardless of year
+        console.log(`[TEAM LOOKUP] Houston Oilers → Titans (ID 30)`);
+        return 30; // Titans
+      } else if (year && year >= 2002) {
+        // Houston Texans (ID 32)
+        console.log(`[TEAM LOOKUP] HOU in ${year} → Texans`);
+        return 32; // Texans
+      } else if (year && year >= 1997 && year < 2002) {
+        // 1997-2001: No Houston team, probably free agent
+        console.log(`[TEAM LOOKUP] HOU in ${year} → FA (no Houston team)`);
+        return 1009; // Free Agent
+      }
+    }
+
+    // RAVENS: Baltimore Ravens didn't exist until 1996
+    // If someone has "Ravens" stored for a pre-1996 year, it's an error - redirect to Free Agents
+    // This catches cases where "Ravens" is stored directly (not as "BAL")
+    if (cleanName === 'RAVENS' || cleanName === 'BALTIMORE RAVENS' || cleanName === 'RAV') {
+      if (!year || year < 1996) {
+        // Ravens didn't exist before 1996 - this is data corruption, make them free agents
+        console.log(`[TEAM LOOKUP] WARNING: "${cleanName}" found for year ${year || 'unknown'} - Ravens didn't exist! Redirecting to Free Agents.`);
+        return 1009; // Free Agent
+      } else {
+        // 1996+ Ravens are valid
+        console.log(`[TEAM LOOKUP] ${cleanName} in ${year} → Ravens (ID 25)`);
+        return 25; // Ravens
+      }
     }
 
     // Map CSV team names to team_lookup.csv names
@@ -3927,7 +4170,7 @@ export class RosterGeneratorService {
       // Abbreviations
       'ARI': 'Cards',
       'ATL': 'Falcons',
-      'BAL': 'Ravens',
+      // BAL handled above with year logic
       'BUF': 'Bills',
       'CAR': 'Panthers',
       'CHI': 'Bears',
@@ -3938,7 +4181,7 @@ export class RosterGeneratorService {
       'DET': 'Lions',
       'GB': 'Packers',
       'GNB': 'Packers',
-      'HOU': 'Texans',
+      // HOU handled above with year logic
       'IND': 'Colts',
       'JAC': 'Jags',
       'JAX': 'Jags',

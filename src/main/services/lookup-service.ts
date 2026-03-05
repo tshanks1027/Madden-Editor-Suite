@@ -1112,6 +1112,32 @@ export class LookupService {
       });
   }
 
+  /**
+   * Get players who retired (career ended) within a specific year range
+   * Used for free agent backfill - finds recently retired players
+   * @param fromYear Start of retirement year range (inclusive)
+   * @param toYear End of retirement year range (inclusive)
+   */
+  public getPlayersRetiredInRange(fromYear: number, toYear: number): FullDataEntry[] {
+    return Array.from(this.fullDataCache.values())
+      .filter(e => {
+        // Skip PID-only entries
+        if (e.internalId >= LookupService.PID_ONLY_THRESHOLD) return false;
+        // Skip placeholder entries
+        if (this.isPlaceholderEntry(e.firstName, e.lastName)) return false;
+        // Must have career end year
+        if (!e.careerTo) return false;
+        // Career ended within the specified range
+        return e.careerTo >= fromYear && e.careerTo <= toYear;
+      })
+      .sort((a, b) => {
+        // Sort by career end year (most recent first), then by name
+        const yearDiff = (b.careerTo || 0) - (a.careerTo || 0);
+        if (yearDiff !== 0) return yearDiff;
+        return `${a.lastName}${a.firstName}`.localeCompare(`${b.lastName}${b.firstName}`);
+      });
+  }
+
   // Check if using database
   public isUsingDatabase(): boolean {
     return this.db !== null;
