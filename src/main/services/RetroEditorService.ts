@@ -18,15 +18,71 @@ import { userDatabaseService } from './UserDatabaseService';
 // We need to use the named 'create' export for the static factory method
 let FranchiseModule: any = null;
 
-async function getFranchiseModule() {
+export async function getFranchiseModule() {
   if (!FranchiseModule) {
     try {
-      // Import the module
-      const module = await import('madden-franchise');
-      console.log('[RetroEditorService] madden-franchise module keys:', Object.keys(module));
-      FranchiseModule = module;
-    } catch (err) {
+      console.log('[RetroEditorService] Attempting to import madden-franchise...');
+      console.log('[RetroEditorService] app.isPackaged:', app.isPackaged);
+      console.log('[RetroEditorService] app.getAppPath():', app.getAppPath());
+
+      // Try dynamic import first - this works in both dev and packaged if module resolution is set up correctly
+      try {
+        const module = await import('madden-franchise');
+        console.log('[RetroEditorService] madden-franchise loaded via dynamic import');
+        console.log('[RetroEditorService] module keys:', Object.keys(module));
+        FranchiseModule = module;
+        return FranchiseModule;
+      } catch (importErr: any) {
+        console.log('[RetroEditorService] Dynamic import failed:', importErr.message);
+        console.log('[RetroEditorService] Trying fallback approach...');
+      }
+
+      // Fallback: In packaged app, try loading with explicit path
+      if (app.isPackaged) {
+        const nodeModulesPath = path.join(app.getAppPath(), 'node_modules', 'madden-franchise');
+        console.log('[RetroEditorService] Looking for module at:', nodeModulesPath);
+        console.log('[RetroEditorService] Path exists:', fs.existsSync(nodeModulesPath));
+
+        // Try importing the ESM version with explicit path
+        const esmPath = path.join(nodeModulesPath, 'dist', 'index.mjs');
+        console.log('[RetroEditorService] ESM path exists:', fs.existsSync(esmPath));
+
+        if (fs.existsSync(esmPath)) {
+          // Convert to file URL for dynamic import
+          const fileUrl = 'file:///' + esmPath.replace(/\\/g, '/');
+          console.log('[RetroEditorService] Importing from:', fileUrl);
+          const module = await import(fileUrl);
+          console.log('[RetroEditorService] madden-franchise loaded from explicit path');
+          console.log('[RetroEditorService] module keys:', Object.keys(module));
+          FranchiseModule = module;
+          return FranchiseModule;
+        }
+
+        // Last resort: try CommonJS require
+        const cjsPath = path.join(nodeModulesPath, 'dist', 'index.cjs');
+        console.log('[RetroEditorService] CJS path exists:', fs.existsSync(cjsPath));
+
+        if (fs.existsSync(cjsPath)) {
+          // Use Node's module.createRequire for CJS loading in ESM context
+          const { createRequire } = await import('module');
+          const customRequire = createRequire(path.join(app.getAppPath(), 'package.json'));
+          const module = customRequire(cjsPath);
+          console.log('[RetroEditorService] madden-franchise loaded via CJS require');
+          console.log('[RetroEditorService] module keys:', Object.keys(module));
+          // CJS modules export differently - wrap if needed
+          FranchiseModule = module.default ? module : { ...module, default: module };
+          return FranchiseModule;
+        }
+
+        throw new Error('Could not find madden-franchise module in packaged app');
+      }
+
+      throw new Error('Dynamic import failed and not in packaged app');
+    } catch (err: any) {
       console.error('[RetroEditorService] Failed to import madden-franchise:', err);
+      console.error('[RetroEditorService] Error code:', err.code);
+      console.error('[RetroEditorService] Error message:', err.message);
+      console.error('[RetroEditorService] Error stack:', err.stack);
       throw err;
     }
   }
@@ -454,11 +510,13 @@ export class RetroEditorService {
   private loadHistoricalData(): void {
     try {
       const appPath = app.getAppPath();
-      // Use same pattern as lookup-service: app.getAppPath()/data/retro
-      // In dev mode with Vite, appPath is .vite/build so files are at .vite/build/data/retro
-      // In packaged mode, appPath is the asar so files are at app.asar/data/retro
-      const dataPath = path.join(appPath, 'data', 'retro');
+      // In packaged mode, data is in .vite/build/data/retro
+      // In dev mode, data is directly in data/retro (Vite copies it there)
+      const dataPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
+        : path.join(appPath, 'data', 'retro');
       console.log('[RetroEditorService] Loading historical data from:', dataPath);
+      console.log('[RetroEditorService] app.isPackaged:', app.isPackaged);
 
       // Load historical teams
       const teamsPath = path.join(dataPath, 'historical-teams.json');
@@ -2097,22 +2155,35 @@ ${fieldsList}
     if (teamTable) {
       await teamTable.readRecords();
 
-      // Iterate through records by index position
-      for (let i = 0; i < teamTable.records.length; i++) {
-        const teamRecord = teamTable.records[i];
+      // Iterate through records and match by TeamIndex field (not array position)
+      for (const teamRecord of teamTable.records) {
         if (teamRecord.isEmpty) continue;
 
-        const team = this.historicalTeams.find(t => t.teamIndex === i);
+        const teamIndex = teamRecord.TeamIndex;
+        if (teamIndex === undefined || teamIndex >= 32) continue; // Skip non-NFL teams
+
+        const team = this.historicalTeams.find(t => t.teamIndex === teamIndex);
         if (!team) continue;
 
         const change = this.getTeamInfoForYear(team, targetYear);
-        if (change && !change.inactive && (change.city !== team.currentCity || change.name !== team.currentName)) {
+        if (!change || change.inactive) continue;
+
+        // Get actual values from franchise file (what's currently in the file)
+        const franchiseCity = teamRecord.LongName || '';
+        const franchiseName = teamRecord.DisplayName || teamRecord.NickName || '';
+
+        // Get target values for this year
+        const targetCity = change.city || '';
+        const targetName = change.name || '';
+
+        // Compare franchise file values against target year values
+        if (targetCity !== franchiseCity || targetName !== franchiseName) {
           teamChanges.push({
-            teamIndex: i,
-            originalCity: team.currentCity,
-            originalName: team.currentName,
-            newCity: change.city || team.currentCity,
-            newName: change.name || team.currentName,
+            teamIndex: teamIndex,
+            originalCity: franchiseCity,
+            originalName: franchiseName,
+            newCity: targetCity,
+            newName: targetName,
             newAbbreviation: change.abbreviation || ''
           });
         }
@@ -4692,24 +4763,44 @@ ${fieldsList}
    */
   private async getCareerStatsDatabase(): Promise<SqlJsWrapper | null> {
     try {
-      const initSqlJs = require('sql.js');
       const appPath = app.getAppPath();
       const dbPath = app.isPackaged
         ? path.join(appPath, '.vite', 'build', 'data', 'player-career-stats.db')
         : path.join(appPath, 'data', 'player-career-stats.db');
+
+      console.log('[RetroEditorService] Loading career stats database from:', dbPath);
+      console.log('[RetroEditorService] app.isPackaged:', app.isPackaged);
 
       if (!fs.existsSync(dbPath)) {
         console.log('[RetroEditorService] Career stats database not found at:', dbPath);
         return null;
       }
 
-      // Initialize sql.js
-      const SQL = await initSqlJs();
+      // Initialize sql.js with proper WASM location for packaged app
+      // In packaged mode, we need to tell sql.js where to find the WASM file
+      const initSqlJs = require('sql.js');
+
+      // For packaged apps, we need to specify locateFile to find the WASM
+      // In packaged mode, sql.js is copied to .vite/build/node_modules/sql.js/dist/
+      const sqlJsPath = app.isPackaged
+        ? path.join(appPath, '.vite', 'build', 'node_modules', 'sql.js', 'dist')
+        : path.join(appPath, 'node_modules', 'sql.js', 'dist');
+
+      console.log('[RetroEditorService] sql.js path:', sqlJsPath);
+
+      const SQL = await initSqlJs({
+        locateFile: (file: string) => {
+          const fullPath = path.join(sqlJsPath, file);
+          console.log('[RetroEditorService] sql.js locateFile:', file, '->', fullPath);
+          return fullPath;
+        }
+      });
 
       // Load database file into memory
       const fileBuffer = fs.readFileSync(dbPath);
       const db = new SQL.Database(fileBuffer);
 
+      console.log('[RetroEditorService] Career stats database loaded successfully');
       // Return a wrapper that provides a better-sqlite3-like API
       return new SqlJsWrapper(db);
     } catch (error) {

@@ -403,7 +403,7 @@ export default defineConfig({
           mkdirSync(destNodeModules, { recursive: true });
         }
 
-        const requiredModules = ['bit-buffer', 'stream-parser', 'crc-32', 'fzstd', 'papaparse'];
+        const requiredModules = ['bit-buffer', 'stream-parser', 'crc-32', 'fzstd', 'papaparse', 'sql.js'];
         requiredModules.forEach(moduleName => {
           const srcModule = path.join(__dirname, 'node_modules', moduleName);
           const destModule = path.join(destNodeModules, moduleName);

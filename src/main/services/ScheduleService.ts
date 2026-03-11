@@ -69,14 +69,18 @@ export class ScheduleService {
 
   constructor() {
     // Find schedules directory
+    // In packaged app, data is in .vite/build/data/retro/schedules
+    const appPath = app.getAppPath();
     const possiblePaths = [
+      path.join(appPath, '.vite', 'build', 'data', 'retro', 'schedules'), // Packaged app
+      path.join(appPath, 'data', 'retro', 'schedules'), // Dev mode
       path.join(process.cwd(), 'data', 'retro', 'schedules'),
-      path.join(app.getAppPath(), 'data', 'retro', 'schedules'),
       path.join(__dirname, '..', '..', 'data', 'retro', 'schedules'),
     ];
 
     this.schedulesDir = possiblePaths.find(p => fs.existsSync(p)) || possiblePaths[0];
     console.log('[ScheduleService] Schedules directory:', this.schedulesDir);
+    console.log('[ScheduleService] app.isPackaged:', app.isPackaged);
   }
 
   /**

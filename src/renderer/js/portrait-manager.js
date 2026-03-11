@@ -2025,12 +2025,36 @@
   }
 
   // =============================================
-  // CUSTOM COACH PORTRAIT MANAGEMENT
+  // CUSTOM COACH PORTRAIT MANAGEMENT (Workspace Style)
   // =============================================
 
   let coachSelectedPids = new Set();
   let coachViewMode = 'workspace'; // 'workspace' or 'all'
   let selectedCoachForAssignment = null;
+  let coachWorkspaceSelectedPid = null;
+  let coachWorkspaceSelectedCoachId = null;
+  let coachPortraits = [];
+
+  /**
+   * Parse coach name from filename
+   */
+  function parseCoachNameFromFilename(filename) {
+    if (!filename) return '';
+
+    // Remove file extension
+    let name = filename.replace(/\.[^.]+$/, '');
+
+    // Remove leading numbers/underscores (like "12345_")
+    name = name.replace(/^\d+[_-]?/, '');
+
+    // Replace underscores and dashes with spaces
+    name = name.replace(/[_-]/g, ' ');
+
+    // Clean up extra spaces
+    name = name.replace(/\s+/g, ' ').trim();
+
+    return name;
+  }
 
   /**
    * Initialize custom coach portrait section
@@ -2089,84 +2113,381 @@
   }
 
   /**
-   * Refresh custom coach portraits grid
+   * Refresh custom coach portraits grid (Workspace Style)
    */
   async function refreshCoachPortraits() {
-    const grid = document.getElementById('coachPortraitGrid');
+    const grid = document.getElementById('coachPortraitsGrid');
     if (!grid) return;
 
+    console.log('[PortraitManager] Rendering coach workspace grid...');
+
     try {
-      const yearFilter = document.getElementById('coachPortraitYearFilter')?.value;
-      let portraits;
+      // Load all coach portraits
+      coachPortraits = await window.electronAPI.customCoachPortrait.list();
+      console.log('[PortraitManager] Loaded coach portraits:', coachPortraits?.length || 0);
 
+      // Filter to unassigned only (workspace mode)
+      let unassigned = coachPortraits.filter(p => !p.coachName && !p.databaseCoachId);
+      console.log('[PortraitManager] Unassigned coach portraits:', unassigned.length);
+
+      // Populate year filter dropdown
+      const yearFilter = document.getElementById('coachWorkspaceYearFilter');
       if (yearFilter) {
-        portraits = await window.electronAPI.customCoachPortrait.listByYear(parseInt(yearFilter));
-      } else {
-        portraits = await window.electronAPI.customCoachPortrait.list();
+        const years = new Set();
+        unassigned.forEach(p => {
+          if (p.originalFilename) {
+            const yearMatch = p.originalFilename.match(/\b(19[2-9]\d|20[0-2]\d)\b/);
+            if (yearMatch) years.add(yearMatch[1]);
+          }
+        });
+
+        const currentValue = yearFilter.value;
+        const sortedYears = Array.from(years).sort();
+
+        if (!yearFilter.dataset.yearsLoaded || yearFilter.dataset.years !== sortedYears.join(',')) {
+          yearFilter.innerHTML = '<option value="">All Years</option>';
+          sortedYears.forEach(y => {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            yearFilter.appendChild(opt);
+          });
+          yearFilter.dataset.yearsLoaded = 'true';
+          yearFilter.dataset.years = sortedYears.join(',');
+
+          if (currentValue && sortedYears.includes(currentValue)) {
+            yearFilter.value = currentValue;
+          }
+        }
+
+        if (!yearFilter.dataset.bound) {
+          yearFilter.dataset.bound = 'true';
+          yearFilter.addEventListener('change', () => refreshCoachPortraits());
+        }
+
+        // Apply year filter
+        const selectedYear = yearFilter.value;
+        if (selectedYear) {
+          unassigned = unassigned.filter(p => p.originalFilename && p.originalFilename.includes(selectedYear));
+        }
       }
 
-      // Filter by view mode
-      if (coachViewMode === 'workspace') {
-        portraits = portraits.filter(p => !p.databaseCoachId);
-      }
+      // Update count
+      updateCoachPortraitCount(coachPortraits.length, unassigned.length);
 
-      // Clear selection
-      coachSelectedPids.clear();
-      updateCoachSelectionButtons();
-
-      if (!portraits || portraits.length === 0) {
+      // No portraits at all
+      if (!coachPortraits || coachPortraits.length === 0) {
         grid.innerHTML = `
-          <div class="portrait-empty-state">
-            <span class="empty-icon">🖼️</span>
-            <h3>No Coach Portraits Yet</h3>
-            <p>Click "Import Portrait" to add custom coach portraits.</p>
-            <p class="empty-hint">Coach portraits will be assigned PIDs starting at 50000.</p>
+          <div class="portrait-empty-state" style="padding: 40px; text-align: center; grid-column: 1 / -1;">
+            <span style="font-size: 2rem;">👔</span>
+            <h3 style="color: var(--text-primary);">No Coach Portraits Imported</h3>
+            <p style="color: var(--text-secondary);">Use "Import Coach Portrait" to add custom portraits first.</p>
           </div>
         `;
-        updateCoachPortraitCount(0, 0);
         return;
       }
 
-      grid.innerHTML = '';
-
-      for (const portrait of portraits) {
-        const card = document.createElement('div');
-        card.className = 'portrait-card';
-        card.dataset.pid = portrait.pid;
-
-        if (portrait.databaseCoachId) {
-          card.classList.add('assigned');
-        }
-
-        // Load image
-        const imageData = await window.electronAPI.customCoachPortrait.get(portrait.pid);
-
-        card.innerHTML = `
-          <img src="${imageData || ''}" alt="Coach Portrait ${portrait.pid}">
-          <div class="portrait-info">
-            <span class="portrait-pid">PID: ${portrait.pid}</span>
-            ${portrait.coachName ? `<span class="portrait-name">${portrait.coachName}</span>` : ''}
-            ${portrait.databaseCoachId ? '<span class="assigned-badge">Assigned</span>' : ''}
-          </div>
-          <div class="portrait-actions">
-            <button class="btn-icon-small" onclick="window.coachPortraitManager.deletePortrait(${portrait.pid})" title="Delete">🗑️</button>
+      // All portraits assigned
+      if (unassigned.length === 0) {
+        grid.innerHTML = `
+          <div class="portrait-empty-state" style="padding: 40px; text-align: center; grid-column: 1 / -1;">
+            <span style="font-size: 2rem;">✅</span>
+            <h3 style="color: var(--text-primary);">All Done!</h3>
+            <p style="color: var(--text-secondary);">All ${coachPortraits.length} coach portraits have been assigned.</p>
           </div>
         `;
+        return;
+      }
 
-        card.addEventListener('click', (e) => {
-          if (e.target.closest('.portrait-actions')) return;
-          toggleCoachPortraitSelection(portrait.pid, card);
+      // Render unassigned portraits with name matching
+      grid.innerHTML = '';
+      for (const p of unassigned) {
+        const card = document.createElement('div');
+        card.className = 'portrait-card' + (coachWorkspaceSelectedPid === p.pid ? ' selected' : '');
+        card.dataset.pid = p.pid;
+        card.style.cssText = 'cursor: pointer; position: relative;';
+
+        const img = document.createElement('img');
+        img.alt = `Coach Portrait ${p.pid}`;
+        try {
+          const imageData = await window.electronAPI.customCoachPortrait.get(p.pid);
+          img.src = imageData || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+        } catch (e) {
+          img.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect fill="%23333" width="100" height="100"/></svg>';
+        }
+        card.appendChild(img);
+
+        // PID badge
+        const pidEl = document.createElement('div');
+        pidEl.className = 'portrait-pid';
+        pidEl.textContent = `PID: ${p.pid}`;
+        card.appendChild(pidEl);
+
+        // Red X button to delete
+        const removeBtn = document.createElement('button');
+        removeBtn.innerHTML = '×';
+        removeBtn.title = 'Delete portrait';
+        removeBtn.style.cssText = 'position: absolute; top: 4px; right: 4px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 14px; line-height: 1; font-weight: bold; z-index: 10;';
+        removeBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await handleDeleteCoachPortraitFromWorkspace(p.pid);
         });
+        card.appendChild(removeBtn);
 
+        // Show suggested name from filename with quick confirm button
+        const suggestedName = parseCoachNameFromFilename(p.originalFilename);
+        if (suggestedName) {
+          const nameRow = document.createElement('div');
+          nameRow.style.cssText = 'display: flex; align-items: center; gap: 4px; justify-content: center; margin-top: 4px;';
+
+          const nameEl = document.createElement('span');
+          nameEl.className = 'portrait-name';
+          nameEl.textContent = '? ' + suggestedName;
+          nameEl.title = 'Suggested from filename';
+          nameEl.style.cssText = 'color: #f59e0b; font-size: 0.8rem;';
+          nameRow.appendChild(nameEl);
+
+          // Quick confirm checkmark button
+          const quickConfirm = document.createElement('button');
+          quickConfirm.innerHTML = '✓';
+          quickConfirm.title = 'Quick confirm this match';
+          quickConfirm.style.cssText = 'background: #4caf50; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; line-height: 1;';
+          quickConfirm.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await handleCoachWorkspaceQuickConfirm(p.pid, suggestedName);
+          });
+          nameRow.appendChild(quickConfirm);
+
+          card.appendChild(nameRow);
+        } else {
+          const nameEl = document.createElement('div');
+          nameEl.className = 'portrait-name';
+          nameEl.textContent = 'Unassigned';
+          nameEl.style.cssText = 'color: var(--text-secondary); font-size: 0.8rem; margin-top: 4px;';
+          card.appendChild(nameEl);
+        }
+
+        card.addEventListener('click', () => handleCoachWorkspacePortraitSelect(p.pid, suggestedName));
         grid.appendChild(card);
       }
 
-      const unassignedCount = portraits.filter(p => !p.databaseCoachId).length;
-      updateCoachPortraitCount(portraits.length, unassignedCount);
+      // Setup search handler
+      const searchInput = document.getElementById('coachWorkspaceSearch');
+      if (searchInput && !searchInput.dataset.bound) {
+        searchInput.dataset.bound = 'true';
+        searchInput.addEventListener('input', handleCoachWorkspaceSearch);
+      }
+
+      // Setup assign button
+      const assignBtn = document.getElementById('btn-coach-workspace-assign');
+      if (assignBtn && !assignBtn.dataset.bound) {
+        assignBtn.dataset.bound = 'true';
+        assignBtn.addEventListener('click', handleCoachWorkspaceAssign);
+      }
 
     } catch (error) {
       console.error('[PortraitManager] Error refreshing coach portraits:', error);
       grid.innerHTML = '<div class="portrait-empty-state"><p>Error loading portraits</p></div>';
+    }
+  }
+
+  /**
+   * Handle coach portrait selection in workspace
+   */
+  function handleCoachWorkspacePortraitSelect(pid, suggestedName) {
+    coachWorkspaceSelectedPid = pid;
+
+    // Update visual selection
+    const grid = document.getElementById('coachPortraitsGrid');
+    grid.querySelectorAll('.portrait-card').forEach(card => {
+      card.classList.toggle('selected', card.dataset.pid == pid);
+    });
+
+    // Auto-search if we have a suggested name
+    if (suggestedName) {
+      const searchInput = document.getElementById('coachWorkspaceSearch');
+      if (searchInput) {
+        searchInput.value = suggestedName;
+        handleCoachWorkspaceSearch();
+      }
+    }
+  }
+
+  /**
+   * Handle coach search in workspace
+   */
+  async function handleCoachWorkspaceSearch() {
+    const searchInput = document.getElementById('coachWorkspaceSearch');
+    const resultsDiv = document.getElementById('coachWorkspaceSearchResults');
+    if (!searchInput || !resultsDiv) return;
+
+    const query = searchInput.value.trim();
+    if (!query || query.length < 2) {
+      resultsDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Type at least 2 characters to search...</div>';
+      return;
+    }
+
+    resultsDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-secondary);">Searching...</div>';
+
+    try {
+      const result = await window.electronAPI.coachDatabase.searchCoaches({ query, limit: 20 });
+      const coaches = result.success && result.data?.coaches ? result.data.coaches : [];
+
+      if (coaches.length === 0) {
+        resultsDiv.innerHTML = `
+          <div style="padding: 20px; text-align: center;">
+            <p style="color: var(--text-secondary); margin-bottom: 12px;">No coaches found for "${query}"</p>
+            <button onclick="window.coachPortraitManager.createNewCoach('${query.replace(/'/g, "\\'")}')"
+                    style="padding: 10px 20px; background: #4a9eff; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 14px;">
+              + Create New Coach
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      resultsDiv.innerHTML = coaches.map(coach => {
+        const hasPid = coach.maddenPid && coach.maddenPid >= 50000;
+        return `
+          <div class="workspace-search-result" data-coach-id="${coach.id}" data-coach-name="${coach.displayName}" data-is-custom="${coach.isCustom}"
+               style="padding: 10px 12px; border-bottom: 1px solid var(--border-color); cursor: pointer; display: flex; justify-content: space-between; align-items: center;"
+               onmouseover="this.style.background='var(--bg-tertiary)'" onmouseout="this.style.background='transparent'">
+            <div>
+              <div style="font-weight: 500; color: var(--text-primary);">${coach.displayName}</div>
+              <div style="font-size: 0.8rem; color: var(--text-secondary);">${coach.position || ''} ${coach.isCustom ? '(Custom)' : ''}</div>
+            </div>
+            ${hasPid ? '<span style="color: #4caf50; font-size: 0.8rem;">Has Portrait</span>' : ''}
+          </div>
+        `;
+      }).join('');
+
+      // Add click handlers
+      resultsDiv.querySelectorAll('.workspace-search-result').forEach(item => {
+        item.addEventListener('click', () => {
+          selectCoachForWorkspaceAssign(
+            parseInt(item.dataset.coachId),
+            item.dataset.coachName,
+            item.dataset.isCustom === 'true'
+          );
+        });
+      });
+    } catch (error) {
+      console.error('[PortraitManager] Coach search error:', error);
+      resultsDiv.innerHTML = '<div style="padding: 20px; text-align: center; color: #dc3545;">Search error</div>';
+    }
+  }
+
+  /**
+   * Select coach for workspace assignment
+   */
+  function selectCoachForWorkspaceAssign(coachId, coachName, isCustom) {
+    coachWorkspaceSelectedCoachId = { id: coachId, name: coachName, isCustom };
+
+    // Show selected coach panel
+    const selectedDiv = document.getElementById('coachWorkspaceSelectedCoach');
+    const nameEl = document.getElementById('coachWorkspaceCoachName');
+    const detailsEl = document.getElementById('coachWorkspaceCoachDetails');
+
+    if (selectedDiv) selectedDiv.style.display = 'block';
+    if (nameEl) nameEl.textContent = coachName;
+    if (detailsEl) detailsEl.textContent = isCustom ? 'Custom Coach' : 'Database Coach';
+
+    // Clear search results
+    document.getElementById('coachWorkspaceSearchResults').innerHTML = '';
+  }
+
+  /**
+   * Handle workspace assign button click
+   */
+  async function handleCoachWorkspaceAssign() {
+    if (!coachWorkspaceSelectedPid || !coachWorkspaceSelectedCoachId) {
+      showToast('Select a portrait and a coach first', 'warning');
+      return;
+    }
+
+    const pid = coachWorkspaceSelectedPid;
+    const { id, name, isCustom } = coachWorkspaceSelectedCoachId;
+
+    try {
+      // Update portrait metadata
+      await window.electronAPI.customCoachPortrait.updateMetadata(pid, {
+        coachName: name,
+        databaseCoachId: id
+      });
+
+      // Update coach's appearance with the new PID
+      await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
+        maddenPid: pid
+      });
+
+      showToast(`Assigned portrait to ${name}`, 'success');
+
+      // Reset selection and refresh
+      coachWorkspaceSelectedPid = null;
+      coachWorkspaceSelectedCoachId = null;
+      document.getElementById('coachWorkspaceSelectedCoach').style.display = 'none';
+      document.getElementById('coachWorkspaceSearch').value = '';
+
+      refreshCoachPortraits();
+    } catch (error) {
+      console.error('[PortraitManager] Coach workspace assign error:', error);
+      showToast(`Assignment failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Handle quick confirm for coach workspace
+   */
+  async function handleCoachWorkspaceQuickConfirm(pid, suggestedName) {
+    console.log('[PortraitManager] Quick confirm coach:', pid, suggestedName);
+
+    try {
+      // Search for the coach by the suggested name
+      const result = await window.electronAPI.coachDatabase.searchCoaches({ query: suggestedName, limit: 5 });
+      const coaches = result.success && result.data?.coaches ? result.data.coaches : [];
+
+      if (coaches.length === 0) {
+        showToast(`No coach found for "${suggestedName}"`, 'warning');
+        return;
+      }
+
+      // Find best match (exact name match preferred)
+      let bestMatch = coaches.find(c => c.displayName.toLowerCase() === suggestedName.toLowerCase());
+      if (!bestMatch) {
+        bestMatch = coaches[0]; // Use first result
+      }
+
+      // Assign the portrait
+      await window.electronAPI.customCoachPortrait.updateMetadata(pid, {
+        coachName: bestMatch.displayName,
+        databaseCoachId: bestMatch.id
+      });
+
+      await window.electronAPI.coachDatabase.saveAppearanceEdit(bestMatch.id, {
+        maddenPid: pid
+      });
+
+      showToast(`Assigned to ${bestMatch.displayName}`, 'success');
+      refreshCoachPortraits();
+    } catch (error) {
+      console.error('[PortraitManager] Quick confirm error:', error);
+      showToast(`Quick confirm failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Delete coach portrait from workspace
+   */
+  async function handleDeleteCoachPortraitFromWorkspace(pid) {
+    if (!confirm(`Delete coach portrait PID ${pid}?`)) return;
+
+    try {
+      await window.electronAPI.customCoachPortrait.delete(pid);
+      showToast(`Deleted coach portrait PID ${pid}`, 'success');
+      refreshCoachPortraits();
+    } catch (error) {
+      console.error('[PortraitManager] Delete error:', error);
+      showToast(`Delete failed: ${error.message}`, 'error');
     }
   }
 
@@ -2190,6 +2511,7 @@
   function updateCoachSelectionButtons() {
     const exportBtn = document.getElementById('exportSelectedCoachPortraitsBtn');
     const assignBtn = document.getElementById('assignCoachPortraitBtn');
+    const deleteBtn = document.getElementById('deleteCoachPortraitBtn');
 
     if (exportBtn) {
       exportBtn.disabled = coachSelectedPids.size === 0;
@@ -2197,13 +2519,16 @@
     if (assignBtn) {
       assignBtn.disabled = coachSelectedPids.size !== 1;
     }
+    if (deleteBtn) {
+      deleteBtn.disabled = coachSelectedPids.size === 0;
+    }
   }
 
   /**
    * Update coach portrait count display
    */
   function updateCoachPortraitCount(total, unassigned) {
-    const countEl = document.getElementById('coachPortraitCount');
+    const countEl = document.getElementById('coachPortraitsCount');
     if (countEl) {
       countEl.textContent = `${unassigned} to assign (${total} total)`;
     }
@@ -2355,6 +2680,42 @@
     } catch (error) {
       console.error('[PortraitManager] Coach delete error:', error);
       showToast(`Delete failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Delete selected coach portraits
+   */
+  async function handleDeleteSelectedCoachPortraits() {
+    if (coachSelectedPids.size === 0) {
+      showToast('No portraits selected', 'warning');
+      return;
+    }
+
+    const count = coachSelectedPids.size;
+    if (!confirm(`Delete ${count} selected coach portrait(s)?`)) return;
+
+    let deleted = 0;
+    let errors = 0;
+
+    for (const pid of coachSelectedPids) {
+      try {
+        await window.electronAPI.customCoachPortrait.delete(pid);
+        deleted++;
+      } catch (error) {
+        console.error(`[PortraitManager] Error deleting coach portrait ${pid}:`, error);
+        errors++;
+      }
+    }
+
+    coachSelectedPids.clear();
+    updateCoachSelectionButtons();
+    refreshCoachPortraits();
+
+    if (errors > 0) {
+      showToast(`Deleted ${deleted} portrait(s), ${errors} failed`, 'warning');
+    } else {
+      showToast(`Deleted ${deleted} coach portrait(s)`, 'success');
     }
   }
 
@@ -2596,12 +2957,12 @@
   async function createNewCoach(searchQuery) {
     console.log('[PortraitManager] Create new coach from search:', searchQuery);
 
-    // Store the current portrait PID we want to assign (from coachSelectedPids)
-    if (coachSelectedPids.size !== 1) {
+    // Store the current portrait PID we want to assign (from workspace selection)
+    if (!coachWorkspaceSelectedPid) {
       showToast('No portrait selected', 'warning');
       return;
     }
-    pendingCoachPortraitPid = Array.from(coachSelectedPids)[0];
+    pendingCoachPortraitPid = coachWorkspaceSelectedPid;
 
     // Parse name from search query
     let coachName = searchQuery.trim();
@@ -2609,8 +2970,9 @@
     const suggestedFirst = nameParts[0] || '';
     const suggestedLast = nameParts.slice(1).join(' ') || '';
 
-    // Close the assignment modal first
-    closeCoachAssignModal();
+    // Close the coach portraits workspace modal
+    const coachModal = document.getElementById('modal-coach-portraits');
+    if (coachModal) coachModal.style.display = 'none';
 
     // Check if the full Database Coach Card creator is available
     if (typeof window.createNewDbCoach !== 'function') {
@@ -2764,18 +3126,22 @@
       if (e.key === 'Enter') handleBundledSearchNew();
     });
 
-    // Coach modal buttons
+    // Coach modal buttons - use the actual function names
     document.getElementById('btn-import-coach')?.addEventListener('click', () => {
-      handleCoachImportSingle();
+      handleImportCoachPortrait();
     });
 
     document.getElementById('btn-import-coach-multiple')?.addEventListener('click', () => {
-      handleCoachImportMultiple();
+      handleImportMultipleCoachPortraits();
     });
 
     document.getElementById('btn-export-coach-all')?.addEventListener('click', () => {
-      handleCoachExportAll();
+      handleExportAllCoachPortraits();
     });
+
+    document.getElementById('assignCoachPortraitBtn')?.addEventListener('click', openCoachAssignModal);
+
+    document.getElementById('deleteCoachPortraitBtn')?.addEventListener('click', handleDeleteSelectedCoachPortraits);
 
     document.getElementById('btn-coach-bundled-search')?.addEventListener('click', handleCoachBundledSearchNew);
     document.getElementById('coachBundledSearchInput')?.addEventListener('keypress', (e) => {
@@ -2810,7 +3176,7 @@
         break;
       case 'coaches':
         document.getElementById('modal-coach-portraits').style.display = 'flex';
-        renderCoachPortraitsGrid();
+        refreshCoachPortraits();
         break;
     }
   }

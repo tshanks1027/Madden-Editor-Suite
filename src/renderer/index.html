@@ -4375,15 +4375,16 @@
                 </div>
             </div>
 
-            <!-- Coach Portraits Modal -->
+            <!-- Coach Portraits Workspace Modal - Match portraits to coaches -->
             <div id="modal-coach-portraits" class="portrait-modal-overlay" style="display: none;">
-                <div class="portrait-modal-content" style="max-width: 900px; max-height: 80vh;">
+                <div class="portrait-modal-content" style="max-width: 1600px; width: 95vw; max-height: 90vh;">
                     <div class="portrait-modal-header">
-                        <h3>👔 Coach Portraits</h3>
+                        <h3>👔 Coach Portrait Workspace</h3>
                         <button class="portrait-modal-close">&times;</button>
                     </div>
-                    <div class="portrait-modal-body" style="overflow-y: auto; max-height: calc(80vh - 120px);">
-                        <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+                    <div class="portrait-modal-body" style="overflow-y: auto; max-height: calc(90vh - 120px);">
+                        <!-- Top toolbar -->
+                        <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;">
                             <button id="btn-import-coach" class="btn btn-primary">
                                 <span style="margin-right: 6px;">📁</span> Import Coach Portrait
                             </button>
@@ -4393,29 +4394,49 @@
                             <button id="btn-export-coach-all" class="btn btn-secondary">
                                 <span style="margin-right: 6px;">💾</span> Export All
                             </button>
-                            <span id="coachPortraitsCount" style="margin-left: auto; color: var(--text-secondary); align-self: center;">0 coach portraits</span>
-                        </div>
-                        <!-- Coach Portrait Grid -->
-                        <div id="coachPortraitsGrid" class="portrait-grid" style="min-height: 200px;">
-                            <div class="portrait-empty-state">
-                                <span class="empty-icon">👔</span>
-                                <h3>No Coach Portraits Yet</h3>
-                                <p>Click "Import Coach Portrait" to add custom coach portraits.</p>
-                            </div>
+                            <button id="deleteCoachPortraitBtn" class="btn btn-danger" disabled>
+                                <span style="margin-right: 6px;">🗑️</span> Delete Selected
+                            </button>
+                            <span id="coachPortraitsCount" style="margin-left: auto; color: var(--text-secondary);">0 coach portraits</span>
                         </div>
 
-                        <!-- Bundled Coach Portraits Section -->
-                        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
-                            <h4 style="margin-bottom: 12px; color: var(--text-primary);">Search Bundled Coach Portraits</h4>
-                            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-                                <input type="text" id="coachBundledSearchInput" placeholder="Search by coach name (e.g., Reid, Belichick)..."
-                                    style="flex: 1; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
-                                <button id="btn-coach-bundled-search" class="btn btn-secondary">Search</button>
-                                <button id="btn-coach-bundled-export" class="btn btn-primary" disabled>Export Selected</button>
+                        <div style="display: flex; gap: 20px;">
+                            <!-- Left side: Unassigned Coach Portraits -->
+                            <div style="flex: 2; min-width: 700px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <h4 style="margin: 0; color: var(--text-primary);">Unassigned Portraits</h4>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <label style="color: var(--text-secondary); font-size: 0.85rem;">Filter by Year:</label>
+                                        <select id="coachWorkspaceYearFilter" style="padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                                            <option value="">All Years</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="coachPortraitsGrid" class="portrait-grid" style="min-height: 400px; max-height: 70vh; overflow-y: auto; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;"></div>
                             </div>
-                            <div id="coachBundledSearchResults" class="bundled-portrait-grid" style="min-height: 100px;">
-                                <div class="bundled-empty-state" style="text-align: center; padding: 20px; color: var(--text-secondary);">
-                                    <p>Search for coach portraits above.</p>
+
+                            <!-- Right side: Coach Search & Assignment -->
+                            <div style="flex: 1; min-width: 350px;">
+                                <h4 style="margin: 0 0 12px 0; color: var(--text-primary);">Find Coach to Assign</h4>
+                                <div style="margin-bottom: 12px;">
+                                    <input type="text" id="coachWorkspaceSearch" placeholder="Search coaches by name..."
+                                        style="width: 100%; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                                </div>
+                                <div id="coachWorkspaceSearchResults" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary);"></div>
+                                <div id="coachWorkspaceSelectedCoach" style="margin-top: 12px; padding: 12px; background: var(--bg-tertiary); border-radius: 6px; display: none;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <div id="coachWorkspaceCoachName" style="font-weight: 600; color: var(--text-primary);"></div>
+                                            <div id="coachWorkspaceCoachDetails" style="font-size: 0.85rem; color: var(--text-secondary);"></div>
+                                        </div>
+                                        <button id="btn-coach-workspace-assign" class="btn btn-primary">Assign Portrait</button>
+                                    </div>
+                                </div>
+
+                                <!-- Export section -->
+                                <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                                    <h4 style="margin: 0 0 12px 0; color: var(--text-primary);">📦 Export Portraits</h4>
+                                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px;">Export portraits for distribution</p>
                                 </div>
                             </div>
                         </div>

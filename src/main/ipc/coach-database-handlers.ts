@@ -577,6 +577,8 @@ ipcMain.handle('coach-database:get-merged-coach', async (event, coachId: number)
       firstName: coachEdit?.firstName ?? original.firstName,
       lastName: coachEdit?.lastName ?? original.lastName,
       pam: appearanceEdit?.maddenPam ?? original.pam,
+      maddenPid: appearanceEdit?.maddenPid,  // Custom portrait PID if assigned
+      maddenPam: appearanceEdit?.maddenPam ?? original.pam,
       displayName: original.displayName,
       // Additional fields from edits
       teamIndex: coachEdit?.teamIndex,
@@ -676,6 +678,7 @@ ipcMain.handle('coach-database:search-coaches', async (event, options: {
       lastName: string;
       displayName: string;
       pam: string;
+      maddenPid?: number;  // Custom portrait PID if assigned
       position?: string;
       teamIndex?: number;
       isCustom: boolean;
@@ -722,6 +725,7 @@ ipcMain.handle('coach-database:search-coaches', async (event, options: {
         lastName,
         displayName,
         pam: appearanceEdit?.maddenPam ?? coach.pam,
+        maddenPid: appearanceEdit?.maddenPid,  // Custom portrait PID if assigned
         position: coachPosition,
         teamIndex: coachEdit?.teamIndex,
         isCustom: false,
@@ -749,6 +753,7 @@ ipcMain.handle('coach-database:search-coaches', async (event, options: {
         lastName: coach.lastName,
         displayName,
         pam: coach.maddenPam || '',
+        maddenPid: coach.maddenPid,  // Custom portrait PID if assigned
         position: coach.position,
         teamIndex: coach.teamIndex,
         isCustom: true,

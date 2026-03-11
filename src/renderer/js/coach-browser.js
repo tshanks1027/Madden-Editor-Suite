@@ -84,6 +84,23 @@
       });
     }
 
+    // Go to page
+    const pageJumpInput = document.getElementById('coachBrowserPageJump');
+    const goToPageBtn = document.getElementById('coachBrowserGoToPage');
+    if (goToPageBtn && pageJumpInput) {
+      const goToPage = () => {
+        const totalPages = Math.ceil(totalResults / pageSize) || 1;
+        const targetPage = parseInt(pageJumpInput.value, 10);
+        if (targetPage >= 1 && targetPage <= totalPages) {
+          currentPage = targetPage;
+          performSearch();
+          pageJumpInput.value = '';
+        }
+      };
+      goToPageBtn.addEventListener('click', goToPage);
+      pageJumpInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') goToPage(); });
+    }
+
     // Add New Coach button
     const addNewCoachBtn = document.getElementById('addNewCoachBtn');
     if (addNewCoachBtn) {
@@ -325,14 +342,23 @@
     // Try to get coach portrait
     let portraitHtml = '<div class="preview-portrait-placeholder">👔</div>';
     try {
-      // For original coaches, use the PID (coach.id). For custom, check if there's a maddenPid
-      const pid = coach.id;
-      if (pid && window.electronAPI?.coachPortrait) {
-        const hasPortrait = await window.electronAPI.coachPortrait.hasPortrait(pid);
-        if (hasPortrait) {
-          const imageData = await window.electronAPI.coachPortrait.getImageDataByPID(pid);
-          if (imageData) {
-            portraitHtml = `<img src="${imageData}" alt="${coach.displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">`;
+      // Check if custom portrait is assigned (PID 50000+)
+      const customPid = coach.maddenPid;
+      if (customPid && customPid >= 50000 && window.electronAPI?.customCoachPortrait) {
+        const imageData = await window.electronAPI.customCoachPortrait.get(customPid);
+        if (imageData) {
+          portraitHtml = `<img src="${imageData}" alt="${coach.displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">`;
+        }
+      } else {
+        // Fall back to bundled portraits using original PID
+        const pid = coach.id;
+        if (pid !== undefined && window.electronAPI?.coachPortrait) {
+          const hasPortrait = await window.electronAPI.coachPortrait.hasPortrait(pid);
+          if (hasPortrait) {
+            const imageData = await window.electronAPI.coachPortrait.getImageDataByPID(pid);
+            if (imageData) {
+              portraitHtml = `<img src="${imageData}" alt="${coach.displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">`;
+            }
           }
         }
       }
@@ -385,13 +411,16 @@
    * Update pagination controls
    */
   function updatePagination() {
+    const totalPages = Math.ceil(totalResults / pageSize) || 1;
     const prevBtn = document.getElementById('coachBrowserPrevPage');
     const nextBtn = document.getElementById('coachBrowserNextPage');
     const pageInfo = document.getElementById('coachBrowserPageInfo');
+    const pageJumpInput = document.getElementById('coachBrowserPageJump');
 
     if (prevBtn) prevBtn.disabled = currentPage <= 1;
-    if (nextBtn) nextBtn.disabled = currentResults.length < pageSize;
-    if (pageInfo) pageInfo.textContent = `Page ${currentPage}`;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+    if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    if (pageJumpInput) pageJumpInput.max = totalPages;
   }
 
   // Global function to view/edit a coach
