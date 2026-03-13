@@ -28,11 +28,14 @@
     console.log('[CoachBrowser] Initialized');
   }
 
+  // Track current position filter from top bar buttons
+  let currentPositionFilter = '';
+
   /**
    * Set up event listeners
    */
   function setupEventListeners() {
-    // Search input with debounce
+    // Search input with debounce (sidebar)
     const searchInput = document.getElementById('coachBrowserSearch');
     if (searchInput) {
       searchInput.addEventListener('input', () => {
@@ -41,6 +44,9 @@
         }
         searchTimeout = setTimeout(() => {
           currentPage = 1;
+          // Sync to quick search input
+          const quickInput = document.getElementById('coachQuickSearchInput');
+          if (quickInput) quickInput.value = searchInput.value;
           performSearch();
         }, 400);
       });
@@ -57,14 +63,59 @@
       });
     }
 
-    // Position filter
+    // Quick search input (top bar)
+    const quickSearchInput = document.getElementById('coachQuickSearchInput');
+    if (quickSearchInput) {
+      quickSearchInput.addEventListener('input', () => {
+        if (searchTimeout) {
+          clearTimeout(searchTimeout);
+        }
+        searchTimeout = setTimeout(() => {
+          currentPage = 1;
+          // Sync to sidebar search input
+          const sidebarInput = document.getElementById('coachBrowserSearch');
+          if (sidebarInput) sidebarInput.value = quickSearchInput.value;
+          performSearch();
+        }, 400);
+      });
+
+      quickSearchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          if (searchTimeout) {
+            clearTimeout(searchTimeout);
+          }
+          currentPage = 1;
+          performSearch();
+        }
+      });
+    }
+
+    // Position filter (sidebar dropdown)
     const positionFilter = document.getElementById('coachBrowserPositionFilter');
     if (positionFilter) {
       positionFilter.addEventListener('change', () => {
         currentPage = 1;
+        currentPositionFilter = positionFilter.value;
+        // Update top bar buttons to match
+        updateTopBarPositionButtons(positionFilter.value);
         performSearch();
       });
     }
+
+    // Position buttons (top bar)
+    const positionBtns = document.querySelectorAll('.coach-position-btn');
+    positionBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        positionBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentPositionFilter = btn.dataset.position || '';
+        // Sync to sidebar dropdown
+        const dropdown = document.getElementById('coachBrowserPositionFilter');
+        if (dropdown) dropdown.value = currentPositionFilter;
+        currentPage = 1;
+        performSearch();
+      });
+    });
 
     // Pagination
     const prevBtn = document.getElementById('coachBrowserPrevPage');
@@ -127,6 +178,52 @@
     if (clearCoachDbBtn) {
       clearCoachDbBtn.addEventListener('click', clearCoachDatabase);
     }
+
+    // Clear All Filters button
+    const clearFiltersBtn = document.getElementById('clearCoachFilters');
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener('click', clearAllFilters);
+    }
+  }
+
+  /**
+   * Clear all filters and reset search
+   */
+  function clearAllFilters() {
+    // Clear search inputs (both sidebar and quick search)
+    const searchInput = document.getElementById('coachBrowserSearch');
+    if (searchInput) searchInput.value = '';
+    const quickSearchInput = document.getElementById('coachQuickSearchInput');
+    if (quickSearchInput) quickSearchInput.value = '';
+
+    // Reset position filter (sidebar dropdown)
+    const positionFilter = document.getElementById('coachBrowserPositionFilter');
+    if (positionFilter) positionFilter.value = '';
+
+    // Reset position buttons (top bar)
+    currentPositionFilter = '';
+    updateTopBarPositionButtons('');
+
+    // Reset pagination
+    currentPage = 1;
+
+    // Perform search with cleared filters
+    performSearch();
+  }
+
+  /**
+   * Update top bar position buttons to match the given position
+   */
+  function updateTopBarPositionButtons(position) {
+    const btns = document.querySelectorAll('.coach-position-btn');
+    btns.forEach(btn => {
+      const btnPos = btn.dataset.position || '';
+      if (btnPos === position) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
   }
 
   /**
@@ -238,8 +335,10 @@
     }
 
     try {
-      const searchQuery = document.getElementById('coachBrowserSearch')?.value || '';
-      const position = document.getElementById('coachBrowserPositionFilter')?.value || '';
+      const searchQuery = document.getElementById('coachBrowserSearch')?.value ||
+                          document.getElementById('coachQuickSearchInput')?.value || '';
+      // Use tracked position filter (synced between dropdown and buttons)
+      const position = currentPositionFilter || document.getElementById('coachBrowserPositionFilter')?.value || '';
 
       const options = {
         query: searchQuery.trim(),
@@ -279,6 +378,10 @@
   function displayResults() {
     const resultsDiv = document.getElementById('coachBrowserResults');
     if (!resultsDiv) return;
+
+    // Update total count display
+    const countEl = document.getElementById('totalCoachCount');
+    if (countEl) countEl.textContent = totalResults.toLocaleString();
 
     if (currentResults.length === 0) {
       resultsDiv.innerHTML = '<div class="player-browser-empty"><p>No coaches found</p><p class="player-browser-empty-hint">Try adjusting your search or filters</p></div>';

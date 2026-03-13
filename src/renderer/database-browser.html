@@ -124,7 +124,8 @@
                 <button class="database-tab-btn" data-tab="coaches" id="coachesTabBtn">Coaches</button>
             </div>
         </div>
-        <div class="database-top-bar-center">
+        <!-- Player-specific top bar elements -->
+        <div class="database-top-bar-center" id="playerTopBarCenter">
             <input type="text" class="database-quick-search" id="quickSearchInput" placeholder="Quick search by name, college, or PID...">
             <div class="database-position-filters">
                 <button class="database-position-btn active" data-group="all">All</button>
@@ -133,8 +134,21 @@
                 <button class="database-position-btn" data-group="special">Special</button>
             </div>
         </div>
-        <div class="database-top-bar-right">
+        <div class="database-top-bar-right" id="playerTopBarRight">
             Showing <span class="database-player-count" id="totalPlayerCount">0</span> players
+        </div>
+        <!-- Coach-specific top bar elements (hidden by default) -->
+        <div class="database-top-bar-center" id="coachTopBarCenter" style="display: none;">
+            <input type="text" class="database-quick-search" id="coachQuickSearchInput" placeholder="Quick search coaches by name...">
+            <div class="database-position-filters">
+                <button class="database-position-btn coach-position-btn active" data-position="">All</button>
+                <button class="database-position-btn coach-position-btn" data-position="HC">HC</button>
+                <button class="database-position-btn coach-position-btn" data-position="OC">OC</button>
+                <button class="database-position-btn coach-position-btn" data-position="DC">DC</button>
+            </div>
+        </div>
+        <div class="database-top-bar-right" id="coachTopBarRight" style="display: none;">
+            Showing <span class="database-player-count" id="totalCoachCount">0</span> coaches
         </div>
     </div>
 
@@ -1410,6 +1424,11 @@
                         coachesTabBtn?.classList.remove('active');
                         document.getElementById('playerBrowserContainer').style.display = '';
                         document.getElementById('coachBrowserContainer').style.display = 'none';
+                        // Show player top bar elements, hide coach ones
+                        document.getElementById('playerTopBarCenter').style.display = '';
+                        document.getElementById('playerTopBarRight').style.display = '';
+                        document.getElementById('coachTopBarCenter').style.display = 'none';
+                        document.getElementById('coachTopBarRight').style.display = 'none';
                     });
                 }
                 if (coachesTabBtn) {
@@ -1418,6 +1437,11 @@
                         playersTabBtn?.classList.remove('active');
                         document.getElementById('playerBrowserContainer').style.display = 'none';
                         document.getElementById('coachBrowserContainer').style.display = '';
+                        // Show coach top bar elements, hide player ones
+                        document.getElementById('playerTopBarCenter').style.display = 'none';
+                        document.getElementById('playerTopBarRight').style.display = 'none';
+                        document.getElementById('coachTopBarCenter').style.display = '';
+                        document.getElementById('coachTopBarRight').style.display = '';
                         if (!window.coachBrowserInitialized && typeof window.initCoachBrowser === 'function') {
                             window.initCoachBrowser();
                             window.coachBrowserInitialized = true;
@@ -2423,8 +2447,8 @@
                             <div>${hofBadge}</div>
                             <div class="row-actions">
                                 <button class="row-btn" onclick="event.stopPropagation(); window.viewDbPlayer(${playerId}, ${isCustom})">View</button>
-                                <button class="row-btn row-btn-add" onclick="event.stopPropagation(); window.addToRoster(${playerId})">+Roster</button>
-                                <button class="row-btn row-btn-add" onclick="event.stopPropagation(); window.addToDraft(${playerId})" style="background: #4a6da7;">+Draft</button>
+                                <button class="row-btn row-btn-add" onclick="event.stopPropagation(); window.addToRoster(${playerId}, ${photoId}, ${isCustom})">+Roster</button>
+                                <button class="row-btn row-btn-add" onclick="event.stopPropagation(); window.addToDraft(${playerId}, ${photoId}, ${isCustom})" style="background: #4a6da7;">+Draft</button>
                             </div>
                         </div>
                     `;
@@ -2534,12 +2558,13 @@
                 updateSelectionUI();
             };
 
-            window.addToRoster = async function(playerId) {
+            window.addToRoster = async function(playerId, pid, isCustom) {
                 try {
                     if (window.electronAPI?.database?.sendPlayerToMainWindow) {
-                        const result = await window.electronAPI.database.sendPlayerToMainWindow(playerId, 'roster');
+                        // Pass the PID directly so it doesn't get lost in re-lookup
+                        const result = await window.electronAPI.database.sendPlayerToMainWindow(playerId, 'roster', { pid: pid || 0, isCustom: isCustom === true || isCustom === 'true' });
                         if (result.success) {
-                            console.log('[DatabaseBrowser] Player sent to roster, ID:', playerId);
+                            console.log('[DatabaseBrowser] Player sent to roster, ID:', playerId, 'PID:', pid);
                         } else {
                             console.error('[DatabaseBrowser] Failed to send player to roster:', result.error);
                             alert(result.error || 'Failed to add player to roster');
@@ -2552,12 +2577,13 @@
                 }
             };
 
-            window.addToDraft = async function(playerId) {
+            window.addToDraft = async function(playerId, pid, isCustom) {
                 try {
                     if (window.electronAPI?.database?.sendPlayerToMainWindow) {
-                        const result = await window.electronAPI.database.sendPlayerToMainWindow(playerId, 'draft');
+                        // Pass the PID directly so it doesn't get lost in re-lookup
+                        const result = await window.electronAPI.database.sendPlayerToMainWindow(playerId, 'draft', { pid: pid || 0, isCustom: isCustom === true || isCustom === 'true' });
                         if (result.success) {
-                            console.log('[DatabaseBrowser] Player sent to draft, ID:', playerId);
+                            console.log('[DatabaseBrowser] Player sent to draft, ID:', playerId, 'PID:', pid);
                         } else {
                             console.error('[DatabaseBrowser] Failed to send player to draft:', result.error);
                             alert(result.error || 'Failed to add player to draft');
