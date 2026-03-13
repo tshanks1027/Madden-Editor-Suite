@@ -694,9 +694,10 @@ ipcMain.handle('coach-database:search-coaches', async (event, options: {
         continue;
       }
 
+      // Skip coaches without a valid PID (PAM-only coaches)
       // Skip owners (PID 100-148) and generic faces (PID >= 149) from search
       // Real coaches have PIDs 0-99, these should be in face picker only
-      if (coach.pid >= 100) {
+      if (coach.pid === null || coach.pid === undefined || coach.pid >= 100) {
         continue;
       }
 
