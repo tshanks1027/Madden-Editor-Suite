@@ -104,10 +104,18 @@ export class FutureDraftService {
       const enrichedFromDb = await this.convertDatabasePlayersToProspects(databasePlayers, options.year);
       console.log(`  - Converted ${enrichedFromDb.length} database players to prospects`);
 
-      // Assign draft positions if not already set
-      this.assignDraftPositions(enrichedFromDb);
+      // CRITICAL: Limit to TOTAL_PLAYERS (402) like CSV path does
+      // This ensures consistent output regardless of source
+      let limitedProspects = enrichedFromDb;
+      if (enrichedFromDb.length > TOTAL_PLAYERS) {
+        console.log(`  - ⚠️ Limiting from ${enrichedFromDb.length} to ${TOTAL_PLAYERS} players (matching CSV behavior)`);
+        limitedProspects = enrichedFromDb.slice(0, TOTAL_PLAYERS);
+      }
 
-      return [...enrichedFromDb];
+      // Assign draft positions if not already set
+      this.assignDraftPositions(limitedProspects);
+
+      return [...limitedProspects];
     }
 
     console.log(`  - No players in database for ${options.year}, falling back to CSV`);
@@ -138,12 +146,46 @@ export class FutureDraftService {
   /**
    * Convert database CustomPlayer records to EnrichedProspect format
    * This ensures data pushed via "Push to Database" is used exactly as stored
+   *
+   * PID LOOKUP (like roster generator):
+   * 1. Load ALL custom portraits with player_name mappings
+   * 2. Build name-based index for O(1) lookup
+   * 3. For each player, check their name against portrait assignments
    */
   private async convertDatabasePlayersToProspects(
     players: CustomPlayer[],
     year: number
   ): Promise<EnrichedProspect[]> {
     const prospects: EnrichedProspect[] = [];
+
+    // BULK LOAD: Get all custom portraits with player names (like roster generator does)
+    const allPortraits = userDatabaseService.getAllCustomPortraits();
+    console.log(`[FutureDraftService] Loaded ${allPortraits.length} custom portraits for PID lookup`);
+
+    // Build name-based index for O(1) lookup (like roster generator's appearanceEditsByName)
+    const portraitsByName = new Map<string, number>();
+    for (const portrait of allPortraits) {
+      if (portrait.playerName && portrait.pid) {
+        const nameKey = portrait.playerName.trim().toLowerCase();
+        portraitsByName.set(nameKey, portrait.pid);
+        console.log(`[FutureDraftService] Portrait mapping: "${nameKey}" -> PID ${portrait.pid}`);
+      }
+    }
+    console.log(`[FutureDraftService] Built ${portraitsByName.size} name->PID mappings`);
+
+    // Also load portrait assignments by database player ID
+    const portraitsById = userDatabaseService.getAllCustomPortraitAssignments();
+    console.log(`[FutureDraftService] Loaded ${portraitsById.size} ID->PID portrait assignments`);
+
+    // DEBUG: Log first 5 players' maddenPid values from database
+    console.log(`[FutureDraftService] ========== DATABASE PLAYER PIDs ==========`);
+    for (let i = 0; i < Math.min(5, players.length); i++) {
+      const p = players[i];
+      const byIdPid = p.id ? portraitsById.get(p.id) : undefined;
+      const byNamePid = portraitsByName.get(`${p.firstName || ''} ${p.lastName || ''}`.trim().toLowerCase());
+      console.log(`[FutureDraftService] Player ${i+1}: ${p.firstName} ${p.lastName} - maddenPid=${p.maddenPid}, byId=${byIdPid}, byName=${byNamePid}`);
+    }
+    console.log(`[FutureDraftService] ==========================================`);
 
     for (const player of players) {
       // Get season data for ratings
@@ -181,8 +223,9 @@ export class FutureDraftService {
         // Identity (CRITICAL: use stored values)
         race: player.race,
 
-        // Database identity - CRITICAL: Pass through stored PID/PAM
-        maddenPid: player.maddenPid,
+        // Database identity - CRITICAL: Look up PID from portrait assignments
+        // Uses multiple lookup strategies to find custom portraits
+        maddenPid: this.resolvePlayerPid(player, portraitsByName, portraitsById),
         maddenPam: player.maddenPam,
 
         // Draft info
@@ -207,6 +250,98 @@ export class FutureDraftService {
     }
 
     return prospects;
+  }
+
+  /**
+   * Resolve player PID using pre-loaded portrait mappings (like roster generator)
+   * Priority:
+   * 1. Custom portrait by player ID (from custom_portraits.database_player_id)
+   * 2. Custom portrait by name (from custom_portraits.player_name)
+   * 3. player.maddenPid if it's a custom portrait (>= 12000)
+   * 4. player.maddenPid if it's any valid PID
+   *
+   * CRITICAL: Portrait Manager assignments take priority over generic PIDs because:
+   * - When a user assigns a portrait in Portrait Manager, it saves to custom_portraits
+   * - But custom_players.madden_pid might still have an old/generic value
+   * - The custom portrait assignment should ALWAYS win over generic faces
+   */
+  private resolvePlayerPid(
+    player: CustomPlayer,
+    portraitsByName: Map<string, number>,
+    portraitsById: Map<number, number>
+  ): number | undefined {
+    const CUSTOM_PORTRAIT_PID_START = 12000;
+    const fullName = `${player.firstName || ''} ${player.lastName || ''}`.trim().toLowerCase();
+
+    console.log(`[FutureDraftService] resolvePlayerPid for ${player.firstName} ${player.lastName}: id=${player.id}, maddenPid=${player.maddenPid}`);
+
+    // Priority 1: Check ID-based lookup for custom portrait (>= 12000)
+    // This catches portraits assigned via Portrait Manager with databasePlayerId set
+    if (player.id) {
+      const byIdPid = portraitsById.get(player.id);
+      if (byIdPid && byIdPid >= CUSTOM_PORTRAIT_PID_START) {
+        console.log(`[FutureDraftService] ✓ Using CUSTOM portrait PID ${byIdPid} for ${player.firstName} ${player.lastName} (from ID lookup)`);
+        return byIdPid;
+      }
+    }
+
+    // Priority 2: Check name-based lookup for custom portrait (>= 12000)
+    // This catches portraits assigned via Portrait Manager with playerName set
+    const portraitPid = portraitsByName.get(fullName);
+    if (portraitPid && portraitPid >= CUSTOM_PORTRAIT_PID_START) {
+      console.log(`[FutureDraftService] ✓ Using CUSTOM portrait PID ${portraitPid} for "${fullName}" (from name lookup)`);
+      return portraitPid;
+    }
+
+    // Priority 3: Use direct maddenPid if it's a custom portrait (>= 12000)
+    if (player.maddenPid && player.maddenPid >= CUSTOM_PORTRAIT_PID_START) {
+      console.log(`[FutureDraftService] ✓ Using player.maddenPid ${player.maddenPid} for ${player.firstName} ${player.lastName} (custom portrait)`);
+      return player.maddenPid;
+    }
+
+    // Priority 4: Use direct maddenPid if it's any valid value
+    if (player.maddenPid && player.maddenPid > 0) {
+      console.log(`[FutureDraftService] Using player.maddenPid ${player.maddenPid} for ${player.firstName} ${player.lastName} (generic face)`);
+      return player.maddenPid;
+    }
+
+    // Priority 5: Use name lookup result even if it's not a custom portrait
+    if (portraitPid && portraitPid > 0) {
+      console.log(`[FutureDraftService] Using portrait PID ${portraitPid} for "${fullName}" (from name lookup)`);
+      return portraitPid;
+    }
+
+    console.log(`[FutureDraftService] No PID found for "${fullName}" - will use generic face`);
+    return undefined;
+  }
+
+  /**
+   * Get portrait PID for a custom player by checking multiple sources:
+   * 1. custom_portraits.database_player_id (for bundled players)
+   * 2. custom_portraits.player_name (for custom players - they don't have database_player_id set)
+   */
+  private getPortraitPidForCustomPlayer(customPlayerId: number | undefined, firstName?: string, lastName?: string): number | undefined {
+    // Method 1: Check by database_player_id (works for bundled players)
+    if (customPlayerId) {
+      const portraitAssignments = userDatabaseService.getAllCustomPortraitAssignments();
+      const pid = portraitAssignments.get(customPlayerId);
+
+      if (pid && pid > 0) {
+        console.log(`[FutureDraftService] Found portrait PID ${pid} for player ${customPlayerId} via database_player_id`);
+        return pid;
+      }
+    }
+
+    // Method 2: Check by player_name (works for custom players)
+    if (firstName && lastName) {
+      const pid = userDatabaseService.getCustomPortraitByName(firstName, lastName);
+      if (pid && pid > 0) {
+        console.log(`[FutureDraftService] Found portrait PID ${pid} for ${firstName} ${lastName} via player_name lookup`);
+        return pid;
+      }
+    }
+
+    return undefined;
   }
 
   /**

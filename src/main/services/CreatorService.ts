@@ -1976,6 +1976,24 @@ export class CreatorService {
           matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
         }
 
+        // CRITICAL: Check for Portrait Manager assignment (appearance_edits table)
+        // This OVERRIDES any CSV/lookup PID because user explicitly assigned a custom portrait
+        const CUSTOM_PID_START = 12000;
+        const dbPlayerForPid = lookupService.findPlayerByNameAndYear(firstName, lastName, year);
+        if (dbPlayerForPid && dbPlayerForPid.internalId) {
+          const genAppearanceEditPidsMap = userDatabaseService.getAllAppearanceEditPids();
+          const genCustomPortraitPidsMap = userDatabaseService.getAllCustomPortraitAssignments();
+          const genAppearanceEditPid = genAppearanceEditPidsMap.get(dbPlayerForPid.internalId);
+          const genCustomPortraitPid = genCustomPortraitPidsMap.get(dbPlayerForPid.internalId);
+          if (genAppearanceEditPid != null && genAppearanceEditPid >= CUSTOM_PID_START) {
+            console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using appearance_edits PID ${genAppearanceEditPid} (was ${matchedPID})`);
+            matchedPID = genAppearanceEditPid;
+          } else if (genCustomPortraitPid != null && genCustomPortraitPid >= CUSTOM_PID_START) {
+            console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using custom_portraits PID ${genCustomPortraitPid} (was ${matchedPID})`);
+            matchedPID = genCustomPortraitPid;
+          }
+        }
+
         // Check for custom portrait by player name (user-imported portraits)
         if (matchedPID === 0) {
           const customPID = userDatabaseService.getCustomPortraitByName(firstName, lastName);
@@ -2446,6 +2464,24 @@ export class CreatorService {
         // Check for (R) tag and replace with preferred non-(R) version if available
         if (matchedPID > 0) {
           matchedPID = this.getPreferredPID(matchedPID, `${firstName} ${lastName}`);
+        }
+
+        // CRITICAL: Check for Portrait Manager assignment (appearance_edits table)
+        // This OVERRIDES any CSV/lookup PID because user explicitly assigned a custom portrait
+        const CUSTOM_PID_START = 12000;
+        const dbPlayerForPid = lookupService.findPlayerByNameAndYear(firstName, lastName, year);
+        if (dbPlayerForPid && dbPlayerForPid.internalId) {
+          const genAppearanceEditPidsMap = userDatabaseService.getAllAppearanceEditPids();
+          const genCustomPortraitPidsMap = userDatabaseService.getAllCustomPortraitAssignments();
+          const genAppearanceEditPid = genAppearanceEditPidsMap.get(dbPlayerForPid.internalId);
+          const genCustomPortraitPid = genCustomPortraitPidsMap.get(dbPlayerForPid.internalId);
+          if (genAppearanceEditPid != null && genAppearanceEditPid >= CUSTOM_PID_START) {
+            console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using appearance_edits PID ${genAppearanceEditPid} (was ${matchedPID})`);
+            matchedPID = genAppearanceEditPid;
+          } else if (genCustomPortraitPid != null && genCustomPortraitPid >= CUSTOM_PID_START) {
+            console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using custom_portraits PID ${genCustomPortraitPid} (was ${matchedPID})`);
+            matchedPID = genCustomPortraitPid;
+          }
         }
 
         // Check for custom portrait by player name (user-imported portraits)
@@ -3268,11 +3304,16 @@ export class CreatorService {
       let customRace: number | undefined;
       let customRatings: { [key: string]: number } | undefined;
 
+      // DEBUG: Log what we receive from FutureDraftService
+      if (i < 5) {
+        console.log(`[CreatorService V2] Prospect ${i+1}: ${firstName} ${lastName} - maddenPid=${(prospect as any).maddenPid} (type: ${typeof (prospect as any).maddenPid})`);
+      }
+
       // PRIORITY 1: Check if prospect already has maddenPid/maddenPam from database
       // (FutureDraftService passes these through when loading from database)
       if ((prospect as any).maddenPid && (prospect as any).maddenPid > 0) {
         pid = (prospect as any).maddenPid;
-        console.log(`[CreatorService V2] Using prospect's maddenPid: ${pid} for ${firstName} ${lastName}`);
+        console.log(`[CreatorService V2] ✓ Using prospect's maddenPid: ${pid} for ${firstName} ${lastName}`);
       }
       if ((prospect as any).maddenPam) {
         pam = (prospect as any).maddenPam;
@@ -3351,7 +3392,18 @@ export class CreatorService {
         }
       }
 
-      // FALLBACK: If no custom PID, use generic face
+      // PRIORITY 3: Try matchPID from bundled database (like RosterCreatorService does)
+      // This catches real players with face scans that weren't in custom portraits
+      if (pid === 0) {
+        const draftYear = prospect.draftClass || new Date().getFullYear();
+        const matchedPid = this.matchPID(firstName, lastName, draftYear, prospect.position, prospect.college as string);
+        if (matchedPid > 0) {
+          pid = matchedPid;
+          console.log(`[CreatorService V2] ✓ Matched PID from bundled database: ${pid} for ${firstName} ${lastName}`);
+        }
+      }
+
+      // FALLBACK: If still no PID, use generic face
       const raceData = customRace ?? prospect.race;
       if (pid === 0) {
         pid = this.assignGenericFace(firstName, lastName, prospect.position, raceData);
