@@ -66,9 +66,9 @@ const DB_TO_OVR_FIELD_MAP: { [key: string]: string } = {
   'PSRR': 'SRRN', 'SRRN': 'SRRN', 'PMRR': 'PMRR', 'PDRR': 'PDRR',
   'PREL': 'PLRL', 'PLRL': 'PLRL',
   'PRBK': 'PRBK', 'PPBK': 'PPBK', 'PIBK': 'PLIB', 'PLIB': 'PLIB', 'PLBK': 'PLBK',
-  'PFMS': 'PFMS', 'PRNS': 'PRBS', 'PRBS': 'PRBS',
-  'PPBS': 'PPBF', 'PPBF': 'PPBF', 'PPBP': 'PPBS',
-  'PRBF': 'PRBF', 'PTAK': 'PTAK',
+  'PFMS': 'PFMS', 'PRNS': 'PRBF', 'PRBS': 'PRBS', 'PRBF': 'PRBF',  // PRNS in DB = Run Block Finesse (PRBF)
+  'PPBF': 'PPBF', 'PPBP': 'PPBS', 'PPBS': 'PPBS',  // PPBP in DB = Pass Block Power (PPBS)
+  'PTAK': 'PTAK',
   'PHIT': 'PLHT', 'PLHT': 'PLHT',
   'PFMV': 'PFMS', 'PPWM': 'PLPM', 'PLPM': 'PLPM',
   'PBSH': 'PBSG', 'PBSG': 'PBSG',
@@ -77,7 +77,7 @@ const DB_TO_OVR_FIELD_MAP: { [key: string]: string } = {
   'PPLA': 'PPLA',  // Play Action stays as Play Action (QB attribute)
   'PMCV': 'PLMC', 'PLMC': 'PLMC', 'PZCV': 'PLZC', 'PLZC': 'PLZC',
   'PPRS': 'PLPE', 'PLPE': 'PLPE', 'PBSK': 'PBSK',
-  'PKAC': 'PKAC', 'PKPR': 'PKPR', 'PKRT': 'PKRT'
+  'PKAC': 'PKAC', 'PKPW': 'PKPR', 'PKPR': 'PKPR', 'PKRT': 'PKRT'  // PKPW in DB = PKPR in roster (kick power)
 };
 
 // Helper function to map database ratings to OVR calculator format
@@ -2394,14 +2394,19 @@ export class RosterGeneratorService {
 
     // CRITICAL: Merge user-edited ratings from database
     // This ensures generators pull ratings that users have edited in the database browser
+    // IMPORTANT: Database stores ratings with DB field names (PSTM, PBTK, etc.)
+    // but roster generator expects roster field names (PSTA, PBKT, etc.)
+    // We must convert field names when merging!
     if (playerInternalId) {
       const userSeasonEdit = userDatabaseService.getSeasonEdit(playerInternalId, year);
       if (userSeasonEdit?.ratings) {
         console.log(`[RosterGeneratorService] Merging user edits for ${csvRow.First_Name} ${csvRow.Last_Name} (year ${year}):`, Object.keys(userSeasonEdit.ratings));
-        // Merge user edits into ratings - user edits override CSV values
-        for (const [field, value] of Object.entries(userSeasonEdit.ratings)) {
+        // Merge user edits into ratings - convert DB field names to roster field names
+        for (const [dbField, value] of Object.entries(userSeasonEdit.ratings)) {
           if (value !== null && value !== undefined) {
-            (ratings as any)[field] = value;
+            // Convert DB field name to roster field name (e.g., PSTM -> PSTA)
+            const rosterField = DB_TO_OVR_FIELD_MAP[dbField] || dbField;
+            (ratings as any)[rosterField] = value;
           }
         }
       }
@@ -2629,7 +2634,7 @@ export class RosterGeneratorService {
       PCTH: parseInt(ratings.PCTH) || 50,
       PCAR: parseInt(ratings.PCAR) || 50,
       PTHP: parseInt(ratings.PTHP) || 50,
-      PKPW: parseInt(ratings.PKPW) || 50,
+      PKPW: parseInt(ratings.PKPW) || parseInt(ratings.PKPR) || 50,  // Check both: DB uses PKPW, mapping converts to PKPR
       PKAC: parseInt(ratings.PKAC) || 50,
       PRBK: parseInt(ratings.PRBK) || 50,
       PPBK: parseInt(ratings.PPBK) || 50,
@@ -2699,8 +2704,26 @@ export class RosterGeneratorService {
       _isHOF: this.hofLookup.get(`${csvRow.First_Name}|${csvRow.Last_Name}`) || false  // Hall of Fame status
     };
 
-    // Sync archetype based on player attributes - ensures PLTY matches what Madden will auto-assign
-    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
+    // CRITICAL: Use stored player-level archetype if available (constant across all seasons)
+    // This ensures consistent OVR calculation between database and roster generation
+    let syncedPlayer = player;
+    if (playerInternalId) {
+      const storedArchetype = userDatabaseService.getPlayerArchetype(playerInternalId);
+      if (storedArchetype) {
+        // Use stored archetype instead of auto-syncing
+        const { ArchetypeService } = await import('./utils/archetypeService');
+        const archetypeId = storedArchetype.archetypeId ?? ArchetypeService.getArchetypeId(storedArchetype.archetype, positionName);
+        player.PLTY = archetypeId;
+        syncedPlayer = player;
+        console.log(`[RosterGeneratorService] Using stored archetype for ${cleanFirstName} ${cleanLastName}: ${storedArchetype.archetype} (ID: ${archetypeId})`);
+      } else {
+        // No stored archetype - sync based on attributes (default behavior)
+        syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
+      }
+    } else {
+      // No internal ID - sync based on attributes (default behavior)
+      syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
+    }
 
     // CRITICAL: Recalculate POVR using the correct M26 formula (sum of weights / 11)
     // This ensures roster POVR matches what Madden calculates during franchise import
@@ -2989,7 +3012,7 @@ export class RosterGeneratorService {
       PCTH: ratings.PCTH || 50,
       PCAR: ratings.PCAR || 50,
       PTHP: ratings.PTHP || 50,
-      PKPW: ratings.PKPW || 50,
+      PKPW: ratings.PKPW || ratings.PKPR || 50,  // Check both: DB uses PKPW, mapping converts to PKPR
       PKAC: ratings.PKAC || 50,
       PRBK: ratings.PRBK || 50,
       PPBK: ratings.PPBK || 50,
@@ -3062,9 +3085,32 @@ export class RosterGeneratorService {
       _isHOF: dbRow.isHof || false
     };
 
-    // Sync archetype based on player attributes
-    // This predicts what Madden will auto-assign
-    const syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
+    // CRITICAL: Use stored player-level archetype if available (constant across all seasons)
+    // This ensures consistent OVR calculation between database and roster generation
+    let syncedPlayer = player;
+    console.log(`[RosterGeneratorService] enrichPlayerFromDb - Archetype lookup for ${cleanFirstName} ${cleanLastName}: playerInternalId=${playerInternalId}, initial PLTY=${player.PLTY}`);
+    if (playerInternalId) {
+      const storedArchetype = userDatabaseService.getPlayerArchetype(playerInternalId);
+      console.log(`[RosterGeneratorService] enrichPlayerFromDb - storedArchetype for ID ${playerInternalId}:`, storedArchetype ? JSON.stringify(storedArchetype) : 'null');
+      if (storedArchetype) {
+        // Use stored archetype instead of auto-syncing
+        const { ArchetypeService } = await import('./utils/archetypeService');
+        const archetypeId = storedArchetype.archetypeId ?? ArchetypeService.getArchetypeId(storedArchetype.archetype, positionName);
+        console.log(`[RosterGeneratorService] enrichPlayerFromDb - Resolved archetypeId: ${archetypeId} (storedArchetype.archetypeId=${storedArchetype.archetypeId}, position=${positionName})`);
+        player.PLTY = archetypeId;
+        syncedPlayer = player;
+        console.log(`[RosterGeneratorService] Using stored archetype for ${cleanFirstName} ${cleanLastName}: ${storedArchetype.archetype} (ID: ${archetypeId})`);
+      } else {
+        // No stored archetype - sync based on attributes (default behavior)
+        console.log(`[RosterGeneratorService] enrichPlayerFromDb - No stored archetype for ${cleanFirstName} ${cleanLastName}, using attribute sync`);
+        syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
+      }
+    } else {
+      // No internal ID - sync based on attributes (default behavior)
+      console.log(`[RosterGeneratorService] enrichPlayerFromDb - No playerInternalId for ${cleanFirstName} ${cleanLastName}, using attribute sync`);
+      syncedPlayer = ArchetypeSyncService.syncArchetypeFromAttributes(player, positionName);
+    }
+    console.log(`[RosterGeneratorService] enrichPlayerFromDb - Final PLTY for ${cleanFirstName} ${cleanLastName}: ${syncedPlayer.PLTY}`);
 
     // CRITICAL: Recalculate POVR using the correct M26 formula
     // Madden RECALCULATES OVR from ratings when importing roster to franchise
@@ -3167,18 +3213,30 @@ export class RosterGeneratorService {
   /**
    * Fill missing ratings from database row
    * Clamps all ratings to minimum 40 (Madden's floor)
+   * CRITICAL: Converts DB field names (PSTM, PBTK) to roster field names (PSTA, PBKT)
    */
   private fillMissingRatingsFromDb(ratings: { [key: string]: number }): { [key: string]: number } {
     const MIN_RATING = 40;  // Madden minimum rating floor
     const MAX_RATING = 99;
 
+    // FIRST: Convert all DB field names to roster field names
+    // This ensures we can find values regardless of how they were stored
+    const convertedRatings: { [key: string]: number } = {};
+    for (const [dbField, value] of Object.entries(ratings)) {
+      const rosterField = DB_TO_OVR_FIELD_MAP[dbField] || dbField;
+      if (value !== null && value !== undefined) {
+        convertedRatings[rosterField] = value as number;
+      }
+    }
+
     // POVR: use value if valid, otherwise default to 50, clamp to 40-99
-    const rawPOVR = ratings.POVR;
+    const rawPOVR = convertedRatings.POVR || ratings.POVR;
     const povr = (rawPOVR && rawPOVR > 0) ? Math.max(MIN_RATING, Math.min(MAX_RATING, rawPOVR)) : 50;
     const filled: { [key: string]: number } = { POVR: povr };
 
     RATING_FIELDS.forEach(field => {
-      const value = ratings[field];
+      // Check both roster field name and original (in case of unmapped fields)
+      const value = convertedRatings[field] ?? ratings[field];
       if (value === null || value === undefined || value === 0) {
         // Apply 40-60 range with variance for missing values
         filled[field] = Math.round(40 + Math.random() * 20);

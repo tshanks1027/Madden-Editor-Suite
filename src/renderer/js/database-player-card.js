@@ -127,7 +127,7 @@
     'PPLA': 'PPLA',  // Play Action stays as Play Action (QB attribute)
     'PMCV': 'PLMC', 'PLMC': 'PLMC', 'PZCV': 'PLZC', 'PLZC': 'PLZC',
     'PPRS': 'PLPE', 'PLPE': 'PLPE', 'PBSK': 'PBSK',
-    'PKAC': 'PKAC', 'PKPR': 'PKPR', 'PKRT': 'PKRT'
+    'PKAC': 'PKAC', 'PKPW': 'PKPR', 'PKPR': 'PKPR', 'PKRT': 'PKRT'  // PKPW in DB = PKPR in roster (kick power)
   };
 
   // Reverse map: OVR calculator field codes to database field names
@@ -139,7 +139,8 @@
     'PLIB': 'PIBK', 'PRBF': 'PRNS', 'PRBS': 'PRBS', 'PPBF': 'PPBF', 'PPBS': 'PPBP',
     'PLHT': 'PHIT', 'PLPM': 'PPWM', 'PBSG': 'PBSH', 'PFMS': 'PFMV',
     'PLPU': 'PPUR', 'PLPR': 'PPRC', 'PPLA': 'PPLA',
-    'PLMC': 'PMCV', 'PLZC': 'PZCV', 'PLPE': 'PPRS'
+    'PLMC': 'PMCV', 'PLZC': 'PZCV', 'PLPE': 'PPRS',
+    'PKPR': 'PKPW'  // Kick power: roster/OVR uses PKPR, DB uses PKPW
   };
 
   /**
@@ -292,6 +293,13 @@
       yearSelect.addEventListener('change', onYearChange);
     } else {
       console.warn('[DbPlayerCard] dbPlayerYearSelect not found!');
+    }
+
+    // Player-level archetype selector - recalculates all OVR values when changed
+    var archetypeSelect = document.getElementById('dbPlayerArchetype');
+    if (archetypeSelect) {
+      console.log('[DbPlayerCard] Setting up player-level archetype listener');
+      archetypeSelect.addEventListener('change', onPlayerArchetypeChange);
     }
 
     // Career Stats year selector
@@ -550,6 +558,38 @@
           positionSelect.appendChild(opt);
         });
         console.log('[DatabasePlayerCard] Position options loaded:', MADDEN_POSITIONS.length);
+
+        // When position changes, update the player-level archetype dropdown
+        positionSelect.addEventListener('change', async function() {
+          var newPosition = positionSelect.value;
+          console.log('[DbPlayerCard] Position changed to:', newPosition);
+          await updatePlayerLevelArchetypeDropdown(newPosition);
+        });
+      }
+
+      // Player-level Archetype dropdown - populated when position is selected
+      var playerArchetypeSelect = document.getElementById('dbPlayerArchetype');
+      if (playerArchetypeSelect) {
+        // When player-level archetype changes, save it
+        playerArchetypeSelect.addEventListener('change', async function() {
+          var archetype = playerArchetypeSelect.value;
+          if (archetype && currentDbPlayerId && !isCustomPlayer) {
+            try {
+              var position = document.getElementById('dbPlayerPosition')?.value || 'QB';
+              var archetypes = await window.electronAPI.rating.getArchetypes(position);
+              var archetypeObj = archetypes.find(function(a) { return a.name === archetype; });
+              var archetypeId = archetypeObj ? archetypeObj.id : undefined;
+
+              await window.electronAPI.database.savePlayerArchetype(currentDbPlayerId, archetype, archetypeId);
+              console.log('[DbPlayerCard] Saved player-level archetype:', archetype, 'id:', archetypeId);
+
+              // Recalculate OVR with new archetype
+              await recalculateDbOVR();
+            } catch (e) {
+              console.error('[DbPlayerCard] Error saving player archetype:', e);
+            }
+          }
+        });
       }
 
       // Race dropdown - values match Madden roster PLRC field
@@ -617,13 +657,6 @@
         }
       }
 
-      // Add position change listener to update archetype dropdown
-      if (seasonPositionSelect) {
-        seasonPositionSelect.addEventListener('change', function() {
-          var selectedPosition = this.value;
-          updateArchetypeDropdown(selectedPosition);
-        });
-      }
     } catch (error) {
       console.error('[DatabasePlayerCard] Failed to load dropdown options:', error);
     }
@@ -727,8 +760,8 @@
         console.log('[DatabasePlayerCard] Restored PGHE data:', currentDbPlayer._pgheData);
       }
 
-      // Populate the form
-      populatePlayerForm(currentDbPlayer);
+      // Populate the form (MUST await to ensure archetype dropdown is populated before renderRatingsAllYears)
+      await populatePlayerForm(currentDbPlayer);
 
       // Set up year selector (async - fetches from DB)
       await setupYearSelector(currentDbPlayer);
@@ -877,6 +910,7 @@
     setValue('dbPlayerLastName', '');
     setValue('dbPlayerCollege', '');
     setValue('dbPlayerPosition', '');
+    setValue('dbPlayerArchetype', '');  // Player-level archetype
     setValue('dbPlayerHometown', '');
     setValue('dbPlayerHeight', '');
     setValue('dbPlayerWeight', '');
@@ -1238,6 +1272,40 @@
     }
     setValue('dbPlayerCollege', collegeId);
     setValue('dbPlayerPosition', player.position || '');
+
+    // Populate and set player-level archetype (constant across all seasons)
+    // This ensures consistent OVR calculations
+    await updatePlayerLevelArchetypeDropdown(player.position || '');
+    // Load stored player-level archetype from database, or auto-determine if none stored
+    if (currentDbPlayerId && !isCustomPlayer) {
+      try {
+        var storedArchetype = await window.electronAPI.database.getPlayerArchetype(currentDbPlayerId);
+        if (storedArchetype && storedArchetype.archetype) {
+          setValue('dbPlayerArchetype', storedArchetype.archetype);
+          console.log('[DbPlayerCard] Loaded stored player-level archetype:', storedArchetype.archetype);
+        } else if (player.position) {
+          // No stored archetype - auto-determine based on best fit for position
+          // This ensures every player has a consistent archetype
+          console.log('[DbPlayerCard] No stored archetype, auto-determining for position:', player.position);
+
+          // Get archetypes available for this position
+          var archetypes = await window.electronAPI.rating.getArchetypes(player.position);
+          if (archetypes && archetypes.length > 0) {
+            // Use the first (default) archetype for the position
+            var defaultArchetype = archetypes[0];
+            setValue('dbPlayerArchetype', defaultArchetype.name);
+            console.log('[DbPlayerCard] Auto-selected default archetype:', defaultArchetype.name);
+
+            // Save it so it persists
+            await window.electronAPI.database.savePlayerArchetype(currentDbPlayerId, defaultArchetype.name, defaultArchetype.id);
+            console.log('[DbPlayerCard] Saved auto-determined archetype');
+          }
+        }
+      } catch (e) {
+        console.warn('[DbPlayerCard] Could not load/determine player archetype:', e);
+      }
+    }
+
     setValue('dbPlayerHometown', player.hometown || '');  // Replaced jersey with hometown
     setValue('dbPlayerHeight', player.height || '');
     setValue('dbPlayerWeight', player.weight || '');
@@ -1582,6 +1650,49 @@
   }
 
   /**
+   * Handle player-level archetype change
+   * Saves to database and recalculates all OVR values in the table
+   */
+  async function onPlayerArchetypeChange(e) {
+    var newArchetype = e.target.value;
+    console.log('[DbPlayerCard] Player archetype changed to:', newArchetype);
+
+    // Save to database if we have a valid player
+    if (currentDbPlayerId && !isCustomPlayer && newArchetype) {
+      try {
+        // Get archetype ID for the position
+        var position = currentDbPlayer ? currentDbPlayer.position : '';
+        var archetypeId = null;
+
+        // Try to get archetype ID from the archetypes list
+        if (position) {
+          var archetypes = await window.electronAPI.rating.getArchetypes(position);
+          if (archetypes) {
+            var found = archetypes.find(function(a) { return a.name === newArchetype; });
+            if (found) archetypeId = found.id;
+          }
+        }
+
+        await window.electronAPI.database.savePlayerArchetype(currentDbPlayerId, newArchetype, archetypeId);
+        console.log('[DbPlayerCard] Saved player archetype:', newArchetype, 'id:', archetypeId);
+      } catch (err) {
+        console.error('[DbPlayerCard] Failed to save archetype:', err);
+      }
+    }
+
+    // Recalculate all OVR values in the all-years table with new archetype
+    await renderRatingsAllYears();
+
+    // Also recalculate the single-year OVR if one is selected
+    if (selectedYear) {
+      await recalculateDbOVR();
+    }
+
+    hasUnsavedChanges = true;
+    updateSaveButtonState();
+  }
+
+  /**
    * Render all years ratings overview table with editable inputs
    * FIXED: Now uses career stats teams as source of truth
    */
@@ -1710,8 +1821,8 @@
         { field: 'PMCV', label: 'MCV', category: 'cov' },  // DB uses PMCV, roster uses PLMC
         { field: 'PZCV', label: 'ZCV', category: 'cov' },  // DB uses PZCV, roster uses PLZC
         { field: 'PPRS', label: 'PRS', category: 'cov' },  // DB uses PPRS, roster uses PLPE
-        // Kicking
-        { field: 'PKPR', label: 'KPW', category: 'kick' },
+        // Kicking - DB uses PKPW, roster uses PKPR for kick power
+        { field: 'PKPW', label: 'KPW', category: 'kick' },
         { field: 'PKAC', label: 'KAC', category: 'kick' },
         { field: 'PKRT', label: 'KRT', category: 'kick' }
       ];
@@ -1793,8 +1904,11 @@
 
       // CRITICAL: Recalculate OVR for all rows after table is rendered
       // This ensures displayed OVR matches what the calculation produces
-      // Uses the SAME calculation as roster editor (calculateOVRForArchetypes)
+      // Uses the player-level archetype for CONSISTENT calculation everywhere
       var position = currentDbPlayer ? currentDbPlayer.position : null;
+      var playerArchetypeSelect = document.getElementById('dbPlayerArchetype');
+      var playerLevelArchetype = playerArchetypeSelect ? playerArchetypeSelect.value : '';
+
       if (position) {
         var rows = container.querySelectorAll('tbody tr');
         for (var rowIdx = 0; rowIdx < rows.length; rowIdx++) {
@@ -1818,13 +1932,24 @@
           // Only recalculate if we have enough attributes
           if (Object.keys(attributes).length >= 5) {
             try {
-              var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
-              if (archetypeResults && archetypeResults.length > 0) {
-                var bestOVR = archetypeResults[0].ovr;
+              var newOVR;
+
+              if (playerLevelArchetype) {
+                // Use player-level archetype for consistent OVR calculation
+                newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, playerLevelArchetype);
+              } else {
+                // No player archetype set - use best archetype as fallback
+                var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+                if (archetypeResults && archetypeResults.length > 0) {
+                  newOVR = archetypeResults[0].ovr;
+                }
+              }
+
+              if (newOVR !== undefined) {
                 var storedOVR = parseInt(ovrInput.value) || 0;
-                if (bestOVR !== storedOVR) {
-                  console.log('[DbPlayerCard] Row', rowIdx, 'OVR mismatch: stored=' + storedOVR + ', calculated=' + bestOVR + ' - updating display');
-                  ovrInput.value = bestOVR;
+                if (newOVR !== storedOVR) {
+                  console.log('[DbPlayerCard] Row', rowIdx, 'OVR mismatch: stored=' + storedOVR + ', calculated=' + newOVR + ' (archetype: ' + (playerLevelArchetype || 'best') + ') - updating display');
+                  ovrInput.value = newOVR;
                 }
               }
             } catch (e) {
@@ -2169,6 +2294,10 @@
       return;
     }
 
+    // CRITICAL: Use player-level archetype (constant across all seasons)
+    var playerArchetypeSelect = document.getElementById('dbPlayerArchetype');
+    var playerLevelArchetype = playerArchetypeSelect ? playerArchetypeSelect.value : '';
+
     // Collect all rating values from the row, mapping to OVR calculator field codes
     var attributes = {};
     var inputs = row.querySelectorAll('input[data-field]');
@@ -2182,30 +2311,22 @@
       }
     });
 
-    // CRITICAL: Use calculateOVRForArchetypes like roster editor does
-    // This tests ALL archetypes and picks the BEST one (highest OVR)
-    // This is the SAME method used by the roster editor for consistency
     try {
-      var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+      var newOVR;
 
-      if (!archetypeResults || archetypeResults.length === 0) {
-        console.error('[DbPlayerCard] No archetypes returned for position:', position);
-        return;
-      }
-
-      // Results are sorted by OVR descending - first is the BEST
-      var bestArchetype = archetypeResults[0];
-      var newOVR = bestArchetype.ovr;
-      var archetype = bestArchetype.name;
-      var archetypeId = bestArchetype.id;
-
-      console.log('[DbPlayerCard] Best archetype for year', year, ':', archetype, '(ID:', archetypeId, ') with OVR:', newOVR);
-
-      // Save the synced archetype to database
-      if (isCustomPlayer) {
-        await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, { archetype: archetype });
+      if (playerLevelArchetype) {
+        // Use the PLAYER-LEVEL archetype for OVR calculation (consistent everywhere)
+        newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, playerLevelArchetype);
+        console.log('[DbPlayerCard] Row OVR calculated using player archetype:', playerLevelArchetype, '=', newOVR, 'for year', year);
       } else {
-        await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, year, { archetype: archetype });
+        // No player-level archetype set - find best archetype
+        var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+        if (archetypeResults && archetypeResults.length > 0) {
+          newOVR = archetypeResults[0].ovr;
+          console.log('[DbPlayerCard] Row OVR calculated using best archetype:', archetypeResults[0].name, '=', newOVR, 'for year', year);
+        } else {
+          newOVR = 50;
+        }
       }
 
       // Find and update the OVR input in this row
@@ -2283,14 +2404,14 @@
         }
       });
 
-      // Build save data with both ratings and archetype
+      // Build save data with ratings only
+      // CRITICAL: Do NOT save archetype from distribution result - this would overwrite
+      // the user's player-level archetype selection. The archetype is managed separately
+      // via the player-level dropdown.
       var saveData = { ratings: ratings };
-      if (result.archetype) {
-        saveData.archetype = result.archetype;
-        console.log('[DbPlayerCard] Also saving archetype:', result.archetype);
-      }
+      // Note: result.archetype is intentionally NOT saved here
 
-      // Save ratings and archetype to database
+      // Save ratings to database
       if (isCustomPlayer) {
         await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, year, saveData);
       } else {
@@ -2423,12 +2544,13 @@
   }
 
   /**
-   * Update the archetype dropdown based on the selected position
+   * Update the PLAYER-LEVEL archetype dropdown based on the selected position
+   * This is the constant archetype used for all seasons (unlike season archetype)
    * @param {string} position - The position to get archetypes for
    * @param {string} selectedValue - Optional value to select after populating
    */
-  async function updateArchetypeDropdown(position, selectedValue) {
-    var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
+  async function updatePlayerLevelArchetypeDropdown(position, selectedValue) {
+    var archetypeSelect = document.getElementById('dbPlayerArchetype');
     if (!archetypeSelect) return;
 
     // Clear existing options
@@ -2442,7 +2564,7 @@
     try {
       // Get archetypes for this position from the rating API
       var archetypes = await window.electronAPI.rating.getArchetypes(position);
-      console.log('[DbPlayerCard] Archetypes for', position, ':', archetypes);
+      console.log('[DbPlayerCard] Player-level archetypes for', position, ':', archetypes);
 
       if (archetypes && archetypes.length > 0) {
         archetypeSelect.innerHTML = '<option value="">Select Archetype</option>';
@@ -2461,17 +2583,17 @@
             if (archetypeSelect.options[i].value === selectedValue) {
               archetypeSelect.value = selectedValue;
               found = true;
-              console.log('[DbPlayerCard] Archetype set to:', selectedValue);
+              console.log('[DbPlayerCard] Player-level archetype set to:', selectedValue);
               break;
             }
           }
-          // If not found, try partial match (e.g., "Strong Arm" matches "QB Strong Arm")
+          // If not found, try partial match
           if (!found && selectedValue) {
             for (var j = 0; j < archetypeSelect.options.length; j++) {
               if (archetypeSelect.options[j].value.indexOf(selectedValue) !== -1 ||
                   selectedValue.indexOf(archetypeSelect.options[j].value) !== -1) {
                 archetypeSelect.value = archetypeSelect.options[j].value;
-                console.log('[DbPlayerCard] Archetype partial match:', archetypeSelect.options[j].value);
+                console.log('[DbPlayerCard] Player-level archetype partial match:', archetypeSelect.options[j].value);
                 break;
               }
             }
@@ -2481,7 +2603,7 @@
         archetypeSelect.innerHTML = '<option value="">No archetypes for ' + position + '</option>';
       }
     } catch (error) {
-      console.error('[DbPlayerCard] Failed to load archetypes:', error);
+      console.error('[DbPlayerCard] Failed to load player-level archetypes:', error);
       archetypeSelect.innerHTML = '<option value="">Error loading archetypes</option>';
     }
   }
@@ -2524,14 +2646,60 @@
       }
     }
 
-    // Update archetype dropdown based on position, then select the value
-    updateArchetypeDropdown(positionValue, archetypeValue);
-
     // All rating fields - ratings are in nested 'ratings' object
+    // Database uses different field names than display (e.g., PKPW in DB = PKPR for display)
     var ratings = season.ratings || {};
+
+    // DEBUG: Log kick power fields to trace the issue
+    console.log('[DbPlayerCard] KICK DEBUG - season.ratings keys:', Object.keys(ratings));
+    console.log('[DbPlayerCard] KICK DEBUG - ratings.PKPR:', ratings.PKPR);
+    console.log('[DbPlayerCard] KICK DEBUG - ratings.PKPW:', ratings.PKPW);
+    console.log('[DbPlayerCard] KICK DEBUG - ratings.PKAC:', ratings.PKAC);
+
+    // Map from display field names to database field names for loading
+    var DISPLAY_TO_DB_FIELD = {
+      'PKPR': 'PKPW',  // Kick power: display=PKPR, db=PKPW
+      'PSTA': 'PSTM',  // Stamina: display=PSTA, db=PSTM
+      'PBKT': 'PBTK',  // Break tackle: display=PBKT, db=PBTK
+      'PLTR': 'PTRK',  // Trucking: display=PLTR, db=PTRK
+      'PELU': 'PCOD',  // Change of direction: display=PELU, db=PCOD
+      'PLSA': 'PSFA',  // Stiff arm: display=PLSA, db=PSFA
+      'PLSM': 'PSPN',  // Spin move: display=PLSM, db=PSPN
+      'PLJM': 'PJKM',  // Juke move: display=PLJM, db=PJKM
+      'PTHP': 'PPWR',  // Throw power: display=PTHP, db=PPWR
+      'PLSC': 'PSPC',  // Spectacular catch: display=PLSC, db=PSPC
+      'PLCI': 'PCIT',  // Catch in traffic: display=PLCI, db=PCIT
+      'SRRN': 'PSRR',  // Short route running: display=SRRN, db=PSRR
+      'PLRL': 'PREL',  // Release: display=PLRL, db=PREL
+      'PLIB': 'PIBK',  // Impact blocking: display=PLIB, db=PIBK
+      'PRBF': 'PRNS',  // Run block finesse: display=PRBF, db=PRNS
+      'PPBS': 'PPBP',  // Pass block power: display=PPBS, db=PPBP
+      'PLHT': 'PHIT',  // Hit power: display=PLHT, db=PHIT
+      'PLPE': 'PPRS',  // Press: display=PLPE, db=PPRS
+      'PFMS': 'PFMV',  // Finesse moves: display=PFMS, db=PFMV
+      'PLPM': 'PPWM',  // Power moves: display=PLPM, db=PPWM
+      'PBSG': 'PBSH',  // Block shedding: display=PBSG, db=PBSH
+      'PLPR': 'PPRC',  // Play recognition: display=PLPR, db=PPRC
+      'PLPU': 'PPUR',  // Pursuit: display=PLPU, db=PPUR
+      'PLMC': 'PMCV',  // Man coverage: display=PLMC, db=PMCV
+      'PLZC': 'PZCV',  // Zone coverage: display=PLZC, db=PZCV
+    };
+
     RATING_FIELDS.forEach(function(item) {
       var inputId = 'dbRating_' + item.field;
-      setValue(inputId, ratings[item.field] !== undefined ? ratings[item.field] : '');
+      // Try display field name first, then mapped database field name
+      var dbField = DISPLAY_TO_DB_FIELD[item.field];
+      var value = ratings[item.field];
+      if (value === undefined && dbField) {
+        value = ratings[dbField];
+      }
+      // Debug kick power specifically
+      if (item.field === 'PKPR') {
+        console.log('[DbPlayerCard] PKPR MAPPING: field=' + item.field + ', dbField=' + dbField +
+          ', ratings[field]=' + ratings[item.field] + ', ratings[dbField]=' + ratings[dbField] +
+          ', finalValue=' + value);
+      }
+      setValue(inputId, value !== undefined ? value : '');
     });
   }
 
@@ -2543,12 +2711,6 @@
     setValue('dbPlayerSeasonJersey', '');
     setValue('dbPlayerSeasonAge', '');
     setValue('dbPlayerSeasonPosition', '');
-
-    // Reset archetype dropdown
-    var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
-    if (archetypeSelect) {
-      archetypeSelect.innerHTML = '<option value="">Select Position First</option>';
-    }
 
     // Reset "Apply to all years" checkboxes
     setChecked('dbApplyToAllYears', false);
@@ -3022,15 +3184,36 @@
     console.log('[collectSeasonEdits] originalSeasonData:', originalSeasonData);
     console.log('[collectSeasonEdits] originalSeasonData.ratings:', originalSeasonData ? originalSeasonData.ratings : null);
 
+    // Map from display field names to database field names for change detection
+    var DISPLAY_TO_DB_FIELD_CHECK = {
+      'PKPR': 'PKPW', 'PSTA': 'PSTM', 'PBKT': 'PBTK', 'PLTR': 'PTRK',
+      'PELU': 'PCOD', 'PLSA': 'PSFA', 'PLSM': 'PSPN', 'PLJM': 'PJKM',
+      'PTHP': 'PPWR', 'PLSC': 'PSPC', 'PLCI': 'PCIT', 'SRRN': 'PSRR',
+      'PLRL': 'PREL', 'PLIB': 'PIBK', 'PRBF': 'PRNS', 'PPBS': 'PPBP',
+      'PLHT': 'PHIT', 'PLPE': 'PPRS', 'PFMS': 'PFMV', 'PLPM': 'PPWM',
+      'PBSG': 'PBSH', 'PLPR': 'PPRC', 'PLPU': 'PPUR', 'PLMC': 'PMCV', 'PLZC': 'PZCV'
+    };
+
     // Helper to check if value changed from original
     function hasChanged(field, currentValue) {
       if (!onlyChangedFields || !originalSeasonData) {
         return true; // Include all fields if not filtering or no original data
       }
       // Check both flat and nested (ratings) structures
+      // Also check mapped database field name (e.g., PKPW for PKPR)
       var originalValue = originalSeasonData[field];
       if (originalValue === undefined && originalSeasonData.ratings) {
         originalValue = originalSeasonData.ratings[field];
+      }
+      // If still undefined, try the database field name
+      if (originalValue === undefined) {
+        var dbField = DISPLAY_TO_DB_FIELD_CHECK[field];
+        if (dbField) {
+          originalValue = originalSeasonData[dbField];
+          if (originalValue === undefined && originalSeasonData.ratings) {
+            originalValue = originalSeasonData.ratings[dbField];
+          }
+        }
       }
       // Compare as strings to handle type differences (e.g., "85" vs 85)
       var changed = String(currentValue) !== String(originalValue);
@@ -3068,18 +3251,52 @@
       edits.position = position;
     }
 
-    var archetype = getValue('dbPlayerSeasonArchetype');
+    // Archetype is now at player level, not per-season
+    var archetype = getValue('dbPlayerArchetype');
     if (archetype && hasChanged('archetype', archetype)) {
       edits.archetype = archetype;
     } else if (!onlyChangedFields && archetype !== null && archetype !== undefined) {
       edits.archetype = archetype;
     }
 
+    // Map from display field names to database field names for saving
+    // (reverse of the loading mapping in populateRatingsForm)
+    var DISPLAY_TO_DB_FIELD = {
+      'PKPR': 'PKPW',  // Kick power: display=PKPR, db=PKPW
+      'PSTA': 'PSTM',  // Stamina: display=PSTA, db=PSTM
+      'PBKT': 'PBTK',  // Break tackle: display=PBKT, db=PBTK
+      'PLTR': 'PTRK',  // Trucking: display=PLTR, db=PTRK
+      'PELU': 'PCOD',  // Change of direction: display=PELU, db=PCOD
+      'PLSA': 'PSFA',  // Stiff arm: display=PLSA, db=PSFA
+      'PLSM': 'PSPN',  // Spin move: display=PLSM, db=PSPN
+      'PLJM': 'PJKM',  // Juke move: display=PLJM, db=PJKM
+      'PTHP': 'PPWR',  // Throw power: display=PTHP, db=PPWR
+      'PLSC': 'PSPC',  // Spectacular catch: display=PLSC, db=PSPC
+      'PLCI': 'PCIT',  // Catch in traffic: display=PLCI, db=PCIT
+      'SRRN': 'PSRR',  // Short route running: display=SRRN, db=PSRR
+      'PLRL': 'PREL',  // Release: display=PLRL, db=PREL
+      'PLIB': 'PIBK',  // Impact blocking: display=PLIB, db=PIBK
+      'PRBF': 'PRNS',  // Run block finesse: display=PRBF, db=PRNS
+      'PPBS': 'PPBP',  // Pass block power: display=PPBS, db=PPBP
+      'PLHT': 'PHIT',  // Hit power: display=PLHT, db=PHIT
+      'PLPE': 'PPRS',  // Press: display=PLPE, db=PPRS
+      'PFMS': 'PFMV',  // Finesse moves: display=PFMS, db=PFMV
+      'PLPM': 'PPWM',  // Power moves: display=PLPM, db=PPWM
+      'PBSG': 'PBSH',  // Block shedding: display=PBSG, db=PBSH
+      'PLPR': 'PPRC',  // Play recognition: display=PLPR, db=PPRC
+      'PLPU': 'PPUR',  // Pursuit: display=PLPU, db=PPUR
+      'PLMC': 'PMCV',  // Man coverage: display=PLMC, db=PMCV
+      'PLZC': 'PZCV',  // Zone coverage: display=PLZC, db=PZCV
+    };
+
     // Collect rating values - only include changed ones if filtering
+    // Convert display field names to database field names when saving
     RATING_FIELDS.forEach(function(item) {
       var val = getIntValue('dbRating_' + item.field);
       if (val !== null && val !== undefined && hasChanged(item.field, val)) {
-        edits[item.field] = val;
+        // Use database field name if mapped, otherwise use display field name
+        var dbField = DISPLAY_TO_DB_FIELD[item.field] || item.field;
+        edits[dbField] = val;
       }
     });
 
@@ -3730,17 +3947,18 @@
       // Skip if we're programmatically updating
       if (window._skipOvrRecalc) return;
 
-      // Get current position
-      var positionSelect = document.getElementById('dbPlayerSeasonPosition');
-      var position = positionSelect ? positionSelect.value : '';
+      // Get current position from player-level (primary) or season position (fallback)
+      var mainPositionSelect = document.getElementById('dbPlayerPosition');
+      var position = mainPositionSelect ? mainPositionSelect.value : '';
       if (!position) {
-        var mainPositionSelect = document.getElementById('dbPlayerPosition');
-        position = mainPositionSelect ? mainPositionSelect.value : 'QB';
+        var positionSelect = document.getElementById('dbPlayerSeasonPosition');
+        position = positionSelect ? positionSelect.value : 'QB';
       }
 
-      // Get current archetype (stored as name string like "QB Field General")
-      var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
-      var currentArchetypeName = archetypeSelect ? archetypeSelect.value : '';
+      // CRITICAL: Use PLAYER-LEVEL archetype (constant across all seasons)
+      // This ensures consistent OVR calculation everywhere
+      var playerArchetypeSelect = document.getElementById('dbPlayerArchetype');
+      var playerLevelArchetype = playerArchetypeSelect ? playerArchetypeSelect.value : '';
 
       // Build attributes object from the rating inputs, mapping to OVR calculator field codes
       var attributes = {};
@@ -3753,49 +3971,42 @@
         }
       });
 
-      console.log('[DbPlayerCard] Recalculating OVR with attributes:', Object.keys(attributes).length);
+      console.log('[DbPlayerCard] Recalculating OVR with attributes:', Object.keys(attributes).length, 'playerArchetype:', playerLevelArchetype);
 
-      // Get OVR for all archetypes to find the best one
-      var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+      var ovrInput = document.getElementById('dbRating_POVR');
+      var oldOVR = ovrInput ? parseInt(ovrInput.value) || 50 : 50;
+      var newOVR;
+      var usedArchetype;
 
-      if (archetypeResults && archetypeResults.length > 0) {
-        // The first result is the best archetype (sorted by OVR descending)
-        // Use the BEST archetype's OVR - SAME as roster editor
-        var bestArchetype = archetypeResults[0];
-        var newOVR = bestArchetype.ovr;
-        var newArchetypeName = bestArchetype.name;
-        var newArchetypeId = bestArchetype.id;
+      // Set flag to skip recursive recalculation
+      window._skipOvrRecalc = true;
 
-        var ovrInput = document.getElementById('dbRating_POVR');
-        var oldOVR = ovrInput ? parseInt(ovrInput.value) || 50 : 50;
-
-        // Set flag to skip recursive recalculation
-        window._skipOvrRecalc = true;
-
-        // Update OVR if changed
-        if (newOVR !== oldOVR) {
-          setValue('dbRating_POVR', newOVR);
-          console.log('[DbPlayerCard] OVR recalculated: ' + oldOVR + ' → ' + newOVR + ' (best archetype: ' + newArchetypeName + ')');
+      if (playerLevelArchetype) {
+        // Use the PLAYER-LEVEL archetype for OVR calculation (consistent with roster generator)
+        newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, playerLevelArchetype);
+        usedArchetype = playerLevelArchetype;
+        console.log('[DbPlayerCard] OVR calculated using player archetype:', playerLevelArchetype, '=', newOVR);
+      } else {
+        // No player-level archetype set - find best archetype
+        var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+        if (archetypeResults && archetypeResults.length > 0) {
+          var bestArchetype = archetypeResults[0];
+          newOVR = bestArchetype.ovr;
+          usedArchetype = bestArchetype.name;
+          console.log('[DbPlayerCard] OVR calculated using best archetype:', usedArchetype, '=', newOVR);
+        } else {
+          newOVR = 50;
+          usedArchetype = '';
         }
-
-        // Update archetype to match the best one (like roster editor does)
-        if (archetypeSelect && currentArchetypeName !== newArchetypeName) {
-          console.log('[DbPlayerCard] Auto-updating archetype: ' + currentArchetypeName + ' → ' + newArchetypeName);
-          archetypeSelect.value = newArchetypeName;
-          // Save the archetype change
-          try {
-            if (isCustomPlayer) {
-              await window.electronAPI.database.saveCustomPlayerSeason(currentDbPlayerId, selectedYear, { archetype: newArchetypeName });
-            } else {
-              await window.electronAPI.database.saveSeasonEdit(currentDbPlayerId, selectedYear, { archetype: newArchetypeName });
-            }
-          } catch (e) {
-            console.warn('[DbPlayerCard] Could not save archetype change:', e);
-          }
-        }
-
-        window._skipOvrRecalc = false;
       }
+
+      // Update OVR if changed
+      if (newOVR !== oldOVR) {
+        setValue('dbRating_POVR', newOVR);
+        console.log('[DbPlayerCard] OVR recalculated: ' + oldOVR + ' → ' + newOVR + ' (archetype: ' + usedArchetype + ')');
+      }
+
+      window._skipOvrRecalc = false;
     } catch (error) {
       window._skipOvrRecalc = false;
       console.error('[DbPlayerCard] Error recalculating OVR:', error);
@@ -3843,7 +4054,7 @@
       var applyBtn = document.getElementById('apply-archetype-change');
       if (applyBtn) {
         applyBtn.onclick = function() {
-          var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
+          var archetypeSelect = document.getElementById('dbPlayerArchetype');
           if (archetypeSelect) {
             archetypeSelect.value = bestArchetype;
             archetypeSelect.dispatchEvent(new Event('change'));
@@ -3905,7 +4116,7 @@
     console.log('[DbPlayerCard] Attributes count:', Object.keys(attributes).length);
 
     // Get current archetype if available
-    var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
+    var archetypeSelect = document.getElementById('dbPlayerArchetype');
     var currentArchetype = archetypeSelect ? archetypeSelect.value : undefined;
     console.log('[DbPlayerCard] Current Archetype:', currentArchetype);
 
@@ -4145,7 +4356,7 @@
 
     // Update archetype if selected
     if (selectedArchetypeId !== undefined) {
-      var archetypeSelect = document.getElementById('dbPlayerSeasonArchetype');
+      var archetypeSelect = document.getElementById('dbPlayerArchetype');
       if (archetypeSelect) {
         var oldArchetype = archetypeSelect.value;
         archetypeSelect.value = selectedArchetypeId;
