@@ -12,7 +12,7 @@ import path from 'path';
 
 // Use require with proper path resolution for the parser
 const RosterParser = require(path.join(__dirname, 'parsers', 'RosterParser.js'));
-const { parseRosterFile, saveRosterFile } = RosterParser;
+const { parseRosterFile, saveRosterFile, getPlayerEquipment, setPlayerEquipment, EQUIPMENT_OPTIONS, EQUIPMENT_SLOTS } = RosterParser;
 
 /**
  * Handle: parser:parse-roster-file
@@ -75,6 +75,7 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
       genericFaceServiceLoaded: result?.genericFaceServiceLoaded ?? false,
       blbmUpdated: result?.blbmUpdated ?? 0,
       btypSynced: result?.btypSynced ?? 0,
+      skntSynced: result?.skntSynced ?? 0,
       blbmError: result?.blbmError ?? null,
       injuriesCleared: result?.injuriesCleared ?? 0
     };
@@ -87,6 +88,60 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
       error: error.message || 'Unknown error saving roster file'
     };
   }
+});
+
+/**
+ * Handle: parser:get-player-equipment
+ * Get equipment data for a player by index
+ */
+ipcMain.handle('parser:get-player-equipment', async (event, playerIndex: number) => {
+  try {
+    console.log('[parser-handlers] Getting equipment for player index:', playerIndex);
+    const equipment = getPlayerEquipment(playerIndex);
+    return {
+      success: true,
+      equipment: equipment || {}
+    };
+  } catch (error: any) {
+    console.error('[parser-handlers] Get equipment error:', error);
+    return {
+      success: false,
+      error: error.message || 'Unknown error getting equipment',
+      equipment: {}
+    };
+  }
+});
+
+/**
+ * Handle: parser:set-player-equipment
+ * Set equipment data for a player by index
+ */
+ipcMain.handle('parser:set-player-equipment', async (event, playerIndex: number, equipment: Record<string, string>) => {
+  try {
+    console.log('[parser-handlers] Setting equipment for player index:', playerIndex, equipment);
+    const success = setPlayerEquipment(playerIndex, equipment);
+    return {
+      success
+    };
+  } catch (error: any) {
+    console.error('[parser-handlers] Set equipment error:', error);
+    return {
+      success: false,
+      error: error.message || 'Unknown error setting equipment'
+    };
+  }
+});
+
+/**
+ * Handle: parser:get-equipment-options
+ * Get all equipment slot options for dropdown population
+ */
+ipcMain.handle('parser:get-equipment-options', async () => {
+  return {
+    success: true,
+    options: EQUIPMENT_OPTIONS,
+    slots: EQUIPMENT_SLOTS
+  };
 });
 
 console.log('[parser-handlers] Parser IPC handlers registered');

@@ -13,7 +13,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     parseRosterFile: (filePath: string) =>
       ipcRenderer.invoke('parser:parse-roster-file', filePath),
     saveRosterFile: (filePath: string, players: any[], originalData: any, options?: { clearInjuries?: boolean }) =>
-      ipcRenderer.invoke('parser:save-roster-file', filePath, players, originalData, options)
+      ipcRenderer.invoke('parser:save-roster-file', filePath, players, originalData, options),
+    getPlayerEquipment: (playerIndex: number) =>
+      ipcRenderer.invoke('parser:get-player-equipment', playerIndex),
+    setPlayerEquipment: (playerIndex: number, equipment: Record<string, string>) =>
+      ipcRenderer.invoke('parser:set-player-equipment', playerIndex, equipment),
+    getEquipmentOptions: () =>
+      ipcRenderer.invoke('parser:get-equipment-options')
   },
 
   // File APIs
@@ -551,6 +557,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('database:save-appearance-edit', originalPlayerId, edits),
     getAppearanceEdit: (originalPlayerId: number) =>
       ipcRenderer.invoke('database:get-appearance-edit', originalPlayerId),
+    getAllCustomPids: () =>
+      ipcRenderer.invoke('database:get-all-custom-pids'),
 
     // Season edit operations
     saveSeasonEdit: (originalPlayerId: number, year: number, edits: any) =>
@@ -562,6 +570,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Apply edits to ALL seasons (for change-all-years feature)
     saveSeasonEditAllYears: (originalPlayerId: number, edits: any, options?: { incrementAge?: boolean }) =>
       ipcRenderer.invoke('database:save-season-edit-all-years', originalPlayerId, edits, options),
+
+    // Player archetype operations (player-level, constant across all seasons)
+    getPlayerArchetype: (playerId: number) =>
+      ipcRenderer.invoke('database:get-player-archetype', playerId),
+    savePlayerArchetype: (playerId: number, archetype: string, archetypeId?: number) =>
+      ipcRenderer.invoke('database:save-player-archetype', playerId, archetype, archetypeId),
 
     // Custom player operations
     createCustomPlayer: (player: any) =>

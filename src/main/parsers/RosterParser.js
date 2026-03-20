@@ -1075,18 +1075,471 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
   }
 }
 
-// Equipment slot mappings
+// Complete equipment slot mappings - all 33 slots discovered in roster files
 const EQUIPMENT_SLOTS = {
+  // Head/Face
   Visor: 2,
-  Towel: 26,
-  Neckpad: 29,
-  FlakJacket: 30,
   FacePaint: 51,
-  LeftArmWear: 110,
-  RightArmWear: 111,
-  LeftHandWear: 114,
-  RightHandWear: 115,
-  BackPlate: 12
+  Helmet: 106,
+  Mouthpiece: 122,
+  HelmetFlag: 88,
+  Neckpad: 29,
+
+  // Arms
+  LeftSleeve: 110,
+  RightSleeve: 111,
+  LeftElbow: 116,
+  RightElbow: 117,
+  LeftWrist: 120,
+  RightWrist: 121,
+
+  // Hands
+  LeftGlove: 114,
+  RightGlove: 115,
+
+  // Body/Torso
+  BackPlate: 12,
+  ShoulderPads: 25,
+  Towel: 26,
+  FlakJacket: 30,
+  Undershirt: 108,
+  JerseyStyle: 125,
+  Handwarmer: 127,
+  HandwarmerStyle: 101,
+
+  // Legs/Feet
+  LeftSpats: 9,
+  RightSpats: 54,
+  LeftShoe: 10,
+  RightShoe: 11,
+  LeftShoeColor: 95,
+  RightShoeColor: 96,
+  Socks: 109,
+  KneePad: 118,
+  LeftThighPad: 142,
+  RightThighPad: 143
+};
+
+// Equipment options for each slot - extracted from official roster
+const EQUIPMENT_OPTIONS = {
+  // Head/Face
+  Visor: [
+    { value: 'GearVisor_None', label: 'None' },
+    { value: 'GearVisor_visorClear', label: 'Clear' },
+    { value: 'GearVisor_visorOakley_clear', label: 'Oakley Clear' },
+    { value: 'GearVisor_visorOakley_DarkLight', label: 'Oakley Light Tint' },
+    { value: 'GearVisor_visorOakley_Dark', label: 'Oakley Dark' },
+    { value: 'GearVisor_visorOakley_Prizm', label: 'Oakley Prizm' }
+  ],
+  FacePaint: [
+    { value: 'FaceMarks_None', label: 'None' },
+    { value: 'FaceMarks_EyePaint', label: 'Eye Black' },
+    { value: 'FaceMarks_EyePaint2', label: 'Eye Black 2' },
+    { value: 'FaceMarks_EyePaint3', label: 'Eye Black 3' },
+    { value: 'FaceMarks_NoseTape', label: 'Nose Tape' },
+    { value: 'FaceMarks_NoseEyeTape', label: 'Nose & Eye Tape' }
+  ],
+  Helmet: [
+    { value: 'GearHelmet_Speed_Flex', label: 'Riddell SpeedFlex' },
+    { value: 'GearHelmet_RevolutionSpeed', label: 'Riddell Revolution' },
+    { value: 'GearHelmet_SchuttF7', label: 'Schutt F7' },
+    { value: 'GearHelmet_AirXP', label: 'Schutt Air XP' },
+    { value: 'GearHelmet_Axiom', label: 'Riddell Axiom' },
+    { value: 'GearHelmet_VicisZero2', label: 'VICIS Zero2' },
+    { value: 'GearHelmet_VicisZero2Trench', label: 'VICIS Zero2 Trench' },
+    { value: 'GearHelmet_LightGladiator', label: 'Light Gladiator' }
+  ],
+  Mouthpiece: [
+    { value: 'GearMouthpiece_None', label: 'None' },
+    { value: 'GearMouthpiece_PacifierDual_Black', label: 'Black' },
+    { value: 'GearMouthpiece_PacifierDual_White', label: 'White' },
+    { value: 'GearMouthpiece_PacifierDual_TeamColor', label: 'Team Color' },
+    { value: 'GearMouthpiece_PacifierDual_SecondaryColor', label: 'Secondary Color' }
+  ],
+  HelmetFlag: [
+    { value: '', label: 'None' },
+    { value: 'HelmetFlag_Australia', label: 'Australia' },
+    { value: 'HelmetFlag_Brazil', label: 'Brazil' },
+    { value: 'HelmetFlag_Cameroon', label: 'Cameroon' },
+    { value: 'HelmetFlag_Canada', label: 'Canada' },
+    { value: 'HelmetFlag_Ghana', label: 'Ghana' },
+    { value: 'HelmetFlag_Jamaica', label: 'Jamaica' },
+    { value: 'HelmetFlag_Liberia', label: 'Liberia' },
+    { value: 'HelmetFlag_Mali', label: 'Mali' },
+    { value: 'HelmetFlag_Mexico', label: 'Mexico' },
+    { value: 'HelmetFlag_Nigeria', label: 'Nigeria' },
+    { value: 'HelmetFlag_Panama', label: 'Panama' },
+    { value: 'HelmetFlag_Samoa', label: 'Samoa' },
+    { value: 'HelmetFlag_Scotland', label: 'Scotland' },
+    { value: 'HelmetFlag_SouthKorea', label: 'South Korea' },
+    { value: 'HelmetFlag_Tonga', label: 'Tonga' }
+  ],
+  Neckpad: [
+    { value: 'GearNeckpad_None', label: 'None' },
+    { value: 'GearNeckpad_CowboyCollarNeckRoll', label: 'Cowboy Collar' }
+  ],
+
+  // Arms - Sleeves
+  LeftSleeve: [
+    { value: 'ArmSleeve_None', label: 'None' },
+    { value: 'GearArmSleeve_Full_sleeveLongUnderarmor_normal_Black', label: 'Full - Black' },
+    { value: 'GearArmSleeve_Full_sleeveLongUnderarmor_normal_White', label: 'Full - White' },
+    { value: 'GearArmSleeve_Full_sleeveLongUnderarmor_normal_TeamColor', label: 'Full - Team' },
+    { value: 'GearArmSleeve_Half_sleeveLongUnderarmor_normal_Black', label: 'Half - Black' },
+    { value: 'GearArmSleeve_Half_sleeveLongUnderarmor_normal_TeamColor', label: 'Half - Team' },
+    { value: 'GearArmSleeve_Quarter_sleeveLongUnderarmor_normal_Black', label: 'Quarter - Black' },
+    { value: 'GearArmSleeve_Quarter_sleeveLongUnderarmor_normal_White', label: 'Quarter - White' },
+    { value: 'GearArmSleeve_Quarter_sleeveLongUnderarmor_normal_TeamColor', label: 'Quarter - Team' },
+    { value: 'GearArmSleeve_Shooter_sleeveLongUnderarmor_normal_Black', label: 'Shooter - Black' },
+    { value: 'GearArmSleeve_Shooter_sleeveLongUnderarmor_normal_White', label: 'Shooter - White' },
+    { value: 'GearArmSleeve_Shooter_sleeveLongUnderarmor_normal_TeamColor', label: 'Shooter - Team' },
+    { value: 'GearArmSleeve_Shooter_sleeveLongUnderarmor_normal_SecondaryColor', label: 'Shooter - Secondary' },
+    { value: 'GearArmSleeve_NikeProDriFitSleeve_Black', label: 'Nike Pro - Black' },
+    { value: 'GearArmSleeve_NikeProDriFitSleeve_White', label: 'Nike Pro - White' },
+    { value: 'GearArmSleeve_NikeProDriFitSleeve_TeamColor', label: 'Nike Pro - Team' },
+    { value: 'GearArmSleeve_McDavidPaddedCompressionSleeve_TeamColor', label: 'McDavid Padded - Team' },
+    { value: 'GearArmSleeve_CompressionRolledUpShirt_Black', label: 'Rolled Up - Black' },
+    { value: 'GearArmSleeve_CompressionRolledUpShirt_White', label: 'Rolled Up - White' },
+    { value: 'GearArmSleeve_CompressionRolledUpShirt_TeamColor', label: 'Rolled Up - Team' },
+    { value: 'GearArmSleeve_Undershirt_sleeveLongUnderarmor_normal_White', label: 'Undershirt - White' },
+    { value: 'GearArmSleeve_Undershirt_sleeveLongUnderarmor_normal_TeamColor', label: 'Undershirt - Team' },
+    { value: 'GearArmSleeve_Undershirt_armTape_normal_Black', label: 'Tape - Black' },
+    { value: 'GearArmSleeve_Undershirt_armTape_normal_OffWhite', label: 'Tape - Off White' },
+    { value: 'GearArmSleeve_Undershirt_armTape_normal_TeamColor', label: 'Tape - Team' },
+    { value: 'GearArmSleeve_Quarter_armTape_normal_OffWhite', label: 'Quarter Tape - Off White' }
+  ],
+  RightSleeve: [
+    { value: 'ArmSleeve_None', label: 'None' },
+    { value: 'GearArmSleeve_Full_sleeveLongUnderarmor_normal_Black', label: 'Full - Black' },
+    { value: 'GearArmSleeve_Full_sleeveLongUnderarmor_normal_White', label: 'Full - White' },
+    { value: 'GearArmSleeve_Full_sleeveLongUnderarmor_normal_TeamColor', label: 'Full - Team' },
+    { value: 'GearArmSleeve_Half_sleeveLongUnderarmor_normal_Black', label: 'Half - Black' },
+    { value: 'GearArmSleeve_Half_sleeveLongUnderarmor_normal_TeamColor', label: 'Half - Team' },
+    { value: 'GearArmSleeve_Quarter_sleeveLongUnderarmor_normal_Black', label: 'Quarter - Black' },
+    { value: 'GearArmSleeve_Quarter_sleeveLongUnderarmor_normal_White', label: 'Quarter - White' },
+    { value: 'GearArmSleeve_Quarter_sleeveLongUnderarmor_normal_TeamColor', label: 'Quarter - Team' },
+    { value: 'GearArmSleeve_Shooter_sleeveLongUnderarmor_normal_Black', label: 'Shooter - Black' },
+    { value: 'GearArmSleeve_Shooter_sleeveLongUnderarmor_normal_White', label: 'Shooter - White' },
+    { value: 'GearArmSleeve_Shooter_sleeveLongUnderarmor_normal_TeamColor', label: 'Shooter - Team' },
+    { value: 'GearArmSleeve_NikeProDriFitSleeve_Black', label: 'Nike Pro - Black' },
+    { value: 'GearArmSleeve_NikeProDriFitSleeve_White', label: 'Nike Pro - White' },
+    { value: 'GearArmSleeve_NikeProDriFitSleeve_TeamColor', label: 'Nike Pro - Team' },
+    { value: 'GearArmSleeve_McDavidPaddedCompressionSleeve_TeamColor', label: 'McDavid Padded - Team' },
+    { value: 'GearArmSleeve_CompressionRolledUpShirt_Black', label: 'Rolled Up - Black' },
+    { value: 'GearArmSleeve_CompressionRolledUpShirt_White', label: 'Rolled Up - White' },
+    { value: 'GearArmSleeve_CompressionRolledUpShirt_TeamColor', label: 'Rolled Up - Team' },
+    { value: 'GearArmSleeve_Undershirt_sleeveLongUnderarmor_normal_TeamColor', label: 'Undershirt - Team' },
+    { value: 'GearArmSleeve_Undershirt_armTape_normal_Black', label: 'Tape - Black' },
+    { value: 'GearArmSleeve_Undershirt_armTape_normal_OffWhite', label: 'Tape - Off White' },
+    { value: 'GearArmSleeve_Undershirt_armTape_normal_TeamColor', label: 'Tape - Team' },
+    { value: 'GearArmSleeve_Quarter_armTape_normal_OffWhite', label: 'Quarter Tape - Off White' }
+  ],
+  LeftElbow: [
+    { value: 'ElbowGear_None', label: 'None' },
+    { value: 'ElbowGear_elbowSweatbandThin_White', label: 'Thin Band - White' },
+    { value: 'ElbowGear_elbowSweatbandThin_TeamColor', label: 'Thin Band - Team' },
+    { value: 'ElbowGear_elbowSweatbandMedium_White', label: 'Medium Band - White' },
+    { value: 'ElbowGear_elbowSweatbandFull_White', label: 'Full Band - White' },
+    { value: 'ElbowGear_elbowSweatbandFull_TeamColor', label: 'Full Band - Team' },
+    { value: 'ElbowGear_elbowBrace_TeamColor', label: 'Brace - Team' },
+    { value: 'ElbowGear_elbowpadRubber_Black', label: 'Rubber Pad - Black' },
+    { value: 'ElbowGear_bicepShoulderStabilizer', label: 'Shoulder Stabilizer' }
+  ],
+  RightElbow: [
+    { value: 'ElbowGear_None', label: 'None' },
+    { value: 'ElbowGear_elbowSweatbandThin_White', label: 'Thin Band - White' },
+    { value: 'ElbowGear_elbowSweatbandThin_TeamColor', label: 'Thin Band - Team' },
+    { value: 'ElbowGear_elbowSweatbandMedium_White', label: 'Medium Band - White' },
+    { value: 'ElbowGear_elbowSweatbandFull_White', label: 'Full Band - White' },
+    { value: 'ElbowGear_elbowSweatbandFull_Black', label: 'Full Band - Black' },
+    { value: 'ElbowGear_elbowSweatbandFull_TeamColor', label: 'Full Band - Team' },
+    { value: 'ElbowGear_elbowpadRubber_Black', label: 'Rubber Pad - Black' },
+    { value: 'ElbowGear_armBraceSmall', label: 'Arm Brace Small' },
+    { value: 'ElbowGear_bicepShoulderStabilizer', label: 'Shoulder Stabilizer' }
+  ],
+  LeftWrist: [
+    { value: 'GearWrist_None', label: 'None' },
+    { value: 'GearWrist_wristBandNormal_White', label: 'Band - White' },
+    { value: 'GearWrist_wristBandNormal_TeamColor', label: 'Band - Team' },
+    { value: 'GearWrist_wristBandCoach_White', label: 'Coach Band - White' },
+    { value: 'GearWrist_wristBandCoach_Black', label: 'Coach Band - Black' },
+    { value: 'GearWrist_wristTapedLite_White', label: 'Tape Lite - White' },
+    { value: 'GearWrist_wristTapedLite_Black', label: 'Tape Lite - Black' },
+    { value: 'GearWrist_wristTapedNormal_White', label: 'Tape - White' },
+    { value: 'GearWrist_wristTapedNormal_Black', label: 'Tape - Black' },
+    { value: 'GearWrist_wristTapedNormal_TeamColor', label: 'Tape - Team' },
+    { value: 'GearWrist_wristTapedMax_Black', label: 'Tape Max - Black' },
+    { value: 'GearWrist_wristTapedMax_TeamColor', label: 'Tape Max - Team' },
+    { value: 'GearWrist_gloveTapedNormal_White', label: 'Glove Tape - White' },
+    { value: 'GearWrist_gloveTapedLarge_White', label: 'Glove Tape Large - White' },
+    { value: 'GearWrist_gloveTapedLarge_Black', label: 'Glove Tape Large - Black' },
+    { value: 'GearWrist_gloveWristBrace_Black', label: 'Wrist Brace - Black' },
+    { value: 'GearWrist_wristbrace_CompressShort_Black', label: 'Compression Short - Black' }
+  ],
+  RightWrist: [
+    { value: 'GearWrist_None', label: 'None' },
+    { value: 'GearWrist_wristBandNormal_White', label: 'Band - White' },
+    { value: 'GearWrist_wristBandNormal_Black', label: 'Band - Black' },
+    { value: 'GearWrist_wristBandNormal_TeamColor', label: 'Band - Team' },
+    { value: 'GearWrist_wristTapedLite_White', label: 'Tape Lite - White' },
+    { value: 'GearWrist_wristTapedLite_Black', label: 'Tape Lite - Black' },
+    { value: 'GearWrist_wristTapedNormal_White', label: 'Tape - White' },
+    { value: 'GearWrist_wristTapedNormal_Black', label: 'Tape - Black' },
+    { value: 'GearWrist_wristTapedNormal_TeamColor', label: 'Tape - Team' },
+    { value: 'GearWrist_wristTapedMax_Black', label: 'Tape Max - Black' },
+    { value: 'GearWrist_wristTapedMax_TeamColor', label: 'Tape Max - Team' },
+    { value: 'GearWrist_gloveTapedNormal_White', label: 'Glove Tape - White' },
+    { value: 'GearWrist_gloveTapedLarge_White', label: 'Glove Tape Large - White' },
+    { value: 'GearWrist_gloveTapedLarge_Black', label: 'Glove Tape Large - Black' },
+    { value: 'GearWrist_gloveWristBrace_Black', label: 'Wrist Brace - Black' },
+    { value: 'GearWrist_wristbrace_CompressShort_Black', label: 'Compression Short - Black' }
+  ],
+
+  // Hands - Gloves
+  LeftGlove: [
+    { value: 'GearHand_None', label: 'None' },
+    { value: 'GearHand_tapedHandFinger_White', label: 'Taped Fingers' },
+    { value: 'GearHand_tapedHandCombo_White', label: 'Taped Combo' },
+    { value: 'GearHand_glove_NikeVaporJet8_Black', label: 'Vapor Jet 8 - Black' },
+    { value: 'GearHand_glove_NikeVaporJet8_White', label: 'Vapor Jet 8 - White' },
+    { value: 'GearHand_glove_NikeVaporJet8_TeamColor', label: 'Vapor Jet 8 - Team' },
+    { value: 'GearHand_glove_NikeVaporJet8_SecondaryColor', label: 'Vapor Jet 8 - Secondary' },
+    { value: 'GearHand_glove_NikeVaporJet7_Black', label: 'Vapor Jet 7 - Black' },
+    { value: 'GearHand_glove_NikeVaporJet7_White', label: 'Vapor Jet 7 - White' },
+    { value: 'GearHand_glove_NikeVaporJet7_TeamColor', label: 'Vapor Jet 7 - Team' },
+    { value: 'GearHand_glove_NikeVaporJet7_SecondaryColor', label: 'Vapor Jet 7 - Secondary' },
+    { value: 'GearHand_glove_NikeVaporJet6_Black', label: 'Vapor Jet 6 - Black' },
+    { value: 'GearHand_glove_NikeVaporJet6_TeamColor', label: 'Vapor Jet 6 - Team' },
+    { value: 'GearHand_glove_NikeVaporJet5_White', label: 'Vapor Jet 5 - White' },
+    { value: 'GearHand_glove_NikeVaporJet5_TeamColor', label: 'Vapor Jet 5 - Team' },
+    { value: 'GearHand_glove_NikeVaporJet4_Black', label: 'Vapor Jet 4 - Black' },
+    { value: 'GearHand_glove_NikeVaporKnit4_Black', label: 'Vapor Knit 4 - Black' },
+    { value: 'GearHand_glove_NikeVaporKnit4_White', label: 'Vapor Knit 4 - White' },
+    { value: 'GearHand_glove_NikeVaporKnit3_TeamColor', label: 'Vapor Knit 3 - Team' },
+    { value: 'GearHand_glove_NikeSuperbad7_Black', label: 'Superbad 7 - Black' },
+    { value: 'GearHand_glove_NikeSuperbad7_White', label: 'Superbad 7 - White' },
+    { value: 'GearHand_glove_NikeSuperbad7_TeamColor', label: 'Superbad 7 - Team' },
+    { value: 'GearHand_glove_NikeSuperbad6_Black', label: 'Superbad 6 - Black' },
+    { value: 'GearHand_glove_NikeSuperbad6_White', label: 'Superbad 6 - White' },
+    { value: 'GearHand_glove_NikeSuperbad6_TeamColor', label: 'Superbad 6 - Team' },
+    { value: 'GearHand_glove_NikeSuperbad6_SecondaryColor', label: 'Superbad 6 - Secondary' },
+    { value: 'GearHand_glove_NikeSuperBad5_White', label: 'Superbad 5 - White' },
+    { value: 'GearHand_glove_NikeSuperBad5_TeamColor', label: 'Superbad 5 - Team' },
+    { value: 'GearHand_glove_NikeSuperbad5_2019_TeamColor', label: 'Superbad 5 2019 - Team' },
+    { value: 'GearHand_glove_JordanSuperbad6_White', label: 'Jordan Superbad 6 - White' },
+    { value: 'GearHand_glove_NikeDTack_Black', label: 'D-Tack - Black' },
+    { value: 'GearHand_glove_NikeDTack_White', label: 'D-Tack - White' },
+    { value: 'GearHand_glove_NikeDTack7FG_Black', label: 'D-Tack 7 - Black' },
+    { value: 'GearHand_glove_NikeDTack7FG_White', label: 'D-Tack 7 - White' },
+    { value: 'GearHand_glove_NikeHyperBeast_Black', label: 'HyperBeast - Black' },
+    { value: 'GearHand_glove_NikeHyperBeast_White', label: 'HyperBeast - White' },
+    { value: 'GearHand_glove_AdidasFreak_Black', label: 'Adidas Freak - Black' },
+    { value: 'GearHand_glove_AdidasFreak_White', label: 'Adidas Freak - White' },
+    { value: 'GearHand_glove_Adizero13_White', label: 'Adizero 13 - White' },
+    { value: 'GearHand_glove_Adizero13_TeamColor', label: 'Adizero 13 - Team' },
+    { value: 'GearHand_glove_Adizero13_SecondaryColor', label: 'Adizero 13 - Secondary' },
+    { value: 'GearHand_glove_GenericCutter_TeamColor', label: 'Cutter - Team' },
+    { value: 'GearHand_glove_GenericCutter_SecondaryColor', label: 'Cutter - Secondary' }
+  ],
+  RightGlove: [
+    { value: 'GearHand_None', label: 'None' },
+    { value: 'GearHand_tapedHandFinger_White', label: 'Taped Fingers' },
+    { value: 'GearHand_tapedHandCombo_White', label: 'Taped Combo' },
+    { value: 'GearHand_glove_NikeVaporJet8_Black', label: 'Vapor Jet 8 - Black' },
+    { value: 'GearHand_glove_NikeVaporJet8_White', label: 'Vapor Jet 8 - White' },
+    { value: 'GearHand_glove_NikeVaporJet8_TeamColor', label: 'Vapor Jet 8 - Team' },
+    { value: 'GearHand_glove_NikeVaporJet8_SecondaryColor', label: 'Vapor Jet 8 - Secondary' },
+    { value: 'GearHand_glove_NikeVaporJet7_Black', label: 'Vapor Jet 7 - Black' },
+    { value: 'GearHand_glove_NikeVaporJet7_White', label: 'Vapor Jet 7 - White' },
+    { value: 'GearHand_glove_NikeVaporJet7_TeamColor', label: 'Vapor Jet 7 - Team' },
+    { value: 'GearHand_glove_NikeVaporJet7_SecondaryColor', label: 'Vapor Jet 7 - Secondary' },
+    { value: 'GearHand_glove_NikeVaporJet6_Black', label: 'Vapor Jet 6 - Black' },
+    { value: 'GearHand_glove_NikeVaporJet6_TeamColor', label: 'Vapor Jet 6 - Team' },
+    { value: 'GearHand_glove_NikeVaporJet5_White', label: 'Vapor Jet 5 - White' },
+    { value: 'GearHand_glove_NikeVaporJet5_TeamColor', label: 'Vapor Jet 5 - Team' },
+    { value: 'GearHand_glove_NikeVaporJet4_Black', label: 'Vapor Jet 4 - Black' },
+    { value: 'GearHand_glove_NikeVaporKnit4_Black', label: 'Vapor Knit 4 - Black' },
+    { value: 'GearHand_glove_NikeVaporKnit4_White', label: 'Vapor Knit 4 - White' },
+    { value: 'GearHand_glove_NikeVaporKnit3_TeamColor', label: 'Vapor Knit 3 - Team' },
+    { value: 'GearHand_glove_NikeSuperbad7_Black', label: 'Superbad 7 - Black' },
+    { value: 'GearHand_glove_NikeSuperbad7_White', label: 'Superbad 7 - White' },
+    { value: 'GearHand_glove_NikeSuperbad7_TeamColor', label: 'Superbad 7 - Team' },
+    { value: 'GearHand_glove_NikeSuperbad6_Black', label: 'Superbad 6 - Black' },
+    { value: 'GearHand_glove_NikeSuperbad6_White', label: 'Superbad 6 - White' },
+    { value: 'GearHand_glove_NikeSuperbad6_TeamColor', label: 'Superbad 6 - Team' },
+    { value: 'GearHand_glove_NikeSuperbad6_SecondaryColor', label: 'Superbad 6 - Secondary' },
+    { value: 'GearHand_glove_NikeSuperBad5_White', label: 'Superbad 5 - White' },
+    { value: 'GearHand_glove_NikeSuperBad5_TeamColor', label: 'Superbad 5 - Team' },
+    { value: 'GearHand_glove_NikeSuperbad5_2019_TeamColor', label: 'Superbad 5 2019 - Team' },
+    { value: 'GearHand_glove_JordanSuperbad6_White', label: 'Jordan Superbad 6 - White' },
+    { value: 'GearHand_glove_NikeDTack_Black', label: 'D-Tack - Black' },
+    { value: 'GearHand_glove_NikeDTack_White', label: 'D-Tack - White' },
+    { value: 'GearHand_glove_NikeDTack7FG_Black', label: 'D-Tack 7 - Black' },
+    { value: 'GearHand_glove_NikeDTack7FG_White', label: 'D-Tack 7 - White' },
+    { value: 'GearHand_glove_NikeHyperBeast_Black', label: 'HyperBeast - Black' },
+    { value: 'GearHand_glove_NikeHyperBeast_White', label: 'HyperBeast - White' },
+    { value: 'GearHand_glove_AdidasFreak_Black', label: 'Adidas Freak - Black' },
+    { value: 'GearHand_glove_AdidasFreak_White', label: 'Adidas Freak - White' },
+    { value: 'GearHand_glove_Adizero13_White', label: 'Adizero 13 - White' },
+    { value: 'GearHand_glove_Adizero13_TeamColor', label: 'Adizero 13 - Team' },
+    { value: 'GearHand_glove_Adizero13_SecondaryColor', label: 'Adizero 13 - Secondary' },
+    { value: 'GearHand_glove_GenericCutter_TeamColor', label: 'Cutter - Team' },
+    { value: 'GearHand_glove_GenericCutter_SecondaryColor', label: 'Cutter - Secondary' }
+  ],
+
+  // Body/Torso
+  BackPlate: [
+    { value: '', label: 'None' },
+    { value: 'Backplate_Standard', label: 'Standard' }
+  ],
+  ShoulderPads: [
+    { value: 'Small_Pads', label: 'Small Pads' }
+  ],
+  Towel: [
+    { value: 'Towel_None', label: 'None' },
+    { value: 'Towel_South', label: 'Center' },
+    { value: 'Towel_East', label: 'Right' },
+    { value: 'Towel_West', label: 'Left' },
+    { value: 'Towel_NorthEast', label: 'Front Right' },
+    { value: 'Towel_NorthWest', label: 'Front Left' },
+    { value: 'Towel_SouthEast', label: 'Back Right' },
+    { value: 'Towel_SouthWest', label: 'Back Left' }
+  ],
+  FlakJacket: [
+    { value: '', label: 'None' },
+    { value: 'Flakjacket_On', label: 'On' }
+  ],
+  Undershirt: [
+    { value: 'Undershirt_None', label: 'None' },
+    { value: 'Undershirt_Untucked', label: 'Untucked' },
+    { value: 'G_CompressionT_Crew_ShortSleeve_Basic_WHI', label: 'Compression - White' },
+    { value: 'G_CompressionT_Crew_ShortSleeve_Basic_PRI', label: 'Compression - Team' }
+  ],
+  JerseyStyle: [
+    { value: 'Gear_JerseyStyle_SleeveStandard', label: 'Standard' },
+    { value: 'Gear_JerseyStyle_SleeveTight', label: 'Tight' }
+  ],
+  Handwarmer: [
+    { value: 'Handwarmer_None', label: 'None' },
+    { value: 'Handwarmer_Standard', label: 'Standard' }
+  ],
+  HandwarmerStyle: [
+    { value: 'HandwarmerStyle_Front', label: 'Front' },
+    { value: 'HandwarmerStyle_Back', label: 'Back' }
+  ],
+
+  // Legs/Feet
+  LeftSpats: [
+    { value: 'GearSpats_none', label: 'None' },
+    { value: 'GearSpats_spatThin_White', label: 'White' },
+    { value: 'GearSpats_spatThin_Black', label: 'Black' }
+  ],
+  RightSpats: [
+    { value: 'GearSpats_none', label: 'None' },
+    { value: 'GearSpats_spatThin_White', label: 'White' },
+    { value: 'GearSpats_spatThin_Black', label: 'Black' }
+  ],
+  LeftShoe: [
+    { value: 'GearFootwear_shoe_low_NikeVaporEdge', label: 'Nike Vapor Edge Low' },
+    { value: 'GearFootwear_shoe_low_NikeVaporEdgePro3602', label: 'Nike Vapor Edge Pro 360' },
+    { value: 'GearFootwear_shoe_low_NikeVaporEdgeSpeed3062', label: 'Nike Vapor Edge Speed 360' },
+    { value: 'GearFootwear_shoe_low_NikeVaporUntouchablePro', label: 'Nike Vapor Untouchable Pro' },
+    { value: 'GearFootwear_shoe_low_NikeVaporUntouchablePro3', label: 'Nike Vapor Untouchable Pro 3' },
+    { value: 'GearFootwear_shoe_low_NikeAlphaMenaceElite3', label: 'Nike Alpha Menace Elite 3' },
+    { value: 'GearFootwear_shoe_low_NikeAlphaMenacePro4', label: 'Nike Alpha Menace Pro 4' },
+    { value: 'GearFootwear_shoe_low_NikeEquinox', label: 'Nike Equinox' },
+    { value: 'GearFootwear_shoe_low_AirJordanRetro1', label: 'Air Jordan Retro 1 Low' },
+    { value: 'GearFootwear_shoe_low_AdidasAdizero_LTA58', label: 'Adidas Adizero' },
+    { value: 'GearFootwear_shoe_low_Adidas_AdizeroElectric', label: 'Adidas Adizero Electric' },
+    { value: 'GearFootwear_shoe_low_AdizeroElectric2', label: 'Adidas Adizero Electric 2' },
+    { value: 'GearFootwear_shoe_low_UnderArmourBlurPro2025', label: 'Under Armour Blur Pro' },
+    { value: 'GearFootwear_shoe_mid_NikeAlphaMenacePro2', label: 'Nike Alpha Menace Pro 2 Mid' },
+    { value: 'GearFootwear_shoe_mid_NikeAlphaMenacePro3WDP', label: 'Nike Alpha Menace Pro 3 Mid' },
+    { value: 'GearFootwear_shoe_mid_NikeAlphaMenaceStrong', label: 'Nike Alpha Menace Strong Mid' },
+    { value: 'GearFootwear_shoe_mid_NikeFieldGeneral', label: 'Nike Field General Mid' },
+    { value: 'GearFootwear_shoe_mid_NikeForceSavagePro2', label: 'Nike Force Savage Pro 2 Mid' },
+    { value: 'GearFootwear_shoe_mid_AirJordanRetro1', label: 'Air Jordan Retro 1 Mid' },
+    { value: 'GearFootwear_shoe_mid_AirJordanRetroCement', label: 'Air Jordan Retro Cement Mid' },
+    { value: 'GearFootwear_shoe_mid_Jordan11TD', label: 'Jordan 11 TD Mid' },
+    { value: 'GearFootwear_shoe_mid_AdidasAdizeroPrimeKnit', label: 'Adidas Adizero Primeknit Mid' },
+    { value: 'GearFootwear_shoe_mid_UnderArmourBlurSmoke2024', label: 'Under Armour Blur Smoke Mid' },
+    { value: 'GearFootwear_shoe_high_NikeAlphaMenaceElite2', label: 'Nike Alpha Menace Elite 2 High' },
+    { value: 'GearFootwear_shoe_high_AdidasFreakUltra22', label: 'Adidas Freak Ultra 22 High' },
+    { value: 'GearFootwear_shoe_Low_NikeAlphaMenaceElite', label: 'Nike Alpha Menace Elite' },
+    { value: 'GearFootwear_shoe_Low_NikeVaporCarbonEliteTD', label: 'Nike Vapor Carbon Elite TD' },
+    { value: 'GearFootwear_shoe_Mid_NikeAlphaPro34TD', label: 'Nike Alpha Pro 3/4 TD' },
+    { value: 'GearFootwear_shoe_Mid_NikeCodeEliteProShark', label: 'Nike Code Elite Pro Shark' },
+    { value: 'GearFootwear_shoe_Mid_NikeVaporEdge360Untouchable', label: 'Nike Vapor Edge 360' }
+  ],
+  RightShoe: [
+    { value: 'GearFootwear_shoe_low_NikeVaporEdge', label: 'Nike Vapor Edge Low' },
+    { value: 'GearFootwear_shoe_low_NikeVaporEdgePro3602', label: 'Nike Vapor Edge Pro 360' },
+    { value: 'GearFootwear_shoe_low_NikeVaporEdgeSpeed3062', label: 'Nike Vapor Edge Speed 360' },
+    { value: 'GearFootwear_shoe_low_NikeVaporUntouchablePro', label: 'Nike Vapor Untouchable Pro' },
+    { value: 'GearFootwear_shoe_low_NikeVaporUntouchablePro3', label: 'Nike Vapor Untouchable Pro 3' },
+    { value: 'GearFootwear_shoe_low_NikeAlphaMenaceElite3', label: 'Nike Alpha Menace Elite 3' },
+    { value: 'GearFootwear_shoe_low_NikeAlphaMenacePro4', label: 'Nike Alpha Menace Pro 4' },
+    { value: 'GearFootwear_shoe_low_NikeEquinox', label: 'Nike Equinox' },
+    { value: 'GearFootwear_shoe_low_AirJordanRetro1', label: 'Air Jordan Retro 1 Low' },
+    { value: 'GearFootwear_shoe_low_AdidasAdizero_LTA58', label: 'Adidas Adizero' },
+    { value: 'GearFootwear_shoe_low_Adidas_AdizeroElectric', label: 'Adidas Adizero Electric' },
+    { value: 'GearFootwear_shoe_low_AdizeroElectric2', label: 'Adidas Adizero Electric 2' },
+    { value: 'GearFootwear_shoe_low_UnderArmourBlurPro2025', label: 'Under Armour Blur Pro' },
+    { value: 'GearFootwear_shoe_mid_NikeAlphaMenacePro2', label: 'Nike Alpha Menace Pro 2 Mid' },
+    { value: 'GearFootwear_shoe_mid_NikeAlphaMenacePro3WDP', label: 'Nike Alpha Menace Pro 3 Mid' },
+    { value: 'GearFootwear_shoe_mid_NikeAlphaMenaceStrong', label: 'Nike Alpha Menace Strong Mid' },
+    { value: 'GearFootwear_shoe_mid_NikeFieldGeneral', label: 'Nike Field General Mid' },
+    { value: 'GearFootwear_shoe_mid_NikeForceSavagePro2', label: 'Nike Force Savage Pro 2 Mid' },
+    { value: 'GearFootwear_shoe_mid_AirJordanRetro1', label: 'Air Jordan Retro 1 Mid' },
+    { value: 'GearFootwear_shoe_mid_AirJordanRetroCement', label: 'Air Jordan Retro Cement Mid' },
+    { value: 'GearFootwear_shoe_mid_Jordan11TD', label: 'Jordan 11 TD Mid' },
+    { value: 'GearFootwear_shoe_mid_AdidasAdizeroPrimeKnit', label: 'Adidas Adizero Primeknit Mid' },
+    { value: 'GearFootwear_shoe_mid_UnderArmourBlurSmoke2024', label: 'Under Armour Blur Smoke Mid' },
+    { value: 'GearFootwear_shoe_high_NikeAlphaMenaceElite2', label: 'Nike Alpha Menace Elite 2 High' },
+    { value: 'GearFootwear_shoe_high_AdidasFreakUltra22', label: 'Adidas Freak Ultra 22 High' },
+    { value: 'GearFootwear_shoeLowVintage_nike', label: 'Nike Vintage Low' },
+    { value: 'GearFootwear_shoe_Low_NikeAlphaMenaceElite', label: 'Nike Alpha Menace Elite' },
+    { value: 'GearFootwear_shoe_Low_NikeVaporCarbonEliteTD', label: 'Nike Vapor Carbon Elite TD' },
+    { value: 'GearFootwear_shoe_Mid_NikeAlphaPro34TD', label: 'Nike Alpha Pro 3/4 TD' },
+    { value: 'GearFootwear_shoe_Mid_NikeCodeEliteProShark', label: 'Nike Code Elite Pro Shark' },
+    { value: 'GearFootwear_shoe_Mid_NikeVaporEdge360Untouchable', label: 'Nike Vapor Edge 360' }
+  ],
+  LeftShoeColor: [
+    { value: 'U_GENERIC_SHOESX_WHIWHI', label: 'White/White' },
+    { value: 'U_GENERIC_SHOESX_WHIBLA', label: 'White/Black' },
+    { value: 'U_GENERIC_SHOESX_WHIPRI', label: 'White/Team' },
+    { value: 'U_GENERIC_SHOESX_WHISEC', label: 'White/Secondary' },
+    { value: 'U_GENERIC_SHOESX_BLABLA', label: 'Black/Black' },
+    { value: 'U_GENERIC_SHOESX_BLAWHI', label: 'Black/White' },
+    { value: 'U_GENERIC_SHOESX_BLAPRI', label: 'Black/Team' }
+  ],
+  RightShoeColor: [
+    { value: 'U_GENERIC_SHOESX_WHIWHI', label: 'White/White' },
+    { value: 'U_GENERIC_SHOESX_WHIBLA', label: 'White/Black' },
+    { value: 'U_GENERIC_SHOESX_WHIPRI', label: 'White/Team' },
+    { value: 'U_GENERIC_SHOESX_WHISEC', label: 'White/Secondary' },
+    { value: 'U_GENERIC_SHOESX_BLABLA', label: 'Black/Black' },
+    { value: 'U_GENERIC_SHOESX_BLAWHI', label: 'Black/White' },
+    { value: 'U_GENERIC_SHOESX_BLAPRI', label: 'Black/Team' }
+  ],
+  Socks: [
+    { value: 'Gear_Socks_Under', label: 'Under (Hidden)' },
+    { value: 'Gear_Socks_Low', label: 'Low' },
+    { value: 'Gear_Socks_Mid', label: 'Mid' },
+    { value: 'Gear_Socks_High', label: 'High' }
+  ],
+  KneePad: [
+    { value: 'KneePad_Regular', label: 'Regular' },
+    { value: 'KneePad_Nike', label: 'Nike' }
+  ],
+  LeftThighPad: [
+    { value: 'ThighPad_Regular', label: 'Regular' },
+    { value: 'ThighPad_Nike', label: 'Nike' }
+  ],
+  RightThighPad: [
+    { value: 'ThighPad_Regular', label: 'Regular' },
+    { value: 'ThighPad_Nike', label: 'Nike' }
+  ]
 };
 
 /**
@@ -1336,5 +1789,6 @@ module.exports = {
   saveRosterFile,
   getPlayerEquipment,
   setPlayerEquipment,
-  EQUIPMENT_SLOTS
+  EQUIPMENT_SLOTS,
+  EQUIPMENT_OPTIONS
 };

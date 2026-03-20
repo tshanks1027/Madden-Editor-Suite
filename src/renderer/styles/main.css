@@ -2259,6 +2259,10 @@ input:focus {
     gap: 0.75rem;
 }
 
+.equipment-items-2col {
+    grid-template-columns: repeat(2, 1fr);
+}
+
 .equipment-item {
     display: flex;
     flex-direction: column;

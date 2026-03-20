@@ -4704,6 +4704,15 @@
             </div>
 
             <div class="modal-body player-card-body">
+                <!-- Tab Navigation -->
+                <div class="player-card-tabs">
+                    <button class="player-card-tab active" data-tab="player-info">Player</button>
+                    <button class="player-card-tab" data-tab="player-traits">Traits</button>
+                    <button class="player-card-tab" data-tab="player-equipment">Equipment</button>
+                </div>
+
+                <!-- Player Info Tab -->
+                <div class="player-card-tab-content active" id="tab-player-info">
                 <!-- Player Info Section -->
                 <div class="player-card-section">
                     <h3 class="player-card-section-title">
@@ -4855,6 +4864,24 @@
                     </div>
                 </div>
 
+                <!-- Draft Info Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Draft Info</h3>
+                    <div class="player-info-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="player-info-item">
+                            <span class="info-label">Draft Round</span>
+                            <input type="number" class="info-input" id="playerCardDraftRound" min="0" max="7" step="1">
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Draft Pick</span>
+                            <input type="number" class="info-input" id="playerCardDraftPick" min="0" max="262" step="1">
+                        </div>
+                    </div>
+                </div>
+                </div><!-- End Player Info Tab -->
+
+                <!-- Traits Tab -->
+                <div class="player-card-tab-content" id="tab-player-traits">
                 <!-- Base Traits Section -->
                 <div class="player-card-section">
                     <h3 class="player-card-section-title">
@@ -4889,21 +4916,6 @@
                     </div>
                 </div>
 
-                <!-- Draft Info Section -->
-                <div class="player-card-section">
-                    <h3 class="player-card-section-title">Draft Info</h3>
-                    <div class="player-info-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div class="player-info-item">
-                            <span class="info-label">Draft Round</span>
-                            <input type="number" class="info-input" id="playerCardDraftRound" min="0" max="7" step="1">
-                        </div>
-                        <div class="player-info-item">
-                            <span class="info-label">Draft Pick</span>
-                            <input type="number" class="info-input" id="playerCardDraftPick" min="0" max="262" step="1">
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Accolades Section -->
                 <div class="player-card-section">
                     <h3 class="player-card-section-title">Accolades</h3>
@@ -4911,6 +4923,173 @@
                         <div class="trait-grid"></div>
                     </div>
                 </div>
+                </div><!-- End Traits Tab -->
+
+                <!-- Equipment Tab -->
+                <div class="player-card-tab-content" id="tab-player-equipment">
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Equipment</h3>
+                    <div class="equipment-grid">
+                        <!-- Head/Face -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Head / Face</h4>
+                            <div class="equipment-items">
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Helmet</label>
+                                    <select class="equipment-select" id="equipHelmet" data-slot="Helmet"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Visor</label>
+                                    <select class="equipment-select" id="equipVisor" data-slot="Visor"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Face Paint</label>
+                                    <select class="equipment-select" id="equipFacePaint" data-slot="FacePaint"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Mouthpiece</label>
+                                    <select class="equipment-select" id="equipMouthpiece" data-slot="Mouthpiece"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Neckpad</label>
+                                    <select class="equipment-select" id="equipNeckpad" data-slot="Neckpad"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Helmet Flag</label>
+                                    <select class="equipment-select" id="equipHelmetFlag" data-slot="HelmetFlag"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Arms -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Arms</h4>
+                            <div class="equipment-items equipment-items-2col">
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Sleeve</label>
+                                    <select class="equipment-select" id="equipLeftSleeve" data-slot="LeftSleeve"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Sleeve</label>
+                                    <select class="equipment-select" id="equipRightSleeve" data-slot="RightSleeve"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Elbow</label>
+                                    <select class="equipment-select" id="equipLeftElbow" data-slot="LeftElbow"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Elbow</label>
+                                    <select class="equipment-select" id="equipRightElbow" data-slot="RightElbow"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Wrist</label>
+                                    <select class="equipment-select" id="equipLeftWrist" data-slot="LeftWrist"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Wrist</label>
+                                    <select class="equipment-select" id="equipRightWrist" data-slot="RightWrist"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hands -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Hands</h4>
+                            <div class="equipment-items equipment-items-2col">
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Glove</label>
+                                    <select class="equipment-select" id="equipLeftGlove" data-slot="LeftGlove"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Glove</label>
+                                    <select class="equipment-select" id="equipRightGlove" data-slot="RightGlove"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Body/Torso -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Body / Torso</h4>
+                            <div class="equipment-items">
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Undershirt</label>
+                                    <select class="equipment-select" id="equipUndershirt" data-slot="Undershirt"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Jersey Style</label>
+                                    <select class="equipment-select" id="equipJerseyStyle" data-slot="JerseyStyle"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Backplate</label>
+                                    <select class="equipment-select" id="equipBackplate" data-slot="BackPlate"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Flak Jacket</label>
+                                    <select class="equipment-select" id="equipFlakJacket" data-slot="FlakJacket"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Towel</label>
+                                    <select class="equipment-select" id="equipTowel" data-slot="Towel"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Handwarmer</label>
+                                    <select class="equipment-select" id="equipHandwarmer" data-slot="Handwarmer"></select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Legs/Feet -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Legs / Feet</h4>
+                            <div class="equipment-items equipment-items-2col">
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Shoe</label>
+                                    <select class="equipment-select" id="equipLeftShoe" data-slot="LeftShoe"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Shoe</label>
+                                    <select class="equipment-select" id="equipRightShoe" data-slot="RightShoe"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Shoe Color</label>
+                                    <select class="equipment-select" id="equipLeftShoeColor" data-slot="LeftShoeColor"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Shoe Color</label>
+                                    <select class="equipment-select" id="equipRightShoeColor" data-slot="RightShoeColor"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Spats</label>
+                                    <select class="equipment-select" id="equipLeftSpats" data-slot="LeftSpats"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Spats</label>
+                                    <select class="equipment-select" id="equipRightSpats" data-slot="RightSpats"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Socks</label>
+                                    <select class="equipment-select" id="equipSocks" data-slot="Socks"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Knee Pads</label>
+                                    <select class="equipment-select" id="equipKneePad" data-slot="KneePad"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Thigh Pad</label>
+                                    <select class="equipment-select" id="equipLeftThighPad" data-slot="LeftThighPad"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Thigh Pad</label>
+                                    <select class="equipment-select" id="equipRightThighPad" data-slot="RightThighPad"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="equipment-note" style="color: #888; font-size: 12px; margin-top: 16px; text-align: center;">
+                        Equipment changes are saved with player changes.
+                    </p>
+                </div>
+                </div><!-- End Equipment Tab -->
             </div>
         </div>
     </div>

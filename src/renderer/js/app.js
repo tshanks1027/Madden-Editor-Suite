@@ -10990,8 +10990,132 @@ class MaddenEditorApp {
             console.log('[PlayerCard] Player is injured:', playerData.PFNA, playerData.PLNA, 'PGID:', pgid);
         }
 
+        // Load equipment data for this player
+        // Find the actual roster index (index in this.players which matches BLBM index)
+        const rosterIndex = this.players.findIndex(p =>
+            p.PGID === playerData.PGID ||
+            (p.PFNA === playerData.PFNA && p.PLNA === playerData.PLNA && p.TGID === playerData.TGID)
+        );
+        this.currentPlayerRosterIndex = rosterIndex >= 0 ? rosterIndex : rowIndex;
+        this.loadPlayerEquipment(this.currentPlayerRosterIndex);
+
+        // Reset to first tab when opening
+        document.querySelectorAll('.player-card-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.player-card-tab-content').forEach(c => c.classList.remove('active'));
+        const firstTab = document.querySelector('.player-card-tab');
+        const firstContent = document.getElementById('tab-player-info');
+        if (firstTab) firstTab.classList.add('active');
+        if (firstContent) firstContent.classList.add('active');
+
         // Show modal
         document.getElementById('playerCardModal').style.display = 'flex';
+    }
+
+    /**
+     * Initialize equipment dropdowns with options from backend
+     */
+    async initializeEquipmentDropdowns() {
+        try {
+            const result = await window.electronAPI.parser.getEquipmentOptions();
+            if (!result.success || !result.options) {
+                console.error('[Equipment] Failed to load equipment options');
+                return;
+            }
+
+            this.equipmentOptions = result.options;
+            console.log('[Equipment] Loaded equipment options for', Object.keys(result.options).length, 'slots');
+
+            // Populate each dropdown based on data-slot attribute
+            document.querySelectorAll('.equipment-select[data-slot]').forEach(select => {
+                const slotName = select.getAttribute('data-slot');
+                const options = this.equipmentOptions[slotName];
+
+                if (options && options.length > 0) {
+                    select.innerHTML = '';
+                    options.forEach(opt => {
+                        const option = document.createElement('option');
+                        option.value = opt.value;
+                        option.textContent = opt.label;
+                        select.appendChild(option);
+                    });
+                }
+            });
+        } catch (err) {
+            console.error('[Equipment] Error initializing dropdowns:', err);
+        }
+    }
+
+    /**
+     * Load equipment data for a player and populate the Equipment tab
+     */
+    async loadPlayerEquipment(playerIndex) {
+        try {
+            // Ensure dropdowns are initialized
+            if (!this.equipmentOptions) {
+                await this.initializeEquipmentDropdowns();
+            }
+
+            const result = await window.electronAPI.parser.getPlayerEquipment(playerIndex);
+            if (result.success && result.equipment) {
+                const eq = result.equipment;
+                console.log('[PlayerCard] Loaded equipment:', eq);
+
+                // Helper to set select value, with fallback to first option
+                const setSelect = (id, value) => {
+                    const select = document.getElementById(id);
+                    if (select) {
+                        const option = Array.from(select.options).find(o => o.value === value);
+                        if (option) {
+                            select.value = value;
+                        } else if (select.options.length > 0) {
+                            select.selectedIndex = 0;
+                        }
+                    }
+                };
+
+                // Head/Face
+                setSelect('equipHelmet', eq.Helmet || '');
+                setSelect('equipVisor', eq.Visor || '');
+                setSelect('equipFacePaint', eq.FacePaint || '');
+                setSelect('equipMouthpiece', eq.Mouthpiece || '');
+                setSelect('equipNeckpad', eq.Neckpad || '');
+                setSelect('equipHelmetFlag', eq.HelmetFlag || '');
+
+                // Arms
+                setSelect('equipLeftSleeve', eq.LeftSleeve || '');
+                setSelect('equipRightSleeve', eq.RightSleeve || '');
+                setSelect('equipLeftElbow', eq.LeftElbow || '');
+                setSelect('equipRightElbow', eq.RightElbow || '');
+                setSelect('equipLeftWrist', eq.LeftWrist || '');
+                setSelect('equipRightWrist', eq.RightWrist || '');
+
+                // Hands
+                setSelect('equipLeftGlove', eq.LeftGlove || '');
+                setSelect('equipRightGlove', eq.RightGlove || '');
+
+                // Body/Torso
+                setSelect('equipUndershirt', eq.Undershirt || '');
+                setSelect('equipJerseyStyle', eq.JerseyStyle || '');
+                setSelect('equipBackplate', eq.BackPlate || '');
+                setSelect('equipFlakJacket', eq.FlakJacket || '');
+                setSelect('equipTowel', eq.Towel || '');
+                setSelect('equipHandwarmer', eq.Handwarmer || '');
+
+                // Legs/Feet
+                setSelect('equipLeftShoe', eq.LeftShoe || '');
+                setSelect('equipRightShoe', eq.RightShoe || '');
+                setSelect('equipLeftShoeColor', eq.LeftShoeColor || '');
+                setSelect('equipRightShoeColor', eq.RightShoeColor || '');
+                setSelect('equipLeftSpats', eq.LeftSpats || '');
+                setSelect('equipRightSpats', eq.RightSpats || '');
+                setSelect('equipSocks', eq.Socks || '');
+                setSelect('equipKneePad', eq.KneePad || '');
+                setSelect('equipLeftThighPad', eq.LeftThighPad || '');
+                setSelect('equipRightThighPad', eq.RightThighPad || '');
+            }
+        } catch (err) {
+            console.error('[PlayerCard] Failed to load equipment:', err);
+        }
     }
 
     closePlayerCard() {
@@ -11196,8 +11320,72 @@ class MaddenEditorApp {
             console.log('[Player Card] Saved changes for Handsontable row:', this.currentPlayerCardRow);
         }
 
+        // Save equipment changes (use roster index, not filtered index)
+        if (this.currentPlayerRosterIndex !== undefined) {
+            this.savePlayerEquipment(this.currentPlayerRosterIndex);
+        }
+
         // Close the modal
         this.closePlayerCard();
+    }
+
+    /**
+     * Save equipment data for the current player
+     */
+    async savePlayerEquipment(playerIndex) {
+        try {
+            const equipment = {
+                // Head/Face
+                Helmet: document.getElementById('equipHelmet')?.value || '',
+                Visor: document.getElementById('equipVisor')?.value || '',
+                FacePaint: document.getElementById('equipFacePaint')?.value || '',
+                Mouthpiece: document.getElementById('equipMouthpiece')?.value || '',
+                Neckpad: document.getElementById('equipNeckpad')?.value || '',
+                HelmetFlag: document.getElementById('equipHelmetFlag')?.value || '',
+
+                // Arms
+                LeftSleeve: document.getElementById('equipLeftSleeve')?.value || '',
+                RightSleeve: document.getElementById('equipRightSleeve')?.value || '',
+                LeftElbow: document.getElementById('equipLeftElbow')?.value || '',
+                RightElbow: document.getElementById('equipRightElbow')?.value || '',
+                LeftWrist: document.getElementById('equipLeftWrist')?.value || '',
+                RightWrist: document.getElementById('equipRightWrist')?.value || '',
+
+                // Hands
+                LeftGlove: document.getElementById('equipLeftGlove')?.value || '',
+                RightGlove: document.getElementById('equipRightGlove')?.value || '',
+
+                // Body/Torso
+                Undershirt: document.getElementById('equipUndershirt')?.value || '',
+                JerseyStyle: document.getElementById('equipJerseyStyle')?.value || '',
+                BackPlate: document.getElementById('equipBackplate')?.value || '',
+                FlakJacket: document.getElementById('equipFlakJacket')?.value || '',
+                Towel: document.getElementById('equipTowel')?.value || '',
+                Handwarmer: document.getElementById('equipHandwarmer')?.value || '',
+
+                // Legs/Feet
+                LeftShoe: document.getElementById('equipLeftShoe')?.value || '',
+                RightShoe: document.getElementById('equipRightShoe')?.value || '',
+                LeftShoeColor: document.getElementById('equipLeftShoeColor')?.value || '',
+                RightShoeColor: document.getElementById('equipRightShoeColor')?.value || '',
+                LeftSpats: document.getElementById('equipLeftSpats')?.value || '',
+                RightSpats: document.getElementById('equipRightSpats')?.value || '',
+                Socks: document.getElementById('equipSocks')?.value || '',
+                KneePad: document.getElementById('equipKneePad')?.value || '',
+                LeftThighPad: document.getElementById('equipLeftThighPad')?.value || '',
+                RightThighPad: document.getElementById('equipRightThighPad')?.value || ''
+            };
+
+            console.log('[PlayerCard] Saving equipment:', equipment);
+            const result = await window.electronAPI.parser.setPlayerEquipment(playerIndex, equipment);
+            if (result.success) {
+                console.log('[PlayerCard] Equipment saved successfully');
+            } else {
+                console.error('[PlayerCard] Failed to save equipment:', result.error);
+            }
+        } catch (err) {
+            console.error('[PlayerCard] Error saving equipment:', err);
+        }
     }
 
     updatePlayerCardPortrait(newPid) {
@@ -12271,6 +12459,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ========================================
     // Player Card Modal Event Listeners
     // ========================================
+
+    // Player Card Tab Switching
+    document.querySelectorAll('.player-card-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+
+            // Update active tab button
+            document.querySelectorAll('.player-card-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            // Update active tab content
+            document.querySelectorAll('.player-card-tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            const tabContent = document.getElementById('tab-' + tabId);
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
+        });
+    });
 
     // Close button
     const playerCardCloseBtn = document.querySelector('.player-card-close');
