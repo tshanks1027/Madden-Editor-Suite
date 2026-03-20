@@ -17,6 +17,11 @@ const MaddenRosterHelper = require(path.join(__dirname, '..', 'lib', 'helpers', 
 
 // Generic Face Service for updating BLBM with race-appropriate faces
 let genericFaceService = null;
+
+// CRITICAL: Track pending equipment changes that need to be applied during save
+// This is necessary because saveRosterFile reloads the file fresh, discarding any
+// in-memory modifications made by setPlayerEquipment
+const pendingEquipmentChanges = new Map(); // Map<playerIndex, equipmentData>
 try {
   console.log('[RosterParser] Attempting to load GenericFaceService from:', path.join(__dirname, 'GenericFaceService'));
   const serviceModule = require(path.join(__dirname, 'GenericFaceService'));
@@ -36,6 +41,13 @@ try {
 async function parseRosterFile(filePath) {
   console.log('[RosterParser] ===== START ROSTER PARSE =====');
   console.log('[RosterParser] File path:', filePath);
+
+  // Clear any pending equipment changes from previous sessions
+  // to prevent stale data from being applied to the new file
+  if (pendingEquipmentChanges.size > 0) {
+    console.log(`[RosterParser] Clearing ${pendingEquipmentChanges.size} stale pending equipment changes`);
+    pendingEquipmentChanges.clear();
+  }
 
   try {
     const helper = new MaddenRosterHelper();
@@ -388,6 +400,14 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
     if (!helper || !file) {
       throw new Error('No roster file data available - must load before saving');
+    }
+
+    // CRITICAL: Apply any pending equipment changes to the file
+    // This is necessary because equipment changes are queued separately and
+    // we just reloaded a fresh copy of the file (discarding in-memory changes)
+    const equipmentUpdated = applyPendingEquipmentChanges(file);
+    if (equipmentUpdated > 0) {
+      console.log(`[RosterParser] Applied ${equipmentUpdated} pending equipment changes before save`);
     }
 
     // Update player values in the TDB2 file
@@ -1055,7 +1075,266 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
   }
 }
 
+// Equipment slot mappings
+const EQUIPMENT_SLOTS = {
+  Visor: 2,
+  Towel: 26,
+  Neckpad: 29,
+  FlakJacket: 30,
+  FacePaint: 51,
+  LeftArmWear: 110,
+  RightArmWear: 111,
+  LeftHandWear: 114,
+  RightHandWear: 115,
+  BackPlate: 12
+};
+
+/**
+ * Get equipment data for a player by index
+ * @param {number} playerIndex - The player index in the roster
+ * @returns {Object} Equipment slot values
+ */
+function getPlayerEquipment(playerIndex) {
+  const file = global.rosterFile;
+  if (!file) {
+    console.error('[RosterParser] No roster file loaded');
+    return null;
+  }
+
+  const blob = file.BLOB?.records?.[0];
+  const blbm = blob?.fields?.BLBM?.value;
+  if (!blbm || !blbm._records || playerIndex >= blbm._records.length) {
+    console.error('[RosterParser] Could not find BLBM record for player', playerIndex);
+    return null;
+  }
+
+  const blbmRec = blbm._records[playerIndex];
+  const fields = blbmRec.fields || blbmRec._fields;
+  const lout = fields?.LOUT?.value;
+
+  if (!lout || !lout._records) {
+    console.log('[RosterParser] No LOUT data for player', playerIndex);
+    return {};
+  }
+
+  const equipment = {};
+
+  // Find PlayerOnField loadout (LDTY=1)
+  const playerOnFieldRec = lout._records.find(r => {
+    const f = r.fields || r._fields;
+    return f?.LDTY?.value === 1 || f?.LDTY?._value === 1;
+  });
+
+  if (!playerOnFieldRec) {
+    console.log('[RosterParser] No PlayerOnField loadout for player', playerIndex);
+    return equipment;
+  }
+
+  const pinsField = (playerOnFieldRec.fields || playerOnFieldRec._fields)?.PINS;
+  const pins = pinsField?.value;
+
+  if (!pins || !pins._records) {
+    return equipment;
+  }
+
+  // Map slot numbers back to equipment keys
+  const slotToKey = {};
+  for (const [key, slot] of Object.entries(EQUIPMENT_SLOTS)) {
+    slotToKey[slot] = key;
+  }
+
+  // Extract equipment values
+  for (const pinRec of pins._records) {
+    const pf = pinRec.fields || pinRec._fields;
+    const slot = pf?.SLOT?.value ?? pf?.SLOT?._value;
+    const itan = pf?.ITAN?.value ?? pf?.ITAN?._value;
+
+    if (slotToKey[slot]) {
+      equipment[slotToKey[slot]] = itan || '';
+    }
+  }
+
+  return equipment;
+}
+
+/**
+ * Set equipment for a player by index
+ * @param {number} playerIndex - The player index in the roster
+ * @param {Object} equipment - Equipment slot values to set
+ * @returns {boolean} Success
+ */
+function setPlayerEquipment(playerIndex, equipment) {
+  // CRITICAL: Store the equipment changes for later application during save
+  // This is necessary because saveRosterFile reloads the file fresh, which
+  // would discard any in-memory modifications made to global.rosterFile
+  pendingEquipmentChanges.set(playerIndex, { ...equipment });
+  console.log(`[RosterParser] Queued equipment changes for player ${playerIndex}:`, equipment);
+
+  // Also apply immediately to global.rosterFile for any code that reads from it
+  const file = global.rosterFile;
+  if (!file) {
+    console.error('[RosterParser] No roster file loaded');
+    return true; // Still return true since we queued the changes
+  }
+
+  const blob = file.BLOB?.records?.[0];
+  const blbm = blob?.fields?.BLBM?.value;
+  if (!blbm || !blbm._records || playerIndex >= blbm._records.length) {
+    console.error('[RosterParser] Could not find BLBM record for player', playerIndex);
+    return true; // Still return true since we queued the changes
+  }
+
+  const blbmRec = blbm._records[playerIndex];
+  const fields = blbmRec.fields || blbmRec._fields;
+  const lout = fields?.LOUT?.value;
+
+  if (!lout || !lout._records) {
+    console.log('[RosterParser] No LOUT data for player', playerIndex);
+    return true; // Still return true since we queued the changes
+  }
+
+  // Find PlayerOnField loadout (LDTY=1)
+  const playerOnFieldRec = lout._records.find(r => {
+    const f = r.fields || r._fields;
+    return f?.LDTY?.value === 1 || f?.LDTY?._value === 1;
+  });
+
+  if (!playerOnFieldRec) {
+    console.log('[RosterParser] No PlayerOnField loadout for player', playerIndex);
+    return true; // Still return true since we queued the changes
+  }
+
+  const pinsField = (playerOnFieldRec.fields || playerOnFieldRec._fields)?.PINS;
+  const pins = pinsField?.value;
+
+  if (!pins || !pins._records) {
+    return true; // Still return true since we queued the changes
+  }
+
+  let updated = 0;
+
+  // Update equipment values
+  for (const [key, assetName] of Object.entries(equipment)) {
+    const slotNum = EQUIPMENT_SLOTS[key];
+    if (slotNum === undefined) continue;
+
+    // Find existing pin record for this slot
+    for (const pinRec of pins._records) {
+      const pf = pinRec.fields || pinRec._fields;
+      const slot = pf?.SLOT?.value ?? pf?.SLOT?._value;
+
+      if (slot === slotNum) {
+        // Update the asset name
+        if (pf?.ITAN?.value !== undefined) {
+          pf.ITAN.value = assetName || '';
+        } else if (pf?.ITAN?._value !== undefined) {
+          pf.ITAN._value = assetName || '';
+        }
+        if (pf?.ITAN) pf.ITAN._isChanged = true;
+        updated++;
+        break;
+      }
+    }
+  }
+
+  console.log(`[RosterParser] Applied ${updated} equipment slots for player ${playerIndex} (in memory)`);
+  return true;
+}
+
+/**
+ * Apply pending equipment changes to a file object
+ * Called during saveRosterFile to ensure equipment changes are persisted
+ * @param {Object} file - The roster file object
+ */
+function applyPendingEquipmentChanges(file) {
+  if (pendingEquipmentChanges.size === 0) {
+    console.log('[RosterParser] No pending equipment changes to apply');
+    return 0;
+  }
+
+  console.log(`[RosterParser] Applying ${pendingEquipmentChanges.size} pending equipment changes`);
+
+  const blob = file.BLOB?.records?.[0];
+  const blbm = blob?.fields?.BLBM?.value;
+  if (!blbm || !blbm._records) {
+    console.error('[RosterParser] Could not find BLBM records for equipment changes');
+    return 0;
+  }
+
+  let totalUpdated = 0;
+
+  for (const [playerIndex, equipment] of pendingEquipmentChanges.entries()) {
+    if (playerIndex >= blbm._records.length) {
+      console.warn(`[RosterParser] Player index ${playerIndex} out of bounds, skipping`);
+      continue;
+    }
+
+    const blbmRec = blbm._records[playerIndex];
+    const fields = blbmRec.fields || blbmRec._fields;
+    const lout = fields?.LOUT?.value;
+
+    if (!lout || !lout._records) {
+      console.warn(`[RosterParser] No LOUT data for player ${playerIndex}`);
+      continue;
+    }
+
+    // Find PlayerOnField loadout (LDTY=1)
+    const playerOnFieldRec = lout._records.find(r => {
+      const f = r.fields || r._fields;
+      return f?.LDTY?.value === 1 || f?.LDTY?._value === 1;
+    });
+
+    if (!playerOnFieldRec) {
+      console.warn(`[RosterParser] No PlayerOnField loadout for player ${playerIndex}`);
+      continue;
+    }
+
+    const pinsField = (playerOnFieldRec.fields || playerOnFieldRec._fields)?.PINS;
+    const pins = pinsField?.value;
+
+    if (!pins || !pins._records) {
+      console.warn(`[RosterParser] No PINS data for player ${playerIndex}`);
+      continue;
+    }
+
+    let playerUpdated = 0;
+
+    for (const [key, assetName] of Object.entries(equipment)) {
+      const slotNum = EQUIPMENT_SLOTS[key];
+      if (slotNum === undefined) continue;
+
+      for (const pinRec of pins._records) {
+        const pf = pinRec.fields || pinRec._fields;
+        const slot = pf?.SLOT?.value ?? pf?.SLOT?._value;
+
+        if (slot === slotNum) {
+          if (pf?.ITAN?.value !== undefined) {
+            pf.ITAN.value = assetName || '';
+          } else if (pf?.ITAN?._value !== undefined) {
+            pf.ITAN._value = assetName || '';
+          }
+          if (pf?.ITAN) pf.ITAN._isChanged = true;
+          playerUpdated++;
+          break;
+        }
+      }
+    }
+
+    console.log(`[RosterParser] Applied ${playerUpdated} equipment slots for player ${playerIndex}`);
+    totalUpdated += playerUpdated;
+  }
+
+  // Clear pending changes after applying
+  pendingEquipmentChanges.clear();
+  console.log(`[RosterParser] Applied ${totalUpdated} total equipment changes`);
+
+  return totalUpdated;
+}
+
 module.exports = {
   parseRosterFile,
-  saveRosterFile
+  saveRosterFile,
+  getPlayerEquipment,
+  setPlayerEquipment,
+  EQUIPMENT_SLOTS
 };

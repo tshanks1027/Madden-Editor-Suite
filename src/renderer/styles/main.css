@@ -2172,9 +2172,128 @@ input:focus {
 }
 
 .player-card-body {
-    padding: 1.5rem;
+    padding: 0;
     max-height: 60vh;
     overflow-y: auto;
+}
+
+/* Wrapper for content inside player card body */
+.player-card-body-inner {
+    padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+/* Player Card Tabs */
+.player-card-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0;
+    position: sticky;
+    top: 0;
+    background: var(--gray-dark);
+    z-index: 10;
+    padding: 1rem 1.5rem 0 1.5rem;
+    margin: 0 -1.5rem 1rem -1.5rem;
+    width: calc(100% + 3rem);
+}
+
+.player-card-tab {
+    padding: 10px 20px;
+    background: transparent;
+    border: none;
+    color: var(--gray-text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+
+.player-card-tab:hover {
+    color: var(--white);
+}
+
+.player-card-tab.active {
+    color: var(--primary-orange);
+    border-bottom-color: var(--primary-orange);
+}
+
+.player-card-tab-content {
+    display: none;
+    padding: 0 1.5rem 1.5rem 1.5rem;
+}
+
+.player-card-tab-content.active {
+    display: block;
+}
+
+/* Equipment Grid */
+.equipment-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.equipment-category {
+    background: var(--gray-medium);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.equipment-category-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--primary-orange);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 0.75rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.equipment-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.equipment-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.equipment-label {
+    font-size: 0.75rem;
+    color: var(--gray-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.equipment-select {
+    font-size: 0.875rem;
+    color: var(--white);
+    background: var(--gray-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.5rem;
+    cursor: pointer;
+}
+
+.equipment-select:focus {
+    outline: 2px solid var(--primary-orange);
+    outline-offset: 2px;
+    border-color: var(--primary-orange);
+}
+
+.equipment-note {
+    color: var(--gray-text-secondary);
+    font-size: 0.75rem;
+    margin-top: 1rem;
+    text-align: center;
 }
 
 .player-card-section {
