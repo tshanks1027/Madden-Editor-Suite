@@ -93,6 +93,22 @@ async function parseRosterFile(filePath) {
       console.log(`[RosterParser] Skipped ${skippedEmpty} empty record slots`);
     }
 
+    // DEBUG: Check if PKPR field exists in the roster
+    const firstPlayer = players[0];
+    if (firstPlayer) {
+      const allFields = Object.keys(firstPlayer);
+      const hasKickFields = allFields.filter(f => f.includes('PK') || f.includes('kick'));
+      console.log('[RosterParser] KICKING DEBUG - First player kick fields:', hasKickFields.join(', ') || 'NONE FOUND');
+      console.log('[RosterParser] KICKING DEBUG - PKPR value:', firstPlayer.PKPR);
+      console.log('[RosterParser] KICKING DEBUG - PKAC value:', firstPlayer.PKAC);
+      // Find kickers
+      const kickers = players.filter(p => p.PPOS === 19); // K = position 19
+      if (kickers.length > 0) {
+        console.log('[RosterParser] KICKING DEBUG - Found', kickers.length, 'kickers');
+        console.log('[RosterParser] KICKING DEBUG - First kicker PKPR:', kickers[0].PKPR, 'PKAC:', kickers[0].PKAC);
+      }
+    }
+
     // CRITICAL DEBUG: Check for duplicate players in the RAW file data
     console.log('[RosterParser] *** DUPLICATE CHECK ON RAW FILE DATA ***');
 
@@ -235,7 +251,8 @@ async function parseRosterFile(filePath) {
 
         for (const record of injyTable.records) {
           const pgid = record.fields?.PGID?.value;
-          if (pgid !== undefined && pgid !== null) {
+          // Only include non-zero PGIDs (0 means empty injury slot)
+          if (pgid !== undefined && pgid !== null && pgid > 0) {
             injuredPGIDs.push(pgid);
           }
         }
@@ -389,6 +406,54 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
       PROL: { 'Normal': 0, 'Star': 1, 'Superstar': 2, 'X-Factor': 3, 'Hidden': 4 }
     };
 
+    // Map internal field names to TDB2 roster file field names
+    // Some services use different field codes internally than the roster file format
+    const INTERNAL_TO_TDB2_FIELD_MAP = {
+      'PKPW': 'PKPR',  // Kick power: internal=PKPW, TDB2=PKPR
+      'PSTM': 'PSTA',  // Stamina: internal=PSTM, TDB2=PSTA
+      'PBTK': 'PBKT',  // Break tackle: internal=PBTK, TDB2=PBKT
+      'PTRK': 'PLTR',  // Trucking: internal=PTRK, TDB2=PLTR
+      'PCOD': 'PELU',  // Change of direction: internal=PCOD, TDB2=PELU
+      'PSFA': 'PLSA',  // Stiff arm: internal=PSFA, TDB2=PLSA
+      'PSPN': 'PLSM',  // Spin move: internal=PSPN, TDB2=PLSM
+      'PJKM': 'PLJM',  // Juke move: internal=PJKM, TDB2=PLJM
+      'PPWR': 'PTHP',  // Throw power: internal=PPWR, TDB2=PTHP
+      'PSPC': 'PLSC',  // Spectacular catch: internal=PSPC, TDB2=PLSC
+      'PCIT': 'PLCI',  // Catch in traffic: internal=PCIT, TDB2=PLCI
+      'PSRR': 'SRRN',  // Short route running: internal=PSRR, TDB2=SRRN
+      'PREL': 'PLRL',  // Release: internal=PREL, TDB2=PLRL
+      'PIBK': 'PLIB',  // Impact blocking: internal=PIBK, TDB2=PLIB
+      'PRNS': 'PRBF',  // Run block finesse: internal=PRNS, TDB2=PRBF
+      'PPBP': 'PPBS',  // Pass block power: internal=PPBP, TDB2=PPBS
+      'PHIT': 'PLHT',  // Hit power: internal=PHIT, TDB2=PLHT
+      'PPRS': 'PLPE',  // Press: internal=PPRS, TDB2=PLPE
+      'PFMV': 'PFMS',  // Finesse moves: internal=PFMV, TDB2=PFMS
+      'PPWM': 'PLPM',  // Power moves: internal=PPWM, TDB2=PLPM
+      'PBSH': 'PBSG',  // Block shedding: internal=PBSH, TDB2=PBSG
+      'PPRC': 'PLPR',  // Play recognition: internal=PPRC, TDB2=PLPR
+      'PPUR': 'PLPU',  // Pursuit: internal=PPUR, TDB2=PLPU
+      'PMCV': 'PLMC',  // Man coverage: internal=PMCV, TDB2=PLMC
+      'PZCV': 'PLZC',  // Zone coverage: internal=PZCV, TDB2=PLZC
+    };
+
+    // DEBUG: Check if PKPR exists in template
+    const firstRecord = playerTable.records[0];
+    if (firstRecord) {
+      const templateFields = Object.keys(firstRecord.fields);
+      const templateKickFields = templateFields.filter(f => f.includes('PK') || f.includes('kick'));
+      console.log('[RosterParser] SAVE DEBUG - Template kick fields:', templateKickFields.join(', ') || 'NONE');
+      console.log('[RosterParser] SAVE DEBUG - Template has PKPR field:', !!firstRecord.fields.PKPR);
+    }
+
+    // DEBUG: Check kickers being saved
+    const kickersToSave = players.filter(p => p.PPOS === 19);
+    if (kickersToSave.length > 0) {
+      const k = kickersToSave[0];
+      console.log('[RosterParser] SAVE DEBUG - First kicker to save:', k.PFNA, k.PLNA);
+      console.log('[RosterParser] SAVE DEBUG - Kicker PKPR:', k.PKPR, 'PKPW:', k.PKPW, 'PKAC:', k.PKAC);
+      console.log('[RosterParser] SAVE DEBUG - Will map PKPW to PKPR for save');
+    }
+
     for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
       const record = playerTable.records[i];
       const playerData = players[i];
@@ -398,8 +463,17 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
         if (fieldName === 'PLAYERPIC') {
           continue; // Skip virtual field
         }
-        if (record.fields[fieldName]) {
-          const oldValue = record.fields[fieldName].value;
+
+        // Map internal field name to TDB2 field name if needed
+        // This handles cases where services use different codes than the roster file format
+        const tdb2FieldName = INTERNAL_TO_TDB2_FIELD_MAP[fieldName] || fieldName;
+
+        // Try mapped field name first, then original name as fallback
+        const targetFieldName = record.fields[tdb2FieldName] ? tdb2FieldName :
+                                record.fields[fieldName] ? fieldName : null;
+
+        if (targetFieldName && record.fields[targetFieldName]) {
+          const oldValue = record.fields[targetFieldName].value;
           let newValue = playerData[fieldName];
 
           // CRITICAL: Convert string display names back to numeric IDs for lookup fields
@@ -413,10 +487,15 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
             }
           }
 
-          record.fields[fieldName].value = newValue;
+          record.fields[targetFieldName].value = newValue;
+
+          // Log field mapping when it differs
+          if (fieldName !== targetFieldName && oldValue !== newValue) {
+            console.log(`[RosterParser] Player ${i}: Mapped ${fieldName} -> ${targetFieldName}: ${oldValue} -> ${newValue}`);
+          }
 
           // Log PEPS changes
-          if (fieldName === 'PEPS' && oldValue !== newValue) {
+          if (targetFieldName === 'PEPS' && oldValue !== newValue) {
             console.log(`[RosterParser] Player ${i}: PEPS changed from "${oldValue}" to "${newValue}"`);
           }
           // Log PGHE changes (face model)
@@ -434,6 +513,10 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
           // Log PCBT changes (body type) - DEBUG
           if (fieldName === 'PCBT') {
             console.log(`[RosterParser] *** PCBT SAVE DEBUG *** Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PCBT file=${oldValue}, incoming=${newValue}, changed=${oldValue !== newValue}`);
+          }
+          // Log PLPL changes (generic/real face indicator) - DEBUG for PAM-only mode
+          if (fieldName === 'PLPL' && oldValue !== newValue) {
+            console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PLPL changed from ${oldValue} to ${newValue}`);
           }
 
           fieldsUpdated++;
@@ -453,6 +536,35 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
     console.log('[RosterParser] Updated', fieldsUpdated, 'field values');
     console.log('[RosterParser] Original record has', Object.keys(playerTable.records[0].fields).length, 'fields - all preserved');
+
+    // CRITICAL FIX: Set POID = PGID for all players
+    // The game links PLAY records to BLBM records by finding BLBM[].index === POID
+    // Our BLBM records have .index === PGID, so POID MUST equal PGID for proper visual linkage
+    // Without this fix, players get wrong faces because the game can't find their BLBM record
+    console.log('[RosterParser] *** POID FIX: Setting POID = PGID for proper BLBM linkage ***');
+    let poidFixedCount = 0;
+    for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
+      const record = playerTable.records[i];
+      const poidField = record.fields['POID'];
+      const pgidField = record.fields['PGID'];
+
+      if (poidField && pgidField) {
+        const currentPoid = poidField.value;
+        const pgid = pgidField.value;
+
+        if (currentPoid !== pgid && pgid !== undefined && pgid !== null && pgid > 0) {
+          poidField.value = pgid;
+          poidFixedCount++;
+
+          // Log first few fixes for debugging
+          if (poidFixedCount <= 5) {
+            const playerName = `${record.fields['PFNA']?.value || ''} ${record.fields['PLNA']?.value || ''}`.trim();
+            console.log(`[RosterParser] POID fix ${poidFixedCount}: ${playerName} - POID ${currentPoid} -> ${pgid}`);
+          }
+        }
+      }
+    }
+    console.log(`[RosterParser] POID fix complete: ${poidFixedCount} players updated (POID now equals PGID)`);
 
     // CRITICAL FIX: Clear unused record slots beyond players.length
     // This prevents "ghost" duplicates from remaining in the file when players are removed
@@ -479,6 +591,7 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     // Track results for debugging
     let blbmUpdated = 0;
     let btypSynced = 0;
+    let skntSynced = 0;
     let genericFaceServiceLoaded = !!genericFaceService;
     let blbmError = null;
 
@@ -513,7 +626,7 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
         // Sync SKNT (skin tone) in BLBM from PLRC for ALL players
         // The game reads skin tone from SKNT in BLBM
-        const skntSynced = await genericFaceService.syncSkinToneForAllPlayers(file, players);
+        skntSynced = await genericFaceService.syncSkinToneForAllPlayers(file, players);
         console.log('[RosterParser] SKNT sync complete:', skntSynced, 'players synced');
       } catch (err) {
         blbmError = err.message;
@@ -858,6 +971,7 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
       genericFaceServiceLoaded,
       blbmUpdated,
       btypSynced,
+      skntSynced,
       blbmError,
       injuriesCleared
     };

@@ -119,7 +119,7 @@ export interface RosterPlayer {
   PID: number;
   PAM: string;
   PEPS: string;
-  POID: number;  // Presentation ID for in-game commentary
+  POID: number;  // Links PLAY record to BLBM visuals (must equal PGID)
   PSXP?: number; // Player ID (PID) - Madden field code
   PLPL?: number; // Player Asset (PAM) - 0 for generic, 100 for real
   PCMT?: number; // Commentary ID
@@ -144,7 +144,7 @@ export interface RosterPlayer {
   PCTH: number;  // Catching
   PCAR: number;  // Carrying
   PTHP: number;  // Throw Power
-  PKPW: number;  // Kick Power
+  PKPR: number;  // Kick Power (M26 roster code)
   PKAC: number;  // Kick Accuracy
   PRBK: number;  // Run Block
   PPBK: number;  // Pass Block
@@ -268,7 +268,7 @@ const POSITION_LIMITS: Record<string, number> = {
  */
 const RATING_FIELDS = [
   'PSPD', 'PACC', 'PSTR', 'PAGI', 'PAWR', 'PCTH', 'PCAR', 'PTHP',
-  'PKPW', 'PKAC', 'PRBK', 'PPBK', 'PTAK', 'PBTK', 'PJMP', 'PINJ',
+  'PKPR', 'PKAC', 'PRBK', 'PPBK', 'PTAK', 'PBKT', 'PJMP', 'PINJ',
   'PSTA', 'PTGH', 'PTRK', 'PCOD', 'PBCV', 'PSTF', 'PSPM', 'PJUM',
   'PIBL', 'PRBP', 'PRBF', 'PPBP', 'PPBF', 'PLDB', 'PBRS', 'PTUP',
   'PPWM', 'PFNM', 'PBSH', 'PPUR', 'PPRC', 'PMCV', 'PZCV', 'PSPC',
@@ -779,8 +779,13 @@ export class RosterGeneratorService {
     console.log('[RosterGeneratorService] Years with edits in user-edits.db:', yearsSummary.map(y => `${y.year}(${y.count})`).join(', ') || 'NONE');
 
     // Query database for all players in this year
-    const dbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
-    console.log(`[RosterGeneratorService] Loaded ${dbPlayers.length} players for year ${year}`);
+    const allDbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
+    console.log(`[RosterGeneratorService] Loaded ${allDbPlayers.length} players for year ${year}`);
+
+    // Filter out hidden players (user-hidden or bundled-hidden)
+    const hiddenPlayerIds = new Set(userDatabaseService.getHiddenPlayers());
+    const dbPlayers = allDbPlayers.filter(p => !hiddenPlayerIds.has(p.playerId));
+    console.log(`[RosterGeneratorService] After filtering hidden players: ${dbPlayers.length} (${allDbPlayers.length - dbPlayers.length} hidden)`);
 
     // BULK LOAD all user edits for this year (single query, O(1) lookup per player)
     const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(year);
@@ -1250,9 +1255,13 @@ export class RosterGeneratorService {
     const allDbPlayers: any[] = [];
     const allCustomPlayers: any[] = [];
 
+    // Get hidden players once (not per-year)
+    const hiddenPlayerIds = new Set(userDatabaseService.getHiddenPlayers());
+
     for (let y = startYear; y <= endYear; y++) {
-      // Query database for each year
-      const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      // Query database for each year and filter out hidden players
+      const allYearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      const yearPlayers = allYearPlayers.filter(p => !hiddenPlayerIds.has(p.playerId));
 
       // BULK LOAD user edits for this year
       const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
@@ -1587,7 +1596,7 @@ export class RosterGeneratorService {
           PSXP: genericFace.pid,
           PLPL: 0, // Generic face marker
           PEPS: genericFace.pam, // GENR from PGHE lookup - matched set with PSXP and PGHE
-          POID: 0, // Filler players have no Presentation ID
+          POID: 0, // Will be set to PGID during save (links PLAY records to BLBM visuals)
           PCMT: lookupService.getCommentaryId(lastName) || 0, // Commentary ID - looked up by last name
           // DON'T SET PSKI - BLBM handles it
           PGHE: genericFace.pghe,
@@ -1605,7 +1614,7 @@ export class RosterGeneratorService {
           PCTH: baseRating + Math.floor(Math.random() * variance),
           PCAR: baseRating + Math.floor(Math.random() * variance),
           PTHP: baseRating + Math.floor(Math.random() * variance),
-          PKPW: baseRating + Math.floor(Math.random() * variance),
+          PKPR: baseRating + Math.floor(Math.random() * variance),
           PKAC: baseRating + Math.floor(Math.random() * variance),
           PRBK: baseRating + Math.floor(Math.random() * variance),
           PPBK: baseRating + Math.floor(Math.random() * variance),
@@ -1760,8 +1769,12 @@ export class RosterGeneratorService {
     // BULK LOAD appearance edits ONCE (not per-year)
     const appearanceEditsMapFA = userDatabaseService.getAllAppearanceEdits();
 
+    // Get hidden players for filtering (reuse if already available, or get fresh)
+    const hiddenPlayerIdsFA = new Set(userDatabaseService.getHiddenPlayers());
+
     for (let y = startYear - 5; y < startYear; y++) {
-      const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      const allYearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      const yearPlayers = allYearPlayers.filter(p => !hiddenPlayerIdsFA.has(p.playerId));
 
       // BULK LOAD user edits for this year
       const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
@@ -1932,9 +1945,13 @@ export class RosterGeneratorService {
     // BULK LOAD appearance edits ONCE (not per-year)
     const appearanceEditsMapFA2 = userDatabaseService.getAllAppearanceEdits();
 
+    // Get hidden players for filtering
+    const hiddenPlayerIdsFA2 = new Set(userDatabaseService.getHiddenPlayers());
+
     for (let y = year - 5; y < year; y++) {
-      const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
-      console.log(`[RosterGeneratorService]   Year ${y}: ${yearPlayers.length} players in database`);
+      const allYearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      const yearPlayers = allYearPlayers.filter(p => !hiddenPlayerIdsFA2.has(p.playerId));
+      console.log(`[RosterGeneratorService]   Year ${y}: ${yearPlayers.length} players in database (${allYearPlayers.length - yearPlayers.length} hidden)`);
 
       // BULK LOAD user edits for this year
       const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(y);
@@ -2188,7 +2205,7 @@ export class RosterGeneratorService {
       PID: genericFace.pid,
       PAM: 0,  // Generic faces use 0 (number) for PLPL
       PEPS: genericFace.pam,  // GENR from PGHE lookup - matched set with pid and pghe
-      POID: 0,  // Filler players have no Presentation ID
+      POID: 0,  // Will be set to PGID during save (links PLAY records to BLBM visuals)
       PCMT: lookupService.getCommentaryId(lastName) || 0,  // Commentary ID - looked up by last name
 
       // College & Home - Skip ID 0 (Blank), use 1-264 (real colleges)
@@ -2205,7 +2222,7 @@ export class RosterGeneratorService {
       PCTH: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
       PCAR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
       PTHP: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
-      PKPW: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
+      PKPR: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
       PKAC: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
       PRBK: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
       PPBK: Math.max(30, Math.min(99, baseRating + Math.floor(Math.random() * 11) - 5)),
@@ -2616,7 +2633,7 @@ export class RosterGeneratorService {
       PLPL: plplValue,        // Player Asset (PAM) - 0 for generic, 100 for real face
       PEPS: pepsValue,        // PAM code - blank for custom portraits
       PLAYERPIC: playerPicValue, // Player Pic display name (format: "Last, First" for custom portraits)
-      POID: this.pidToCommID.get(playerPID) || 0, // Presentation ID for in-game commentary
+      POID: 0, // Will be set to PGID during save (links PLAY records to BLBM visuals)
       PCMT: lookupService.getCommentaryId(cleanLastName) || 0, // Commentary ID - looked up by clean last name
 
       // College & Home - Use user edits if available, otherwise CSV/lookup data
@@ -2634,7 +2651,7 @@ export class RosterGeneratorService {
       PCTH: parseInt(ratings.PCTH) || 50,
       PCAR: parseInt(ratings.PCAR) || 50,
       PTHP: parseInt(ratings.PTHP) || 50,
-      PKPW: parseInt(ratings.PKPW) || parseInt(ratings.PKPR) || 50,  // Check both: DB uses PKPW, mapping converts to PKPR
+      PKPR: parseInt(ratings.PKPR) || parseInt(ratings.PKPW) || 50,  // M26 roster code - check PKPR first, fallback to legacy PKPW
       PKAC: parseInt(ratings.PKAC) || 50,
       PRBK: parseInt(ratings.PRBK) || 50,
       PPBK: parseInt(ratings.PPBK) || 50,
@@ -2778,7 +2795,7 @@ export class RosterGeneratorService {
         PRBF: syncedPlayer.PRBF,
         PLIB: syncedPlayer.PLIB,
         PLBK: syncedPlayer.PLBK,
-        PKPW: syncedPlayer.PKPW,
+        PKPR: syncedPlayer.PKPR || syncedPlayer.PKPW,
         PKAC: syncedPlayer.PKAC,
         PLRL: syncedPlayer.PLRL,
         PKRT: syncedPlayer.PKRT,
@@ -2994,7 +3011,7 @@ export class RosterGeneratorService {
       PLPL: plplValue,
       PEPS: pepsValue,
       PLAYERPIC: playerPicValue,
-      POID: commId || this.pidToCommID.get(playerPID) || 0,
+      POID: 0, // Will be set to PGID during save (links PLAY records to BLBM visuals)
       PCMT: lookupService.getCommentaryId(cleanLastName) || 0,
 
       // College & Home - DIRECTLY from database!
@@ -3012,7 +3029,7 @@ export class RosterGeneratorService {
       PCTH: ratings.PCTH || 50,
       PCAR: ratings.PCAR || 50,
       PTHP: ratings.PTHP || 50,
-      PKPW: ratings.PKPW || ratings.PKPR || 50,  // Check both: DB uses PKPW, mapping converts to PKPR
+      PKPR: ratings.PKPR || ratings.PKPW || 50,  // M26 roster code - check PKPR first, fallback to legacy
       PKAC: ratings.PKAC || 50,
       PRBK: ratings.PRBK || 50,
       PPBK: ratings.PPBK || 50,
@@ -3166,7 +3183,7 @@ export class RosterGeneratorService {
         PRBF: syncedPlayer.PRBF,
         PLIB: syncedPlayer.PLIB,
         PLBK: syncedPlayer.PLBK,
-        PKPW: syncedPlayer.PKPW,
+        PKPR: syncedPlayer.PKPR || syncedPlayer.PKPW,
         PKAC: syncedPlayer.PKAC,
         PLRL: syncedPlayer.PLRL,
         PKRT: syncedPlayer.PKRT,
@@ -4619,8 +4636,11 @@ export class RosterGeneratorService {
       await this.initialize();
     }
 
-    // Query database for this year
-    const players = lookupService.getAllPlayerSeasonsForYear(year);
+    // Query database for this year and filter out hidden players
+    const allPlayers = lookupService.getAllPlayerSeasonsForYear(year);
+    const hiddenIds = new Set(userDatabaseService.getHiddenPlayers());
+    const players = allPlayers.filter(p => !hiddenIds.has(p.playerId));
+
     if (!players || players.length === 0) {
       return {
         valid: false,
