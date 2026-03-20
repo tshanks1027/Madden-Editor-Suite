@@ -1304,20 +1304,33 @@ export class RosterCreatorService {
           // PRESERVE the existing PID - player has a valid portrait/identity
           const playerType = this.pidToType.get(existingPID) || 'generic';
           const isLegendOrPlayer = playerType === 'legend' || playerType === 'player';
+          // CRITICAL: Custom portraits (PID >= 12000) must be treated as real faces
+          const CUSTOM_PORTRAIT_PID_START = 12000;
+          const isCustomPortrait = existingPID >= CUSTOM_PORTRAIT_PID_START;
 
           // Use the PAM from mapping if available
           const mappedPAM = this.pidToPAM.get(existingPID);
           if (mappedPAM) {
             player.PEPS = mappedPAM; // Use PAM from mapping (legend or generic)
             player.PGHE = this.pidToPGHE.get(existingPID) || this.getGenericPGHE(race);
-            player.PLPL = isLegendOrPlayer ? 100 : 0; // Legends have real faces (100), generics have 0
+            // Custom portraits (PID >= 12000) must have PLPL=100 to persist after in-game editing
+            player.PLPL = (isLegendOrPlayer || isCustomPortrait) ? 100 : 0;
           } else {
-            // No PAM mapped for this PID - select a race-matched generic face
-            const genericFace = this.selectGenericFaceByRace(race);
-            player.PEPS = ''; // EMPTY - BLBM GENR/SKNT controls the face
-            player.PGHE = genericFace.pghe;
-            player.PLPL = 0; // Generic face
-            player._race = race; // Store race for BLBM GENR/SKNT assignment
+            // No PAM mapped for this PID
+            // For custom portraits: preserve PID and set PLPL=100
+            // For generic PIDs without PAM: select a race-matched generic face
+            if (isCustomPortrait) {
+              player.PEPS = ''; // EMPTY - but PLPL=100 tells game to keep PSXP
+              player.PGHE = this.getGenericPGHE(race);
+              player.PLPL = 100; // Custom portrait - must persist
+              player._race = race;
+            } else {
+              const genericFace = this.selectGenericFaceByRace(race);
+              player.PEPS = ''; // EMPTY - BLBM GENR/SKNT controls the face
+              player.PGHE = genericFace.pghe;
+              player.PLPL = 0; // Generic face
+              player._race = race; // Store race for BLBM GENR/SKNT assignment
+            }
           }
 
           // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
@@ -1544,8 +1557,11 @@ export class RosterCreatorService {
     console.log(`[RosterCreatorService] Scanning years ${startYear} to ${endYear} for free agents from database...`);
 
     const parsed = { data: [] as any[] };
+    const hiddenIds = new Set(userDatabaseService.getHiddenPlayers());
+
     for (let y = startYear; y <= endYear; y++) {
-      const yearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      const allYearPlayers = lookupService.getAllPlayerSeasonsForYear(y);
+      const yearPlayers = allYearPlayers.filter(p => !hiddenIds.has(p.playerId));
       for (const p of yearPlayers) {
         // Transform to CSV-compatible format
         parsed.data.push({

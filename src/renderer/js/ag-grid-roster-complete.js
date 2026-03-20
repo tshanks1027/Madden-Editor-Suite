@@ -517,6 +517,16 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
 
                 if (newPid !== null) {
                     params.data.PSXP = newPid;
+                    // CRITICAL: Set PLPL and PGHE based on portrait type
+                    // Custom portraits (PID >= 12000) must have PLPL=100 AND PGHE=0 to persist after in-game editing
+                    const CUSTOM_PORTRAIT_PID_START = 12000;
+                    if (newPid >= CUSTOM_PORTRAIT_PID_START) {
+                        params.data.PLPL = 100;
+                        params.data.PGHE = 0;
+                        console.log(`[AG-Grid PLAYERPIC] Set PLPL=100, PGHE=0 for custom portrait PID ${newPid}`);
+                    } else {
+                        params.data.PLPL = 0;
+                    }
                     return true;
                 }
                 return false;
@@ -810,6 +820,43 @@ export function createAGGridColumns(visibleFields, displayNames, fieldCodes, app
             colDef.editable = true;
             colDef.singleClickEdit = true; // Allow single click to edit text fields
             console.log(`[AG-Grid] Text column ${fieldName} configured with agTextCellEditor`);
+        } else if (fieldDef.type === 'boolean') {
+            // Boolean field - checkbox-style editor with Yes/No display
+            colDef.editable = true;
+            colDef.singleClickEdit = true;
+            colDef.width = fieldDef.width || 50;
+            colDef.minWidth = 45;
+            colDef.cellStyle = { textAlign: 'center' };
+            colDef.headerClass = 'ag-header-center';
+
+            // Display Yes/No for boolean values
+            colDef.valueGetter = (params) => {
+                const val = params.data[fieldName];
+                // Handle various truthy values (1, true, "true", "1")
+                return (val === 1 || val === true || val === '1' || val === 'true') ? 'Yes' : 'No';
+            };
+
+            // Use FastSelectEditor for Yes/No dropdown
+            colDef.cellEditor = FastSelectEditor;
+            colDef.cellEditorParams = {
+                values: ['Yes', 'No']
+            };
+
+            // Convert back to numeric 0/1 when saving
+            colDef.valueSetter = (params) => {
+                const newValue = params.newValue;
+                params.data[fieldName] = (newValue === 'Yes' || newValue === true || newValue === 1) ? 1 : 0;
+                return true;
+            };
+
+            // Cell renderer with color coding
+            colDef.cellRenderer = (params) => {
+                const value = params.value;
+                const color = value === 'Yes' ? '#4CAF50' : '#666';
+                return `<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: ${color}; font-weight: 500;">${value}</div>`;
+            };
+
+            console.log(`[AG-Grid] Boolean column ${fieldName} configured with Yes/No dropdown`);
         }
 
         // PAM (PEPS) column - add right-click for PAM picker AFTER type handling
@@ -1194,9 +1241,10 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     const positionId = actualPlayer.PPOS;
                     const positionName = POSITION_MAPPINGS[positionId] || 'QB';
 
-                    // Calculate OVR using BEST archetype (matches what game does)
-                    // The game auto-assigns the archetype that produces the highest OVR
-                    console.log(`[AG-Grid] Calculating OVR for ALL archetypes of ${positionName} to find best match...`);
+                    // Calculate OVR using CURRENT archetype - DO NOT auto-switch archetypes
+                    // Users set archetypes intentionally, we should respect their choice
+                    const currentArchetypeId = actualPlayer.PLTY || 0;
+                    console.log(`[AG-Grid] Calculating OVR for current archetype ${currentArchetypeId} of ${positionName}...`);
                     if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRForArchetypes) {
                         window.electronAPI.rating.calculateOVRForArchetypes(attributes, positionName)
                             .then(results => {
@@ -1205,18 +1253,24 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                                     return;
                                 }
 
-                                // Results are sorted by OVR descending - first is the best
-                                const bestArchetype = results[0];
-                                const newOVR = bestArchetype.ovr;
-                                const newArchetypeId = bestArchetype.id;
-                                const newArchetypeName = bestArchetype.name;
-
+                                // Find the result for the CURRENT archetype - don't auto-switch to "best"
+                                const currentArchetypeResult = results.find(a => a.id === currentArchetypeId);
                                 const oldOVR = parseInt(actualPlayer.POVR) || 50;
-                                const oldArchetypeId = actualPlayer.PLTY;
                                 const displayedOVR = parseInt(event.data.POVR) || 50;
 
-                                console.log(`[AG-Grid] Best archetype: ${newArchetypeName} (ID: ${newArchetypeId}) with OVR: ${newOVR}`);
-                                console.log(`[AG-Grid] OVR change: ${displayedOVR} → ${newOVR}, Archetype: ${oldArchetypeId} → ${newArchetypeId}`);
+                                let newOVR;
+                                if (currentArchetypeResult) {
+                                    // Use OVR for current archetype
+                                    newOVR = currentArchetypeResult.ovr;
+                                    console.log(`[AG-Grid] Current archetype ${currentArchetypeId} (${currentArchetypeResult.name}) OVR: ${newOVR}`);
+                                } else {
+                                    // Fallback to best archetype's OVR but DON'T change PLTY
+                                    const bestArchetype = results[0];
+                                    newOVR = bestArchetype.ovr;
+                                    console.warn(`[AG-Grid] Archetype ${currentArchetypeId} not found, using best OVR: ${newOVR} (but keeping PLTY unchanged)`);
+                                }
+
+                                console.log(`[AG-Grid] OVR change: ${displayedOVR} → ${newOVR}`);
 
                                 // Update OVR in ALL data sources
                                 actualPlayer.POVR = newOVR;
@@ -1225,18 +1279,7 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                                     app.players[playerIndex].POVR = newOVR;
                                 }
 
-                                // Also update archetype if it changed
-                                if (newArchetypeId !== oldArchetypeId) {
-                                    console.log(`[AG-Grid] Auto-updating archetype: ${oldArchetypeId} → ${newArchetypeId} (${newArchetypeName})`);
-                                    actualPlayer.PLTY = newArchetypeId;
-                                    actualPlayer.ARCHETYPE = newArchetypeName;
-                                    event.data.PLTY = newArchetypeId;
-                                    event.data.ARCHETYPE = newArchetypeName;
-                                    if (playerIndex !== -1) {
-                                        app.players[playerIndex].PLTY = newArchetypeId;
-                                        app.players[playerIndex].ARCHETYPE = newArchetypeName;
-                                    }
-                                }
+                                // DO NOT update archetype - respect user's choice
 
                                 // Also update filteredPlayers
                                 const filteredIdx = app.filteredPlayers ? app.filteredPlayers.findIndex(p =>
@@ -1244,20 +1287,12 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                                 ) : -1;
                                 if (filteredIdx !== -1 && app.filteredPlayers) {
                                     app.filteredPlayers[filteredIdx].POVR = newOVR;
-                                    if (newArchetypeId !== oldArchetypeId) {
-                                        app.filteredPlayers[filteredIdx].PLTY = newArchetypeId;
-                                        app.filteredPlayers[filteredIdx].ARCHETYPE = newArchetypeName;
-                                    }
                                 }
 
-                                // Refresh the OVR and archetype cells in the grid
-                                const columnsToRefresh = ['POVR'];
-                                if (newArchetypeId !== oldArchetypeId) {
-                                    columnsToRefresh.push('PLTY');
-                                }
+                                // Refresh the OVR cell in the grid (archetype unchanged)
                                 event.api.refreshCells({
                                     rowNodes: [event.node],
-                                    columns: columnsToRefresh,
+                                    columns: ['POVR'],
                                     force: true
                                 });
 

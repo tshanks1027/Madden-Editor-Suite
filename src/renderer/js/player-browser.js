@@ -1226,6 +1226,14 @@
       if (displayedPid && displayedPid > 0) {
         console.log(`[PlayerBrowser] Using PID from database browser: ${displayedPid} (overriding ${playerData.PSXP})`);
         playerData.PSXP = displayedPid;
+        // CRITICAL: Set PLPL and PGHE based on portrait type
+        // Custom portraits (PID >= 12000) must have PLPL=100 AND PGHE=0 to persist after in-game editing
+        const CUSTOM_PORTRAIT_PID_START = 12000;
+        if (displayedPid >= CUSTOM_PORTRAIT_PID_START) {
+          playerData.PLPL = 100;
+          playerData.PGHE = 0;
+          console.log(`[PlayerBrowser] Set PLPL=100, PGHE=0 for custom portrait PID ${displayedPid}`);
+        }
       }
 
       // DEBUG: Check ALL ratings in received player data
@@ -1235,9 +1243,8 @@
       console.log(`[PlayerBrowser] RECEIVED playerData - Total keys: ${allKeys.length}, Rating keys (${ratingKeys.length})`);
       console.log(`[PlayerBrowser] RECEIVED playerData - PPBK=${playerData.PPBK}, PRBK=${playerData.PRBK}, POVR=${playerData.POVR}`);
 
-      // CRITICAL: Recalculate POVR from ratings using calculateOVRForArchetypes
-      // This is the SAME method used by roster editor - tests ALL archetypes, picks BEST
-      // Without this, stored POVR might be stale/incorrect, causing OVR adjustment to fail
+      // CRITICAL: Recalculate POVR using the archetype from getPlayerForRoster
+      // DO NOT override PLTY - the backend already set it correctly from player-level archetype
       try {
         const positionMap = {
           0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C',
@@ -1246,19 +1253,30 @@
         };
         const posName = positionMap[playerData.PPOS] || 'QB';
 
-        // Use calculateOVRForArchetypes - SAME as roster editor
+        // Use the archetype already set by getPlayerForRoster (respects player-level archetype)
+        const currentArchetypeId = playerData.PLTY || 0;
+        console.log(`[PlayerBrowser] Using archetype from getPlayerForRoster: PLTY=${currentArchetypeId}`);
+
+        // Calculate OVR using the SPECIFIC archetype, not "best" archetype
         const archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(playerData, posName);
 
         if (archetypeResults && archetypeResults.length > 0) {
-          // First result is the BEST archetype (sorted by OVR descending)
-          const bestArchetype = archetypeResults[0];
-          const calculatedOVR = bestArchetype.ovr;
+          // Find the result for the current archetype, not the "best" one
+          const currentArchetypeResult = archetypeResults.find(a => a.id === currentArchetypeId);
 
-          if (calculatedOVR && calculatedOVR !== playerData.POVR) {
-            console.log(`[PlayerBrowser] Recalculated POVR: stored=${playerData.POVR}, calculated=${calculatedOVR} (best archetype: ${bestArchetype.name}) - UPDATING`);
-            playerData.POVR = calculatedOVR;
-            // Also update archetype to the best one
-            playerData.PLTY = bestArchetype.id;
+          if (currentArchetypeResult) {
+            const calculatedOVR = currentArchetypeResult.ovr;
+            if (calculatedOVR && calculatedOVR !== playerData.POVR) {
+              console.log(`[PlayerBrowser] Recalculated POVR for archetype ${currentArchetypeId}: stored=${playerData.POVR}, calculated=${calculatedOVR} - UPDATING`);
+              playerData.POVR = calculatedOVR;
+              // DO NOT update PLTY - keep the archetype from getPlayerForRoster
+            }
+          } else {
+            // Archetype not found in results, use best as fallback but log warning
+            const bestArchetype = archetypeResults[0];
+            console.warn(`[PlayerBrowser] Archetype ${currentArchetypeId} not found, using best: ${bestArchetype.id}`);
+            playerData.POVR = bestArchetype.ovr;
+            // Still don't override PLTY - keep what getPlayerForRoster set
           }
         }
       } catch (err) {
@@ -1988,6 +2006,14 @@
       if (options?.pid && options.pid > 0) {
         console.log(`[PlayerBrowser] Using PID from database browser: ${options.pid} (overriding ${playerData.PSXP})`);
         playerData.PSXP = options.pid;
+        // CRITICAL: Set PLPL and PGHE based on portrait type
+        // Custom portraits (PID >= 12000) must have PLPL=100 AND PGHE=0 to persist after in-game editing
+        const CUSTOM_PORTRAIT_PID_START = 12000;
+        if (options.pid >= CUSTOM_PORTRAIT_PID_START) {
+          playerData.PLPL = 100;
+          playerData.PGHE = 0;
+          console.log(`[PlayerBrowser] Set PLPL=100, PGHE=0 for custom portrait PID ${options.pid}`);
+        }
       }
 
       // Set the selected team

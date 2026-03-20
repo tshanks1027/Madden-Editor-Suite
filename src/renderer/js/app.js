@@ -2228,6 +2228,17 @@ class MaddenEditorApp {
                             this.players[actualPlayerIndex]['PSXP'] = pid;
                             // Update the PSXP cell in the grid
                             this.updateGridCell(row, 'PSXP', pid);
+
+                            // CRITICAL: Set PLPL and PGHE based on portrait type
+                            // Custom portraits (PID >= 12000) must have PLPL=100 AND PGHE=0 to persist after in-game editing
+                            const CUSTOM_PORTRAIT_PID_START = 12000;
+                            if (pid >= CUSTOM_PORTRAIT_PID_START) {
+                                this.players[actualPlayerIndex]['PLPL'] = 100;
+                                this.players[actualPlayerIndex]['PGHE'] = 0;
+                                console.log(`[PLAYERPIC] Set PLPL=100, PGHE=0 for custom portrait PID ${pid}`);
+                            } else {
+                                this.players[actualPlayerIndex]['PLPL'] = 0;
+                            }
                             // Store the valid name
                             convertedValue = newValue;
                             this.players[actualPlayerIndex]['PLAYERPIC'] = convertedValue;
@@ -2267,12 +2278,19 @@ class MaddenEditorApp {
                         if (fieldName === 'PSXP') {
                             let playerName;
                             // Custom portraits (PID >= 12000) use player's actual name
-                            if (convertedValue >= 12000) {
+                            const CUSTOM_PORTRAIT_PID_START = 12000;
+                            if (convertedValue >= CUSTOM_PORTRAIT_PID_START) {
                                 const lastName = this.players[actualPlayerIndex]['PLNA'] || '';
                                 const firstName = this.players[actualPlayerIndex]['PFNA'] || '';
                                 playerName = `${lastName}, ${firstName}`;
+                                // CRITICAL: Set PLPL=100 AND PGHE=0 for custom portraits so they persist after in-game editing
+                                this.players[actualPlayerIndex]['PLPL'] = 100;
+                                this.players[actualPlayerIndex]['PGHE'] = 0;
+                                console.log(`[PSXP Change] Set PLPL=100, PGHE=0 for custom portrait PID ${convertedValue}`);
                             } else {
                                 playerName = getPlayerNameFromPID(convertedValue) || 'Generic Face';
+                                // Generic portraits use PLPL=0
+                                this.players[actualPlayerIndex]['PLPL'] = 0;
                             }
                             // Update PLAYERPIC with the looked-up name (or 'Generic Face' if not found)
                             this.players[actualPlayerIndex]['PLAYERPIC'] = playerName;
@@ -6139,11 +6157,14 @@ class MaddenEditorApp {
                 // Update PLRC to match the assigned skin tone
                 entry.PLRC = race;
 
-                // CRITICAL: Set PLPL=0 to indicate generic face (tells game to use BLBM GENR, not face scan)
-                entry.PLPL = 0;
-
+                // CRITICAL: Set PLPL based on portrait type
+                // - Custom portraits (PID >= 12000) or real PIDs must have PLPL=100 to persist
+                // - Generic faces use PLPL=0 (game regenerates PSXP from GENR)
                 if (keepPortrait) {
-                    console.log(`[FixFaces] ${playerName}: Keeping portrait (PID=${existingPid}), fixing skin tone: PEPS="", PLRC=${race}, PLPL=0, assignedGenr="${pgheEntry.genr}"`);
+                    entry.PLPL = 100;
+                    console.log(`[FixFaces] ${playerName}: Keeping portrait (PID=${existingPid}), fixing skin tone: PEPS="", PLRC=${race}, PLPL=100 (real face), assignedGenr="${pgheEntry.genr}"`);
+                } else {
+                    entry.PLPL = 0;
                 }
             }
 
@@ -11011,6 +11032,20 @@ class MaddenEditorApp {
         this.currentPlayerCardData.PCOL = college;
         this.currentPlayerCardData.PJEN = jersey;
         this.currentPlayerCardData.PSXP = pid;
+
+        // CRITICAL: Set PLPL and PGHE based on portrait type
+        // Custom portraits (PID >= 12000) must have PLPL=100 AND PGHE=0 to persist after in-game editing
+        const CUSTOM_PORTRAIT_PID_START = 12000;
+        if (pid >= CUSTOM_PORTRAIT_PID_START) {
+            this.currentPlayerCardData.PLPL = 100;
+            this.currentPlayerCardData.PGHE = 0;
+            console.log(`[PlayerCard] Set PLPL=100, PGHE=0 for custom portrait PID ${pid}`);
+        } else {
+            // Keep existing PLPL for non-custom portraits, or default to 0
+            if (this.currentPlayerCardData.PLPL !== 100) {
+                this.currentPlayerCardData.PLPL = 0;
+            }
+        }
 
         // Update QB Style and Running Style
         this.currentPlayerCardData.PQBS = parseInt(document.getElementById('playerCardQBStyle').value) || 0;

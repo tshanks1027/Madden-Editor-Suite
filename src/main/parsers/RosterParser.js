@@ -566,6 +566,72 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     }
     console.log(`[RosterParser] POID fix complete: ${poidFixedCount} players updated (POID now equals PGID)`);
 
+    // CRITICAL FIX: For custom portrait PIDs (>= 12000), set PEPS from BLBM.GENR
+    // This ensures modded portraits persist after in-game editing
+    // The game checks PEPS - if empty, it regenerates the player's appearance on edit
+    // Fix: PEPS = BLBM.GENR, BLBM.ASNM = BLBM.GENR, PLPL=100, PGHE=0
+    const CUSTOM_PORTRAIT_PID_START = 12000;
+    console.log('[RosterParser] *** PORTRAIT FIX: Setting PEPS from GENR for custom portrait PIDs ***');
+
+    // Get BLBM table
+    const blobTable = file.BLOB?.records?.[0];
+    const blbmField = blobTable?.fields?.BLBM?.value;
+    const blbmRecords = blbmField?.records || blbmField?._records || [];
+
+    let portraitFixedCount = 0;
+    for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
+      const record = playerTable.records[i];
+      const psxpField = record.fields['PSXP'];
+      const pepsField = record.fields['PEPS'];
+      const plplField = record.fields['PLPL'];
+      const pgheField = record.fields['PGHE'];
+      const poidField = record.fields['POID'];
+
+      if (psxpField && pepsField && plplField && pgheField && poidField) {
+        const psxp = psxpField.value;
+        const currentPeps = pepsField.value || '';
+        const poid = poidField.value;
+
+        // If this is a custom portrait PID with empty PEPS, fix it
+        if (psxp >= CUSTOM_PORTRAIT_PID_START && (!currentPeps || currentPeps.length === 0)) {
+          // Find BLBM record by POID
+          const blbmRec = blbmRecords.find(r => r.index === poid);
+
+          if (blbmRec) {
+            const bf = blbmRec.fields || blbmRec._fields;
+            const genr = bf?.GENR?.value ?? bf?.GENR?._value;
+
+            if (genr && genr.length > 0) {
+              // Set PEPS = GENR
+              pepsField.value = genr;
+              if (players[i]) players[i].PEPS = genr;
+
+              // Set BLBM.ASNM = GENR
+              if (bf?.ASNM) {
+                if (bf.ASNM.value !== undefined) bf.ASNM.value = genr;
+                else if (bf.ASNM._value !== undefined) bf.ASNM._value = genr;
+              }
+
+              // Set PLPL=100, PGHE=0
+              plplField.value = 100;
+              pgheField.value = 0;
+              if (players[i]) {
+                players[i].PLPL = 100;
+                players[i].PGHE = 0;
+              }
+
+              portraitFixedCount++;
+              if (portraitFixedCount <= 5) {
+                const playerName = `${record.fields['PFNA']?.value || ''} ${record.fields['PLNA']?.value || ''}`.trim();
+                console.log(`[RosterParser] Portrait fix ${portraitFixedCount}: ${playerName} - PEPS="${genr}", PLPL=100, PGHE=0`);
+              }
+            }
+          }
+        }
+      }
+    }
+    console.log(`[RosterParser] Portrait fix complete: ${portraitFixedCount} custom portrait players fixed`);
+
     // CRITICAL FIX: Clear unused record slots beyond players.length
     // This prevents "ghost" duplicates from remaining in the file when players are removed
     let clearedSlots = 0;
