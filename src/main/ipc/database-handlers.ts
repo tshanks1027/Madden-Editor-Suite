@@ -2654,7 +2654,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PHTN: player.hometown || '', // Hometown (city name string)
       PLBD: 0, // Birthday (will calculate if needed)
       PCMT: rosterCommId, // Commentary ID - auto-filled from lookup
-      POID: rosterCommId, // Presentation ID - same as PCMT
+      POID: 0, // Will be set to PGID during save (links PLAY records to BLBM visuals)
       PHAN: 0, // Handedness (0=Right, 1=Left)
 
       // Contract defaults
