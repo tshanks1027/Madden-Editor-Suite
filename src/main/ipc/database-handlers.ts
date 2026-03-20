@@ -384,11 +384,24 @@ ipcMain.handle('database:get-appearance-edit', async (event, originalPlayerId: n
 /**
  * Handle: database:save-season-edit
  * Save rating edits for a player's specific season
+ * Also saves archetype at player level (constant across all seasons) for consistent OVR calculation
  */
 ipcMain.handle('database:save-season-edit', async (event, originalPlayerId: number, year: number, edits: Partial<SeasonEdit>) => {
   try {
     await userDatabaseService.waitForReady();
     userDatabaseService.saveSeasonEdit(originalPlayerId, year, edits);
+
+    // CRITICAL: If archetype is being set, also save it at the player level
+    // This ensures consistent OVR calculation everywhere (archetype rarely changes per-season)
+    if (edits.archetype) {
+      // Get archetype ID if possible
+      const { ArchetypeService } = await import('../services/utils/archetypeService');
+      const position = edits.position || userDatabaseService.getSeasonEdit(originalPlayerId, year)?.position || 'HB';
+      const archetypeId = ArchetypeService.getArchetypeId(edits.archetype, position);
+      userDatabaseService.savePlayerArchetype(originalPlayerId, edits.archetype, archetypeId);
+      console.log(`[database-handlers] Saved player-level archetype: playerId=${originalPlayerId}, archetype=${edits.archetype}, archetypeId=${archetypeId}`);
+    }
+
     return { success: true };
   } catch (error) {
     console.error('[database-handlers] Error saving season edit:', error);
@@ -420,6 +433,41 @@ ipcMain.handle('database:get-season-edits-for-player', async (event, originalPla
     return { success: true, data: userDatabaseService.getSeasonEditsForPlayer(originalPlayerId) };
   } catch (error) {
     console.error('[database-handlers] Error getting season edits:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// =============================================
+// PLAYER ARCHETYPE OPERATIONS (Player-level, constant across seasons)
+// =============================================
+
+/**
+ * Handle: database:get-player-archetype
+ * Get the player-level archetype (constant across all seasons)
+ */
+ipcMain.handle('database:get-player-archetype', async (event, playerId: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    const result = userDatabaseService.getPlayerArchetype(playerId);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[database-handlers] Error getting player archetype:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:save-player-archetype
+ * Save the player-level archetype (constant across all seasons)
+ */
+ipcMain.handle('database:save-player-archetype', async (event, playerId: number, archetype: string, archetypeId?: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    userDatabaseService.savePlayerArchetype(playerId, archetype, archetypeId);
+    console.log(`[database-handlers] Saved player archetype: playerId=${playerId}, archetype=${archetype}`);
+    return { success: true };
+  } catch (error) {
+    console.error('[database-handlers] Error saving player archetype:', error);
     return { success: false, error: String(error) };
   }
 });
@@ -1305,15 +1353,10 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
     const allPlayerEdits = userDatabaseService.getAllPlayerEdits();
     const allAppearanceEdits = userDatabaseService.getAllAppearanceEdits();
 
-    // Get hidden players list
-    const hiddenPlayerIds = new Set(userDatabaseService.getHiddenPlayers());
+    // NOTE: Hidden player filtering is NOT done here - it's only for roster generation
+    // All players should be searchable for portrait management and editing
 
     let results = lookupService.searchPlayers(query, options?.limit || 100);
-
-    // Filter out hidden players
-    if (hiddenPlayerIds.size > 0) {
-      results = results.filter(p => !hiddenPlayerIds.has(p.internalId));
-    }
 
     // Apply HOF filter early (before other filters) for better performance
     if (options?.hof === 'hof') {
@@ -1574,10 +1617,8 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     const offset = options?.offset || 0;
     const limit = options?.limit || 50;
 
-    // Get hidden players list for filtering
-    const hiddenList = userDatabaseService.getHiddenPlayers();
-    console.log(`[database-handlers] Hidden players from DB:`, hiddenList);
-    const hiddenPlayerIds = new Set(hiddenList);
+    // NOTE: Hidden player filtering is NOT done in search - it's only for roster generation
+    // All players should be searchable for portrait management and editing
 
     // Get all custom players first
     let customPlayers = userDatabaseService.getAllCustomPlayers();
@@ -1697,20 +1738,8 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     let allPlayers = lookupService.getAllPlayers();
     console.log(`[database-handlers] getAllPlayers - Total players in cache: ${allPlayers.length}, custom: ${customMapped.length}`);
 
-    // Filter out hidden players (user has hidden from search results)
-    console.log(`[database-handlers] HIDDEN CHECK - size: ${hiddenPlayerIds.size}, IDs:`, Array.from(hiddenPlayerIds));
-    if (hiddenPlayerIds.size > 0) {
-      const beforeFilter = allPlayers.length;
-      // Check each player and log if they're being filtered
-      allPlayers = allPlayers.filter(p => {
-        const isHidden = hiddenPlayerIds.has(p.internalId);
-        if (isHidden) {
-          console.log(`[database-handlers] REMOVING hidden player: internalId=${p.internalId}, name=${p.firstName} ${p.lastName}`);
-        }
-        return !isHidden;
-      });
-      console.log(`[database-handlers] Filtered out ${beforeFilter - allPlayers.length} hidden players, remaining: ${allPlayers.length}`);
-    }
+    // NOTE: Hidden players are NOT filtered in search - filtering is only for roster generation
+    // All players must be searchable for portrait management and editing
 
     // Apply server-side filters BEFORE pagination
     // Apply HOF filter first (most restrictive)
@@ -2107,44 +2136,113 @@ function getDevTraitFromSeasonData(seasonData: any): number {
   return 0;
 }
 
+// Position ID to name mapping (matches POSITION_MAPPINGS in field-definitions.js)
+const POSITION_ID_MAP: { [key: number]: string } = {
+  0: 'QB', 1: 'HB', 2: 'FB', 3: 'WR', 4: 'TE', 5: 'LT', 6: 'LG', 7: 'C', 8: 'RG', 9: 'RT',
+  10: 'LEDG', 11: 'REDG', 12: 'DT', 13: 'SAM', 14: 'MIKE', 15: 'WILL', 16: 'CB',
+  17: 'FS', 18: 'SS', 19: 'K', 20: 'P', 21: 'LS'
+};
+
+/**
+ * Generate body type using EA's exact algorithm from FranchiseUtils.js
+ * Returns numeric body type code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+ */
+function generateBodyType(weight: number, height: number, position: string | number): number {
+  const w = weight || 200;
+  const h = height || 74;
+
+  // Convert numeric position ID to string name
+  let pos: string;
+  if (typeof position === 'number') {
+    pos = POSITION_ID_MAP[position] || '';
+  } else {
+    pos = position || '';
+  }
+  pos = pos.toUpperCase();
+
+  // M26 rule: very light players get Lean body type
+  if (w <= 180) {
+    return 4; // Lean
+  }
+
+  // Special teams positions: Standard
+  if (pos === 'K' || pos === 'P') {
+    return 0; // Standard
+  }
+
+  // QB or WR: height and weight dependent
+  if (pos === 'QB' || pos === 'WR') {
+    if (w >= 210 && h <= 71) {
+      return 2; // Muscular (short and heavy)
+    } else if (h >= 76) {
+      return 1; // Thin (tall)
+    }
+    return 0; // Standard
+  }
+
+  // Offensive Line positions: Heavy or Muscular based on weight
+  if (['LT', 'LG', 'C', 'RG', 'RT'].includes(pos)) {
+    if (w >= 300) {
+      return 3; // Heavy
+    }
+    return 2; // Muscular
+  }
+
+  // Linebackers, Tight Ends, Fullbacks: always Muscular
+  // Map alternative position names
+  const lbPositions = ['LOLB', 'MLB', 'ROLB', 'WILL', 'MIKE', 'SAM', 'OLB'];
+  if (lbPositions.includes(pos) || pos === 'TE' || pos === 'FB') {
+    return 2; // Muscular
+  }
+
+  // Defensive Line positions: Heavy or Muscular based on weight
+  // Map alternative position names
+  const dlPositions = ['LE', 'RE', 'DT', 'LEDG', 'REDG', 'DE'];
+  if (dlPositions.includes(pos)) {
+    if (w >= 275) {
+      return 3; // Heavy
+    }
+    return 2; // Muscular
+  }
+
+  // Halfback: weight dependent
+  if (pos === 'HB' || pos === 'RB') {
+    if (w >= 220) {
+      return 2; // Muscular
+    } else if (w >= 180) {
+      return 0; // Standard
+    }
+    return 1; // Thin
+  }
+
+  // Defensive Backs: weight dependent
+  if (['CB', 'FS', 'SS'].includes(pos)) {
+    if (w >= 180) {
+      return 0; // Standard
+    }
+    return 1; // Thin
+  }
+
+  // Default fallback
+  return 0; // Standard
+}
+
 /**
  * Determine body type for draft class based on position and weight/height
- * Returns Madden body type STRING: "Thin", "Muscular", "Heavy"
+ * Returns Madden body type STRING: "Standard", "Thin", "Muscular", "Heavy", "Lean"
  */
 function getDraftBodyType(position: string, weight: number, height: number): string {
-  const pos = position.toUpperCase();
-  const w = weight || 200;
-  const h = height || 73;
-
-  // Calculate BMI
-  const bmi = (w / (h * h)) * 703;
-
-  // HB and QB should ALWAYS be Muscular - never Heavy
-  if (['HB', 'QB'].includes(pos)) {
-    return 'Muscular';
-  } else if (['WR', 'CB', 'FS'].includes(pos)) {
-    return bmi < 24 ? 'Thin' : 'Muscular';
-  } else if (['FB', 'SAM', 'MIKE', 'WILL', 'SS', 'TE'].includes(pos)) {
-    return bmi < 28 ? 'Muscular' : 'Heavy';
-  } else if (['LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT'].includes(pos)) {
-    return 'Heavy';
-  } else {
-    return 'Muscular';
-  }
+  const bodyTypeCode = generateBodyType(weight, height, position);
+  const BODY_TYPE_STRINGS = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+  return BODY_TYPE_STRINGS[bodyTypeCode] || 'Standard';
 }
 
 /**
  * Get body type code for roster (PCBT field)
- * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy
+ * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
  */
 function getRosterBodyType(position: string, weight: number, height: number): number {
-  const bodyType = getDraftBodyType(position, weight, height);
-  switch (bodyType) {
-    case 'Thin': return 1;
-    case 'Muscular': return 2;
-    case 'Heavy': return 3;
-    default: return 0; // Standard
-  }
+  return generateBodyType(weight, height, position);
 }
 
 /**
@@ -2589,7 +2687,7 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       rosterPlayer.PCTH = r.PCTH || 70;
       rosterPlayer.PCAR = r.PCAR || 70;
       rosterPlayer.PTHP = r.PTHP || 70;
-      rosterPlayer.PKPR = r.PKPW || 70; // PKPW in db = PKPR in roster (kick power)
+      rosterPlayer.PKPR = r.PKPR || r.PKPW || 70; // M26 roster code - check PKPR first, fallback to legacy
       rosterPlayer.PKAC = r.PKAC || 70;
       rosterPlayer.PRBK = r.PRBK || 70;
       rosterPlayer.PPBK = r.PPBK || 70;
@@ -2635,15 +2733,28 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       rosterPlayer.PBSK = r.PBRS || 70; // PBRS in db = PBSK (break sack)
       rosterPlayer.PKRT = r.PKRT || 70;
 
-      // Parse archetype - it may be stored as string or number
+      // Parse archetype - PRIORITY ORDER:
+      // 1. Player-level archetype (set via database browser - constant across all seasons)
+      // 2. Season-specific archetype (from season data)
+      // 3. Default archetype for position
       let archetypeId = defaultArchetype;
-      if (seasonData.archetype !== undefined && seasonData.archetype !== null) {
+
+      // CRITICAL: Check for player-level archetype first (user's explicit choice)
+      const storedPlayerArchetype = userDatabaseService.getPlayerArchetype(internalId);
+      if (storedPlayerArchetype && storedPlayerArchetype.archetypeId !== null && storedPlayerArchetype.archetypeId >= 0) {
+        archetypeId = storedPlayerArchetype.archetypeId;
+        console.log(`[database-handlers] Using PLAYER-LEVEL archetype for ${player.firstName} ${player.lastName}: ${storedPlayerArchetype.archetype} (ID: ${archetypeId})`);
+      } else if (seasonData.archetype !== undefined && seasonData.archetype !== null) {
+        // Fall back to season-specific archetype
         if (typeof seasonData.archetype === 'number') {
           archetypeId = seasonData.archetype;
         } else if (typeof seasonData.archetype === 'string') {
           const parsed = parseInt(seasonData.archetype, 10);
           archetypeId = isNaN(parsed) ? defaultArchetype : parsed;
         }
+        console.log(`[database-handlers] Using season archetype for ${player.firstName} ${player.lastName}: ${archetypeId}`);
+      } else {
+        console.log(`[database-handlers] Using DEFAULT archetype for ${player.firstName} ${player.lastName}: ${archetypeId}`);
       }
       rosterPlayer.PLTY = archetypeId;  // PLTY is what franchise reads!
 
@@ -2999,19 +3110,30 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
     // Get default archetype for position
     const defaultArchetype = DEFAULT_ARCHETYPES[positionName] || 0;
 
-    // Parse archetype from season data ONLY if season position matches player position
-    // If positions don't match, the season data is likely from a different player
+    // Parse archetype - PRIORITY ORDER:
+    // 1. Player-level archetype (set via database browser - constant across all seasons)
+    // 2. Season-specific archetype (ONLY if position matches)
+    // 3. Default archetype for position
     let archetypeId = defaultArchetype;
-    if (seasonPositionMatches && seasonData?.archetype !== undefined && seasonData?.archetype !== null) {
+
+    // CRITICAL: Check for player-level archetype first (user's explicit choice)
+    const storedPlayerArchetype = userDatabaseService.getPlayerArchetype(internalId);
+    if (storedPlayerArchetype && storedPlayerArchetype.archetypeId !== null && storedPlayerArchetype.archetypeId >= 0) {
+      archetypeId = storedPlayerArchetype.archetypeId;
+      console.log(`[database-handlers] Draft: Using PLAYER-LEVEL archetype for ${player.firstName} ${player.lastName}: ${storedPlayerArchetype.archetype} (ID: ${archetypeId})`);
+    } else if (seasonPositionMatches && seasonData?.archetype !== undefined && seasonData?.archetype !== null) {
+      // Fall back to season-specific archetype
       if (typeof seasonData.archetype === 'number') {
         archetypeId = seasonData.archetype;
       } else if (typeof seasonData.archetype === 'string') {
         const parsed = parseInt(seasonData.archetype, 10);
         archetypeId = isNaN(parsed) ? defaultArchetype : parsed;
       }
-      console.log(`[database-handlers] Using season archetype ${archetypeId} (positions match)`);
+      console.log(`[database-handlers] Draft: Using season archetype ${archetypeId} (positions match)`);
     } else if (seasonData && !seasonPositionMatches) {
-      console.log(`[database-handlers] Ignoring season archetype - position mismatch (player=${positionName}, season=${seasonData.position})`);
+      console.log(`[database-handlers] Draft: Ignoring season archetype - position mismatch (player=${positionName}, season=${seasonData.position})`);
+    } else {
+      console.log(`[database-handlers] Draft: Using DEFAULT archetype for ${player.firstName} ${player.lastName}: ${archetypeId}`);
     }
 
     // Get archetype name from ID and position
@@ -3183,7 +3305,7 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       prospect.pressCoverage = r.PPRS || 70;
 
       // Special teams
-      prospect.kickPower = r.PKPW || 70;
+      prospect.kickPower = r.PKPR || r.PKPW || 70;
       prospect.kickAccuracy = r.PKAC || 70;
       prospect.kickReturn = r.PKRT || 70;
       prospect.longSnap = 70;
@@ -4168,7 +4290,10 @@ ipcMain.handle('database:merge-players', async (
 
         // Clear all edits from secondary bundled player (don't delete - it's bundled)
         userDatabaseService.clearPlayerSeasons(secondaryId);
-        console.log(`[database-handlers] Cleared edits from bundled player ${secondaryId}`);
+
+        // Hide the secondary player so they don't appear in search results
+        userDatabaseService.hidePlayer(secondaryId);
+        console.log(`[database-handlers] Cleared edits from bundled player ${secondaryId} and hid from searches`);
       }
     }
 
@@ -4628,12 +4753,16 @@ ipcMain.handle('database:distribute-ovr-to-ratings', async (event, options: {
     console.log(`[database-handlers] Final: ${Object.keys(finalAttrs).length} total ratings, OVR=${finalAttrs.POVR}`);
 
     const finalArchetype = result?.archetype || archetypeName || undefined;
+    // Get archetype ID from name using ArchetypeService
+    let finalArchetypeId = 0;
+    if (finalArchetype) {
+      finalArchetypeId = ArchetypeService.getArchetypeId(finalArchetype, position);
+    }
     return {
       success: true,
       ratings: finalAttrs,
       archetype: finalArchetype,
-      archetypeId: finalArchetype ?
-        Object.entries(ovrWeightsCalculator.getArchetypeWeights(finalArchetype) || {}).length : 0
+      archetypeId: finalArchetypeId
     };
   } catch (error) {
     console.error('[database-handlers] Error distributing OVR to ratings:', error);
@@ -4673,8 +4802,10 @@ ipcMain.handle('database:debug-user-edits', async (event, year: number) => {
     // Sort by POVR descending
     editsArray.sort((a, b) => (b.POVR || 0) - (a.POVR || 0));
 
-    // Get database player IDs for comparison
-    const dbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
+    // Get database player IDs for comparison (filter out hidden players)
+    const allDbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
+    const hiddenIds = new Set(userDatabaseService.getHiddenPlayers());
+    const dbPlayers = allDbPlayers.filter(p => !hiddenIds.has(p.playerId));
     const sampleDbIds = dbPlayers.slice(0, 10).map(p => ({
       playerId: p.playerId,
       name: `${p.firstName} ${p.lastName}`,

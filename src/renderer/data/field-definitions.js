@@ -967,44 +967,92 @@ export const BODY_TYPE_NAMES = {
 };
 
 /**
- * Determine body type from actual weight (in pounds)
- * @param {number} actualWeight - Player weight in pounds
- * @param {number|string} position - Position code or name (optional, for context)
- * @returns {number} Body type code (0-4)
+ * Generate body type using EA's exact algorithm from FranchiseUtils.js
+ * This matches the official Madden body type calculation.
+ *
+ * @param {number} weight - Actual weight in pounds (PWGT + 160)
+ * @param {number} height - Height in inches (PHGT value)
+ * @param {number|string} position - Position ID (numeric) or name (string)
+ * @returns {number} Body type code (0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean)
  */
-export function getBodyTypeFromWeight(actualWeight, position = null) {
-    // Position names that should always be Thin
-    const thinPositions = ['K', 'P', 19, 20];
-    // Position names that should always be Heavy
-    const heavyPositions = ['LT', 'LG', 'C', 'RG', 'RT', 'DT', 5, 6, 7, 8, 9, 12];
-    // Position names that tend to be Muscular
-    const muscularPositions = ['TE', 'FB', 'LEDG', 'REDG', 'LE', 'RE', 4, 2, 10, 11];
+export function generateBodyType(weight, height, position) {
+    // Convert numeric position ID to string name
+    let pos = position;
+    if (typeof position === 'number') {
+        pos = POSITION_MAPPINGS[position] || '';
+    }
+    // Normalize to uppercase for comparison
+    pos = (pos || '').toUpperCase();
 
-    // If position is provided and is a specialty position, use position-based logic
-    if (position !== null) {
-        if (thinPositions.includes(position)) {
-            return 1; // Thin for K/P
-        }
-        if (heavyPositions.includes(position)) {
-            return actualWeight >= 330 ? 3 : 3; // Always Heavy for OL/DT
-        }
-        if (muscularPositions.includes(position)) {
-            return actualWeight >= 280 ? 3 : 2; // Heavy if really big, else Muscular
-        }
+    // M26 rule: very light players get Lean body type
+    if (weight <= 180) {
+        return 4; // Lean
     }
 
-    // Weight-based body type determination (for skill positions and general use)
-    if (actualWeight < 190) {
-        return 4; // Lean for very light players
-    } else if (actualWeight < 215) {
-        return 0; // Standard for average skill position weight
-    } else if (actualWeight < 250) {
-        return 0; // Standard for typical QB/LB weight
-    } else if (actualWeight < 280) {
-        return 2; // Muscular for bigger players
-    } else {
-        return 3; // Heavy for 280+ lbs
+    // Special teams positions: Standard
+    if (pos === 'K' || pos === 'P') {
+        return 0; // Standard
     }
+
+    // QB or WR: height and weight dependent
+    if (pos === 'QB' || pos === 'WR') {
+        if (weight >= 210 && height <= 71) {
+            return 2; // Muscular (short and heavy)
+        } else if (height >= 76) {
+            return 1; // Thin (tall)
+        }
+        return 0; // Standard
+    }
+
+    // Offensive Line positions: Heavy or Muscular based on weight
+    if (['LT', 'LG', 'C', 'RG', 'RT'].includes(pos)) {
+        if (weight >= 300) {
+            return 3; // Heavy
+        }
+        return 2; // Muscular
+    }
+
+    // Linebackers (SAM/MIKE/WILL or LOLB/MLB/ROLB), Tight Ends, Fullbacks: always Muscular
+    if (['SAM', 'MIKE', 'WILL', 'LOLB', 'MLB', 'ROLB', 'TE', 'FB'].includes(pos)) {
+        return 2; // Muscular
+    }
+
+    // Defensive Line positions (LEDG/REDG or LE/RE, and DT): Heavy or Muscular based on weight
+    if (['LEDG', 'REDG', 'LE', 'RE', 'DT'].includes(pos)) {
+        if (weight >= 275) {
+            return 3; // Heavy
+        }
+        return 2; // Muscular
+    }
+
+    // Halfback: weight dependent
+    if (pos === 'HB') {
+        if (weight >= 220) {
+            return 2; // Muscular
+        } else if (weight >= 180) {
+            return 0; // Standard
+        }
+        return 1; // Thin
+    }
+
+    // Defensive Backs: weight dependent
+    if (['CB', 'FS', 'SS'].includes(pos)) {
+        if (weight >= 180) {
+            return 0; // Standard
+        }
+        return 1; // Thin
+    }
+
+    // Default fallback
+    return 0; // Standard
+}
+
+/**
+ * Backward-compatible wrapper for generateBodyType
+ * @deprecated Use generateBodyType(weight, height, position) instead
+ */
+export function getBodyTypeFromWeight(actualWeight, position = null, height = 74) {
+    return generateBodyType(actualWeight, height, position);
 }
 
 /**
@@ -1054,12 +1102,13 @@ export function onBodyTypeChange(newBodyType, position = null) {
 }
 
 /**
- * Handle weight change - returns new body type code
+ * Handle weight change - returns new body type code using EA's exact algorithm
  * @param {number} newStoredWeight - New stored weight value
  * @param {number|string} position - Position code or name (optional)
+ * @param {number} height - Height in inches (optional, defaults to 74)
  * @returns {number} New body type code (0-4)
  */
-export function onWeightChange(newStoredWeight, position = null) {
+export function onWeightChange(newStoredWeight, position = null, height = 74) {
     const actualWeight = storedWeightToActual(newStoredWeight);
-    return getBodyTypeFromWeight(actualWeight, position);
+    return generateBodyType(actualWeight, height, position);
 }

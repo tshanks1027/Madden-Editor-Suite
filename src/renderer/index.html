@@ -1621,6 +1621,9 @@
                                         <button class="v2-tools-item" id="toolsFixFacesBtn">
                                             <span class="v2-tools-icon">👤</span>Fix Faces
                                         </button>
+                                        <button class="v2-tools-item" id="toolsFixBodyTypesBtn">
+                                            <span class="v2-tools-icon">🏋️</span>Fix Body Types
+                                        </button>
                                         <button class="v2-tools-item" id="toolsFixCommentaryBtn">
                                             <span class="v2-tools-icon">🎙️</span>Fix Commentary
                                         </button>
@@ -1921,6 +1924,9 @@
                                         <div class="v2-tools-divider"></div>
                                         <button class="v2-tools-item" id="draftToolsFixFacesBtn">
                                             <span class="v2-tools-icon">👤</span>Fix Faces
+                                        </button>
+                                        <button class="v2-tools-item" id="draftToolsFixBodyTypesBtn">
+                                            <span class="v2-tools-icon">🏋️</span>Fix Body Types
                                         </button>
                                         <button class="v2-tools-item" id="draftToolsFixCommentaryBtn">
                                             <span class="v2-tools-icon">🎙️</span>Fix Commentary
@@ -5009,6 +5015,10 @@
                         <select id="dbPlayerYearSelect">
                             <option value="">Select Year for Ratings</option>
                         </select>
+                        <label style="margin-left: 20px;">Archetype:</label>
+                        <select id="dbPlayerArchetype" style="min-width: 180px;">
+                            <option value="">Select Archetype</option>
+                        </select>
                         <label class="db-apply-all-years-label"
                             style="margin-left: 20px; display: inline-flex; align-items: center; cursor: pointer;">
                             <input type="checkbox" id="dbApplyToAllYears" style="margin-right: 6px;">
@@ -5042,12 +5052,6 @@
                                 <label class="db-form-label">Position</label>
                                 <select class="db-form-select" id="dbPlayerSeasonPosition">
                                     <option value="">Select Position</option>
-                                </select>
-                            </div>
-                            <div class="db-form-item">
-                                <label class="db-form-label">Archetype</label>
-                                <select class="db-form-select" id="dbPlayerSeasonArchetype">
-                                    <option value="">Select Position First</option>
                                 </select>
                             </div>
                         </div>

@@ -754,6 +754,12 @@ class GenericFaceService {
       const playerGenr = player.assignedGenr ?? player._genr;
       const playerSknt = player.assignedSknt ?? player._sknt;
 
+      // DEBUG: Log assignedGenr status for first 5 players and debug players
+      if (isDebugPlayer || i < 5) {
+        console.log(`[GenericFaceService] Player ${i} ${playerName}: assignedGenr="${player.assignedGenr}", assignedSknt=${player.assignedSknt}, _genr="${player._genr}", _sknt=${player._sknt}`);
+        console.log(`[GenericFaceService]   -> resolved playerGenr="${playerGenr}", playerSknt=${playerSknt}`);
+      }
+
       if (playerGenr && playerSknt !== undefined && playerSknt !== null) {
         if (isValidGenr(playerGenr)) {
           finalGenr = playerGenr;
@@ -1016,34 +1022,21 @@ class GenericFaceService {
         }
       }
 
-      // Also update WLBS (body weight/size visual) based on PCBT
+      // Also update WLBS (body weight/size visual) - WLBS is the actual weight in pounds
       // WLBS controls the body size appearance in-game
-      // PCBT values: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+      // PWGT is stored as (actual_weight - 160), so actual weight = PWGT + 160
       let wlbsUpdated = false;
       if (fields['WLBS']) {
-        const pcbt = player.PCBT;
+        // Calculate actual weight from PWGT
+        const pwgt = player.PWGT;
         let targetWlbs = null;
 
-        // Map PCBT to WLBS ranges (based on official roster analysis)
-        // Lower WLBS = thinner body, Higher WLBS = heavier body
-        switch (pcbt) {
-          case 0: // Standard - use player weight or default
-            targetWlbs = player.PWGT ? Math.round(player.PWGT * 1.5) + 100 : 150;
-            break;
-          case 1: // Thin
-            targetWlbs = 80;
-            break;
-          case 2: // Muscular
-            targetWlbs = 200;
-            break;
-          case 3: // Heavy
-            targetWlbs = 280;
-            break;
-          case 4: // Lean - athletic slim build, between Thin and Muscular
-            targetWlbs = 120;
-            break;
-          default:
-            targetWlbs = null;
+        if (pwgt !== undefined && pwgt !== null) {
+          // Convert PWGT offset back to actual weight
+          targetWlbs = pwgt + 160;
+        } else {
+          // Default to 200 lbs if no weight data
+          targetWlbs = 200;
         }
 
         if (targetWlbs !== null) {

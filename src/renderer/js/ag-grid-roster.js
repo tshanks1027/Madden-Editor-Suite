@@ -5,7 +5,7 @@
 
 import { createGrid } from 'ag-grid-community';
 import {
-    getBodyTypeFromWeight,
+    generateBodyType,
     getWeightFromBodyType,
     BODY_TYPE_NAMES
 } from '../data/field-definitions.js';
@@ -228,12 +228,13 @@ export function createRosterGrid(container, players, columnDefs, app) {
                 });
             }
 
-            // When weight changes, update body type to match
+            // When weight changes, update body type to match using EA's exact algorithm
             if (fieldName === 'PWGT') {
                 // In this grid, PWGT is actual weight (no transform)
                 const actualWeight = event.data.PWGT;
                 const position = player.PPOS;
-                const newBodyType = getBodyTypeFromWeight(actualWeight, position);
+                const height = player.PHGT || 74; // Height in inches, default 74 (6'2")
+                const newBodyType = generateBodyType(actualWeight, height, position);
                 const oldBodyType = player.PCBT;
 
                 if (newBodyType !== oldBodyType) {
