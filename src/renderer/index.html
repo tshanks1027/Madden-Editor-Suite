@@ -4738,6 +4738,46 @@
                             <span class="info-label">Jersey</span>
                             <input type="number" class="info-input" id="playerCardJersey" min="0" max="99">
                         </div>
+                        <div class="player-info-item" style="grid-column: span 2;">
+                            <span class="info-label">QB Style</span>
+                            <select class="info-input" id="playerCardQBStyle" style="width: 100%;">
+                                <option value="0">Generic Slow</option>
+                                <option value="1">Generic</option>
+                                <option value="2">Tom Brady</option>
+                                <option value="3">Joe Burrow</option>
+                                <option value="4">Mac Jones</option>
+                                <option value="5">Lamar Jackson</option>
+                                <option value="6">Russell Wilson</option>
+                                <option value="7">Aaron Rodgers</option>
+                                <option value="8">Patrick Mahomes</option>
+                                <option value="9">Josh Allen</option>
+                                <option value="10">Kyler Murray</option>
+                                <option value="11">Justin Herbert</option>
+                                <option value="12">Matt Stafford</option>
+                                <option value="13">Baker Mayfield</option>
+                            </select>
+                        </div>
+                        <div class="player-info-item" style="grid-column: span 2;">
+                            <span class="info-label">Running Style</span>
+                            <select class="info-input" id="playerCardRunningStyle" style="width: 100%;">
+                                <option value="0">None</option>
+                                <option value="1">Default</option>
+                                <option value="2">Default - High & Tight</option>
+                                <option value="3">Default - Loose</option>
+                                <option value="4">Default - Bread Loaf</option>
+                                <option value="5">Default - Awkward</option>
+                                <option value="6">Short Stride - Default</option>
+                                <option value="7">Short Stride - High & Tight</option>
+                                <option value="8">Short Stride - Loose</option>
+                                <option value="9">Short Stride - Bread Loaf</option>
+                                <option value="10">Short Stride - Awkward</option>
+                                <option value="11">Long Stride - Default</option>
+                                <option value="12">Long Stride - High & Tight</option>
+                                <option value="13">Long Stride - Loose</option>
+                                <option value="14">Long Stride - Bread Loaf</option>
+                                <option value="15">Long Stride - Awkward</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -4815,6 +4855,17 @@
                     </div>
                 </div>
 
+                <!-- Base Traits Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">
+                        Base Traits
+                        <span style="font-size: 11px; color: #888; font-weight: normal; float: right;">Toggle traits on/off</span>
+                    </h3>
+                    <div id="playerCardBaseTraitsContainer">
+                        <p style="color: #888; text-align: center; padding: 20px;">Select a player to view base traits</p>
+                    </div>
+                </div>
+
                 <!-- Traits Section -->
                 <div class="player-card-section">
                     <h3 class="player-card-section-title">
@@ -4835,6 +4886,29 @@
                     </div>
                     <div id="playerCardTraitsContainer">
                         <p style="color: #888; text-align: center; padding: 20px;">Select a player to view traits</p>
+                    </div>
+                </div>
+
+                <!-- Draft Info Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Draft Info</h3>
+                    <div class="player-info-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="player-info-item">
+                            <span class="info-label">Draft Round</span>
+                            <input type="number" class="info-input" id="playerCardDraftRound" min="0" max="7" step="1">
+                        </div>
+                        <div class="player-info-item">
+                            <span class="info-label">Draft Pick</span>
+                            <input type="number" class="info-input" id="playerCardDraftPick" min="0" max="262" step="1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accolades Section -->
+                <div class="player-card-section">
+                    <h3 class="player-card-section-title">Accolades</h3>
+                    <div id="playerCardAccoladesContainer">
+                        <div class="trait-grid"></div>
                     </div>
                 </div>
             </div>

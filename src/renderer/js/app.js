@@ -10914,6 +10914,10 @@ class MaddenEditorApp {
 
         document.getElementById('playerCardJersey').value = playerData.PJEN || '';
 
+        // QB Style and Running Style dropdowns
+        document.getElementById('playerCardQBStyle').value = playerData.PQBS || 0;
+        document.getElementById('playerCardRunningStyle').value = playerData.PRSE || 0;
+
         // Contract section - editable
         document.getElementById('playerCardContractYears').value = playerData.PCON || 0;
         document.getElementById('playerCardYearsLeft').value = playerData.PCYL || 0;
@@ -10937,8 +10941,18 @@ class MaddenEditorApp {
         // Ratings section - populate based on position
         this.populatePlayerRatings(playerData, position);
 
+        // Base Traits section - boolean trait fields (TRBH, TRCL, etc.)
+        this.populateBaseTraits(playerData);
+
         // Traits section - populate based on position
         this.populatePlayerTraits(playerData, position);
+
+        // Draft Info section
+        document.getElementById('playerCardDraftRound').value = playerData.PDRO || 0;
+        document.getElementById('playerCardDraftPick').value = playerData.PDPI || 0;
+
+        // Accolades section
+        this.populateAccolades(playerData);
 
         // Setup scroll wheel editing for player card
         this.setupPlayerCardScrollWheelEditing();
@@ -10997,6 +11011,10 @@ class MaddenEditorApp {
         this.currentPlayerCardData.PCOL = college;
         this.currentPlayerCardData.PJEN = jersey;
         this.currentPlayerCardData.PSXP = pid;
+
+        // Update QB Style and Running Style
+        this.currentPlayerCardData.PQBS = parseInt(document.getElementById('playerCardQBStyle').value) || 0;
+        this.currentPlayerCardData.PRSE = parseInt(document.getElementById('playerCardRunningStyle').value) || 0;
 
         // Update contract data (values stored in hundredths, inputs in millions)
         const contractYears = parseInt(document.getElementById('playerCardContractYears').value) || 0;
@@ -11060,6 +11078,34 @@ class MaddenEditorApp {
                 const fieldCode = input.dataset.field;
                 if (fieldCode) {
                     // Roster file traits are stored as 0 or 1
+                    this.currentPlayerCardData[fieldCode] = input.checked ? 1 : 0;
+                }
+            });
+        }
+
+        // Update base traits from toggle inputs
+        const baseTraitsContainer = document.getElementById('playerCardBaseTraitsContainer');
+        if (baseTraitsContainer) {
+            baseTraitsContainer.querySelectorAll('.trait-toggle input').forEach(input => {
+                const fieldCode = input.dataset.field;
+                if (fieldCode) {
+                    // Base traits are stored as 0 or 1
+                    this.currentPlayerCardData[fieldCode] = input.checked ? 1 : 0;
+                }
+            });
+        }
+
+        // Update draft info
+        this.currentPlayerCardData.PDRO = parseInt(document.getElementById('playerCardDraftRound').value) || 0;
+        this.currentPlayerCardData.PDPI = parseInt(document.getElementById('playerCardDraftPick').value) || 0;
+
+        // Update accolades from toggle inputs
+        const accoladesContainer = document.getElementById('playerCardAccoladesContainer');
+        if (accoladesContainer) {
+            accoladesContainer.querySelectorAll('.trait-toggle input').forEach(input => {
+                const fieldCode = input.dataset.field;
+                if (fieldCode) {
+                    // Accolades are stored as 0 or 1
                     this.currentPlayerCardData[fieldCode] = input.checked ? 1 : 0;
                 }
             });
@@ -11250,8 +11296,8 @@ class MaddenEditorApp {
         // These are the attributes that directly affect OVR calculation for each position
         const positionRatings = {
             // QB OVR: PAWR*0.16 + PTHP*0.16 + PTAS*0.12 + PTAM*0.12 + PTAD*0.10 + PTOR*0.04 + PSPD*0.03 + PCAR*0.02 + PAGI*0.02 + PSTR*0.02 + PINJ*0.01 + PSTA*0.01
-            // Added PTUP (Throw Under Pressure) and PBSK (Break Sack) which are key QB stats
-            'QB': ['PAWR', 'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PBSK', 'PSPD', 'PCAR', 'PAGI', 'PSTR'],
+            // Added PTHA (Throw Accuracy), PTUP (Throw Under Pressure) and PBSK (Break Sack) which are key QB stats
+            'QB': ['PAWR', 'PTHP', 'PTHA', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PBSK', 'PSPD', 'PCAR', 'PAGI', 'PSTR'],
             // HB OVR: PSPD*0.20 + PACC*0.10 + PAGI*0.08 + PCAR*0.10 + PBCV*0.08 + PBKT*0.08 + PSTR*0.06 + PELU*0.06 + PCTH*0.04 + PAWR*0.08 + PSTA*0.04 + PINJ*0.03 + PJMP*0.03 + PTGH*0.02
             'HB': ['PSPD', 'PACC', 'PAGI', 'PCAR', 'PBCV', 'PBKT', 'PSTR', 'PELU', 'PCTH', 'PAWR'],
             'FB': ['PSPD', 'PACC', 'PAGI', 'PCAR', 'PBCV', 'PBKT', 'PSTR', 'PELU', 'PCTH', 'PAWR'],
@@ -11339,6 +11385,116 @@ class MaddenEditorApp {
     /**
      * Populate player traits section based on position
      */
+    populateBaseTraits(playerData) {
+        const container = document.getElementById('playerCardBaseTraitsContainer');
+        if (!container) {
+            console.warn('[App] Base traits container not found');
+            return;
+        }
+
+        // Base trait definitions - these are the TR* boolean fields that EXIST in roster files
+        // Verified fields: TRBH, TRBR, TRCB, TRCL, TRDO, TRDS, TRFB, TRFK, TRFY, TRHM, TRJR, TRSB, TRSW, TRTA, TRTL, TRTS, TRWU
+        // Note: TRCT, TRDP, TSPM do NOT exist in roster files
+        const BASE_TRAITS = [
+            { field: 'TRBH', display: 'Big Hitter', description: 'Delivers powerful hits on ball carriers' },
+            { field: 'TRCL', display: 'Clutch', description: 'Performs better in key moments' },
+            { field: 'TRHM', display: 'High Motor', description: 'Plays with high energy throughout the game' },
+            { field: 'TRSB', display: 'Strip Ball', description: 'Goes for forced fumbles on tackles' },
+            { field: 'TRFB', display: 'Feet in Bounds', description: 'Stays in bounds on sideline catches' },
+            { field: 'TRFY', display: 'Fight for Yards', description: 'Fights for extra yards after contact' },
+            { field: 'TRJR', display: 'High Point Catch', description: 'Goes up to catch high passes' },
+            { field: 'TRWU', display: 'YAC Catch', description: 'Catches prepared to run after the catch' },
+            { field: 'TRTA', display: 'Throw Away', description: 'Throws ball away under pressure' },
+            { field: 'TRTS', display: 'Tight Spiral', description: 'Throws with a tight spiral' },
+            { field: 'TRSW', display: 'DL Swim', description: 'Uses swim move to beat blockers' },
+            { field: 'TRDS', display: 'DL Spin', description: 'Uses spin move to beat blockers' },
+            { field: 'TRBR', display: 'DL Bull Rush', description: 'Powers through blockers' },
+            { field: 'TRTL', display: 'Tackle Low', description: 'Goes for low tackles' },
+            { field: 'TRDO', display: 'Drop Open Pass', description: 'May drop easy catches' },
+            { field: 'TRFK', display: 'Pump Fake', description: 'Uses effective pump fakes' },
+            { field: 'TRCB', display: 'Cover Ball', description: 'Protects the ball in traffic' }
+        ];
+
+        let html = '<div class="trait-grid">';
+
+        BASE_TRAITS.forEach(trait => {
+            const value = playerData[trait.field] || 0;
+            const isActive = value > 0;
+            const activeClass = isActive ? 'active' : '';
+            const checkedAttr = isActive ? 'checked' : '';
+
+            html += `
+                <div class="trait-item ${activeClass}" title="${trait.description}" data-trait="${trait.field}">
+                    <label class="trait-label" for="baseTrait_${trait.field}">${trait.display}</label>
+                    <label class="trait-toggle">
+                        <input type="checkbox" id="baseTrait_${trait.field}" data-field="${trait.field}" ${checkedAttr}>
+                        <span class="trait-toggle-slider"></span>
+                    </label>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+
+        // Add event listeners for trait toggles
+        container.querySelectorAll('.trait-toggle input').forEach(input => {
+            input.addEventListener('change', function() {
+                const traitItem = this.closest('.trait-item');
+                if (traitItem) {
+                    traitItem.classList.toggle('active', this.checked);
+                }
+            });
+        });
+    }
+
+    populateAccolades(playerData) {
+        const container = document.getElementById('playerCardAccoladesContainer');
+        if (!container) {
+            console.warn('[App] Accolades container not found');
+            return;
+        }
+
+        // Accolades that EXIST in roster files: ISCN, PICN
+        // Note: PFPB (Pro Bowl) does NOT exist in roster files
+        const ACCOLADES = [
+            { field: 'ISCN', display: 'Captain', description: 'Team captain' },
+            { field: 'PICN', display: 'Icon', description: 'Icon player' }
+        ];
+
+        let html = '<div class="trait-grid">';
+
+        ACCOLADES.forEach(accolade => {
+            const value = playerData[accolade.field] || 0;
+            const isActive = value > 0;
+            const activeClass = isActive ? 'active' : '';
+            const checkedAttr = isActive ? 'checked' : '';
+
+            html += `
+                <div class="trait-item ${activeClass}" title="${accolade.description}" data-trait="${accolade.field}">
+                    <label class="trait-label" for="accolade_${accolade.field}">${accolade.display}</label>
+                    <label class="trait-toggle">
+                        <input type="checkbox" id="accolade_${accolade.field}" data-field="${accolade.field}" ${checkedAttr}>
+                        <span class="trait-toggle-slider"></span>
+                    </label>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+
+        // Add event listeners for accolade toggles
+        container.querySelectorAll('.trait-toggle input').forEach(input => {
+            input.addEventListener('change', function() {
+                const traitItem = this.closest('.trait-item');
+                if (traitItem) {
+                    traitItem.classList.toggle('active', this.checked);
+                }
+            });
+        });
+    }
+
     populatePlayerTraits(playerData, position) {
         const container = document.getElementById('playerCardTraitsContainer');
         if (!container) {

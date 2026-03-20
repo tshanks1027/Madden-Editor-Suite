@@ -94,6 +94,63 @@ export const MADDEN_FIELDS = {
     'PHAN': { display: 'Handedness', shortDisplay: 'Hand', type: 'lookup', editable: true, width: 80, lookup: 'handedness' },
     'PROL': { display: 'Dev Trait', shortDisplay: 'Dev', type: 'lookup', editable: true, width: 100, lookup: 'devtraits' },
 
+    // Boolean trait fields (from roster file TR* fields)
+    // These are the traits stored in roster files that affect player behavior
+    'TRBH': { display: 'Big Hitter', shortDisplay: 'BH', type: 'boolean', editable: true, width: 50 },
+    'TRBR': { display: 'DL Bull Rush', shortDisplay: 'BR', type: 'boolean', editable: true, width: 50 },
+    'TRDS': { display: 'DL Spin', shortDisplay: 'DS', type: 'boolean', editable: true, width: 50 },
+    'TRCL': { display: 'Clutch', shortDisplay: 'CLT', type: 'boolean', editable: true, width: 50 },
+    // TRCT (Possession Catch) - DOES NOT EXIST in roster files, removed
+    'TRDO': { display: 'Drop Open Pass', shortDisplay: 'DOP', type: 'boolean', editable: true, width: 50 },
+    'TRFB': { display: 'Feet in Bounds', shortDisplay: 'FIB', type: 'boolean', editable: true, width: 50 },
+    'TRFK': { display: 'Pump Fake', shortDisplay: 'PFK', type: 'boolean', editable: true, width: 50 },
+    'TRFY': { display: 'Fight for Yards', shortDisplay: 'FFY', type: 'boolean', editable: true, width: 50 },
+    'TRHM': { display: 'High Motor', shortDisplay: 'HM', type: 'boolean', editable: true, width: 50 },
+    'TRJR': { display: 'High Point Catch', shortDisplay: 'HPC', type: 'boolean', editable: true, width: 50 },
+    'TRSB': { display: 'Strip Ball', shortDisplay: 'STR', type: 'boolean', editable: true, width: 50 },
+    'TRSW': { display: 'DL Swim', shortDisplay: 'SW', type: 'boolean', editable: true, width: 50 },
+    'TRTA': { display: 'Throw Away', shortDisplay: 'TWA', type: 'boolean', editable: true, width: 50 },
+    'TRTL': { display: 'Tackle Low', shortDisplay: 'TLO', type: 'boolean', editable: true, width: 50 },
+    'TRTS': { display: 'Tight Spiral', shortDisplay: 'TSP', type: 'boolean', editable: true, width: 50 },
+    'TRWU': { display: 'YAC Catch', shortDisplay: 'YAC', type: 'boolean', editable: true, width: 50 },
+    // TRDP (Deep Ball) - DOES NOT EXIST in roster files, removed
+    // TSPM (Sense Pressure Max) - DOES NOT EXIST in roster files, removed
+    'TRCB': { display: 'Cover Ball', shortDisplay: 'CVB', type: 'boolean', editable: true, width: 50 },
+
+    // Player flag fields
+    'ISCN': { display: 'Captain', shortDisplay: 'CPT', type: 'boolean', editable: true, width: 50 },
+    // PFPB (Pro Bowl) - DOES NOT EXIST in roster files, removed
+    'PICN': { display: 'Icon', shortDisplay: 'ICN', type: 'boolean', editable: true, width: 50 },
+
+    // Miscellaneous fields
+    'PYWT': { display: 'Years with Team', shortDisplay: 'YWT', type: 'numeric', editable: true, width: 60, min: 0, max: 25 },
+    'PLPL': { display: 'Performance Level', shortDisplay: 'PLVL', type: 'numeric', editable: true, width: 70, min: 0, max: 100 },
+    // PPTI (Previous Team) - DOES NOT EXIST in roster files, removed
+    'PSTM': { display: 'Sleeve Temp', shortDisplay: 'SLV', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PEGO': { display: 'Ego', shortDisplay: 'EGO', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PLHY': { display: 'Last Holdout Year', shortDisplay: 'LHY', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
+    'PGHE': { display: 'Generic Head', shortDisplay: 'GHD', type: 'numeric', editable: true, width: 70, min: 0, max: 9999 },
+    'PTHA': { display: 'Throw Accuracy', shortDisplay: 'THA', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
+    'PYCF': { display: 'Confidence', shortDisplay: 'CNF', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
+    'PIMP': { display: 'Long Snap', shortDisplay: 'LSN', type: 'numeric', editable: true, width: 70, min: 0, max: 99 },
+    // PLBD (Birthday) - EXISTS in file but Madden IGNORES it when loading roster files (franchise-only)
+    // 'PLBD': { display: 'Birthday (Raw)', shortDisplay: 'BDay', type: 'numeric', editable: true, width: 80, min: 0, max: 999999 },
+    'PLMO': { display: 'Morph', shortDisplay: 'MRP', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PLPO': { display: 'Portrait ID', shortDisplay: 'PLPO', type: 'text', editable: true, width: 150 },
+    'PQBS': { display: 'QB Style', shortDisplay: 'QBS', type: 'lookup', editable: true, width: 120, lookup: 'qbstyles' },
+    'PRSE': { display: 'Running Style', shortDisplay: 'RUN', type: 'lookup', editable: true, width: 140, lookup: 'runningstyles' },
+    'PSKI': { display: 'Skill', shortDisplay: 'SKI', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PSTN': { display: 'Station', shortDisplay: 'STN', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PTEN': { display: 'Tendency', shortDisplay: 'TEN', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PTSA': { display: 'TSA', shortDisplay: 'TSA', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PVCO': { display: 'VCO', shortDisplay: 'VCO', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PVSB': { display: 'VSB', shortDisplay: 'VSB', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PVTS': { display: 'VTS', shortDisplay: 'VTS', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PLDT': { display: 'Draft Type', shortDisplay: 'DFT', type: 'numeric', editable: true, width: 60, min: 0, max: 10 },
+    'PCPH': { display: 'CPH', shortDisplay: 'CPH', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'PLCP': { display: 'LCP', shortDisplay: 'LCP', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
+    'EPAV': { display: 'EPA Value', shortDisplay: 'EPA', type: 'numeric', editable: true, width: 70, min: 0, max: 999 },
+
     // Contract fields (stored in hundreds of thousands, displayed in millions - divide by 100 for display, multiply by 100 when saving)
     'PCON': { display: 'Contract Years', shortDisplay: 'CON', type: 'numeric', editable: true, width: 80, min: 0, max: 7 },
     'PCYL': { display: 'Years Left', shortDisplay: 'LEFT', type: 'numeric', editable: true, width: 80, min: 0, max: 7 },
@@ -122,9 +179,9 @@ export const MADDEN_FIELDS = {
     'POID': { display: 'Presentation ID', shortDisplay: 'POID', type: 'numeric', editable: true, width: 80, min: 0, max: 99999 },
     'PCMT': { display: 'Commentary ID', shortDisplay: 'PCMT', type: 'numeric', editable: true, width: 80, min: 0, max: 99999 },
 
-    // Draft class specific fields
-    'PDPI': { display: 'Draft Position', shortDisplay: 'Draft Pos', type: 'numeric', editable: true, width: 90, min: 0, max: 500 },
-    'PDRO': { display: 'Draft Rank', shortDisplay: 'Rank', type: 'numeric', editable: false, width: 80, min: 0, max: 500 },
+    // Draft info fields (available in roster and draft class files)
+    'PDPI': { display: 'Draft Pick', shortDisplay: 'Pick', type: 'numeric', editable: true, width: 60, min: 0, max: 262 },
+    'PDRO': { display: 'Draft Round', shortDisplay: 'Rnd', type: 'numeric', editable: true, width: 55, min: 0, max: 7 },
 
     // Archetype (editable lookup field - converts between archetype ID and name)
     // Uses PLTY field from roster files, options depend on player position
@@ -138,24 +195,23 @@ export const MADDEN_FIELDS = {
         underlyingField: 'PLTY'  // The actual field that stores the archetype ID
     },
 
-    // Birthday (calculated field - converts birthdate integer to MM/DD/YYYY format)
-    // Uses PLBD (Birthday) field from roster files
-    'BIRTHDAY': { display: 'Birthday', shortDisplay: 'Birthday', type: 'calculated', editable: false, width: 100, calculate: async (player) => {
-        if (player.PLBD && player.PLBD > 0) {
-            try {
-                return await window.electronAPI.rating.birthdayToDisplay(player.PLBD);
-            } catch (e) {
-                return '';
-            }
-        }
-        return '';
-    }}
+    // BIRTHDAY field - DISABLED: PLBD exists in roster files but Madden ignores it (franchise-only)
+    // 'BIRTHDAY': { display: 'Birthday', shortDisplay: 'Birthday', type: 'calculated', editable: false, width: 100, calculate: async (player) => {
+    //     if (player.PLBD && player.PLBD > 0) {
+    //         try {
+    //             return await window.electronAPI.rating.birthdayToDisplay(player.PLBD);
+    //         } catch (e) {
+    //             return '';
+    //         }
+    //     }
+    //     return '';
+    // }}
 };
 
 // Field order for user-friendly editing (Madden game order)
 export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"], ["POID", "Pres ID"], ["PCMT", "Commentary"],
-    ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
+    ["PPOS", "Position"], ["TGID", "Team"], ["PYWT", "Yrs w/Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["ARCHETYPE", "Archetype"], ["PHTN", "Hometown"], ["PHSN", "State"], ["PLRC", "Race"],
     ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PHAN", "Handedness"], ["PYRP", "Years Pro"], ["PROL", "Dev Trait"],
     ["POVR", "Overall"],
@@ -170,8 +226,10 @@ export const FIELD_ORDER = [
     ["PRBF", "Run Block FIN"], ["PRBS", "Run Block PWR"], ["SRRN", "Short RR"], ["PLSC", "Spec Catch"],
     ["PSPD", "Speed"], ["PLSM", "Spin Move"], ["PSTA", "Stamina"], ["PLSA", "Stiff Arm"],
     ["PSTR", "Strength"], ["PTAK", "Tackling"], ["PTAD", "Deep Throw"], ["PTAM", "Med Throw"],
-    ["PTAS", "Short Throw"], ["PTOR", "Throw on Run"], ["PTHP", "Throw Power"],
-    ["PTUP", "Throw Under Pressure"], ["PTGH", "Toughness"], ["PLTR", "Truck"], ["PLZC", "Zone Coverage"]
+    ["PTAS", "Short Throw"], ["PTOR", "Throw on Run"], ["PTHP", "Throw Power"], ["PTHA", "Throw Acc"],
+    ["PTUP", "Throw Under Pressure"], ["PTGH", "Toughness"], ["PLTR", "Truck"], ["PLZC", "Zone Coverage"],
+    // Miscellaneous
+    ["PYCF", "Confidence"], ["PIMP", "Long Snap"]
 ];
 
 // Contract fields - only shown in player card, not in main editor grid
@@ -295,6 +353,40 @@ export let LOOKUP_DATA = {
     handedness: new Map([
         [0, 'Right'],
         [1, 'Left']
+    ]),
+    qbstyles: new Map([
+        [0, 'Generic Slow'],
+        [1, 'Generic'],
+        [2, 'Tom Brady'],
+        [3, 'Joe Burrow'],
+        [4, 'Mac Jones'],
+        [5, 'Lamar Jackson'],
+        [6, 'Russell Wilson'],
+        [7, 'Aaron Rodgers'],
+        [8, 'Patrick Mahomes'],
+        [9, 'Josh Allen'],
+        [10, 'Kyler Murray'],
+        [11, 'Justin Herbert'],
+        [12, 'Matt Stafford'],
+        [13, 'Baker Mayfield']
+    ]),
+    runningstyles: new Map([
+        [0, 'None'],
+        [1, 'Default'],
+        [2, 'Default - High & Tight'],
+        [3, 'Default - Loose'],
+        [4, 'Default - Bread Loaf'],
+        [5, 'Default - Awkward'],
+        [6, 'Short Stride - Default'],
+        [7, 'Short Stride - High & Tight'],
+        [8, 'Short Stride - Loose'],
+        [9, 'Short Stride - Bread Loaf'],
+        [10, 'Short Stride - Awkward'],
+        [11, 'Long Stride - Default'],
+        [12, 'Long Stride - High & Tight'],
+        [13, 'Long Stride - Loose'],
+        [14, 'Long Stride - Bread Loaf'],
+        [15, 'Long Stride - Awkward']
     ])
 };
 
@@ -677,6 +769,10 @@ export function getLookupOptions(lookupType) {
         case 'race':
         case 'races':
             return Array.from(LOOKUP_DATA.races.entries()).map(([value, label]) => ({ value, label }));
+        case 'qbstyles':
+            return Array.from(LOOKUP_DATA.qbstyles.entries()).map(([value, label]) => ({ value, label }));
+        case 'runningstyles':
+            return Array.from(LOOKUP_DATA.runningstyles.entries()).map(([value, label]) => ({ value, label }));
         default:
             return [];
     }
@@ -709,6 +805,10 @@ export function getLookupValue(lookupType, value) {
         case 'race':
         case 'races':
             return LOOKUP_DATA.races.get(value) || 'Unknown';
+        case 'qbstyles':
+            return LOOKUP_DATA.qbstyles.get(value) || 'Generic';
+        case 'runningstyles':
+            return LOOKUP_DATA.runningstyles.get(value) || 'Default';
         default:
             return 'Unknown';
     }
