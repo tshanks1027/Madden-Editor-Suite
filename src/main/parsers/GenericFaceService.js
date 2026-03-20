@@ -1318,6 +1318,162 @@ class GenericFaceService {
     console.log(`[GenericFaceService] ===== SKNT SYNC COMPLETE: ${updatedCount} players updated (${genericFixed} generic faces fixed from GENR) =====`);
     return updatedCount;
   }
+
+  /**
+   * Sync player identity fields from PLAY to BLBM for ALL players
+   * CRITICAL: BLBM records must have correct player data (name, jersey, height)
+   * Otherwise the game shows wrong faces because BLBM data doesn't match the player
+   * @param file - The loaded roster file object
+   * @param players - Array of player data from PLAY table
+   * @returns Number of players updated
+   */
+  async syncPlayerIdentityForAllPlayers(file, players) {
+    console.log('[GenericFaceService] ===== PLAYER IDENTITY SYNC START (ALL PLAYERS) =====');
+
+    const blob = file.BLOB?.records?.[0];
+    if (!blob) {
+      console.log('[GenericFaceService] No BLOB table found');
+      return 0;
+    }
+
+    const blbm = blob.fields?.['BLBM']?.value;
+    if (!blbm || !blbm._records) {
+      console.log('[GenericFaceService] No BLBM table found in BLOB');
+      return 0;
+    }
+
+    console.log(`[GenericFaceService] Syncing player identity for ${Math.min(players.length, blbm._records.length)} players`);
+
+    let updatedCount = 0;
+
+    for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+      const player = players[i];
+      const blbmRec = blbm._records[i];
+      const fields = blbmRec.fields || blbmRec._fields;
+
+      if (!fields) continue;
+
+      let updated = false;
+      const firstName = player.PFNA || '';
+      const lastName = player.PLNA || '';
+      const jerseyNum = player.PJEN;
+      const heightInches = player.PHGT;
+      const peps = player.PEPS || '';
+
+      // Sync CFNM (first name in BLBM)
+      if (fields['CFNM']) {
+        const currentCfnm = fields['CFNM'].value ?? fields['CFNM']._value;
+        if (currentCfnm !== firstName) {
+          if (fields['CFNM'].value !== undefined) {
+            fields['CFNM'].value = firstName;
+          } else if (fields['CFNM']._value !== undefined) {
+            fields['CFNM']._value = firstName;
+          }
+          updated = true;
+        }
+      }
+
+      // Sync CLNM (last name in BLBM)
+      if (fields['CLNM']) {
+        const currentClnm = fields['CLNM'].value ?? fields['CLNM']._value;
+        if (currentClnm !== lastName) {
+          if (fields['CLNM'].value !== undefined) {
+            fields['CLNM'].value = lastName;
+          } else if (fields['CLNM']._value !== undefined) {
+            fields['CLNM']._value = lastName;
+          }
+          updated = true;
+        }
+      }
+
+      // Sync CJNO (jersey number in BLBM)
+      if (fields['CJNO'] && jerseyNum !== undefined && jerseyNum !== null) {
+        const currentCjno = fields['CJNO'].value ?? fields['CJNO']._value;
+        if (currentCjno !== jerseyNum) {
+          if (fields['CJNO'].value !== undefined) {
+            fields['CJNO'].value = jerseyNum;
+          } else if (fields['CJNO']._value !== undefined) {
+            fields['CJNO']._value = jerseyNum;
+          }
+          updated = true;
+        }
+      }
+
+      // Sync HINC (height in BLBM)
+      if (fields['HINC'] && heightInches !== undefined && heightInches !== null) {
+        const currentHinc = fields['HINC'].value ?? fields['HINC']._value;
+        if (currentHinc !== heightInches) {
+          if (fields['HINC'].value !== undefined) {
+            fields['HINC'].value = heightInches;
+          } else if (fields['HINC']._value !== undefined) {
+            fields['HINC']._value = heightInches;
+          }
+          updated = true;
+        }
+      }
+
+      // Sync ASNM (asset name) - should match PEPS for consistent appearance
+      // For generic faces, ASNM should be empty (CNID=0 uses GENR instead)
+      // For real faces, ASNM should match PEPS
+      if (fields['ASNM']) {
+        const plpl = player.PLPL;
+        const isGenericFace = plpl === 0 || plpl === '0';
+        const targetAsnm = isGenericFace ? '' : peps;
+
+        const currentAsnm = fields['ASNM'].value ?? fields['ASNM']._value;
+        if (currentAsnm !== targetAsnm) {
+          if (fields['ASNM'].value !== undefined) {
+            fields['ASNM'].value = targetAsnm;
+          } else if (fields['ASNM']._value !== undefined) {
+            fields['ASNM']._value = targetAsnm;
+          }
+          updated = true;
+        }
+      }
+
+      // Clear stale fields that game may have set
+      // CJOV, CTAG, PSDB, USKT should be cleared/zeroed
+      const clearFields = ['CJOV', 'CTAG'];
+      for (const fieldName of clearFields) {
+        if (fields[fieldName]) {
+          const currentVal = fields[fieldName].value ?? fields[fieldName]._value;
+          if (currentVal !== '' && currentVal !== undefined) {
+            if (fields[fieldName].value !== undefined) {
+              fields[fieldName].value = '';
+            } else if (fields[fieldName]._value !== undefined) {
+              fields[fieldName]._value = '';
+            }
+            updated = true;
+          }
+        }
+      }
+
+      const zeroFields = ['PSDB', 'USKT'];
+      for (const fieldName of zeroFields) {
+        if (fields[fieldName]) {
+          const currentVal = fields[fieldName].value ?? fields[fieldName]._value;
+          if (currentVal !== 0 && currentVal !== undefined) {
+            if (fields[fieldName].value !== undefined) {
+              fields[fieldName].value = 0;
+            } else if (fields[fieldName]._value !== undefined) {
+              fields[fieldName]._value = 0;
+            }
+            updated = true;
+          }
+        }
+      }
+
+      if (updated) {
+        updatedCount++;
+        if (updatedCount <= 10) {
+          console.log(`[GenericFaceService] Synced identity for ${firstName} ${lastName} (index ${i}): jersey=${jerseyNum}, height=${heightInches}`);
+        }
+      }
+    }
+
+    console.log(`[GenericFaceService] ===== PLAYER IDENTITY SYNC COMPLETE: ${updatedCount} players updated =====`);
+    return updatedCount;
+  }
 }
 
 const genericFaceService = new GenericFaceService();

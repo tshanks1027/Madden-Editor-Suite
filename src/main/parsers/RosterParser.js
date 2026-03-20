@@ -628,6 +628,11 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
         // The game reads skin tone from SKNT in BLBM
         skntSynced = await genericFaceService.syncSkinToneForAllPlayers(file, players);
         console.log('[RosterParser] SKNT sync complete:', skntSynced, 'players synced');
+
+        // CRITICAL: Sync player identity fields (name, jersey, height) from PLAY to BLBM
+        // Without this, BLBM records may contain stale data from template (wrong player!)
+        const identitySynced = await genericFaceService.syncPlayerIdentityForAllPlayers(file, players);
+        console.log('[RosterParser] Player identity sync complete:', identitySynced, 'players synced');
       } catch (err) {
         blbmError = err.message;
         console.warn('[RosterParser] BLBM update failed (non-fatal):', err.message);
