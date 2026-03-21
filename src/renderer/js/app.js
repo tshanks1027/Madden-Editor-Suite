@@ -8160,6 +8160,125 @@ class MaddenEditorApp {
                             }
                         }
                     }
+
+                    // EQUIPMENT SAVE: Write equipment edits back to loadouts
+                    if (prospect.equipment && Object.keys(prospect.equipment).length > 0) {
+                        console.log(`[Save] Prospect ${index + 1} has equipment edits:`, prospect.equipment);
+
+                        // Reverse mapping: UI slot name -> file slotType
+                        const uiToSlotTypeMap = {
+                            'Helmet': 'HeadWear',
+                            'Visor': 'Visor',
+                            'FacePaint': 'FacePaint',
+                            'Mouthpiece': 'MouthWear',
+                            'Neckpad': 'Neckpad',
+                            'HelmetFlag': 'HelmetDecal',
+                            'GuardianCap': 'GuardianCap',
+                            'LeftSleeve': 'LeftArmWear',
+                            'RightSleeve': 'RightArmWear',
+                            'LeftElbow': 'LeftElbowWear',
+                            'RightElbow': 'RightElbowWear',
+                            'LeftWrist': 'LeftWristWear',
+                            'RightWrist': 'RightWristWear',
+                            'LeftGlove': 'LeftHandWear',
+                            'RightGlove': 'RightHandWear',
+                            'Undershirt': 'InnerShirt',
+                            'JerseyStyle': 'OuterShirt',
+                            'BackPlate': 'BackPlate',
+                            'FlakJacket': 'FlakJacket',
+                            'Towel': 'Towel',
+                            'Handwarmer': 'Handwarmer',
+                            'LeftShoe': 'LeftShoe',
+                            'RightShoe': 'RightShoe',
+                            'LeftShoeColor': 'LeftShoeColor',
+                            'RightShoeColor': 'RightShoeColor',
+                            'LeftSpats': 'LeftSpat',
+                            'RightSpats': 'RightSpat',
+                            'Socks': 'InnerSocks',
+                            'KneePad': 'KneeWear',
+                            'LeftThighPad': 'LeftThighWear',
+                            'RightThighPad': 'RightThighWear',
+                            'ShoulderPads': 'Shoulderpads'
+                        };
+
+                        // Ensure loadouts array exists
+                        if (!updated.visuals.loadouts) {
+                            updated.visuals.loadouts = [];
+                        }
+
+                        // Find or create PlayerOnField loadout (this is where equipment goes)
+                        console.log(`[Save] Prospect ${index + 1}: Looking for PlayerOnField loadout in ${updated.visuals.loadouts.length} loadouts`);
+                        let targetLoadout = updated.visuals.loadouts.find(l => l.loadoutType === 'PlayerOnField');
+                        if (!targetLoadout) {
+                            // No PlayerOnField loadout exists - create one
+                            targetLoadout = {
+                                loadoutType: 'PlayerOnField',
+                                outfitType: 'Field',
+                                loadoutElements: []
+                            };
+                            updated.visuals.loadouts.push(targetLoadout);
+                            console.log(`[Save] Prospect ${index + 1}: Created new PlayerOnField loadout (now ${updated.visuals.loadouts.length} loadouts)`);
+                        } else {
+                            console.log(`[Save] Prospect ${index + 1}: Found existing PlayerOnField loadout with ${targetLoadout.loadoutElements?.length || 0} elements`);
+                        }
+                        if (!targetLoadout.loadoutElements) {
+                            targetLoadout.loadoutElements = [];
+                        }
+
+                        // Apply each equipment edit
+                        for (const [uiSlot, itemAssetName] of Object.entries(prospect.equipment)) {
+                            if (!itemAssetName) continue; // Skip empty values
+
+                            // Facemask is special - no slotType in draft class files
+                            if (uiSlot === 'Facemask') {
+                                // Find existing facemask (identified by GearFaceMask_ prefix and no slotType)
+                                let found = false;
+                                for (const element of targetLoadout.loadoutElements) {
+                                    if (!element.slotType && element.itemAssetName && element.itemAssetName.startsWith('GearFaceMask_')) {
+                                        element.itemAssetName = itemAssetName;
+                                        console.log(`[Save] Updated Facemask = ${itemAssetName} for prospect ${index + 1}`);
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                // If not found, add new facemask element (without slotType)
+                                if (!found) {
+                                    targetLoadout.loadoutElements.push({
+                                        itemAssetName: itemAssetName
+                                    });
+                                    console.log(`[Save] Added new Facemask = ${itemAssetName} for prospect ${index + 1}`);
+                                }
+                                continue;
+                            }
+
+                            const slotType = uiToSlotTypeMap[uiSlot];
+                            if (!slotType) {
+                                console.log(`[Save] Unknown UI slot "${uiSlot}", skipping`);
+                                continue;
+                            }
+
+                            // Find existing element for this slot
+                            let found = false;
+                            for (const element of targetLoadout.loadoutElements) {
+                                if (element.slotType === slotType) {
+                                    element.itemAssetName = itemAssetName;
+                                    console.log(`[Save] Updated ${slotType} = ${itemAssetName} for prospect ${index + 1}`);
+                                    found = true;
+                                    break;
+                                }
+                            }
+
+                            // If not found, create new element
+                            if (!found) {
+                                targetLoadout.loadoutElements.push({
+                                    slotType: slotType,
+                                    itemAssetName: itemAssetName
+                                });
+                                console.log(`[Save] Added new ${slotType} = ${itemAssetName} for prospect ${index + 1}`);
+                            }
+                        }
+                        console.log(`[Save] Prospect ${index + 1}: PlayerOnField loadout now has ${targetLoadout.loadoutElements.length} elements`);
+                    }
                 }
 
                 return updated;
@@ -8176,6 +8295,24 @@ class MaddenEditorApp {
                 console.log('  Has visuals?:', !!updatedProspects[0].visuals);
                 if (updatedProspects[0].visuals) {
                     console.log('  visuals.genericHeadName:', updatedProspects[0].visuals.genericHeadName);
+                    console.log('  visuals.bodyType:', updatedProspects[0].visuals.bodyType);
+                    console.log('  Total loadouts:', updatedProspects[0].visuals.loadouts?.length || 0);
+                    // Log all loadouts
+                    if (updatedProspects[0].visuals.loadouts) {
+                        updatedProspects[0].visuals.loadouts.forEach((loadout, idx) => {
+                            console.log(`  Loadout ${idx}: type=${loadout.loadoutType}, elements=${loadout.loadoutElements?.length || 0}`);
+                            // Show first 3 elements of each loadout
+                            if (loadout.loadoutElements) {
+                                loadout.loadoutElements.slice(0, 3).forEach(el => {
+                                    console.log(`    ${el.slotType || 'NO_TYPE'}: ${el.itemAssetName}`);
+                                });
+                            }
+                        });
+                    }
+                }
+                console.log('  Has equipment edits?:', !!updatedProspects[0].equipment);
+                if (updatedProspects[0].equipment) {
+                    console.log('  equipment edits:', JSON.stringify(updatedProspects[0].equipment));
                 }
             }
 
@@ -10325,7 +10462,7 @@ class MaddenEditorApp {
     /**
      * Show player card for a draft prospect
      */
-    showDraftPlayerCard(rowIndex) {
+    async showDraftPlayerCard(rowIndex) {
         // Get prospect data from AG-Grid
         if (!this.draftAgGrid) {
             console.error('[showDraftPlayerCard] No draft AG-Grid available');
@@ -10433,6 +10570,17 @@ class MaddenEditorApp {
 
         // Populate traits based on position
         this.populateDraftCardTraits(prospect);
+
+        // Populate equipment (async to load options if needed)
+        await this.populateDraftCardEquipment(prospect);
+
+        // Reset tabs to first tab (Player)
+        modal.querySelectorAll('.player-card-tab').forEach(t => t.classList.remove('active'));
+        modal.querySelectorAll('.player-card-tab-content').forEach(c => c.classList.remove('active'));
+        const firstTab = modal.querySelector('.player-card-tab');
+        const firstContent = document.getElementById('tab-draft-player-info');
+        if (firstTab) firstTab.classList.add('active');
+        if (firstContent) firstContent.classList.add('active');
 
         // Show modal
         modal.style.display = 'flex';
@@ -10743,6 +10891,163 @@ class MaddenEditorApp {
     }
 
     /**
+     * Populate draft card equipment dropdowns
+     */
+    async populateDraftCardEquipment(prospect) {
+        // Load equipment options if not already loaded
+        if (!this.equipmentOptions) {
+            console.log('[DraftEquipment] Loading equipment options...');
+            await this.initializeEquipmentDropdowns();
+            if (!this.equipmentOptions) {
+                console.error('[DraftEquipment] Failed to load equipment options');
+                return;
+            }
+        }
+
+        // Extract equipment from visuals.loadouts if not already in equipment object
+        if (!prospect.equipment && prospect.visuals?.loadouts) {
+            prospect.equipment = this.extractEquipmentFromLoadouts(prospect.visuals.loadouts);
+            console.log('[DraftEquipment] Extracted equipment from loadouts:', prospect.equipment);
+        }
+
+        // Populate each draft equipment dropdown
+        document.querySelectorAll('.draft-equipment-select[data-slot]').forEach(select => {
+            const slotName = select.getAttribute('data-slot');
+            const options = this.equipmentOptions[slotName];
+
+            if (options && options.length > 0) {
+                select.innerHTML = '';
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.label;
+                    select.appendChild(option);
+                });
+
+                // Set current value if available
+                if (prospect.equipment && prospect.equipment[slotName]) {
+                    select.value = prospect.equipment[slotName];
+                }
+            }
+        });
+
+        // Set up gear picker buttons for draft card
+        document.querySelectorAll('#draftPlayerCardModal .gear-picker-btn').forEach(btn => {
+            // Remove any existing listeners
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+
+            newBtn.addEventListener('click', () => {
+                const gearType = newBtn.getAttribute('data-gear-type');
+                const targetId = newBtn.getAttribute('data-target');
+                this.openGearPicker(gearType, targetId);
+            });
+        });
+
+        console.log('[DraftEquipment] Equipment populated for prospect');
+    }
+
+    /**
+     * Extract equipment from visuals.loadouts into a flat equipment object
+     * Maps slotType values to our equipment slot names
+     * Slot types found in draft class files (via grep):
+     *   HeadWear, Visor, FacePaint, MouthWear, Neckpad, LeftArmWear, RightArmWear,
+     *   LeftElbowWear, RightElbowWear, LeftWristWear, RightWristWear, LeftHandWear,
+     *   RightHandWear, InnerShirt, OuterShirt, BackPlate, FlakJacket, Towel,
+     *   LeftShoe, RightShoe, LeftSpat, RightSpat, InnerSocks, KneeWear,
+     *   LeftThighWear, RightThighWear, Shoulderpads
+     */
+    extractEquipmentFromLoadouts(loadouts) {
+        const equipment = {};
+
+        // Mapping from loadout slotType to our equipment slot names
+        const slotTypeMap = {
+            // Head/Face
+            'HeadWear': 'Helmet',
+            'Visor': 'Visor',
+            'FacePaint': 'FacePaint',
+            'MouthWear': 'Mouthpiece',
+            'Neckpad': 'Neckpad',
+            'HelmetDecal': 'HelmetFlag',
+            'GuardianCap': 'GuardianCap',
+            // Arms
+            'LeftArmWear': 'LeftSleeve',
+            'RightArmWear': 'RightSleeve',
+            'LeftElbowWear': 'LeftElbow',
+            'RightElbowWear': 'RightElbow',
+            'LeftWristWear': 'LeftWrist',
+            'RightWristWear': 'RightWrist',
+            'LeftHandWear': 'LeftGlove',
+            'RightHandWear': 'RightGlove',
+            // Torso
+            'InnerShirt': 'Undershirt',
+            'OuterShirt': 'JerseyStyle',
+            'BackPlate': 'BackPlate',
+            'FlakJacket': 'FlakJacket',
+            'Towel': 'Towel',
+            'Handwarmer': 'Handwarmer',
+            // Legs/Feet
+            'LeftShoe': 'LeftShoe',
+            'RightShoe': 'RightShoe',
+            'LeftShoeColor': 'LeftShoeColor',
+            'RightShoeColor': 'RightShoeColor',
+            'LeftSpat': 'LeftSpats',
+            'RightSpat': 'RightSpats',
+            'InnerSocks': 'Socks',
+            'KneeWear': 'KneePad',
+            'LeftThighWear': 'LeftThighPad',
+            'RightThighWear': 'RightThighPad',
+            'Shoulderpads': 'ShoulderPads'
+        };
+
+        if (!Array.isArray(loadouts)) return equipment;
+
+        for (const loadout of loadouts) {
+            if (!loadout.loadoutElements) continue;
+
+            for (const element of loadout.loadoutElements) {
+                const slotType = element.slotType;
+                const itemAssetName = element.itemAssetName;
+
+                // Skip body type and character body
+                if (slotType === 'CharacterBodyType') continue;
+
+                // Handle facemasks specially - they don't have slotType in draft class files
+                if (!slotType && itemAssetName && itemAssetName.startsWith('GearFaceMask_')) {
+                    equipment['Facemask'] = itemAssetName;
+                    continue;
+                }
+
+                // Map to our slot name
+                const ourSlotName = slotTypeMap[slotType];
+                if (ourSlotName && itemAssetName) {
+                    equipment[ourSlotName] = itemAssetName;
+                }
+            }
+        }
+
+        return equipment;
+    }
+
+    /**
+     * Collect draft card equipment values into prospect data
+     */
+    collectDraftCardEquipment(prospect) {
+        if (!prospect.equipment) {
+            prospect.equipment = {};
+        }
+
+        document.querySelectorAll('.draft-equipment-select[data-slot]').forEach(select => {
+            const slotName = select.getAttribute('data-slot');
+            if (select.value) {
+                prospect.equipment[slotName] = select.value;
+            }
+        });
+
+        console.log('[DraftEquipment] Collected equipment:', prospect.equipment);
+    }
+
+    /**
      * Save draft card changes
      */
     saveDraftCardChanges() {
@@ -10782,6 +11087,9 @@ class MaddenEditorApp {
             const traitKey = checkbox.dataset.trait;
             prospect[`trait_${traitKey}`] = checkbox.checked;
         });
+
+        // Update equipment
+        this.collectDraftCardEquipment(prospect);
 
         // Refresh AG-Grid row
         if (this.draftAgGrid) {
@@ -11215,10 +11523,15 @@ class MaddenEditorApp {
     /**
      * Open the gear picker modal
      */
-    openGearPicker(gearType, targetId) {
+    async openGearPicker(gearType, targetId) {
+        // Initialize gear picker if atlas not loaded
         if (!this.gearAtlas) {
-            console.error('[GearPicker] Atlas not loaded');
-            return;
+            console.log('[GearPicker] Atlas not loaded, initializing...');
+            await this.initializeGearPicker();
+            if (!this.gearAtlas) {
+                console.error('[GearPicker] Failed to load atlas');
+                return;
+            }
         }
 
         console.log('[GearPicker] Opening picker:', { gearType, targetId });
@@ -12880,17 +13193,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Player Card Modal Event Listeners
     // ========================================
 
-    // Player Card Tab Switching
+    // Player Card Tab Switching (scoped to parent modal to avoid affecting other modals)
     document.querySelectorAll('.player-card-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             const tabId = this.getAttribute('data-tab');
+            const parentModal = this.closest('.modal');
 
-            // Update active tab button
-            document.querySelectorAll('.player-card-tab').forEach(t => t.classList.remove('active'));
+            // Update active tab button within this modal only
+            parentModal.querySelectorAll('.player-card-tab').forEach(t => t.classList.remove('active'));
             this.classList.add('active');
 
-            // Update active tab content
-            document.querySelectorAll('.player-card-tab-content').forEach(content => {
+            // Update active tab content within this modal only
+            parentModal.querySelectorAll('.player-card-tab-content').forEach(content => {
                 content.classList.remove('active');
             });
             const tabContent = document.getElementById('tab-' + tabId);

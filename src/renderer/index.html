@@ -5807,78 +5807,407 @@
                 </div>
             </div>
 
-            <div class="modal-body player-card-body">
-                <!-- Prospect Info Section -->
-                <div class="player-card-section">
-                    <h3 class="player-card-section-title">
-                        Prospect Info
-                        <button id="saveDraftCardBtn" class="btn btn-primary btn-small" style="float: right;">Save Changes</button>
-                    </h3>
-                    <div class="player-card-info-grid">
-                        <div class="player-info-item">
-                            <span class="info-label">First Name</span>
-                            <input type="text" class="info-input" id="draftCardFirstName">
+            <div class="modal-body player-card-body" style="position: relative;">
+                <!-- Tab Navigation -->
+                <div class="player-card-tabs">
+                    <button class="player-card-tab active" data-tab="draft-player-info">Player</button>
+                    <button class="player-card-tab" data-tab="draft-player-traits">Traits</button>
+                    <button class="player-card-tab" data-tab="draft-player-equipment">Equipment</button>
+                    <button id="saveDraftCardBtn" class="btn btn-primary btn-small" style="margin-left: auto;">Save Changes</button>
+                </div>
+
+                <!-- Player Info Tab -->
+                <div class="player-card-tab-content active" id="tab-draft-player-info">
+                    <!-- Prospect Info Section -->
+                    <div class="player-card-section">
+                        <h3 class="player-card-section-title">Prospect Info</h3>
+                        <div class="player-card-info-grid">
+                            <div class="player-info-item">
+                                <span class="info-label">First Name</span>
+                                <input type="text" class="info-input" id="draftCardFirstName">
+                            </div>
+                            <div class="player-info-item">
+                                <span class="info-label">Last Name</span>
+                                <input type="text" class="info-input" id="draftCardLastName">
+                            </div>
+                            <div class="player-info-item">
+                                <span class="info-label">Age</span>
+                                <input type="number" class="info-input" id="draftCardAge" min="18" max="30">
+                            </div>
+                            <div class="player-info-item">
+                                <span class="info-label">Height (inches)</span>
+                                <input type="number" class="info-input" id="draftCardHeight" min="60" max="90">
+                            </div>
+                            <div class="player-info-item">
+                                <span class="info-label">Weight (lbs)</span>
+                                <input type="number" class="info-input" id="draftCardWeight" min="160" max="400">
+                            </div>
+                            <div class="player-info-item">
+                                <span class="info-label">College</span>
+                                <select class="info-input" id="draftCardCollegeSelect"></select>
+                            </div>
+                            <div class="player-info-item">
+                                <span class="info-label">Jersey</span>
+                                <input type="number" class="info-input" id="draftCardJersey" min="0" max="99">
+                            </div>
+                            <div class="player-info-item">
+                                <span class="info-label">Archetype</span>
+                                <select class="info-input" id="draftCardArchetype"></select>
+                            </div>
                         </div>
-                        <div class="player-info-item">
-                            <span class="info-label">Last Name</span>
-                            <input type="text" class="info-input" id="draftCardLastName">
-                        </div>
-                        <div class="player-info-item">
-                            <span class="info-label">Age</span>
-                            <input type="number" class="info-input" id="draftCardAge" min="18" max="30">
-                        </div>
-                        <div class="player-info-item">
-                            <span class="info-label">Height (inches)</span>
-                            <input type="number" class="info-input" id="draftCardHeight" min="60" max="90">
-                        </div>
-                        <div class="player-info-item">
-                            <span class="info-label">Weight (lbs)</span>
-                            <input type="number" class="info-input" id="draftCardWeight" min="160" max="400">
-                        </div>
-                        <div class="player-info-item">
-                            <span class="info-label">College</span>
-                            <select class="info-input" id="draftCardCollegeSelect"></select>
-                        </div>
-                        <div class="player-info-item">
-                            <span class="info-label">Jersey</span>
-                            <input type="number" class="info-input" id="draftCardJersey" min="0" max="99">
-                        </div>
-                        <div class="player-info-item">
-                            <span class="info-label">Archetype</span>
-                            <select class="info-input" id="draftCardArchetype"></select>
+                    </div>
+
+                    <!-- Ratings Section -->
+                    <div class="player-card-section">
+                        <h3 class="player-card-section-title">Ratings</h3>
+                        <div id="draftCardRatings" class="player-card-ratings-grid">
+                            <!-- Dynamically populated based on position -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Ratings Section -->
-                <div class="player-card-section">
-                    <h3 class="player-card-section-title">Ratings</h3>
-                    <div id="draftCardRatings" class="player-card-ratings-grid">
-                        <!-- Dynamically populated based on position -->
+                <!-- Traits Tab -->
+                <div class="player-card-tab-content" id="tab-draft-player-traits">
+                    <div class="player-card-section">
+                        <h3 class="player-card-section-title">
+                            Traits
+                            <span style="font-size: 11px; color: #888; font-weight: normal; float: right;">Toggle traits on/off</span>
+                        </h3>
+                        <div class="player-card-trait-dev" style="margin-bottom: 12px;">
+                            <div class="player-info-item" style="display: flex; align-items: center; gap: 12px;">
+                                <span class="info-label" style="min-width: 120px;">Development Trait</span>
+                                <select class="info-input" id="draftCardDevTrait" style="max-width: 200px;">
+                                    <option value="0">Normal</option>
+                                    <option value="1">Star</option>
+                                    <option value="2">Superstar</option>
+                                    <option value="3">X-Factor</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="draftCardTraitsContainer">
+                            <p style="color: #888; text-align: center; padding: 20px;">Select a prospect to view traits</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Traits Section -->
+                <!-- Equipment Tab -->
+                <div class="player-card-tab-content" id="tab-draft-player-equipment">
                 <div class="player-card-section">
-                    <h3 class="player-card-section-title">
-                        Traits
-                        <span style="font-size: 11px; color: #888; font-weight: normal; float: right;">Toggle traits on/off</span>
-                    </h3>
-                    <div class="player-card-trait-dev" style="margin-bottom: 12px;">
-                        <div class="player-info-item" style="display: flex; align-items: center; gap: 12px;">
-                            <span class="info-label" style="min-width: 120px;">Development Trait</span>
-                            <select class="info-input" id="draftCardDevTrait" style="max-width: 200px;">
-                                <option value="0">Normal</option>
-                                <option value="1">Star</option>
-                                <option value="2">Superstar</option>
-                                <option value="3">X-Factor</option>
-                            </select>
+                    <h3 class="player-card-section-title">Equipment</h3>
+                    <div class="equipment-grid">
+                        <!-- Head/Face -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Head / Face</h4>
+                            <div class="equipment-items">
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Helmet</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipHelmet" data-slot="Helmet"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="helmets" data-target="draftEquipHelmet" title="Browse Helmets">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="7" height="7"></rect>
+                                                <rect x="14" y="3" width="7" height="7"></rect>
+                                                <rect x="14" y="14" width="7" height="7"></rect>
+                                                <rect x="3" y="14" width="7" height="7"></rect>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Facemask</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipFacemask" data-slot="Facemask"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="facemasks" data-target="draftEquipFacemask" title="Browse Facemasks">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="7" height="7"></rect>
+                                                <rect x="14" y="3" width="7" height="7"></rect>
+                                                <rect x="14" y="14" width="7" height="7"></rect>
+                                                <rect x="3" y="14" width="7" height="7"></rect>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Visor</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipVisor" data-slot="Visor"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="visors" data-target="draftEquipVisor" title="Browse Visors">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="7" height="7"></rect>
+                                                <rect x="14" y="3" width="7" height="7"></rect>
+                                                <rect x="14" y="14" width="7" height="7"></rect>
+                                                <rect x="3" y="14" width="7" height="7"></rect>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Face Paint</label>
+                                    <select class="equipment-select draft-equipment-select" id="draftEquipFacePaint" data-slot="FacePaint"></select>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Mouthpiece</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipMouthpiece" data-slot="Mouthpiece"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="mouthpieces" data-target="draftEquipMouthpiece" title="Browse Mouthpieces">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Neckpad</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipNeckpad" data-slot="Neckpad"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="neckpads" data-target="draftEquipNeckpad" title="Browse Neckpads">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Helmet Flag</label>
+                                    <select class="equipment-select draft-equipment-select" id="draftEquipHelmetFlag" data-slot="HelmetFlag"></select>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Guardian Cap</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipGuardianCap" data-slot="GuardianCap"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="guardianCaps" data-target="draftEquipGuardianCap" title="Browse Guardian Caps">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Arms -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Arms</h4>
+                            <div class="equipment-items equipment-items-2col">
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Left Sleeve</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipLeftSleeve" data-slot="LeftSleeve"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="armSleeves" data-target="draftEquipLeftSleeve" title="Browse Sleeves">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Right Sleeve</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipRightSleeve" data-slot="RightSleeve"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="armSleeves" data-target="draftEquipRightSleeve" title="Browse Sleeves">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Left Elbow</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipLeftElbow" data-slot="LeftElbow"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="elbowGear" data-target="draftEquipLeftElbow" title="Browse Elbow Gear">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Right Elbow</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipRightElbow" data-slot="RightElbow"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="elbowGear" data-target="draftEquipRightElbow" title="Browse Elbow Gear">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Left Wrist</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipLeftWrist" data-slot="LeftWrist"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="wristGear" data-target="draftEquipLeftWrist" title="Browse Wrist Gear">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Right Wrist</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipRightWrist" data-slot="RightWrist"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="wristGear" data-target="draftEquipRightWrist" title="Browse Wrist Gear">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hands -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Hands</h4>
+                            <div class="equipment-items equipment-items-2col">
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Left Glove</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipLeftGlove" data-slot="LeftGlove"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="gloves" data-target="draftEquipLeftGlove" title="Browse Gloves">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Right Glove</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipRightGlove" data-slot="RightGlove"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="gloves" data-target="draftEquipRightGlove" title="Browse Gloves">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Body/Torso -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Body / Torso</h4>
+                            <div class="equipment-items">
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Undershirt</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipUndershirt" data-slot="Undershirt"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="undershirts" data-target="draftEquipUndershirt" title="Browse Undershirts">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Jersey Style</label>
+                                    <select class="equipment-select draft-equipment-select" id="draftEquipJerseyStyle" data-slot="JerseyStyle"></select>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Backplate</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipBackplate" data-slot="BackPlate"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="backplates" data-target="draftEquipBackplate" title="Browse Backplates">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Flak Jacket</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipFlakJacket" data-slot="FlakJacket"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="flakJackets" data-target="draftEquipFlakJacket" title="Browse Flak Jackets">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Towel</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipTowel" data-slot="Towel"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="towels" data-target="draftEquipTowel" title="Browse Towels">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Handwarmer</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipHandwarmer" data-slot="Handwarmer"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="handwarmers" data-target="draftEquipHandwarmer" title="Browse Handwarmers">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Legs/Feet -->
+                        <div class="equipment-category">
+                            <h4 class="equipment-category-title">Legs / Feet</h4>
+                            <div class="equipment-items equipment-items-2col">
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Left Shoe</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipLeftShoe" data-slot="LeftShoe"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="shoes" data-target="draftEquipLeftShoe" title="Browse Shoes">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Right Shoe</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipRightShoe" data-slot="RightShoe"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="shoes" data-target="draftEquipRightShoe" title="Browse Shoes">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Left Shoe Color</label>
+                                    <select class="equipment-select draft-equipment-select" id="draftEquipLeftShoeColor" data-slot="LeftShoeColor"></select>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Right Shoe Color</label>
+                                    <select class="equipment-select draft-equipment-select" id="draftEquipRightShoeColor" data-slot="RightShoeColor"></select>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Left Spats</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipLeftSpats" data-slot="LeftSpats"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="spats" data-target="draftEquipLeftSpats" title="Browse Spats">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Right Spats</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipRightSpats" data-slot="RightSpats"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="spats" data-target="draftEquipRightSpats" title="Browse Spats">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Socks</label>
+                                    <select class="equipment-select draft-equipment-select" id="draftEquipSocks" data-slot="Socks"></select>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Knee Pads</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipKneePad" data-slot="KneePad"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="kneePads" data-target="draftEquipKneePad" title="Browse Knee Pads">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Left Thigh Pad</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipLeftThighPad" data-slot="LeftThighPad"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="thighPads" data-target="draftEquipLeftThighPad" title="Browse Thigh Pads">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="equipment-item equipment-item-with-picker">
+                                    <label class="equipment-label">Right Thigh Pad</label>
+                                    <div class="equipment-select-row">
+                                        <select class="equipment-select draft-equipment-select" id="draftEquipRightThighPad" data-slot="RightThighPad"></select>
+                                        <button type="button" class="gear-picker-btn" data-gear-type="thighPads" data-target="draftEquipRightThighPad" title="Browse Thigh Pads">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div id="draftCardTraitsContainer">
-                        <p style="color: #888; text-align: center; padding: 20px;">Select a prospect to view traits</p>
-                    </div>
+                    <p class="equipment-note" style="color: #888; font-size: 12px; margin-top: 16px; text-align: center;">
+                        Equipment changes are saved with player changes.
+                    </p>
                 </div>
+                </div><!-- End Equipment Tab -->
             </div>
         </div>
     </div>
