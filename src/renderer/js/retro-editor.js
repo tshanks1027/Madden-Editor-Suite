@@ -122,6 +122,7 @@ function initRetroEditor() {
   document.getElementById('btn-apply-salary-cap')?.addEventListener('click', () => applyToolSalaryCap());
   document.getElementById('btn-apply-nfl-records')?.addEventListener('click', () => applyToolNFLRecords());
   document.getElementById('btn-apply-historical-stats')?.addEventListener('click', () => applyToolHistoricalStats());
+  document.getElementById('btn-apply-equipment')?.addEventListener('click', () => applyToolEquipment());
 
   // Coach search input enter key handler
   document.getElementById('coach-search-input')?.addEventListener('keypress', (e) => {
@@ -3596,6 +3597,9 @@ async function loadToolPreview(toolName) {
     case 'historical-stats':
       await loadHistoricalStatsPreview();
       break;
+    case 'equipment':
+      await loadEquipmentToolPreview();
+      break;
   }
 }
 
@@ -5092,6 +5096,89 @@ async function applyToolHistoricalStats() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Apply Historical Stats';
+  }
+}
+
+/**
+ * Load Equipment tool preview
+ */
+async function loadEquipmentToolPreview() {
+  const eraEl = document.getElementById('equipment-era-bracket');
+  const loadingEl = document.getElementById('equipment-loading');
+  const detailsEl = document.getElementById('equipment-details');
+
+  const helmetsEl = document.getElementById('equipment-helmets');
+  const shoesEl = document.getElementById('equipment-shoes');
+  const glovesEl = document.getElementById('equipment-gloves');
+  const sleevesEl = document.getElementById('equipment-sleeves');
+  const padsEl = document.getElementById('equipment-pads');
+  const spatsEl = document.getElementById('equipment-spats');
+  const notesEl = document.getElementById('equipment-notes');
+
+  // Reset display
+  loadingEl.style.display = 'block';
+  detailsEl.style.display = 'none';
+
+  try {
+    const result = await window.electronAPI.equipment.getEraOptions(retroState.targetYear);
+
+    if (result.success) {
+      eraEl.textContent = result.era;
+
+      const helmetCount = result.helmet ? result.helmet.length : 0;
+      const shoeCount = result.shoes ? result.shoes.length : 0;
+      const gloveCount = result.gloves ? result.gloves.length : 0;
+
+      helmetsEl.textContent = helmetCount > 0 ? `${helmetCount} era-appropriate options` : 'Generic only';
+      shoesEl.textContent = `${shoeCount} era-appropriate options`;
+      glovesEl.textContent = `${gloveCount} era-appropriate options`;
+      sleevesEl.textContent = result.sleeves;
+      padsEl.textContent = result.shoulderPads;
+      spatsEl.textContent = result.spats;
+      notesEl.textContent = result.notes || '';
+
+      loadingEl.style.display = 'none';
+      detailsEl.style.display = 'block';
+    } else {
+      loadingEl.textContent = `Error: ${result.error}`;
+      loadingEl.style.color = 'var(--error-color)';
+    }
+  } catch (error) {
+    console.error('[RetroEditor] Error loading equipment preview:', error);
+    loadingEl.textContent = `Error: ${error.message}`;
+    loadingEl.style.color = 'var(--error-color)';
+  }
+}
+
+/**
+ * Apply Equipment tool - assigns era-appropriate equipment to all franchise players
+ */
+async function applyToolEquipment() {
+  const btn = document.getElementById('btn-apply-equipment');
+
+  // Note: Equipment changes are visual only - might not need backup prompt
+  // But we keep the pattern for consistency
+  const proceed = await promptForBackup('Equipment');
+  if (!proceed) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Applying...';
+
+  try {
+    // For franchise files, we need to get the player list and apply equipment to each
+    // This requires a specialized IPC handler that operates on the loaded franchise file
+    // For now, we'll show a message that this feature is coming
+    // TODO: Implement franchise equipment assignment via RetroEditorService
+
+    showToolStatus('Equipment assignment for franchise files is coming soon. Use the Roster Editor Mass Equipment tool to apply equipment to roster files.', 'info');
+    closeToolModal(document.getElementById('modal-equipment'));
+
+  } catch (error) {
+    console.error('[RetroEditor] Error applying equipment:', error);
+    showToolStatus(`Error: ${error.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Apply Equipment';
   }
 }
 

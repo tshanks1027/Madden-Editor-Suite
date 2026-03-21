@@ -77,7 +77,8 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
       btypSynced: result?.btypSynced ?? 0,
       skntSynced: result?.skntSynced ?? 0,
       blbmError: result?.blbmError ?? null,
-      injuriesCleared: result?.injuriesCleared ?? 0
+      injuriesCleared: result?.injuriesCleared ?? 0,
+      equipmentUpdated: result?.equipmentUpdated ?? 0
     };
 
   } catch (error: any) {

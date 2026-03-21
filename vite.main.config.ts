@@ -109,6 +109,14 @@ export default defineConfig({
             console.log('Copied coach-atlas.json to build output');
           }
 
+          // Copy equipment years JSON (era-appropriate equipment assignment)
+          const equipmentYearsFile = path.join(srcDataDir, 'equipment-years.json');
+          if (existsSync(equipmentYearsFile)) {
+            const destEquipmentYearsFile = path.join(destDataDir, 'equipment-years.json');
+            copyFileSync(equipmentYearsFile, destEquipmentYearsFile);
+            console.log('Copied equipment-years.json to build output');
+          }
+
           // Copy portrait sprites directory
           const srcPortraitSpritesDir = path.join(srcDataDir, 'portrait-sprites');
           const destPortraitSpritesDir = path.join(destDataDir, 'portrait-sprites');

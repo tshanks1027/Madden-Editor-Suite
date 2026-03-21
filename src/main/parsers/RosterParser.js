@@ -1064,7 +1064,8 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
       btypSynced,
       skntSynced,
       blbmError,
-      injuriesCleared
+      injuriesCleared,
+      equipmentUpdated
     };
 
   } catch (error) {

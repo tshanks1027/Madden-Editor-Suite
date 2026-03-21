@@ -141,8 +141,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   rosterCreator: {
     generate: (year: number, templatePath: string, ratingMode: string = 'semi-historical') =>
       ipcRenderer.invoke('roster-creator:generate', year, templatePath, ratingMode),
-    save: (players: any[], templatePath: string, outputPath: string) =>
-      ipcRenderer.invoke('roster-creator:save', players, templatePath, outputPath),
+    save: (players: any[], templatePath: string, outputPath: string, year?: number) =>
+      ipcRenderer.invoke('roster-creator:save', players, templatePath, outputPath, year),
     validateYear: (year: number) =>
       ipcRenderer.invoke('roster-creator:validate-year', year),
     getStats: (players: any[]) =>
@@ -278,6 +278,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gear: {
     getAtlas: () => ipcRenderer.invoke('gear:get-atlas'),
     getImage: (imageName: string) => ipcRenderer.invoke('gear:get-image', imageName)
+  },
+
+  // Era Equipment APIs (mass equipment assignment by year)
+  equipment: {
+    getEraEquipment: (year: number, position: string) =>
+      ipcRenderer.invoke('equipment:get-era-equipment', year, position),
+    getEraOptions: (year: number) =>
+      ipcRenderer.invoke('equipment:get-era-options', year),
+    getEraBracket: (year: number) =>
+      ipcRenderer.invoke('equipment:get-era-bracket', year)
   },
 
   // Custom Portrait APIs (user-uploaded portraits, PID 12000+)

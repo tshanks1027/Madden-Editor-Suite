@@ -473,6 +473,11 @@ class MaddenEditorApp {
             this.createNewRoster();
         });
 
+        document.getElementById('toolsMassEquipmentBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.showMassEquipmentModal('roster');
+        });
+
         // Legacy button handlers (if still present in DOM)
         document.getElementById('importCsvBtn')?.addEventListener('click', () => {
             this.importRosterCSV();
@@ -590,6 +595,33 @@ class MaddenEditorApp {
         document.getElementById('draftToolsCreateEmptyBtn')?.addEventListener('click', () => {
             draftToolsPopup?.classList.remove('show');
             this.createNewDraftClass();
+        });
+
+        document.getElementById('draftToolsMassEquipmentBtn')?.addEventListener('click', () => {
+            draftToolsPopup?.classList.remove('show');
+            this.showMassEquipmentModal('draft');
+        });
+
+        // Mass Equipment Modal handlers
+        document.getElementById('massEquipmentClose')?.addEventListener('click', () => {
+            this.closeMassEquipmentModal();
+        });
+        document.getElementById('massEquipmentCancel')?.addEventListener('click', () => {
+            this.closeMassEquipmentModal();
+        });
+        document.getElementById('massEquipmentModal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.closeMassEquipmentModal();
+            }
+        });
+        document.getElementById('massEquipmentYear')?.addEventListener('change', (e) => {
+            this.updateMassEquipmentPreview(parseInt(e.target.value));
+        });
+        document.getElementById('massEquipmentYear')?.addEventListener('input', (e) => {
+            this.updateMassEquipmentPreview(parseInt(e.target.value));
+        });
+        document.getElementById('massEquipmentApply')?.addEventListener('click', () => {
+            this.applyMassEquipment();
         });
 
         // Modal close
@@ -1407,6 +1439,224 @@ class MaddenEditorApp {
             }
         } else {
             console.log('[normalizeDraftBodyTypes] All body types already correct');
+        }
+    }
+
+    /**
+     * Show mass equipment by year modal
+     * @param {string} mode - 'roster' or 'draft'
+     */
+    showMassEquipmentModal(mode) {
+        this._massEquipmentMode = mode;
+        const modal = document.getElementById('massEquipmentModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            // Set a reasonable default year
+            const yearInput = document.getElementById('massEquipmentYear');
+            if (yearInput && !yearInput.value) {
+                yearInput.value = 2024;
+            }
+            this.updateMassEquipmentPreview(parseInt(yearInput?.value || 2024));
+        }
+    }
+
+    /**
+     * Close mass equipment modal
+     */
+    closeMassEquipmentModal() {
+        const modal = document.getElementById('massEquipmentModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    /**
+     * Update mass equipment preview based on selected year
+     * @param {number} year - Target year
+     */
+    async updateMassEquipmentPreview(year) {
+        const previewContent = document.getElementById('massEquipmentPreviewContent');
+        if (!previewContent || !year || year < 1970 || year > 2025) {
+            if (previewContent) {
+                previewContent.innerHTML = '<span style="color: var(--text-secondary);">Enter a valid year (1970-2025) to see era equipment details...</span>';
+            }
+            return;
+        }
+
+        try {
+            const result = await window.electronAPI.equipment.getEraOptions(year);
+            if (result.success) {
+                const helmetCount = result.helmet ? result.helmet.length : 0;
+                const shoeCount = result.shoes ? result.shoes.length : 0;
+                const gloveCount = result.gloves ? result.gloves.length : 0;
+
+                previewContent.innerHTML = `
+                    <div style="display: grid; gap: 10px; font-size: 13px;">
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                            <span style="color: var(--text-secondary);">Era Bracket:</span>
+                            <span style="font-weight: 600; color: var(--accent-color);">${result.era}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                            <span style="color: var(--text-secondary);">Helmets:</span>
+                            <span style="color: var(--text-primary);">${helmetCount > 0 ? `${helmetCount} options` : 'Generic only'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                            <span style="color: var(--text-secondary);">Shoes:</span>
+                            <span style="color: var(--text-primary);">${shoeCount} options</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                            <span style="color: var(--text-secondary);">Gloves:</span>
+                            <span style="color: var(--text-primary);">${gloveCount} options</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                            <span style="color: var(--text-secondary);">Sleeves:</span>
+                            <span style="color: var(--text-primary);">${result.sleeves}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                            <span style="color: var(--text-secondary);">Shoulder Pads:</span>
+                            <span style="color: var(--text-primary);">${result.shoulderPads}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                            <span style="color: var(--text-secondary);">Spats:</span>
+                            <span style="color: var(--text-primary);">${result.spats}</span>
+                        </div>
+                    </div>
+                    ${result.notes ? `<p style="margin-top: 12px; font-size: 12px; color: var(--text-secondary); font-style: italic;">${result.notes}</p>` : ''}
+                `;
+            } else {
+                previewContent.innerHTML = `<span style="color: var(--error-color);">Error: ${result.error}</span>`;
+            }
+        } catch (error) {
+            console.error('[MassEquipment] Error loading preview:', error);
+            previewContent.innerHTML = `<span style="color: var(--error-color);">Error loading era data</span>`;
+        }
+    }
+
+    /**
+     * Apply mass equipment to all players
+     */
+    async applyMassEquipment() {
+        const yearInput = document.getElementById('massEquipmentYear');
+        const year = parseInt(yearInput?.value);
+
+        if (!year || year < 1970 || year > 2025) {
+            alert('Please enter a valid year between 1970 and 2025.');
+            return;
+        }
+
+        const mode = this._massEquipmentMode || 'roster';
+        const players = mode === 'roster' ? this.players : this.draftProspects;
+
+        if (!players || players.length === 0) {
+            alert(`No ${mode === 'roster' ? 'players' : 'prospects'} loaded. Open a ${mode === 'roster' ? 'roster' : 'draft class'} file first.`);
+            return;
+        }
+
+        const applyBtn = document.getElementById('massEquipmentApply');
+        if (applyBtn) {
+            applyBtn.disabled = true;
+            applyBtn.textContent = 'Applying...';
+        }
+
+        try {
+            let updatedCount = 0;
+            let errorCount = 0;
+
+            console.log(`[MassEquipment] Starting - mode: ${mode}, players: ${players.length}, year: ${year}`);
+            console.log(`[MassEquipment] API check: equipment=${!!window.electronAPI?.equipment}, getEraEquipment=${!!window.electronAPI?.equipment?.getEraEquipment}, parser.setPlayerEquipment=${!!window.electronAPI?.parser?.setPlayerEquipment}`);
+
+            for (let i = 0; i < players.length; i++) {
+                const player = players[i];
+
+                // Get position - roster uses PPOS (numeric), draft uses position (string)
+                let position;
+                if (mode === 'roster') {
+                    // PPOS is numeric, convert to string
+                    const posId = player.PPOS;
+                    position = this.getPositionName(posId) || 'QB';
+                } else {
+                    position = player.position || 'QB';
+                }
+
+                // Log first 3 players for debugging
+                if (i < 3) {
+                    console.log(`[MassEquipment] Player ${i}: PPOS=${player.PPOS}, position=${position}, _originalIndex=${player._originalIndex}`);
+                }
+
+                // Get era-appropriate equipment for this position
+                const result = await window.electronAPI.equipment.getEraEquipment(year, position);
+
+                // Log first 3 results for debugging
+                if (i < 3) {
+                    console.log(`[MassEquipment] Player ${i} result:`, result);
+                }
+
+                if (result.success && result.equipment) {
+                    if (mode === 'roster') {
+                        // Use the parser API to set equipment on roster players
+                        // The player's index in this.players matches the parser's player index
+                        const playerIndex = player._originalIndex !== undefined ? player._originalIndex : i;
+                        if (i < 3) {
+                            console.log(`[MassEquipment] Player ${i}: calling setPlayerEquipment(${playerIndex}, {...${Object.keys(result.equipment).length} fields})`);
+                        }
+                        const setResult = await window.electronAPI.parser.setPlayerEquipment(playerIndex, result.equipment);
+                        if (i < 3) {
+                            console.log(`[MassEquipment] Player ${i} setResult:`, setResult);
+                        }
+                        if (setResult.success) {
+                            updatedCount++;
+                        } else {
+                            errorCount++;
+                            if (errorCount <= 3) {
+                                console.warn(`[MassEquipment] Failed to set equipment for player ${i}: ${setResult.error}`);
+                            }
+                        }
+                    } else {
+                        // Draft prospects - store equipment directly
+                        if (!player.equipment) player.equipment = {};
+                        Object.assign(player.equipment, result.equipment);
+
+                        // Also update visuals if present
+                        if (player.visuals && player.visuals.equipment) {
+                            Object.assign(player.visuals.equipment, result.equipment);
+                        }
+                        updatedCount++;
+                    }
+                } else if (i < 3) {
+                    console.log(`[MassEquipment] Player ${i}: result.success=${result.success}, result.equipment=${!!result.equipment}`);
+                }
+            }
+
+            console.log(`[MassEquipment] Applied era ${year} equipment to ${updatedCount} ${mode === 'roster' ? 'players' : 'prospects'}${errorCount > 0 ? ` (${errorCount} errors)` : ''}`);
+
+            // Mark as having unsaved changes
+            if (mode === 'roster') {
+                this.hasUnsavedChanges = true;
+                const saveBtn = document.getElementById('saveRosterBtn');
+                if (saveBtn) saveBtn.style.display = 'inline-block';
+            } else {
+                this.draftHasUnsavedChanges = true;
+                const saveBtn = document.getElementById('saveDraftClassBtn') || document.getElementById('saveDraftBtn');
+                if (saveBtn) saveBtn.style.display = 'inline-block';
+            }
+
+            // Close modal
+            this.closeMassEquipmentModal();
+
+            // Show success message
+            const msg = errorCount > 0
+                ? `Applied ${year} era equipment to ${updatedCount} ${mode === 'roster' ? 'players' : 'prospects'} (${errorCount} failed).`
+                : `Successfully applied ${year} era equipment to ${updatedCount} ${mode === 'roster' ? 'players' : 'prospects'}.`;
+            alert(msg);
+
+        } catch (error) {
+            console.error('[MassEquipment] Error applying equipment:', error);
+            alert(`Error applying equipment: ${error.message}`);
+        } finally {
+            if (applyBtn) {
+                applyBtn.disabled = false;
+                applyBtn.textContent = 'Apply to All Players';
+            }
         }
     }
 
@@ -4349,6 +4599,7 @@ class MaddenEditorApp {
                     console.log('[SAVE DEBUG] BTYP synced:', saveResult.btypSynced);
                     console.log('[SAVE DEBUG] SKNT synced:', saveResult.skntSynced);
                     console.log('[SAVE DEBUG] Injuries cleared:', saveResult.injuriesCleared);
+                    console.log('[SAVE DEBUG] Equipment updated:', saveResult.equipmentUpdated);
                     if (saveResult.blbmError) {
                         console.error('[SAVE DEBUG] BLBM error:', saveResult.blbmError);
                     }
@@ -9261,9 +9512,10 @@ class MaddenEditorApp {
             progressBar.style.width = '100%';
             progressText.textContent = `Complete! Generated ${result.players.length} players`;
 
-            // Store generated players
+            // Store generated players and year for later save
             this.generatedRosterPlayers = result.players;
             this.generatedRosterStats = result.stats;
+            this.generatedRosterYear = year;  // Store year for equipment/trait lookup on save
 
             // Show preview step
             await this.showRosterPreview(result.players);
@@ -10229,11 +10481,13 @@ class MaddenEditorApp {
             }
 
             // Call backend to save roster
+            // Pass the generated roster year for equipment/trait lookup
             console.log('[app.js] Calling rosterCreator.save with template:', templatePath);
             const saveResult = await window.electronAPI.rosterCreator.save(
                 this.players, // Use current player data from editor
                 templatePath,
-                result.filePath
+                result.filePath,
+                this.generatedRosterYear  // Year for equipment/trait edits from database
             );
 
             if (!saveResult.success) {
@@ -10277,10 +10531,12 @@ class MaddenEditorApp {
 
             // Use rosterCreator.save which creates NEW roster files from scratch
             // This is the correct method for generated rosters (not parser.saveRosterFile which edits existing)
+            // Pass the generated roster year for equipment/trait lookup
             const saveResult = await window.electronAPI.rosterCreator.save(
                 this.players,
                 templatePath,
-                result.filePath
+                result.filePath,
+                this.generatedRosterYear  // Year for equipment/trait edits from database
             );
 
             if (!saveResult.success) {

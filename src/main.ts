@@ -47,6 +47,7 @@ import { registerPortraitMappingHandlers } from './main/ipc/portrait-mapping-han
 import { registerCustomPortraitHandlers } from './main/ipc/custom-portrait-handlers';
 import { registerCustomCoachPortraitHandlers } from './main/ipc/custom-coach-portrait-handlers';
 import { registerLogoHandlers } from './main/ipc/logo-handlers';
+import { registerEquipmentHandlers } from './main/ipc/equipment-handlers';
 import { updateChecker } from './main/services/UpdateChecker';
 import { portraitSpriteService } from './main/services/PortraitSpriteService';
 import { coachPortraitService } from './main/services/CoachPortraitService';
@@ -63,6 +64,7 @@ registerPortraitMappingHandlers();
 registerCustomPortraitHandlers();
 registerCustomCoachPortraitHandlers();
 registerLogoHandlers();
+registerEquipmentHandlers();
 
 // Register window focus handler for Windows keyboard input restoration
 ipcMain.handle('window:focus', async (event) => {

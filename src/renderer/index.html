@@ -1633,6 +1633,9 @@
                                         <button class="v2-tools-item" id="toolsCleanDuplicatesBtn">
                                             <span class="v2-tools-icon">🔍</span>Clean Duplicates
                                         </button>
+                                        <button class="v2-tools-item" id="toolsMassEquipmentBtn">
+                                            <span class="v2-tools-icon">🎽</span>Mass Equipment by Year
+                                        </button>
                                         <div class="v2-tools-divider"></div>
                                         <button class="v2-tools-item" id="toolsFillFromDbBtn">
                                             <span class="v2-tools-icon">⬇️</span>Fill From Database
@@ -1930,6 +1933,9 @@
                                         </button>
                                         <button class="v2-tools-item" id="draftToolsFixCommentaryBtn">
                                             <span class="v2-tools-icon">🎙️</span>Fix Commentary
+                                        </button>
+                                        <button class="v2-tools-item" id="draftToolsMassEquipmentBtn">
+                                            <span class="v2-tools-icon">🎽</span>Mass Equipment by Year
                                         </button>
                                         <div class="v2-tools-divider"></div>
                                         <button class="v2-tools-item" id="draftToolsFillFromDbBtn">
@@ -2430,6 +2436,18 @@
                                     <p class="tool-desc"
                                         style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Apply
                                         historical career stats to players</p>
+                                </div>
+
+                                <!-- Equipment Tool -->
+                                <div class="retro-tool-card" data-tool="equipment"
+                                    style="background: var(--bg-secondary); border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); cursor: pointer; transition: all 0.2s;">
+                                    <div class="tool-icon" style="font-size: 1.8rem; margin-bottom: 8px;">🎽</div>
+                                    <h4 style="margin: 0 0 4px 0; color: var(--text-primary); font-size: 0.95rem;">Equipment</h4>
+                                    <p class="tool-timing"
+                                        style="margin: 0; font-size: 0.75rem; color: var(--accent-color);">Anytime</p>
+                                    <p class="tool-desc"
+                                        style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Apply
+                                        era-appropriate equipment to players</p>
                                 </div>
                             </div>
 
@@ -3711,6 +3729,63 @@
                             <div class="retro-tool-modal-footer">
                                 <button class="btn btn-secondary modal-cancel">Cancel</button>
                                 <button id="btn-apply-historical-stats" class="btn btn-primary">Apply Historical Stats</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Equipment Tool Modal -->
+                    <div id="modal-equipment" class="retro-tool-modal" style="display: none;">
+                        <div class="retro-tool-modal-content" style="max-width: 550px;">
+                            <div class="retro-tool-modal-header">
+                                <h3>Era-Appropriate Equipment</h3>
+                                <button class="retro-tool-modal-close">&times;</button>
+                            </div>
+                            <div class="retro-tool-modal-body">
+                                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                    Assign era-appropriate equipment to all players in the franchise based on the target year.
+                                    Equipment varies by position and era with randomization for variety.
+                                </p>
+                                <div class="retro-tool-preview-section">
+                                    <div class="retro-tool-preview-header">
+                                        <h4 class="retro-tool-preview-title">Equipment Era: <span id="equipment-era-bracket">--</span></h4>
+                                    </div>
+                                    <div id="equipment-preview-content" style="padding: 16px;">
+                                        <div id="equipment-loading" style="text-align: center; color: var(--text-secondary);">Loading equipment data...</div>
+                                        <div id="equipment-details" style="display: none;">
+                                            <div style="display: grid; gap: 12px; font-size: 0.9rem;">
+                                                <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                    <span style="color: var(--text-secondary);">Helmets</span>
+                                                    <span id="equipment-helmets" style="color: var(--text-primary); font-weight: 500;">--</span>
+                                                </div>
+                                                <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                    <span style="color: var(--text-secondary);">Shoes</span>
+                                                    <span id="equipment-shoes" style="color: var(--text-primary); font-weight: 500;">--</span>
+                                                </div>
+                                                <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                    <span style="color: var(--text-secondary);">Gloves</span>
+                                                    <span id="equipment-gloves" style="color: var(--text-primary); font-weight: 500;">--</span>
+                                                </div>
+                                                <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                    <span style="color: var(--text-secondary);">Sleeves</span>
+                                                    <span id="equipment-sleeves" style="color: var(--text-primary); font-weight: 500;">--</span>
+                                                </div>
+                                                <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                    <span style="color: var(--text-secondary);">Shoulder Pads</span>
+                                                    <span id="equipment-pads" style="color: var(--text-primary); font-weight: 500;">--</span>
+                                                </div>
+                                                <div style="display: flex; justify-content: space-between; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
+                                                    <span style="color: var(--text-secondary);">Spats</span>
+                                                    <span id="equipment-spats" style="color: var(--text-primary); font-weight: 500;">--</span>
+                                                </div>
+                                            </div>
+                                            <p id="equipment-notes" style="margin-top: 12px; font-size: 0.8rem; color: var(--text-secondary); font-style: italic;"></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="retro-tool-modal-footer">
+                                <button class="btn btn-secondary modal-cancel">Cancel</button>
+                                <button id="btn-apply-equipment" class="btn btn-primary">Apply Equipment</button>
                             </div>
                         </div>
                     </div>
@@ -7620,6 +7695,39 @@
             transform: translateY(-1px);
         }
     </style>
+
+    <!-- Mass Equipment by Year Modal -->
+    <div id="massEquipmentModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Mass Equipment by Year</h3>
+                <button class="modal-close" id="massEquipmentClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 16px; color: var(--text-secondary);">
+                    Assign era-appropriate equipment to all players based on the selected year.
+                    Equipment selection varies by position and uses randomization within era-valid options for variety.
+                </p>
+
+                <div style="margin-bottom: 16px;">
+                    <label for="massEquipmentYear" style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-primary);">Target Year:</label>
+                    <input type="number" id="massEquipmentYear" min="1970" max="2025" value="1985"
+                        style="width: 120px; padding: 8px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 14px;">
+                </div>
+
+                <div id="massEquipmentPreview" style="background: var(--bg-secondary); border-radius: 8px; padding: 16px; border: 1px solid var(--border-color);">
+                    <div style="font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">Era Preview</div>
+                    <div id="massEquipmentPreviewContent" style="font-size: 13px; color: var(--text-secondary);">
+                        Enter a year to see era equipment details...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                <button class="v2-btn v2-btn-secondary" id="massEquipmentCancel">Cancel</button>
+                <button class="v2-btn v2-btn-primary" id="massEquipmentApply">Apply to All Players</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
