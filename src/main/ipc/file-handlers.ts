@@ -222,4 +222,37 @@ ipcMain.handle('file:exists', async (event, filePath: string) => {
   }
 });
 
+/**
+ * Handle: file:get-data-path
+ * Get the absolute path to a file in the data directory
+ */
+ipcMain.handle('file:get-data-path', async (event, relativePath: string) => {
+  try {
+    const { app } = require('electron');
+    const path = require('path');
+
+    // Check multiple locations (dev vs packaged)
+    const possiblePaths = [
+      path.join(app.getAppPath(), 'data', relativePath),
+      path.join(app.getAppPath(), '..', '..', 'data', relativePath),
+      path.join(process.cwd(), 'data', relativePath)
+    ];
+
+    for (const testPath of possiblePaths) {
+      try {
+        await fs.access(testPath);
+        return testPath.replace(/\\/g, '/'); // Normalize for file:// URLs
+      } catch {
+        // Try next path
+      }
+    }
+
+    // Return first path as fallback
+    return possiblePaths[0].replace(/\\/g, '/');
+  } catch (error: any) {
+    console.error('[file-handlers] Error getting data path:', error);
+    return '';
+  }
+});
+
 console.log('[file-handlers] File IPC handlers registered');

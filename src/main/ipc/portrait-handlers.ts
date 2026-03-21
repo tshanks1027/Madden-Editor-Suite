@@ -178,22 +178,15 @@ ipcMain.handle('portrait:get-image-data', async (event, plpoName: string) => {
  */
 ipcMain.handle('portrait:get-by-pam', async (event, pamCode: string) => {
   try {
-    // Convert PAM/PEPS code to PLPO format
-    // Format: gen_5_M_M_005 → plpo_generic_5_005_morphed
+    // Convert PAM/PEPS code to PLPO format for sprite lookup
+    // New PFCG format: gen_5_M_M_005 → plpo_generic_5_M_M_005 (keeps the PFCG code)
     let plpoName = pamCode;
 
     if (pamCode.startsWith('gen_')) {
-      const parts = pamCode.split('_');
-      if (parts.length >= 5) {
-        // Extract: gen_5_M_M_005 → ethnicity=5, faceNum=005
-        const ethnicity = parts[1];
-        // Parse as int then format to exactly 3 digits (handles 01, 003, 0011)
-        const faceNum = String(parseInt(parts[4], 10)).padStart(3, '0');
-        plpoName = `plpo_generic_${ethnicity}_${faceNum}_morphed`;
-      } else {
-        // Fallback for simpler format
-        plpoName = pamCode.replace('gen_', 'plpo_generic_');
-      }
+      // Remove 'gen_' prefix and add 'plpo_generic_' prefix
+      // gen_5_M_M_005 → plpo_generic_5_M_M_005
+      const pfcgCode = pamCode.substring(4); // Remove 'gen_'
+      plpoName = `plpo_generic_${pfcgCode}`;
     }
 
     return portraitSpriteService.getPortraitByPLPO(plpoName);
@@ -209,34 +202,30 @@ ipcMain.handle('portrait:get-by-pam', async (event, pamCode: string) => {
  */
 ipcMain.handle('portrait:get-image-data-by-plpo', async (event, plpoName: string) => {
   try {
-    // Convert PEPS format to proper PLPO format
-    // Format: plpo_gen_5_M_M_005 → plpo_generic_5_M_M_005 (preserving gender codes)
+    // Convert PEPS/GENR format to PLPO format for sprite lookup
+    // New PFCG format: plpo_gen_5_M_M_005 → plpo_generic_5_M_M_005
+    // Also handles: gen_5_M_M_005 → plpo_generic_5_M_M_005
     let finalPlpoName = plpoName;
 
     if (plpoName.startsWith('plpo_gen_')) {
-      // Strip plpo_ prefix temporarily
-      const withoutPrefix = plpoName.substring(5); // Remove "plpo_"
-      const parts = withoutPrefix.split('_');
-
-      if (parts.length >= 5 && parts[0] === 'gen') {
-        // Extract: gen_5_M_M_005 → ethnicity=5, genderCode=M, genderVariant=M, faceNum=005
-        const ethnicity = parts[1];
-        const genderCode = parts[2];
-        const genderVariant = parts[3];
-        const faceNum = parts[4]; // Keep original format - do NOT pad (atlas has variable length)
-        finalPlpoName = `plpo_generic_${ethnicity}_${genderCode}_${genderVariant}_${faceNum}`;
-        console.log(`[Portrait PLPO] Converting ${plpoName} → ${finalPlpoName}`);
-      }
+      // plpo_gen_5_M_M_005 → plpo_generic_5_M_M_005
+      finalPlpoName = plpoName.replace('plpo_gen_', 'plpo_generic_');
+      console.log(`[Portrait PLPO] Converting ${plpoName} → ${finalPlpoName}`);
+    } else if (plpoName.startsWith('gen_')) {
+      // gen_5_M_M_005 → plpo_generic_5_M_M_005
+      const pfcgCode = plpoName.substring(4); // Remove 'gen_'
+      finalPlpoName = `plpo_generic_${pfcgCode}`;
+      console.log(`[Portrait PLPO] Converting ${plpoName} → ${finalPlpoName}`);
     }
 
     let spriteInfo = portraitSpriteService.getPortraitByPLPO(finalPlpoName);
 
-    // Fallback: try with _morphed suffix if not found
-    if (!spriteInfo && plpoName.startsWith('plpo_gen_')) {
+    // Fallback: try with _morphed suffix if not found (legacy support)
+    if (!spriteInfo) {
       const morphedName = `${finalPlpoName}_morphed`;
-      console.log(`[Portrait PLPO] Trying fallback: ${morphedName}`);
       spriteInfo = portraitSpriteService.getPortraitByPLPO(morphedName);
       if (spriteInfo) {
+        console.log(`[Portrait PLPO] Found via morphed fallback: ${morphedName}`);
         finalPlpoName = morphedName;
       }
     }
@@ -642,6 +631,84 @@ ipcMain.handle('portrait:search-with-images', async (event, query: string, limit
   } catch (error: any) {
     console.error('Error searching portraits with images:', error);
     return { success: false, error: error.message, portraits: [] };
+  }
+});
+
+/**
+ * Handle: gear:get-image
+ * Get a gear image as base64 data URL
+ */
+ipcMain.handle('gear:get-image', async (event, imageName: string) => {
+  try {
+    const { app } = require('electron');
+
+    // Try multiple paths for gear sprites
+    const possiblePaths = [
+      path.join(app.getAppPath(), 'data', 'gear-sprites', imageName),
+      path.join(app.getAppPath(), '..', '..', 'data', 'gear-sprites', imageName),
+      path.join(process.cwd(), 'data', 'gear-sprites', imageName)
+    ];
+
+    let imagePath = '';
+    for (const testPath of possiblePaths) {
+      if (fs.existsSync(testPath)) {
+        imagePath = testPath;
+        break;
+      }
+    }
+
+    if (!imagePath) {
+      return { success: false, error: 'Image not found' };
+    }
+
+    const imageBuffer = fs.readFileSync(imagePath);
+    const base64Image = imageBuffer.toString('base64');
+
+    return {
+      success: true,
+      imageData: `data:image/png;base64,${base64Image}`
+    };
+  } catch (error: any) {
+    console.error('Error getting gear image:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Handle: gear:get-atlas
+ * Get the gear atlas JSON
+ */
+ipcMain.handle('gear:get-atlas', async (event) => {
+  try {
+    const { app } = require('electron');
+
+    // Try multiple paths for gear atlas
+    const possiblePaths = [
+      path.join(app.getAppPath(), 'data', 'gear-atlas.json'),
+      path.join(app.getAppPath(), '..', '..', 'data', 'gear-atlas.json'),
+      path.join(process.cwd(), 'data', 'gear-atlas.json')
+    ];
+
+    let atlasPath = '';
+    for (const testPath of possiblePaths) {
+      if (fs.existsSync(testPath)) {
+        atlasPath = testPath;
+        break;
+      }
+    }
+
+    if (!atlasPath) {
+      return { success: false, error: 'Gear atlas not found' };
+    }
+
+    const atlasData = fs.readFileSync(atlasPath, 'utf8');
+    return {
+      success: true,
+      atlas: JSON.parse(atlasData)
+    };
+  } catch (error: any) {
+    console.error('Error getting gear atlas:', error);
+    return { success: false, error: error.message };
   }
 });
 

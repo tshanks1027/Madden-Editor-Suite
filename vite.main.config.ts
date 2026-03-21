@@ -174,6 +174,35 @@ export default defineConfig({
             }
           }
 
+          // Copy gear atlas JSON
+          const gearAtlasFile = path.join(srcDataDir, 'gear-atlas.json');
+          if (existsSync(gearAtlasFile)) {
+            const destGearAtlasFile = path.join(destDataDir, 'gear-atlas.json');
+            copyFileSync(gearAtlasFile, destGearAtlasFile);
+            console.log('Copied gear-atlas.json to build output');
+          }
+
+          // Copy gear sprites directory
+          const srcGearSpritesDir = path.join(srcDataDir, 'gear-sprites');
+          const destGearSpritesDir = path.join(destDataDir, 'gear-sprites');
+          if (existsSync(srcGearSpritesDir)) {
+            if (!existsSync(destGearSpritesDir)) {
+              mkdirSync(destGearSpritesDir, { recursive: true });
+            }
+            const gearFiles = fs.readdirSync(srcGearSpritesDir);
+            gearFiles.forEach(file => {
+              if (file.endsWith('.png')) {
+                const srcFile = path.join(srcGearSpritesDir, file);
+                const destFile = path.join(destGearSpritesDir, file);
+                copyFileSync(srcFile, destFile);
+              }
+            });
+            const gearPngCount = gearFiles.filter(f => f.endsWith('.png')).length;
+            if (gearPngCount > 0) {
+              console.log(`Copied ${gearPngCount} gear sprite images`);
+            }
+          }
+
           // Copy formulas directory
           const srcFormulasDir = path.join(srcDataDir, 'formulas');
           const destFormulasDir = path.join(destDataDir, 'formulas');

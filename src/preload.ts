@@ -35,7 +35,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     write: (filePath: string, data: any) =>
       ipcRenderer.invoke('file:write', filePath, data),
     exists: (filePath: string) =>
-      ipcRenderer.invoke('file:exists', filePath)
+      ipcRenderer.invoke('file:exists', filePath),
+    getDataPath: (relativePath: string) =>
+      ipcRenderer.invoke('file:get-data-path', relativePath)
+  },
+
+  // Path APIs (convenience wrappers)
+  path: {
+    getDataPath: (relativePath: string) =>
+      ipcRenderer.invoke('file:get-data-path', relativePath)
   },
 
   // App APIs
@@ -264,6 +272,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getImageDataByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-image-data-by-pid', pid),
     hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid),
     exportBatchDds: (pids: number[]) => ipcRenderer.invoke('coach-portrait:export-batch-dds', pids)
+  },
+
+  // Gear Image APIs
+  gear: {
+    getAtlas: () => ipcRenderer.invoke('gear:get-atlas'),
+    getImage: (imageName: string) => ipcRenderer.invoke('gear:get-image', imageName)
   },
 
   // Custom Portrait APIs (user-uploaded portraits, PID 12000+)

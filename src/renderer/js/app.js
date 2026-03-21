@@ -178,6 +178,9 @@ class MaddenEditorApp {
         // Setup event listeners
         this.setupEventListeners();
 
+        // Initialize gear picker
+        await this.initializeGearPicker();
+
         // Populate team dropdown
         this.populateTeamDropdown();
 
@@ -11011,6 +11014,53 @@ class MaddenEditorApp {
         document.getElementById('playerCardModal').style.display = 'flex';
     }
 
+    // Helmet to Facemask compatibility mapping
+    // Each helmet type can only use facemasks with matching prefixes
+    helmetFacemaskCompatibility = {
+        // Riddell SpeedFlex
+        'GearHelmet_Speed_Flex': ['Speedflex', 'SpeedFlex'],
+        // Riddell Revolution Speed
+        'GearHelmet_RevolutionSpeed': ['revospeed', 'Revospeed', 'revoSpeed', 'RevoSpeed'],
+        // Riddell Revolution
+        'GearHelmet_Revolution': ['Revo', 'revo'],
+        // Riddell Axiom
+        'GearHelmet_Axiom': ['Axiom'],
+        // Riddell 360
+        'GearHelmet_Riddell360': ['Riddell360', '360'],
+        // Riddell VSR4/Standard - uses standard facemasks
+        'GearHelmet_Standard': ['Standard', '2Bar', '3Bar', 'FullCage', 'HalfCage', 'Robot', 'Kicker', 'Bull', 'Vintage'],
+        'GearHelmet_standardBrady': ['Standard', '2Bar', '3Bar', 'FullCage', 'HalfCage', 'Robot', 'Kicker', 'Bull', 'Vintage'],
+        'GearHelmet_RiddellTK': ['Standard', '2Bar', '3Bar', 'FullCage', 'HalfCage', 'Robot', 'Kicker', 'Bull', 'Vintage'],
+        // Schutt F7
+        'GearHelmet_SchuttF7': ['F7'],
+        'GearHelmet_SchuttF7Pro': ['F7Pro', 'F7'],
+        // Schutt Air XP
+        'GearHelmet_AirXP': ['AirXP', '2Bar', '3Bar', 'FullCage', 'HalfCage', 'Robot', 'Kicker'],
+        // Schutt Vengeance
+        'GearHelmet_SchuttVeng': ['Vengeance'],
+        'GearHelmet_VengeanceZ10': ['VengeanceZ10', 'Vengeance'],
+        'GearHelmet_Schutt': ['Vengeance', '2Bar', '3Bar'],
+        // VICIS
+        'GearHelmet_VicisZero1': ['VicisZero1', 'Vicis'],
+        'GearHelmet_VicisZero2': ['VicisZero2'],
+        'GearHelmet_VicisZero2Trench': ['VicisZero2', 'VicisTrench'],
+        // Xenith
+        'GearHelmet_XenithEpic': ['Xenith'],
+        'GearHelmet_XenithOrbit': ['XenithOrbit', 'Xenith'],
+        'GearHelmet_XenithShadow': ['Xenith'],
+        'GearHelmet_X2E': ['Xenith'],
+        // Light/Special helmets - use standard facemasks
+        'GearHelmet_LightGladiator': ['Light'],
+        'GearHelmet_LightLS2': ['Light'],
+        // Seasonal helmets - use standard facemasks
+        'GearHelmet_PumpkinDefender': ['Pumpkin', 'Standard'],
+        'GearHelmet_PumpkinInvader': ['Pumpkin', 'Standard'],
+        'GearHelmet_v_DOD_PumpkinDefender': ['Pumpkin', 'Standard'],
+        'GearHelmet_SnowmanEvader': ['Standard'],
+        'GearHelmet_SnowmanFrontline': ['Standard'],
+        'GearHelmet_SnowmanInterceptor': ['Standard']
+    };
+
     /**
      * Initialize equipment dropdowns with options from backend
      */
@@ -11023,6 +11073,7 @@ class MaddenEditorApp {
             }
 
             this.equipmentOptions = result.options;
+            this.allFacemaskOptions = result.options.Facemask || []; // Store all facemask options
             console.log('[Equipment] Loaded equipment options for', Object.keys(result.options).length, 'slots');
 
             // Populate each dropdown based on data-slot attribute
@@ -11040,9 +11091,374 @@ class MaddenEditorApp {
                     });
                 }
             });
+
+            // Add helmet change listener to filter facemasks
+            const helmetSelect = document.getElementById('equipHelmet');
+            if (helmetSelect) {
+                helmetSelect.addEventListener('change', (e) => {
+                    this.filterFacemasksForHelmet(e.target.value);
+                });
+            }
         } catch (err) {
             console.error('[Equipment] Error initializing dropdowns:', err);
         }
+    }
+
+    /**
+     * Filter facemask dropdown based on selected helmet compatibility
+     */
+    filterFacemasksForHelmet(helmetValue) {
+        const facemaskSelect = document.getElementById('equipFacemask');
+        if (!facemaskSelect || !this.allFacemaskOptions) return;
+
+        const currentFacemask = facemaskSelect.value;
+        const compatiblePrefixes = this.helmetFacemaskCompatibility[helmetValue];
+
+        // Clear and repopulate facemask dropdown
+        facemaskSelect.innerHTML = '';
+
+        let filteredOptions;
+        if (compatiblePrefixes && compatiblePrefixes.length > 0) {
+            // Filter facemasks that match any of the compatible prefixes
+            filteredOptions = this.allFacemaskOptions.filter(opt => {
+                return compatiblePrefixes.some(prefix =>
+                    opt.value.includes(prefix) || opt.value.toLowerCase().includes(prefix.toLowerCase())
+                );
+            });
+            console.log(`[Equipment] Filtered facemasks for ${helmetValue}: ${filteredOptions.length} options`);
+        } else {
+            // No specific compatibility - show all facemasks
+            filteredOptions = this.allFacemaskOptions;
+            console.log(`[Equipment] No helmet compatibility found for ${helmetValue}, showing all facemasks`);
+        }
+
+        // Populate filtered options
+        filteredOptions.forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.label;
+            facemaskSelect.appendChild(option);
+        });
+
+        // Try to restore previous selection if still valid
+        const previousOption = Array.from(facemaskSelect.options).find(o => o.value === currentFacemask);
+        if (previousOption) {
+            facemaskSelect.value = currentFacemask;
+        } else if (facemaskSelect.options.length > 0) {
+            facemaskSelect.selectedIndex = 0;
+        }
+    }
+
+    // Gear atlas for visual picker
+    gearAtlas = null;
+    currentGearType = null;
+    gearSpritesPath = null;
+
+    /**
+     * Initialize the visual gear picker
+     */
+    async initializeGearPicker() {
+        try {
+            // Load gear atlas via IPC
+            const atlasResult = await window.electronAPI.gear.getAtlas();
+            if (!atlasResult.success) {
+                console.error('[GearPicker] Failed to load atlas:', atlasResult.error);
+                return;
+            }
+            this.gearAtlas = atlasResult.atlas;
+
+            // Cache for loaded gear images
+            this.gearImageCache = {};
+
+            console.log('[GearPicker] Loaded atlas:', {
+                helmets: this.gearAtlas.helmets?.length,
+                facemasks: this.gearAtlas.facemasks?.length,
+                visors: this.gearAtlas.visors?.length
+            });
+
+            // Attach event listeners to browse buttons
+            document.querySelectorAll('.gear-picker-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const gearType = btn.getAttribute('data-gear-type');
+                    const targetId = btn.getAttribute('data-target');
+                    this.openGearPicker(gearType, targetId);
+                });
+            });
+
+            // Close button
+            document.getElementById('closeGearPicker')?.addEventListener('click', () => {
+                this.closeGearPicker();
+            });
+
+            // Close on background click
+            document.getElementById('gearPickerModal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'gearPickerModal') {
+                    this.closeGearPicker();
+                }
+            });
+
+            // Search filter
+            document.getElementById('gearPickerSearch')?.addEventListener('input', (e) => {
+                this.filterGearItems(e.target.value);
+            });
+
+            // Compatibility filter for facemasks
+            document.getElementById('gearPickerCompatFilter')?.addEventListener('change', (e) => {
+                this.filterGearItems(document.getElementById('gearPickerSearch')?.value || '');
+            });
+
+        } catch (err) {
+            console.error('[GearPicker] Error initializing:', err);
+        }
+    }
+
+    /**
+     * Open the gear picker modal
+     */
+    openGearPicker(gearType, targetId) {
+        if (!this.gearAtlas) {
+            console.error('[GearPicker] Atlas not loaded');
+            return;
+        }
+
+        console.log('[GearPicker] Opening picker:', { gearType, targetId });
+        this.currentGearType = gearType;
+        this.currentGearTarget = targetId; // Store target select ID
+        const modal = document.getElementById('gearPickerModal');
+        const title = document.getElementById('gearPickerTitle');
+        const grid = document.getElementById('gearPickerGrid');
+        const compatFilter = document.getElementById('gearPickerCompatFilter');
+        const searchInput = document.getElementById('gearPickerSearch');
+
+        // Set title
+        const titles = {
+            helmets: 'Select Helmet',
+            facemasks: 'Select Facemask',
+            visors: 'Select Visor',
+            mouthpieces: 'Select Mouthpiece',
+            neckpads: 'Select Neckpad',
+            guardianCaps: 'Select Guardian Cap',
+            armSleeves: 'Select Arm Sleeve',
+            elbowGear: 'Select Elbow Gear',
+            wristGear: 'Select Wrist Gear',
+            gloves: 'Select Gloves',
+            undershirts: 'Select Undershirt',
+            backplates: 'Select Backplate',
+            flakJackets: 'Select Flak Jacket',
+            towels: 'Select Towel',
+            handwarmers: 'Select Handwarmer',
+            shoes: 'Select Shoes',
+            spats: 'Select Spats',
+            kneePads: 'Select Knee Pads',
+            thighPads: 'Select Thigh Pads'
+        };
+        title.textContent = titles[gearType] || 'Select Gear';
+
+        // Show/hide compatibility filter for facemasks
+        if (gearType === 'facemasks') {
+            compatFilter.style.display = 'block';
+            compatFilter.value = 'compatible'; // Default to compatible only
+        } else {
+            compatFilter.style.display = 'none';
+        }
+
+        // Clear search
+        searchInput.value = '';
+
+        // Populate grid
+        this.populateGearGrid(gearType);
+
+        // Show modal
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * Populate the gear picker grid
+     */
+    populateGearGrid(gearType) {
+        const grid = document.getElementById('gearPickerGrid');
+        const items = this.gearAtlas[gearType] || [];
+        const currentHelmet = document.getElementById('equipHelmet')?.value;
+        const compatFilter = document.getElementById('gearPickerCompatFilter')?.value;
+
+        console.log('[GearPicker] populateGearGrid:', { gearType, itemCount: items.length, currentHelmet, compatFilter });
+
+        // Get current selection from the target select element
+        let currentValue = '';
+        if (this.currentGearTarget) {
+            currentValue = document.getElementById(this.currentGearTarget)?.value || '';
+        } else {
+            // Fallback to default select IDs
+            const defaultSelectId = this.getDefaultSelectId(gearType);
+            currentValue = document.getElementById(defaultSelectId)?.value || '';
+        }
+
+        // Determine helmet compatibility for facemasks
+        let helmetCompat = null;
+        if (gearType === 'facemasks' && this.gearAtlas.helmetCompatibility) {
+            if (currentHelmet) {
+                helmetCompat = this.gearAtlas.helmetCompatibility[currentHelmet];
+                console.log('[GearPicker] Facemask filter - Helmet:', currentHelmet, '-> Compat type:', helmetCompat);
+                if (!helmetCompat) {
+                    console.warn('[GearPicker] Helmet not found in compatibility mapping:', currentHelmet);
+                    // Fallback to universal if helmet not in mapping
+                    helmetCompat = 'universal';
+                }
+            } else {
+                console.log('[GearPicker] No helmet selected, showing universal facemasks only');
+                helmetCompat = 'universal';
+            }
+        }
+
+        grid.innerHTML = '';
+
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'gear-picker-item';
+
+            // Check compatibility for facemasks
+            let isCompatible = true;
+            if (gearType === 'facemasks' && helmetCompat && item.compatibility) {
+                isCompatible = item.compatibility === helmetCompat || item.compatibility === 'universal';
+            }
+
+            // Hide incompatible items if filter is set to compatible
+            if (gearType === 'facemasks' && compatFilter === 'compatible' && !isCompatible) {
+                return; // Skip this item
+            }
+
+            if (!isCompatible) {
+                div.classList.add('incompatible');
+            }
+
+            if (item.value === currentValue) {
+                div.classList.add('selected');
+            }
+
+            div.setAttribute('data-value', item.value);
+            div.setAttribute('data-label', item.label.toLowerCase());
+            div.setAttribute('data-image', item.image);
+
+            // Image placeholder with loading
+            const img = document.createElement('img');
+            img.alt = item.label;
+            img.style.background = '#333';
+
+            // Placeholder SVG for items without images
+            const placeholder = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMyMjIiLz48dGV4dCB4PSI1MCIgeT0iNTUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+Tm8gSW1hZ2U8L3RleHQ+PC9zdmc+';
+
+            // Load image via IPC (with caching) - only if image exists
+            if (!item.image) {
+                img.src = placeholder;
+            } else if (this.gearImageCache[item.image]) {
+                img.src = this.gearImageCache[item.image];
+            } else {
+                // Set a placeholder initially
+                img.src = placeholder;
+                // Load async
+                window.electronAPI.gear.getImage(item.image).then(result => {
+                    if (result.success) {
+                        this.gearImageCache[item.image] = result.imageData;
+                        img.src = result.imageData;
+                    }
+                });
+            }
+            div.appendChild(img);
+
+            // Label
+            const label = document.createElement('div');
+            label.className = 'gear-picker-item-label';
+            label.textContent = item.label;
+            div.appendChild(label);
+
+            // Click handler
+            div.addEventListener('click', () => {
+                this.selectGearItem(gearType, item.value);
+            });
+
+            grid.appendChild(div);
+        });
+
+        const displayedCount = grid.children.length;
+        console.log('[GearPicker] Displayed items:', displayedCount);
+
+        // Update title to show count and filter info
+        const title = document.getElementById('gearPickerTitle');
+        if (title && gearType === 'facemasks' && helmetCompat) {
+            title.textContent = `Select Facemask (${displayedCount} ${helmetCompat} + universal)`;
+        }
+    }
+
+    /**
+     * Filter gear items by search text
+     */
+    filterGearItems(searchText) {
+        const grid = document.getElementById('gearPickerGrid');
+        const search = searchText.toLowerCase();
+
+        // Re-populate grid with filtering
+        if (this.currentGearType) {
+            this.populateGearGrid(this.currentGearType);
+        }
+
+        // Then apply search filter
+        grid.querySelectorAll('.gear-picker-item').forEach(item => {
+            const label = item.getAttribute('data-label') || '';
+            if (label.includes(search)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    /**
+     * Select a gear item and close picker
+     */
+    selectGearItem(gearType, value) {
+        // Use the stored target select ID if available
+        const selectId = this.currentGearTarget || this.getDefaultSelectId(gearType);
+        console.log('[GearPicker] Selecting:', { gearType, value, selectId, targetStored: this.currentGearTarget });
+
+        const select = document.getElementById(selectId);
+        if (select) {
+            // Set the value directly - atlas values now match dropdown values exactly
+            select.value = value;
+            console.log('[GearPicker] Set dropdown to:', value);
+
+            // Trigger change event for helmet to update facemask compatibility
+            if (gearType === 'helmets') {
+                select.dispatchEvent(new Event('change'));
+            }
+        } else {
+            console.error('[GearPicker] Select element not found:', selectId);
+        }
+
+        this.closeGearPicker();
+    }
+
+    /**
+     * Get default select ID for a gear type (fallback for buttons without data-target)
+     */
+    getDefaultSelectId(gearType) {
+        const defaults = {
+            helmets: 'equipHelmet',
+            facemasks: 'equipFacemask',
+            visors: 'equipVisor',
+            mouthpieces: 'equipMouthpiece',
+            neckpads: 'equipNeckpad',
+            guardianCaps: 'equipGuardianCap'
+        };
+        return defaults[gearType] || '';
+    }
+
+    /**
+     * Close the gear picker modal
+     */
+    closeGearPicker() {
+        document.getElementById('gearPickerModal').style.display = 'none';
+        this.currentGearType = null;
+        this.currentGearTarget = null;
     }
 
     /**
@@ -11075,11 +11491,13 @@ class MaddenEditorApp {
 
                 // Head/Face
                 setSelect('equipHelmet', eq.Helmet || '');
+                setSelect('equipFacemask', eq.Facemask || '');
                 setSelect('equipVisor', eq.Visor || '');
                 setSelect('equipFacePaint', eq.FacePaint || '');
                 setSelect('equipMouthpiece', eq.Mouthpiece || '');
                 setSelect('equipNeckpad', eq.Neckpad || '');
                 setSelect('equipHelmetFlag', eq.HelmetFlag || '');
+                setSelect('equipGuardianCap', eq.GuardianCap || '');
 
                 // Arms
                 setSelect('equipLeftSleeve', eq.LeftSleeve || '');
@@ -11337,11 +11755,13 @@ class MaddenEditorApp {
             const equipment = {
                 // Head/Face
                 Helmet: document.getElementById('equipHelmet')?.value || '',
+                Facemask: document.getElementById('equipFacemask')?.value || '',
                 Visor: document.getElementById('equipVisor')?.value || '',
                 FacePaint: document.getElementById('equipFacePaint')?.value || '',
                 Mouthpiece: document.getElementById('equipMouthpiece')?.value || '',
                 Neckpad: document.getElementById('equipNeckpad')?.value || '',
                 HelmetFlag: document.getElementById('equipHelmetFlag')?.value || '',
+                GuardianCap: document.getElementById('equipGuardianCap')?.value || '',
 
                 // Arms
                 LeftSleeve: document.getElementById('equipLeftSleeve')?.value || '',
