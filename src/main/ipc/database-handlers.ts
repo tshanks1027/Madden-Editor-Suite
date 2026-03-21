@@ -11,6 +11,8 @@ import {
   PlayerEdit,
   AppearanceEdit,
   SeasonEdit,
+  EquipmentEdit,
+  TraitEdit,
   CustomPlayer,
   CustomPlayerSeason
 } from '../services/UserDatabaseService';
@@ -556,6 +558,140 @@ ipcMain.handle('database:save-season-edit-all-years', async (event, originalPlay
     return { success: true, updatedYears: years };
   } catch (error) {
     console.error('[database-handlers] Error saving season edits to all years:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// =============================================
+// EQUIPMENT EDIT OPERATIONS
+// =============================================
+
+/**
+ * Handle: database:save-equipment-edit
+ * Save equipment edits for a player's specific season
+ */
+ipcMain.handle('database:save-equipment-edit', async (event, originalPlayerId: number, year: number, equipment: { [slot: string]: string }) => {
+  try {
+    await userDatabaseService.waitForReady();
+    userDatabaseService.saveEquipmentEdit(originalPlayerId, year, equipment);
+    return { success: true };
+  } catch (error) {
+    console.error('[database-handlers] Error saving equipment edit:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:get-equipment-edit
+ * Get equipment edits for a player's specific season
+ */
+ipcMain.handle('database:get-equipment-edit', async (event, originalPlayerId: number, year: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    return { success: true, data: userDatabaseService.getEquipmentEdit(originalPlayerId, year) };
+  } catch (error) {
+    console.error('[database-handlers] Error getting equipment edit:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:get-equipment-edits-for-player
+ * Get all equipment edits for a player (all years)
+ */
+ipcMain.handle('database:get-equipment-edits-for-player', async (event, originalPlayerId: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    return { success: true, data: userDatabaseService.getEquipmentEditsForPlayer(originalPlayerId) };
+  } catch (error) {
+    console.error('[database-handlers] Error getting equipment edits for player:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:get-all-equipment-edits-for-year
+ * Get all equipment edits for a specific year (for roster generation)
+ */
+ipcMain.handle('database:get-all-equipment-edits-for-year', async (event, year: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    const editsMap = userDatabaseService.getAllEquipmentEditsForYear(year);
+    // Convert Map to object for IPC transfer
+    const editsObj: { [playerId: number]: EquipmentEdit } = {};
+    editsMap.forEach((edit, playerId) => {
+      editsObj[playerId] = edit;
+    });
+    return { success: true, data: editsObj };
+  } catch (error) {
+    console.error('[database-handlers] Error getting all equipment edits for year:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+// =============================================
+// TRAIT EDIT OPERATIONS
+// =============================================
+
+/**
+ * Handle: database:save-trait-edit
+ * Save trait edits for a player's specific season
+ */
+ipcMain.handle('database:save-trait-edit', async (event, originalPlayerId: number, year: number, traits: { [traitName: string]: boolean | number }) => {
+  try {
+    await userDatabaseService.waitForReady();
+    userDatabaseService.saveTraitEdit(originalPlayerId, year, traits);
+    return { success: true };
+  } catch (error) {
+    console.error('[database-handlers] Error saving trait edit:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:get-trait-edit
+ * Get trait edits for a player's specific season
+ */
+ipcMain.handle('database:get-trait-edit', async (event, originalPlayerId: number, year: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    return { success: true, data: userDatabaseService.getTraitEdit(originalPlayerId, year) };
+  } catch (error) {
+    console.error('[database-handlers] Error getting trait edit:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:get-trait-edits-for-player
+ * Get all trait edits for a player (all years)
+ */
+ipcMain.handle('database:get-trait-edits-for-player', async (event, originalPlayerId: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    return { success: true, data: userDatabaseService.getTraitEditsForPlayer(originalPlayerId) };
+  } catch (error) {
+    console.error('[database-handlers] Error getting trait edits for player:', error);
+    return { success: false, error: String(error) };
+  }
+});
+
+/**
+ * Handle: database:get-all-trait-edits-for-year
+ * Get all trait edits for a specific year (for roster generation)
+ */
+ipcMain.handle('database:get-all-trait-edits-for-year', async (event, year: number) => {
+  try {
+    await userDatabaseService.waitForReady();
+    const editsMap = userDatabaseService.getAllTraitEditsForYear(year);
+    // Convert Map to object for IPC transfer
+    const editsObj: { [playerId: number]: TraitEdit } = {};
+    editsMap.forEach((edit, playerId) => {
+      editsObj[playerId] = edit;
+    });
+    return { success: true, data: editsObj };
+  } catch (error) {
+    console.error('[database-handlers] Error getting all trait edits for year:', error);
     return { success: false, error: String(error) };
   }
 });
@@ -2640,7 +2776,10 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       PAGE: age,
       PYRP: yearsPro,
       TGID: 1009, // Free Agent team by default
-      PLPL: pid > 0 && pam && !pam.startsWith('gen_') ? 100 : 0, // 100=real face, 0=generic
+      // CRITICAL: PLPL determines if game regenerates portrait on edit
+      // 100=real face (preserved on in-game edit), 0=generic (regenerated from GENR)
+      // Custom portraits (PID >= 12000) must be treated as real faces to persist
+      PLPL: (pid >= 12000) || (pid > 0 && pam && !pam.startsWith('gen_')) ? 100 : 0,
       PLTY: 0, // Archetype - will be set below (PLTY is what franchise reads!)
 
       // PGHE face picker index (if user assigned specific generic face in database)

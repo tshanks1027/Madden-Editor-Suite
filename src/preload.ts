@@ -585,6 +585,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveSeasonEditAllYears: (originalPlayerId: number, edits: any, options?: { incrementAge?: boolean }) =>
       ipcRenderer.invoke('database:save-season-edit-all-years', originalPlayerId, edits, options),
 
+    // Equipment edit operations (per player per year)
+    saveEquipmentEdit: (originalPlayerId: number, year: number, equipment: { [slot: string]: string }) =>
+      ipcRenderer.invoke('database:save-equipment-edit', originalPlayerId, year, equipment),
+    getEquipmentEdit: (originalPlayerId: number, year: number) =>
+      ipcRenderer.invoke('database:get-equipment-edit', originalPlayerId, year),
+    getEquipmentEditsForPlayer: (originalPlayerId: number) =>
+      ipcRenderer.invoke('database:get-equipment-edits-for-player', originalPlayerId),
+    getAllEquipmentEditsForYear: (year: number) =>
+      ipcRenderer.invoke('database:get-all-equipment-edits-for-year', year),
+
+    // Trait edit operations (per player per year)
+    saveTraitEdit: (originalPlayerId: number, year: number, traits: { [traitName: string]: boolean | number }) =>
+      ipcRenderer.invoke('database:save-trait-edit', originalPlayerId, year, traits),
+    getTraitEdit: (originalPlayerId: number, year: number) =>
+      ipcRenderer.invoke('database:get-trait-edit', originalPlayerId, year),
+    getTraitEditsForPlayer: (originalPlayerId: number) =>
+      ipcRenderer.invoke('database:get-trait-edits-for-player', originalPlayerId),
+    getAllTraitEditsForYear: (year: number) =>
+      ipcRenderer.invoke('database:get-all-trait-edits-for-year', year),
+
     // Player archetype operations (player-level, constant across all seasons)
     getPlayerArchetype: (playerId: number) =>
       ipcRenderer.invoke('database:get-player-archetype', playerId),

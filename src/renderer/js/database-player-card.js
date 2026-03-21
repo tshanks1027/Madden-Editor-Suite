@@ -18,70 +18,117 @@
   let availableYears = [];
   let originalSeasonData = null; // Stores original values when a year is loaded, for change detection
 
-  // Rating fields (all 77 Madden attributes)
+  // Equipment state
+  let dbEquipmentOptions = null;
+  let dbAllFacemaskOptions = null;
+  let dbGearAtlas = null;
+  let dbGearImageCache = {};
+  let dbCurrentGearType = null;
+  let dbCurrentGearTarget = null;
+
+  // Equipment slots for database player card (use 'db' prefix to avoid conflicts)
+  const DB_EQUIPMENT_SLOTS = [
+    'Helmet', 'Facemask', 'Visor', 'FacePaint', 'Mouthpiece', 'Neckpad', 'HelmetFlag', 'GuardianCap',
+    'LeftSleeve', 'RightSleeve', 'LeftElbow', 'RightElbow', 'LeftWrist', 'RightWrist',
+    'LeftGlove', 'RightGlove',
+    'Undershirt', 'JerseyStyle', 'BackPlate', 'FlakJacket', 'Towel', 'Handwarmer',
+    'LeftShoe', 'RightShoe', 'LeftShoeColor', 'RightShoeColor', 'LeftSpats', 'RightSpats',
+    'Socks', 'KneePad', 'LeftThighPad', 'RightThighPad'
+  ];
+
+  // Helmet-to-facemask compatibility mapping
+  const DB_HELMET_COMPATIBILITY = {
+    'GearHelmet_Speed_Flex': 'speedflex',
+    'GearHelmet_RevolutionSpeed': 'revospeed',
+    'GearHelmet_Revolution': 'revolution',
+    'GearHelmet_Axiom': 'axiom',
+    'GearHelmet_SchuttF7': 'f7',
+    'GearHelmet_SchuttF7Pro': 'f7pro',
+    'GearHelmet_VicisZero1': 'viciszero1',
+    'GearHelmet_VicisZero2': 'viciszero2',
+    'GearHelmet_VicisZero2Trench': 'vicistrench',
+    'GearHelmet_XenithShadow': 'xenith',
+    'GearHelmet_XenithEpic': 'xenith',
+    'GearHelmet_XenithOrbit': 'xenithorbit',
+    'GearHelmet_VengeanceZ10': 'vengeancez10',
+    'GearHelmet_SchuttVeng': 'vengeance',
+    'GearHelmet_Riddell360': 'riddell360',
+    'GearHelmet_LightGladiator': 'light',
+    'GearHelmet_LightLS2': 'light',
+    'GearHelmet_Standard': 'universal',
+    'GearHelmet_standardBrady': 'universal',
+    'GearHelmet_Schutt': 'universal',
+    'GearHelmet_RiddellTK': 'vintage',
+    'GearHelmet_AirXP': 'universal',
+    'GearHelmet_X2E': 'vengeance',
+    'GearHelmet_PumpkinDefender': 'universal'
+  };
+
+  // Rating fields - ALL USING M26 TDB2 ROSTER FIELD CODES
+  // Reference: madden-franchise-utils/franchiseToRoster/lookupFiles/directTransferFields.json
   const RATING_FIELDS = [
     // Core ratings
     { field: 'POVR', label: 'Overall', category: 'core' },
-    // Physical - these use DB field names
+    // Physical - M26 roster codes
     { field: 'PSPD', label: 'Speed', category: 'physical' },
     { field: 'PACC', label: 'Acceleration', category: 'physical' },
     { field: 'PSTR', label: 'Strength', category: 'physical' },
     { field: 'PAGI', label: 'Agility', category: 'physical' },
     { field: 'PJMP', label: 'Jumping', category: 'physical' },
-    { field: 'PSTM', label: 'Stamina', category: 'physical' },
+    { field: 'PSTA', label: 'Stamina', category: 'physical' },  // M26: PSTA (not PSTM!)
     { field: 'PINJ', label: 'Injury', category: 'physical' },
     { field: 'PTGH', label: 'Toughness', category: 'physical' },
     { field: 'PAWR', label: 'Awareness', category: 'mental' },
-    { field: 'PCOD', label: 'Change of Direction', category: 'physical' },
-    // Running - DB field names
+    { field: 'PELU', label: 'Change of Direction', category: 'physical' },  // M26: PELU (not PCOD!)
+    // Running - M26 roster codes
     { field: 'PBCV', label: 'Ball Carrier Vision', category: 'running' },
-    { field: 'PBTK', label: 'Break Tackle', category: 'running' },
-    { field: 'PTRK', label: 'Trucking', category: 'running' },
-    { field: 'PSFA', label: 'Stiff Arm', category: 'running' },
-    { field: 'PSPN', label: 'Spin Move', category: 'running' },
-    { field: 'PJKM', label: 'Juke Move', category: 'running' },
+    { field: 'PBKT', label: 'Break Tackle', category: 'running' },  // M26: PBKT (not PBTK!)
+    { field: 'PLTR', label: 'Trucking', category: 'running' },  // M26: PLTR (not PTRK!)
+    { field: 'PLSA', label: 'Stiff Arm', category: 'running' },  // M26: PLSA (not PSFA!)
+    { field: 'PLSM', label: 'Spin Move', category: 'running' },  // M26: PLSM (not PSPN!)
+    { field: 'PLJM', label: 'Juke Move', category: 'running' },  // M26: PLJM (not PJKM!)
     { field: 'PCAR', label: 'Carrying', category: 'running' },
-    // Passing - DB field names
+    // Passing - M26 roster codes
     { field: 'PTHA', label: 'Throw Accuracy', category: 'passing' },
     { field: 'PTAS', label: 'Throw Accuracy Short', category: 'passing' },
     { field: 'PTAM', label: 'Throw Accuracy Mid', category: 'passing' },
     { field: 'PTAD', label: 'Throw Accuracy Deep', category: 'passing' },
     { field: 'PTOR', label: 'Throw on the Run', category: 'passing' },
     { field: 'PTUP', label: 'Throw Under Pressure', category: 'passing' },
-    { field: 'PPWR', label: 'Throw Power', category: 'passing' },
+    { field: 'PTHP', label: 'Throw Power', category: 'passing' },  // M26: PTHP (not PPWR!)
     { field: 'PPLA', label: 'Play Action', category: 'passing' },
-    // Receiving - DB field names
+    // Receiving - M26 roster codes
     { field: 'PCTH', label: 'Catching', category: 'receiving' },
-    { field: 'PSPC', label: 'Spectacular Catch', category: 'receiving' },
-    { field: 'PCIT', label: 'Catch in Traffic', category: 'receiving' },
-    { field: 'PSRR', label: 'Short Route Running', category: 'receiving' },
+    { field: 'PLSC', label: 'Spectacular Catch', category: 'receiving' },  // M26: PLSC (not PSPC!)
+    { field: 'PLCI', label: 'Catch in Traffic', category: 'receiving' },  // M26: PLCI (not PCIT!)
+    { field: 'SRRN', label: 'Short Route Running', category: 'receiving' },  // M26: SRRN (not PSRR!)
     { field: 'PMRR', label: 'Medium Route Running', category: 'receiving' },
     { field: 'PDRR', label: 'Deep Route Running', category: 'receiving' },
-    { field: 'PREL', label: 'Release', category: 'receiving' },
-    // Blocking - DB field names
+    { field: 'PLRL', label: 'Release', category: 'receiving' },  // M26: PLRL (not PREL!)
+    // Blocking - M26 roster codes
     { field: 'PRBK', label: 'Run Block', category: 'blocking' },
     { field: 'PPBK', label: 'Pass Block', category: 'blocking' },
-    { field: 'PIBK', label: 'Impact Blocking', category: 'blocking' },
+    { field: 'PLIB', label: 'Impact Blocking', category: 'blocking' },  // M26: PLIB (not PIBK!)
     { field: 'PLBK', label: 'Lead Block', category: 'blocking' },
-    { field: 'PRNS', label: 'Run Block Finesse', category: 'blocking' },
+    { field: 'PRBF', label: 'Run Block Finesse', category: 'blocking' },  // M26: PRBF (not PRNS!)
     { field: 'PRBS', label: 'Run Block Power', category: 'blocking' },
     { field: 'PPBF', label: 'Pass Block Finesse', category: 'blocking' },
-    { field: 'PPBP', label: 'Pass Block Power', category: 'blocking' },
-    // Defense - DB field names
+    { field: 'PPBS', label: 'Pass Block Power', category: 'blocking' },  // M26: PPBS (not PPBP!)
+    // Defense - M26 roster codes
     { field: 'PTAK', label: 'Tackling', category: 'defense' },
-    { field: 'PHIT', label: 'Hit Power', category: 'defense' },
-    { field: 'PPRS', label: 'Press', category: 'defense' },
-    { field: 'PFMV', label: 'Finesse Moves', category: 'defense' },
-    { field: 'PPWM', label: 'Power Moves', category: 'defense' },
-    { field: 'PBSH', label: 'Block Shedding', category: 'defense' },
-    { field: 'PPUR', label: 'Pursuit', category: 'defense' },
-    { field: 'PPRC', label: 'Play Recognition', category: 'defense' },
-    // Coverage - DB field names
-    { field: 'PMCV', label: 'Man Coverage', category: 'coverage' },
-    { field: 'PZCV', label: 'Zone Coverage', category: 'coverage' },
-    // Kicking - DB field names
+    { field: 'PLHT', label: 'Hit Power', category: 'defense' },  // M26: PLHT (not PHIT!)
+    { field: 'PLPE', label: 'Press', category: 'defense' },  // M26: PLPE (not PPRS!)
+    { field: 'PFMS', label: 'Finesse Moves', category: 'defense' },  // M26: PFMS (not PFMV!)
+    { field: 'PLPM', label: 'Power Moves', category: 'defense' },  // M26: PLPM (not PPWM!)
+    { field: 'PBSG', label: 'Block Shedding', category: 'defense' },  // M26: PBSG (not PBSH!)
+    { field: 'PLPU', label: 'Pursuit', category: 'defense' },  // M26: PLPU (not PPUR!)
+    { field: 'PLPR', label: 'Play Recognition', category: 'defense' },  // M26: PLPR (not PPRC!)
+    // Coverage - M26 roster codes
+    { field: 'PLMC', label: 'Man Coverage', category: 'coverage' },  // M26: PLMC (not PMCV!)
+    { field: 'PLZC', label: 'Zone Coverage', category: 'coverage' },  // M26: PLZC (not PZCV!)
+    // Kicking - M26 roster codes
     { field: 'PKAC', label: 'Kick Accuracy', category: 'kicking' },
-    { field: 'PKPR', label: 'Kick Power', category: 'kicking' },
+    { field: 'PKPR', label: 'Kick Power', category: 'kicking' },  // M26: PKPR (not PKPW!)
     { field: 'PKRT', label: 'Kick Return', category: 'special' }
   ];
 
@@ -101,8 +148,9 @@
   };
 
   // Map database player card field names to OVR calculator field codes
-  // CRITICAL: The OVRWeightsCalculator uses official Madden roster field codes
-  // The database may store data with different codes, so we map them here
+  // Map database field codes to OVR calculator field codes
+  // Database now uses M26 roster names, but this handles legacy data with old codes
+  // Both legacy (PKPW) and M26 (PKPR) names map to the correct OVR calculator code
   const DB_TO_OVR_FIELD_MAP = {
     'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI', 'PJMP': 'PJMP',
     'PSTM': 'PSTA', 'PSTA': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',
@@ -130,18 +178,9 @@
     'PKAC': 'PKAC', 'PKPW': 'PKPR', 'PKPR': 'PKPR', 'PKRT': 'PKRT'  // PKPW in DB = PKPR in roster (kick power)
   };
 
-  // Reverse map: OVR calculator field codes to database field names
-  // This converts roster/OVR codes to what's stored in the DB
-  const OVR_TO_DB_FIELD_MAP = {
-    'PSTA': 'PSTM', 'PELU': 'PCOD', 'PBKT': 'PBTK', 'PLTR': 'PTRK',
-    'PLSA': 'PSFA', 'PLSM': 'PSPN', 'PLJM': 'PJKM', 'PTHP': 'PPWR',
-    'PLSC': 'PSPC', 'PLCI': 'PCIT', 'SRRN': 'PSRR', 'PLRL': 'PREL',
-    'PLIB': 'PIBK', 'PRBF': 'PRNS', 'PRBS': 'PRBS', 'PPBF': 'PPBF', 'PPBS': 'PPBP',
-    'PLHT': 'PHIT', 'PLPM': 'PPWM', 'PBSG': 'PBSH', 'PFMS': 'PFMV',
-    'PLPU': 'PPUR', 'PLPR': 'PPRC', 'PPLA': 'PPLA',
-    'PLMC': 'PMCV', 'PLZC': 'PZCV', 'PLPE': 'PPRS',
-    'PKPR': 'PKPW'  // Kick power: roster/OVR uses PKPR, DB uses PKPW
-  };
+  // Database now uses M26 roster field names directly - no conversion needed!
+  // This map is kept for compatibility but all mappings are identity (field = field)
+  const OVR_TO_DB_FIELD_MAP = {};
 
   /**
    * Initialize the database player card module
@@ -657,9 +696,453 @@
         }
       }
 
+      // Load equipment options for equipment tab
+      await loadDbEquipmentOptions();
+
     } catch (error) {
       console.error('[DatabasePlayerCard] Failed to load dropdown options:', error);
     }
+  }
+
+  /**
+   * Load equipment options and populate dropdowns
+   */
+  async function loadDbEquipmentOptions() {
+    try {
+      if (!window.electronAPI || !window.electronAPI.parser) {
+        console.warn('[DbEquipment] electronAPI.parser not available');
+        return;
+      }
+
+      var result = await window.electronAPI.parser.getEquipmentOptions();
+      if (!result.success || !result.options) {
+        console.warn('[DbEquipment] Failed to load equipment options');
+        return;
+      }
+
+      dbEquipmentOptions = result.options;
+      dbAllFacemaskOptions = result.options.Facemask || [];
+      console.log('[DbEquipment] Loaded equipment options for', Object.keys(result.options).length, 'slots');
+
+      // Populate each dropdown based on data-slot attribute (using db prefix)
+      document.querySelectorAll('#tab-equipment .equipment-select[data-slot]').forEach(function(select) {
+        var slotName = select.getAttribute('data-slot');
+        var options = dbEquipmentOptions[slotName];
+
+        if (options && options.length > 0) {
+          select.innerHTML = '';
+          options.forEach(function(opt) {
+            var option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.label;
+            select.appendChild(option);
+          });
+        }
+      });
+
+      // Add helmet change listener to filter facemasks
+      var helmetSelect = document.getElementById('dbEquipHelmet');
+      if (helmetSelect) {
+        helmetSelect.addEventListener('change', function(e) {
+          filterDbFacemasksForHelmet(e.target.value);
+        });
+      }
+
+      // Load gear atlas for visual picker
+      await loadDbGearAtlas();
+
+      console.log('[DbEquipment] Equipment dropdowns initialized');
+    } catch (error) {
+      console.error('[DbEquipment] Error loading equipment options:', error);
+    }
+  }
+
+  /**
+   * Filter facemask dropdown based on helmet compatibility
+   */
+  function filterDbFacemasksForHelmet(helmetValue) {
+    var facemaskSelect = document.getElementById('dbEquipFacemask');
+    if (!facemaskSelect || !dbAllFacemaskOptions) return;
+
+    var currentFacemask = facemaskSelect.value;
+    var helmetCompat = DB_HELMET_COMPATIBILITY[helmetValue];
+
+    facemaskSelect.innerHTML = '';
+
+    var filteredOptions;
+    if (helmetCompat && helmetCompat !== 'universal') {
+      filteredOptions = dbAllFacemaskOptions.filter(function(opt) {
+        var maskCompat = detectFacemaskCompatibility(opt.value);
+        return maskCompat === helmetCompat || maskCompat === 'universal';
+      });
+      console.log('[DbEquipment] Filtered facemasks for ' + helmetValue + ': ' + filteredOptions.length);
+    } else {
+      filteredOptions = dbAllFacemaskOptions;
+    }
+
+    filteredOptions.forEach(function(opt) {
+      var option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      facemaskSelect.appendChild(option);
+    });
+
+    // Restore selection if still valid
+    var previousOption = Array.from(facemaskSelect.options).find(function(o) { return o.value === currentFacemask; });
+    if (previousOption) {
+      facemaskSelect.value = currentFacemask;
+    } else if (facemaskSelect.options.length > 0) {
+      facemaskSelect.selectedIndex = 0;
+    }
+  }
+
+  /**
+   * Detect facemask compatibility from value string
+   */
+  function detectFacemaskCompatibility(value) {
+    var lowerValue = value.toLowerCase();
+    if (lowerValue.includes('speedflex') || lowerValue.includes('speed_flex')) return 'speedflex';
+    if (lowerValue.includes('revospeed') || lowerValue.includes('revo_speed')) return 'revospeed';
+    if (lowerValue.includes('revolution') && !lowerValue.includes('speed')) return 'revolution';
+    if (lowerValue.includes('axiom')) return 'axiom';
+    if (lowerValue.includes('f7pro')) return 'f7pro';
+    if (lowerValue.includes('f7') && !lowerValue.includes('f7pro')) return 'f7';
+    if (lowerValue.includes('viciszero2trench') || lowerValue.includes('vicistrench')) return 'vicistrench';
+    if (lowerValue.includes('viciszero2')) return 'viciszero2';
+    if (lowerValue.includes('viciszero1')) return 'viciszero1';
+    if (lowerValue.includes('vicis')) return 'vicis';
+    if (lowerValue.includes('xenithorbit')) return 'xenithorbit';
+    if (lowerValue.includes('xenith')) return 'xenith';
+    if (lowerValue.includes('vengeancez10')) return 'vengeancez10';
+    if (lowerValue.includes('vengeance')) return 'vengeance';
+    if (lowerValue.includes('riddell360')) return 'riddell360';
+    if (lowerValue.includes('light')) return 'light';
+    if (lowerValue.includes('vintage') || lowerValue.includes('tk')) return 'vintage';
+    return 'universal';
+  }
+
+  /**
+   * Load gear atlas for visual picker
+   */
+  async function loadDbGearAtlas() {
+    try {
+      if (!window.electronAPI || !window.electronAPI.gear) {
+        console.warn('[DbGearPicker] electronAPI.gear not available');
+        return;
+      }
+
+      var atlasResult = await window.electronAPI.gear.getAtlas();
+      if (!atlasResult.success) {
+        console.error('[DbGearPicker] Failed to load atlas:', atlasResult.error);
+        return;
+      }
+
+      dbGearAtlas = atlasResult.atlas;
+      dbGearImageCache = {};
+      console.log('[DbGearPicker] Loaded gear atlas');
+
+      // Set up gear picker event listeners
+      setupDbGearPickerListeners();
+    } catch (error) {
+      console.error('[DbGearPicker] Error loading gear atlas:', error);
+    }
+  }
+
+  /**
+   * Set up gear picker event listeners
+   */
+  function setupDbGearPickerListeners() {
+    // Browse buttons
+    document.querySelectorAll('#tab-equipment .gear-picker-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var gearType = btn.getAttribute('data-gear-type');
+        var targetId = btn.getAttribute('data-target');
+        openDbGearPicker(gearType, targetId);
+      });
+    });
+
+    // Close button
+    var closeBtn = document.getElementById('closeDbGearPicker');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeDbGearPicker);
+    }
+
+    // Modal background click
+    var modal = document.getElementById('dbGearPickerModal');
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target.id === 'dbGearPickerModal') {
+          closeDbGearPicker();
+        }
+      });
+    }
+
+    // Search input
+    var searchInput = document.getElementById('dbGearPickerSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', function(e) {
+        filterDbGearItems(e.target.value);
+      });
+    }
+
+    // Compatibility filter
+    var compatFilter = document.getElementById('dbGearPickerCompatFilter');
+    if (compatFilter) {
+      compatFilter.addEventListener('change', function() {
+        filterDbGearItems(document.getElementById('dbGearPickerSearch')?.value || '');
+      });
+    }
+  }
+
+  /**
+   * Open the gear picker modal
+   */
+  function openDbGearPicker(gearType, targetId) {
+    if (!dbGearAtlas) {
+      console.error('[DbGearPicker] Atlas not loaded');
+      return;
+    }
+
+    console.log('[DbGearPicker] Opening picker:', gearType, targetId);
+    dbCurrentGearType = gearType;
+    dbCurrentGearTarget = targetId;
+
+    var modal = document.getElementById('dbGearPickerModal');
+    var title = document.getElementById('dbGearPickerTitle');
+    var grid = document.getElementById('dbGearPickerGrid');
+    var compatFilter = document.getElementById('dbGearPickerCompatFilter');
+    var searchInput = document.getElementById('dbGearPickerSearch');
+
+    // Set title
+    var titles = {
+      helmets: 'Select Helmet',
+      facemasks: 'Select Facemask',
+      visors: 'Select Visor',
+      mouthpieces: 'Select Mouthpiece',
+      neckpads: 'Select Neckpad',
+      guardianCaps: 'Select Guardian Cap',
+      armSleeves: 'Select Arm Sleeve',
+      elbowGear: 'Select Elbow Gear',
+      wristGear: 'Select Wrist Gear',
+      gloves: 'Select Glove',
+      undershirts: 'Select Undershirt',
+      backplates: 'Select Backplate',
+      flakJackets: 'Select Flak Jacket',
+      towels: 'Select Towel',
+      handwarmers: 'Select Handwarmer',
+      shoes: 'Select Shoe',
+      spats: 'Select Spats',
+      kneePads: 'Select Knee Pad',
+      thighPads: 'Select Thigh Pad'
+    };
+    if (title) title.textContent = titles[gearType] || 'Select Equipment';
+
+    // Show/hide compatibility filter for facemasks
+    if (compatFilter) {
+      compatFilter.style.display = gearType === 'facemasks' ? 'block' : 'none';
+      compatFilter.value = 'compatible';
+    }
+
+    // Clear search
+    if (searchInput) searchInput.value = '';
+
+    // Populate grid
+    populateDbGearGrid(gearType);
+
+    // Show modal
+    if (modal) modal.style.display = 'flex';
+  }
+
+  /**
+   * Populate the gear picker grid
+   */
+  async function populateDbGearGrid(gearType) {
+    var grid = document.getElementById('dbGearPickerGrid');
+    if (!grid) return;
+
+    var items = dbGearAtlas[gearType] || [];
+    var compatFilter = document.getElementById('dbGearPickerCompatFilter')?.value;
+    var currentHelmet = document.getElementById('dbEquipHelmet')?.value;
+    var currentValue = document.getElementById(dbCurrentGearTarget)?.value;
+
+    console.log('[DbGearPicker] Populating grid:', gearType, items.length, 'items');
+
+    grid.innerHTML = '';
+
+    // For facemasks, apply helmet compatibility filter
+    var helmetCompat = null;
+    if (gearType === 'facemasks' && compatFilter === 'compatible') {
+      helmetCompat = DB_HELMET_COMPATIBILITY[currentHelmet];
+      if (!helmetCompat) helmetCompat = 'universal';
+    }
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+
+      // Apply compatibility filter
+      var isIncompatible = false;
+      if (helmetCompat && helmetCompat !== 'universal') {
+        var maskCompat = item.compatibility || detectFacemaskCompatibility(item.value);
+        isIncompatible = maskCompat !== helmetCompat && maskCompat !== 'universal';
+        if (compatFilter === 'compatible' && isIncompatible) continue;
+      }
+
+      var itemDiv = document.createElement('div');
+      itemDiv.className = 'gear-picker-item' + (item.value === currentValue ? ' selected' : '') + (isIncompatible ? ' incompatible' : '');
+      itemDiv.setAttribute('data-value', item.value);
+
+      // Load image
+      var img = document.createElement('img');
+      img.alt = item.label;
+      img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; // Placeholder
+
+      if (item.image) {
+        loadDbGearImage(item.image).then(function(imgEl, dataUrl) {
+          imgEl.src = dataUrl;
+        }.bind(null, img));
+      }
+
+      var label = document.createElement('div');
+      label.className = 'gear-picker-item-label';
+      label.textContent = item.label;
+
+      itemDiv.appendChild(img);
+      itemDiv.appendChild(label);
+
+      itemDiv.addEventListener('click', function(value) {
+        selectDbGearItem(gearType, value);
+      }.bind(null, item.value));
+
+      grid.appendChild(itemDiv);
+    }
+  }
+
+  /**
+   * Load gear image via IPC
+   */
+  async function loadDbGearImage(filename) {
+    if (dbGearImageCache[filename]) {
+      return dbGearImageCache[filename];
+    }
+
+    try {
+      var result = await window.electronAPI.gear.getImage(filename);
+      if (result.success && result.data) {
+        var dataUrl = 'data:image/png;base64,' + result.data;
+        dbGearImageCache[filename] = dataUrl;
+        return dataUrl;
+      }
+    } catch (e) {
+      console.error('[DbGearPicker] Error loading image:', filename, e);
+    }
+
+    return '';
+  }
+
+  /**
+   * Filter gear items by search text
+   */
+  function filterDbGearItems(searchText) {
+    var grid = document.getElementById('dbGearPickerGrid');
+    if (!grid) return;
+
+    var items = grid.querySelectorAll('.gear-picker-item');
+    var search = searchText.toLowerCase();
+
+    items.forEach(function(item) {
+      var label = item.querySelector('.gear-picker-item-label')?.textContent?.toLowerCase() || '';
+      var value = item.getAttribute('data-value')?.toLowerCase() || '';
+      var matches = label.includes(search) || value.includes(search);
+      item.style.display = matches ? '' : 'none';
+    });
+  }
+
+  /**
+   * Select a gear item and update the dropdown
+   */
+  function selectDbGearItem(gearType, value) {
+    var selectId = dbCurrentGearTarget;
+    var select = document.getElementById(selectId);
+
+    if (select) {
+      select.value = value;
+      console.log('[DbGearPicker] Set dropdown to:', value);
+
+      // If helmet changed, update facemask filter
+      if (gearType === 'helmets') {
+        select.dispatchEvent(new Event('change'));
+      }
+
+      // Mark as having unsaved changes
+      hasUnsavedChanges = true;
+      updateSaveButtonState();
+    }
+
+    closeDbGearPicker();
+  }
+
+  /**
+   * Close the gear picker modal
+   */
+  function closeDbGearPicker() {
+    var modal = document.getElementById('dbGearPickerModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  /**
+   * Populate equipment fields from player data
+   */
+  function populateDbEquipment(equipment) {
+    if (!equipment) return;
+
+    DB_EQUIPMENT_SLOTS.forEach(function(slot) {
+      var select = document.getElementById('dbEquip' + slot);
+      if (select && equipment[slot]) {
+        select.value = equipment[slot];
+      }
+    });
+  }
+
+  /**
+   * Collect equipment edits from form
+   */
+  function collectDbEquipmentEdits() {
+    var equipment = {};
+
+    DB_EQUIPMENT_SLOTS.forEach(function(slot) {
+      var select = document.getElementById('dbEquip' + slot);
+      if (select && select.value) {
+        equipment[slot] = select.value;
+      }
+    });
+
+    return equipment;
+  }
+
+  /**
+   * Populate trait toggles from loaded trait data
+   */
+  function populateDbTraits(traits) {
+    if (!traits) return;
+
+    // Populate development trait
+    var devTraitSelect = document.getElementById('dbTraitDevelopment');
+    if (devTraitSelect && traits.TraitDevelopment !== undefined) {
+      devTraitSelect.value = traits.TraitDevelopment;
+    }
+
+    // Populate trait toggles
+    var container = document.getElementById('dbTraitsContainer');
+    if (container) {
+      container.querySelectorAll('.trait-toggle input').forEach(function(input) {
+        var fieldName = input.dataset.field;
+        if (fieldName && traits[fieldName] !== undefined) {
+          input.checked = Boolean(traits[fieldName]);
+        }
+      });
+    }
+
+    console.log('[DbPlayerCard] Populated traits:', Object.keys(traits).length, 'trait values');
   }
 
   /**
@@ -1370,6 +1853,11 @@
     setValue('dbPlayerWAV', player.wav || 0);
     setChecked('dbPlayerHOF', player.isHOF || false);  // API uses 'isHOF' not 'isHof'
 
+    // Equipment - populate from player.equipment if available
+    if (player.equipment) {
+      populateDbEquipment(player.equipment);
+    }
+
     // Display name in header
     var nameEl = document.getElementById('dbPlayerCardName');
     if (nameEl) {
@@ -1762,7 +2250,7 @@
       }
 
       // Define all rating columns - grouped by category
-      // CRITICAL: Use DB field names (PCOD, PPUR, etc.) NOT roster field names (PELU, PLPU)
+      // Use M26 roster field names directly (database uses same names)
       var ratingColumns = [
         // Core
         { field: 'POVR', label: 'OVR', highlight: true },
@@ -1772,12 +2260,12 @@
         { field: 'PAGI', label: 'AGI' },
         { field: 'PAWR', label: 'AWR' },
         { field: 'PJMP', label: 'JMP' },
-        { field: 'PSTM', label: 'STA' },  // DB uses PSTM, roster uses PSTA
+        { field: 'PSTA', label: 'STA' },
         { field: 'PINJ', label: 'INJ' },
         { field: 'PTGH', label: 'TGH' },
-        { field: 'PCOD', label: 'COD' },  // DB uses PCOD, roster uses PELU
+        { field: 'PELU', label: 'COD' },
         // Passing
-        { field: 'PPWR', label: 'THP', category: 'pass' },  // DB uses PPWR, roster uses PTHP
+        { field: 'PTHP', label: 'THP', category: 'pass' },
         { field: 'PTAS', label: 'TAS', category: 'pass' },
         { field: 'PTAM', label: 'TAM', category: 'pass' },
         { field: 'PTAD', label: 'TAD', category: 'pass' },
@@ -1787,42 +2275,42 @@
         // Running
         { field: 'PCAR', label: 'CAR', category: 'run' },
         { field: 'PBCV', label: 'BCV', category: 'run' },
-        { field: 'PBTK', label: 'BTK', category: 'run' },  // DB uses PBTK, roster uses PBKT
-        { field: 'PTRK', label: 'TRK', category: 'run' },  // DB uses PTRK, roster uses PLTR
-        { field: 'PSFA', label: 'SFA', category: 'run' },  // DB uses PSFA, roster uses PLSA
-        { field: 'PSPN', label: 'SPN', category: 'run' },  // DB uses PSPN, roster uses PLSM
-        { field: 'PJKM', label: 'JKM', category: 'run' },  // DB uses PJKM, roster uses PLJM
+        { field: 'PBKT', label: 'BTK', category: 'run' },
+        { field: 'PLTR', label: 'TRK', category: 'run' },
+        { field: 'PLSA', label: 'SFA', category: 'run' },
+        { field: 'PLSM', label: 'SPN', category: 'run' },
+        { field: 'PLJM', label: 'JKM', category: 'run' },
         // Receiving
         { field: 'PCTH', label: 'CTH', category: 'rec' },
-        { field: 'PSPC', label: 'SPC', category: 'rec' },  // DB uses PSPC, roster uses PLSC
-        { field: 'PCIT', label: 'CIT', category: 'rec' },  // DB uses PCIT, roster uses PLCI
-        { field: 'PSRR', label: 'SRR', category: 'rec' },  // DB uses PSRR, roster uses SRRN
+        { field: 'PLSC', label: 'SPC', category: 'rec' },
+        { field: 'PLCI', label: 'CIT', category: 'rec' },
+        { field: 'SRRN', label: 'SRR', category: 'rec' },
         { field: 'PMRR', label: 'MRR', category: 'rec' },
         { field: 'PDRR', label: 'DRR', category: 'rec' },
-        { field: 'PREL', label: 'RLS', category: 'rec' },  // DB uses PREL, roster uses PLRL
+        { field: 'PLRL', label: 'RLS', category: 'rec' },
         // Blocking
         { field: 'PRBK', label: 'RBK', category: 'blk' },
         { field: 'PPBK', label: 'PBK', category: 'blk' },
-        { field: 'PIBK', label: 'IBL', category: 'blk' },  // DB uses PIBK, roster uses PLIB
+        { field: 'PLIB', label: 'IBL', category: 'blk' },
         { field: 'PLBK', label: 'LBK', category: 'blk' },
-        { field: 'PRNS', label: 'RBF', category: 'blk' },  // Run Block Finesse - DB uses PRNS, roster uses PRBF
-        { field: 'PRBS', label: 'RBS', category: 'blk' },  // Run Block Strength/Power
-        { field: 'PPBF', label: 'PBF', category: 'blk' },  // Pass Block Finesse
-        { field: 'PPBP', label: 'PBS', category: 'blk' },  // Pass Block Power - DB uses PPBP, roster uses PPBS
+        { field: 'PRBF', label: 'RBF', category: 'blk' },
+        { field: 'PRBS', label: 'RBS', category: 'blk' },
+        { field: 'PPBF', label: 'PBF', category: 'blk' },
+        { field: 'PPBS', label: 'PBS', category: 'blk' },
         // Defense
         { field: 'PTAK', label: 'TAK', category: 'def' },
-        { field: 'PHIT', label: 'POW', category: 'def' },  // DB uses PHIT, roster uses PLHT
-        { field: 'PPWM', label: 'PMV', category: 'def' },  // DB uses PPWM, roster uses PLPM
-        { field: 'PFMV', label: 'FMV', category: 'def' },  // DB uses PFMV, roster uses PFMS
-        { field: 'PBSH', label: 'BSH', category: 'def' },  // DB uses PBSH, roster uses PBSG
-        { field: 'PPUR', label: 'PUR', category: 'def' },  // DB uses PPUR, roster uses PLPU
-        { field: 'PPRC', label: 'PRC', category: 'def' },  // DB uses PPRC, roster uses PLPR
+        { field: 'PLHT', label: 'POW', category: 'def' },
+        { field: 'PLPM', label: 'PMV', category: 'def' },
+        { field: 'PFMS', label: 'FMV', category: 'def' },
+        { field: 'PBSG', label: 'BSH', category: 'def' },
+        { field: 'PLPU', label: 'PUR', category: 'def' },
+        { field: 'PLPR', label: 'PRC', category: 'def' },
         // Coverage
-        { field: 'PMCV', label: 'MCV', category: 'cov' },  // DB uses PMCV, roster uses PLMC
-        { field: 'PZCV', label: 'ZCV', category: 'cov' },  // DB uses PZCV, roster uses PLZC
-        { field: 'PPRS', label: 'PRS', category: 'cov' },  // DB uses PPRS, roster uses PLPE
-        // Kicking - DB uses PKPW, roster uses PKPR for kick power
-        { field: 'PKPW', label: 'KPW', category: 'kick' },
+        { field: 'PLMC', label: 'MCV', category: 'cov' },
+        { field: 'PLZC', label: 'ZCV', category: 'cov' },
+        { field: 'PLPE', label: 'PRS', category: 'cov' },
+        // Kicking
+        { field: 'PKPR', label: 'KPW', category: 'kick' },
         { field: 'PKAC', label: 'KAC', category: 'kick' },
         { field: 'PKRT', label: 'KRT', category: 'kick' }
       ];
@@ -2533,6 +3021,32 @@
         clearRatingsForm();
       }
 
+      // Load equipment edits for this year (if not a custom player)
+      if (!isCustomPlayer && window.electronAPI.database.getEquipmentEdit) {
+        try {
+          var equipResult = await window.electronAPI.database.getEquipmentEdit(currentDbPlayerId, year);
+          if (equipResult.success && equipResult.data && equipResult.data.equipment) {
+            console.log('[DbPlayerCard] Equipment loaded for year:', year, equipResult.data.equipment);
+            populateDbEquipment(equipResult.data.equipment);
+          }
+        } catch (equipErr) {
+          console.log('[DbPlayerCard] No equipment edits for year:', year);
+        }
+      }
+
+      // Load trait edits for this year (if not a custom player)
+      if (!isCustomPlayer && window.electronAPI.database.getTraitEdit) {
+        try {
+          var traitResult = await window.electronAPI.database.getTraitEdit(currentDbPlayerId, year);
+          if (traitResult.success && traitResult.data && traitResult.data.traits) {
+            console.log('[DbPlayerCard] Traits loaded for year:', year, traitResult.data.traits);
+            populateDbTraits(traitResult.data.traits);
+          }
+        } catch (traitErr) {
+          console.log('[DbPlayerCard] No trait edits for year:', year);
+        }
+      }
+
       // Restore OS-level window focus after IPC call (critical for Windows keyboard input)
       if (window.electronAPI && window.electronAPI.window && window.electronAPI.window.focus) {
         window.electronAPI.window.focus().catch(function() {});
@@ -2646,59 +3160,37 @@
       }
     }
 
+    // Set archetype dropdown from season data
+    if (archetypeValue) {
+      var archetypeSelect = document.getElementById('dbPlayerArchetype');
+      if (archetypeSelect) {
+        // Try to find matching option
+        var archetypeFound = false;
+        for (var j = 0; j < archetypeSelect.options.length; j++) {
+          if (archetypeSelect.options[j].value === archetypeValue ||
+              archetypeSelect.options[j].value === String(archetypeValue)) {
+            archetypeSelect.value = archetypeSelect.options[j].value;
+            archetypeFound = true;
+            console.log('[DbPlayerCard] Archetype set to:', archetypeValue);
+            break;
+          }
+        }
+        if (!archetypeFound) {
+          console.log('[DbPlayerCard] Archetype value not found in dropdown:', archetypeValue);
+        }
+      }
+    }
+
     // All rating fields - ratings are in nested 'ratings' object
-    // Database uses different field names than display (e.g., PKPW in DB = PKPR for display)
+    // Database now uses M26 roster field names directly (PKPR, PSTA, etc.)
     var ratings = season.ratings || {};
 
     // DEBUG: Log kick power fields to trace the issue
-    console.log('[DbPlayerCard] KICK DEBUG - season.ratings keys:', Object.keys(ratings));
-    console.log('[DbPlayerCard] KICK DEBUG - ratings.PKPR:', ratings.PKPR);
-    console.log('[DbPlayerCard] KICK DEBUG - ratings.PKPW:', ratings.PKPW);
-    console.log('[DbPlayerCard] KICK DEBUG - ratings.PKAC:', ratings.PKAC);
-
-    // Map from display field names to database field names for loading
-    var DISPLAY_TO_DB_FIELD = {
-      'PKPR': 'PKPW',  // Kick power: display=PKPR, db=PKPW
-      'PSTA': 'PSTM',  // Stamina: display=PSTA, db=PSTM
-      'PBKT': 'PBTK',  // Break tackle: display=PBKT, db=PBTK
-      'PLTR': 'PTRK',  // Trucking: display=PLTR, db=PTRK
-      'PELU': 'PCOD',  // Change of direction: display=PELU, db=PCOD
-      'PLSA': 'PSFA',  // Stiff arm: display=PLSA, db=PSFA
-      'PLSM': 'PSPN',  // Spin move: display=PLSM, db=PSPN
-      'PLJM': 'PJKM',  // Juke move: display=PLJM, db=PJKM
-      'PTHP': 'PPWR',  // Throw power: display=PTHP, db=PPWR
-      'PLSC': 'PSPC',  // Spectacular catch: display=PLSC, db=PSPC
-      'PLCI': 'PCIT',  // Catch in traffic: display=PLCI, db=PCIT
-      'SRRN': 'PSRR',  // Short route running: display=SRRN, db=PSRR
-      'PLRL': 'PREL',  // Release: display=PLRL, db=PREL
-      'PLIB': 'PIBK',  // Impact blocking: display=PLIB, db=PIBK
-      'PRBF': 'PRNS',  // Run block finesse: display=PRBF, db=PRNS
-      'PPBS': 'PPBP',  // Pass block power: display=PPBS, db=PPBP
-      'PLHT': 'PHIT',  // Hit power: display=PLHT, db=PHIT
-      'PLPE': 'PPRS',  // Press: display=PLPE, db=PPRS
-      'PFMS': 'PFMV',  // Finesse moves: display=PFMS, db=PFMV
-      'PLPM': 'PPWM',  // Power moves: display=PLPM, db=PPWM
-      'PBSG': 'PBSH',  // Block shedding: display=PBSG, db=PBSH
-      'PLPR': 'PPRC',  // Play recognition: display=PLPR, db=PPRC
-      'PLPU': 'PPUR',  // Pursuit: display=PLPU, db=PPUR
-      'PLMC': 'PMCV',  // Man coverage: display=PLMC, db=PMCV
-      'PLZC': 'PZCV',  // Zone coverage: display=PLZC, db=PZCV
-    };
-
+    // Database now uses M26 roster field names directly - no mapping needed!
+    // Legacy data is migrated on database open (see UserDatabaseService.ts)
     RATING_FIELDS.forEach(function(item) {
       var inputId = 'dbRating_' + item.field;
-      // Try display field name first, then mapped database field name
-      var dbField = DISPLAY_TO_DB_FIELD[item.field];
       var value = ratings[item.field];
-      if (value === undefined && dbField) {
-        value = ratings[dbField];
-      }
-      // Debug kick power specifically
-      if (item.field === 'PKPR') {
-        console.log('[DbPlayerCard] PKPR MAPPING: field=' + item.field + ', dbField=' + dbField +
-          ', ratings[field]=' + ratings[item.field] + ', ratings[dbField]=' + ratings[dbField] +
-          ', finalValue=' + value);
-      }
       setValue(inputId, value !== undefined ? value : '');
     });
   }
@@ -2945,6 +3437,12 @@
         Object.assign(playerEdits, traitEdits);
       }
 
+      // Collect equipment edits
+      var equipmentEdits = collectDbEquipmentEdits();
+      if (Object.keys(equipmentEdits).length > 0) {
+        console.log('[DatabasePlayerCard] Equipment edits collected:', equipmentEdits);
+      }
+
       // Save player edits - use different API for custom vs original players
       if (isCustomPlayer) {
         // Custom players: combine all edits into single updateCustomPlayer call
@@ -2961,7 +3459,8 @@
           maddenCpvf: appearanceEdits.maddenCpvf,
           maddenSkinTone: appearanceEdits.maddenSkinTone,
           isGenericFace: appearanceEdits.isGenericFace,
-          has3DModel: playerEdits.has3DModel
+          has3DModel: playerEdits.has3DModel,
+          equipment: equipmentEdits
         });
         console.log('[DatabasePlayerCard] Saving custom player updates:', customUpdates);
         var playerResult = await window.electronAPI.database.updateCustomPlayer(currentDbPlayerId, customUpdates);
@@ -2983,6 +3482,30 @@
         console.log('[DatabasePlayerCard] saveAppearanceEdit result:', appearanceResult);
         if (!appearanceResult.success) {
           throw new Error(appearanceResult.error || 'Failed to save appearance edits');
+        }
+
+        // Save equipment edits (if API available)
+        // Equipment is saved per-year like season edits
+        if (Object.keys(equipmentEdits).length > 0 && window.electronAPI.database.saveEquipmentEdit && selectedYear) {
+          console.log('[DatabasePlayerCard] Saving equipment edit for ID:', currentDbPlayerId, 'year:', selectedYear);
+          var equipmentResult = await window.electronAPI.database.saveEquipmentEdit(currentDbPlayerId, selectedYear, equipmentEdits);
+          console.log('[DatabasePlayerCard] saveEquipmentEdit result:', equipmentResult);
+          if (!equipmentResult.success) {
+            console.warn('[DatabasePlayerCard] Equipment save failed:', equipmentResult.error);
+            // Don't throw - equipment save failure shouldn't block other saves
+          }
+        }
+
+        // Save trait edits (if API available)
+        // Traits are saved per-year like equipment edits
+        if (Object.keys(traitEdits).length > 0 && window.electronAPI.database.saveTraitEdit && selectedYear) {
+          console.log('[DatabasePlayerCard] Saving trait edit for ID:', currentDbPlayerId, 'year:', selectedYear);
+          var traitResult = await window.electronAPI.database.saveTraitEdit(currentDbPlayerId, selectedYear, traitEdits);
+          console.log('[DatabasePlayerCard] saveTraitEdit result:', traitResult);
+          if (!traitResult.success) {
+            console.warn('[DatabasePlayerCard] Trait save failed:', traitResult.error);
+            // Don't throw - trait save failure shouldn't block other saves
+          }
         }
       }
 
@@ -3184,36 +3707,16 @@
     console.log('[collectSeasonEdits] originalSeasonData:', originalSeasonData);
     console.log('[collectSeasonEdits] originalSeasonData.ratings:', originalSeasonData ? originalSeasonData.ratings : null);
 
-    // Map from display field names to database field names for change detection
-    var DISPLAY_TO_DB_FIELD_CHECK = {
-      'PKPR': 'PKPW', 'PSTA': 'PSTM', 'PBKT': 'PBTK', 'PLTR': 'PTRK',
-      'PELU': 'PCOD', 'PLSA': 'PSFA', 'PLSM': 'PSPN', 'PLJM': 'PJKM',
-      'PTHP': 'PPWR', 'PLSC': 'PSPC', 'PLCI': 'PCIT', 'SRRN': 'PSRR',
-      'PLRL': 'PREL', 'PLIB': 'PIBK', 'PRBF': 'PRNS', 'PPBS': 'PPBP',
-      'PLHT': 'PHIT', 'PLPE': 'PPRS', 'PFMS': 'PFMV', 'PLPM': 'PPWM',
-      'PBSG': 'PBSH', 'PLPR': 'PPRC', 'PLPU': 'PPUR', 'PLMC': 'PMCV', 'PLZC': 'PZCV'
-    };
-
     // Helper to check if value changed from original
+    // Database uses M26 roster field names directly - no mapping needed
     function hasChanged(field, currentValue) {
       if (!onlyChangedFields || !originalSeasonData) {
         return true; // Include all fields if not filtering or no original data
       }
       // Check both flat and nested (ratings) structures
-      // Also check mapped database field name (e.g., PKPW for PKPR)
       var originalValue = originalSeasonData[field];
       if (originalValue === undefined && originalSeasonData.ratings) {
         originalValue = originalSeasonData.ratings[field];
-      }
-      // If still undefined, try the database field name
-      if (originalValue === undefined) {
-        var dbField = DISPLAY_TO_DB_FIELD_CHECK[field];
-        if (dbField) {
-          originalValue = originalSeasonData[dbField];
-          if (originalValue === undefined && originalSeasonData.ratings) {
-            originalValue = originalSeasonData.ratings[dbField];
-          }
-        }
       }
       // Compare as strings to handle type differences (e.g., "85" vs 85)
       var changed = String(currentValue) !== String(originalValue);
@@ -3259,44 +3762,12 @@
       edits.archetype = archetype;
     }
 
-    // Map from display field names to database field names for saving
-    // (reverse of the loading mapping in populateRatingsForm)
-    var DISPLAY_TO_DB_FIELD = {
-      'PKPR': 'PKPW',  // Kick power: display=PKPR, db=PKPW
-      'PSTA': 'PSTM',  // Stamina: display=PSTA, db=PSTM
-      'PBKT': 'PBTK',  // Break tackle: display=PBKT, db=PBTK
-      'PLTR': 'PTRK',  // Trucking: display=PLTR, db=PTRK
-      'PELU': 'PCOD',  // Change of direction: display=PELU, db=PCOD
-      'PLSA': 'PSFA',  // Stiff arm: display=PLSA, db=PSFA
-      'PLSM': 'PSPN',  // Spin move: display=PLSM, db=PSPN
-      'PLJM': 'PJKM',  // Juke move: display=PLJM, db=PJKM
-      'PTHP': 'PPWR',  // Throw power: display=PTHP, db=PPWR
-      'PLSC': 'PSPC',  // Spectacular catch: display=PLSC, db=PSPC
-      'PLCI': 'PCIT',  // Catch in traffic: display=PLCI, db=PCIT
-      'SRRN': 'PSRR',  // Short route running: display=SRRN, db=PSRR
-      'PLRL': 'PREL',  // Release: display=PLRL, db=PREL
-      'PLIB': 'PIBK',  // Impact blocking: display=PLIB, db=PIBK
-      'PRBF': 'PRNS',  // Run block finesse: display=PRBF, db=PRNS
-      'PPBS': 'PPBP',  // Pass block power: display=PPBS, db=PPBP
-      'PLHT': 'PHIT',  // Hit power: display=PLHT, db=PHIT
-      'PLPE': 'PPRS',  // Press: display=PLPE, db=PPRS
-      'PFMS': 'PFMV',  // Finesse moves: display=PFMS, db=PFMV
-      'PLPM': 'PPWM',  // Power moves: display=PLPM, db=PPWM
-      'PBSG': 'PBSH',  // Block shedding: display=PBSG, db=PBSH
-      'PLPR': 'PPRC',  // Play recognition: display=PLPR, db=PPRC
-      'PLPU': 'PPUR',  // Pursuit: display=PLPU, db=PPUR
-      'PLMC': 'PMCV',  // Man coverage: display=PLMC, db=PMCV
-      'PLZC': 'PZCV',  // Zone coverage: display=PLZC, db=PZCV
-    };
-
     // Collect rating values - only include changed ones if filtering
-    // Convert display field names to database field names when saving
+    // Database uses M26 roster field names directly - no mapping needed
     RATING_FIELDS.forEach(function(item) {
       var val = getIntValue('dbRating_' + item.field);
       if (val !== null && val !== undefined && hasChanged(item.field, val)) {
-        // Use database field name if mapped, otherwise use display field name
-        var dbField = DISPLAY_TO_DB_FIELD[item.field] || item.field;
-        edits[dbField] = val;
+        edits[item.field] = val;
       }
     });
 

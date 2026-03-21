@@ -15,28 +15,102 @@ import Database from 'better-sqlite3';
 import { lookupService } from './lookup-service';
 
 // All rating fields from the database schema
-// Rating fields must match exactly what the frontend sends (database-player-card.js)
-// These are the Madden 26 field codes
+// These MUST match the Madden 26 TDB2 roster file field codes exactly
+// Reference: madden-franchise-utils/franchiseToRoster/lookupFiles/directTransferFields.json
 const RATING_FIELDS = [
   // Core ratings
   'POVR',  // Overall
-  // Physical - PCOD is the canonical name for Change of Direction (roster uses PELU)
-  'PSPD', 'PACC', 'PSTR', 'PAGI', 'PJMP', 'PSTM', 'PINJ', 'PTGH', 'PAWR', 'PCOD',
-  // Running - PELU removed as it's the same as PCOD
-  'PBCV', 'PBTK', 'PTRK', 'PSFA', 'PSPN', 'PJKM', 'PCAR',
+  // Physical
+  'PSPD',  // Speed
+  'PACC',  // Acceleration
+  'PSTR',  // Strength
+  'PAGI',  // Agility
+  'PJMP',  // Jumping
+  'PSTA',  // Stamina (NOT PSTM - that's sleeve temperature!)
+  'PINJ',  // Injury
+  'PTGH',  // Toughness
+  'PAWR',  // Awareness
+  'PELU',  // Change of Direction (M26 roster code)
+  // Running
+  'PBCV',  // Ball Carrier Vision
+  'PBKT',  // Break Tackle (M26 roster code)
+  'PLTR',  // Trucking (M26 roster code)
+  'PLSA',  // Stiff Arm (M26 roster code)
+  'PLSM',  // Spin Move (M26 roster code)
+  'PLJM',  // Juke Move (M26 roster code)
+  'PCAR',  // Carrying
   // Passing
-  'PTHA', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PPWR', 'PPLA',
+  'PTHA',  // Throw Accuracy
+  'PTAS',  // Throw Accuracy Short
+  'PTAM',  // Throw Accuracy Mid
+  'PTAD',  // Throw Accuracy Deep
+  'PTOR',  // Throw on the Run
+  'PTUP',  // Throw Under Pressure
+  'PTHP',  // Throw Power (M26 roster code)
+  'PPLA',  // Play Action
   // Receiving
-  'PCTH', 'PSPC', 'PCIT', 'PSRR', 'PMRR', 'PDRR', 'PREL',
+  'PCTH',  // Catching
+  'PLSC',  // Spectacular Catch (M26 roster code)
+  'PLCI',  // Catch in Traffic (M26 roster code)
+  'SRRN',  // Short Route Running (M26 roster code)
+  'PMRR',  // Medium Route Running
+  'PDRR',  // Deep Route Running
+  'PLRL',  // Release (M26 roster code)
   // Blocking
-  'PRBK', 'PPBK', 'PIBK', 'PLBK', 'PFMS', 'PRNS', 'PPBS', 'PPBP', 'PRBS', 'PPBF',
+  'PRBK',  // Run Block
+  'PPBK',  // Pass Block
+  'PLIB',  // Impact Blocking (M26 roster code)
+  'PLBK',  // Lead Block
+  'PRBF',  // Run Block Finesse (M26 roster code)
+  'PPBS',  // Pass Block Power (M26 roster code)
+  'PRBS',  // Run Block Power
+  'PPBF',  // Pass Block Finesse
   // Defense
-  'PTAK', 'PHIT', 'PPRS', 'PFMV', 'PPWM', 'PBSH', 'PPRC', 'PPUR',
+  'PTAK',  // Tackle
+  'PLHT',  // Hit Power (M26 roster code)
+  'PLPE',  // Press (M26 roster code)
+  'PFMS',  // Finesse Moves (M26 roster code)
+  'PLPM',  // Power Moves (M26 roster code)
+  'PBSG',  // Block Shedding (M26 roster code)
+  'PLPR',  // Play Recognition (M26 roster code)
+  'PLPU',  // Pursuit (M26 roster code)
   // Coverage
-  'PMCV', 'PZCV',
+  'PLMC',  // Man Coverage (M26 roster code)
+  'PLZC',  // Zone Coverage (M26 roster code)
   // Kicking
-  'PKAC', 'PKPR', 'PKRT'
+  'PKAC',  // Kick Accuracy
+  'PKPR',  // Kick Power (M26 roster code - NOT PKPW!)
+  'PKRT'   // Kick Return
 ];
+
+// Legacy field name mappings for database migration
+// Maps old wrong names to correct M26 roster names
+const LEGACY_TO_M26_FIELD_MAP: Record<string, string> = {
+  'PKPW': 'PKPR',  // Kick Power
+  'PSTM': 'PSTA',  // Stamina (PSTM was sleeve temp, wrong!)
+  'PBTK': 'PBKT',  // Break Tackle
+  'PTRK': 'PLTR',  // Trucking
+  'PCOD': 'PELU',  // Change of Direction
+  'PSFA': 'PLSA',  // Stiff Arm
+  'PSPN': 'PLSM',  // Spin Move
+  'PJKM': 'PLJM',  // Juke Move
+  'PPWR': 'PTHP',  // Throw Power
+  'PSPC': 'PLSC',  // Spectacular Catch
+  'PCIT': 'PLCI',  // Catch in Traffic
+  'PSRR': 'SRRN',  // Short Route Running
+  'PREL': 'PLRL',  // Release
+  'PIBK': 'PLIB',  // Impact Blocking
+  'PRNS': 'PRBF',  // Run Block Finesse
+  'PHIT': 'PLHT',  // Hit Power
+  'PPRS': 'PLPE',  // Press
+  'PFMV': 'PFMS',  // Finesse Moves
+  'PPWM': 'PLPM',  // Power Moves
+  'PBSH': 'PBSG',  // Block Shedding
+  'PPRC': 'PLPR',  // Play Recognition
+  'PPUR': 'PLPU',  // Pursuit
+  'PMCV': 'PLMC',  // Man Coverage
+  'PZCV': 'PLZC',  // Zone Coverage
+};
 
 export interface PlayerEdit {
   originalId: number;
@@ -85,6 +159,32 @@ export interface SeasonEdit {
   position?: string;
   archetype?: string;
   ratings?: { [key: string]: number };
+  editedAt?: string;
+}
+
+// Equipment slot fields (matching EQUIPMENT_OPTIONS in RosterParser.js)
+const EQUIPMENT_SLOTS = [
+  'Helmet', 'Facemask', 'Visor', 'FacePaint', 'Mouthpiece', 'Neckpad', 'HelmetFlag', 'GuardianCap',
+  'LeftSleeve', 'RightSleeve', 'LeftElbow', 'RightElbow', 'LeftWrist', 'RightWrist',
+  'LeftGlove', 'RightGlove',
+  'Undershirt', 'JerseyStyle', 'BackPlate', 'FlakJacket', 'Towel', 'Handwarmer',
+  'LeftShoe', 'RightShoe', 'LeftShoeColor', 'RightShoeColor', 'LeftSpats', 'RightSpats',
+  'Socks', 'KneePad', 'LeftThighPad', 'RightThighPad', 'ShoulderPads'
+];
+
+export interface EquipmentEdit {
+  id?: number;
+  originalPlayerId: number;
+  year: number;
+  equipment: { [slot: string]: string };
+  editedAt?: string;
+}
+
+export interface TraitEdit {
+  id?: number;
+  originalPlayerId: number;
+  year: number;
+  traits: { [traitName: string]: boolean | number };
   editedAt?: string;
 }
 
@@ -338,8 +438,22 @@ class UserDatabaseService {
 
   private async initializeEditsDatabase(): Promise<void> {
     const dbPath = path.join(this.userDataPath, 'user-edits.db');
+    const dbExists = fs.existsSync(dbPath);
+    console.log(`[UserDatabaseService] Opening edits database: ${dbPath}, exists=${dbExists}`);
     this.editsDb = new Database(dbPath);
     console.log(`[UserDatabaseService] Opened edits database: ${dbPath}`);
+
+    // Debug: Check if player_archetypes table exists and has data
+    try {
+      const tableCheck = this.editsDb.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='player_archetypes'").get();
+      console.log(`[UserDatabaseService] player_archetypes table exists: ${!!tableCheck}`);
+      if (tableCheck) {
+        const countRow = this.editsDb.prepare('SELECT COUNT(*) as count FROM player_archetypes').get() as { count: number };
+        console.log(`[UserDatabaseService] player_archetypes has ${countRow.count} rows`);
+      }
+    } catch (e) {
+      console.log(`[UserDatabaseService] Could not check player_archetypes table (might not exist yet)`);
+    }
 
     // Create tables if they don't exist
     this.editsDb.exec(`
@@ -444,6 +558,32 @@ class UserDatabaseService {
       }
     }
 
+    // Migration: copy data from legacy field names to correct M26 field names
+    // This ensures existing user data isn't lost when we switch to correct names
+    console.log('[UserDatabaseService] Migrating legacy field names to M26 roster names...');
+    let migratedFields = 0;
+    for (const [legacyField, m26Field] of Object.entries(LEGACY_TO_M26_FIELD_MAP)) {
+      try {
+        // Check if legacy column exists and has data
+        const checkSql = `SELECT COUNT(*) as count FROM season_edits WHERE ${legacyField} IS NOT NULL AND ${legacyField} > 0`;
+        const result = this.editsDb.prepare(checkSql).get() as { count: number } | undefined;
+        if (result && result.count > 0) {
+          // Copy data from legacy column to M26 column (only where M26 is null/0)
+          const migrateSql = `UPDATE season_edits SET ${m26Field} = ${legacyField} WHERE (${m26Field} IS NULL OR ${m26Field} = 0) AND ${legacyField} IS NOT NULL AND ${legacyField} > 0`;
+          const updateResult = this.editsDb.prepare(migrateSql).run();
+          if (updateResult.changes > 0) {
+            console.log(`[UserDatabaseService] Migrated ${updateResult.changes} rows: ${legacyField} -> ${m26Field}`);
+            migratedFields++;
+          }
+        }
+      } catch (e) {
+        // Legacy column doesn't exist - that's fine, no migration needed
+      }
+    }
+    if (migratedFields > 0) {
+      console.log(`[UserDatabaseService] Field migration complete: ${migratedFields} legacy fields migrated`);
+    }
+
     // Table to track players whose original seasons have been cleared
     // Used to fix wrongly-assigned seasons from name collisions
     this.editsDb.exec(`
@@ -467,6 +607,43 @@ class UserDatabaseService {
       CREATE TABLE IF NOT EXISTS user_unhidden_players (
         original_player_id INTEGER PRIMARY KEY,
         unhidden_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Table to store player-level archetype (constant across all seasons)
+    // Archetypes rarely change for a player, so we store at player level
+    // This ensures consistent OVR calculation everywhere
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS player_archetypes (
+        player_id INTEGER PRIMARY KEY,
+        archetype TEXT NOT NULL,
+        archetype_id INTEGER,
+        updated_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Equipment edits table - stores equipment selections per player per year
+    // Equipment values are stored as JSON since there are 33 slots
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS equipment_edits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_player_id INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        equipment_json TEXT NOT NULL,
+        edited_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(original_player_id, year)
+      )
+    `);
+
+    // Trait edits per player per year (stored as JSON like equipment)
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS trait_edits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        original_player_id INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        traits_json TEXT NOT NULL,
+        edited_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(original_player_id, year)
       )
     `);
 
@@ -613,6 +790,23 @@ class UserDatabaseService {
         this.customDb.exec(`ALTER TABLE custom_player_seasons ADD COLUMN ${field} INTEGER`);
       } catch {
         /* Column already exists - that's fine */
+      }
+    }
+
+    // Migration: copy data from legacy field names to correct M26 field names (custom players)
+    for (const [legacyField, m26Field] of Object.entries(LEGACY_TO_M26_FIELD_MAP)) {
+      try {
+        const checkSql = `SELECT COUNT(*) as count FROM custom_player_seasons WHERE ${legacyField} IS NOT NULL AND ${legacyField} > 0`;
+        const result = this.customDb.prepare(checkSql).get() as { count: number } | undefined;
+        if (result && result.count > 0) {
+          const migrateSql = `UPDATE custom_player_seasons SET ${m26Field} = ${legacyField} WHERE (${m26Field} IS NULL OR ${m26Field} = 0) AND ${legacyField} IS NOT NULL AND ${legacyField} > 0`;
+          const updateResult = this.customDb.prepare(migrateSql).run();
+          if (updateResult.changes > 0) {
+            console.log(`[UserDatabaseService] Custom players: Migrated ${updateResult.changes} rows: ${legacyField} -> ${m26Field}`);
+          }
+        }
+      } catch {
+        // Legacy column doesn't exist
       }
     }
 
@@ -1261,6 +1455,372 @@ class UserDatabaseService {
     }
 
     return editsMap;
+  }
+
+  // =============================================
+  // EQUIPMENT EDIT OPERATIONS
+  // Equipment edits stored per player per year
+  // =============================================
+
+  /**
+   * Save equipment edits for a player in a specific year
+   */
+  public saveEquipmentEdit(originalPlayerId: number, year: number, equipment: { [slot: string]: string }): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+
+    console.log(`[UserDatabaseService] saveEquipmentEdit: player=${originalPlayerId}, year=${year}, slots=${Object.keys(equipment).length}`);
+
+    // Only save non-empty equipment values
+    const filteredEquipment: { [slot: string]: string } = {};
+    for (const [slot, value] of Object.entries(equipment)) {
+      if (value && value.trim() !== '' && !value.includes('None')) {
+        filteredEquipment[slot] = value;
+      }
+    }
+
+    if (Object.keys(filteredEquipment).length === 0) {
+      // Delete existing record if no equipment to save
+      this.editsDb.prepare('DELETE FROM equipment_edits WHERE original_player_id = ? AND year = ?')
+        .run(originalPlayerId, year);
+      console.log(`[UserDatabaseService] Deleted empty equipment edit for player_id=${originalPlayerId}, year=${year}`);
+      return;
+    }
+
+    const equipmentJson = JSON.stringify(filteredEquipment);
+
+    // Check if record exists
+    const existingRow = this.editsDb.prepare('SELECT id FROM equipment_edits WHERE original_player_id = ? AND year = ?')
+      .get(originalPlayerId, year);
+
+    if (existingRow) {
+      this.editsDb.prepare(`
+        UPDATE equipment_edits SET equipment_json = ?, edited_at = datetime('now')
+        WHERE original_player_id = ? AND year = ?
+      `).run(equipmentJson, originalPlayerId, year);
+      console.log(`[UserDatabaseService] Updated equipment for player_id=${originalPlayerId}, year=${year}`);
+    } else {
+      this.editsDb.prepare(`
+        INSERT INTO equipment_edits (original_player_id, year, equipment_json)
+        VALUES (?, ?, ?)
+      `).run(originalPlayerId, year, equipmentJson);
+      console.log(`[UserDatabaseService] Inserted equipment for player_id=${originalPlayerId}, year=${year}`);
+    }
+  }
+
+  /**
+   * Get equipment edits for a specific player and year
+   */
+  public getEquipmentEdit(originalPlayerId: number, year: number): EquipmentEdit | null {
+    if (!this.editsDb) return null;
+
+    const row = this.editsDb.prepare('SELECT * FROM equipment_edits WHERE original_player_id = ? AND year = ?')
+      .get(originalPlayerId, year) as { id: number; original_player_id: number; year: number; equipment_json: string; edited_at: string } | undefined;
+
+    if (!row) return null;
+
+    try {
+      const equipment = JSON.parse(row.equipment_json);
+      return {
+        id: row.id,
+        originalPlayerId: row.original_player_id,
+        year: row.year,
+        equipment,
+        editedAt: row.edited_at
+      };
+    } catch (e) {
+      console.error(`[UserDatabaseService] Failed to parse equipment JSON for player ${originalPlayerId}:`, e);
+      return null;
+    }
+  }
+
+  /**
+   * Get all equipment edits for a player (all years)
+   */
+  public getEquipmentEditsForPlayer(originalPlayerId: number): EquipmentEdit[] {
+    if (!this.editsDb) return [];
+
+    const rows = this.editsDb.prepare('SELECT * FROM equipment_edits WHERE original_player_id = ? ORDER BY year')
+      .all(originalPlayerId) as Array<{ id: number; original_player_id: number; year: number; equipment_json: string; edited_at: string }>;
+
+    return rows.map(row => {
+      try {
+        const equipment = JSON.parse(row.equipment_json);
+        return {
+          id: row.id,
+          originalPlayerId: row.original_player_id,
+          year: row.year,
+          equipment,
+          editedAt: row.edited_at
+        };
+      } catch {
+        return {
+          id: row.id,
+          originalPlayerId: row.original_player_id,
+          year: row.year,
+          equipment: {},
+          editedAt: row.edited_at
+        };
+      }
+    });
+  }
+
+  /**
+   * Get all equipment edits for a specific year
+   * Returns a Map of originalPlayerId -> EquipmentEdit for fast lookup
+   */
+  public getAllEquipmentEditsForYear(year: number): Map<number, EquipmentEdit> {
+    if (!this.editsDb) return new Map();
+
+    const rows = this.editsDb.prepare('SELECT * FROM equipment_edits WHERE year = ?')
+      .all(year) as Array<{ id: number; original_player_id: number; year: number; equipment_json: string; edited_at: string }>;
+
+    const editsMap = new Map<number, EquipmentEdit>();
+
+    for (const row of rows) {
+      try {
+        const equipment = JSON.parse(row.equipment_json);
+        editsMap.set(row.original_player_id, {
+          id: row.id,
+          originalPlayerId: row.original_player_id,
+          year: row.year,
+          equipment,
+          editedAt: row.edited_at
+        });
+      } catch {
+        // Skip invalid JSON entries
+      }
+    }
+
+    return editsMap;
+  }
+
+  // =============================================
+  // TRAIT EDIT OPERATIONS
+  // Traits stored per player per year (like equipment)
+  // =============================================
+
+  /**
+   * Save trait edits for a player for a specific year
+   * Traits are stored as JSON to handle the many trait fields
+   */
+  public saveTraitEdit(originalPlayerId: number, year: number, traits: { [traitName: string]: boolean | number }): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+
+    console.log(`[UserDatabaseService] saveTraitEdit: player=${originalPlayerId}, year=${year}, traits=${Object.keys(traits).length}`);
+
+    // Filter out empty/falsy traits to save space
+    const filteredTraits: { [key: string]: boolean | number } = {};
+    for (const [key, value] of Object.entries(traits)) {
+      if (value !== undefined && value !== null && value !== false && value !== 0) {
+        filteredTraits[key] = value;
+      }
+    }
+
+    // If no traits, delete the row if it exists
+    if (Object.keys(filteredTraits).length === 0) {
+      this.editsDb.prepare('DELETE FROM trait_edits WHERE original_player_id = ? AND year = ?')
+        .run(originalPlayerId, year);
+      console.log(`[UserDatabaseService] Deleted empty trait edit for player=${originalPlayerId}, year=${year}`);
+      return;
+    }
+
+    const traitsJson = JSON.stringify(filteredTraits);
+
+    const existingRow = this.editsDb.prepare('SELECT id FROM trait_edits WHERE original_player_id = ? AND year = ?')
+      .get(originalPlayerId, year) as { id: number } | undefined;
+
+    if (existingRow) {
+      this.editsDb.prepare(`
+        UPDATE trait_edits SET traits_json = ?, edited_at = datetime('now')
+        WHERE original_player_id = ? AND year = ?
+      `).run(traitsJson, originalPlayerId, year);
+    } else {
+      this.editsDb.prepare(`
+        INSERT INTO trait_edits (original_player_id, year, traits_json)
+        VALUES (?, ?, ?)
+      `).run(originalPlayerId, year, traitsJson);
+    }
+
+    console.log(`[UserDatabaseService] Saved trait edit for player=${originalPlayerId}, year=${year}`);
+  }
+
+  /**
+   * Get trait edits for a player for a specific year
+   */
+  public getTraitEdit(originalPlayerId: number, year: number): TraitEdit | null {
+    if (!this.editsDb) return null;
+
+    const row = this.editsDb.prepare('SELECT * FROM trait_edits WHERE original_player_id = ? AND year = ?')
+      .get(originalPlayerId, year) as { id: number; original_player_id: number; year: number; traits_json: string; edited_at: string } | undefined;
+
+    if (!row) return null;
+
+    try {
+      const traits = JSON.parse(row.traits_json);
+      return {
+        id: row.id,
+        originalPlayerId: row.original_player_id,
+        year: row.year,
+        traits,
+        editedAt: row.edited_at
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get all trait edits for a player (all years)
+   */
+  public getTraitEditsForPlayer(originalPlayerId: number): TraitEdit[] {
+    if (!this.editsDb) return [];
+
+    const rows = this.editsDb.prepare('SELECT * FROM trait_edits WHERE original_player_id = ? ORDER BY year')
+      .all(originalPlayerId) as Array<{ id: number; original_player_id: number; year: number; traits_json: string; edited_at: string }>;
+
+    return rows.map(row => {
+      try {
+        const traits = JSON.parse(row.traits_json);
+        return {
+          id: row.id,
+          originalPlayerId: row.original_player_id,
+          year: row.year,
+          traits,
+          editedAt: row.edited_at
+        };
+      } catch {
+        return {
+          id: row.id,
+          originalPlayerId: row.original_player_id,
+          year: row.year,
+          traits: {},
+          editedAt: row.edited_at
+        };
+      }
+    });
+  }
+
+  /**
+   * Get all trait edits for a specific year
+   * Returns a Map of originalPlayerId -> TraitEdit for fast lookup
+   */
+  public getAllTraitEditsForYear(year: number): Map<number, TraitEdit> {
+    if (!this.editsDb) return new Map();
+
+    const rows = this.editsDb.prepare('SELECT * FROM trait_edits WHERE year = ?')
+      .all(year) as Array<{ id: number; original_player_id: number; year: number; traits_json: string; edited_at: string }>;
+
+    const editsMap = new Map<number, TraitEdit>();
+
+    for (const row of rows) {
+      try {
+        const traits = JSON.parse(row.traits_json);
+        editsMap.set(row.original_player_id, {
+          id: row.id,
+          originalPlayerId: row.original_player_id,
+          year: row.year,
+          traits,
+          editedAt: row.edited_at
+        });
+      } catch {
+        // Skip invalid JSON entries
+      }
+    }
+
+    return editsMap;
+  }
+
+  // =============================================
+  // PLAYER ARCHETYPE OPERATIONS
+  // Player-level archetype storage (constant across all seasons)
+  // =============================================
+
+  /**
+   * Save player archetype at the player level (not per-season)
+   * This ensures consistent OVR calculation everywhere
+   */
+  public savePlayerArchetype(playerId: number, archetype: string, archetypeId?: number): void {
+    if (!this.editsDb) throw new Error('Edits database not initialized');
+
+    console.log(`[UserDatabaseService] savePlayerArchetype called: playerId=${playerId}, archetype="${archetype}", archetypeId=${archetypeId}`);
+    console.log(`[UserDatabaseService] Database path: ${path.join(this.userDataPath, 'user-edits.db')}`);
+
+    this.editsDb.prepare(`
+      INSERT INTO player_archetypes (player_id, archetype, archetype_id, updated_at)
+      VALUES (?, ?, ?, datetime('now'))
+      ON CONFLICT(player_id) DO UPDATE SET
+        archetype = excluded.archetype,
+        archetype_id = excluded.archetype_id,
+        updated_at = datetime('now')
+    `).run(playerId, archetype, archetypeId ?? null);
+
+    // Verify it was saved
+    const verifyRow = this.editsDb.prepare('SELECT * FROM player_archetypes WHERE player_id = ?').get(playerId);
+    console.log(`[UserDatabaseService] Verified saved archetype:`, verifyRow);
+
+    console.log(`[UserDatabaseService] Saved player archetype: playerId=${playerId}, archetype=${archetype}, archetypeId=${archetypeId}`);
+  }
+
+  /**
+   * Get player archetype at the player level
+   * Returns null if not set (player uses default/calculated archetype)
+   */
+  public getPlayerArchetype(playerId: number): { archetype: string; archetypeId: number | null } | null {
+    if (!this.editsDb) {
+      console.log(`[UserDatabaseService] getPlayerArchetype: editsDb not initialized`);
+      return null;
+    }
+
+    console.log(`[UserDatabaseService] getPlayerArchetype called: playerId=${playerId}`);
+    console.log(`[UserDatabaseService] Database path: ${path.join(this.userDataPath, 'user-edits.db')}`);
+
+    // Debug: count how many archetypes are in the table
+    const countRow = this.editsDb.prepare('SELECT COUNT(*) as count FROM player_archetypes').get() as { count: number };
+    console.log(`[UserDatabaseService] Total archetypes in table: ${countRow.count}`);
+
+    const row = this.editsDb.prepare(`
+      SELECT archetype, archetype_id FROM player_archetypes WHERE player_id = ?
+    `).get(playerId) as { archetype: string; archetype_id: number | null } | undefined;
+
+    console.log(`[UserDatabaseService] getPlayerArchetype result for playerId=${playerId}:`, row || 'null');
+
+    if (!row) return null;
+
+    return {
+      archetype: row.archetype,
+      archetypeId: row.archetype_id
+    };
+  }
+
+  /**
+   * Get all player archetypes as a Map for fast lookup
+   */
+  public getAllPlayerArchetypes(): Map<number, { archetype: string; archetypeId: number | null }> {
+    if (!this.editsDb) return new Map();
+
+    const rows = this.editsDb.prepare(`
+      SELECT player_id, archetype, archetype_id FROM player_archetypes
+    `).all() as Array<{ player_id: number; archetype: string; archetype_id: number | null }>;
+
+    const map = new Map<number, { archetype: string; archetypeId: number | null }>();
+    for (const row of rows) {
+      map.set(row.player_id, {
+        archetype: row.archetype,
+        archetypeId: row.archetype_id
+      });
+    }
+
+    return map;
+  }
+
+  /**
+   * Delete player archetype (revert to default/calculated)
+   */
+  public deletePlayerArchetype(playerId: number): void {
+    if (!this.editsDb) return;
+
+    this.editsDb.prepare('DELETE FROM player_archetypes WHERE player_id = ?').run(playerId);
+    console.log(`[UserDatabaseService] Deleted player archetype: playerId=${playerId}`);
   }
 
   // =============================================
