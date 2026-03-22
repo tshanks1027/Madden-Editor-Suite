@@ -918,6 +918,7 @@
       helmets: 'Select Helmet',
       facemasks: 'Select Facemask',
       visors: 'Select Visor',
+      eyepaint: 'Select Eye Paint / Face Marks',
       mouthpieces: 'Select Mouthpiece',
       neckpads: 'Select Neckpad',
       guardianCaps: 'Select Guardian Cap',

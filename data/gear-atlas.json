@@ -878,17 +878,17 @@
     {
       "value": "v_ROD_Visor_GRE",
       "label": "Aaron Rodgers",
-      "image": null
+      "image": "vnty_rodgers_v_ROD_Visor_GRE.png"
     },
     {
       "value": "G_Visor_Berlin_B",
       "label": "Berlin",
-      "image": null
+      "image": "vnty_berlingermaneagle_G_Visor_Berlin_B.png"
     },
     {
       "value": "G_Visor_BlackOut_NIN_B",
       "label": "Black Out",
-      "image": null
+      "image": "vnty_blackout_G_Visor_BlackOut_NIN_B.png"
     },
     {
       "value": "GearVisor_visorClear",
@@ -903,82 +903,82 @@
     {
       "value": "v_DHEN_Visor",
       "label": "Derrick Henry",
-      "image": null
+      "image": "vnty_derrickhenry_v_DHEN_Visor.png"
     },
     {
       "value": "G_Visor_Elites",
       "label": "Elites",
-      "image": null
+      "image": "vnty_elites_G_Visor_Elites.png"
     },
     {
       "value": "v_GTD_Grn_Visor",
       "label": "Gatorade Green",
-      "image": null
+      "image": "vnty_gatorade_v_GTD_Grn_Visor.png"
     },
     {
       "value": "v_GTD_Combo_Visor",
       "label": "Gatorade Multicolor",
-      "image": null
+      "image": "vnty_gatorade_v_GTD_Combo_Visor.png"
     },
     {
       "value": "v_GTD_Orng_Visor",
       "label": "Gatorade Orange",
-      "image": null
+      "image": "vnty_gatorade_v_GTD_Orng_Visor.png"
     },
     {
       "value": "v_GTD_Red_Visor",
       "label": "Gatorade Red",
-      "image": null
+      "image": "vnty_gatorade_v_GTD_Red_Visor.png"
     },
     {
       "value": "G_Visor_Hermes",
       "label": "Hermes",
-      "image": null
+      "image": "vnty_hermes_G_Visor_Hermes.png"
     },
     {
       "value": "v_JCH_Visor_PUR",
       "label": "Ja'Marr Chase",
-      "image": null
+      "image": "vnty_jch_v_JCH_Visor_PUR.png"
     },
     {
       "value": "v_NXJ_Visor_BLA",
       "label": "Jordan Black",
-      "image": null
+      "image": "vnty_nikexjordan_v_NXJ_Visor_BLA.png"
     },
     {
       "value": "v_NXJ_Visor_LBLU",
       "label": "Jordan Blue",
-      "image": null
+      "image": "vnty_nikexjordan_v_NXJ_Visor_LBLU.png"
     },
     {
       "value": "v_JPO_Visor_HempBrown",
       "label": "Jordan Brown",
-      "image": null
+      "image": "vnty_jpo_v_JPO_Visor_HempBrown.png"
     },
     {
       "value": "v_JPO_Visor_IronGray",
       "label": "Jordan Gray",
-      "image": null
+      "image": "vnty_jpo_v_JPO_Visor_IronGray.png"
     },
     {
       "value": "v_JPO_Visor_WHI",
       "label": "Jordan Navy",
-      "image": null
+      "image": "vnty_jpo_v_JPO_Visor_WHI.png"
     },
     {
       "value": "v_LAWT_Visor",
       "label": "Lawrence Taylor",
-      "image": null
+      "image": "vnty_lawrencetaylor_v_LAWT_Visor.png"
     },
     {
       "value": "G_Visor_Tron_B_BLU",
       "label": "Light Speed Blue",
-      "image": null
+      "image": "vnty_lightspeed_G_Visor_Tron_B_BLU.png"
     },
     {
       "value": "G_Visor_Tron_B_PRP",
       "label": "Light Speed Purple",
-      "image": null
+      "image": "vnty_lightspeed_G_Visor_Tron_B_PRP.png"
     },
     {
       "value": "GearVisor_visorDarkLight",
@@ -993,32 +993,32 @@
     {
       "value": "v_MVK_Visor",
       "label": "Michael Vick",
-      "image": null
+      "image": "vnty_michealvick_v_MVK_Visor.png"
     },
     {
       "value": "G_Visor_99Club_B_WHI",
       "label": "Nike 99 Club Black",
-      "image": null
+      "image": "vnty_99club_G_Visor_99Club_B_WHI.png"
     },
     {
       "value": "G_Visor_99Club_B_GOL",
       "label": "Nike 99 Club Gold",
-      "image": null
+      "image": "vnty_99club_G_Visor_99Club_B_GOL.png"
     },
     {
       "value": "G_Visor_Brotherhood_BLA",
       "label": "Nike Brotherhood Black",
-      "image": null
+      "image": "vnty_nikebrotherhood_G_Visor_Brotherhood_BLA.png"
     },
     {
       "value": "G_Visor_Brotherhood_ORA",
       "label": "Nike Brotherhood Orange",
-      "image": null
+      "image": "vnty_nikebrotherhood_G_Visor_Brotherhood_ORA.png"
     },
     {
       "value": "G_Visor_ChristianMcCaffery_BLA",
       "label": "Nike X McCaffrey",
-      "image": null
+      "image": "vnty_mccaffrey_G_Visor_ChristianMcCaffery_BLA.png"
     },
     {
       "value": "G_Visor_SaquonBarkley_BLA",
@@ -1048,47 +1048,47 @@
     {
       "value": "OakleyPrizm24K_Visor",
       "label": "Oakley Prizm 24K",
-      "image": null
+      "image": "vnty_oakleyprizm_OakleyPrizm24K_Visor.png"
     },
     {
       "value": "OakleyPrizm60Gray_Visor",
       "label": "Oakley Prizm 60 Gray",
-      "image": null
+      "image": "vnty_oakleyprizm_OakleyPrizm60Gray_Visor.png"
     },
     {
       "value": "OakleyPrizmBlue_Visor",
       "label": "Oakley Prizm Blue",
-      "image": null
+      "image": "vnty_oakleyprizm_OakleyPrizmBlue_Visor.png"
     },
     {
       "value": "OakleyPrizmJade_Visor",
       "label": "Oakley Prizm Jade",
-      "image": null
+      "image": "vnty_oakleyprizm_OakleyPrizmJade_Visor.png"
     },
     {
       "value": "OakleyPrizmTorch_Visor",
       "label": "Oakley Prizm Torch",
-      "image": null
+      "image": "vnty_oakleyprizm_OakleyPrizmTorch_Visor.png"
     },
     {
       "value": "v_OCH_Visor_YEL",
       "label": "Ochocinco",
-      "image": null
+      "image": "vnty_ochocinco_v_OCH_Visor_YEL.png"
     },
     {
       "value": "V_MOSS_Visor_GOL",
       "label": "Randy Moss",
-      "image": null
+      "image": "vnty_randymoss_V_MOSS_Visor_GOL.png"
     },
     {
       "value": "v_RYL_Visor_GRE",
       "label": "Ray Lewis",
-      "image": null
+      "image": "vnty_raylewis_v_RYL_Visor_GRE.png"
     },
     {
       "value": "v_SQN_2021_Visor",
       "label": "Saquon Barkley",
-      "image": null
+      "image": "vnty_saquon_v_SQN_2021_Visor.png"
     }
   ],
   "mouthpieces": [
@@ -2720,5 +2720,117 @@
     "GearHelmet_AirXP": "universal",
     "GearHelmet_X2E": "vengeance",
     "GearHelmet_PumpkinDefender": "universal"
-  }
+  },
+  "eyepaint": [
+    {
+      "value": "FaceMarks_None",
+      "label": "None",
+      "image": null
+    },
+    {
+      "value": "FaceMarks_EyePaint",
+      "label": "Eye Black",
+      "image": null
+    },
+    {
+      "value": "FaceMarks_EyePaint2",
+      "label": "Eye Black 2",
+      "image": null
+    },
+    {
+      "value": "FaceMarks_EyePaint3",
+      "label": "Eye Black 3",
+      "image": null
+    },
+    {
+      "value": "FaceMarks_EyePaintCross",
+      "label": "Eye Black Cross",
+      "image": null
+    },
+    {
+      "value": "EyeBlack_Grease",
+      "label": "Eye Black Grease",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_Grease.png"
+    },
+    {
+      "value": "EyeBlack_Grease_Crosses",
+      "label": "Eye Black Grease Crosses",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_Grease_Crosses.png"
+    },
+    {
+      "value": "EyeBlack_Grease_Mask",
+      "label": "Eye Black Grease Mask",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_Grease_Mask.png"
+    },
+    {
+      "value": "EyeBlack_Grease_Smear",
+      "label": "Eye Black Grease Smear",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_Grease_Smear.png"
+    },
+    {
+      "value": "EyeBlack_Sticker",
+      "label": "Eye Black Sticker",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_Sticker.png"
+    },
+    {
+      "value": "EyeBlack_L_Sticker",
+      "label": "Eye Black Left Sticker",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_L_Sticker.png"
+    },
+    {
+      "value": "EyeBlack_R_Sticker",
+      "label": "Eye Black Right Sticker",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_R_Sticker.png"
+    },
+    {
+      "value": "FaceMarks_EyeTape",
+      "label": "Eye Tape",
+      "image": null
+    },
+    {
+      "value": "FaceMarks_EyeTapeLeft",
+      "label": "Eye Tape Left",
+      "image": null
+    },
+    {
+      "value": "FaceMarks_EyeTapeRight",
+      "label": "Eye Tape Right",
+      "image": null
+    },
+    {
+      "value": "FaceMarks_NoseTape",
+      "label": "Nose Tape",
+      "image": null
+    },
+    {
+      "value": "EyeBlack_NoseStrip",
+      "label": "Nose Strip",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_NoseStrip.png"
+    },
+    {
+      "value": "EyeBlack_NoseStripXL",
+      "label": "Nose Strip XL",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_NoseStripXL.png"
+    },
+    {
+      "value": "FaceMarks_NoseEyeTape",
+      "label": "Nose & Eye Tape",
+      "image": null
+    },
+    {
+      "value": "FaceMarks_NoseTapeEyePaint",
+      "label": "Nose Tape + Eye Black",
+      "image": null
+    },
+    {
+      "value": "EyeBlack_Grease_NoseStrip",
+      "label": "Eye Black + Nose Strip",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_Grease_NoseStrip.png"
+    },
+    {
+      "value": "EyeBlack_GreaseSmear_NoseStripXL",
+      "label": "Eye Black Smear + Nose XL",
+      "image": "vnty_styles_eyepaint_facetape_EyeBlack_GreaseSmear_NoseStripXL.png"
+    }
+  ]
 }

@@ -111,6 +111,216 @@
             border-color: var(--db-gold);
             color: #000;
         }
+
+        /* Equipment Grid Styles */
+        .equipment-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .equipment-category {
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #333;
+        }
+        .equipment-category-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e5c04a;
+            margin: 0 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        .equipment-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .equipment-items-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .equipment-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .equipment-label {
+            font-size: 11px;
+            color: #888;
+            font-weight: 500;
+        }
+        .equipment-select {
+            padding: 6px 8px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 12px;
+            width: 100%;
+        }
+        .equipment-select:focus {
+            border-color: #e5c04a;
+            outline: none;
+        }
+        .equipment-select-row {
+            display: flex;
+            gap: 4px;
+            align-items: stretch;
+        }
+        .equipment-select-row .equipment-select {
+            flex: 1;
+            min-width: 0;
+        }
+        .gear-picker-btn {
+            padding: 4px 8px;
+            background: #2a2a4e;
+            border: 1px solid #3a3a6e;
+            border-radius: 4px;
+            color: #8888cc;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .gear-picker-btn:hover {
+            background: #3a3a6e;
+            border-color: #e5c04a;
+            color: #e5c04a;
+        }
+
+        /* Gear Picker Modal */
+        .gear-picker-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30000;
+        }
+        .gear-picker-content {
+            background: #1a1a2e;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #333;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        .gear-picker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #333;
+            background: #252535;
+            border-radius: 12px 12px 0 0;
+        }
+        .gear-picker-header h3 {
+            margin: 0;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .gear-picker-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+        .gear-picker-close:hover {
+            color: #fff;
+        }
+        .gear-picker-filter {
+            padding: 12px 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+        .gear-picker-search {
+            flex: 1;
+            padding: 8px 12px;
+            background: #252535;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        .gear-picker-search:focus {
+            border-color: #e5c04a;
+            outline: none;
+        }
+        .gear-picker-compat-filter {
+            padding: 8px 12px;
+            background: #252535;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+        .gear-picker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .gear-picker-item {
+            background: #252535;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .gear-picker-item:hover {
+            border-color: #e5c04a;
+            background: #2a2a4e;
+        }
+        .gear-picker-item.selected {
+            border-color: #e5c04a;
+            background: rgba(229, 192, 74, 0.1);
+        }
+        .gear-picker-item img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            background: #1a1a2e;
+            border-radius: 4px;
+            padding: 4px;
+        }
+        .gear-picker-item-label {
+            font-size: 11px;
+            color: #ccc;
+            text-align: center;
+            line-height: 1.2;
+            max-height: 2.4em;
+            overflow: hidden;
+        }
+        .gear-picker-item.incompatible {
+            opacity: 0.4;
+        }
+        .gear-picker-item.incompatible:hover {
+            border-color: #666;
+        }
     </style>
 </head>
 <body>
@@ -528,6 +738,7 @@
                     <button class="db-player-tab" data-tab="madden">Madden IDs</button>
                     <button class="db-player-tab" data-tab="ratings">Ratings</button>
                     <button class="db-player-tab" data-tab="stats">Career Stats</button>
+                    <button class="db-player-tab" data-tab="equipment">Equipment</button>
                 </div>
 
                 <!-- Player Info Tab -->
@@ -669,6 +880,10 @@
                         <select id="dbPlayerYearSelect">
                             <option value="">Select Year for Ratings</option>
                         </select>
+                        <label style="margin-left: 20px;">Archetype:</label>
+                        <select id="dbPlayerArchetype" style="min-width: 180px;">
+                            <option value="">Select Archetype</option>
+                        </select>
                         <label class="db-apply-all-years-label" style="margin-left: 20px; display: inline-flex; align-items: center; cursor: pointer;">
                             <input type="checkbox" id="dbApplyToAllYears" style="margin-right: 6px;">
                             Apply changes to ALL years
@@ -707,12 +922,6 @@
                                     <label class="db-form-label">Position</label>
                                     <select class="db-form-select" id="dbPlayerSeasonPosition">
                                         <option value="">Select Position</option>
-                                    </select>
-                                </div>
-                                <div class="db-form-item">
-                                    <label class="db-form-label">Archetype</label>
-                                    <select class="db-form-select" id="dbPlayerSeasonArchetype">
-                                        <option value="">Select Position First</option>
                                     </select>
                                 </div>
                             </div>
@@ -880,6 +1089,315 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Equipment Tab -->
+                <div class="db-player-tab-content" id="tab-equipment">
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Equipment</h4>
+                        <div class="equipment-grid">
+                            <!-- Head/Face -->
+                            <div class="equipment-category">
+                                <h4 class="equipment-category-title">Head / Face</h4>
+                                <div class="equipment-items">
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Helmet</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipHelmet" data-slot="Helmet"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="helmets" data-target="dbEquipHelmet" title="Browse Helmets">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Facemask</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipFacemask" data-slot="Facemask"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="facemasks" data-target="dbEquipFacemask" title="Browse Facemasks">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Visor</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipVisor" data-slot="Visor"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="visors" data-target="dbEquipVisor" title="Browse Visors">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Face Paint</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipFacePaint" data-slot="FacePaint"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="eyepaint" data-target="dbEquipFacePaint" title="Browse Eye Paint">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Mouthpiece</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipMouthpiece" data-slot="Mouthpiece"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="mouthpieces" data-target="dbEquipMouthpiece" title="Browse Mouthpieces">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Neckpad</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipNeckpad" data-slot="Neckpad"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="neckpads" data-target="dbEquipNeckpad" title="Browse Neckpads">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item">
+                                        <label class="equipment-label">Helmet Flag</label>
+                                        <select class="equipment-select" id="dbEquipHelmetFlag" data-slot="HelmetFlag"></select>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Guardian Cap</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipGuardianCap" data-slot="GuardianCap"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="guardianCaps" data-target="dbEquipGuardianCap" title="Browse Guardian Caps">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Arms -->
+                            <div class="equipment-category">
+                                <h4 class="equipment-category-title">Arms</h4>
+                                <div class="equipment-items equipment-items-2col">
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Left Sleeve</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipLeftSleeve" data-slot="LeftSleeve"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="armSleeves" data-target="dbEquipLeftSleeve" title="Browse Sleeves">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Right Sleeve</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipRightSleeve" data-slot="RightSleeve"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="armSleeves" data-target="dbEquipRightSleeve" title="Browse Sleeves">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Left Elbow</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipLeftElbow" data-slot="LeftElbow"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="elbowGear" data-target="dbEquipLeftElbow" title="Browse Elbow Gear">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Right Elbow</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipRightElbow" data-slot="RightElbow"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="elbowGear" data-target="dbEquipRightElbow" title="Browse Elbow Gear">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Left Wrist</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipLeftWrist" data-slot="LeftWrist"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="wristGear" data-target="dbEquipLeftWrist" title="Browse Wrist Gear">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Right Wrist</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipRightWrist" data-slot="RightWrist"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="wristGear" data-target="dbEquipRightWrist" title="Browse Wrist Gear">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hands -->
+                            <div class="equipment-category">
+                                <h4 class="equipment-category-title">Hands</h4>
+                                <div class="equipment-items equipment-items-2col">
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Left Glove</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipLeftGlove" data-slot="LeftGlove"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="gloves" data-target="dbEquipLeftGlove" title="Browse Gloves">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Right Glove</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipRightGlove" data-slot="RightGlove"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="gloves" data-target="dbEquipRightGlove" title="Browse Gloves">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Body/Torso -->
+                            <div class="equipment-category">
+                                <h4 class="equipment-category-title">Body / Torso</h4>
+                                <div class="equipment-items">
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Undershirt</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipUndershirt" data-slot="Undershirt"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="undershirts" data-target="dbEquipUndershirt" title="Browse Undershirts">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item">
+                                        <label class="equipment-label">Jersey Style</label>
+                                        <select class="equipment-select" id="dbEquipJerseyStyle" data-slot="JerseyStyle"></select>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Backplate</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipBackplate" data-slot="BackPlate"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="backplates" data-target="dbEquipBackplate" title="Browse Backplates">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Flak Jacket</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipFlakJacket" data-slot="FlakJacket"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="flakJackets" data-target="dbEquipFlakJacket" title="Browse Flak Jackets">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Towel</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipTowel" data-slot="Towel"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="towels" data-target="dbEquipTowel" title="Browse Towels">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Handwarmer</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipHandwarmer" data-slot="Handwarmer"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="handwarmers" data-target="dbEquipHandwarmer" title="Browse Handwarmers">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Legs/Feet -->
+                            <div class="equipment-category">
+                                <h4 class="equipment-category-title">Legs / Feet</h4>
+                                <div class="equipment-items equipment-items-2col">
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Left Shoe</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipLeftShoe" data-slot="LeftShoe"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="shoes" data-target="dbEquipLeftShoe" title="Browse Shoes">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Right Shoe</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipRightShoe" data-slot="RightShoe"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="shoes" data-target="dbEquipRightShoe" title="Browse Shoes">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item">
+                                        <label class="equipment-label">Left Shoe Color</label>
+                                        <select class="equipment-select" id="dbEquipLeftShoeColor" data-slot="LeftShoeColor"></select>
+                                    </div>
+                                    <div class="equipment-item">
+                                        <label class="equipment-label">Right Shoe Color</label>
+                                        <select class="equipment-select" id="dbEquipRightShoeColor" data-slot="RightShoeColor"></select>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Left Spats</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipLeftSpats" data-slot="LeftSpats"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="spats" data-target="dbEquipLeftSpats" title="Browse Spats">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Right Spats</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipRightSpats" data-slot="RightSpats"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="spats" data-target="dbEquipRightSpats" title="Browse Spats">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item">
+                                        <label class="equipment-label">Socks</label>
+                                        <select class="equipment-select" id="dbEquipSocks" data-slot="Socks"></select>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Knee Pads</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipKneePad" data-slot="KneePad"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="kneePads" data-target="dbEquipKneePad" title="Browse Knee Pads">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Left Thigh Pad</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipLeftThighPad" data-slot="LeftThighPad"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="thighPads" data-target="dbEquipLeftThighPad" title="Browse Thigh Pads">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="equipment-item equipment-item-with-picker">
+                                        <label class="equipment-label">Right Thigh Pad</label>
+                                        <div class="equipment-select-row">
+                                            <select class="equipment-select" id="dbEquipRightThighPad" data-slot="RightThighPad"></select>
+                                            <button type="button" class="gear-picker-btn" data-gear-type="thighPads" data-target="dbEquipRightThighPad" title="Browse Thigh Pads">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="equipment-note" style="color: #888; font-size: 12px; margin-top: 16px; text-align: center;">
+                            Equipment changes are saved with player changes.
+                        </p>
+                    </div>
+                </div><!-- End Equipment Tab -->
             </div>
 
             <!-- Footer -->
@@ -1306,6 +1824,26 @@
                     <button class="wizard-btn wizard-btn-primary" id="wizardNextBtn">Get Started</button>
                     <button class="wizard-btn wizard-btn-success" id="wizardFinishBtn" style="display: none;">Finish</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gear Picker Modal -->
+    <div id="dbGearPickerModal" class="modal gear-picker-modal" style="display: none;">
+        <div class="gear-picker-content">
+            <div class="gear-picker-header">
+                <h3 id="dbGearPickerTitle">Select Equipment</h3>
+                <button class="gear-picker-close" id="closeDbGearPicker">&times;</button>
+            </div>
+            <div class="gear-picker-filter">
+                <input type="text" id="dbGearPickerSearch" placeholder="Search..." class="gear-picker-search">
+                <select id="dbGearPickerCompatFilter" class="gear-picker-compat-filter" style="display: none;">
+                    <option value="compatible">Compatible Only</option>
+                    <option value="all">All Facemasks</option>
+                </select>
+            </div>
+            <div class="gear-picker-grid" id="dbGearPickerGrid">
+                <!-- Gear items will be populated dynamically -->
             </div>
         </div>
     </div>
