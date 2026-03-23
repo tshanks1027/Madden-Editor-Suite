@@ -642,11 +642,12 @@ ipcMain.handle('gear:get-image', async (event, imageName: string) => {
   try {
     const { app } = require('electron');
 
-    // Try multiple paths for gear sprites
+    // Try multiple paths for gear sprites (same pattern as PortraitSpriteService)
     const possiblePaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'gear-sprites', imageName),  // Packaged build
+      path.join(process.cwd(), 'data', 'gear-sprites', imageName),
       path.join(app.getAppPath(), 'data', 'gear-sprites', imageName),
       path.join(app.getAppPath(), '..', '..', 'data', 'gear-sprites', imageName),
-      path.join(process.cwd(), 'data', 'gear-sprites', imageName)
     ];
 
     let imagePath = '';
@@ -658,6 +659,7 @@ ipcMain.handle('gear:get-image', async (event, imageName: string) => {
     }
 
     if (!imagePath) {
+      console.log(`[gear:get-image] Image not found, tried: ${possiblePaths[0]}`);
       return { success: false, error: 'Image not found' };
     }
 
@@ -682,11 +684,12 @@ ipcMain.handle('gear:get-atlas', async (event) => {
   try {
     const { app } = require('electron');
 
-    // Try multiple paths for gear atlas
+    // Try multiple paths for gear atlas (same pattern as PortraitSpriteService)
     const possiblePaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'gear-atlas.json'),  // Packaged build
+      path.join(process.cwd(), 'data', 'gear-atlas.json'),
       path.join(app.getAppPath(), 'data', 'gear-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'gear-atlas.json'),
-      path.join(process.cwd(), 'data', 'gear-atlas.json')
     ];
 
     let atlasPath = '';
@@ -698,6 +701,7 @@ ipcMain.handle('gear:get-atlas', async (event) => {
     }
 
     if (!atlasPath) {
+      console.log(`[gear:get-atlas] Atlas not found, tried: ${possiblePaths[0]}`);
       return { success: false, error: 'Gear atlas not found' };
     }
 
