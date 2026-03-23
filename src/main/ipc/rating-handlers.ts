@@ -263,5 +263,62 @@ export function registerRatingHandlers(): void {
     }
   );
 
+  /**
+   * Recalculate OVR for a batch of players
+   * Uses the CORRECT game formula from FranchiseUtils.js
+   * @param players - Array of player objects with attributes
+   * @returns Array of {index, ovr, archetype} for each player
+   */
+  ipcMain.handle(
+    'rating:recalculate-ovr-batch',
+    async (_event, players: any[]): Promise<{ index: number; ovr: number; archetype: string | null }[]> => {
+      try {
+        console.log(`[RatingHandlers] Batch recalculating OVR for ${players.length} players`);
+        const results: { index: number; ovr: number; archetype: string | null }[] = [];
+
+        for (let i = 0; i < players.length; i++) {
+          const player = players[i];
+          const position = player.PPOS;
+          const archetype = player.PLTY || player.PCBT; // Try both archetype field names
+
+          // Calculate OVR using the correct game formula
+          const ovr = ovrWeightsCalculator.calculateOVR(player, position, archetype);
+
+          results.push({
+            index: i,
+            ovr: ovr,
+            archetype: archetype ? String(archetype) : null
+          });
+        }
+
+        console.log(`[RatingHandlers] Batch recalculation complete, sample: first player OVR=${results[0]?.ovr}`);
+        return results;
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error batch recalculating OVR:', error);
+        return [];
+      }
+    }
+  );
+
+  /**
+   * Find best archetype and recalculate OVR for a player
+   * This mimics exactly what the game does - try all archetypes and pick the best
+   * @param attributes - Player attributes
+   * @param position - Player position
+   * @returns {ovr, archetype, archetypeId}
+   */
+  ipcMain.handle(
+    'rating:find-best-ovr',
+    async (_event, attributes: any, position: string): Promise<{ ovr: number; archetype: string; archetypeId: number } | null> => {
+      try {
+        console.log(`[RatingHandlers] Finding best OVR/archetype for ${position}`);
+        return ovrWeightsCalculator.findBestArchetype(attributes, position);
+      } catch (error: any) {
+        console.error('[RatingHandlers] Error finding best OVR:', error);
+        return null;
+      }
+    }
+  );
+
   console.log('[RatingHandlers] Rating handlers registered successfully');
 }

@@ -1,118 +1,23 @@
 /**
  * OVR Weights Calculator
  *
- * Calculates Overall Rating using the official Madden archetype-based formulas
- * from ovrweights.json.
+ * Calculates Overall Rating using the EXACT formula from Madden's game code.
+ * Source: reference/madden-franchise-utils/Utils/FranchiseUtils.js
  *
- * OVR Formula: OVR = max(12, min(99, Round((WeightedSum - Base) / Rate)))
- *   - Each archetype has its OWN base AND rate (derived via linear regression)
- *   - Game uses OVR floor of 12 (minimum possible OVR)
- *   - Verified against 3000+ players from CAREER-1976-AUTOSAVE franchise file
+ * CORRECT OVR Formula:
+ *   For each attribute with weight > 0:
+ *     normalized = (value - DesiredLow) / (DesiredHigh - DesiredLow)
+ *     contribution = normalized * (weight / Sum)
  *
- * Validation (Feb 2026):
- *   - Overall: 92.4% exact matches, 99.4% within 1 point
- *   - Most archetypes: R² > 0.99 (near-perfect linear fit)
- *   - Walter Payton (HB_PowerBack): 97 ✓
- *   - Lee Kunz (MLB_PassCoverage): 76 ✓
+ *   OVR = Math.round(Math.min(sum_of_contributions * 99, 99))
  *
- * The game RECALCULATES OVR from attributes - it does NOT use stored POVR values.
- * Therefore, we MUST calculate POVR correctly to match what the game will show.
+ * Each archetype has:
+ *   - DesiredHigh/DesiredLow: Expected rating range for that archetype
+ *   - Attribute weights: How much each rating contributes (weights sum to 10)
+ *   - Sum: Always 10 (used to normalize weights)
+ *
+ * The game picks the archetype that gives the HIGHEST OVR for the player's ratings.
  */
-
-// ARCHETYPE-SPECIFIC FORMULAS derived from linear regression on GAME franchise data
-// Formula: OVR = Round((WeightedSum - base) / rate)
-// Each archetype has unique base AND rate values
-// Verified against CAREER-1976-AUTOSAVE: R² > 0.99 for most archetypes
-const ARCHETYPE_FORMULAS: { [key: string]: { base: number; rate: number } } = {
-  // Center archetypes
-  'C_Agile': { base: 329, rate: 6.30 },
-  'C_PassProtector': { base: 331, rate: 6.24 },
-  'C_Power': { base: 330, rate: 6.26 },
-
-  // Cornerback archetypes
-  'CB_MantoMan': { base: 398, rate: 5.59 },
-  'CB_Slot': { base: 392, rate: 5.31 },
-  'CB_Zone': { base: 399, rate: 5.57 },
-
-  // Defensive End archetypes
-  'DE_PowerRusher': { base: 350, rate: 5.95 },
-  'DE_RunStopper': { base: 350, rate: 5.96 },
-  'DE_SmallerSpeedRusher': { base: 351, rate: 5.93 },
-
-  // Defensive Tackle archetypes
-  'DT_NoseTackle': { base: 334, rate: 6.50 },
-  'DT_PowerRusher': { base: 360, rate: 5.86 },
-  'DT_SpeedRusher': { base: 359, rate: 5.86 },
-
-  // Fullback archetypes
-  'FB_Blocking': { base: 323, rate: 5.31 },
-  'FB_Utility': { base: 331, rate: 5.24 },
-
-  // Guard archetypes
-  'G_Agile': { base: 307, rate: 6.57 },
-  'G_PassProtector': { base: 310, rate: 6.47 },
-  'G_Power': { base: 309, rate: 6.48 },
-
-  // Halfback archetypes
-  'HB_ElusiveBack': { base: 540, rate: 4.03 },
-  'HB_PowerBack': { base: 520, rate: 4.24 },
-  'HB_ReceivingBack': { base: 533, rate: 3.62 },
-
-  // Kicker/Punter archetypes
-  'KP_Accurate': { base: 117, rate: 8.84 },
-  'KP_Power': { base: 83, rate: 9.27 },
-
-  // Longsnapper archetypes (use Center formulas)
-  'LS_Accurate': { base: 331, rate: 6.24 },
-  'LS_Power': { base: 330, rate: 6.26 },
-
-  // Middle Linebacker archetypes
-  'MLB_FieldGeneral': { base: 400, rate: 5.14 }, // FIXED: was 455, causing 11 point errors
-  'MLB_PassCoverage': { base: 401, rate: 5.12 },
-  'MLB_RunStopper': { base: 399, rate: 5.27 },
-
-  // Outside Linebacker archetypes
-  'OLB_PassCoverage': { base: 378, rate: 5.52 },
-  'OLB_PowerRusher': { base: 379, rate: 5.47 },
-  'OLB_RunStopper': { base: 379, rate: 5.47 },
-  'OLB_SpeedRusher': { base: 379, rate: 5.47 },
-
-  // Offensive Tackle archetypes
-  'OT_Agile': { base: 291, rate: 6.73 },
-  'OT_PassProtector': { base: 309, rate: 6.57 },
-  'OT_Power': { base: 290, rate: 6.77 },
-
-  // Quarterback archetypes
-  'QB_FieldGeneral': { base: 391, rate: 6.16 }, // Lower R², may need more data
-  'QB_Improviser': { base: 466, rate: 4.82 }, // Using Scrambler formula
-  'QB_Scrambler': { base: 466, rate: 4.82 },
-  'QB_StrongArm': { base: 457, rate: 5.14 },
-
-  // Safety archetypes
-  'S_Hybrid': { base: 378, rate: 5.48 },
-  'S_RunSupport': { base: 370, rate: 5.45 },
-  'S_Zone': { base: 370, rate: 5.65 },
-
-  // Tight End archetypes
-  'TE_Blocking': { base: 371, rate: 4.31 },
-  'TE_Possession': { base: 370, rate: 4.75 },
-  'TE_VerticalThreat': { base: 380, rate: 4.83 },
-
-  // Wide Receiver archetypes
-  'WR_DeepThreat': { base: 409, rate: 5.58 },
-  'WR_Physical': { base: 411, rate: 5.54 },
-  'WR_Playmaker': { base: 410, rate: 5.52 },
-  'WR_RouteRunner': { base: 410, rate: 5.52 },
-  'WR_Slot': { base: 399, rate: 5.65 },
-};
-
-// Default formula when archetype not found
-const DEFAULT_FORMULA = { base: 380, rate: 5.50 };
-
-// Get formula for archetype
-function getFormulaForArchetype(archetype: string): { base: number; rate: number } {
-  return ARCHETYPE_FORMULAS[archetype] || DEFAULT_FORMULA;
-}
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -449,6 +354,63 @@ export class OVRWeightsCalculator {
   }
 
   /**
+   * Normalize archetype name from space-separated format to underscore format
+   * Converts "QB Strong Arm" -> "QB_StrongArm", "HB Elusive Back" -> "HB_ElusiveBack"
+   * This handles the mismatch between ArchetypeService names and ovrweights.json keys
+   */
+  private normalizeArchetypeName(archetype: string): string | null {
+    if (!archetype) return null;
+
+    // Already in correct format (has underscore and no space after position)
+    if (this.weights.has(archetype)) {
+      return archetype;
+    }
+
+    // Convert "QB Strong Arm" -> "QB_StrongArm"
+    // Format: "POS Word1 Word2 ..." -> "POS_Word1Word2..."
+    const parts = archetype.trim().split(/\s+/);
+    if (parts.length < 2) return null;
+
+    // First part is position prefix
+    const position = parts[0];
+    // Remaining parts are the archetype name words
+    const nameParts = parts.slice(1);
+
+    // Join with underscores for position_Name format, no spaces between name words
+    const normalized = `${position}_${nameParts.join('')}`;
+
+    // Also try with the common naming variations
+    const variations = [
+      normalized,
+      // Handle "Man-to-Man" -> "MantoMan"
+      normalized.replace(/-/g, ''),
+      // Handle "Well-Rounded" -> "Well-Rounded" style names aren't in the weights, they map differently
+    ];
+
+    for (const variant of variations) {
+      if (this.weights.has(variant)) {
+        return variant;
+      }
+    }
+
+    // Try fuzzy match - find weight key that contains all the name parts
+    const weightKeys = Array.from(this.weights.keys());
+    for (const weightKey of weightKeys) {
+      if (weightKey.startsWith(`${position}_`)) {
+        const keyLower = weightKey.toLowerCase();
+        const allMatch = nameParts.every(part =>
+          keyLower.includes(part.toLowerCase().replace(/-/g, ''))
+        );
+        if (allMatch) {
+          return weightKey;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Find the best matching archetype for a player
    * Handles both numeric archetype IDs (0-67) and string archetype names
    */
@@ -482,7 +444,8 @@ export class OVRWeightsCalculator {
       }
 
       // Try matching by searching for partial match
-      for (const archKey of this.weights.keys()) {
+      const weightKeys = Array.from(this.weights.keys());
+      for (const archKey of weightKeys) {
         if (archKey.startsWith(`${jsonPos}_`) &&
             archKey.toLowerCase().includes(archetypeStr.toLowerCase())) {
           return archKey;
@@ -537,12 +500,21 @@ export class OVRWeightsCalculator {
           archetypeName = this.findArchetype(attributes, jsonPos);
         }
       } else if (this.weights.has(String(archetype))) {
-        // String archetype name provided directly
+        // String archetype name provided directly (already in weights format)
         archetypeName = String(archetype);
       } else {
-        // Try prefixing with position
-        const prefixed = `${jsonPos}_${archetype}`;
-        archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(attributes, jsonPos);
+        // CRITICAL FIX: Convert space-separated names to underscore format
+        // ArchetypeService uses "QB Strong Arm" but weights use "QB_StrongArm"
+        const archetypeStr = String(archetype);
+        const normalizedName = this.normalizeArchetypeName(archetypeStr);
+        if (normalizedName && this.weights.has(normalizedName)) {
+          archetypeName = normalizedName;
+          console.log(`[OVRWeightsCalculator] Normalized archetype "${archetypeStr}" -> "${normalizedName}"`);
+        } else {
+          // Try prefixing with position
+          const prefixed = `${jsonPos}_${archetype}`;
+          archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(attributes, jsonPos);
+        }
       }
     } else {
       archetypeName = this.findArchetype(attributes, jsonPos);
@@ -560,28 +532,30 @@ export class OVRWeightsCalculator {
       return 50;
     }
 
-    // Calculate weighted sum
-    let weightedSum = 0;
+    // CORRECT FORMULA from reference/madden-franchise-utils/Utils/FranchiseUtils.js:
+    // For each attribute: ((value - DesiredLow) / (DesiredHigh - DesiredLow)) * (weight / Sum)
+    // Final OVR: Math.round(Math.min(sum * 99, 99))
+
+    const desiredLow = Number(weights.DesiredLow) || 0;
+    const desiredHigh = Number(weights.DesiredHigh) || 99;
+    const sumDivisor = Number(weights.Sum) || 10;
+    const desiredRange = desiredHigh - desiredLow;
+
+    let normalizedSum = 0;
 
     for (const [attrName, fieldCode] of Object.entries(ATTR_NAME_TO_FIELD)) {
       const weight = Number(weights[attrName]) || 0;
       if (weight > 0) {
         const attrValue = this.getAttr(attributes, fieldCode);
-        weightedSum += attrValue * weight;
+        // Normalize: (value - DesiredLow) / (DesiredHigh - DesiredLow)
+        const normalized = desiredRange > 0 ? (attrValue - desiredLow) / desiredRange : 0;
+        // Apply weight: weight / Sum
+        normalizedSum += normalized * (weight / sumDivisor);
       }
     }
 
-    // Use archetype-specific formula: OVR = Round((Sum - Base) / Rate)
-    // Each archetype has its own base AND rate for maximum accuracy
-    // Game uses a floor of 12 (not 1) - verified against CAREER-1976-AUTOSAVE
-    const formula = getFormulaForArchetype(archetypeName);
-    const rawOVR = (weightedSum - formula.base) / formula.rate;
-    const finalOVR = Math.max(12, Math.min(99, Math.round(rawOVR)));
-
-    // Only log occasionally to reduce noise
-    if (Math.random() < 0.01) {
-      console.log(`[OVRWeightsCalculator] Pos: ${normalizedPos} | Archetype: ${archetypeName} | Base: ${formula.base} | Rate: ${formula.rate} | WeightedSum: ${weightedSum.toFixed(2)} | Raw: ${rawOVR.toFixed(2)} | Final: ${finalOVR}`);
-    }
+    // Final OVR: sum * 99, clamped to 0-99
+    const finalOVR = Math.round(Math.min(Math.max(normalizedSum * 99, 0), 99));
 
     return finalOVR;
   }
@@ -620,12 +594,20 @@ export class OVRWeightsCalculator {
           archetypeName = this.findArchetype(attributes, jsonPos);
         }
       } else if (this.weights.has(String(archetype))) {
-        // String archetype name provided directly
+        // String archetype name provided directly (already in weights format)
         archetypeName = String(archetype);
       } else {
-        // Try prefixing with position
-        const prefixed = `${jsonPos}_${archetype}`;
-        archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(attributes, jsonPos);
+        // CRITICAL FIX: Convert space-separated names to underscore format
+        // ArchetypeService uses "QB Strong Arm" but weights use "QB_StrongArm"
+        const archetypeStr = String(archetype);
+        const normalizedName = this.normalizeArchetypeName(archetypeStr);
+        if (normalizedName && this.weights.has(normalizedName)) {
+          archetypeName = normalizedName;
+        } else {
+          // Try prefixing with position
+          const prefixed = `${jsonPos}_${archetype}`;
+          archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(attributes, jsonPos);
+        }
       }
     } else {
       archetypeName = this.findArchetype(attributes, jsonPos);
@@ -640,36 +622,36 @@ export class OVRWeightsCalculator {
       return { ovr: 50, archetype: archetypeName, breakdown: {} };
     }
 
-    // Calculate weighted sum and breakdown
-    let weightedSum = 0;
+    // CORRECT FORMULA from reference/madden-franchise-utils/Utils/FranchiseUtils.js
+    const desiredLow = Number(weights.DesiredLow) || 0;
+    const desiredHigh = Number(weights.DesiredHigh) || 99;
+    const sumDivisor = Number(weights.Sum) || 10;
+    const desiredRange = desiredHigh - desiredLow;
+
+    let normalizedSum = 0;
     const breakdown: OVRBreakdown['breakdown'] = {};
 
     for (const [attrName, fieldCode] of Object.entries(ATTR_NAME_TO_FIELD)) {
       const weight = Number(weights[attrName]) || 0;
       if (weight > 0) {
         const attrValue = this.getAttr(attributes, fieldCode);
-        const contribution = attrValue * weight;
-        weightedSum += contribution;
-        // Breakdown contribution calculated after we determine final OVR
+        // Normalize: (value - DesiredLow) / (DesiredHigh - DesiredLow)
+        const normalized = desiredRange > 0 ? (attrValue - desiredLow) / desiredRange : 0;
+        // Apply weight: weight / Sum
+        const contribution = normalized * (weight / sumDivisor);
+        normalizedSum += contribution;
+
         breakdown[fieldCode] = {
           name: attrName.replace('Rating', ''),
           value: attrValue,
           weight: weight,
-          contribution: 0 // Will be set below
+          contribution: contribution * 99 // Contribution to final OVR (scaled to 99)
         };
       }
     }
 
-    // Use archetype-specific formula: OVR = Round((Sum - Base) / Rate)
-    // Game uses a floor of 12 (not 1)
-    const formula = getFormulaForArchetype(archetypeName);
-    const rawOVR = (weightedSum - formula.base) / formula.rate;
-    const finalOVR = Math.max(12, Math.min(99, Math.round(rawOVR)));
-
-    // Update breakdown contributions (contribution to final OVR)
-    for (const fieldCode of Object.keys(breakdown)) {
-      breakdown[fieldCode].contribution = (breakdown[fieldCode].value * breakdown[fieldCode].weight) / formula.rate;
-    }
+    // Final OVR: sum * 99, clamped to 0-99
+    const finalOVR = Math.round(Math.min(Math.max(normalizedSum * 99, 0), 99));
 
     return {
       ovr: finalOVR,
@@ -688,7 +670,8 @@ export class OVRWeightsCalculator {
     const jsonPos = POSITION_TO_JSON_POS[normalizedPos] || normalizedPos;
     const archetypes: string[] = [];
 
-    for (const archetype of this.weights.keys()) {
+    const weightKeys = Array.from(this.weights.keys());
+    for (const archetype of weightKeys) {
       if (archetype.startsWith(`${jsonPos}_`)) {
         archetypes.push(archetype);
       }
@@ -841,12 +824,21 @@ export class OVRWeightsCalculator {
           archetypeName = this.findArchetype(currentAttributes, jsonPos);
         }
       } else if (this.weights.has(String(archetype))) {
-        // String archetype name provided directly
+        // String archetype name provided directly (already in weights format)
         archetypeName = String(archetype);
       } else {
-        // Try prefixing with position
-        const prefixed = `${jsonPos}_${archetype}`;
-        archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(currentAttributes, jsonPos);
+        // CRITICAL FIX: Convert space-separated names to underscore format
+        // ArchetypeService uses "QB Strong Arm" but weights use "QB_StrongArm"
+        const archetypeStr = String(archetype);
+        const normalizedName = this.normalizeArchetypeName(archetypeStr);
+        if (normalizedName && this.weights.has(normalizedName)) {
+          archetypeName = normalizedName;
+          console.log(`[OVRWeightsCalculator] Adjustment: Normalized archetype "${archetypeStr}" -> "${normalizedName}"`);
+        } else {
+          // Try prefixing with position
+          const prefixed = `${jsonPos}_${archetype}`;
+          archetypeName = this.weights.has(prefixed) ? prefixed : this.findArchetype(currentAttributes, jsonPos);
+        }
       }
     } else {
       archetypeName = this.findArchetype(currentAttributes, jsonPos);
@@ -877,9 +869,13 @@ export class OVRWeightsCalculator {
       return { adjustments: {}, newOVR: currentOVR, archetype: archetypeName };
     }
 
-    // Get formula for this archetype
-    // Formula: OVR = (Sum - Base) / Rate, so Sum = OVR * Rate + Base
-    const formula = getFormulaForArchetype(archetypeName);
+    // CORRECT FORMULA: OVR = normalizedSum * 99
+    // So normalizedSum = OVR / 99
+    // DeltaNormalizedSum = DeltaOVR / 99
+    const desiredLow = Number(weights.DesiredLow) || 0;
+    const desiredHigh = Number(weights.DesiredHigh) || 99;
+    const sumDivisor = Number(weights.Sum) || 10;
+    const desiredRange = desiredHigh - desiredLow;
 
     // Build list of adjustable attributes with their weights and current values
     const adjustableAttrs: { fieldCode: string; weight: number; current: number; name: string; suggested: number }[] = [];
@@ -939,37 +935,31 @@ export class OVRWeightsCalculator {
         break;
       }
 
-      // Calculate weighted sum delta needed for remaining OVR change
-      // Formula: OVR = (Sum - Base) / Rate, so DeltaSum = DeltaOVR * Rate
-      const weightedSumNeeded = remainingDelta * formula.rate;
+      // Calculate normalized sum delta needed for remaining OVR change
+      // Formula: OVR = normalizedSum * 99, so DeltaNormalizedSum = DeltaOVR / 99
+      // Each attribute contributes: ((value - DesiredLow) / desiredRange) * (weight / Sum)
+      // To change normalizedSum by X, we need to change values proportionally
+      const normalizedSumNeeded = remainingDelta / 99;
 
-      // Distribute proportionally by WEIGHT (not uniformly)
-      // Each attribute changes by: (weightedSumNeeded * (weight / effectiveTotalWeight)) / weight
-      // Which simplifies to: weightedSumNeeded / effectiveTotalWeight
-      // BUT we want weight-proportional, so high-weight attrs change MORE:
-      // attrChange = (weightedSumNeeded / sumOfSquaredWeights) * weight
+      // Distribute change proportionally by WEIGHT
+      // Each attribute's contribution: ((value - DesiredLow) / desiredRange) * (weight / Sum)
+      // To change normalizedSum by X total, distribute proportionally to weight^2
+      // (higher weight attributes should change more)
 
-      // Actually the correct formula for weight-proportional:
-      // If we want each attribute's contribution to change proportionally to its weight,
-      // contribution_change = weight * attr_change
-      // total_contribution_change = sum(weight * attr_change) = weightedSumNeeded
-      // If attr_change is proportional to weight: attr_change = k * weight
-      // Then: sum(weight * k * weight) = sum(k * weight^2) = k * sum(weight^2) = weightedSumNeeded
-      // So: k = weightedSumNeeded / sum(weight^2)
-      // And: attr_change = k * weight = (weightedSumNeeded / sum(weight^2)) * weight
-
-      // Calculate sum of squared weights for attributes with headroom
-      let sumSquaredWeights = 0;
+      // Calculate sum of (weight/Sum)^2 for attributes with headroom
+      let sumSquaredNormalizedWeights = 0;
       for (const attr of adjustableAttrs) {
         const headroom = isDecreasing
           ? attr.suggested - 0
           : 99 - attr.suggested;
         if (headroom > 0) {
-          sumSquaredWeights += attr.weight * attr.weight;
+          const normalizedWeight = attr.weight / sumDivisor;
+          sumSquaredNormalizedWeights += normalizedWeight * normalizedWeight;
         }
       }
 
-      const k = weightedSumNeeded / sumSquaredWeights;
+      // k is the proportionality constant
+      const k = normalizedSumNeeded / sumSquaredNormalizedWeights;
 
       // Apply proportional changes
       for (const attr of adjustableAttrs) {
@@ -978,9 +968,16 @@ export class OVRWeightsCalculator {
           : 99 - attr.suggested;
 
         if (headroom > 0) {
-          // Weight-proportional change: high-weight attrs change more
-          const attrChange = k * attr.weight;
-          const newValue = attr.suggested + attrChange;
+          // Each attribute's contribution change = k * (weight/Sum)
+          // contribution = ((value - DesiredLow) / desiredRange) * (weight / Sum)
+          // So value change = contributionChange * desiredRange / (weight / Sum)
+          //                 = k * (weight/Sum) * desiredRange / (weight / Sum)
+          //                 = k * desiredRange
+          // But we want weight-proportional, so:
+          // valueChange = k * (weight/Sum) * desiredRange
+          const normalizedWeight = attr.weight / sumDivisor;
+          const valueChange = k * normalizedWeight * desiredRange;
+          const newValue = attr.suggested + valueChange;
 
           // Clamp to 0-99
           attr.suggested = Math.max(0, Math.min(99, Math.round(newValue)));

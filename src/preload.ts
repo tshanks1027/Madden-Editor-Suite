@@ -218,7 +218,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     adjustAttributesForArchetype: (player: any, targetArchetype: string, position: string, baseOVR?: number) =>
       ipcRenderer.invoke('rating:adjust-attributes-for-archetype', player, targetArchetype, position, baseOVR),
     validateArchetypeConsistency: (player: any, position: string) =>
-      ipcRenderer.invoke('rating:validate-archetype-consistency', player, position)
+      ipcRenderer.invoke('rating:validate-archetype-consistency', player, position),
+    // Batch recalculate OVR for all players (uses correct game formula)
+    recalculateOVRBatch: (players: any[]) =>
+      ipcRenderer.invoke('rating:recalculate-ovr-batch', players),
+    // Find best archetype and OVR for a player (mimics game behavior)
+    findBestOVR: (attributes: any, position: string) =>
+      ipcRenderer.invoke('rating:find-best-ovr', attributes, position)
   },
 
   // Update APIs
@@ -552,7 +558,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     searchCoachDatabase: (query: string, year: number, limit?: number) =>
       ipcRenderer.invoke('retro:search-coach-database', query, year, limit),
     replaceFACoach: (filePath: string, faCoachIndex: number, dbCoach: any, year: number) =>
-      ipcRenderer.invoke('retro:replace-fa-coach', filePath, faCoachIndex, dbCoach, year)
+      ipcRenderer.invoke('retro:replace-fa-coach', filePath, faCoachIndex, dbCoach, year),
+
+    // Equipment APIs
+    applyEquipment: (filePath: string, year: number) =>
+      ipcRenderer.invoke('retro:apply-equipment', filePath, year)
   },
 
   // User Database APIs (Edit player database, custom players, CSV import)

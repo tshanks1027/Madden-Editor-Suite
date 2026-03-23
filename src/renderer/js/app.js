@@ -1098,6 +1098,27 @@ class MaddenEditorApp {
                         return player;
                     }));
 
+                    // Recalculate OVR using the CORRECT game formula
+                    // This ensures POVR matches what the game will display
+                    this.updateLoadingProgress('Recalculating OVR...', 82);
+                    try {
+                        const ovrResults = await window.electronAPI.rating.recalculateOVRBatch(this.players);
+                        if (ovrResults && ovrResults.length === this.players.length) {
+                            let changedCount = 0;
+                            for (let i = 0; i < ovrResults.length; i++) {
+                                const oldOVR = this.players[i].POVR;
+                                const newOVR = ovrResults[i].ovr;
+                                if (oldOVR !== newOVR) {
+                                    this.players[i].POVR = newOVR;
+                                    changedCount++;
+                                }
+                            }
+                            console.log(`[app.js] OVR recalculation: ${changedCount} players changed`);
+                        }
+                    } catch (err) {
+                        console.error('[app.js] Error recalculating OVR:', err);
+                    }
+
                     // NOTE: Body types are synced from BTYP (BLBM table) in RosterParser.js
                     // We do NOT normalize here because BTYP is authoritative - users may
                     // intentionally set non-standard body types for their position/weight
@@ -7008,6 +7029,27 @@ class MaddenEditorApp {
             // Show info-tooltips version buttons
             document.getElementById('fixDraftFacesBtn2').style.display = 'inline-flex';
             document.getElementById('fixDraftCommentaryBtn2').style.display = 'inline-flex';
+
+            // Recalculate OVR using the CORRECT game formula
+            // This ensures POVR matches what the game will display
+            console.log('[Draft] Recalculating OVR for prospects...');
+            try {
+                const ovrResults = await window.electronAPI.rating.recalculateOVRBatch(result.data.prospects);
+                if (ovrResults && ovrResults.length === result.data.prospects.length) {
+                    let changedCount = 0;
+                    for (let i = 0; i < ovrResults.length; i++) {
+                        const oldOVR = result.data.prospects[i].POVR;
+                        const newOVR = ovrResults[i].ovr;
+                        if (oldOVR !== newOVR) {
+                            result.data.prospects[i].POVR = newOVR;
+                            changedCount++;
+                        }
+                    }
+                    console.log(`[Draft] OVR recalculation: ${changedCount} prospects changed`);
+                }
+            } catch (err) {
+                console.error('[Draft] Error recalculating OVR:', err);
+            }
 
             // Create grid (await to ensure it completes)
             await this.createDraftGrid(result.data.prospects);
