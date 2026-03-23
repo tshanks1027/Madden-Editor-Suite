@@ -614,6 +614,10 @@ class MaddenEditorApp {
                 this.closeMassEquipmentModal();
             }
         });
+        // Prevent clicks inside modal content from bubbling to overlay
+        document.querySelector('#massEquipmentModal .modal-content')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
         document.getElementById('massEquipmentYear')?.addEventListener('change', (e) => {
             this.updateMassEquipmentPreview(parseInt(e.target.value));
         });
