@@ -129,7 +129,27 @@
     // Kicking - M26 roster codes
     { field: 'PKAC', label: 'Kick Accuracy', category: 'kicking' },
     { field: 'PKPR', label: 'Kick Power', category: 'kicking' },  // M26: PKPR (not PKPW!)
-    { field: 'PKRT', label: 'Kick Return', category: 'special' }
+    { field: 'PKRT', label: 'Kick Return', category: 'special' },
+    // Traits - stored as 0/1 boolean values
+    { field: 'TRBH', label: 'Big Hitter', category: 'traits' },
+    { field: 'TRSB', label: 'Strip Ball', category: 'traits' },
+    { field: 'TRHM', label: 'High Motor', category: 'traits' },
+    { field: 'TRCL', label: 'Clutch', category: 'traits' },
+    { field: 'TRFY', label: 'Fight for Yards', category: 'traits' },
+    { field: 'TRFB', label: 'Feet in Bounds', category: 'traits' },
+    { field: 'TRJR', label: 'Aggressive Catch', category: 'traits' },
+    { field: 'TRCB', label: 'Cover Ball', category: 'traits' },
+    { field: 'TRTA', label: 'Throw Away', category: 'traits' },
+    { field: 'TRTS', label: 'Tight Spiral', category: 'traits' },
+    { field: 'TRFK', label: 'Pump Fake', category: 'traits' },
+    { field: 'TRBR', label: 'DL Bull Rush', category: 'traits' },
+    { field: 'TRDS', label: 'DL Spin', category: 'traits' },
+    { field: 'TRSW', label: 'DL Swim', category: 'traits' },
+    { field: 'TRTL', label: 'Tackle Low', category: 'traits' },
+    { field: 'TRDO', label: 'Drops Open', category: 'traits' },
+    { field: 'TRWU', label: 'YAC Catch', category: 'traits' },
+    { field: 'TRPN', label: 'Penalty', category: 'traits' },
+    { field: 'TRPB', label: 'Play Ball', category: 'traits' }
   ];
 
   // Category display names
@@ -144,8 +164,16 @@
     defense: 'Defense',
     coverage: 'Coverage',
     kicking: 'Kicking',
-    special: 'Special Teams'
+    special: 'Special Teams',
+    traits: 'Traits'
   };
+
+  // Boolean trait fields that use checkboxes (0/1 values)
+  const CHECKBOX_TRAIT_FIELDS = [
+    'TRBH', 'TRSB', 'TRHM', 'TRCL', 'TRFY', 'TRFB', 'TRJR', 'TRCB',
+    'TRTA', 'TRTS', 'TRFK', 'TRBR', 'TRDS', 'TRSW', 'TRTL', 'TRDO',
+    'TRWU', 'TRPN', 'TRPB'
+  ];
 
   // Map database player card field names to OVR calculator field codes
   // Map database field codes to OVR calculator field codes
@@ -3192,7 +3220,12 @@
     RATING_FIELDS.forEach(function(item) {
       var inputId = 'dbRating_' + item.field;
       var value = ratings[item.field];
-      setValue(inputId, value !== undefined ? value : '');
+      // Handle checkbox traits differently from number inputs
+      if (CHECKBOX_TRAIT_FIELDS.indexOf(item.field) !== -1) {
+        setChecked(inputId, value === 1 || value === '1' || value === true);
+      } else {
+        setValue(inputId, value !== undefined ? value : '');
+      }
     });
   }
 
@@ -3210,7 +3243,13 @@
     setChecked('dbIncrementAgeEachYear', false);
 
     RATING_FIELDS.forEach(function(item) {
-      setValue('dbRating_' + item.field, '');
+      var inputId = 'dbRating_' + item.field;
+      // Handle checkbox traits differently from number inputs
+      if (CHECKBOX_TRAIT_FIELDS.indexOf(item.field) !== -1) {
+        setChecked(inputId, false);
+      } else {
+        setValue(inputId, '');
+      }
     });
   }
 
@@ -3766,7 +3805,14 @@
     // Collect rating values - only include changed ones if filtering
     // Database uses M26 roster field names directly - no mapping needed
     RATING_FIELDS.forEach(function(item) {
-      var val = getIntValue('dbRating_' + item.field);
+      var inputId = 'dbRating_' + item.field;
+      var val;
+      // Handle checkbox traits differently from number inputs
+      if (CHECKBOX_TRAIT_FIELDS.indexOf(item.field) !== -1) {
+        val = getChecked(inputId) ? 1 : 0;
+      } else {
+        val = getIntValue(inputId);
+      }
       if (val !== null && val !== undefined && hasChanged(item.field, val)) {
         edits[item.field] = val;
       }

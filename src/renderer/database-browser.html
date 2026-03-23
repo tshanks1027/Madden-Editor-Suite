@@ -899,133 +899,85 @@
                         <div id="ratingsAllYearsTable"></div>
                     </div>
 
-                    <!-- Single Year Form View -->
-                    <div id="ratingsSingleYearView" style="display: none;">
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Season Info</h4>
-                            <div class="db-form-grid">
-                                <div class="db-form-item">
-                                    <label class="db-form-label">Team</label>
-                                    <select class="db-form-select" id="dbPlayerSeasonTeam">
-                                        <option value="">Select Team</option>
-                                    </select>
-                                </div>
-                                <div class="db-form-item">
-                                    <label class="db-form-label">Jersey</label>
-                                    <input type="number" class="db-form-input" id="dbPlayerSeasonJersey" min="0" max="99">
-                                </div>
-                                <div class="db-form-item">
-                                    <label class="db-form-label">Age</label>
-                                    <input type="number" class="db-form-input" id="dbPlayerSeasonAge" min="18" max="50">
-                                </div>
-                                <div class="db-form-item">
-                                    <label class="db-form-label">Position</label>
-                                    <select class="db-form-select" id="dbPlayerSeasonPosition">
-                                        <option value="">Select Position</option>
-                                    </select>
-                                </div>
+                    <!-- Traits Section (always visible) -->
+                    <div class="db-form-section">
+                        <h4 class="db-form-section-title">Traits</h4>
+                        <div class="db-traits-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;">
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRBH" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRBH" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Big Hitter</label>
                             </div>
-                        </div>
-
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Core Ratings</h4>
-                            <div class="db-ratings-grid">
-                                <div class="db-rating-item"><span class="db-rating-label">OVR</span><input type="number" class="db-rating-input" id="dbRating_POVR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">SPD</span><input type="number" class="db-rating-input" id="dbRating_PSPD" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">ACC</span><input type="number" class="db-rating-input" id="dbRating_PACC" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">STR</span><input type="number" class="db-rating-input" id="dbRating_PSTR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">AGI</span><input type="number" class="db-rating-input" id="dbRating_PAGI" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">AWR</span><input type="number" class="db-rating-input" id="dbRating_PAWR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">JMP</span><input type="number" class="db-rating-input" id="dbRating_PJMP" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">STA</span><input type="number" class="db-rating-input" id="dbRating_PSTM" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">INJ</span><input type="number" class="db-rating-input" id="dbRating_PINJ" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">TGH</span><input type="number" class="db-rating-input" id="dbRating_PTGH" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">COD</span><input type="number" class="db-rating-input" id="dbRating_PCOD" min="0" max="99"></div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRSB" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRSB" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Strip Ball</label>
                             </div>
-                        </div>
-
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Passing</h4>
-                            <div class="db-ratings-grid">
-                                <div class="db-rating-item"><span class="db-rating-label">THP</span><input type="number" class="db-rating-input" id="dbRating_PPWR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">TAS</span><input type="number" class="db-rating-input" id="dbRating_PTAS" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">TAM</span><input type="number" class="db-rating-input" id="dbRating_PTAM" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">TAD</span><input type="number" class="db-rating-input" id="dbRating_PTAD" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">TOR</span><input type="number" class="db-rating-input" id="dbRating_PTOR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">TUP</span><input type="number" class="db-rating-input" id="dbRating_PTUP" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">PAC</span><input type="number" class="db-rating-input" id="dbRating_PPBK" min="0" max="99"></div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRHM" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRHM" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">High Motor</label>
                             </div>
-                        </div>
-
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Running</h4>
-                            <div class="db-ratings-grid">
-                                <div class="db-rating-item"><span class="db-rating-label">CAR</span><input type="number" class="db-rating-input" id="dbRating_PCAR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">BCV</span><input type="number" class="db-rating-input" id="dbRating_PBCV" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">BTK</span><input type="number" class="db-rating-input" id="dbRating_PBTK" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">TRK</span><input type="number" class="db-rating-input" id="dbRating_PTRK" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">ELU</span><input type="number" class="db-rating-input" id="dbRating_PELU" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">SFA</span><input type="number" class="db-rating-input" id="dbRating_PSFA" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">SPN</span><input type="number" class="db-rating-input" id="dbRating_PSPN" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">JKM</span><input type="number" class="db-rating-input" id="dbRating_PJKM" min="0" max="99"></div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRCL" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRCL" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Clutch</label>
                             </div>
-                        </div>
-
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Receiving</h4>
-                            <div class="db-ratings-grid">
-                                <div class="db-rating-item"><span class="db-rating-label">CTH</span><input type="number" class="db-rating-input" id="dbRating_PCTH" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">SPC</span><input type="number" class="db-rating-input" id="dbRating_PSPC" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">CIT</span><input type="number" class="db-rating-input" id="dbRating_PCIT" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">SRR</span><input type="number" class="db-rating-input" id="dbRating_PSRR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">MRR</span><input type="number" class="db-rating-input" id="dbRating_PMRR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">DRR</span><input type="number" class="db-rating-input" id="dbRating_PDRR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">RLS</span><input type="number" class="db-rating-input" id="dbRating_PREL" min="0" max="99"></div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRFY" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRFY" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Fight for Yards</label>
                             </div>
-                        </div>
-
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Blocking</h4>
-                            <div class="db-ratings-grid">
-                                <div class="db-rating-item"><span class="db-rating-label">RBK</span><input type="number" class="db-rating-input" id="dbRating_PRBK" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">PBK</span><input type="number" class="db-rating-input" id="dbRating_PPBK2" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">IBL</span><input type="number" class="db-rating-input" id="dbRating_PIBK" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">LBK</span><input type="number" class="db-rating-input" id="dbRating_PLBK" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">RBF</span><input type="number" class="db-rating-input" id="dbRating_PFMS" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">RBP</span><input type="number" class="db-rating-input" id="dbRating_PRNS" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">PBF</span><input type="number" class="db-rating-input" id="dbRating_PPBS" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">PBP</span><input type="number" class="db-rating-input" id="dbRating_PPBP" min="0" max="99"></div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRFB" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRFB" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Feet in Bounds</label>
                             </div>
-                        </div>
-
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Defense</h4>
-                            <div class="db-ratings-grid">
-                                <div class="db-rating-item"><span class="db-rating-label">TAK</span><input type="number" class="db-rating-input" id="dbRating_PTAK" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">POW</span><input type="number" class="db-rating-input" id="dbRating_PHIT" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">PMV</span><input type="number" class="db-rating-input" id="dbRating_PPWM" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">FMV</span><input type="number" class="db-rating-input" id="dbRating_PFMV" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">BSH</span><input type="number" class="db-rating-input" id="dbRating_PBSH" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">PUR</span><input type="number" class="db-rating-input" id="dbRating_PPRC" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">PRC</span><input type="number" class="db-rating-input" id="dbRating_PPLA" min="0" max="99"></div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRJR" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRJR" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Aggressive Catch</label>
                             </div>
-                        </div>
-
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Coverage</h4>
-                            <div class="db-ratings-grid">
-                                <div class="db-rating-item"><span class="db-rating-label">MCV</span><input type="number" class="db-rating-input" id="dbRating_PMCV" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">ZCV</span><input type="number" class="db-rating-input" id="dbRating_PZCV" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">PRS</span><input type="number" class="db-rating-input" id="dbRating_PPRS" min="0" max="99"></div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRCB" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRCB" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Cover Ball</label>
                             </div>
-                        </div>
-
-                        <div class="db-form-section">
-                            <h4 class="db-form-section-title">Kicking</h4>
-                            <div class="db-ratings-grid">
-                                <div class="db-rating-item"><span class="db-rating-label">KPW</span><input type="number" class="db-rating-input" id="dbRating_PKPR" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">KAC</span><input type="number" class="db-rating-input" id="dbRating_PKAC" min="0" max="99"></div>
-                                <div class="db-rating-item"><span class="db-rating-label">KRT</span><input type="number" class="db-rating-input" id="dbRating_PKRT" min="0" max="99"></div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRTA" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRTA" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Throw Away</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRTS" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRTS" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Tight Spiral</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRFK" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRFK" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Pump Fake</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRBR" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRBR" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">DL Bull Rush</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRDS" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRDS" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">DL Spin</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRSW" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRSW" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">DL Swim</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRTL" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRTL" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Tackle Low</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRDO" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRDO" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Drops Open</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRWU" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRWU" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">YAC Catch</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRPN" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRPN" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Penalty</label>
+                            </div>
+                            <div class="db-trait-item" style="display: flex; align-items: center; gap: 6px;">
+                                <input type="checkbox" class="db-trait-checkbox" id="dbRating_TRPB" style="width: 16px; height: 16px;">
+                                <label for="dbRating_TRPB" class="db-trait-label" style="font-size: 11px; color: var(--text-secondary);">Play Ball</label>
                             </div>
                         </div>
                     </div>
