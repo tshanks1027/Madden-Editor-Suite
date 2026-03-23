@@ -5146,6 +5146,14 @@ class MaddenEditorApp {
         this.currentFacePickerPlayer = player;
         this.currentFacePickerRowIndex = rowIndex;
 
+        // CRITICAL FIX: Capture original values at the moment picker is opened
+        // This prevents corruption from previous edits affecting PAM-only mode
+        // The player object is a shared reference that can be modified by other operations
+        this.currentFacePickerOriginalPSXP = player.PSXP;
+        this.currentFacePickerOriginalPlayerpic = player.PLAYERPIC;
+        this.currentFacePickerOriginalRace = player.PLRC;
+        console.log(`[GenericFacePicker] Opened for ${player.PFNA} ${player.PLNA}, capturing originalPSXP=${this.currentFacePickerOriginalPSXP}, originalPlayerpic=${this.currentFacePickerOriginalPlayerpic}, originalRace=${this.currentFacePickerOriginalRace}`);
+
         // Reset PAM Only checkbox to unchecked each time the picker opens
         const pamOnlyCheckbox = document.getElementById('pamOnlyCheckbox');
         if (pamOnlyCheckbox) {
@@ -5391,8 +5399,11 @@ class MaddenEditorApp {
             // after filtering, sorting, or editing operations
             let player = this.currentFacePickerPlayer;
 
-            // CRITICAL: Capture original PSXP BEFORE any modifications - needed for row matching
-            const originalPSXP = player.PSXP;
+            // CRITICAL FIX: Use the PSXP captured when picker was OPENED, not current player.PSXP
+            // The player object is a shared reference that can be corrupted by previous edits
+            // (e.g., if two players get assigned the same generic face, matching logic can cross-contaminate)
+            const originalPSXP = this.currentFacePickerOriginalPSXP;
+            console.log(`[GenericFacePicker] Using captured originalPSXP=${originalPSXP} (current player.PSXP=${player.PSXP})`);
 
             // Verify the player still exists in our data array
             // This handles the case where the player was deleted while the picker was open
@@ -5476,23 +5487,27 @@ class MaddenEditorApp {
             const isPamOnly = isRoster && pamOnlyCheckbox && pamOnlyCheckbox.checked;
             console.log(`[GenericFacePicker] PAM Only mode: ${isPamOnly}`);
 
-            // Capture old values BEFORE the if block so they're accessible in AG-Grid section
-            const oldPlayerpic = isRoster ? player.PLAYERPIC : null;
+            // CRITICAL FIX: Use values captured when picker was OPENED, not current player values
+            // This prevents corruption from previous edits affecting PAM-only mode
+            const oldPlayerpic = isRoster ? this.currentFacePickerOriginalPlayerpic : null;
 
             if (isRoster) {
 
                 // Roster player - update the actual player object in filteredPlayers
-                const oldPID = player.PSXP;
-                const oldRace = player.PLRC;
+                // CRITICAL FIX: Use captured values, not current player values (can be corrupted)
+                const oldPID = originalPSXP;
+                const oldRace = this.currentFacePickerOriginalRace;
 
-                // PAM-ONLY MODE: Simple approach - apply FULL picker, then restore PID
+                // PAM-ONLY MODE: Do NOT change PSXP or PLAYERPIC - only change in-game 3D face
+                // FULL MODE: Change both portrait (PSXP/PLAYERPIC) AND in-game 3D face
                 if (isPamOnly) {
-                    console.log(`[GenericFacePicker] PAM-only: Saving original PID=${oldPID} for restoration after full apply`);
+                    console.log(`[GenericFacePicker] PAM-only: Preserving PSXP=${oldPID}, PLAYERPIC (not changing portrait)`);
+                    // Don't touch player.PSXP or player.PLAYERPIC
+                } else {
+                    player.PSXP = pid;
+                    player.PLAYERPIC = 'Generic Face';
+                    console.log(`[GenericFacePicker] Full mode: Set PSXP=${pid}, PLAYERPIC='Generic Face'`);
                 }
-
-                // ALWAYS apply full changes (including PSXP and PLAYERPIC)
-                player.PSXP = pid;
-                player.PLAYERPIC = 'Generic Face';
 
                 // CRITICAL: Game clears PEPS to "" for generic faces - it's NOT used for face selection
                 // The face model is controlled by PGHE and BLBM.GENR only
@@ -5538,21 +5553,28 @@ class MaddenEditorApp {
                         originalPlayer.assignedGenr = player.assignedGenr;
                         originalPlayer.assignedSknt = player.assignedSknt;
                         originalPlayer.PEPS = player.PEPS;
-                        originalPlayer.PSXP = player.PSXP;
-                        originalPlayer.PLAYERPIC = player.PLAYERPIC;
                         originalPlayer.PLPL = 0;
+                        // PAM-ONLY: Do NOT sync PSXP/PLAYERPIC - these control the portrait
+                        if (!isPamOnly) {
+                            originalPlayer.PSXP = player.PSXP;
+                            originalPlayer.PLAYERPIC = player.PLAYERPIC;
+                        }
                         const playerIndex = this.players.indexOf(originalPlayer);
-                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] - PEPS="${player.PEPS}", PSXP=${player.PSXP}`);
+                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] - PEPS="${player.PEPS}", PSXP=${originalPlayer.PSXP}, isPamOnly=${isPamOnly}`);
                     } else {
                         console.warn(`[GenericFacePicker] Could not find player ${player.PFNA} ${player.PLNA} (originalPSXP=${originalPSXP}) in this.players to sync!`);
                     }
                 }
 
-                // Always update race based on the selected generic face
-                // This ensures the player's race matches the skin tone of the in-game face model
-                if (newRace !== null) {
+                // Update race based on the selected generic face
+                // PAM-ONLY: Do NOT update race - we're keeping the player's portrait/identity
+                // so their body skin tone should match their original portrait, not the generic face
+                if (newRace !== null && !isPamOnly) {
                     player.PLRC = newRace;
                     player.assignedRace = newRace; // Also update assignedRace for BLBM GENR/SKNT assignment
+                    console.log(`[GenericFacePicker] Updated player.PLRC from ${oldRace} to ${newRace}`);
+                } else if (isPamOnly) {
+                    console.log(`[GenericFacePicker] PAM-only: Keeping original race ${oldRace} (not changing to ${newRace})`);
                 }
 
                 // CRITICAL: Set PLPL=0 to indicate this player uses a generic face (BLBM GENR)
@@ -5603,30 +5625,10 @@ class MaddenEditorApp {
                     }
                 }
 
-                console.log(`[GenericFacePicker] Applied full picker: PSXP ${oldPID} -> ${pid}, PLAYERPIC=Generic Face`);
-                if (newRace !== null) {
-                    console.log(`[GenericFacePicker] Updated player.PLRC from ${oldRace} to ${newRace}`);
-                }
-
-                // PAM-ONLY MODE: Now restore the original PID after full apply
                 if (isPamOnly) {
-                    console.log(`[GenericFacePicker] PAM-only: Restoring original PID=${oldPID} (was temporarily ${pid})`);
-                    player.PSXP = oldPID;
-                    player.PLAYERPIC = oldPlayerpic || 'Real'; // Restore original playerpic indicator
-
-                    // Also restore in this.players array
-                    const restorePlayer = this.players.find(p => {
-                        const nameMatch = p.PFNA === player.PFNA && p.PLNA === player.PLNA;
-                        const pgidMatch = player.PGID && player.PGID !== 0 && p.PGID === player.PGID;
-                        // After full apply, PSXP was set to pid, so match on that
-                        const psxpMatch = p.PSXP === pid;
-                        return (pgidMatch && nameMatch) || (nameMatch && psxpMatch);
-                    });
-                    if (restorePlayer) {
-                        restorePlayer.PSXP = oldPID;
-                        restorePlayer.PLAYERPIC = oldPlayerpic || 'Real';
-                        console.log(`[GenericFacePicker] PAM-only: Restored PID in this.players - PSXP=${oldPID}`);
-                    }
+                    console.log(`[GenericFacePicker] PAM-only applied: PSXP=${oldPID} (preserved), PEPS="", PLPL=0, PGHE=${player.PGHE}`);
+                } else {
+                    console.log(`[GenericFacePicker] Full mode applied: PSXP ${oldPID} -> ${pid}, PLAYERPIC=Generic Face, PEPS="", PLPL=0`);
                 }
             } else if (isDraft) {
                 // Draft class prospect - update the actual prospect object in draftProspects
@@ -5714,42 +5716,37 @@ class MaddenEditorApp {
                     const foundPSXP = rowNode.data?.PSXP;
                     console.log(`[GenericFacePicker] Found rowNode at index ${foundRowIndex}, PGID=${foundPGID}, current PSXP=${foundPSXP}`);
 
-                    // Update via AG-Grid API - ALWAYS apply ALL changes
-                    // CRITICAL: Set PSXP LAST because PLAYERPIC valueSetter can overwrite PSXP!
-                    // The PLAYERPIC valueSetter searches for "Generic Face" in pidMap and
-                    // returns the FIRST match, which may not be the correct face.
-                    // By setting PSXP last, we ensure the correct PID is used.
-                    rowNode.setDataValue('PLAYERPIC', 'Generic Face');
-
-                    // CRITICAL: Game clears PEPS to "" for generic faces - PEPS is NOT used for face selection
-                    // The face model is controlled by PGHE and BLBM.GENR only
-                    // We keep assignedGenr for BLBM update but PEPS must be empty
-                    rowNode.setDataValue('PEPS', '');
-                    // PLRC should be updated for BOTH modes - skin tone needs to match in-game face
-                    if (newRace !== null) {
-                        rowNode.setDataValue('PLRC', newRace);
-                    }
-                    // CRITICAL: Set PLPL=0 for generic faces (tells game to use BLBM GENR, not face scan)
-                    rowNode.setDataValue('PLPL', 0);
-
-                    // CRITICAL: Set PSXP LAST to ensure correct PID (not overwritten by PLAYERPIC valueSetter)
-                    rowNode.setDataValue('PSXP', pid);
-
-                    // PAM-ONLY: Restore original PID after full apply
-                    // Set PLAYERPIC first, then PSXP last (valueSetter protection)
                     if (isPamOnly) {
-                        console.log(`[GenericFacePicker] PAM-only: Restoring grid PSXP from ${pid} back to ${originalPSXP}`);
-                        rowNode.setDataValue('PLAYERPIC', oldPlayerpic || 'Real');
-                        rowNode.setDataValue('PSXP', originalPSXP);
-                    }
+                        // PAM-ONLY MODE: Only change the in-game 3D face, NOT the portrait
+                        // DO NOT touch PLAYERPIC or PSXP - they control the portrait display
+                        // Only update: PEPS (clear), PLPL (0 for generic)
+                        // PGHE is already set on the player object above
+                        console.log(`[GenericFacePicker] PAM-only: Updating ONLY PEPS and PLPL (not touching PLAYERPIC/PSXP)`);
+                        rowNode.setDataValue('PEPS', '');
+                        rowNode.setDataValue('PLPL', 0);
 
-                    // Verify the data was updated
-                    const verifyPSXP = rowNode.data?.PSXP;
-                    const verifyPLPL = rowNode.data?.PLPL;
-                    const verifyPEPS = rowNode.data?.PEPS;
-                    if (isPamOnly) {
-                        console.log(`[GenericFacePicker] PAM-only final: PSXP=${verifyPSXP} (original preserved), PEPS="${verifyPEPS}", PLPL=${verifyPLPL}, PLRC=${newRace}`);
+                        // Verify the data was updated
+                        const verifyPSXP = rowNode.data?.PSXP;
+                        const verifyPLPL = rowNode.data?.PLPL;
+                        const verifyPEPS = rowNode.data?.PEPS;
+                        const verifyPLRC = rowNode.data?.PLRC;
+                        console.log(`[GenericFacePicker] PAM-only final: PSXP=${verifyPSXP} (preserved), PEPS="${verifyPEPS}", PLPL=${verifyPLPL}, PLRC=${verifyPLRC} (preserved)`);
                     } else {
+                        // FULL MODE: Change both portrait AND in-game 3D face
+                        // CRITICAL: Set PSXP LAST because PLAYERPIC valueSetter can overwrite PSXP!
+                        rowNode.setDataValue('PLAYERPIC', 'Generic Face');
+                        rowNode.setDataValue('PEPS', '');
+                        if (newRace !== null) {
+                            rowNode.setDataValue('PLRC', newRace);
+                        }
+                        rowNode.setDataValue('PLPL', 0);
+                        // CRITICAL: Set PSXP LAST to ensure correct PID (not overwritten by PLAYERPIC valueSetter)
+                        rowNode.setDataValue('PSXP', pid);
+
+                        // Verify the data was updated
+                        const verifyPSXP = rowNode.data?.PSXP;
+                        const verifyPLPL = rowNode.data?.PLPL;
+                        const verifyPEPS = rowNode.data?.PEPS;
                         console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid} (verified: ${verifyPSXP}), PLAYERPIC=Generic Face, PEPS="${verifyPEPS}", PLPL=${verifyPLPL}, PLRC=${newRace}`);
                     }
 
