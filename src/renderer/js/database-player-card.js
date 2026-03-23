@@ -31,7 +31,7 @@
     'Helmet', 'Facemask', 'Visor', 'FacePaint', 'Mouthpiece', 'Neckpad', 'HelmetFlag', 'GuardianCap',
     'LeftSleeve', 'RightSleeve', 'LeftElbow', 'RightElbow', 'LeftWrist', 'RightWrist',
     'LeftGlove', 'RightGlove',
-    'Undershirt', 'JerseyStyle', 'BackPlate', 'FlakJacket', 'Towel', 'Handwarmer',
+    'Undershirt', 'JerseyStyle', 'BackPlate', 'FlakJacket', 'Towel', 'Handwarmer', 'ShoulderPads',
     'LeftShoe', 'RightShoe', 'LeftShoeColor', 'RightShoeColor', 'LeftSpats', 'RightSpats',
     'Socks', 'KneePad', 'LeftThighPad', 'RightThighPad'
   ];

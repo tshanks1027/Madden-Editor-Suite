@@ -478,6 +478,11 @@ class MaddenEditorApp {
             this.showMassEquipmentModal('roster');
         });
 
+        document.getElementById('toolsTurnOffTraitsBtn')?.addEventListener('click', () => {
+            toolsPopup?.classList.remove('show');
+            this.turnOffAllTraits();
+        });
+
         // Legacy button handlers (if still present in DOM)
         document.getElementById('importCsvBtn')?.addEventListener('click', () => {
             this.importRosterCSV();
@@ -6657,6 +6662,57 @@ class MaddenEditorApp {
     }
 
     /**
+     * Turn off all boolean traits (TR* fields) for all players in the roster
+     * Sets TRBH, TRBR, TRDS, TRCL, TRDO, TRFB, TRFK, TRFY, TRHM, TRJR, TRSB, TRSW, TRTA, TRTL, TRTS, TRWU, TRCB to 0
+     * Also sets position-specific traits TRPN, TRPB, TRLS, TRTN, TRPR to 0
+     */
+    turnOffAllTraits() {
+        if (!this.players || this.players.length === 0) {
+            this.showToast('No roster loaded', 'error');
+            return;
+        }
+
+        // Boolean traits + position-specific traits
+        const traitFields = [
+            'TRBH', 'TRBR', 'TRDS', 'TRCL', 'TRDO', 'TRFB', 'TRFK', 'TRFY', 'TRHM', 'TRJR', 'TRSB', 'TRSW', 'TRTA', 'TRTL', 'TRTS', 'TRWU', 'TRCB',
+            'TRPN', 'TRPB', 'TRLS', 'TRTN', 'TRPR'  // Position-specific traits
+        ];
+        let modifiedCount = 0;
+        let traitsModified = 0;
+
+        this.players.forEach(player => {
+            let playerModified = false;
+            traitFields.forEach(field => {
+                if (player[field] !== undefined && player[field] !== 0) {
+                    player[field] = 0;
+                    playerModified = true;
+                    traitsModified++;
+                }
+            });
+            if (playerModified) {
+                modifiedCount++;
+            }
+        });
+
+        // Refresh the grid to show updated values
+        if (window.agGridApi) {
+            window.agGridApi.refreshCells({ force: true });
+        } else if (this.agGrid) {
+            this.agGrid.refreshCells({ force: true });
+        } else if (this.hot) {
+            this.hot.render();
+        }
+
+        if (modifiedCount > 0) {
+            this.showToast(`Turned off ${traitsModified} traits on ${modifiedCount} player(s). SAVE to apply changes!`, 'success');
+            console.log(`[TurnOffAllTraits] Modified ${traitsModified} traits on ${modifiedCount} players`);
+        } else {
+            this.showToast('All traits were already off', 'info');
+            console.log('[TurnOffAllTraits] No traits needed to be modified');
+        }
+    }
+
+    /**
      * Open the Duplicate Cleaner modal
      */
     openDuplicateCleaner() {
@@ -7038,10 +7094,12 @@ class MaddenEditorApp {
                 if (ovrResults && ovrResults.length === result.data.prospects.length) {
                     let changedCount = 0;
                     for (let i = 0; i < ovrResults.length; i++) {
-                        const oldOVR = result.data.prospects[i].POVR;
+                        const oldOVR = result.data.prospects[i].POVR || result.data.prospects[i].overall;
                         const newOVR = ovrResults[i].ovr;
                         if (oldOVR !== newOVR) {
+                            // Update BOTH fields - POVR for file saving, overall for grid display
                             result.data.prospects[i].POVR = newOVR;
+                            result.data.prospects[i].overall = newOVR;
                             changedCount++;
                         }
                     }
@@ -12131,6 +12189,7 @@ class MaddenEditorApp {
                 setSelect('equipFlakJacket', eq.FlakJacket || '');
                 setSelect('equipTowel', eq.Towel || '');
                 setSelect('equipHandwarmer', eq.Handwarmer || '');
+                setSelect('equipShoulderPads', eq.ShoulderPads || '');
 
                 // Legs/Feet
                 setSelect('equipLeftShoe', eq.LeftShoe || '');
@@ -12395,6 +12454,7 @@ class MaddenEditorApp {
                 FlakJacket: document.getElementById('equipFlakJacket')?.value || '',
                 Towel: document.getElementById('equipTowel')?.value || '',
                 Handwarmer: document.getElementById('equipHandwarmer')?.value || '',
+                ShoulderPads: document.getElementById('equipShoulderPads')?.value || '',
 
                 // Legs/Feet
                 LeftShoe: document.getElementById('equipLeftShoe')?.value || '',
@@ -12784,7 +12844,13 @@ class MaddenEditorApp {
             TRCL: { display: 'Clutch', description: 'Performs better in key moments', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS', 'K', 'P'] },
             TRTL: { display: 'Tight Lines', description: 'Stays in blocking lanes', category: 'Blocking', positions: ['LT', 'LG', 'C', 'RG', 'RT', 'TE', 'FB'] },
             TRTS: { display: 'Tough Situation', description: 'Performs under pressure', category: 'Other', positions: ['QB', 'K', 'P'] },
-            TRWU: { display: 'Warm Up', description: 'Gets better during game', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE'] }
+            TRWU: { display: 'Warm Up', description: 'Gets better during game', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE'] },
+            // Position-specific traits (M26 format)
+            TRPN: { display: 'Penalty', description: 'Penalty prone player', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+            TRPB: { display: 'Play Ball', description: 'Plays the ball aggressively in coverage', category: 'Defense', positions: ['CB', 'FS', 'SS', 'SAM', 'MIKE', 'WILL'] },
+            TRLS: { display: 'LB Style', description: 'Linebacker coverage style (0=Balanced, 1=Run, 2=Pass)', category: 'Defense', positions: ['SAM', 'MIKE', 'WILL'] },
+            TRTN: { display: 'Tendency', description: 'Play tendency preference', category: 'Other', positions: ['QB', 'HB', 'FB', 'WR', 'TE', 'LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT', 'SAM', 'MIKE', 'WILL', 'CB', 'FS', 'SS'] },
+            TRPR: { display: 'Predictability', description: 'QB decision predictability', category: 'QB', positions: ['QB'] }
         };
 
         const TRAIT_CATEGORIES = {
