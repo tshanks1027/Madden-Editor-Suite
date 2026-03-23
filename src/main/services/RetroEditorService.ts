@@ -105,6 +105,7 @@ const TABLE_IDS = {
   ownerTable: 3429237668,
   stadiumTable: 459799498,
   leagueTable: 1625193857,
+  characterVisualsTable: 1429178382,
 
   // FA array table - discovered via research (RESEARCH_SUMMARY_FA_VISIBILITY.md)
   // This is the Player[] array that contains ALL free agent player references
@@ -1435,10 +1436,12 @@ export class RetroEditorService {
         }
       }
 
-      // Fallback: Load player OVR data from database for this year
+      // Fallback: Load player OVR data from database for this year (filter hidden)
       const year = event.year;
-      const dbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
-      console.log(`[getEligiblePlayersForExpansionDraft] Loaded ${dbPlayers.length} players from database for year ${year}`);
+      const allDbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
+      const hiddenIds = new Set(userDatabaseService.getHiddenPlayers());
+      const dbPlayers = allDbPlayers.filter(p => !hiddenIds.has(p.playerId));
+      console.log(`[getEligiblePlayersForExpansionDraft] Loaded ${dbPlayers.length} players from database for year ${year} (${allDbPlayers.length - dbPlayers.length} hidden)`);
 
       // Build lookup map by firstName_lastName for OVR lookup
       const ovrLookupMap = new Map<string, number>();
@@ -8552,6 +8555,297 @@ ${fieldsList}
         error: `Failed to update coach: ${err.message}`
       };
     }
+  }
+
+  // ============================================
+  // EQUIPMENT ASSIGNMENT METHODS
+  // ============================================
+
+  /**
+   * Apply era-appropriate equipment to all players in the loaded franchise file.
+   *
+   * Franchise files store equipment in two places:
+   * 1. Player table PLYR_* fields (enum keys like "SpeedFlex", "NikeVintage70s80s")
+   * 2. CharacterVisuals table RawData JSON (asset names like "GearHelmet_Speed_Flex")
+   *
+   * We update BOTH to ensure changes persist properly.
+   *
+   * @param filePath Path to the loaded franchise file
+   * @param year Historical year for equipment era selection
+   * @returns Results of equipment application
+   */
+  async applyEquipmentToFranchise(filePath: string, year: number): Promise<{
+    success: boolean;
+    playersUpdated: number;
+    playersSkipped: number;
+    message: string;
+    warnings: string[];
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        playersUpdated: 0,
+        playersSkipped: 0,
+        message: '',
+        warnings: [],
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log(`[RetroEditorService] Applying era-appropriate equipment for year ${year}`);
+
+    // Import equipment assignment service
+    const { equipmentAssignmentService } = await import('./EquipmentAssignmentService');
+    await equipmentAssignmentService.initialize();
+
+    // Get Player table
+    let playerTable = franchise.getTableByName('Player');
+    if (!playerTable) {
+      playerTable = franchise.getTableByUniqueId(TABLE_IDS.playerTable);
+    }
+    if (!playerTable) {
+      return {
+        success: false,
+        playersUpdated: 0,
+        playersSkipped: 0,
+        message: '',
+        warnings: [],
+        error: 'Could not find Player table in franchise file'
+      };
+    }
+
+    await playerTable.readRecords();
+    console.log(`[RetroEditorService] Found ${playerTable.records.length} player records`);
+
+    // Get CharacterVisuals table for updating RawData JSON
+    let characterVisualsTable = franchise.getTableByUniqueId(TABLE_IDS.characterVisualsTable);
+    if (!characterVisualsTable) {
+      characterVisualsTable = franchise.getTableByName('CharacterVisuals');
+    }
+    if (characterVisualsTable) {
+      await characterVisualsTable.readRecords();
+      console.log(`[RetroEditorService] Found CharacterVisuals table with ${characterVisualsTable.records.length} records`);
+    }
+
+    const warnings: string[] = [];
+    let playersUpdated = 0;
+    let playersSkipped = 0;
+
+    // Position mapping for franchise files (enum to abbreviation)
+    const positionToAbbr: { [key: string]: string } = {
+      'Quarterback': 'QB', 'Halfback': 'HB', 'Fullback': 'FB',
+      'WideReceiver': 'WR', 'TightEnd': 'TE',
+      'LeftTackle': 'LT', 'LeftGuard': 'LG', 'Center': 'C',
+      'RightGuard': 'RG', 'RightTackle': 'RT',
+      'LeftEnd': 'LE', 'RightEnd': 'RE', 'DefensiveTackle': 'DT',
+      'MiddleLinebacker': 'MLB', 'OutsideLinebacker': 'OLB',
+      'StrongSideLinebacker': 'LOLB', 'WeakSideLinebacker': 'ROLB',
+      'Cornerback': 'CB', 'FreeSafety': 'FS', 'StrongSafety': 'SS',
+      'Kicker': 'K', 'Punter': 'P', 'LongSnapper': 'LS',
+      'QB': 'QB', 'HB': 'HB', 'FB': 'FB', 'WR': 'WR', 'TE': 'TE',
+      'LT': 'LT', 'LG': 'LG', 'C': 'C', 'RG': 'RG', 'RT': 'RT',
+      'LE': 'LE', 'RE': 'RE', 'DT': 'DT', 'MLB': 'MLB', 'OLB': 'OLB',
+      'LOLB': 'LOLB', 'ROLB': 'ROLB', 'CB': 'CB', 'FS': 'FS', 'SS': 'SS',
+      'K': 'K', 'P': 'P', 'LS': 'LS',
+      'LEDG': 'LE', 'REDG': 'RE'
+    };
+
+    // Note: Equipment in franchise files is stored ONLY in CharacterVisuals.RawData JSON.
+    // The PLYR_* fields on the Player table do NOT affect in-game equipment display.
+    // This implementation follows the pattern from reference/madden-franchise-utils/assignVanityGear/
+
+    // Helper to convert binary reference to row number (following reference code pattern)
+    const ZERO_REF = '00000000000000000000000000000000';
+    const getRowFromRef = (ref: string): number => {
+      if (!ref || ref === ZERO_REF) return -1;
+      // Reference format: 15 bits table ID + 17 bits row number
+      const rowBinVal = ref.slice(15);
+      const rowNum = parseInt(rowBinVal, 2);
+      return rowNum;
+    };
+
+    // Process each player - ONLY update CharacterVisuals.RawData JSON
+    // (PLYR_* fields do NOT affect equipment in-game; the game reads from CharacterVisuals)
+    for (let i = 0; i < playerTable.records.length; i++) {
+      const player = playerTable.records[i];
+      if (player.isEmpty) continue;
+
+      // Skip players with invalid contract status
+      const contractStatus = String(player.ContractStatus || '');
+      if (contractStatus.includes('None') || contractStatus.includes('Deleted')) {
+        playersSkipped++;
+        continue;
+      }
+
+      // Get position abbreviation
+      let rawPosition = String(player.Position || 'Unknown');
+      if (rawPosition.includes(':')) {
+        rawPosition = rawPosition.split(':').pop() || rawPosition;
+      }
+      const position = positionToAbbr[rawPosition] || rawPosition;
+
+      try {
+        // Get era-appropriate equipment (returns asset names)
+        const equipment = await equipmentAssignmentService.getEraEquipment(year, position);
+
+        // Debug first player
+        const isFirstPlayer = playersUpdated === 0 && playersSkipped === 0;
+        if (isFirstPlayer) {
+          console.log(`[RetroEditorService] First player: ${player.FirstName} ${player.LastName}, Position: ${position}`);
+          console.log(`[RetroEditorService] Equipment:`, JSON.stringify(equipment, null, 2));
+        }
+
+        // Get CharacterVisuals row from reference
+        const charVisualsRef = player.CharacterVisuals;
+        if (isFirstPlayer) {
+          console.log(`[RetroEditorService] CharacterVisuals ref: ${charVisualsRef}`);
+        }
+
+        if (!charVisualsRef || !characterVisualsTable) {
+          playersSkipped++;
+          continue;
+        }
+
+        const visualsRow = getRowFromRef(charVisualsRef.toString());
+        if (isFirstPlayer) {
+          console.log(`[RetroEditorService] Visuals row: ${visualsRow}`);
+        }
+
+        if (visualsRow < 0 || visualsRow >= characterVisualsTable.records.length) {
+          playersSkipped++;
+          continue;
+        }
+
+        // Use bracket notation exactly like reference code (madden-franchise-utils)
+        const playerVisuals = characterVisualsTable.records[visualsRow];
+        if (!playerVisuals || !playerVisuals['RawData']) {
+          playersSkipped++;
+          continue;
+        }
+
+        // Parse the RawData JSON (matching reference code pattern)
+        let visualsData: any;
+        try {
+          visualsData = JSON.parse(playerVisuals['RawData']);
+        } catch (parseErr) {
+          // Reference code skips players with parse errors (likely in-game edited)
+          playersSkipped++;
+          continue;
+        }
+
+        // Find the loadout that has loadoutType and loadoutElements (following reference code logic)
+        const loadouts = visualsData['loadouts'] || [];
+        let gearLoadoutIndex = -1;
+        for (let j = 0; j < loadouts.length; j++) {
+          if (loadouts[j].hasOwnProperty('loadoutType') && loadouts[j].hasOwnProperty('loadoutElements')) {
+            gearLoadoutIndex = j;
+            break;
+          }
+        }
+
+        if (gearLoadoutIndex === -1) {
+          if (isFirstPlayer) {
+            console.log(`[RetroEditorService] No gear loadout found for player`);
+          }
+          playersSkipped++;
+          continue;
+        }
+
+        if (isFirstPlayer) {
+          console.log(`[RetroEditorService] Found gear loadout at index ${gearLoadoutIndex} with ${loadouts[gearLoadoutIndex]['loadoutElements'].length} elements`);
+        }
+
+        // Build equipment assignments as array
+        // M26 uses different slot names than M25:
+        // - HeadWear (not GearHelmet) for helmets
+        // - LeftHandWear/RightHandWear (not LeftHandgear/RightHandgear) for gloves
+        // - LeftArmWear/RightArmWear (not LeftArm/RightArm) for sleeves in some cases
+        const gearToAssign = [
+          { SlotName: 'HeadWear', GearAsset: equipment.Helmet },           // M26 helmet slot
+          { SlotName: 'LeftShoe', GearAsset: equipment.LeftShoe },
+          { SlotName: 'RightShoe', GearAsset: equipment.RightShoe },
+          { SlotName: 'LeftHandWear', GearAsset: equipment.LeftGlove },    // M26 glove slot
+          { SlotName: 'RightHandWear', GearAsset: equipment.RightGlove },  // M26 glove slot
+          { SlotName: 'LeftArmWear', GearAsset: equipment.LeftSleeve },    // M26 sleeve slot
+          { SlotName: 'RightArmWear', GearAsset: equipment.RightSleeve },  // M26 sleeve slot
+          { SlotName: 'LeftSpat', GearAsset: equipment.LeftSpats },
+          { SlotName: 'RightSpat', GearAsset: equipment.RightSpats },
+        ].filter(g => g.GearAsset); // Only include slots with values
+
+        // Update equipment (following reference code pattern exactly)
+        let slotsUpdated = 0;
+        for (const gear of gearToAssign) {
+          const slotType = gear.SlotName;
+          const gearAsset = gear.GearAsset;
+
+          let loadoutElements = loadouts[gearLoadoutIndex]['loadoutElements'];
+          let foundSlot = false;
+
+          // Check if slot already exists, update it
+          for (let k = 0; k < loadoutElements.length; k++) {
+            if (loadoutElements[k]['slotType'] === slotType) {
+              loadoutElements[k]['itemAssetName'] = gearAsset;
+              visualsData['loadouts'][gearLoadoutIndex]['loadoutElements'] = loadoutElements;
+              foundSlot = true;
+              slotsUpdated++;
+              if (isFirstPlayer && slotsUpdated <= 3) {
+                console.log(`[RetroEditorService] Updated existing slot ${slotType} = ${gearAsset}`);
+              }
+              break;
+            }
+          }
+
+          // If slot not found, add new element (matching reference code)
+          if (!foundSlot) {
+            loadoutElements.push({
+              'itemAssetName': gearAsset,
+              'slotType': slotType
+            });
+            visualsData['loadouts'][gearLoadoutIndex]['loadoutElements'] = loadoutElements;
+            slotsUpdated++;
+            if (isFirstPlayer && slotsUpdated <= 3) {
+              console.log(`[RetroEditorService] Added new slot ${slotType} = ${gearAsset}`);
+            }
+          }
+        }
+
+        // Write back the updated JSON to RawData (matching reference code exactly)
+        if (slotsUpdated > 0) {
+          characterVisualsTable.records[visualsRow]['RawData'] = JSON.stringify(visualsData);
+          playersUpdated++;
+          if (isFirstPlayer) {
+            console.log(`[RetroEditorService] Updated ${slotsUpdated} equipment slots for first player`);
+            // Verify by reading back
+            const verifyData = JSON.parse(characterVisualsTable.records[visualsRow]['RawData']);
+            const verifyLoadout = verifyData['loadouts'][gearLoadoutIndex];
+            console.log(`[RetroEditorService] VERIFY: Loadout has ${verifyLoadout['loadoutElements'].length} elements after update`);
+          }
+        } else {
+          playersSkipped++;
+        }
+
+      } catch (err: any) {
+        warnings.push(`Failed to apply equipment for ${player.FirstName} ${player.LastName}: ${err.message}`);
+        playersSkipped++;
+      }
+    }
+
+    const eraBracket = equipmentAssignmentService.getEraBracket(year);
+    const message = playersUpdated > 0
+      ? `Applied ${eraBracket} era equipment to ${playersUpdated} players`
+      : 'No players were updated. Equipment fields may not be accessible in this franchise file.';
+
+    console.log(`[RetroEditorService] Equipment application complete: ${playersUpdated} updated, ${playersSkipped} skipped`);
+
+    return {
+      success: playersUpdated > 0,
+      playersUpdated,
+      playersSkipped,
+      message,
+      warnings
+    };
   }
 }
 

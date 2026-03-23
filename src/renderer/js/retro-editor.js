@@ -122,7 +122,12 @@ function initRetroEditor() {
   document.getElementById('btn-apply-salary-cap')?.addEventListener('click', () => applyToolSalaryCap());
   document.getElementById('btn-apply-nfl-records')?.addEventListener('click', () => applyToolNFLRecords());
   document.getElementById('btn-apply-historical-stats')?.addEventListener('click', () => applyToolHistoricalStats());
-  document.getElementById('btn-apply-equipment')?.addEventListener('click', () => applyToolEquipment());
+  const equipmentBtn = document.getElementById('btn-apply-equipment');
+  console.log('[RetroEditor] Equipment button element found:', !!equipmentBtn);
+  equipmentBtn?.addEventListener('click', () => {
+    console.log('[RetroEditor] Equipment button clicked!');
+    applyToolEquipment();
+  });
 
   // Coach search input enter key handler
   document.getElementById('coach-search-input')?.addEventListener('keypress', (e) => {
@@ -5154,10 +5159,24 @@ async function loadEquipmentToolPreview() {
  * Apply Equipment tool - assigns era-appropriate equipment to all franchise players
  */
 async function applyToolEquipment() {
+  console.log('[RetroEditor] applyToolEquipment() called');
   const btn = document.getElementById('btn-apply-equipment');
+  console.log('[RetroEditor] Equipment button found:', !!btn);
+  console.log('[RetroEditor] retroState:', { filePath: retroState.filePath, targetYear: retroState.targetYear });
 
-  // Note: Equipment changes are visual only - might not need backup prompt
-  // But we keep the pattern for consistency
+  // Validate we have a loaded file and target year
+  if (!retroState.filePath) {
+    console.log('[RetroEditor] No file path - showing error');
+    showToolStatus('No franchise file loaded', 'error');
+    return;
+  }
+
+  if (!retroState.targetYear) {
+    showToolStatus('Please select a target year first', 'error');
+    return;
+  }
+
+  // Equipment changes are visual only - but still offer backup for consistency
   const proceed = await promptForBackup('Equipment');
   if (!proceed) return;
 
@@ -5165,13 +5184,63 @@ async function applyToolEquipment() {
   btn.textContent = 'Applying...';
 
   try {
-    // For franchise files, we need to get the player list and apply equipment to each
-    // This requires a specialized IPC handler that operates on the loaded franchise file
-    // For now, we'll show a message that this feature is coming
-    // TODO: Implement franchise equipment assignment via RetroEditorService
+    console.log(`[RetroEditor] Applying equipment for year ${retroState.targetYear}`);
 
-    showToolStatus('Equipment assignment for franchise files is coming soon. Use the Roster Editor Mass Equipment tool to apply equipment to roster files.', 'info');
-    closeToolModal(document.getElementById('modal-equipment'));
+    // Call the new IPC handler
+    const result = await window.electronAPI.retro.applyEquipment(
+      retroState.filePath,
+      retroState.targetYear
+    );
+    console.log('[RetroEditor] Equipment result:', JSON.stringify(result));
+
+    if (result.success) {
+      // Save the file to persist equipment changes
+      console.log('[RetroEditor] Equipment applied, now saving...');
+      btn.textContent = 'Saving...';
+      const saveResult = await window.electronAPI.retro.saveFile(retroState.filePath);
+      console.log('[RetroEditor] Save result:', JSON.stringify(saveResult));
+
+      if (saveResult.success) {
+        // Show success message with count
+        const eraBracket = await window.electronAPI.equipment.getEraBracket(retroState.targetYear);
+        showToolStatus(
+          `Applied ${eraBracket?.era || retroState.targetYear + 's'} era equipment to ${result.playersUpdated} players and saved` +
+          (result.playersSkipped > 0 ? ` (${result.playersSkipped} skipped)` : ''),
+          'success'
+        );
+      } else {
+        showToolStatus(
+          `Equipment applied to ${result.playersUpdated} players but save failed: ${saveResult.error}`,
+          'error'
+        );
+      }
+      closeToolModal(document.getElementById('modal-equipment'));
+    } else {
+      // Show error or info message
+      if (result.error) {
+        // Check if it's a "not supported" error (expected for franchise files)
+        if (result.error.includes('not supported') || result.error.includes('CharacterVisuals')) {
+          showToolStatus(
+            'Franchise files store equipment differently than roster files. ' +
+            'For era-appropriate equipment, use the Roster Editor Mass Equipment tool on your roster file, ' +
+            'then import that roster into your franchise.',
+            'info'
+          );
+        } else {
+          showToolStatus(`Error: ${result.error}`, 'error');
+        }
+      } else if (result.message) {
+        showToolStatus(result.message, 'info');
+      } else {
+        showToolStatus('No players were updated', 'info');
+      }
+      closeToolModal(document.getElementById('modal-equipment'));
+    }
+
+    // Log any warnings
+    if (result.warnings && result.warnings.length > 0) {
+      console.warn('[RetroEditor] Equipment warnings:', result.warnings);
+    }
 
   } catch (error) {
     console.error('[RetroEditor] Error applying equipment:', error);
