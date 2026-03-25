@@ -243,7 +243,10 @@ export function registerRatingHandlers(): void {
         const archetypes = ArchetypeService.getArchetypesForPosition(position);
 
         const results = archetypes.map(arch => {
-          const ovr = ovrWeightsCalculator.calculateOVR(attributes, position, arch.name);
+          // CRITICAL: Pass archetype ID (number) instead of name (string)
+          // The ID correctly maps to ovrweights.json via ARCHETYPE_ID_TO_FORMULA
+          // e.g., ID 4 ("QB Pure Scrambler") correctly maps to "QB_Scrambler"
+          const ovr = ovrWeightsCalculator.calculateOVR(attributes, position, arch.id);
           return {
             id: arch.id,
             name: arch.name,
@@ -279,15 +282,24 @@ export function registerRatingHandlers(): void {
         for (let i = 0; i < players.length; i++) {
           const player = players[i];
           const position = player.PPOS;
-          const archetype = player.PLTY || player.PCBT; // Try both archetype field names
+          const storedArchetype = player.PLTY || player.PCBT; // For debug logging only
 
-          // Calculate OVR using the correct game formula
-          const ovr = ovrWeightsCalculator.calculateOVR(player, position, archetype);
+          // CRITICAL FIX: The game calculates OVR for ALL archetypes and picks the HIGHEST
+          // This is the official Madden behavior - find best archetype, not use stored one
+          const bestResult = ovrWeightsCalculator.findBestArchetype(player, position);
+
+          // Debug logging for first 3 players
+          if (i < 3) {
+            console.log(`[RatingHandlers] Player ${i}: ${player.firstName} ${player.lastName}`);
+            console.log(`  Position: ${position}`);
+            console.log(`  Stored archetype: ${storedArchetype}, Best archetype: ${bestResult?.archetype}`);
+            console.log(`  Best OVR: ${bestResult?.ovr}`);
+          }
 
           results.push({
             index: i,
-            ovr: ovr,
-            archetype: archetype ? String(archetype) : null
+            ovr: bestResult?.ovr || 50,
+            archetype: bestResult?.archetype || null
           });
         }
 

@@ -38,6 +38,44 @@ const POSITION_TO_ARCHETYPE_POS = {
 };
 
 /**
+ * Build OVR attributes from prospect data
+ * MATCHES ROSTER EDITOR EXACTLY: uses || 50 for missing values
+ * Roster editor: attributes[field] = parseInt(actualPlayer[field]) || 50
+ */
+function buildOVRAttributes(prospect) {
+    const attributes = {};
+
+    // Mapping from prospect field names to Madden field codes (same codes as roster editor)
+    const fieldMap = {
+        speed: 'PSPD', acceleration: 'PACC', agility: 'PAGI', strength: 'PSTR',
+        jumping: 'PJMP', awareness: 'PAWR', throwPower: 'PTHP', throwAccuracyShort: 'PTAS',
+        throwAccuracyMid: 'PTAM', throwAccuracyDeep: 'PTAD', throwOnTheRun: 'PTOR',
+        throwUnderPressure: 'PTUP', playAction: 'PPLA', breakSack: 'PBSK',
+        passBlock: 'PPBK', runBlock: 'PRBK', leadBlock: 'PLBK', impactBlocking: 'PLIB',
+        passBlockFinesse: 'PPBF', passBlockPower: 'PPBS', runBlockFinesse: 'PRBF',
+        runBlockPower: 'PRBS', tackle: 'PTAK', hitPower: 'PLHT', manCoverage: 'PLMC',
+        zoneCoverage: 'PLZC', playRecognition: 'PLPR', pursuit: 'PLPU',
+        powerMoves: 'PLPM', finesseMoves: 'PFMS', blockShed: 'PBSG', blockShedding: 'PBSG',
+        pressCoverage: 'PLPE', press: 'PLPE', kickPower: 'PKPR', kickAccuracy: 'PKAC',
+        kickReturn: 'PKRT', carrying: 'PCAR', catching: 'PCTH', catchInTraffic: 'PLCI',
+        spectacularCatch: 'PLSC', release: 'PLRL', stamina: 'PSTA', injury: 'PINJ',
+        toughness: 'PTGH', breakTackle: 'PBKT', trucking: 'PLTR',
+        changeOfDirection: 'PELU', elusiveness: 'PELU', spinMove: 'PLSM',
+        jukeMoves: 'PLJM', jukeMove: 'PLJM', stiffArm: 'PLSA', bcVision: 'PBCV',
+        routeRunningShort: 'SRRN', shortRouteRunning: 'SRRN',
+        routeRunningMid: 'PMRR', mediumRouteRunning: 'PMRR',
+        routeRunningDeep: 'PDRR', deepRouteRunning: 'PDRR'
+    };
+
+    // Match roster editor exactly: attributes[field] = parseInt(value) || 50
+    for (const [prospectField, fieldCode] of Object.entries(fieldMap)) {
+        attributes[fieldCode] = parseInt(prospect[prospectField]) || 50;
+    }
+
+    return attributes;
+}
+
+/**
  * Portrait Cell Renderer - shows player portraits with click-to-view-card
  */
 class DraftPortraitCellRenderer {
@@ -1365,69 +1403,19 @@ export async function initializeDraftAGGrid(app, container, prospects) {
             if (ratingFields.includes(fieldName) && event.newValue !== event.oldValue) {
                 console.log(`[Draft AG-Grid] Rating field ${fieldName} changed from ${event.oldValue} to ${event.newValue}, recalculating OVR...`);
 
-                // Build attributes from prospect data (map display names to internal names)
+                // Build attributes from prospect data - ONLY include attributes that exist
+                // CRITICAL: The game skips missing attributes entirely, NOT defaults them to 50
                 const prospect = event.data;
-                const attributes = {
-                    PSPD: parseInt(prospect.speed) || 50,
-                    PACC: parseInt(prospect.acceleration) || 50,
-                    PAGI: parseInt(prospect.agility) || 50,
-                    PSTR: parseInt(prospect.strength) || 50,
-                    PJMP: parseInt(prospect.jumping) || 50,
-                    PAWR: parseInt(prospect.awareness) || 50,
-                    PTHP: parseInt(prospect.throwPower) || 50,
-                    PTAS: parseInt(prospect.throwAccuracyShort) || 50,
-                    PTAM: parseInt(prospect.throwAccuracyMid) || 50,
-                    PTAD: parseInt(prospect.throwAccuracyDeep) || 50,
-                    PTOR: parseInt(prospect.throwOnTheRun) || 50,
-                    PTUP: parseInt(prospect.throwUnderPressure) || 50,
-                    PPLA: parseInt(prospect.playAction) || 50,
-                    PBSK: parseInt(prospect.breakSack) || 50,
-                    PPBK: parseInt(prospect.passBlock) || 50,
-                    PRBK: parseInt(prospect.runBlock) || 50,
-                    PLBK: parseInt(prospect.leadBlock) || 50,
-                    PLIB: parseInt(prospect.impactBlocking) || 50,
-                    PPBF: parseInt(prospect.passBlockFinesse) || 50,
-                    PPBS: parseInt(prospect.passBlockPower) || 50,
-                    PRBF: parseInt(prospect.runBlockFinesse) || 50,
-                    PRBS: parseInt(prospect.runBlockPower) || 50,
-                    PTAK: parseInt(prospect.tackle) || 50,
-                    PLHT: parseInt(prospect.hitPower) || 50,
-                    PLMC: parseInt(prospect.manCoverage) || 50,
-                    PLZC: parseInt(prospect.zoneCoverage) || 50,
-                    PLPR: parseInt(prospect.playRecognition) || 50,  // PLPR = Play Recognition
-                    PLPU: parseInt(prospect.pursuit) || 50,
-                    PLPM: parseInt(prospect.powerMoves) || 50,       // PLPM = Power Moves
-                    PFMS: parseInt(prospect.finesseMoves) || 50,
-                    PBSG: parseInt(prospect.blockShed) || 50,
-                    PLPE: parseInt(prospect.pressCoverage) || parseInt(prospect.press) || 50, // PLPE = Press
-                    PKPR: parseInt(prospect.kickPower) || 50,
-                    PKAC: parseInt(prospect.kickAccuracy) || 50,
-                    PKRT: parseInt(prospect.kickReturn) || 50,
-                    PCAR: parseInt(prospect.carrying) || 50,
-                    PCTH: parseInt(prospect.catching) || 50,
-                    PLCI: parseInt(prospect.catchInTraffic) || 50,
-                    PLSC: parseInt(prospect.spectacularCatch) || 50,
-                    PLRL: parseInt(prospect.release) || 50,
-                    PSTA: parseInt(prospect.stamina) || 50,
-                    PINJ: parseInt(prospect.injury) || 50,
-                    PTGH: parseInt(prospect.toughness) || 50,
-                    PBKT: parseInt(prospect.breakTackle) || 50,
-                    PLTR: parseInt(prospect.trucking) || 50,
-                    PELU: parseInt(prospect.changeOfDirection) || parseInt(prospect.elusiveness) || 50, // PELU = ChangeOfDirection
-                    PLSM: parseInt(prospect.spinMove) || 50,
-                    PLJM: parseInt(prospect.jukeMoves) || 50,
-                    PLSA: parseInt(prospect.stiffArm) || 50,
-                    PBCV: parseInt(prospect.bcVision) || 50
-                };
+                const attributes = buildOVRAttributes(prospect);
 
                 // Get position name
                 const positionName = prospect.position || 'QB';
 
                 // Calculate OVR using CURRENT archetype - DO NOT auto-switch archetypes
                 // Users set archetypes intentionally, we should respect their choice
-                const currentArchetypeId = prospect.archetypeId || 0;
-                const currentArchetypeName = prospect.archetype || '';
-                console.log(`[Draft AG-Grid] Calculating OVR for current archetype ${currentArchetypeId} (${currentArchetypeName}) of ${positionName}...`);
+                // NOTE: M26Parser stores archetype as numeric ID (0-67) in prospect.archetype and prospect.PLTY
+                const currentArchetypeId = parseInt(prospect.archetype) || prospect.PLTY || 0;
+                console.log(`[Draft AG-Grid] Calculating OVR for current archetype ID ${currentArchetypeId} of ${positionName}...`);
 
                 if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRForArchetypes) {
                     window.electronAPI.rating.calculateOVRForArchetypes(attributes, positionName)
@@ -1437,8 +1425,8 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                                 return;
                             }
 
-                            // Find the result for the CURRENT archetype - don't auto-switch to "best"
-                            const currentArchetypeResult = results.find(a => a.id === currentArchetypeId || a.name === currentArchetypeName);
+                            // Find the result for the CURRENT archetype by ID - don't auto-switch to "best"
+                            const currentArchetypeResult = results.find(a => a.id === currentArchetypeId);
                             const oldOVR = parseInt(prospect.overall) || 50;
 
                             let newOVR;
@@ -1491,46 +1479,9 @@ export async function initializeDraftAGGrid(app, container, prospects) {
 
                 console.log(`[Draft AG-Grid] Archetype changed to ${newArchetypeName}, adjusting ratings...`);
 
-                // Build current attributes
+                // Build current attributes - MATCHES ROSTER EDITOR EXACTLY
                 const prospect = event.data;
-                const currentAttributes = {
-                    PSPD: parseInt(prospect.speed) || 50,
-                    PACC: parseInt(prospect.acceleration) || 50,
-                    PAGI: parseInt(prospect.agility) || 50,
-                    PSTR: parseInt(prospect.strength) || 50,
-                    PJMP: parseInt(prospect.jumping) || 50,
-                    PAWR: parseInt(prospect.awareness) || 50,
-                    PTHP: parseInt(prospect.throwPower) || 50,
-                    PTAS: parseInt(prospect.throwAccuracyShort) || 50,
-                    PTAM: parseInt(prospect.throwAccuracyMid) || 50,
-                    PTAD: parseInt(prospect.throwAccuracyDeep) || 50,
-                    PPBK: parseInt(prospect.passBlock) || 50,
-                    PRBK: parseInt(prospect.runBlock) || 50,
-                    PTAK: parseInt(prospect.tackle) || 50,
-                    PLHT: parseInt(prospect.hitPower) || 50,
-                    PLMC: parseInt(prospect.manCoverage) || 50,
-                    PLZC: parseInt(prospect.zoneCoverage) || 50,
-                    PLPR: parseInt(prospect.playRecognition) || 50,  // PLPR = Play Recognition
-                    PLPU: parseInt(prospect.pursuit) || 50,
-                    PFMS: parseInt(prospect.finesseMoves) || 50,
-                    PBSG: parseInt(prospect.blockShed) || 50,
-                    PLPM: parseInt(prospect.powerMoves) || 50,       // PLPM = Power Moves
-                    PLPE: parseInt(prospect.pressCoverage) || parseInt(prospect.press) || 50, // PLPE = Press
-                    PKPR: parseInt(prospect.kickPower) || 50,
-                    PKAC: parseInt(prospect.kickAccuracy) || 50,
-                    PCTH: parseInt(prospect.catching) || 50,
-                    PLRL: parseInt(prospect.release) || 50,
-                    SRRN: parseInt(prospect.routeRunningShort) || 50,
-                    PMRR: parseInt(prospect.routeRunningMid) || 50,
-                    PDRR: parseInt(prospect.routeRunningDeep) || 50,
-                    PBKT: parseInt(prospect.breakTackle) || 50,
-                    PLTR: parseInt(prospect.trucking) || 50,
-                    PELU: parseInt(prospect.changeOfDirection) || parseInt(prospect.elusiveness) || 50, // PELU = ChangeOfDirection
-                    PLSM: parseInt(prospect.spinMove) || 50,
-                    PLJM: parseInt(prospect.jukeMoves) || 50,
-                    PLSA: parseInt(prospect.stiffArm) || 50,
-                    PLIB: parseInt(prospect.impactBlocking) || 50
-                };
+                const currentAttributes = buildOVRAttributes(prospect);
 
                 if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.adjustAttributesForArchetype) {
                     window.electronAPI.rating.adjustAttributesForArchetype(currentAttributes, newArchetypeName, positionName, currentOVR)
@@ -1874,6 +1825,116 @@ export async function initializeDraftAGGrid(app, container, prospects) {
     app.draftAgGrid = gridApi;
     app.draftProspects = transformedProspects;
 
+    // CRITICAL: Recalculate OVR for all prospects on load
+    // The game recalculates OVR from ratings at runtime, so we must do the same
+    // to ensure the editor shows the same OVR the game will display
+    if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.recalculateOVRBatch) {
+        console.log('[Draft AG-Grid] Recalculating OVR for all prospects on load...');
+
+        // Build player data array with all necessary attributes for OVR calculation
+        // Debug: Log first few prospects to verify archetype mapping
+        for (let i = 0; i < Math.min(3, transformedProspects.length); i++) {
+            const p = transformedProspects[i];
+            const resolvedPLTY = p.archetype !== undefined ? archetypeData.nameToId[p.archetype] || p.PLTY : p.PLTY;
+            console.log(`[Draft OVR Debug] ${p.firstName} ${p.lastName}:`, {
+                position: p.position,
+                archetypeName: p.archetype,
+                rawPLTY: p.PLTY,
+                resolvedPLTY: resolvedPLTY,
+                storedOVR: p.overall,
+                throwPower: p.throwPower || p.PTHP,
+                awareness: p.awareness || p.PAWR
+            });
+        }
+        const playersForOVR = transformedProspects.map(p => ({
+            firstName: p.firstName,
+            lastName: p.lastName,
+            PPOS: typeof p.position === 'string' ? p.position : p.PPOS,
+            PLTY: p.archetype !== undefined ? archetypeData.nameToId[p.archetype] || p.PLTY : p.PLTY,
+            // Include all rating field codes
+            PSPD: p.speed || p.PSPD,
+            PACC: p.acceleration || p.PACC,
+            PAGI: p.agility || p.PAGI,
+            PSTR: p.strength || p.PSTR,
+            PJMP: p.jumping || p.PJMP,
+            PAWR: p.awareness || p.PAWR,
+            PBCV: p.ballCarrierVision || p.PBCV,
+            PCAR: p.carrying || p.PCAR,
+            PCTH: p.catching || p.PCTH,
+            PTHP: p.throwPower || p.PTHP,
+            PTAS: p.throwAccuracyShort || p.PTAS,
+            PTAM: p.throwAccuracyMid || p.PTAM,
+            PTAD: p.throwAccuracyDeep || p.PTAD,
+            PTOR: p.throwOnTheRun || p.PTOR,
+            PTUP: p.throwUnderPressure || p.PTUP,
+            PPLA: p.playAction || p.PPLA,
+            PBSK: p.breakSack || p.PBSK,
+            PPBK: p.passBlock || p.PPBK,
+            PRBK: p.runBlock || p.PRBK,
+            PLBK: p.leadBlock || p.PLBK,
+            PLIB: p.impactBlocking || p.PLIB,
+            PPBF: p.passBlockFinesse || p.PPBF,
+            PPBS: p.passBlockPower || p.PPBS,
+            PRBF: p.runBlockFinesse || p.PRBF,
+            PRBS: p.runBlockPower || p.PRBS,
+            PTAK: p.tackle || p.PTAK,
+            PLHT: p.hitPower || p.PLHT,
+            PLMC: p.manCoverage || p.PLMC,
+            PLZC: p.zoneCoverage || p.PLZC,
+            PLPR: p.playRecognition || p.PLPR,
+            PLPU: p.pursuit || p.PLPU,
+            PLPM: p.powerMoves || p.PLPM,
+            PFMS: p.finesseMoves || p.PFMS,
+            PBSG: p.blockShedding || p.PBSG,
+            PLPE: p.pressCoverage || p.PLPE,
+            PBKT: p.breakTackle || p.PBKT,
+            PLTR: p.trucking || p.PLTR,
+            PELU: p.changeOfDirection || p.PELU,
+            PLJM: p.jukeMove || p.PLJM,
+            PLSM: p.spinMove || p.PLSM,
+            PLSA: p.stiffArm || p.PLSA,
+            PLSC: p.spectacularCatch || p.PLSC,
+            PLCI: p.catchInTraffic || p.PLCI,
+            PLRL: p.release || p.PLRL,
+            SRRN: p.shortRouteRunning || p.SRRN,
+            PMRR: p.mediumRouteRunning || p.PMRR,
+            PDRR: p.deepRouteRunning || p.PDRR,
+            PKPR: p.kickPower || p.PKPR,
+            PKAC: p.kickAccuracy || p.PKAC,
+            PKRT: p.kickReturn || p.PKRT,
+            PSTA: p.stamina || p.PSTA,
+            PINJ: p.injury || p.PINJ,
+            PTGH: p.toughness || p.PTGH
+        }));
+
+        window.electronAPI.rating.recalculateOVRBatch(playersForOVR).then(results => {
+            if (results && results.length > 0) {
+                let updatedCount = 0;
+                results.forEach(result => {
+                    const prospect = transformedProspects[result.index];
+                    if (prospect && result.ovr !== undefined) {
+                        const oldOVR = prospect.overall || 0;
+                        if (oldOVR !== result.ovr) {
+                            prospect.overall = result.ovr;
+                            updatedCount++;
+                            if (updatedCount <= 3) {
+                                console.log(`[Draft AG-Grid] OVR recalculated: ${prospect.firstName} ${prospect.lastName}: ${oldOVR} → ${result.ovr}`);
+                            }
+                        }
+                    }
+                });
+                console.log(`[Draft AG-Grid] Recalculated OVR for ${updatedCount} prospects`);
+
+                // Refresh the grid to show updated OVR values
+                if (gridApi && updatedCount > 0) {
+                    gridApi.refreshCells({ columns: ['overall'], force: true });
+                }
+            }
+        }).catch(err => {
+            console.error('[Draft AG-Grid] Error recalculating batch OVR:', err);
+        });
+    }
+
     return gridApi;
 }
 
@@ -1983,16 +2044,15 @@ async function handleDraftOVRChange(node, prospect, oldOVR, newOVR, app, gridApi
 
     console.log('[Draft OVR] Position:', position, 'Player:', playerName);
 
-    // Build attributes object from prospect using roster field names
-    const attributes = {};
-    for (const [draftField, rosterField] of Object.entries(DRAFT_TO_ROSTER_FIELDS)) {
-        if (prospect[draftField] !== undefined) {
-            attributes[rosterField] = parseInt(prospect[draftField]) || 50;
-        }
-    }
+    // Build attributes object from prospect - MATCHES ROSTER EDITOR EXACTLY
+    const attributes = buildOVRAttributes(prospect);
 
     // Get current archetype if available
-    const currentArchetype = prospect.archetypeId !== undefined ? prospect.archetypeId : undefined;
+    // NOTE: prospect.archetype is the numeric ID (0-67) from M26Parser
+    // prospect.archetypeId may be set by UI edits
+    const currentArchetype = prospect.archetypeId !== undefined ? prospect.archetypeId :
+                             (prospect.archetype !== undefined ? parseInt(prospect.archetype) :
+                             (prospect.PLTY !== undefined ? prospect.PLTY : undefined));
 
     try {
         // Get all archetypes with their calculated OVR for current attributes
@@ -2244,8 +2304,10 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, sel
             continue;
         }
 
-        // Update prospect data
+        // Update prospect data - BOTH human-readable name AND field code alias
+        // This ensures OVR calculator (which reads field codes) sees the new value
         prospect[draftField] = adj.suggested;
+        prospect[rosterFieldCode] = adj.suggested;  // Also update field code (PSPD, etc.)
 
         // Update grid cell
         node.setDataValue(draftField, adj.suggested);
@@ -2253,10 +2315,12 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, sel
         changes.push(`${adj.name}: ${adj.current} → ${adj.suggested}`);
     }
 
-    // Update archetype if selected
+    // Update archetype if selected - keep both archetypeId and archetype in sync
     if (selectedArchetypeId !== undefined) {
-        const oldArchetype = prospect.archetypeId;
+        const oldArchetype = prospect.archetypeId || prospect.archetype;
         prospect.archetypeId = selectedArchetypeId;
+        prospect.archetype = selectedArchetypeId;  // Keep both in sync for file saving
+        prospect.PLTY = selectedArchetypeId;       // Also update PLTY field code
         node.setDataValue('archetypeId', selectedArchetypeId);
         console.log('[Draft OVR] Updated archetype:', oldArchetype, '->', selectedArchetypeId);
     }
