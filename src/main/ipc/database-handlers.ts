@@ -3398,9 +3398,10 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       prospect.ballCarrierVision = r.PBCV || 70;
       prospect.breakTackle = r.PBTK || 70;
       prospect.trucking = r.PTRK || 70;
-      prospect.stiffArm = r.PSTF || 70;
-      prospect.spinMove = r.PSPM || 70;
-      prospect.jukeMove = r.PJUM || 70;
+      // Support both old CSV codes (PSTF/PSPM/PJUM) AND database codes (PSFA/PSPN/PJKM)
+      prospect.stiffArm = r.PSFA || r.PSTF || 70;
+      prospect.spinMove = r.PSPN || r.PSPM || 70;
+      prospect.jukeMove = r.PJKM || r.PJUM || 70;
 
       // Receiving
       prospect.catching = r.PCTH || 70;
