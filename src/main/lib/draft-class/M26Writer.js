@@ -11,6 +11,73 @@ const fs = require('fs');
 const path = require('path');
 
 const BLOCK_SIZE = 4296; // 0x10C8 - CORRECT value (was incorrectly 4322)
+
+// Load generic head lookup for numeric genericHead values
+// This is CRITICAL - the game needs both genericHeadName (string) AND genericHead (number)
+let genericHeadLookup = null;
+function loadGenericHeadLookup() {
+  if (genericHeadLookup !== null) return; // Already loaded
+
+  // Try multiple paths to handle dev vs packaged app
+  const possiblePaths = [
+    path.join(__dirname, '../../../data/lookups/genericHeadLookup.json'),
+    path.join(__dirname, '../../data/lookups/genericHeadLookup.json'),
+    path.join(process.cwd(), 'data', 'lookups', 'genericHeadLookup.json'),
+    path.join(process.cwd(), '.vite', 'build', 'data', 'lookups', 'genericHeadLookup.json')
+  ];
+
+  for (const lookupPath of possiblePaths) {
+    try {
+      if (fs.existsSync(lookupPath)) {
+        genericHeadLookup = JSON.parse(fs.readFileSync(lookupPath, 'utf8'));
+        console.log(`[M26Writer] Loaded genericHeadLookup from ${lookupPath}`);
+        console.log(`[M26Writer] Contains ${Object.keys(genericHeadLookup.PLYR_GENERICHEAD || {}).length} entries`);
+        return;
+      }
+    } catch (e) {
+      console.warn(`[M26Writer] Failed to load from ${lookupPath}: ${e.message}`);
+    }
+  }
+
+  console.error('[M26Writer] Could not find genericHeadLookup.json in any expected location');
+  console.error('[M26Writer] Tried paths:', possiblePaths);
+}
+
+// Attempt to load at module initialization
+try {
+  loadGenericHeadLookup();
+} catch (e) {
+  console.error('[M26Writer] Failed to load genericHeadLookup:', e.message);
+}
+
+/**
+ * Get the numeric genericHead value for a given genericHeadName
+ * @param {string} genericHeadName - The face name (e.g., "gen_7_B_N_019" or "7_B_N_019")
+ * @returns {number|null} The numeric ID or null if not found
+ */
+function getGenericHeadNumber(genericHeadName) {
+  // Ensure lookup is loaded (lazy load if not already loaded)
+  if (!genericHeadLookup) {
+    loadGenericHeadLookup();
+  }
+  if (!genericHeadLookup || !genericHeadLookup.PLYR_GENERICHEAD) return null;
+  if (!genericHeadName) return null;
+
+  // Strip "gen_" prefix if present to get the lookup key
+  let lookupKey = genericHeadName;
+  if (lookupKey.toLowerCase().startsWith('gen_')) {
+    lookupKey = lookupKey.substring(4); // Remove "gen_" prefix
+  }
+
+  const numericId = genericHeadLookup.PLYR_GENERICHEAD[lookupKey];
+  if (numericId !== undefined) {
+    console.log(`[M26Writer] genericHead lookup: "${lookupKey}" -> ${numericId}`);
+    return numericId;
+  }
+
+  console.warn(`[M26Writer] No genericHead found for "${lookupKey}"`);
+  return null;
+}
 const ATTRIBUTE_DATA_SIZE = 200; // 0xC8 bytes per attribute section (4296 - 4096 = 200)
 const ATTRIBUTE_OFFSET = 0x1000; // 4096 bytes into each block (visual section size)
 
@@ -22,6 +89,38 @@ const ATTRIBUTE_OFFSET = 0x1000; // 4096 bytes into each block (visual section s
  * @returns {Buffer} Modified file buffer
  */
 function writeM26DraftClass(originalBuffer, prospects, header) {
+  // DEBUG: Write timestamp to file to prove this function was called
+  const os = require('os');
+  const debugPath = path.join(os.tmpdir(), 'M26Writer_debug.txt');
+  const tracePath = path.join(os.tmpdir(), 'M26Writer_trace.txt');
+  const debugMsg = `M26Writer called at ${new Date().toISOString()}\nProspects: ${prospects.length}\n`;
+  try { fs.writeFileSync(debugPath, debugMsg, { flag: 'a' }); } catch(e) {}
+
+  // TRACE: Log what we received for first 5 prospects
+  const traceLines = [];
+  traceLines.push(`\n${'='.repeat(80)}`);
+  traceLines.push(`M26WRITER TRACE - ${new Date().toISOString()}`);
+  traceLines.push(`${'='.repeat(80)}`);
+  traceLines.push(`Prospects received: ${prospects.length}`);
+
+  for (let i = 0; i < Math.min(5, prospects.length); i++) {
+    const p = prospects[i];
+    traceLines.push(`\n--- Prospect ${i + 1}: ${p.firstName} ${p.lastName} ---`);
+    traceLines.push(`  PEPS: "${p.PEPS}" (type: ${typeof p.PEPS})`);
+    traceLines.push(`  Has visuals: ${!!p.visuals}`);
+    if (p.visuals) {
+      traceLines.push(`  visuals.genericHeadName: "${p.visuals.genericHeadName}" (type: ${typeof p.visuals?.genericHeadName})`);
+      traceLines.push(`  visuals.skinTone: ${p.visuals.skinTone}`);
+    } else {
+      traceLines.push(`  *** VISUALS IS UNDEFINED IN M26WRITER! ***`);
+    }
+  }
+  try { fs.writeFileSync(tracePath, traceLines.join('\n')); } catch(e) {}
+  console.error('[M26Writer] Trace file:', tracePath);
+
+  console.error('[M26Writer] ======== M26WRITER EXECUTING ========');
+  console.error('[M26Writer] Debug file:', debugPath);
+
   // Create a copy of the original buffer to preserve all unchanged data
   const modifiedBuffer = Buffer.from(originalBuffer);
 
@@ -81,15 +180,19 @@ function writeM26DraftClass(originalBuffer, prospects, header) {
     // Write attribute data for this prospect at blockStart + 0x1000
     writeM26AttributeData(modifiedBuffer, attributeOffset, prospect, i);
 
-    // Update visual JSON if PEPS or bodyType were modified
+    // Update visual JSON if PEPS, bodyType, equipment, or face data were modified
     const hasPEPS = prospect.PEPS !== undefined && prospect.PEPS !== null;
     const hasBodyType = prospect.bodyType !== undefined && prospect.bodyType !== null;
+    const hasEquipment = prospect.equipment && Object.keys(prospect.equipment).length > 0;
+    const hasVisualsLoadouts = prospect.visuals && prospect.visuals.loadouts && prospect.visuals.loadouts.length > 0;
+    // CRITICAL: Also check for face picker data (genericHeadName or assignedGenr)
+    const hasGenericFace = !!(prospect.visuals?.genericHeadName || prospect.assignedGenr);
 
     if (i < 3) {
-      console.log(`[M26Writer] Prospect #${i + 1} - hasPEPS: ${hasPEPS}, hasBodyType: ${hasBodyType}`);
+      console.log(`[M26Writer] Prospect #${i + 1} - hasPEPS: ${hasPEPS}, hasBodyType: ${hasBodyType}, hasEquipment: ${hasEquipment}, hasVisualsLoadouts: ${hasVisualsLoadouts}, hasGenericFace: ${hasGenericFace}`);
     }
 
-    if (hasPEPS || hasBodyType) {
+    if (hasPEPS || hasBodyType || hasEquipment || hasVisualsLoadouts || hasGenericFace) {
       updateM26VisualJSON(modifiedBuffer, blockStart, prospect);
       prospectsWritten++;
     } else {
@@ -216,7 +319,19 @@ function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
 
   if (prospect.devTrait !== undefined) buffer[offset + 0x8c] = prospect.devTrait;
   if (prospect.PID !== undefined) buffer.writeUInt16LE(prospect.PID, offset + 0x92);
-  // PEPS is stored in visuals JSON, not in binary attributes
+
+  // CRITICAL FIX: Binary genericHead at 0x8E MUST be 0 for draft classes
+  // The game uses visuals JSON genericHeadName for draft classes, NOT this binary field
+  // If this is non-zero, the game uses it as a face index and IGNORES genericHeadName
+  const oldValue0x8E = buffer.readUInt16LE(offset + 0x8E);
+  buffer.writeUInt16LE(0, offset + 0x8E);
+  const newValue0x8E = buffer.readUInt16LE(offset + 0x8E);
+  console.error(`[M26Writer] *** FACE FIX APPLIED: Prospect ${prospectIndex} - offset 0x${(offset + 0x8E).toString(16)}, was ${oldValue0x8E}, now ${newValue0x8E} ***`);
+
+  // Verify write worked
+  if (newValue0x8E !== 0) {
+    console.error(`[M26Writer] *** WARNING: 0x8E FIX FAILED! Value is still ${newValue0x8E} ***`);
+  }
 
   // Write Overall Rating to 0x51
   // The game uses this for display AND calculation verification
@@ -297,6 +412,22 @@ function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
   if (prospect.kickReturn !== undefined) buffer[offset + 0x65] = prospect.kickReturn;
   if (prospect.longSnap !== undefined) buffer[offset + 0x8B] = prospect.longSnap;
 
+  // Position-specific traits (M26 format)
+  // These traits are stored sequentially after the main ratings
+  // Mapped from roster fields: TRPN->traitPenalty, TRPB->traitPlayBall, etc.
+  if (prospect.traitPenalty !== undefined) buffer[offset + 0x99] = prospect.traitPenalty;
+  if (prospect.traitPlayBall !== undefined) buffer[offset + 0x9A] = prospect.traitPlayBall;
+  if (prospect.traitLbStyle !== undefined) buffer[offset + 0x9C] = prospect.traitLbStyle;
+  if (prospect.traitTendency !== undefined) buffer[offset + 0xA3] = prospect.traitTendency;
+  if (prospect.traitPredictability !== undefined) buffer[offset + 0xA6] = prospect.traitPredictability;
+
+  // Also check for roster-format field names (TRPN, TRPB, etc.)
+  if (prospect.TRPN !== undefined) buffer[offset + 0x99] = prospect.TRPN;
+  if (prospect.TRPB !== undefined) buffer[offset + 0x9A] = prospect.TRPB;
+  if (prospect.TRLS !== undefined) buffer[offset + 0x9C] = prospect.TRLS;
+  if (prospect.TRTN !== undefined) buffer[offset + 0xA3] = prospect.TRTN;
+  if (prospect.TRPR !== undefined) buffer[offset + 0xA6] = prospect.TRPR;
+
   // CRITICAL: Write 42-byte binary assetName field for REAL player assets
   // This is a SEPARATE binary field at the END of the 200-byte player data section
   // Offset: 200 - 42 = 158 (0x9E)
@@ -349,9 +480,61 @@ function updateM26VisualJSON(buffer, blockStart, prospect) {
   console.log(`  JSON found at: 0x${jsonStartIndex.toString(16)}`);
 
   if (jsonStartIndex === -1 || jsonStartIndex >= blockStart + 0x1000) {
-    // No visual JSON in this block - skip update
-    console.log(`[M26Writer] No JSON found in this block - skipping`);
-    return;
+    // No visual JSON in this block - CREATE a minimal one
+    console.log(`[M26Writer] No JSON found in this block - CREATING new visual JSON`);
+
+    // Determine genericHeadName from prospect data
+    // Check multiple sources: visuals.genericHeadName, assignedGenr, PEPS (if it starts with gen_)
+    let genericHeadName = prospect.visuals?.genericHeadName || prospect.assignedGenr || null;
+    if (!genericHeadName && prospect.PEPS && typeof prospect.PEPS === 'string' && prospect.PEPS.toUpperCase().startsWith('GEN_')) {
+      genericHeadName = prospect.PEPS;
+    }
+    console.log(`[M26Writer] Sources checked - visuals.genericHeadName: ${prospect.visuals?.genericHeadName}, assignedGenr: ${prospect.assignedGenr}, PEPS: ${prospect.PEPS}`);
+
+    // Only create JSON if we have face data to write
+    if (!genericHeadName || typeof genericHeadName !== 'string' || !genericHeadName.toUpperCase().startsWith('GEN_')) {
+      console.log(`[M26Writer] No valid genericHeadName to write, skipping JSON creation`);
+      return;
+    }
+
+    // Extract skinTone from genericHeadName (e.g., "gen_7_B_N_019" -> 7)
+    const skinToneMatch = genericHeadName.match(/gen_(\d+)/i);
+    const skinTone = skinToneMatch ? parseInt(skinToneMatch[1], 10) : 7;
+
+    // Use prospect's bodyType or default
+    const bodyType = prospect.bodyType || prospect.visuals?.bodyType || 'Muscular';
+
+    // Create minimal visual JSON structure
+    const minimalVisuals = {
+      bodyType: bodyType,
+      skinTone: skinTone,
+      genericHeadName: genericHeadName,
+      loadouts: [
+        {
+          loadoutType: 'PlayerOnField',
+          loadoutElements: [
+            { slotType: 'CharacterBodyType', itemAssetName: `${bodyType}_BodyType` }
+          ]
+        }
+      ]
+    };
+
+    const newJsonString = JSON.stringify(minimalVisuals);
+    console.log(`[M26Writer] Created minimal visuals JSON (${newJsonString.length} bytes): genericHeadName=${genericHeadName}, skinTone=${skinTone}`);
+
+    // Write the new JSON at the start of the block (offset 0)
+    // The visual section is the first 0x1000 (4096) bytes of each block
+    if (newJsonString.length > 4000) {
+      console.error(`[M26Writer] ERROR: Generated JSON too large (${newJsonString.length} bytes)`);
+      return;
+    }
+
+    // Clear the visual section first (fill with nulls), then write JSON
+    buffer.fill(0, blockStart, blockStart + 0x1000);
+    buffer.write(newJsonString, blockStart, 'utf8');
+
+    console.log(`[M26Writer] ✓ Created new visual JSON at offset 0x${blockStart.toString(16)}`);
+    return; // Done - new JSON created
   }
 
   // Find the end of the JSON object
@@ -407,8 +590,14 @@ existing visuals.genericHeadName: ${visuals.genericHeadName}
     console.log(`[M26Writer] PEPS check - prospect.visuals.genericHeadName: ${prospect.visuals.genericHeadName}`);
   }
 
-  // Prioritize prospect.PEPS (new value) over visuals.genericHeadName (old template value)
-  let newPEPS = prospect.PEPS || prospect.visuals?.genericHeadName || null;
+  // Prioritize prospect.visuals.genericHeadName (face picker sets this), then assignedGenr, then PEPS
+  // Note: PEPS is set to empty string for generic faces, so it won't be used here
+  let newPEPS = prospect.visuals?.genericHeadName || prospect.assignedGenr || null;
+  // If no value found but PEPS is a valid gen_ string, use it
+  if (!newPEPS && prospect.PEPS && typeof prospect.PEPS === 'string' && prospect.PEPS.toUpperCase().startsWith('GEN_')) {
+    newPEPS = prospect.PEPS;
+  }
+  console.log(`[M26Writer] GENR sources - visuals.genericHeadName: ${prospect.visuals?.genericHeadName}, assignedGenr: ${prospect.assignedGenr}, PEPS: ${prospect.PEPS}`);
 
   // CRITICAL FIX: Ensure newPEPS is a string (not a number, object, etc.)
   if (newPEPS !== null && newPEPS !== undefined && typeof newPEPS !== 'string') {
@@ -438,6 +627,16 @@ existing visuals.genericHeadName: ${visuals.genericHeadName}
       fs.appendFileSync(logFile, `✓ UPDATING genericHeadName (generic): ${visuals.genericHeadName} -> ${newPEPS}\n`);
       visuals.genericHeadName = newPEPS;
       updated = true;
+
+      // NOTE: Do NOT set visuals.genericHead for draft classes!
+      // Research shows CORRECT draft class files have genericHead: undefined
+      // The game uses genericHeadName string only for draft classes
+      // Setting genericHead causes face mismatch issues
+      if (visuals.genericHead !== undefined) {
+        console.log(`[M26Writer] Removing genericHead from visuals (was ${visuals.genericHead})`);
+        fs.appendFileSync(logFile, `Removing genericHead from visuals (was ${visuals.genericHead})\n`);
+        delete visuals.genericHead;
+      }
     } else {
       // Real player asset - goes to BINARY field, keep genericHeadName as fallback
       console.log(`[M26Writer] ✓ Real asset "${newPEPS}" written to binary field, keeping genericHeadName: ${visuals.genericHeadName}`);
@@ -468,6 +667,133 @@ existing visuals.genericHeadName: ${visuals.genericHeadName}
               element.itemAssetName = bodyTypeAssetName;
               console.log(`[M26Writer] Updated loadout bodyType: ${oldAssetName} -> ${bodyTypeAssetName}`);
             }
+          }
+        }
+      }
+    }
+  }
+
+  // CRITICAL FIX: Update skinTone to match the face category
+  // When a generic face is selected (e.g., gen_1_B_N_03), the skinTone should match (1)
+  // This ensures the body skin tone matches the face
+  let skinToneToUse = null;
+
+  // Priority 1: Use explicit skinTone from prospect.visuals
+  if (prospect.visuals && prospect.visuals.skinTone !== undefined && prospect.visuals.skinTone !== null) {
+    skinToneToUse = prospect.visuals.skinTone;
+  }
+  // Priority 2: Extract from genericHeadName if it's a generic face
+  else if (newPEPS && typeof newPEPS === 'string' && newPEPS.toUpperCase().startsWith('GEN_')) {
+    // Extract skin tone from face name: "gen_7_B_N_019" -> 7
+    const match = newPEPS.match(/gen_(\d+)/i);
+    if (match) {
+      skinToneToUse = parseInt(match[1], 10);
+      console.log(`[M26Writer] Extracted skinTone ${skinToneToUse} from genericHeadName "${newPEPS}"`);
+    }
+  }
+
+  if (skinToneToUse !== null && skinToneToUse !== visuals.skinTone) {
+    const oldSkinTone = visuals.skinTone;
+    visuals.skinTone = skinToneToUse;
+    console.log(`[M26Writer] Updating skinTone: ${oldSkinTone} -> ${skinToneToUse}`);
+    updated = true;
+  }
+
+  // EQUIPMENT: Apply equipment loadout changes from prospect.visuals.loadouts
+  // The frontend updates prospect.visuals.loadouts with equipment edits
+  // We need to merge those into the parsed visuals JSON before re-serializing
+  if (prospect.visuals && prospect.visuals.loadouts && Array.isArray(prospect.visuals.loadouts)) {
+    console.log(`[M26Writer] Checking for equipment loadout updates...`);
+
+    // Find the PlayerOnField loadout in both source and target
+    const sourceLoadouts = prospect.visuals.loadouts;
+    const targetLoadouts = visuals.loadouts || [];
+
+    for (const sourceLoadout of sourceLoadouts) {
+      // Process all loadouts, but prioritize PlayerOnField for equipment
+      if (!sourceLoadout.loadoutElements || !Array.isArray(sourceLoadout.loadoutElements)) continue;
+
+      // Find matching loadout in target by loadoutType (if it exists)
+      let targetLoadout = null;
+      const sourceType = sourceLoadout.loadoutType;
+
+      if (sourceType) {
+        targetLoadout = targetLoadouts.find(l => l.loadoutType === sourceType);
+      }
+
+      // If no loadoutType or no match, use the first loadout
+      if (!targetLoadout && targetLoadouts.length > 0) {
+        targetLoadout = targetLoadouts[0];
+      }
+
+      if (!targetLoadout) {
+        // No target loadout - create PlayerOnField loadout (required for game to read equipment)
+        targetLoadout = {
+          loadoutType: 'PlayerOnField',
+          outfitType: 'Field',
+          loadoutElements: []
+        };
+        if (!visuals.loadouts) visuals.loadouts = [];
+        visuals.loadouts.push(targetLoadout);
+        console.log(`[M26Writer] Created new PlayerOnField loadout`);
+      }
+
+      if (!targetLoadout.loadoutElements) {
+        targetLoadout.loadoutElements = [];
+      }
+
+      // Merge equipment elements from source to target
+      for (const sourceElement of sourceLoadout.loadoutElements) {
+        // Skip CharacterBodyType - handled above
+        if (sourceElement.slotType === 'CharacterBodyType') continue;
+        if (sourceElement.itemAssetName && sourceElement.itemAssetName.endsWith('_BodyType')) continue;
+
+        if (!sourceElement.itemAssetName) continue;
+
+        // For facemasks (no slotType), identify by GearFaceMask_ prefix
+        if (!sourceElement.slotType && sourceElement.itemAssetName.startsWith('GearFaceMask_')) {
+          // Find or create facemask element (elements without slotType that have GearFaceMask_)
+          let found = false;
+          for (const targetElement of targetLoadout.loadoutElements) {
+            if (!targetElement.slotType && targetElement.itemAssetName && targetElement.itemAssetName.startsWith('GearFaceMask_')) {
+              const oldValue = targetElement.itemAssetName;
+              targetElement.itemAssetName = sourceElement.itemAssetName;
+              console.log(`[M26Writer] Updated facemask: ${oldValue} -> ${sourceElement.itemAssetName}`);
+              found = true;
+              updated = true;
+              break;
+            }
+          }
+          if (!found) {
+            targetLoadout.loadoutElements.push({ itemAssetName: sourceElement.itemAssetName });
+            console.log(`[M26Writer] Added new facemask: ${sourceElement.itemAssetName}`);
+            updated = true;
+          }
+          continue;
+        }
+
+        // For elements with slotType, match by slotType
+        if (sourceElement.slotType) {
+          let found = false;
+          for (const targetElement of targetLoadout.loadoutElements) {
+            if (targetElement.slotType === sourceElement.slotType) {
+              const oldValue = targetElement.itemAssetName;
+              targetElement.itemAssetName = sourceElement.itemAssetName;
+              if (oldValue !== sourceElement.itemAssetName) {
+                console.log(`[M26Writer] Updated ${sourceElement.slotType}: ${oldValue} -> ${sourceElement.itemAssetName}`);
+                updated = true;
+              }
+              found = true;
+              break;
+            }
+          }
+          if (!found) {
+            targetLoadout.loadoutElements.push({
+              slotType: sourceElement.slotType,
+              itemAssetName: sourceElement.itemAssetName
+            });
+            console.log(`[M26Writer] Added new ${sourceElement.slotType}: ${sourceElement.itemAssetName}`);
+            updated = true;
           }
         }
       }
