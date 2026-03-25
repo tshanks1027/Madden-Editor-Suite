@@ -603,6 +603,22 @@ export class RosterCreatorService {
   }
 
   /**
+   * Convert position string to position code
+   * Position codes: QB=0, HB=1, FB=2, WR=3, TE=4, LT=5, LG=6, C=7, RG=8, RT=9, LE=10, RE=11, DT=12, LOLB=13, MLB=14, ROLB=15, CB=16, FS=17, SS=18, K=19, P=20
+   */
+  private positionStringToCode(position: string): number {
+    const positionMap: { [key: string]: number } = {
+      'QB': 0, 'HB': 1, 'FB': 2, 'WR': 3, 'TE': 4,
+      'LT': 5, 'LG': 6, 'C': 7, 'RG': 8, 'RT': 9,
+      'LE': 10, 'RE': 11, 'DT': 12,
+      'LOLB': 13, 'MLB': 14, 'ROLB': 15,
+      'CB': 16, 'FS': 17, 'SS': 18,
+      'K': 19, 'P': 20
+    };
+    return positionMap[position.toUpperCase()] ?? 1; // Default to HB (1) if unknown
+  }
+
+  /**
    * Convert RookieStats from ROSTER_lookup.csv to RosterPlayer format
    * Uses pre-calculated ratings from the lookup file
    */
@@ -623,6 +639,9 @@ export class RosterCreatorService {
       );
 
       if (playerEntry?.internalId) {
+        // Store internalId for equipment lookup later
+        (stats as any)._internalId = playerEntry.internalId;
+
         const userSeasonEdit = userDatabaseService.getSeasonEdit(playerEntry.internalId, year);
         if (userSeasonEdit?.ratings) {
           console.log(`[RosterCreatorService] Merging user edits for ${stats.firstName} ${stats.lastName} (year ${year}):`, Object.keys(userSeasonEdit.ratings));
@@ -632,6 +651,36 @@ export class RosterCreatorService {
               // Map field names from uppercase to lowercase for RookieStats
               const lowerField = field.toLowerCase();
               (stats as any)[lowerField] = value;
+            }
+          }
+        }
+
+        // Load trait edits and apply TraitDevelopment to devTrait
+        const userTraitEdit = userDatabaseService.getTraitEdit(playerEntry.internalId, year);
+        if (userTraitEdit?.traits) {
+          console.log(`[RosterCreatorService] Loading trait edits for ${stats.firstName} ${stats.lastName} (year ${year}):`, Object.keys(userTraitEdit.traits));
+          // TraitDevelopment maps to devTrait which becomes PDEV
+          if (userTraitEdit.traits.TraitDevelopment !== undefined) {
+            // Map numeric ID to string for mapDevTraitToId
+            const devTraitMap: { [key: number]: string } = { 0: 'Normal', 1: 'Star', 2: 'Superstar', 3: 'X-Factor' };
+            const devTraitValue = userTraitEdit.traits.TraitDevelopment;
+            (stats as any).devTrait = devTraitMap[devTraitValue] || 'Normal';
+            console.log(`[RosterCreatorService] Applied TraitDevelopment=${devTraitValue} -> devTrait="${(stats as any).devTrait}"`);
+          }
+
+          // Apply TR* boolean traits from database
+          const traitFields = ['TRBH', 'TRBR', 'TRDS', 'TRCL', 'TRDO', 'TRFB', 'TRFK', 'TRFY', 'TRHM', 'TRJR', 'TRSB', 'TRSW', 'TRTA', 'TRTL', 'TRTS', 'TRWU', 'TRCB'];
+          for (const field of traitFields) {
+            if (userTraitEdit.traits[field] !== undefined) {
+              (stats as any)[field] = userTraitEdit.traits[field] ? 1 : 0;
+            }
+          }
+
+          // Apply position-specific traits from database (numeric values)
+          const positionTraitFields = ['TRPN', 'TRPB', 'TRLS', 'TRTN', 'TRPR'];
+          for (const field of positionTraitFields) {
+            if (userTraitEdit.traits[field] !== undefined) {
+              (stats as any)[field] = userTraitEdit.traits[field];
             }
           }
         }
@@ -647,16 +696,35 @@ export class RosterCreatorService {
     let pghe = 0;
     let pski = this.mapRaceToPSKI(race);
 
-    // If no valid PID/PAM, assign generic face
-    if (!pid || pid === 0 || !pam || pam === '0') {
-      const genericFace = this.selectGenericFace(race, stats.position || 'HB');
+    // CRITICAL FIX: Check if PID is valid BEFORE checking PAM
+    // Players with valid PIDs (from ALL_PLAYER_LOOKUP) may have empty PAM in ROSTER_lookup
+    // but we should preserve their PID and look up their PAM from pidToPAM
+    const hasValidPID = pid > 0 && this.validPIDs.has(pid);
+
+    if (!hasValidPID) {
+      // No valid PID - assign generic face
+      const genericFace = this.selectGenericFaceByRace(race);
       pid = genericFace.pid;
       pam = genericFace.pam;
       pghe = genericFace.pghe;
       pski = this.getPSKIFromPAM(pam);
+    } else {
+      // Valid PID exists - look up PAM from our mapping if not already set
+      if (!pam || pam === '0') {
+        pam = this.pidToPAM.get(pid) || '';
+      }
+      // Look up PGHE if available
+      pghe = this.pidToPGHE.get(pid) || 0;
+      // Get race-based skin tone for valid players
+      const mappedRace = this.pidToRace.get(pid);
+      if (mappedRace !== undefined) {
+        pski = this.mapRaceToPSKI(mappedRace);
+      }
+      console.log(`[RosterCreatorService] Preserved valid PID ${pid} for ${stats.firstName} ${stats.lastName}, PAM="${pam}"`);
     }
 
-    const bodyType = this.getBodyType(stats.position || 'HB', stats.weight || 220, stats.height || 72);
+    const positionCode = this.positionStringToCode(stats.position || 'HB');
+    const bodyType = this.determineBodyType(positionCode);
 
     // Build the RosterPlayer object with all ratings from lookup
     const rosterPlayer: RosterPlayer = {
@@ -676,8 +744,11 @@ export class RosterCreatorService {
       PCOL: stats.college || 'Unknown',
 
       // Portrait/Appearance
-      PLPL: pid,       // PhotoID/Portrait
-      PEPS: pam,       // Player Assets
+      // PSXP = Player Picture ID (the actual numeric ID for portrait lookup)
+      // PLPL = Face type flag (100 = real/custom face, 0 = generic face)
+      PSXP: pid,       // Player Picture ID
+      PLPL: hasValidPID ? 100 : 0, // Face type: 100=real, 0=generic
+      PEPS: pam,       // Player Assets (PAM)
       PGHE: pghe,      // Head mesh
       PSKI: pski,      // Skin tone
       PLBD: bodyType,  // Body type
@@ -738,8 +809,37 @@ export class RosterCreatorService {
       PTOR: stats.ptor || 50,
       PKRT: 30, // Kick return (not in lookup)
 
-      // Dev trait from lookup
+      // Dev trait from lookup (may be overridden by user trait edits)
       PDEV: this.mapDevTraitToId(stats.devTrait || 'Normal'),
+
+      // Boolean traits - default to OFF (0), use database values if set
+      TRBH: (stats as any).TRBH ?? 0, // Big Hitter
+      TRBR: (stats as any).TRBR ?? 0, // DL Bull Rush
+      TRDS: (stats as any).TRDS ?? 0, // DL Spin
+      TRCL: (stats as any).TRCL ?? 0, // Clutch
+      TRDO: (stats as any).TRDO ?? 0, // Drop Open Pass
+      TRFB: (stats as any).TRFB ?? 0, // Feet in Bounds
+      TRFK: (stats as any).TRFK ?? 0, // Pump Fake
+      TRFY: (stats as any).TRFY ?? 0, // Fight for Yards
+      TRHM: (stats as any).TRHM ?? 0, // High Motor
+      TRJR: (stats as any).TRJR ?? 0, // High Point Catch
+      TRSB: (stats as any).TRSB ?? 0, // Strip Ball
+      TRSW: (stats as any).TRSW ?? 0, // DL Swim
+      TRTA: (stats as any).TRTA ?? 0, // Throw Away
+      TRTL: (stats as any).TRTL ?? 0, // Tackle Low
+      TRTS: (stats as any).TRTS ?? 0, // Tight Spiral
+      TRWU: (stats as any).TRWU ?? 0, // YAC Catch
+      TRCB: (stats as any).TRCB ?? 0, // Cover Ball
+
+      // Position-specific traits (M26 format) - default to 0
+      TRPN: (stats as any).TRPN ?? 0, // Penalty-prone
+      TRPB: (stats as any).TRPB ?? 0, // Play Ball (DB)
+      TRLS: (stats as any).TRLS ?? 0, // LB Style (0=Balanced, 1=Run, 2=Pass)
+      TRTN: (stats as any).TRTN ?? 0, // Tendency
+      TRPR: (stats as any).TRPR ?? 0, // Predictability
+
+      // Metadata for equipment lookup (not saved to roster file)
+      _internalId: (stats as any)._internalId,
     };
 
     // CRITICAL: Recalculate POVR using the official formula
@@ -1213,6 +1313,33 @@ export class RosterCreatorService {
           // Overall - will be recalculated below
           POVR: player.ratings.overall,
 
+          // Boolean traits - ALL default to OFF (0)
+          // These can be manually enabled by user in the editor
+          TRBH: 0, // Big Hitter
+          TRBR: 0, // DL Bull Rush
+          TRDS: 0, // DL Spin
+          TRCL: 0, // Clutch
+          TRDO: 0, // Drop Open Pass
+          TRFB: 0, // Feet in Bounds
+          TRFK: 0, // Pump Fake
+          TRFY: 0, // Fight for Yards
+          TRHM: 0, // High Motor
+          TRJR: 0, // High Point Catch
+          TRSB: 0, // Strip Ball
+          TRSW: 0, // DL Swim
+          TRTA: 0, // Throw Away
+          TRTL: 0, // Tackle Low
+          TRTS: 0, // Tight Spiral
+          TRWU: 0, // YAC Catch
+          TRCB: 0, // Cover Ball
+
+          // Position-specific traits (M26 format) - default to 0
+          TRPN: 0, // Penalty-prone
+          TRPB: 0, // Play Ball (DB)
+          TRLS: 0, // LB Style
+          TRTN: 0, // Tendency
+          TRPR: 0, // Predictability
+
           // Metadata
           isHallOfFamer: player.devTrait === 3 // X-Factor dev trait indicates HOFer
         };
@@ -1428,12 +1555,14 @@ export class RosterCreatorService {
    * @param players - Array of roster players
    * @param templatePath - Path to template roster file
    * @param outputPath - Path for output file
+   * @param year - Optional roster year (for equipment edit lookup)
    * @returns Success status
    */
   async saveRoster(
     players: RosterPlayer[],
     templatePath: string,
-    outputPath: string
+    outputPath: string,
+    year?: number
   ): Promise<boolean> {
     try {
       console.log(`[RosterCreatorService] Saving roster to: ${outputPath}`);
@@ -1471,6 +1600,31 @@ export class RosterCreatorService {
 
       console.log(`[RosterCreatorService] About to write ${finalPlayers.length} players to file with ${templateSize} slots`);
       console.log(`[RosterCreatorService] ===== END PADDING DEBUG =====`);
+
+      // Step 3.5: Apply equipment edits from database (if year is provided)
+      // Equipment is applied via setPlayerEquipment which queues changes for save
+      if (year) {
+        const { setPlayerEquipment } = RosterParser;
+        let equipmentApplied = 0;
+        for (let i = 0; i < finalPlayers.length; i++) {
+          const player = finalPlayers[i];
+          const internalId = player._internalId;
+          if (internalId) {
+            // Check for equipment edits for this player
+            const equipmentEdit = userDatabaseService.getEquipmentEdit(internalId, year);
+            if (equipmentEdit?.equipment && Object.keys(equipmentEdit.equipment).length > 0) {
+              console.log(`[RosterCreatorService] Applying equipment for ${player.PFNA} ${player.PLNA} (index ${i}):`, Object.keys(equipmentEdit.equipment).length, 'slots');
+              setPlayerEquipment(i, equipmentEdit.equipment);
+              equipmentApplied++;
+            }
+          }
+        }
+        if (equipmentApplied > 0) {
+          console.log(`[RosterCreatorService] Applied equipment edits for ${equipmentApplied} players`);
+        }
+      } else {
+        console.log(`[RosterCreatorService] No year provided - skipping equipment edit lookup`);
+      }
 
       // Step 4: Save back to the same file
       await saveRosterFile(outputPath, finalPlayers, rosterData);
@@ -1730,6 +1884,32 @@ export class RosterCreatorService {
           PGHE: csvRow.PGHE || 0, // Generic head ID (will be set properly later)
           // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
           _race: parseInt(csvRow.Race) || 7, // Store race for BLBM GENR/SKNT
+
+          // Boolean traits - ALL default to OFF (0)
+          TRBH: 0, // Big Hitter
+          TRBR: 0, // DL Bull Rush
+          TRDS: 0, // DL Spin
+          TRCL: 0, // Clutch
+          TRDO: 0, // Drop Open Pass
+          TRFB: 0, // Feet in Bounds
+          TRFK: 0, // Pump Fake
+          TRFY: 0, // Fight for Yards
+          TRHM: 0, // High Motor
+          TRJR: 0, // High Point Catch
+          TRSB: 0, // Strip Ball
+          TRSW: 0, // DL Swim
+          TRTA: 0, // Throw Away
+          TRTL: 0, // Tackle Low
+          TRTS: 0, // Tight Spiral
+          TRWU: 0, // YAC Catch
+          TRCB: 0, // Cover Ball
+
+          // Position-specific traits (M26 format) - default to 0
+          TRPN: 0, // Penalty-prone
+          TRPB: 0, // Play Ball (DB)
+          TRLS: 0, // LB Style
+          TRTN: 0, // Tendency
+          TRPR: 0, // Predictability
 
           // Metadata
           isHallOfFamer: (csvRow.PDEV || csvRow.devTrait || 0) === 3
@@ -2031,6 +2211,32 @@ export class RosterCreatorService {
       PKAC: baseRating + Math.floor(Math.random() * 10) - 5,
       PKRT: baseRating + Math.floor(Math.random() * 10) - 5,
       PLSN: baseRating + Math.floor(Math.random() * 10) - 5,
+
+      // Boolean traits - ALL default to OFF (0)
+      TRBH: 0, // Big Hitter
+      TRBR: 0, // DL Bull Rush
+      TRDS: 0, // DL Spin
+      TRCL: 0, // Clutch
+      TRDO: 0, // Drop Open Pass
+      TRFB: 0, // Feet in Bounds
+      TRFK: 0, // Pump Fake
+      TRFY: 0, // Fight for Yards
+      TRHM: 0, // High Motor
+      TRJR: 0, // High Point Catch
+      TRSB: 0, // Strip Ball
+      TRSW: 0, // DL Swim
+      TRTA: 0, // Throw Away
+      TRTL: 0, // Tackle Low
+      TRTS: 0, // Tight Spiral
+      TRWU: 0, // YAC Catch
+      TRCB: 0, // Cover Ball
+
+      // Position-specific traits (M26 format) - default to 0
+      TRPN: 0, // Penalty-prone
+      TRPB: 0, // Play Ball (DB)
+      TRLS: 0, // LB Style
+      TRTN: 0, // Tendency
+      TRPR: 0, // Predictability
 
       isHallOfFamer: false
     };
