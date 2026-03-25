@@ -4,7 +4,15 @@
  */
 
 import { createGrid, ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
-import { getLookupValue, getLookupOptions, BODY_TYPE_NAMES } from '../data/field-definitions.js';
+import {
+    getLookupValue,
+    getLookupOptions,
+    BODY_TYPE_NAMES,
+    onBodyTypeChange,
+    onWeightChange,
+    storedWeightToActual,
+    getWeightFromBodyType
+} from '../data/field-definitions.js';
 import { FastSelectEditor } from './FastSelectEditor.js';
 import { getCollegeById, getCollegeByName, NCAA_LOGO, NCAA_COLORS } from '../data/college-data.js';
 
@@ -529,14 +537,64 @@ export function createDraftColumnDefs(app, archetypeData = null) {
         }
     });
 
-    // Age (read-only)
+    // Age
     columnDefs.push({
         headerName: 'Age',
         field: 'age',
         width: 55,
-        editable: false,
+        editable: true,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'center', backgroundColor: '#2a2a2a' }
+        cellEditor: 'agNumberCellEditor',
+        cellEditorParams: { min: 18, max: 45, precision: 0 },
+        cellStyle: { textAlign: 'center' }
+    });
+
+    // Height
+    columnDefs.push({
+        headerName: 'Height',
+        field: 'heightInches',
+        width: 70,
+        editable: true,
+        type: 'numericColumn',
+        cellEditor: 'agNumberCellEditor',
+        cellEditorParams: { min: 60, max: 90, precision: 0 },
+        cellStyle: { textAlign: 'center' }
+    });
+
+    // Weight (linked to body type)
+    columnDefs.push({
+        headerName: 'Weight',
+        field: 'weight',
+        width: 70,
+        editable: true,
+        type: 'numericColumn',
+        cellEditor: 'agNumberCellEditor',
+        cellEditorParams: { min: 150, max: 400, precision: 0 },
+        valueSetter: (params) => {
+            const newWeight = parseInt(params.newValue);
+            if (isNaN(newWeight)) return false;
+
+            params.data.weight = newWeight;
+
+            // Update body type based on new weight
+            const position = params.data.position || params.data.positionId;
+            const height = params.data.heightInches || 74;
+            // onWeightChange expects stored weight (actual - 160), but draft class uses actual weight
+            const storedWeight = newWeight - 160;
+            const newBodyTypeId = onWeightChange(storedWeight, position, height);
+            const newBodyTypeName = bodyTypeValueToDisplay[newBodyTypeId] || 'Standard';
+
+            params.data.bodyType = newBodyTypeName;
+            params.data.bodyTypeId = newBodyTypeId;
+            console.log(`[Draft] Weight changed to ${newWeight} lbs, auto-updating body type to ${newBodyTypeName} (${newBodyTypeId})`);
+
+            // Refresh the body type cell to show new value
+            if (params.api) {
+                params.api.refreshCells({ rowNodes: [params.node], columns: ['bodyType'] });
+            }
+            return true;
+        },
+        cellStyle: { textAlign: 'center' }
     });
 
     // Home State
@@ -589,7 +647,45 @@ export function createDraftColumnDefs(app, archetypeData = null) {
         width: 70,
         editable: true,
         type: 'numericColumn',
-        cellStyle: { textAlign: 'center' }
+        cellStyle: { textAlign: 'center' },
+        valueSetter: (params) => {
+            const newPID = parseInt(params.newValue);
+            if (isNaN(newPID)) return false;
+
+            params.data.PID = newPID;
+
+            // Update player pic name from PID lookup
+            // pidsCapitalized maps PID -> Capitalized Name
+            const playerName = window.lookupData?.pidsCapitalized?.get(newPID) || 'Generic Face';
+            params.data.playerPic = playerName;
+
+            // Refresh portrait cache and grid
+            const cacheKey = `pid_${newPID}`;
+            console.log(`[Draft PID] Refreshing portrait for PID ${newPID}`);
+
+            if (app.portraitCache) {
+                app.portraitCache.set(cacheKey, 'loading');
+            }
+
+            window.electronAPI.portrait.getByPID(newPID).then(imageData => {
+                if (app.portraitCache) {
+                    app.portraitCache.set(cacheKey, imageData || null);
+                }
+                // Refresh the portrait column
+                if (params.api) {
+                    params.api.refreshCells({ rowNodes: [params.node], columns: ['_portrait'], force: true });
+                    // Also refresh playerPic column
+                    params.api.refreshCells({ rowNodes: [params.node], columns: ['playerPic'], force: true });
+                }
+            }).catch(err => {
+                console.error(`[Draft PID] Error loading portrait:`, err);
+                if (app.portraitCache) {
+                    app.portraitCache.set(cacheKey, null);
+                }
+            });
+
+            return true;
+        }
     });
 
     // Player Pic (autocomplete from PID lookup)
@@ -607,6 +703,29 @@ export function createDraftColumnDefs(app, archetypeData = null) {
                 const pid = window.lookupData?.pidsByName?.get(params.newValue.toLowerCase());
                 if (pid) {
                     params.data.PID = pid;
+
+                    // Refresh portrait cache and grid
+                    const cacheKey = `pid_${pid}`;
+                    console.log(`[Draft PlayerPic] Refreshing portrait for PID ${pid}`);
+
+                    if (app.portraitCache) {
+                        app.portraitCache.set(cacheKey, 'loading');
+                    }
+
+                    window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                        if (app.portraitCache) {
+                            app.portraitCache.set(cacheKey, imageData || null);
+                        }
+                        // Refresh the portrait column
+                        if (params.api) {
+                            params.api.refreshCells({ rowNodes: [params.node], columns: ['_portrait'], force: true });
+                        }
+                    }).catch(err => {
+                        console.error(`[Draft PlayerPic] Error loading portrait:`, err);
+                        if (app.portraitCache) {
+                            app.portraitCache.set(cacheKey, null);
+                        }
+                    });
                 }
             }
             return true;
@@ -633,7 +752,7 @@ export function createDraftColumnDefs(app, archetypeData = null) {
         cellStyle: { textAlign: 'center' }
     });
 
-    // Body Type
+    // Body Type (linked to weight)
     columnDefs.push({
         headerName: 'Body Type',
         field: 'bodyType',
@@ -653,6 +772,17 @@ export function createDraftColumnDefs(app, archetypeData = null) {
             if (id !== undefined) {
                 params.data.bodyType = params.newValue;
                 params.data.bodyTypeId = id;
+
+                // Update weight to match body type
+                const position = params.data.position || params.data.positionId;
+                const newWeight = getWeightFromBodyType(id, position);
+                params.data.weight = newWeight;
+                console.log(`[Draft] Body type changed to ${params.newValue} (${id}), auto-updating weight to ${newWeight} lbs`);
+
+                // Refresh the weight cell to show new value
+                if (params.api) {
+                    params.api.refreshCells({ rowNodes: [params.node], columns: ['weight'] });
+                }
                 return true;
             }
             params.data.bodyType = params.newValue;
@@ -764,25 +894,6 @@ export function createDraftColumnDefs(app, archetypeData = null) {
             },
             cellStyle: { textAlign: 'center' }
         });
-    });
-
-    // Physical columns
-    columnDefs.push({
-        headerName: 'Height',
-        field: 'heightInches',
-        width: 70,
-        editable: true,
-        type: 'numericColumn',
-        cellStyle: { textAlign: 'center' }
-    });
-
-    columnDefs.push({
-        headerName: 'Weight',
-        field: 'weight',
-        width: 70,
-        editable: true,
-        type: 'numericColumn',
-        cellStyle: { textAlign: 'center' }
     });
 
     // Dev Trait
@@ -964,6 +1075,20 @@ export async function initializeDraftAGGrid(app, container, prospects) {
         // Ensure PEPS is set (from visuals.genericHeadName or assetName if not already set)
         const peps = prospect.PEPS || prospect.visuals?.genericHeadName || prospect.assetName || null;
 
+        // Extract shoulderPads from visuals.loadouts or use default
+        let shoulderPads = prospect.shoulderPads || 'Large_Pads';
+        if (prospect.visuals?.loadouts) {
+            for (const loadout of prospect.visuals.loadouts) {
+                if (loadout.loadoutElements) {
+                    const padElement = loadout.loadoutElements.find(e => e.slotType === 'Shoulderpads');
+                    if (padElement?.itemAssetName) {
+                        shoulderPads = padElement.itemAssetName;
+                        break;
+                    }
+                }
+            }
+        }
+
         return {
             ...prospect,
             draftPosition,
@@ -977,6 +1102,7 @@ export async function initializeDraftAGGrid(app, container, prospects) {
             archetype,
             playerPic,
             PEPS: peps,
+            shoulderPads,
             index
         };
     });
@@ -1268,12 +1394,12 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                     PLHT: parseInt(prospect.hitPower) || 50,
                     PLMC: parseInt(prospect.manCoverage) || 50,
                     PLZC: parseInt(prospect.zoneCoverage) || 50,
-                    PLPR: parseInt(prospect.press) || 50,
+                    PLPR: parseInt(prospect.playRecognition) || 50,  // PLPR = Play Recognition
                     PLPU: parseInt(prospect.pursuit) || 50,
-                    PLPM: parseInt(prospect.playRecognition) || 50,
+                    PLPM: parseInt(prospect.powerMoves) || 50,       // PLPM = Power Moves
                     PFMS: parseInt(prospect.finesseMoves) || 50,
                     PBSG: parseInt(prospect.blockShed) || 50,
-                    PLPE: parseInt(prospect.powerMoves) || 50,
+                    PLPE: parseInt(prospect.pressCoverage) || parseInt(prospect.press) || 50, // PLPE = Press
                     PKPR: parseInt(prospect.kickPower) || 50,
                     PKAC: parseInt(prospect.kickAccuracy) || 50,
                     PKRT: parseInt(prospect.kickReturn) || 50,
@@ -1287,7 +1413,7 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                     PTGH: parseInt(prospect.toughness) || 50,
                     PBKT: parseInt(prospect.breakTackle) || 50,
                     PLTR: parseInt(prospect.trucking) || 50,
-                    PELU: parseInt(prospect.elusiveness) || 50,
+                    PELU: parseInt(prospect.changeOfDirection) || parseInt(prospect.elusiveness) || 50, // PELU = ChangeOfDirection
                     PLSM: parseInt(prospect.spinMove) || 50,
                     PLJM: parseInt(prospect.jukeMoves) || 50,
                     PLSA: parseInt(prospect.stiffArm) || 50,
@@ -1297,8 +1423,12 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                 // Get position name
                 const positionName = prospect.position || 'QB';
 
-                // Calculate OVR using calculateOVRForArchetypes - SAME as roster editor
-                // This tests ALL archetypes and picks the BEST one (highest OVR)
+                // Calculate OVR using CURRENT archetype - DO NOT auto-switch archetypes
+                // Users set archetypes intentionally, we should respect their choice
+                const currentArchetypeId = prospect.archetypeId || 0;
+                const currentArchetypeName = prospect.archetype || '';
+                console.log(`[Draft AG-Grid] Calculating OVR for current archetype ${currentArchetypeId} (${currentArchetypeName}) of ${positionName}...`);
+
                 if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRForArchetypes) {
                     window.electronAPI.rating.calculateOVRForArchetypes(attributes, positionName)
                         .then(results => {
@@ -1307,16 +1437,21 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                                 return;
                             }
 
-                            // Results are sorted by OVR descending - first is the BEST
-                            const bestArchetype = results[0];
-                            const newOVR = bestArchetype.ovr;
-                            const newArchetypeId = bestArchetype.id;
-                            const newArchetypeName = bestArchetype.name;
-
+                            // Find the result for the CURRENT archetype - don't auto-switch to "best"
+                            const currentArchetypeResult = results.find(a => a.id === currentArchetypeId || a.name === currentArchetypeName);
                             const oldOVR = parseInt(prospect.overall) || 50;
-                            const oldArchetypeId = prospect.archetypeId;
 
-                            console.log(`[Draft AG-Grid] Best archetype: ${newArchetypeName} (ID: ${newArchetypeId}) with OVR: ${newOVR}`);
+                            let newOVR;
+                            if (currentArchetypeResult) {
+                                // Use OVR for current archetype
+                                newOVR = currentArchetypeResult.ovr;
+                                console.log(`[Draft AG-Grid] Current archetype ${currentArchetypeId} (${currentArchetypeResult.name}) OVR: ${newOVR}`);
+                            } else {
+                                // Fallback to best archetype's OVR but DON'T change archetype
+                                const bestArchetype = results[0];
+                                newOVR = bestArchetype.ovr;
+                                console.warn(`[Draft AG-Grid] Archetype ${currentArchetypeId} not found, using best OVR: ${newOVR} (but keeping archetype unchanged)`);
+                            }
 
                             // Update OVR if changed
                             if (newOVR !== oldOVR) {
@@ -1340,25 +1475,9 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                                 }
                             }
 
-                            // Update archetype if changed
-                            if (newArchetypeId !== oldArchetypeId) {
-                                console.log(`[Draft AG-Grid] Archetype sync: ${oldArchetypeId} → ${newArchetypeId} (${newArchetypeName})`);
-
-                                // Update prospect data
-                                prospect.archetypeId = newArchetypeId;
-                                prospect.archetype = newArchetypeName;
-                                event.data.archetypeId = newArchetypeId;
-                                event.data.archetype = newArchetypeName;
-
-                                // Refresh the archetype cell in the grid
-                                event.api.refreshCells({
-                                    rowNodes: [event.node],
-                                    columns: ['archetype'],
-                                    force: true
-                                });
-                            }
+                            // DO NOT update archetype - respect user's choice
                         })
-                        .catch(err => console.warn('[Draft AG-Grid] Could not sync archetype:', err));
+                        .catch(err => console.warn('[Draft AG-Grid] Could not calculate OVR:', err));
                 }
                 // ========== END ARCHETYPE SYNC ==========
             }
@@ -1391,12 +1510,13 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                     PLHT: parseInt(prospect.hitPower) || 50,
                     PLMC: parseInt(prospect.manCoverage) || 50,
                     PLZC: parseInt(prospect.zoneCoverage) || 50,
-                    PLPR: parseInt(prospect.press) || 50,
+                    PLPR: parseInt(prospect.playRecognition) || 50,  // PLPR = Play Recognition
                     PLPU: parseInt(prospect.pursuit) || 50,
                     PFMS: parseInt(prospect.finesseMoves) || 50,
                     PBSG: parseInt(prospect.blockShed) || 50,
-                    PLPE: parseInt(prospect.powerMoves) || 50,
-                    PKPW: parseInt(prospect.kickPower) || 50,
+                    PLPM: parseInt(prospect.powerMoves) || 50,       // PLPM = Power Moves
+                    PLPE: parseInt(prospect.pressCoverage) || parseInt(prospect.press) || 50, // PLPE = Press
+                    PKPR: parseInt(prospect.kickPower) || 50,
                     PKAC: parseInt(prospect.kickAccuracy) || 50,
                     PCTH: parseInt(prospect.catching) || 50,
                     PLRL: parseInt(prospect.release) || 50,
@@ -1405,7 +1525,7 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                     PDRR: parseInt(prospect.routeRunningDeep) || 50,
                     PBKT: parseInt(prospect.breakTackle) || 50,
                     PLTR: parseInt(prospect.trucking) || 50,
-                    PELU: parseInt(prospect.elusiveness) || 50,
+                    PELU: parseInt(prospect.changeOfDirection) || parseInt(prospect.elusiveness) || 50, // PELU = ChangeOfDirection
                     PLSM: parseInt(prospect.spinMove) || 50,
                     PLJM: parseInt(prospect.jukeMoves) || 50,
                     PLSA: parseInt(prospect.stiffArm) || 50,
@@ -1422,9 +1542,9 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                                     PJMP: 'jumping', PAWR: 'awareness', PTHP: 'throwPower',
                                     PTAS: 'throwAccuracyShort', PTAM: 'throwAccuracyMid', PTAD: 'throwAccuracyDeep',
                                     PPBK: 'passBlock', PRBK: 'runBlock', PTAK: 'tackle', PLHT: 'hitPower',
-                                    PLMC: 'manCoverage', PLZC: 'zoneCoverage', PLPR: 'press', PLPU: 'pursuit',
-                                    PFMS: 'finesseMoves', PBSG: 'blockShed', PLPE: 'powerMoves',
-                                    PKPW: 'kickPower', PKAC: 'kickAccuracy', PCTH: 'catching', PLRL: 'release',
+                                    PLMC: 'manCoverage', PLZC: 'zoneCoverage', PLPR: 'playRecognition', PLPU: 'pursuit',
+                                    PFMS: 'finesseMoves', PBSG: 'blockShed', PLPM: 'powerMoves', PLPE: 'pressCoverage',
+                                    PKPR: 'kickPower', PKAC: 'kickAccuracy', PCTH: 'catching', PLRL: 'release',
                                     SRRN: 'routeRunningShort', PMRR: 'routeRunningMid', PDRR: 'routeRunningDeep',
                                     PBKT: 'breakTackle', PLTR: 'trucking', PELU: 'elusiveness',
                                     PLSM: 'spinMove', PLJM: 'jukeMoves', PLSA: 'stiffArm', PLIB: 'impactBlocking'
@@ -1817,6 +1937,7 @@ export function destroyDraftAGGrid(app) {
 }
 
 // Draft field names to roster field names mapping for OVR calculation
+// CORRECT field codes from reference/madden-franchise-utils/franchiseToRoster/lookupFiles/directTransferFields.json
 const DRAFT_TO_ROSTER_FIELDS = {
     speed: 'PSPD', acceleration: 'PACC', agility: 'PAGI', strength: 'PSTR',
     jumping: 'PJMP', awareness: 'PAWR', ballCarrierVision: 'PBCV', carrying: 'PCAR',
@@ -1828,12 +1949,19 @@ const DRAFT_TO_ROSTER_FIELDS = {
     runBlockPower: 'PRBS', tackle: 'PTAK', hitPower: 'PLHT', manCoverage: 'PLMC',
     zoneCoverage: 'PLZC', playRecognition: 'PLPR', pursuit: 'PLPU', powerMoves: 'PLPM',
     finesseMoves: 'PFMS', blockShedding: 'PBSG', pressCoverage: 'PLPE',
-    breakTackle: 'PBKT', trucking: 'PLTR', jukeMove: 'PELU', spinMove: 'PLJM',
-    stiffArm: 'PLSM', spectacularCatch: 'PLSA', catchInTraffic: 'PLSC',
-    release: 'PLCI', shortRouteRunning: 'SRRN', mediumRouteRunning: 'PMRR',
+    breakTackle: 'PBKT', trucking: 'PLTR',
+    // CORRECTED field codes - these were all wrong before:
+    changeOfDirection: 'PELU',   // ChangeOfDirectionRating = PELU
+    jukeMove: 'PLJM',            // JukeMoveRating = PLJM
+    spinMove: 'PLSM',            // SpinMoveRating = PLSM
+    stiffArm: 'PLSA',            // StiffArmRating = PLSA
+    spectacularCatch: 'PLSC',    // SpectacularCatchRating = PLSC
+    catchInTraffic: 'PLCI',      // CatchInTrafficRating = PLCI
+    release: 'PLRL',             // ReleaseRating = PLRL
+    shortRouteRunning: 'SRRN', mediumRouteRunning: 'PMRR',
     deepRouteRunning: 'PDRR', kickPower: 'PKPR', kickAccuracy: 'PKAC',
     kickReturn: 'PKRT', stamina: 'PSTA', injury: 'PINJ', toughness: 'PTGH',
-    changeOfDirection: 'PCOD', longSnap: 'PLSL'
+    longSnap: 'PLSL'
 };
 
 const ROSTER_TO_DRAFT_FIELDS = Object.fromEntries(
