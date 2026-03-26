@@ -117,6 +117,14 @@ export const MADDEN_FIELDS = {
     // TSPM (Sense Pressure Max) - DOES NOT EXIST in roster files, removed
     'TRCB': { display: 'Cover Ball', shortDisplay: 'CVB', type: 'boolean', editable: true, width: 50 },
 
+    // Position-specific trait fields (M26 draft class format)
+    // These are stored in draft class files but have no direct roster TR* equivalent
+    'TRPN': { display: 'Penalty', shortDisplay: 'PEN', type: 'boolean', editable: true, width: 50 },           // Penalty-prone
+    'TRPB': { display: 'Play Ball', shortDisplay: 'PLB', type: 'boolean', editable: true, width: 50 },         // DB plays ball in air
+    'TRLS': { display: 'LB Style', shortDisplay: 'LBS', type: 'numeric', editable: true, width: 50, min: 0, max: 2 }, // 0=Balanced, 1=Run, 2=Pass
+    'TRTN': { display: 'Tendency', shortDisplay: 'TND', type: 'numeric', editable: true, width: 50, min: 0, max: 2 }, // Play tendency
+    'TRPR': { display: 'Predictability', shortDisplay: 'PRD', type: 'numeric', editable: true, width: 50, min: 0, max: 2 }, // QB predictability
+
     // Player flag fields
     'ISCN': { display: 'Captain', shortDisplay: 'CPT', type: 'boolean', editable: true, width: 50 },
     // PFPB (Pro Bowl) - DOES NOT EXIST in roster files, removed
@@ -222,7 +230,7 @@ export const FIELD_ORDER = [
     ["PJMP", "Jump"], ["PKAC", "Kick Acc"], ["PKPR", "Kick Power"], ["PKRT", "Kick Return"],
     ["PLBK", "Lead Block"], ["PLMC", "Man Cov"], ["PMRR", "Medium RR"], ["PPBK", "Pass Block"],
     ["PPBF", "Pass Block FIN"], ["PPBS", "Pass Block PWR"], ["PPLA", "Play Action"], ["PLPM", "Power Move"],
-    ["PLPE", "Press"], ["PLPU", "Pursuit"], ["PLRL", "Release"], ["PRBK", "Run Block"],
+    ["PLPE", "Press"], ["PLPU", "Pursuit"], ["PLPR", "Play Rec"], ["PLRL", "Release"], ["PRBK", "Run Block"],
     ["PRBF", "Run Block FIN"], ["PRBS", "Run Block PWR"], ["SRRN", "Short RR"], ["PLSC", "Spec Catch"],
     ["PSPD", "Speed"], ["PLSM", "Spin Move"], ["PSTA", "Stamina"], ["PLSA", "Stiff Arm"],
     ["PSTR", "Strength"], ["PTAK", "Tackling"], ["PTAD", "Deep Throw"], ["PTAM", "Med Throw"],
@@ -697,6 +705,11 @@ export async function loadLookupData() {
                 // Overwrite pids and pidsCapitalized with the correct data from PID_lookup.csv
                 LOOKUP_DATA.pids.set(entry.pid, entry.name);
                 LOOKUP_DATA.pidsCapitalized.set(entry.pid, entry.name);
+                // CRITICAL: Also add to pidsByName with "first last" format (lowercase) as key
+                // This ensures dropdown selection "Jim Plunkett" can find PID
+                if (entry.name) {
+                    LOOKUP_DATA.pidsByName.set(entry.name.toLowerCase(), entry.pid);
+                }
             });
 
             console.log(`PID_lookup.csv loaded: pids.size=${LOOKUP_DATA.pids.size}, pidsCapitalized.size=${LOOKUP_DATA.pidsCapitalized.size}`);
@@ -716,6 +729,10 @@ export async function loadLookupData() {
                         if (!LOOKUP_DATA.pidsCapitalized.has(entry.pid)) {
                             LOOKUP_DATA.pids.set(entry.pid, entry.name);
                             LOOKUP_DATA.pidsCapitalized.set(entry.pid, entry.name);
+                            // Also add to pidsByName for dropdown lookups
+                            if (entry.name) {
+                                LOOKUP_DATA.pidsByName.set(entry.name.toLowerCase(), entry.pid);
+                            }
                             customAdded++;
                         }
                     });
