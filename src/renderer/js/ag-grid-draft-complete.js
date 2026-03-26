@@ -2022,7 +2022,7 @@ const DRAFT_TO_ROSTER_FIELDS = {
     shortRouteRunning: 'SRRN', mediumRouteRunning: 'PMRR',
     deepRouteRunning: 'PDRR', kickPower: 'PKPR', kickAccuracy: 'PKAC',
     kickReturn: 'PKRT', stamina: 'PSTA', injury: 'PINJ', toughness: 'PTGH',
-    longSnap: 'PLSL'
+    longSnap: 'PIMP'  // Fixed: was PLSL, correct field is PIMP
 };
 
 const ROSTER_TO_DRAFT_FIELDS = Object.fromEntries(

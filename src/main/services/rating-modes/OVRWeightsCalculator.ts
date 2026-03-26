@@ -45,6 +45,7 @@ const ATTR_NAME_TO_FIELD: { [key: string]: string } = {
   'KickAccuracyRating': 'PKAC',
   'KickPowerRating': 'PKPR',
   'LeadBlockRating': 'PLBK',
+  'LongSnapRating': 'PIMP',
   'ManCoverageRating': 'PLMC',
   'PassBlockFinesseRating': 'PPBF',
   'PassBlockPowerRating': 'PPBS',
@@ -321,13 +322,14 @@ export class OVRWeightsCalculator {
 
   /**
    * Get attribute value with proper handling for missing/invalid values
+   * Uses same default (50) as roster editor for consistency
    */
   private getAttr(player: PlayerAttributes, fieldCode: string): number {
     const val = player[fieldCode];
 
-    // Check for invalid values
+    // Default to 50 for missing values - matches roster editor behavior
     if (val === undefined || val === null || val === '' || (typeof val === 'number' && isNaN(val))) {
-      return 50; // Default to average rating
+      return 50;
     }
 
     const numVal = Number(val);
@@ -465,7 +467,7 @@ export class OVRWeightsCalculator {
    * @param isDraftClass - If true, use draft class divisor (11.1), otherwise roster divisor (10)
    * @returns Calculated Overall Rating (0-99)
    */
-  calculateOVR(attributes: PlayerAttributes, position: string | number, archetype?: string, isDraftClass: boolean = false): number {
+  calculateOVR(attributes: PlayerAttributes, position: string | number, archetype?: string | number, isDraftClass: boolean = false): number {
     if (!this.initialized) {
       console.warn('[OVRWeightsCalculator] Weights not loaded');
       return 50;
@@ -564,7 +566,7 @@ export class OVRWeightsCalculator {
    * Calculate OVR with detailed breakdown
    * @param isDraftClass - If true, use draft class divisor (11.1), otherwise roster divisor (10)
    */
-  calculateOVRWithBreakdown(attributes: PlayerAttributes, position: string | number, archetype?: string, isDraftClass: boolean = false): OVRBreakdown {
+  calculateOVRWithBreakdown(attributes: PlayerAttributes, position: string | number, archetype?: string | number, isDraftClass: boolean = false): OVRBreakdown {
     if (!this.initialized) {
       return { ovr: 50, archetype: null, breakdown: {} };
     }
@@ -781,7 +783,7 @@ export class OVRWeightsCalculator {
     currentAttributes: PlayerAttributes,
     targetOVR: number,
     position: string | number,
-    archetype?: string
+    archetype?: string | number
   ): { adjustments: { [fieldCode: string]: { current: number; suggested: number; weight: number; name: string } }; newOVR: number; archetype: string | null } | null {
     console.log(`[OVRWeightsCalculator] calculateAdjustmentsForTargetOVR called:`);
     console.log(`  - targetOVR: ${targetOVR}`);

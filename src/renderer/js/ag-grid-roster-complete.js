@@ -1218,7 +1218,7 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                     'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
                     'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
                     'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
-                    'PSTA', 'PINJ', 'PTGH'];
+                    'PSTA', 'PINJ', 'PTGH', 'PIMP'];  // Added PIMP (Long Snap)
 
                 // Skip OVR recalculation if we're in the middle of adjusting ratings for a target OVR
                 // (the _isAdjustingOVR flag is set by handleAGGridOVRChange)
@@ -1344,7 +1344,8 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                                                     'PPBK', 'PRBK', 'PLBK', 'PLIB', 'PPBF', 'PPBS', 'PRBF', 'PRBS',
                                                     'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
                                                     'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
-                                                    'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT'];
+                                                    'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
+                                                    'PIMP'];  // Added PIMP (Long Snap)
 
                                                 const changedColumns = [];
                                                 for (const field of ratingFieldsToUpdate) {
@@ -2214,7 +2215,7 @@ async function handleAGGridOVRChange(node, player, oldOVR, newOVR, app, gridApi)
         'PTAK', 'PLHT', 'PLMC', 'PLZC', 'PLPR', 'PLPU', 'PLPM', 'PFMS',
         'PBSG', 'PLPE', 'PBKT', 'PLTR', 'PELU', 'PLJM', 'PLSM', 'PLSA',
         'PLSC', 'PLCI', 'PLRL', 'PDRR', 'PMRR', 'SRRN', 'PKPR', 'PKAC', 'PKRT',
-        'PSTA', 'PINJ', 'PTGH'];
+        'PSTA', 'PINJ', 'PTGH', 'PIMP'];  // Added PIMP (Long Snap)
 
     for (const field of ratingFields) {
         if (player[field] !== undefined) {
