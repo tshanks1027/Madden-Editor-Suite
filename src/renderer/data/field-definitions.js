@@ -131,7 +131,7 @@ export const MADDEN_FIELDS = {
     'PICN': { display: 'Icon', shortDisplay: 'ICN', type: 'boolean', editable: true, width: 50 },
 
     // Miscellaneous fields
-    'PYWT': { display: 'Years with Team', shortDisplay: 'YWT', type: 'numeric', editable: true, width: 60, min: 0, max: 25 },
+    // PYWT (Years with Team) - DOES NOT EXIST in roster files, only in franchise files
     'PLPL': { display: 'Performance Level', shortDisplay: 'PLVL', type: 'numeric', editable: true, width: 70, min: 0, max: 100 },
     // PPTI (Previous Team) - DOES NOT EXIST in roster files, removed
     'PSTM': { display: 'Sleeve Temp', shortDisplay: 'SLV', type: 'numeric', editable: true, width: 60, min: 0, max: 99 },
@@ -219,7 +219,7 @@ export const MADDEN_FIELDS = {
 // Field order for user-friendly editing (Madden game order)
 export const FIELD_ORDER = [
     ["PLNA", "Last Name"], ["PFNA", "First Name"], ["PSXP", "Pic ID"], ["PLAYERPIC", "Player Pic"], ["PEPS", "PAM"], ["POID", "Pres ID"], ["PCMT", "Commentary"],
-    ["PPOS", "Position"], ["TGID", "Team"], ["PYWT", "Yrs w/Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
+    ["PPOS", "Position"], ["TGID", "Team"], ["PJEN", "Jersey #"], ["PCOL", "College"],
     ["PAGE", "Age"], ["ARCHETYPE", "Archetype"], ["PHTN", "Hometown"], ["PHSN", "State"], ["PLRC", "Race"],
     ["PHGT", "Height"], ["PWGT", "Weight"], ["PCBT", "Body Type"], ["PHAN", "Handedness"], ["PYRP", "Years Pro"], ["PROL", "Dev Trait"],
     ["POVR", "Overall"],
@@ -261,7 +261,7 @@ export const MADDEN_EXPORT_ORDER = [
     "PTHA", "PTHP", "PTOR", "PTSA", "PTUP", "PVCO", "PVSB", "PVTS", "PWGT", "PYCF",
     "PYRP", "SRRN", "TGID", "TRBH", "TRBR", "TRCB", "TRCL", "TRDO", "TRDS", "TRFB",
     "TRFK", "TRFY", "TRHM", "TRJR", "TRSB", "TRSW", "TRTA", "TRTL", "TRTS", "TRWU",
-    "PLTY", "PPOS", "PYWT", "PLDT", "PCPH", "ISCN", "PCBT", "PLCP", "PSA3", "PSB2",
+    "PLTY", "PPOS", "PLDT", "PCPH", "ISCN", "PCBT", "PLCP", "PSA3", "PSB2",
     "PSB3", "PICN", "PHAN", "PSA4", "PSB4", "PSA5", "PSA6", "PSB5", "PSB6", "PLRC"
 ];
 
