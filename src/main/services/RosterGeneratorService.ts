@@ -981,7 +981,9 @@ export class RosterGeneratorService {
       }
 
       if (appearanceEdit) {
-        if (appearanceEdit.maddenPid !== undefined) player.maddenPid = appearanceEdit.maddenPid;
+        // IMPORTANT: Only overwrite PID if edit has a valid positive PID
+        // User edits may have null/empty PID from saving without a real face - don't let that wipe out bundled PID
+        if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) player.maddenPid = appearanceEdit.maddenPid;
         if (appearanceEdit.maddenPam !== undefined) player.maddenPam = appearanceEdit.maddenPam;
         if (appearanceEdit.maddenPlpo !== undefined) player.maddenPlpo = appearanceEdit.maddenPlpo;
         if (appearanceEdit.maddenPghe !== undefined) player.maddenPghe = appearanceEdit.maddenPghe;
@@ -1288,7 +1290,7 @@ export class RosterGeneratorService {
         // Merge appearance edits (PID, PAM, PLPO, PGHE, etc.)
         if (player.playerId && appearanceEditsMap.has(player.playerId)) {
           const appearanceEdit = appearanceEditsMap.get(player.playerId)!;
-          if (appearanceEdit.maddenPid !== undefined) player.maddenPid = appearanceEdit.maddenPid;
+          if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) player.maddenPid = appearanceEdit.maddenPid;
           if (appearanceEdit.maddenPam !== undefined) player.maddenPam = appearanceEdit.maddenPam;
           if (appearanceEdit.maddenPlpo !== undefined) player.maddenPlpo = appearanceEdit.maddenPlpo;
           if (appearanceEdit.maddenPghe !== undefined) player.maddenPghe = appearanceEdit.maddenPghe;
@@ -1798,7 +1800,7 @@ export class RosterGeneratorService {
         // Merge appearance edits (PID, PAM, PLPO, PGHE, etc.)
         if (player.playerId && appearanceEditsMapFA.has(player.playerId)) {
           const appearanceEdit = appearanceEditsMapFA.get(player.playerId)!;
-          if (appearanceEdit.maddenPid !== undefined) player.maddenPid = appearanceEdit.maddenPid;
+          if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) player.maddenPid = appearanceEdit.maddenPid;
           if (appearanceEdit.maddenPam !== undefined) player.maddenPam = appearanceEdit.maddenPam;
           if (appearanceEdit.maddenPlpo !== undefined) player.maddenPlpo = appearanceEdit.maddenPlpo;
           if (appearanceEdit.maddenPghe !== undefined) player.maddenPghe = appearanceEdit.maddenPghe;
@@ -1975,7 +1977,7 @@ export class RosterGeneratorService {
         // Merge appearance edits (PID, PAM, PLPO, PGHE, etc.)
         if (player.playerId && appearanceEditsMapFA2.has(player.playerId)) {
           const appearanceEdit = appearanceEditsMapFA2.get(player.playerId)!;
-          if (appearanceEdit.maddenPid !== undefined) player.maddenPid = appearanceEdit.maddenPid;
+          if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) player.maddenPid = appearanceEdit.maddenPid;
           if (appearanceEdit.maddenPam !== undefined) player.maddenPam = appearanceEdit.maddenPam;
           if (appearanceEdit.maddenPlpo !== undefined) player.maddenPlpo = appearanceEdit.maddenPlpo;
           if (appearanceEdit.maddenPghe !== undefined) player.maddenPghe = appearanceEdit.maddenPghe;
@@ -2041,7 +2043,7 @@ export class RosterGeneratorService {
         // Merge appearance edits if available
         if (player.internalId && appearanceEditsMapFA2.has(player.internalId)) {
           const appearanceEdit = appearanceEditsMapFA2.get(player.internalId)!;
-          if (appearanceEdit.maddenPid !== undefined) player.pid = appearanceEdit.maddenPid;
+          if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) player.pid = appearanceEdit.maddenPid;
           if (appearanceEdit.maddenPam !== undefined) player.pam = appearanceEdit.maddenPam;
         }
 
