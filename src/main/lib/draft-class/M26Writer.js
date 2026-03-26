@@ -320,6 +320,12 @@ function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
   if (prospect.devTrait !== undefined) buffer[offset + 0x8c] = prospect.devTrait;
   if (prospect.PID !== undefined) buffer.writeUInt16LE(prospect.PID, offset + 0x92);
 
+  // Commentary ID at 0x9C (2 bytes, uint16LE) - MUST write to preserve commentary
+  // This was missing before, causing commentaryId to reset to template default (32767)
+  if (prospect.commentaryId !== undefined) {
+    buffer.writeUInt16LE(prospect.commentaryId, offset + 0x9C);
+  }
+
   // CRITICAL FIX: Binary genericHead at 0x8E MUST be 0 for draft classes
   // The game uses visuals JSON genericHeadName for draft classes, NOT this binary field
   // If this is non-zero, the game uses it as a face index and IGNORES genericHeadName
@@ -415,16 +421,17 @@ function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
   // Position-specific traits (M26 format)
   // These traits are stored sequentially after the main ratings
   // Mapped from roster fields: TRPN->traitPenalty, TRPB->traitPlayBall, etc.
+  // NOTE: 0x9C-0x9D is reserved for commentaryId (2 bytes), so traits skip it
   if (prospect.traitPenalty !== undefined) buffer[offset + 0x99] = prospect.traitPenalty;
   if (prospect.traitPlayBall !== undefined) buffer[offset + 0x9A] = prospect.traitPlayBall;
-  if (prospect.traitLbStyle !== undefined) buffer[offset + 0x9C] = prospect.traitLbStyle;
+  if (prospect.traitLbStyle !== undefined) buffer[offset + 0x9B] = prospect.traitLbStyle; // Fixed: was 0x9C, conflicting with commentaryId
   if (prospect.traitTendency !== undefined) buffer[offset + 0xA3] = prospect.traitTendency;
   if (prospect.traitPredictability !== undefined) buffer[offset + 0xA6] = prospect.traitPredictability;
 
   // Also check for roster-format field names (TRPN, TRPB, etc.)
   if (prospect.TRPN !== undefined) buffer[offset + 0x99] = prospect.TRPN;
   if (prospect.TRPB !== undefined) buffer[offset + 0x9A] = prospect.TRPB;
-  if (prospect.TRLS !== undefined) buffer[offset + 0x9C] = prospect.TRLS;
+  if (prospect.TRLS !== undefined) buffer[offset + 0x9B] = prospect.TRLS; // Fixed: was 0x9C, conflicting with commentaryId
   if (prospect.TRTN !== undefined) buffer[offset + 0xA3] = prospect.TRTN;
   if (prospect.TRPR !== undefined) buffer[offset + 0xA6] = prospect.TRPR;
 
