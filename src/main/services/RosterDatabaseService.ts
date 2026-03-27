@@ -28,6 +28,7 @@ import {
   CustomPlayer,
   CustomPlayerSeason
 } from './UserDatabaseService';
+import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
 
 // Roster field names to database field names mapping
 const ROSTER_FIELD_MAP: Record<string, string> = {
@@ -73,70 +74,21 @@ const ROSTER_RATING_FIELDS = [
 ];
 
 // Map roster field names to database field names
-// The database uses different 4-character codes than roster files for some attributes
+// NOW USING M26 ROSTER NAMES DIRECTLY IN DATABASE - NO CONVERSION NEEDED
+// This map is kept for compatibility but all values are identity mappings
 const ROSTER_TO_DB_FIELD_MAP: Record<string, string> = {
-  // Core attributes - most match directly
-  'POVR': 'POVR',
-  'PSPD': 'PSPD',
-  'PACC': 'PACC',
-  'PSTR': 'PSTR',
-  'PAGI': 'PAGI',
-  'PJMP': 'PJMP',
-  'PSTA': 'PSTM',  // Stamina: roster=PSTA, db=PSTM
-  'PINJ': 'PINJ',
-  'PTGH': 'PTGH',
-  'PAWR': 'PAWR',
-  'PCAR': 'PCAR',
-  // Ball carrier
-  'PBCV': 'PBCV',
-  'PBKT': 'PBTK',  // Break tackle: roster=PBKT, db=PBTK
-  'PLTR': 'PTRK',  // Trucking: roster=PLTR, db=PTRK
-  'PELU': 'PCOD',  // Change of direction/elusiveness: roster=PELU, db=PCOD
-  'PLSA': 'PSFA',  // Stiff arm: roster=PLSA, db=PSFA
-  'PLSM': 'PSPN',  // Spin move: roster=PLSM, db=PSPN
-  'PLJM': 'PJKM',  // Juke move: roster=PLJM, db=PJKM
-  // Passing
-  'PTHA': 'PTHA',
-  'PTAS': 'PTAS',
-  'PTAM': 'PTAM',
-  'PTAD': 'PTAD',
-  'PTOR': 'PTOR',
-  'PTUP': 'PTUP',
-  'PTHP': 'PPWR',  // Throw power: roster=PTHP, db=PPWR
-  'PPLA': 'PPLA',
-  // Receiving
-  'PCTH': 'PCTH',
-  'PLSC': 'PSPC',  // Spectacular catch: roster=PLSC, db=PSPC
-  'PLCI': 'PCIT',  // Catch in traffic: roster=PLCI, db=PCIT
-  'SRRN': 'PSRR',  // Short route running: roster=SRRN, db=PSRR
-  'PMRR': 'PMRR',
-  'PDRR': 'PDRR',
-  'PLRL': 'PREL',  // Release: roster=PLRL, db=PREL
-  // Blocking
-  'PRBK': 'PRBK',
-  'PPBK': 'PPBK',
-  'PLIB': 'PIBK',  // Impact blocking: roster=PLIB, db=PIBK
-  'PLBK': 'PLBK',
-  'PRBF': 'PRNS',  // Run block finesse: roster=PRBF, db=PRNS
-  'PRBS': 'PRBS',  // Run block strength
-  'PPBF': 'PPBF',  // Pass block finesse
-  'PPBS': 'PPBP',  // Pass block strength: roster=PPBS, db=PPBP
-  // Defense
-  'PTAK': 'PTAK',
-  'PLHT': 'PHIT',  // Hit power: roster=PLHT, db=PHIT
-  'PLPE': 'PPRS',  // Press: roster=PLPE, db=PPRS
-  'PFMS': 'PFMV',  // Finesse moves: roster=PFMS, db=PFMV
-  'PLPM': 'PPWM',  // Power moves: roster=PLPM, db=PPWM
-  'PBSG': 'PBSH',  // Block shedding: roster=PBSG, db=PBSH
-  'PLPR': 'PPRC',  // Play recognition: roster=PLPR, db=PPRC
-  'PLPU': 'PPUR',  // Pursuit: roster=PLPU, db=PPUR
-  // Coverage
-  'PLMC': 'PMCV',  // Man coverage: roster=PLMC, db=PMCV
-  'PLZC': 'PZCV',  // Zone coverage: roster=PLZC, db=PZCV
-  // Special teams
-  'PKAC': 'PKAC',
-  'PKPR': 'PKPR',
-  'PKRT': 'PKRT'
+  // All fields now use M26 roster names directly - no conversion!
+  'POVR': 'POVR', 'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI',
+  'PJMP': 'PJMP', 'PSTA': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',
+  'PCAR': 'PCAR', 'PBCV': 'PBCV', 'PBKT': 'PBKT', 'PLTR': 'PLTR', 'PELU': 'PELU',
+  'PLSA': 'PLSA', 'PLSM': 'PLSM', 'PLJM': 'PLJM', 'PTHA': 'PTHA', 'PTAS': 'PTAS',
+  'PTAM': 'PTAM', 'PTAD': 'PTAD', 'PTOR': 'PTOR', 'PTUP': 'PTUP', 'PTHP': 'PTHP',
+  'PPLA': 'PPLA', 'PCTH': 'PCTH', 'PLSC': 'PLSC', 'PLCI': 'PLCI', 'SRRN': 'SRRN',
+  'PMRR': 'PMRR', 'PDRR': 'PDRR', 'PLRL': 'PLRL', 'PRBK': 'PRBK', 'PPBK': 'PPBK',
+  'PLIB': 'PLIB', 'PLBK': 'PLBK', 'PRBF': 'PRBF', 'PRBS': 'PRBS', 'PPBF': 'PPBF',
+  'PPBS': 'PPBS', 'PTAK': 'PTAK', 'PLHT': 'PLHT', 'PLPE': 'PLPE', 'PFMS': 'PFMS',
+  'PLPM': 'PLPM', 'PBSG': 'PBSG', 'PLPR': 'PLPR', 'PLPU': 'PLPU', 'PLMC': 'PLMC',
+  'PLZC': 'PLZC', 'PKAC': 'PKAC', 'PKPR': 'PKPR', 'PKRT': 'PKRT'
 };
 
 // Map team ID to name (must match team_lookup.csv)
@@ -1312,6 +1264,7 @@ class RosterDatabaseService {
   ): Promise<void> {
     // Archetype - PLTY is what franchise reads!
     const archetype = player.PLTY ?? player.ARCHETYPE ?? player.archetype;
+    const position = this.getPositionName(player.PPOS) || 'HB';
 
     const seasonEdits: any = {};
 
@@ -1319,7 +1272,7 @@ class RosterDatabaseService {
     if (pushMode === 'all') {
       if (bioFields.team) seasonEdits.team = this.getTeamAbbrForYear(player.TGID, year);
       if (bioFields.jersey) seasonEdits.jersey = player.PJEN;
-      if (bioFields.position) seasonEdits.position = this.getPositionName(player.PPOS);
+      if (bioFields.position) seasonEdits.position = position;
       if (bioFields.archetype) seasonEdits.archetype = archetype;
     }
     seasonEdits.age = player.PAGE; // Age is always relevant
@@ -1342,6 +1295,76 @@ class RosterDatabaseService {
       }
     }
 
+    // CRITICAL: Recalculate OVR using the same formula used everywhere
+    // This ensures database OVR matches what roster generator calculates
+    const originalPOVR = player.POVR;
+    if (ovrWeightsCalculator.isInitialized() && ratingCount > 10) {
+      // Build attributes object using ROSTER field names (what calculator expects)
+      const attributes: Record<string, number> = {
+        PSPD: player.PSPD || 50,
+        PACC: player.PACC || 50,
+        PAGI: player.PAGI || 50,
+        PSTR: player.PSTR || 50,
+        PAWR: player.PAWR || 50,
+        PCAR: player.PCAR || 50,
+        PBCV: player.PBCV || 50,
+        PBKT: player.PBKT || 50,
+        PLTR: player.PLTR || 50,
+        PLSA: player.PLSA || 50,
+        PLSM: player.PLSM || 50,
+        PLJM: player.PLJM || 50,
+        PCTH: player.PCTH || 50,
+        PLCI: player.PLCI || 50,
+        PLSC: player.PLSC || 50,
+        PELU: player.PELU || 50,
+        PJMP: player.PJMP || 50,
+        PSTA: player.PSTA || 50,
+        PTGH: player.PTGH || 50,
+        PINJ: player.PINJ || 50,
+        SRRN: player.SRRN || 50,
+        PMRR: player.PMRR || 50,
+        PDRR: player.PDRR || 50,
+        PTHP: player.PTHP || 50,
+        PTAS: player.PTAS || 50,
+        PTAM: player.PTAM || 50,
+        PTAD: player.PTAD || 50,
+        PTOR: player.PTOR || 50,
+        PTUP: player.PTUP || 50,
+        PPLA: player.PPLA || 50,
+        PBSK: player.PBSK || 50,
+        PBSG: player.PBSG || 50,
+        PLPM: player.PLPM || 50,
+        PFMS: player.PFMS || 50,
+        PTAK: player.PTAK || 50,
+        PLHT: player.PLHT || 50,
+        PLPU: player.PLPU || 50,
+        PLPR: player.PLPR || 50,
+        PLMC: player.PLMC || 50,
+        PLZC: player.PLZC || 50,
+        PLPE: player.PLPE || 50,
+        PPBK: player.PPBK || 50,
+        PPBS: player.PPBS || 50,
+        PPBF: player.PPBF || 50,
+        PRBK: player.PRBK || 50,
+        PRBS: player.PRBS || 50,
+        PRBF: player.PRBF || 50,
+        PLIB: player.PLIB || 50,
+        PLBK: player.PLBK || 50,
+        PKPR: player.PKPR || 50,  // Kick power - M26 roster code
+        PKAC: player.PKAC || 50,
+        PLRL: player.PLRL || 50,
+        PKRT: player.PKRT || 50,
+      };
+
+      const calculatedOVR = ovrWeightsCalculator.calculateOVR(attributes, position, archetype);
+      seasonEdits.POVR = calculatedOVR;
+      console.log(`[RosterDatabaseService] Recalculated OVR: original=${originalPOVR}, calculated=${calculatedOVR} (position=${position}, archetype=${archetype})`);
+    } else {
+      // Fallback to original POVR if calculator not ready
+      seasonEdits.POVR = originalPOVR;
+      console.log(`[RosterDatabaseService] Using original POVR=${originalPOVR} (calculator not ready or insufficient ratings)`);
+    }
+
     // Log for debugging - VERBOSE to track down push issue
     console.log(`[RosterDatabaseService] Saving season edit for bundled player ${playerId}, year ${year} (mode: ${pushMode}):`);
     console.log(`  - Player object keys (${Object.keys(player).length} total): ${Object.keys(player).slice(0, 40).join(', ')}...`);
@@ -1351,14 +1374,27 @@ class RosterDatabaseService {
     console.log(`  - MISSING ratings from player object: ${missingRatings.join(', ') || 'NONE'}`);
     console.log(`  - Mapped ratings: ${mappedRatings.slice(0, 10).join(', ')}${mappedRatings.length > 10 ? '...' : ''}`);
     console.log(`  - SeasonEdits rating keys: ${Object.keys(seasonEdits).filter(k => k.startsWith('P') && k.length === 4).join(', ')}`);
+    console.log(`  - Final POVR being saved: ${seasonEdits.POVR}`);
+    // KICKING DEBUG
+    console.log(`  - KICKING DEBUG: player.PKPR=${player.PKPR}, player.PKAC=${player.PKAC}`);
+    console.log(`  - KICKING DEBUG: seasonEdits.PKPW=${seasonEdits.PKPW}, seasonEdits.PKAC=${seasonEdits.PKAC}`);
 
     userDatabaseService.saveSeasonEdit(playerId, year, seasonEdits);
+
+    // CRITICAL: Save archetype at player level (constant across all seasons)
+    // This ensures OVR is calculated consistently everywhere
+    if (archetype) {
+      const archetypeId = typeof player.PLTY === 'number' ? player.PLTY : null;
+      userDatabaseService.savePlayerArchetype(playerId, archetype, archetypeId);
+      console.log(`[RosterDatabaseService] Saved player-level archetype: playerId=${playerId}, archetype=${archetype}, archetypeId=${archetypeId}`);
+    }
 
     // Verify the save by immediately reading back
     const verifyRead = userDatabaseService.getSeasonEdit(playerId, year);
     if (verifyRead) {
       console.log(`[RosterDatabaseService] VERIFY: Season edit saved successfully for player ${playerId}, year ${year}`);
       console.log(`  - Saved POVR: ${verifyRead.ratings?.POVR}, Team: ${verifyRead.team}, Position: ${verifyRead.position}`);
+      console.log(`  - VERIFY KICK: PKPW=${verifyRead.ratings?.PKPW}, PKPR=${verifyRead.ratings?.PKPR}, PKAC=${verifyRead.ratings?.PKAC}`);
     } else {
       console.error(`[RosterDatabaseService] VERIFY FAILED: Could not read back season edit for player ${playerId}, year ${year}`);
     }

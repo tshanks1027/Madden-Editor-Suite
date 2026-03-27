@@ -922,6 +922,247 @@ const teamName = TEAM_MAP[teamId] || 'Unknown'; // teamId starts at 1
 
 ---
 
+### Issue: Draft class push to database ratings not showing in Player Browser
+
+**Symptoms:**
+- Push draft class to database succeeds (shows "X players created/updated")
+- Check Player Browser for the pushed year's ratings
+- Ratings are missing or all show as 0/null
+- Bio fields may be present but all rating fields are empty
+
+**Root Cause (March 2026):**
+**Field name mismatch** between DraftClassDatabaseService and UserDatabaseService.
+
+DraftClassDatabaseService was using **legacy field names**:
+- `PSTM` (wrong - should be `PSTA` for stamina)
+- `PBTK` (wrong - should be `PBKT` for break tackle)
+- `PTRK` (wrong - should be `PLTR` for trucking)
+- `PCOD` (wrong - should be `PELU` for change of direction)
+- And many more...
+
+UserDatabaseService.saveCustomPlayerSeason() iterates over its `RATING_FIELDS` array looking for M26 field names like `PSTA`, `PBKT`, `PLTR`, etc. When passed legacy names like `PBTK: 75`, it didn't find them and stored `null`.
+
+**Solution:**
+1. Update `RATING_FIELDS` in DraftClassDatabaseService to use correct M26 codes
+2. Add `LEGACY_TO_M26_FIELD_MAP` to convert old field names to new
+3. Update rating extraction to check both M26 names and legacy names
+
+```typescript
+// In DraftClassDatabaseService.ts:
+// Added LEGACY_TO_M26_FIELD_MAP
+const LEGACY_TO_M26_FIELD_MAP: Record<string, string> = {
+  'PSTM': 'PSTA',  // Stamina
+  'PBTK': 'PBKT',  // Break Tackle
+  'PTRK': 'PLTR',  // Trucking
+  // ... etc
+};
+
+// In saveSeasonData() and saveSeasonEditData():
+// Check for legacy field names and convert to M26 names
+for (const [legacyName, m26Name] of Object.entries(LEGACY_TO_M26_FIELD_MAP)) {
+  if (prospect[legacyName] !== undefined && !ratings[m26Name]) {
+    ratings[m26Name] = prospect[legacyName];
+  }
+}
+```
+
+**Prevention:**
+- Always use M26 field codes when saving to UserDatabaseService
+- Check field name mapping when adding new database integration features
+- Reference UserDatabaseService.RATING_FIELDS as the authoritative field list
+
+**Fixed In:** DraftClassDatabaseService.ts - Updated RATING_FIELDS, added LEGACY_TO_M26_FIELD_MAP, updated saveSeasonData() and saveSeasonEditData()
+
+---
+
+### Issue: Draft class generic faces don't match in-game appearance
+
+**Symptoms:**
+- User selects a generic face (e.g., "gen_7_B_N_019") in PAM-only mode for a draft prospect
+- Face picker shows correct preview
+- In-game, the player's face doesn't match - wrong skin tone, different face entirely
+- Face/body skin tone mismatch (face shows one ethnicity, body shows different skin tone)
+
+**Root Cause (Updated March 2026):**
+For **DRAFT CLASS FILES**, the game uses ONLY the visuals JSON fields - NOT binary fields.
+
+Research from comparing working vs broken draft class files revealed:
+
+1. **CORRECT draft files have:**
+   - `genericHeadName` = "gen_X_..." (string identifier)
+   - `skinTone` = number (1-7 matching first digit of face name)
+   - `genericHead` = **undefined** (NOT SET!)
+   - Binary offset 0x8E = **0** (NOT the numeric face ID)
+
+2. **BROKEN draft files had:**
+   - `genericHead` = numeric value (e.g., 8) - WRONG!
+   - Binary offset 0x8E = numeric value (e.g., 9, 169) - WRONG!
+
+**Key Finding:**
+Draft class files work DIFFERENTLY than roster files:
+- **Roster files**: May use genericHead numeric value in visuals JSON
+- **Draft class files**: Must have genericHead=undefined, binary 0x8E=0
+
+**Multiple bugs were causing this:**
+
+1. **PAMPicker (app.js)** - Didn't create visuals object if missing:
+```javascript
+// BUG: Only set if visuals already existed
+if (player.visuals) {
+    player.visuals.genericHeadName = pamValue;
+}
+
+// FIX: Create visuals if missing
+if (!player.visuals) {
+    player.visuals = {};
+}
+player.visuals.genericHeadName = pamValue;
+```
+
+2. **M26Writer.js** - Was incorrectly setting genericHead:
+```javascript
+// BUG: Setting genericHead breaks draft classes
+visuals.genericHead = genericHeadNum;  // WRONG!
+
+// FIX: Delete genericHead if it exists
+if (visuals.genericHead !== undefined) {
+    delete visuals.genericHead;  // Must be undefined for draft classes
+}
+```
+
+3. **M26Writer.js** - Was writing to binary offset 0x8E:
+```javascript
+// BUG: Writing numeric ID to binary field
+buffer.writeUInt16LE(genericHeadNum, offset + 0x8E);  // WRONG!
+
+// FIX: Leave 0x8E at 0 for draft classes
+// Binary genericHead at 0x8E should be 0 - game uses visuals JSON only
+```
+
+**Verification Method:**
+Created comparison script `analyze-correct-visuals.js` to inspect working draft class:
+```
+Prospect 0: genericHead=undefined, genericHeadName="gen_1_B_N_03", skinTone=1
+Prospect 1: genericHead=undefined, genericHeadName="gen_1_B_N_02", skinTone=1
+Prospect 2: genericHead=undefined, genericHeadName="gen_1_B_N_011", skinTone=1
+...
+All prospects: genericHead NOT SET (undefined)
+```
+
+**Prevention:**
+- Compare working game files before assuming how fields should be set
+- Draft classes and rosters have DIFFERENT requirements
+- Test face changes in-game, not just in editor preview
+
+**Fixed In:**
+- app.js (PAMPicker) - Create visuals object if missing
+- M26Writer.js - Remove genericHead from visuals, don't write to 0x8E
+
+---
+
+### Issue: Generated draft class faces don't match - using template faces
+
+**Symptoms:**
+- Generate a draft class using CreatorService (historical draft generator)
+- In-game, all players have faces from the TEMPLATE file, not the generated faces
+- CreatorService correctly assigns faces via `assignGenericFace()` but in-game shows different faces
+- Console logs show correct PEPS values (e.g., "gen_7_B_G_005") but game shows wrong face
+
+**Root Cause:**
+When generating draft classes, the code copies `templateVisuals` from the template file's prospects.
+But it was NOT updating `templateVisuals.genericHeadName` to match the generated player's `PEPS` value.
+
+The template's `genericHeadName` was being preserved, so when saved:
+- `prospect.visuals.genericHeadName` = template's face (e.g., "gen_1_A_B_002")
+- `prospect.PEPS` = generated face (e.g., "gen_7_B_G_005")
+
+The save function prioritizes `prospect.visuals?.genericHeadName` over `prospect.PEPS`, so the template face wins.
+
+**Solution (app.js ~ line 10596):**
+```javascript
+// When copying template visuals, update genericHeadName to match generated PEPS
+if (templateVisuals) {
+    if (player.PEPS) {
+        templateVisuals.genericHeadName = player.PEPS;
+        // Also extract and set skin tone from PEPS
+        const skinMatch = player.PEPS.match(/^gen_(\d+)_/i);
+        if (skinMatch) {
+            templateVisuals.skinTone = parseInt(skinMatch[1], 10);
+        }
+    }
+    // ... rest of bodyType update
+}
+```
+
+**Prevention:**
+- When copying template data, always update fields that should differ from template
+- Don't assume template values are correct defaults for generated data
+- Test generated draft classes in-game, not just in editor
+
+**Fixed In:** app.js - Update templateVisuals.genericHeadName when generating draft classes
+
+---
+
+### Issue: Generated roster players have face/body skin tone mismatch
+
+**Symptoms:**
+- Generate a historical roster using RosterCreatorService or RosterGeneratorService
+- In-game, players with generic faces show WRONG body skin tone
+- Face shows one ethnicity (e.g., white), but arms/body show different skin (e.g., black)
+- Looks like a "floating head" effect with mismatched skin tones
+
+**Root Cause (March 2026):**
+The `selectGenericFaceByRace()` method returned `{ pid, pam, pghe }` but NOT `pski`.
+This caused callers to set PSKI (body skin tone) independently from PAM selection,
+resulting in mismatched face/body skin tones.
+
+The comments "DON'T SET PSKI - BLBM handles it" were **WRONG**. PSKI MUST be set
+consistently with the PAM value to ensure body skin matches face skin.
+
+**How PSKI relates to PAM:**
+- PAM format: `gen_X_Y_Z_NNN` where X = skin tone (1-7)
+- Skin tones 1-2 → PSKI = 2 (white body)
+- Skin tones 3-4 → PSKI = 0 (mixed/tan body)
+- Skin tones 5-7 → PSKI = 1 (black body)
+
+**Solution:**
+Modified `selectGenericFaceByRace()` in BOTH services to return PSKI derived from PAM:
+
+```typescript
+// RosterCreatorService.ts and RosterGeneratorService.ts
+private selectGenericFaceByRace(race: number): { pid: number; pam: string; pghe: number; pski: number } {
+  const pam = this.generateGenericHeadName(race);
+  const pski = this.getPSKIFromPAM(pam);  // CRITICAL: Derive from PAM
+  // ...
+  return { pid, pam, pghe, pski };
+}
+
+// getPSKIFromPAM extracts skin tone from PAM and maps to PSKI:
+private getPSKIFromPAM(pam: string): number {
+  const skinTone = parseInt(pam.charAt(4)); // First digit after "gen_"
+  if (skinTone <= 2) return 2; // Light skin -> white body
+  if (skinTone >= 5) return 1; // Dark skin -> black body
+  return 0; // Medium skin -> mixed body
+}
+```
+
+All callers updated to use returned PSKI:
+```typescript
+const genericFace = this.selectGenericFaceByRace(race);
+player.PSKI = genericFace.pski; // CRITICAL: Use returned PSKI
+```
+
+**Prevention:**
+- Always derive PSKI from PAM, never set independently
+- When PAM is set, PSKI MUST be derived from it
+- The face picker (renderer UI) is SEPARATE and not affected by this fix
+
+**Fixed In:**
+- RosterCreatorService.ts - `selectGenericFaceByRace()` returns pski, all callers updated
+- RosterGeneratorService.ts - `selectGenericFaceByRace()` returns pski, all callers updated
+
+---
+
 ## Display and Rendering Bugs
 
 ### Issue: Archetype display bug after sorting by position

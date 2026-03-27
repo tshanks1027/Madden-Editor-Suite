@@ -80,7 +80,10 @@ const RATING_FIELDS = [
   // Kicking
   'PKAC',  // Kick Accuracy
   'PKPR',  // Kick Power (M26 roster code - NOT PKPW!)
-  'PKRT'   // Kick Return
+  'PKRT',  // Kick Return
+  // Special
+  'PIMP',  // Long Snap
+  'PBSK'   // Break Sack
 ];
 
 // Legacy field name mappings for database migration
@@ -1083,9 +1086,20 @@ class UserDatabaseService {
    */
   public getAllAppearanceEdits(): Map<number, AppearanceEdit> {
     const map = new Map<number, AppearanceEdit>();
-    if (!this.editsDb) return map;
+    if (!this.editsDb) {
+      console.log('[UserDatabaseService] getAllAppearanceEdits: editsDb is null');
+      return map;
+    }
 
     const rows = this.editsDb.prepare('SELECT * FROM appearance_edits').all() as Record<string, unknown>[];
+    console.log(`[UserDatabaseService] getAllAppearanceEdits: Found ${rows.length} rows in appearance_edits table`);
+
+    // DEBUG: Show first 5 rows from database
+    for (let i = 0; i < Math.min(5, rows.length); i++) {
+      const row = rows[i];
+      console.log(`[UserDatabaseService] Row ${i}: original_player_id=${row.original_player_id}, madden_pid=${row.madden_pid}, madden_pam=${row.madden_pam}`);
+    }
+
     for (const row of rows) {
       map.set(row.original_player_id as number, {
         originalPlayerId: row.original_player_id as number,

@@ -256,6 +256,7 @@ export function areOVRWeightsLoaded() {
 
 /**
  * Get attribute value with proper handling for missing/invalid values
+ * Uses same default (50) as roster editor for consistency
  * @param {Object} player - Player object
  * @param {string} fieldCode - Madden field code (e.g., 'PSPD')
  * @returns {number} - Attribute value (0-99)
@@ -263,9 +264,9 @@ export function areOVRWeightsLoaded() {
 function getAttr(player, fieldCode) {
     const val = player[fieldCode];
 
-    // Check for invalid values
+    // Default to 50 for missing values - matches roster editor behavior
     if (val === undefined || val === null || val === '' || (typeof val === 'number' && isNaN(val))) {
-        return 50; // Default to average rating
+        return 50;
     }
 
     const numVal = Number(val);
@@ -391,26 +392,33 @@ export function calculateOverall(player) {
         return player.POVR || 50;
     }
 
-    // Calculate weighted sum
-    let weightedSum = 0;
+    // CORRECT FORMULA from reference/madden-franchise-utils/Utils/FranchiseUtils.js:
+    // For each attribute: ((value - DesiredLow) / (DesiredHigh - DesiredLow)) * (weight / Sum)
+    // Final OVR: Math.round(Math.min(sum * 99, 99))
+    const desiredLow = Number(weights.DesiredLow) || 0;
+    const desiredHigh = Number(weights.DesiredHigh) || 99;
+    const sumDivisor = Number(weights.Sum) || 10;
+    const desiredRange = desiredHigh - desiredLow;
+
+    let normalizedSum = 0;
     let debugAttrs = {};
 
     for (const [attrName, fieldCode] of Object.entries(ATTR_NAME_TO_FIELD)) {
-        const weight = weights[attrName] || 0;
+        const weight = Number(weights[attrName]) || 0;
         if (weight > 0) {
             const attrValue = getAttr(player, fieldCode);
-            weightedSum += attrValue * weight;
+            // Normalize: (value - DesiredLow) / (DesiredHigh - DesiredLow)
+            const normalized = desiredRange > 0 ? (attrValue - desiredLow) / desiredRange : 0;
+            // Apply weight: weight / Sum
+            normalizedSum += normalized * (weight / sumDivisor);
             debugAttrs[fieldCode] = { value: attrValue, weight: weight };
         }
     }
 
-    // Divide by 10 (weights sum to 10)
-    const rawOVR = weightedSum / 10;
+    // Final OVR: sum * 99, clamped to 0-99
+    const finalOVR = Math.round(Math.min(Math.max(normalizedSum * 99, 0), 99));
 
-    // Round and clamp to 0-99
-    const finalOVR = Math.max(0, Math.min(99, Math.round(rawOVR)));
-
-    console.log(`[OVR] ${player.PFNA || ''} ${player.PLNA || ''} | Pos: ${position} | Archetype: ${archetype} | Raw: ${rawOVR.toFixed(2)} | Final: ${finalOVR}`);
+    console.log(`[OVR] ${player.PFNA || ''} ${player.PLNA || ''} | Pos: ${position} | Archetype: ${archetype} | Sum: ${normalizedSum.toFixed(4)} | Final: ${finalOVR}`);
 
     return finalOVR;
 }
@@ -450,27 +458,35 @@ export function calculateOverallWithBreakdown(player) {
         return { ovr: player.POVR || 50, archetype: archetype, breakdown: {} };
     }
 
-    // Calculate with breakdown
-    let weightedSum = 0;
+    // CORRECT FORMULA from reference/madden-franchise-utils/Utils/FranchiseUtils.js
+    const desiredLow = Number(weights.DesiredLow) || 0;
+    const desiredHigh = Number(weights.DesiredHigh) || 99;
+    const sumDivisor = Number(weights.Sum) || 10;
+    const desiredRange = desiredHigh - desiredLow;
+
+    let normalizedSum = 0;
     const breakdown = {};
 
     for (const [attrName, fieldCode] of Object.entries(ATTR_NAME_TO_FIELD)) {
-        const weight = weights[attrName] || 0;
+        const weight = Number(weights[attrName]) || 0;
         if (weight > 0) {
             const attrValue = getAttr(player, fieldCode);
-            const contribution = attrValue * weight;
-            weightedSum += contribution;
+            // Normalize: (value - DesiredLow) / (DesiredHigh - DesiredLow)
+            const normalized = desiredRange > 0 ? (attrValue - desiredLow) / desiredRange : 0;
+            // Apply weight: weight / Sum
+            const contribution = normalized * (weight / sumDivisor);
+            normalizedSum += contribution;
             breakdown[fieldCode] = {
                 name: attrName.replace('Rating', ''),
                 value: attrValue,
                 weight: weight,
-                contribution: contribution / 10 // Normalized contribution
+                contribution: contribution * 99 // Contribution to final OVR (scaled to 99)
             };
         }
     }
 
-    const rawOVR = weightedSum / 10;
-    const finalOVR = Math.max(0, Math.min(99, Math.round(rawOVR)));
+    // Final OVR: sum * 99, clamped to 0-99
+    const finalOVR = Math.round(Math.min(Math.max(normalizedSum * 99, 0), 99));
 
     return {
         ovr: finalOVR,

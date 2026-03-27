@@ -1449,6 +1449,7 @@ ipcMain.handle('database:get-merged-player-season', async (event, internalId: nu
 /**
  * Handle: database:get-player-season-years
  * Get years where player has season data in the database
+ * Merges bundled database seasons + user-edited seasons
  */
 ipcMain.handle('database:get-player-season-years', async (event, internalId: number) => {
   try {
@@ -1461,7 +1462,18 @@ ipcMain.handle('database:get-player-season-years', async (event, internalId: num
       return { success: true, years: [] };
     }
 
-    const years = lookupService.getPlayerSeasonYears(internalId);
+    // Get years from bundled database (player_seasons table)
+    const bundledYears = lookupService.getPlayerSeasonYears(internalId);
+
+    // Get years from user edits database (season_edits table)
+    const userEdits = userDatabaseService.getSeasonEditsForPlayer(internalId);
+    const userYears = userEdits.map(edit => edit.year);
+
+    // Merge both sources and deduplicate
+    const allYearsSet = new Set([...bundledYears, ...userYears]);
+    const years = Array.from(allYearsSet).sort((a, b) => a - b);
+
+    console.log(`[database-handlers] Player ${internalId} years: bundled=${bundledYears.length}, user=${userYears.length}, merged=${years.length}`);
 
     return { success: true, years };
   } catch (error) {
@@ -4299,13 +4311,31 @@ ipcMain.handle('database:execute-draft-class-push', async (
     bioFieldOptions?: Record<string, boolean>;
   }
 ) => {
+  // File-based debug log
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const logPath = path.join(os.tmpdir(), 'draft-push-debug.log');
+  const log = (msg: string) => {
+    try {
+      fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`);
+    } catch {}
+    console.log(`[database-handlers] ${msg}`);
+  };
+
+  log('IPC handler called: database:execute-draft-class-push');
+  log(`Analysis: draftYear=${analysis.draftYear}, newPlayers=${analysis.newPlayers?.length}, existingBundled=${analysis.existingBundled?.length}`);
+  log(`Options: pushMode=${options?.pushMode}`);
+
   try {
-    console.log(`[database-handlers] Executing draft class push for year ${analysis.draftYear}`);
-    console.log(`[database-handlers] Push mode: ${options?.pushMode}, bio options:`, options?.bioFieldOptions);
+    log('Waiting for userDatabaseService...');
     await userDatabaseService.waitForReady();
+    log('userDatabaseService ready, calling executePush...');
     const result = await draftClassDatabaseService.executePush(analysis, resolutions, options);
+    log(`executePush completed: created=${result.created}, updated=${result.updated}`);
     return { success: true, result };
   } catch (error) {
+    log(`ERROR: ${error}`);
     console.error('[database-handlers] Error executing draft class push:', error);
     return { success: false, error: String(error) };
   }

@@ -1339,7 +1339,7 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                 }
             }
 
-            // Handle position change - re-validate archetype
+            // Handle position change - re-validate archetype and recalculate OVR
             if (event.colDef.field === 'position') {
                 const newPosition = event.newValue;
                 const currentArchetype = event.data.archetype;
@@ -1353,6 +1353,7 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                 console.log(`[Draft AG-Grid] Valid archetypes for ${archetypePosName}:`, validArchetypeNames);
 
                 // Check if current archetype is valid for new position
+                let finalArchetype = currentArchetype;
                 if (!validArchetypeNames.includes(currentArchetype)) {
                     // Invalid archetype for this position - use default
                     const defaultArchetype = validArchetypes[0];
@@ -1360,12 +1361,100 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                         console.warn(`[Draft AG-Grid] Archetype "${currentArchetype}" invalid for ${newPosition}, using "${defaultArchetype.name}"`);
                         event.data.archetype = defaultArchetype.name;
                         event.data.archetypeId = defaultArchetype.id;
+                        finalArchetype = defaultArchetype.name;
                         event.api.refreshCells({
                             rowNodes: [event.node],
                             columns: ['archetype'],
                             force: true
                         });
                     }
+                }
+
+                // Recalculate OVR for new position
+                const prospect = event.data;
+                const attributes = {
+                    PSPD: prospect.speed || prospect.PSPD, PACC: prospect.acceleration || prospect.PACC,
+                    PAGI: prospect.agility || prospect.PAGI, PSTR: prospect.strength || prospect.PSTR,
+                    PAWR: prospect.awareness || prospect.PAWR, PJMP: prospect.jumping || prospect.PJMP,
+                    PSTA: prospect.stamina || prospect.PSTA, PELU: prospect.changeOfDirection || prospect.PELU,
+                    PTGH: prospect.toughness || prospect.PTGH, PCAR: prospect.carrying || prospect.PCAR,
+                    PBCV: prospect.ballCarrierVision || prospect.PBCV, PBKT: prospect.breakTackle || prospect.PBKT,
+                    PLTR: prospect.trucking || prospect.PLTR, PLSA: prospect.stiffArm || prospect.PLSA,
+                    PLSM: prospect.spinMove || prospect.PLSM, PLJM: prospect.jukeMove || prospect.PLJM,
+                    PCTH: prospect.catching || prospect.PCTH, PLCI: prospect.catchInTraffic || prospect.PLCI,
+                    PLSC: prospect.spectacularCatch || prospect.PLSC, SRRN: prospect.shortRouteRunning || prospect.SRRN,
+                    PMRR: prospect.mediumRouteRunning || prospect.PMRR, PDRR: prospect.deepRouteRunning || prospect.PDRR,
+                    PLRL: prospect.release || prospect.PLRL, PTHP: prospect.throwPower || prospect.PTHP,
+                    PTAS: prospect.throwAccuracyShort || prospect.PTAS, PTAM: prospect.throwAccuracyMid || prospect.PTAM,
+                    PTAD: prospect.throwAccuracyDeep || prospect.PTAD, PTOR: prospect.throwOnTheRun || prospect.PTOR,
+                    PTUP: prospect.throwUnderPressure || prospect.PTUP, PPLA: prospect.playAction || prospect.PPLA,
+                    PPBK: prospect.passBlock || prospect.PPBK, PPBS: prospect.passBlockPower || prospect.PPBS,
+                    PPBF: prospect.passBlockFinesse || prospect.PPBF, PRBK: prospect.runBlock || prospect.PRBK,
+                    PRBS: prospect.runBlockPower || prospect.PRBS, PRBF: prospect.runBlockFinesse || prospect.PRBF,
+                    PLBK: prospect.leadBlock || prospect.PLBK, PLIB: prospect.impactBlocking || prospect.PLIB,
+                    PTAK: prospect.tackle || prospect.PTAK, PLHT: prospect.hitPower || prospect.PLHT,
+                    PLPM: prospect.powerMoves || prospect.PLPM, PFMS: prospect.finesseMoves || prospect.PFMS,
+                    PBSG: prospect.blockShedding || prospect.PBSG, PLPU: prospect.pursuit || prospect.PLPU,
+                    PLPR: prospect.playRecognition || prospect.PLPR, PLMC: prospect.manCoverage || prospect.PLMC,
+                    PLZC: prospect.zoneCoverage || prospect.PLZC, PLPE: prospect.pressCoverage || prospect.PLPE,
+                    PKPR: prospect.kickPower || prospect.PKPR, PKAC: prospect.kickAccuracy || prospect.PKAC,
+                    PKRT: prospect.kickReturn || prospect.PKRT
+                };
+
+                window.electronAPI.rating.calculateOVRMadden(newPosition, attributes, finalArchetype).then(newOVR => {
+                    if (newOVR !== undefined && newOVR !== prospect.overall) {
+                        console.log(`[Draft AG-Grid] Position changed: OVR recalculated: ${prospect.overall} → ${newOVR}`);
+                        prospect.overall = newOVR;
+                        prospect.POVR = newOVR;
+                        event.api.refreshCells({ rowNodes: [event.node], columns: ['overall'], force: true });
+                    }
+                }).catch(err => console.error('[Draft AG-Grid] Error recalculating OVR after position change:', err));
+            }
+
+            // Handle archetype change - recalculate OVR
+            if (event.colDef.field === 'archetype') {
+                const prospect = event.data;
+                const position = prospect.position;
+                const newArchetype = event.newValue;
+
+                if (position) {
+                    const attributes = {
+                        PSPD: prospect.speed || prospect.PSPD, PACC: prospect.acceleration || prospect.PACC,
+                        PAGI: prospect.agility || prospect.PAGI, PSTR: prospect.strength || prospect.PSTR,
+                        PAWR: prospect.awareness || prospect.PAWR, PJMP: prospect.jumping || prospect.PJMP,
+                        PSTA: prospect.stamina || prospect.PSTA, PELU: prospect.changeOfDirection || prospect.PELU,
+                        PTGH: prospect.toughness || prospect.PTGH, PCAR: prospect.carrying || prospect.PCAR,
+                        PBCV: prospect.ballCarrierVision || prospect.PBCV, PBKT: prospect.breakTackle || prospect.PBKT,
+                        PLTR: prospect.trucking || prospect.PLTR, PLSA: prospect.stiffArm || prospect.PLSA,
+                        PLSM: prospect.spinMove || prospect.PLSM, PLJM: prospect.jukeMove || prospect.PLJM,
+                        PCTH: prospect.catching || prospect.PCTH, PLCI: prospect.catchInTraffic || prospect.PLCI,
+                        PLSC: prospect.spectacularCatch || prospect.PLSC, SRRN: prospect.shortRouteRunning || prospect.SRRN,
+                        PMRR: prospect.mediumRouteRunning || prospect.PMRR, PDRR: prospect.deepRouteRunning || prospect.PDRR,
+                        PLRL: prospect.release || prospect.PLRL, PTHP: prospect.throwPower || prospect.PTHP,
+                        PTAS: prospect.throwAccuracyShort || prospect.PTAS, PTAM: prospect.throwAccuracyMid || prospect.PTAM,
+                        PTAD: prospect.throwAccuracyDeep || prospect.PTAD, PTOR: prospect.throwOnTheRun || prospect.PTOR,
+                        PTUP: prospect.throwUnderPressure || prospect.PTUP, PPLA: prospect.playAction || prospect.PPLA,
+                        PPBK: prospect.passBlock || prospect.PPBK, PPBS: prospect.passBlockPower || prospect.PPBS,
+                        PPBF: prospect.passBlockFinesse || prospect.PPBF, PRBK: prospect.runBlock || prospect.PRBK,
+                        PRBS: prospect.runBlockPower || prospect.PRBS, PRBF: prospect.runBlockFinesse || prospect.PRBF,
+                        PLBK: prospect.leadBlock || prospect.PLBK, PLIB: prospect.impactBlocking || prospect.PLIB,
+                        PTAK: prospect.tackle || prospect.PTAK, PLHT: prospect.hitPower || prospect.PLHT,
+                        PLPM: prospect.powerMoves || prospect.PLPM, PFMS: prospect.finesseMoves || prospect.PFMS,
+                        PBSG: prospect.blockShedding || prospect.PBSG, PLPU: prospect.pursuit || prospect.PLPU,
+                        PLPR: prospect.playRecognition || prospect.PLPR, PLMC: prospect.manCoverage || prospect.PLMC,
+                        PLZC: prospect.zoneCoverage || prospect.PLZC, PLPE: prospect.pressCoverage || prospect.PLPE,
+                        PKPR: prospect.kickPower || prospect.PKPR, PKAC: prospect.kickAccuracy || prospect.PKAC,
+                        PKRT: prospect.kickReturn || prospect.PKRT
+                    };
+
+                    window.electronAPI.rating.calculateOVRMadden(position, attributes, newArchetype).then(newOVR => {
+                        if (newOVR !== undefined && newOVR !== prospect.overall) {
+                            console.log(`[Draft AG-Grid] Archetype changed to ${newArchetype}: OVR recalculated: ${prospect.overall} → ${newOVR}`);
+                            prospect.overall = newOVR;
+                            prospect.POVR = newOVR;
+                            event.api.refreshCells({ rowNodes: [event.node], columns: ['overall'], force: true });
+                        }
+                    }).catch(err => console.error('[Draft AG-Grid] Error recalculating OVR after archetype change:', err));
                 }
             }
 
@@ -1913,9 +2002,11 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                 results.forEach(result => {
                     const prospect = transformedProspects[result.index];
                     if (prospect && result.ovr !== undefined) {
-                        const oldOVR = prospect.overall || 0;
+                        const oldOVR = prospect.overall || prospect.POVR || 0;
                         if (oldOVR !== result.ovr) {
+                            // Update BOTH overall AND POVR to ensure consistency
                             prospect.overall = result.ovr;
+                            prospect.POVR = result.ovr;
                             updatedCount++;
                             if (updatedCount <= 3) {
                                 console.log(`[Draft AG-Grid] OVR recalculated: ${prospect.firstName} ${prospect.lastName}: ${oldOVR} → ${result.ovr}`);
@@ -2353,6 +2444,13 @@ export async function openPushToDatabaseDialog(app) {
     app.draftAgGrid.forEachNode(node => {
         prospects.push(node.data);
     });
+
+    // Debug: Log first prospect's OVR values
+    if (prospects.length > 0) {
+        const first = prospects[0];
+        console.log('[Push to DB] First prospect from grid:', first.firstName, first.lastName);
+        console.log('[Push to DB] Grid data - overall:', first.overall, 'POVR:', first.POVR);
+    }
 
     if (prospects.length === 0) {
         alert('No prospects to push. Load a draft class first.');
@@ -2914,6 +3012,8 @@ function showPushConfirmationModal(app, analysis, draftYear) {
 
     // Execute push handler
     document.getElementById('push-db-execute-btn').addEventListener('click', async () => {
+        console.log('[Push to DB] EXECUTE BUTTON CLICKED - starting push process');
+
         // Gather resolutions from radio buttons
         const resolutions = [];
         for (const conflict of allConflicts) {
@@ -2964,12 +3064,30 @@ function showPushConfirmationModal(app, analysis, draftYear) {
         executeBtn.disabled = true;
         executeBtn.textContent = 'Pushing...';
 
+        console.log('[Push to DB] EXECUTE - pushMode:', pushMode);
+        console.log('[Push to DB] EXECUTE - filteredAnalysis.draftYear:', filteredAnalysis.draftYear);
+        console.log('[Push to DB] EXECUTE - filteredAnalysis.newPlayers:', filteredAnalysis.newPlayers.length);
+        console.log('[Push to DB] EXECUTE - filteredAnalysis.existingBundled:', filteredAnalysis.existingBundled.length);
+        console.log('[Push to DB] EXECUTE - filteredAnalysis.existingCustom:', filteredAnalysis.existingCustom.length);
+
+        // Debug: Show prospect rating fields
+        const sampleProspect = filteredAnalysis.newPlayers[0]?.prospect || filteredAnalysis.existingBundled[0]?.prospect;
+        if (sampleProspect) {
+            console.log('[Push to DB] Sample prospect name:', sampleProspect.firstName, sampleProspect.lastName);
+            console.log('[Push to DB] Sample prospect RATINGS (camelCase): speed=' + sampleProspect.speed + ', overall=' + sampleProspect.overall + ', tackle=' + sampleProspect.tackle + ', awareness=' + sampleProspect.awareness);
+            console.log('[Push to DB] Sample prospect RATINGS (M26): PSPD=' + sampleProspect.PSPD + ', POVR=' + sampleProspect.POVR + ', PTAK=' + sampleProspect.PTAK + ', PAWR=' + sampleProspect.PAWR);
+            console.log('[Push to DB] Sample prospect all keys:', Object.keys(sampleProspect).join(', '));
+        }
+
         try {
             const response = await window.electronAPI.database.executeDraftClassPush(
                 filteredAnalysis,
                 resolutions,
                 { pushMode, bioFieldOptions, overwriteExistingSeasons, fillEmptyBioFields }
             );
+
+            console.log('[Push to DB] EXECUTE RESPONSE:', response);
+            console.log('[Push to DB] EXECUTE RESULT:', response?.result);
 
             if (response.success && response.result) {
                 const result = response.result;

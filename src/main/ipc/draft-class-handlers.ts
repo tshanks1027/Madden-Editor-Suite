@@ -50,7 +50,38 @@ ipcMain.handle('draft-class:save', async (event, savePath: string, draftClassDat
   console.log('[draft-class-handlers] Prospect count:', draftClassData.prospects.length);
   console.log('[draft-class-handlers] Version:', draftClassData._version);
 
-  // Debug: Log first prospect RECEIVED from frontend
+  // Debug: Log first 5 prospects RECEIVED from frontend to trace genericHeadName
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const traceFile = path.join(os.tmpdir(), 'draft-save-trace.txt');
+  const traceLines: string[] = [];
+  traceLines.push(`\n${'='.repeat(80)}`);
+  traceLines.push(`DRAFT SAVE TRACE - ${new Date().toISOString()}`);
+  traceLines.push(`${'='.repeat(80)}`);
+  traceLines.push(`Save path: ${savePath}`);
+  traceLines.push(`Prospect count: ${draftClassData.prospects.length}`);
+  traceLines.push(`Version: ${draftClassData._version}`);
+
+  for (let i = 0; i < Math.min(5, draftClassData.prospects.length); i++) {
+    const p = draftClassData.prospects[i];
+    traceLines.push(`\n--- Prospect ${i + 1}: ${p.firstName} ${p.lastName} ---`);
+    traceLines.push(`  PEPS: "${p.PEPS}" (type: ${typeof p.PEPS})`);
+    traceLines.push(`  assignedGenr: "${p.assignedGenr}" (type: ${typeof p.assignedGenr})`);
+    traceLines.push(`  Has visuals: ${!!p.visuals}`);
+    if (p.visuals) {
+      traceLines.push(`  visuals.genericHeadName: "${p.visuals.genericHeadName}" (type: ${typeof p.visuals.genericHeadName})`);
+      traceLines.push(`  visuals.skinTone: ${p.visuals.skinTone}`);
+      traceLines.push(`  visuals.bodyType: ${p.visuals.bodyType}`);
+    } else {
+      traceLines.push(`  *** VISUALS IS UNDEFINED - THIS IS THE BUG! ***`);
+    }
+  }
+
+  fs.writeFileSync(traceFile, traceLines.join('\n'));
+  console.log('[draft-class-handlers] Trace written to:', traceFile);
+
+  // Also log to console
   if (draftClassData.prospects.length > 0) {
     console.log('[draft-class-handlers] First prospect RECEIVED from frontend:');
     console.log('  firstName:', draftClassData.prospects[0].firstName);

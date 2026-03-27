@@ -2426,8 +2426,11 @@
       var playerArchetypeSelect = document.getElementById('dbPlayerArchetype');
       var playerLevelArchetype = playerArchetypeSelect ? playerArchetypeSelect.value : '';
 
+      console.log('[DbPlayerCard] OVR Recalculation START - position:', position, 'archetype:', playerLevelArchetype);
+
       if (position) {
         var rows = container.querySelectorAll('tbody tr');
+        console.log('[DbPlayerCard] Processing', rows.length, 'rows for OVR recalculation');
         for (var rowIdx = 0; rowIdx < rows.length; rowIdx++) {
           var row = rows[rowIdx];
           var ovrInput = row.querySelector('input[data-field="POVR"]');
@@ -2446,34 +2449,41 @@
             }
           });
 
+          console.log('[DbPlayerCard] Row', rowIdx, '- attributes count:', Object.keys(attributes).length, 'storedOVR:', ovrInput.value);
+
           // Only recalculate if we have enough attributes
           if (Object.keys(attributes).length >= 5) {
             try {
               var newOVR;
 
-              if (playerLevelArchetype) {
-                // Use player-level archetype for consistent OVR calculation
-                newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, playerLevelArchetype);
-              } else {
-                // No player archetype set - use best archetype as fallback
-                var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
-                if (archetypeResults && archetypeResults.length > 0) {
-                  newOVR = archetypeResults[0].ovr;
-                }
+              // CRITICAL: Always use findBestArchetype approach for OVR calculation
+              // This matches how the game calculates OVR and ensures consistency
+              // with the Draft Editor which also uses findBestArchetype
+              var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+              if (archetypeResults && archetypeResults.length > 0) {
+                newOVR = archetypeResults[0].ovr;
+                console.log('[DbPlayerCard] Row', rowIdx, '- best archetype:', archetypeResults[0].name, 'OVR:', newOVR);
               }
 
               if (newOVR !== undefined) {
                 var storedOVR = parseInt(ovrInput.value) || 0;
+                console.log('[DbPlayerCard] Row', rowIdx, '- calculated OVR:', newOVR, 'stored:', storedOVR);
                 if (newOVR !== storedOVR) {
-                  console.log('[DbPlayerCard] Row', rowIdx, 'OVR mismatch: stored=' + storedOVR + ', calculated=' + newOVR + ' (archetype: ' + (playerLevelArchetype || 'best') + ') - updating display');
+                  console.log('[DbPlayerCard] Row', rowIdx, 'OVR mismatch: stored=' + storedOVR + ', calculated=' + newOVR + ' (best archetype) - updating display');
                   ovrInput.value = newOVR;
                 }
+              } else {
+                console.warn('[DbPlayerCard] Row', rowIdx, '- OVR calculation returned undefined');
               }
             } catch (e) {
               console.warn('[DbPlayerCard] Could not recalculate OVR for row', rowIdx, ':', e.message);
             }
+          } else {
+            console.log('[DbPlayerCard] Row', rowIdx, '- SKIPPED: only', Object.keys(attributes).length, 'attributes (need 5+)');
           }
         }
+      } else {
+        console.warn('[DbPlayerCard] OVR Recalculation SKIPPED - no position set');
       }
 
       // Setup right-click context menu for fill operations
@@ -2831,19 +2841,15 @@
     try {
       var newOVR;
 
-      if (playerLevelArchetype) {
-        // Use the PLAYER-LEVEL archetype for OVR calculation (consistent everywhere)
-        newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, playerLevelArchetype);
-        console.log('[DbPlayerCard] Row OVR calculated using player archetype:', playerLevelArchetype, '=', newOVR, 'for year', year);
+      // CRITICAL: Always use findBestArchetype approach for OVR calculation
+      // This matches how the game calculates OVR and ensures consistency
+      // with the Draft Editor which also uses findBestArchetype
+      var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+      if (archetypeResults && archetypeResults.length > 0) {
+        newOVR = archetypeResults[0].ovr;
+        console.log('[DbPlayerCard] Row OVR calculated using best archetype:', archetypeResults[0].name, '=', newOVR, 'for year', year);
       } else {
-        // No player-level archetype set - find best archetype
-        var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
-        if (archetypeResults && archetypeResults.length > 0) {
-          newOVR = archetypeResults[0].ovr;
-          console.log('[DbPlayerCard] Row OVR calculated using best archetype:', archetypeResults[0].name, '=', newOVR, 'for year', year);
-        } else {
-          newOVR = 50;
-        }
+        newOVR = 50;
       }
 
       // Find and update the OVR input in this row
@@ -4499,23 +4505,18 @@
       // Set flag to skip recursive recalculation
       window._skipOvrRecalc = true;
 
-      if (playerLevelArchetype) {
-        // Use the PLAYER-LEVEL archetype for OVR calculation (consistent with roster generator)
-        newOVR = await window.electronAPI.rating.calculateOVRMadden(position, attributes, playerLevelArchetype);
-        usedArchetype = playerLevelArchetype;
-        console.log('[DbPlayerCard] OVR calculated using player archetype:', playerLevelArchetype, '=', newOVR);
+      // CRITICAL: Always use findBestArchetype approach for OVR calculation
+      // This matches how the game calculates OVR and ensures consistency
+      // with the Draft Editor which also uses findBestArchetype
+      var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+      if (archetypeResults && archetypeResults.length > 0) {
+        var bestArchetype = archetypeResults[0];
+        newOVR = bestArchetype.ovr;
+        usedArchetype = bestArchetype.name;
+        console.log('[DbPlayerCard] OVR calculated using best archetype:', usedArchetype, '=', newOVR);
       } else {
-        // No player-level archetype set - find best archetype
-        var archetypeResults = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
-        if (archetypeResults && archetypeResults.length > 0) {
-          var bestArchetype = archetypeResults[0];
-          newOVR = bestArchetype.ovr;
-          usedArchetype = bestArchetype.name;
-          console.log('[DbPlayerCard] OVR calculated using best archetype:', usedArchetype, '=', newOVR);
-        } else {
-          newOVR = 50;
-          usedArchetype = '';
-        }
+        newOVR = 50;
+        usedArchetype = '';
       }
 
       // Update OVR if changed
