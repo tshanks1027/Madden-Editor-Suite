@@ -2141,9 +2141,18 @@ async function handleDraftOVRChange(node, prospect, oldOVR, newOVR, app, gridApi
     // Get current archetype if available
     // NOTE: prospect.archetype is the numeric ID (0-67) from M26Parser
     // prospect.archetypeId may be set by UI edits
-    const currentArchetype = prospect.archetypeId !== undefined ? prospect.archetypeId :
-                             (prospect.archetype !== undefined ? parseInt(prospect.archetype) :
-                             (prospect.PLTY !== undefined ? prospect.PLTY : undefined));
+    // IMPORTANT: parseInt can return NaN if archetype is a string name like "Field General"
+    let currentArchetype = undefined;
+    if (prospect.archetypeId !== undefined && !isNaN(prospect.archetypeId)) {
+        currentArchetype = prospect.archetypeId;
+    } else if (prospect.archetype !== undefined) {
+        const parsed = parseInt(prospect.archetype);
+        if (!isNaN(parsed)) {
+            currentArchetype = parsed;
+        }
+    } else if (prospect.PLTY !== undefined && !isNaN(prospect.PLTY)) {
+        currentArchetype = prospect.PLTY;
+    }
 
     try {
         // Get all archetypes with their calculated OVR for current attributes
@@ -2291,7 +2300,13 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
     const archetypeSelect = document.getElementById('draft-archetype-select');
     archetypeSelect.addEventListener('change', async (e) => {
         const newArchetypeId = parseInt(e.target.value);
-        window._draftSelectedArchetypeId = newArchetypeId;
+        // Only set if valid number - prevent NaN from propagating
+        if (!isNaN(newArchetypeId)) {
+            window._draftSelectedArchetypeId = newArchetypeId;
+        } else {
+            console.warn('[Draft OVR] Invalid archetype ID from select:', e.target.value);
+            return;
+        }
 
         try {
             // Recalculate adjustments with new archetype
@@ -2407,13 +2422,16 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, sel
     }
 
     // Update archetype if selected - keep both archetypeId and archetype in sync
-    if (selectedArchetypeId !== undefined) {
+    // IMPORTANT: Check for both undefined AND NaN to prevent archetype becoming NaN
+    if (selectedArchetypeId !== undefined && !isNaN(selectedArchetypeId)) {
         const oldArchetype = prospect.archetypeId || prospect.archetype;
         prospect.archetypeId = selectedArchetypeId;
         prospect.archetype = selectedArchetypeId;  // Keep both in sync for file saving
         prospect.PLTY = selectedArchetypeId;       // Also update PLTY field code
         node.setDataValue('archetypeId', selectedArchetypeId);
         console.log('[Draft OVR] Updated archetype:', oldArchetype, '->', selectedArchetypeId);
+    } else if (selectedArchetypeId !== undefined) {
+        console.warn('[Draft OVR] Ignoring NaN archetype ID:', selectedArchetypeId);
     }
 
     console.log('[Draft OVR] Applied adjustments:', changes.join(', '));
