@@ -2436,6 +2436,33 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, sel
 
     console.log('[Draft OVR] Applied adjustments:', changes.join(', '));
 
+    // CRITICAL: Recalculate OVR from the adjusted ratings and update the overall field
+    // This ensures the stored OVR matches what the ratings actually produce
+    const position = typeof prospect.position === 'number'
+        ? (POSITION_MAPPINGS[prospect.position] || 'QB')
+        : prospect.position;
+    const archetype = selectedArchetypeId !== undefined && !isNaN(selectedArchetypeId)
+        ? selectedArchetypeId
+        : (prospect.archetypeId || prospect.archetype || prospect.PLTY);
+
+    // Build attributes from the newly adjusted ratings
+    const updatedAttributes = buildOVRAttributes(prospect);
+
+    // Recalculate OVR with the new ratings
+    if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRMadden) {
+        window.electronAPI.rating.calculateOVRMadden(position, updatedAttributes, archetype)
+            .then(recalculatedOVR => {
+                if (recalculatedOVR !== undefined && !isNaN(recalculatedOVR)) {
+                    console.log('[Draft OVR] Recalculated OVR after adjustments:', recalculatedOVR);
+                    prospect.overall = recalculatedOVR;
+                    prospect.POVR = recalculatedOVR;
+                    node.setDataValue('overall', recalculatedOVR);
+                    gridApi.refreshCells({ rowNodes: [node], columns: ['overall'], force: true });
+                }
+            })
+            .catch(err => console.error('[Draft OVR] Error recalculating OVR:', err));
+    }
+
     // Refresh cells to show updated values
     gridApi.refreshCells({ rowNodes: [node], force: true });
 
