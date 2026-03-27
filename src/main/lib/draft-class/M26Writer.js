@@ -289,6 +289,13 @@ function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
 
   // Basic info fields
   if (prospect.homeState !== undefined) buffer[offset + 0x26] = prospect.homeState;
+
+  // homeTown is a 27-byte (0x1B) string at offset 0x27, right after homeState
+  if (prospect.homeTown !== undefined && prospect.homeTown !== null) {
+    const homeTown = String(prospect.homeTown).slice(0, 0x1B).padEnd(0x1B, '\0');
+    buffer.write(homeTown, offset + 0x27, 0x1B, 'ascii');
+  }
+
   if (prospect.college !== undefined) buffer[offset + 0x42] = prospect.college;
   if (prospect.age !== undefined) buffer[offset + 0x46] = prospect.age;
   if (prospect.heightInches !== undefined) buffer[offset + 0x47] = prospect.heightInches;
