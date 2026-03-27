@@ -1224,10 +1224,11 @@ export async function initializeDraftAGGrid(app, container, prospects) {
         },
 
         onCellEditingStarted: (event) => {
+            console.log('[Draft AG-Grid] onCellEditingStarted:', event.colDef.field, '- current value:', event.value);
             // Capture OVR before editing so we can detect changes
             if (event.colDef.field === 'overall') {
-                event.node.data._previousOVR = event.value;
-                console.log('[Draft AG-Grid] Started editing OVR, captured previous:', event.value);
+                event.node.data._previousOVR = parseInt(event.value) || 0;
+                console.log('[Draft AG-Grid] Captured _previousOVR:', event.node.data._previousOVR);
             }
         },
 
@@ -1330,12 +1331,17 @@ export async function initializeDraftAGGrid(app, container, prospects) {
 
             // Handle OVR change - offer to adjust ratings
             if (event.colDef.field === 'overall') {
-                const oldOVR = event.node.data._previousOVR || event.oldValue;
+                // Use ?? instead of || to handle OVR of 0 correctly (0 is falsy but valid)
+                const oldOVR = parseInt(event.node.data._previousOVR ?? event.oldValue);
                 const newOVR = parseInt(event.newValue);
 
-                if (oldOVR !== undefined && oldOVR !== newOVR && !isNaN(newOVR)) {
-                    console.log(`[Draft AG-Grid OVR] Changed from ${oldOVR} to ${newOVR}`);
+                console.log(`[Draft AG-Grid OVR] onCellValueChanged: oldOVR=${oldOVR}, newOVR=${newOVR}, _previousOVR=${event.node.data._previousOVR}, event.oldValue=${event.oldValue}`);
+
+                if (!isNaN(oldOVR) && !isNaN(newOVR) && oldOVR !== newOVR) {
+                    console.log(`[Draft AG-Grid OVR] Changed from ${oldOVR} to ${newOVR} - calling handleDraftOVRChange`);
                     handleDraftOVRChange(event.node, event.data, oldOVR, newOVR, app, event.api);
+                } else {
+                    console.log(`[Draft AG-Grid OVR] Skipping - isNaN(oldOVR)=${isNaN(oldOVR)}, isNaN(newOVR)=${isNaN(newOVR)}, oldOVR===newOVR=${oldOVR === newOVR}`);
                 }
             }
 
@@ -2068,6 +2074,18 @@ export function getDraftDataFromGrid(app) {
     // Sort by draft position
     data.sort((a, b) => a.draftPosition - b.draftPosition);
 
+    // DIAGNOSTIC: Log first prospect's ratings
+    if (data.length > 0) {
+        const first = data[0];
+        console.log('[getDraftDataFromGrid] ======== EXTRACTING DATA FOR SAVE ========');
+        console.log('[getDraftDataFromGrid] First prospect:', first.firstName, first.lastName);
+        console.log('[getDraftDataFromGrid] overall:', first.overall);
+        console.log('[getDraftDataFromGrid] speed:', first.speed, 'PSPD:', first.PSPD);
+        console.log('[getDraftDataFromGrid] acceleration:', first.acceleration, 'PACC:', first.PACC);
+        console.log('[getDraftDataFromGrid] awareness:', first.awareness, 'PAWR:', first.PAWR);
+        console.log('[getDraftDataFromGrid] throwPower:', first.throwPower, 'PTHP:', first.PTHP);
+    }
+
     return data;
 }
 
@@ -2155,23 +2173,53 @@ async function handleDraftOVRChange(node, prospect, oldOVR, newOVR, app, gridApi
     }
 
     try {
+        // Log what we're sending to the backend
+        console.log('[Draft OVR] Attributes being sent:', JSON.stringify(attributes));
+        console.log('[Draft OVR] Position:', position, 'Archetype:', currentArchetype);
+
         // Get all archetypes with their calculated OVR for current attributes
         const archetypeOptions = await window.electronAPI.rating.calculateOVRForArchetypes(attributes, position);
+        console.log('[Draft OVR] Archetype options:', archetypeOptions);
+
+        // CRITICAL: If no archetype specified, use the best archetype (first in sorted list)
+        // This ensures the adjustments calculated match what the dropdown will show
+        let archetypeForCalculation = currentArchetype;
+        if (archetypeForCalculation === undefined && archetypeOptions && archetypeOptions.length > 0) {
+            archetypeForCalculation = archetypeOptions[0].id;
+            console.log('[Draft OVR] No archetype specified, using best archetype:', archetypeOptions[0].name, 'id:', archetypeForCalculation);
+        }
 
         // Call the backend to calculate adjustments
-        console.log('[Draft OVR] Calling calculateOVRAdjustments...');
+        console.log('[Draft OVR] Calling calculateOVRAdjustments with targetOVR:', newOVR, 'archetype:', archetypeForCalculation);
         const result = await window.electronAPI.rating.calculateOVRAdjustments(
-            attributes, newOVR, position, currentArchetype
+            attributes, newOVR, position, archetypeForCalculation
         );
-        console.log('[Draft OVR] Result:', result);
+        console.log('[Draft OVR] Result:', JSON.stringify(result));
 
-        if (!result || Object.keys(result.adjustments).length === 0) {
-            console.log('[Draft OVR] No adjustments calculated');
+        if (!result) {
+            console.log('[Draft OVR] No result returned from backend');
             return;
         }
 
+        console.log('[Draft OVR] Adjustments count:', Object.keys(result.adjustments || {}).length);
+        console.log('[Draft OVR] Achieved OVR:', result.newOVR, 'Target was:', newOVR);
+
+        // If no adjustments but we have a valid result, still show dialog
+        // This handles the case where OVR is already at target or needs archetype change
+        if (Object.keys(result.adjustments || {}).length === 0) {
+            console.log('[Draft OVR] No rating adjustments needed - OVR may already match or require archetype change');
+            // Still show dialog if we have archetype options to choose from
+            if (archetypeOptions && archetypeOptions.length > 0) {
+                console.log('[Draft OVR] Showing dialog with archetype options');
+            } else {
+                console.log('[Draft OVR] No archetype options available, skipping dialog');
+                return;
+            }
+        }
+
         // Show the adjustment dialog with archetype options
-        showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR, result, app, gridApi, archetypeOptions, currentArchetype, attributes, position);
+        // Pass archetypeForCalculation so dropdown shows the same archetype used for calculations
+        showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR, result, app, gridApi, archetypeOptions, archetypeForCalculation, attributes, position);
 
     } catch (error) {
         console.error('[Draft OVR] Error calculating adjustments:', error);
@@ -2283,7 +2331,14 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
 
     // Store current adjustments and archetype for apply handler
     window._draftCurrentAdjustments = adjustments;
-    window._draftSelectedArchetypeId = currentArchetype;
+    // CRITICAL: If no archetype was specified, use the first (best) archetype from options
+    // This ensures the dropdown selection matches what we store for the Apply button
+    if (currentArchetype === undefined && archetypeOptions && archetypeOptions.length > 0) {
+        window._draftSelectedArchetypeId = archetypeOptions[0].id;
+        console.log('[Draft OVR Dialog] No archetype specified, defaulting to best:', archetypeOptions[0].name, 'id:', archetypeOptions[0].id);
+    } else {
+        window._draftSelectedArchetypeId = currentArchetype;
+    }
 
     // Helper to restore focus to grid after modal closes
     const restoreFocusToGrid = () => {
@@ -2402,6 +2457,12 @@ function showDraftOVRAdjustmentDialog(node, prospect, playerName, oldOVR, newOVR
 function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, selectedArchetypeId = undefined) {
     const changes = [];
 
+    console.log('[Draft OVR] ======== APPLYING ADJUSTMENTS ========');
+    console.log('[Draft OVR] Prospect name:', prospect.firstName, prospect.lastName);
+    console.log('[Draft OVR] Prospect === node.data:', prospect === node.data);
+    console.log('[Draft OVR] BEFORE - prospect.speed:', prospect.speed, 'node.data.speed:', node.data.speed);
+    console.log('[Draft OVR] BEFORE - prospect.overall:', prospect.overall, 'node.data.overall:', node.data.overall);
+
     for (const [rosterFieldCode, adj] of Object.entries(adjustments)) {
         // Convert roster field code to draft field name
         const draftField = ROSTER_TO_DRAFT_FIELDS[rosterFieldCode];
@@ -2410,6 +2471,8 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, sel
             continue;
         }
 
+        console.log(`[Draft OVR] Setting ${draftField} (${rosterFieldCode}): ${prospect[draftField]} -> ${adj.suggested}`);
+
         // Update prospect data - BOTH human-readable name AND field code alias
         // This ensures OVR calculator (which reads field codes) sees the new value
         prospect[draftField] = adj.suggested;
@@ -2417,6 +2480,9 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, sel
 
         // Update grid cell
         node.setDataValue(draftField, adj.suggested);
+
+        // Verify the value was set
+        console.log(`[Draft OVR] AFTER - prospect.${draftField}:`, prospect[draftField], `node.data.${draftField}:`, node.data[draftField]);
 
         changes.push(`${adj.name}: ${adj.current} → ${adj.suggested}`);
     }
@@ -2450,13 +2516,22 @@ function applyDraftOVRAdjustments(node, prospect, adjustments, app, gridApi, sel
 
     // Recalculate OVR with the new ratings
     if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.calculateOVRMadden) {
+        console.log('[Draft OVR] Calling calculateOVRMadden with:', { position, archetype });
+        console.log('[Draft OVR] updatedAttributes sample:', { PSPD: updatedAttributes.PSPD, PACC: updatedAttributes.PACC, PAWR: updatedAttributes.PAWR });
+
         window.electronAPI.rating.calculateOVRMadden(position, updatedAttributes, archetype)
             .then(recalculatedOVR => {
                 if (recalculatedOVR !== undefined && !isNaN(recalculatedOVR)) {
-                    console.log('[Draft OVR] Recalculated OVR after adjustments:', recalculatedOVR);
+                    console.log('[Draft OVR] ======== OVR RECALCULATION RESULT ========');
+                    console.log('[Draft OVR] Recalculated OVR:', recalculatedOVR);
+                    console.log('[Draft OVR] Setting prospect.overall and POVR to:', recalculatedOVR);
                     prospect.overall = recalculatedOVR;
                     prospect.POVR = recalculatedOVR;
+                    // Update _previousOVR to prevent the dialog from triggering again
+                    node.data._previousOVR = recalculatedOVR;
                     node.setDataValue('overall', recalculatedOVR);
+                    console.log('[Draft OVR] FINAL STATE - prospect.overall:', prospect.overall, 'node.data.overall:', node.data.overall);
+                    console.log('[Draft OVR] FINAL STATE - prospect.speed:', prospect.speed, 'node.data.speed:', node.data.speed);
                     gridApi.refreshCells({ rowNodes: [node], columns: ['overall'], force: true });
                 }
             })
