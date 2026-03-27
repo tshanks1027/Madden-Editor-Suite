@@ -154,9 +154,8 @@ function parseM26AttributeData(attributeData) {
     // String fields - assetName is at 0x9E (42 bytes), read after other attributes
     const firstName = attributeData.toString('ascii', 0, 0x11).replace(/\0/g, '').trim();
     const lastName = attributeData.toString('ascii', 0x11, 0x26).replace(/\0/g, '').trim();
-    // HomeTown field contains state code + "PLACEHOLDER" text
-    // Skip homeTown parsing for now since it's placeholder data
-    const homeTown = '';  // M26 files have placeholder hometown data
+    // HomeTown is 27 bytes (0x1B) at offset 0x27, right after homeState at 0x26
+    const homeTown = attributeData.toString('ascii', 0x27, 0x27 + 0x1B).replace(/\0/g, '').trim();
 
     attributes.firstName = firstName;
     attributes.lastName = lastName;
@@ -268,6 +267,86 @@ function parseM26AttributeData(attributeData) {
 
     // Read overall rating from 0x51 (game stores OVR here)
     attributes.overall = attributeData[0x51] || 0;
+
+    // CRITICAL: Add field code aliases for OVR calculation
+    // OVRWeightsCalculator expects field codes (PSPD, PTHP, etc.) not human-readable names
+    // These aliases allow the calculator to find attributes correctly
+
+    // Core Physical - map human-readable to field codes
+    attributes.PSPD = attributes.speed;
+    attributes.PACC = attributes.acceleration;
+    attributes.PAGI = attributes.agility;
+    attributes.PSTR = attributes.strength;
+    attributes.PAWR = attributes.awareness;
+    attributes.PJMP = attributes.jumping;
+    attributes.PSTA = attributes.stamina;
+    attributes.PELU = attributes.changeOfDirection;  // ChangeOfDirection -> PELU
+    attributes.PTGH = attributes.toughness;
+    attributes.PINJ = attributes.injury;
+
+    // Ball Carrier
+    attributes.PCAR = attributes.carrying;
+    attributes.PBCV = attributes.ballCarrierVision;
+    attributes.PBKT = attributes.breakTackle;
+    attributes.PLTR = attributes.trucking;
+    attributes.PLSA = attributes.stiffArm;
+    attributes.PLSM = attributes.spinMove;
+    attributes.PLJM = attributes.jukeMove;
+
+    // Receiving
+    attributes.PCTH = attributes.catching;
+    attributes.PLCI = attributes.catchInTraffic;
+    attributes.PLSC = attributes.spectacularCatch;
+    attributes.SRRN = attributes.shortRouteRunning;
+    attributes.PMRR = attributes.mediumRouteRunning;
+    attributes.PDRR = attributes.deepRouteRunning;
+    attributes.PLRL = attributes.release;
+
+    // Throwing (QB)
+    attributes.PTHP = attributes.throwPower;
+    attributes.PTAS = attributes.throwAccuracyShort;
+    attributes.PTAM = attributes.throwAccuracyMid;
+    attributes.PTAD = attributes.throwAccuracyDeep;
+    attributes.PTOR = attributes.throwOnTheRun;
+    attributes.PTUP = attributes.throwUnderPressure;
+    attributes.PPLA = attributes.playAction;
+    attributes.PBSK = attributes.breakSack;
+
+    // Blocking
+    attributes.PPBK = attributes.passBlock;
+    attributes.PPBS = attributes.passBlockPower;
+    attributes.PPBF = attributes.passBlockFinesse;
+    attributes.PRBK = attributes.runBlock;
+    attributes.PRBS = attributes.runBlockPower;
+    attributes.PRBF = attributes.runBlockFinesse;
+    attributes.PLBK = attributes.leadBlock;
+    attributes.PLIB = attributes.impactBlocking;
+
+    // Defensive
+    attributes.PTAK = attributes.tackle;
+    attributes.PLHT = attributes.hitPower;
+    attributes.PLPM = attributes.powerMoves;
+    attributes.PFMS = attributes.finesseMoves;
+    attributes.PBSG = attributes.blockShedding;
+    attributes.PLPU = attributes.pursuit;
+    attributes.PLPR = attributes.playRecognition;
+    attributes.PLMC = attributes.manCoverage;
+    attributes.PLZC = attributes.zoneCoverage;
+    attributes.PLPE = attributes.pressCoverage;
+
+    // Special Teams
+    attributes.PKPR = attributes.kickPower;
+    attributes.PKAC = attributes.kickAccuracy;
+    attributes.PKRT = attributes.kickReturn;
+
+    // Position field code (PPOS)
+    attributes.PPOS = attributes.position;
+
+    // Archetype field code (PLTY)
+    attributes.PLTY = attributes.archetype;
+
+    // Overall field code (POVR)
+    attributes.POVR = attributes.overall;
 
   } catch (error) {
     console.error('[M26Parser] Error parsing attribute data:', error.message);
