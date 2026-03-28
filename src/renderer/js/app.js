@@ -2525,6 +2525,30 @@ class MaddenEditorApp {
                             // Store the valid name
                             convertedValue = newValue;
                             this.players[actualPlayerIndex]['PLAYERPIC'] = convertedValue;
+
+                            // CRITICAL FIX: Refresh portrait cache and grid when player pic changes
+                            const cacheKey = `pid_${pid}`;
+                            console.log(`[PLAYERPIC] Refreshing portrait for PID ${pid}`);
+
+                            // Clear old cache and load new portrait
+                            this.portraitCache.set(cacheKey, 'loading');
+
+                            window.electronAPI.portrait.getByPID(pid).then(imageData => {
+                                if (imageData && imageData.length > 0) {
+                                    this.portraitCache.set(cacheKey, imageData);
+                                    console.log(`[PLAYERPIC] Portrait loaded for PID ${pid}, length: ${imageData.length}`);
+                                } else {
+                                    this.portraitCache.set(cacheKey, null);
+                                    console.log(`[PLAYERPIC] No portrait found for PID ${pid}`);
+                                }
+                                // Refresh the portrait cell in the grid
+                                if (this.hotTable && !this.hotTable.isDestroyed) {
+                                    this.hotTable.render();
+                                }
+                            }).catch(err => {
+                                console.error(`[PLAYERPIC] Error loading portrait for PID ${pid}:`, err);
+                                this.portraitCache.set(cacheKey, null);
+                            });
                         } else {
                             // Invalid name typed - revert to original value
                             const originalPID = parseInt(this.players[actualPlayerIndex]['PSXP']) || 0;
@@ -2578,6 +2602,31 @@ class MaddenEditorApp {
                             // Update PLAYERPIC with the looked-up name (or 'Generic Face' if not found)
                             this.players[actualPlayerIndex]['PLAYERPIC'] = playerName;
                             this.updateGridCell(row, 'PLAYERPIC', playerName);
+
+                            // CRITICAL FIX: Refresh portrait cache and grid when PID changes
+                            const newPID = convertedValue;
+                            const cacheKey = `pid_${newPID}`;
+                            console.log(`[PSXP Change] Refreshing portrait for PID ${newPID}`);
+
+                            // Clear old cache and load new portrait
+                            this.portraitCache.set(cacheKey, 'loading');
+
+                            window.electronAPI.portrait.getByPID(newPID).then(imageData => {
+                                if (imageData && imageData.length > 0) {
+                                    this.portraitCache.set(cacheKey, imageData);
+                                    console.log(`[PSXP Change] Portrait loaded for PID ${newPID}, length: ${imageData.length}`);
+                                } else {
+                                    this.portraitCache.set(cacheKey, null);
+                                    console.log(`[PSXP Change] No portrait found for PID ${newPID}`);
+                                }
+                                // Refresh the portrait cell in the grid
+                                if (this.hotTable && !this.hotTable.isDestroyed) {
+                                    this.hotTable.render();
+                                }
+                            }).catch(err => {
+                                console.error(`[PSXP Change] Error loading portrait for PID ${newPID}:`, err);
+                                this.portraitCache.set(cacheKey, null);
+                            });
                         }
 
                         // Apply save transform if defined (e.g., salary/bonus: multiply by 1000)
@@ -5179,10 +5228,48 @@ class MaddenEditorApp {
         // CRITICAL FIX: Capture original values at the moment picker is opened
         // This prevents corruption from previous edits affecting PAM-only mode
         // The player object is a shared reference that can be modified by other operations
+        // Capture roster-specific fields (PSXP, PLAYERPIC, PLRC)
         this.currentFacePickerOriginalPSXP = player.PSXP;
         this.currentFacePickerOriginalPlayerpic = player.PLAYERPIC;
         this.currentFacePickerOriginalRace = player.PLRC;
-        console.log(`[GenericFacePicker] Opened for ${player.PFNA} ${player.PLNA}, capturing originalPSXP=${this.currentFacePickerOriginalPSXP}, originalPlayerpic=${this.currentFacePickerOriginalPlayerpic}, originalRace=${this.currentFacePickerOriginalRace}`);
+        // Also capture draft class-specific fields (PID, playerPic, race)
+        this.currentFacePickerOriginalPID = player.PID;
+        this.currentFacePickerOriginalPlayerPic = player.playerPic;
+        this.currentFacePickerOriginalDraftRace = player.race;
+
+        // CRITICAL: For draft class, find and store the actual index in draftProspects array
+        // This allows direct update to source data, bypassing AG-Grid reference issues
+        this.currentFacePickerProspectIndex = -1;
+        if (this.draftProspects && player.PID !== undefined) {
+            // Find by matching firstName + lastName + PID to ensure correct prospect
+            const pFN = player.firstName || '';
+            const pLN = player.lastName || '';
+            const pPID = player.PID;
+            for (let i = 0; i < this.draftProspects.length; i++) {
+                const p = this.draftProspects[i];
+                if (p.firstName === pFN && p.lastName === pLN && p.PID === pPID) {
+                    this.currentFacePickerProspectIndex = i;
+                    console.log(`[GenericFacePicker] Found prospect in draftProspects at index ${i}`);
+                    break;
+                }
+            }
+            if (this.currentFacePickerProspectIndex === -1) {
+                // Fallback to rowIndex if name matching fails
+                this.currentFacePickerProspectIndex = rowIndex;
+                console.log(`[GenericFacePicker] Using rowIndex ${rowIndex} as prospect index (name match failed)`);
+            }
+        }
+
+        const playerName = player.PFNA || player.firstName || '';
+        const playerLastName = player.PLNA || player.lastName || '';
+        const isRosterPlayer = player.PSXP !== undefined;
+        const isDraftPlayer = player.PID !== undefined && !isRosterPlayer;
+
+        if (isDraftPlayer) {
+            console.log(`[GenericFacePicker] Opened for DRAFT ${playerName} ${playerLastName}, capturing originalPID=${this.currentFacePickerOriginalPID}, originalPlayerPic=${this.currentFacePickerOriginalPlayerPic}, originalRace=${this.currentFacePickerOriginalDraftRace}`);
+        } else {
+            console.log(`[GenericFacePicker] Opened for ROSTER ${playerName} ${playerLastName}, capturing originalPSXP=${this.currentFacePickerOriginalPSXP}, originalPlayerpic=${this.currentFacePickerOriginalPlayerpic}, originalRace=${this.currentFacePickerOriginalRace}`);
+        }
 
         // Reset PAM Only checkbox to unchecked each time the picker opens
         const pamOnlyCheckbox = document.getElementById('pamOnlyCheckbox');
@@ -5239,6 +5326,7 @@ class MaddenEditorApp {
                     // Click handler to select this face
                     // Pass verified GENR/SKNT values AND pgheEntry for correct PGHE value
                     faceItem.addEventListener('click', () => {
+                        console.log(`[GenericFacePicker] CLICK: pid=${face.pid}, portrait=${face.portrait}, _verifiedGenr=${face._verifiedGenr}, _verifiedSknt=${face._verifiedSknt}, _pgheEntry=${JSON.stringify(face._pgheEntry)}`);
                         this.selectGenericFace(face.pid, face.portrait, face._verifiedGenr, face._verifiedSknt, face._pgheEntry);
                     });
 
@@ -5400,6 +5488,10 @@ class MaddenEditorApp {
             const grid = isRoster ? this.agGrid : (isDraftAgGrid ? this.draftAgGrid : (isDraft ? this.draftGrid : null));
             const dataArray = isRoster ? this.filteredPlayers : (isDraft ? this.draftProspects : null);
 
+            // CRITICAL: Declare genrValueDraft at function scope so it's accessible in grid update sections
+            // This variable is SET inside the else if (isDraft) block but USED later in the grid update blocks
+            let genrValueDraft = null;
+
             console.log(`[GenericFacePicker] Grid exists: ${!!grid}`);
             console.log(`[GenericFacePicker] DataArray exists: ${!!dataArray}, length: ${dataArray ? dataArray.length : 'N/A'}`);
 
@@ -5554,6 +5646,12 @@ class MaddenEditorApp {
                     player.assignedSknt = verifiedSknt;
                     genrValue = verifiedGenr;
                     console.log(`[GenericFacePicker] Set VERIFIED assignedGenr="${verifiedGenr}", assignedSknt=${verifiedSknt}`);
+                } else if (pgheEntry && pgheEntry.genr) {
+                    // Fallback to pgheEntry if verifiedGenr wasn't passed but pgheEntry has genr
+                    genrValue = pgheEntry.genr;
+                    player.assignedGenr = pgheEntry.genr;
+                    player.assignedSknt = pgheEntry.sknt;
+                    console.log(`[GenericFacePicker] Set from PGHE ENTRY assignedGenr="${pgheEntry.genr}", assignedSknt=${pgheEntry.sknt}`);
                 } else if (portrait && portrait.includes('generic_')) {
                     // Fallback: Convert portrait name to GENR format (for non-verified faces)
                     genrValue = portrait.replace('plpo_generic_', 'gen_');
@@ -5566,6 +5664,9 @@ class MaddenEditorApp {
                     }
 
                     console.log(`[GenericFacePicker] Set FALLBACK assignedGenr="${genrValue}", assignedSknt=${player.assignedSknt} from portrait "${portrait}"`);
+                } else {
+                    // Last resort: log warning that we couldn't determine GENR
+                    console.warn(`[GenericFacePicker] Roster: Could not determine GENR value! verifiedGenr=${verifiedGenr}, pgheEntry=${JSON.stringify(pgheEntry)}, portrait=${portrait}`);
                 }
 
                 // CRITICAL: Sync ALL fields to this.players array to ensure persistence
@@ -5662,9 +5763,111 @@ class MaddenEditorApp {
                 }
             } else if (isDraft) {
                 // Draft class prospect - update the actual prospect object in draftProspects
-                const oldPID = player.PID;
-                player.PID = pid;
-                console.log(`[GenericFacePicker] Updated player.PID from ${oldPID} to ${pid}`);
+                // Apply SAME comprehensive handling as roster editor
+                // CRITICAL FIX: Use values captured when picker was OPENED, not current player values
+                // This prevents corruption from previous edits affecting PAM-only mode
+                const oldPID = this.currentFacePickerOriginalPID ?? player.PID;
+                const oldRace = this.currentFacePickerOriginalDraftRace ?? player.race;
+                const oldPlayerPic = this.currentFacePickerOriginalPlayerPic ?? player.playerPic;
+                console.log(`[GenericFacePicker] Draft using captured values: oldPID=${oldPID}, oldRace=${oldRace}, oldPlayerPic=${oldPlayerPic}`);
+
+                // Check PAM-only mode for draft class too
+                const pamOnlyCheckboxDraft = document.getElementById('pamOnlyCheckbox');
+                const isPamOnlyDraft = pamOnlyCheckboxDraft && pamOnlyCheckboxDraft.checked;
+
+                // PAM-ONLY MODE: Do NOT change PID or playerPic - only change in-game 3D face
+                // FULL MODE: Change both portrait (PID/playerPic) AND in-game 3D face
+                if (isPamOnlyDraft) {
+                    console.log(`[GenericFacePicker] Draft PAM-only: Preserving PID=${oldPID} (not changing portrait)`);
+                    // Don't touch player.PID or player.playerPic
+                } else {
+                    player.PID = pid;
+                    player.playerPic = 'Generic Face';
+                    console.log(`[GenericFacePicker] Draft Full mode: Set PID=${pid}, playerPic='Generic Face'`);
+                }
+
+                // CRITICAL: Game clears PEPS to "" for generic faces - it's NOT used for face selection
+                player.PEPS = '';
+                console.log(`[GenericFacePicker] Set player.PEPS to "" (game clears this for generic faces)`);
+
+                // CRITICAL: Use VERIFIED GENR/SKNT values for exact face matching
+                // NOTE: genrValueDraft is declared at function scope so it's accessible in grid update sections
+                if (verifiedGenr && verifiedSknt !== null) {
+                    player.assignedGenr = verifiedGenr;
+                    player.assignedSknt = verifiedSknt;
+                    genrValueDraft = verifiedGenr;
+                    console.log(`[GenericFacePicker] Draft: Set VERIFIED assignedGenr="${verifiedGenr}", assignedSknt=${verifiedSknt}`);
+                } else if (pgheEntry && pgheEntry.genr) {
+                    // Fallback to pgheEntry if verifiedGenr wasn't passed but pgheEntry has genr
+                    genrValueDraft = pgheEntry.genr;
+                    player.assignedGenr = pgheEntry.genr;
+                    player.assignedSknt = pgheEntry.sknt;
+                    console.log(`[GenericFacePicker] Draft: Set from PGHE ENTRY assignedGenr="${pgheEntry.genr}", assignedSknt=${pgheEntry.sknt}`);
+                } else if (portrait && portrait.includes('generic_')) {
+                    genrValueDraft = portrait.replace('plpo_generic_', 'gen_');
+                    player.assignedGenr = genrValueDraft;
+                    const skntMatch = portrait.match(/generic_(\d+)/);
+                    if (skntMatch) {
+                        player.assignedSknt = parseInt(skntMatch[1]);
+                    }
+                    console.log(`[GenericFacePicker] Draft: Set FALLBACK assignedGenr="${genrValueDraft}", assignedSknt=${player.assignedSknt}`);
+                } else {
+                    // Last resort: log warning that we couldn't determine GENR
+                    console.warn(`[GenericFacePicker] Draft: Could not determine GENR value! verifiedGenr=${verifiedGenr}, pgheEntry=${JSON.stringify(pgheEntry)}, portrait=${portrait}`);
+                }
+
+                // Update race based on the selected generic face
+                // PAM-ONLY: Do NOT update race - keep player's original identity
+                if (newRace !== null && !isPamOnlyDraft) {
+                    player.race = newRace;
+                    console.log(`[GenericFacePicker] Draft: Updated race from ${oldRace} to ${newRace}`);
+                } else if (isPamOnlyDraft) {
+                    console.log(`[GenericFacePicker] Draft PAM-only: Keeping original race ${oldRace}`);
+                }
+
+                // Update visuals structure for M26Writer persistence
+                if (!player.visuals) player.visuals = {};
+                player.visuals.skinTone = newRace !== null && !isPamOnlyDraft ? newRace : (oldRace || 7);
+                if (genrValueDraft) {
+                    player.visuals.genericHeadName = genrValueDraft;
+                }
+
+                // Update body type based on new race (only in full mode)
+                // Race 7 (Black) typically maps to heavier body types for same position
+                // Race 1 (White) may map differently
+                if (!isPamOnlyDraft && newRace !== null) {
+                    // Get position for body type calculation
+                    const posName = player.position || 'QB';
+                    const weight = player.weight || 200;
+                    const height = player.heightInches || 74;
+
+                    // Import the body type calculation from field-definitions
+                    // For now, update visuals.bodyType to match the expected body for this race/position
+                    console.log(`[GenericFacePicker] Draft: Body type will be recalculated on save based on weight=${weight}, height=${height}, position=${posName}`);
+                }
+
+                if (isPamOnlyDraft) {
+                    console.log(`[GenericFacePicker] Draft PAM-only applied: PID=${oldPID} (preserved), PEPS="", assignedGenr=${player.assignedGenr}`);
+                } else {
+                    console.log(`[GenericFacePicker] Draft Full mode applied: PID ${oldPID} -> ${pid}, PEPS="", race=${player.race}, assignedGenr=${player.assignedGenr}`);
+                }
+
+                // DEBUG: Verify the player object is the same as the grid node data
+                console.log('[GenericFacePicker] DEBUG: Verifying grid data matches player object...');
+                if (this.draftAgGrid) {
+                    let foundMatch = false;
+                    this.draftAgGrid.forEachNode(node => {
+                        if (node.data === player) {
+                            foundMatch = true;
+                            console.log(`[GenericFacePicker] ✓ player === node.data for row ${node.rowIndex}`);
+                            console.log(`[GenericFacePicker]   node.data.assignedGenr: ${node.data.assignedGenr}`);
+                            console.log(`[GenericFacePicker]   node.data.visuals?.genericHeadName: ${node.data.visuals?.genericHeadName}`);
+                        }
+                    });
+                    if (!foundMatch) {
+                        console.error('[GenericFacePicker] ✗ player is NOT the same object as any node.data - THIS IS THE BUG!');
+                    }
+                }
             }
 
             console.log(`[GenericFacePicker] Data updates complete. Updating grid immediately...`);
@@ -5677,12 +5880,28 @@ class MaddenEditorApp {
             // PAM-only mode: portrait stays the same (existing player's PID), only in-game face changes
             // Normal mode: portrait changes to match the new generic PID
             // NOTE: In PAM-only, player.PSXP was temporarily changed to pid, so use originalPSXP
-            const cacheKey = isPamOnly ? `pid_${originalPSXP}` : `pid_${pid}`;
+            // CRITICAL FIX: Use a unified PAM-only check that handles both roster and draft class
+            const pamOnlyCheckboxForCache = document.getElementById('pamOnlyCheckbox');
+            const isAnyPamOnly = pamOnlyCheckboxForCache && pamOnlyCheckboxForCache.checked;
+
+            // For roster: use originalPSXP if PAM-only
+            // For draft: use originalPID if PAM-only
+            let cacheKey;
+            if (isAnyPamOnly) {
+                if (isRoster) {
+                    cacheKey = `pid_${originalPSXP}`;
+                } else if (isDraft) {
+                    cacheKey = `pid_${this.currentFacePickerOriginalPID}`;
+                }
+            } else {
+                cacheKey = `pid_${pid}`;
+            }
+            console.log(`[GenericFacePicker] PAM-only mode: ${isAnyPamOnly}, cacheKey: ${cacheKey}`);
 
             // Load portrait immediately and wait for it before refreshing the grid
             // This ensures the portrait is ready when we refresh the cells
             const cachedPortrait = this.portraitCache.get(cacheKey);
-            if (!isPamOnly && (!cachedPortrait || cachedPortrait === 'loading')) {
+            if (!isAnyPamOnly && (!cachedPortrait || cachedPortrait === 'loading')) {
                 console.log(`[GenericFacePicker] Loading portrait for cache key: ${cacheKey}`);
                 this.portraitCache.set(cacheKey, 'loading');
 
@@ -5793,8 +6012,43 @@ class MaddenEditorApp {
                     alert(`Could not update face for ${player.PFNA} ${player.PLNA}. Please try again.`);
                 }
             } else if (isDraftAgGrid) {
-                // AG-Grid: Get the row node and update data through API
-                // FIX: Use forEachNode to find row by player data reference
+                // =====================================================================
+                // CRITICAL FIX: DIRECTLY UPDATE this.draftProspects SOURCE ARRAY
+                // This bypasses AG-Grid reference issues and GUARANTEES the data is saved
+                // =====================================================================
+                const prospectIdx = this.currentFacePickerProspectIndex;
+                const pamOnlyCheckboxDraft = document.getElementById('pamOnlyCheckbox');
+                const isPamOnlyDraft = pamOnlyCheckboxDraft && pamOnlyCheckboxDraft.checked;
+
+                if (prospectIdx >= 0 && this.draftProspects && this.draftProspects[prospectIdx]) {
+                    const sourceProspect = this.draftProspects[prospectIdx];
+                    console.log(`[GenericFacePicker] ★★★ DIRECTLY UPDATING draftProspects[${prospectIdx}] ★★★`);
+
+                    // Update core fields
+                    if (!isPamOnlyDraft) {
+                        sourceProspect.PID = pid;
+                        sourceProspect.playerPic = 'Generic Face';
+                        if (newRace !== null) {
+                            sourceProspect.race = newRace;
+                        }
+                    }
+                    sourceProspect.PEPS = '';
+
+                    // SET CRITICAL FACE DATA
+                    if (genrValueDraft) {
+                        sourceProspect.assignedGenr = genrValueDraft;
+                        if (!sourceProspect.visuals) sourceProspect.visuals = {};
+                        sourceProspect.visuals.genericHeadName = genrValueDraft;
+                        sourceProspect.visuals.skinTone = player.assignedSknt || (newRace !== null ? newRace : 7);
+                        console.log(`[GenericFacePicker] ✓✓✓ SET ON draftProspects[${prospectIdx}]: assignedGenr="${genrValueDraft}", visuals.genericHeadName="${genrValueDraft}"`);
+                    } else {
+                        console.warn(`[GenericFacePicker] genrValueDraft is null/undefined! Cannot set face data.`);
+                    }
+                } else {
+                    console.error(`[GenericFacePicker] Cannot update draftProspects: prospectIdx=${prospectIdx}, array exists=${!!this.draftProspects}`);
+                }
+
+                // AG-Grid: Also update via API for UI refresh
                 let rowNode = null;
                 grid.forEachNode(node => {
                     if (node.data === player) {
@@ -5808,15 +6062,25 @@ class MaddenEditorApp {
                 }
 
                 if (rowNode) {
-                    // Update via AG-Grid API
-                    // In PAM-only mode, only update PEPS - leave PID and portrait unchanged
-                    if (!isPamOnly) {
+                    // Update via AG-Grid API for UI
+                    if (!isPamOnlyDraft) {
                         rowNode.setDataValue('PID', pid);
                         rowNode.setDataValue('playerPic', 'Generic Face');
+                        if (newRace !== null) {
+                            rowNode.setDataValue('race', newRace);
+                        }
                     }
-                    // CRITICAL: Game clears PEPS to "" for generic faces
                     rowNode.setDataValue('PEPS', '');
-                    console.log(`[GenericFacePicker] Updated draft row via setDataValue:${isPamOnly ? ' (PAM only)' : ` PID=${pid}, playerPic=Generic Face,`} PEPS=""`);
+
+                    // Also set on node.data for consistency
+                    if (genrValueDraft) {
+                        rowNode.data.assignedGenr = genrValueDraft;
+                        if (!rowNode.data.visuals) rowNode.data.visuals = {};
+                        rowNode.data.visuals.genericHeadName = genrValueDraft;
+                        rowNode.data.visuals.skinTone = player.assignedSknt || (newRace !== null ? newRace : 7);
+                    }
+
+                    console.log(`[GenericFacePicker] Updated draft row via setDataValue:${isPamOnlyDraft ? ' (PAM only)' : ` PID=${pid}, playerPic=Generic Face, race=${newRace},`} PEPS=""`);
 
                     // Force refresh the portrait column
                     grid.refreshCells({
@@ -5825,19 +6089,22 @@ class MaddenEditorApp {
                         force: true
                     });
                 } else {
-                    console.error(`[GenericFacePicker] Could not find draft row node for player`);
-                    alert(`Could not update face for ${player.firstName || player.PFNA} ${player.lastName || player.PLNA}. Please try again.`);
+                    console.warn(`[GenericFacePicker] Could not find AG-Grid row node, but draftProspects was updated directly`);
                 }
             } else if (isDraft) {
                 // Handsontable: Use setDataAtCell to update the grid
                 const changes = [];
+
+                // Check PAM-only mode for draft class
+                const pamOnlyCheckboxDraft = document.getElementById('pamOnlyCheckbox');
+                const isPamOnlyDraft = pamOnlyCheckboxDraft && pamOnlyCheckboxDraft.checked;
 
                 // Update portrait cell (column 0) - just set row index to trigger portrait renderer
                 // In PAM-only mode, portrait doesn't change but we still need to refresh
                 changes.push([gridRowIndex, 0, gridRowIndex]);
 
                 // In PAM-only mode, only update PEPS - skip PID and Player Pic changes
-                if (!isPamOnly) {
+                if (!isPamOnlyDraft) {
                     // Update PID column if found
                     if (pidColumnIndex >= 0) {
                         changes.push([gridRowIndex, pidColumnIndex, pid]);
@@ -5858,12 +6125,38 @@ class MaddenEditorApp {
                     grid.setDataAtCell(changes, null, null, 'GenericFacePicker');
                     console.log(`[GenericFacePicker] Applied ${changes.length} cell updates via setDataAtCell`);
                 }
+
+                // CRITICAL FIX: Update assignedGenr and visuals directly on source data
+                // Handsontable's setDataAtCell doesn't handle nested objects like visuals
+                const sourceData = grid.getSourceData();
+                if (sourceData && sourceData[gridRowIndex]) {
+                    const rowData = sourceData[gridRowIndex];
+                    if (genrValueDraft) {
+                        rowData.assignedGenr = genrValueDraft;
+                        if (!rowData.visuals) rowData.visuals = {};
+                        rowData.visuals.genericHeadName = genrValueDraft;
+                        rowData.visuals.skinTone = player.assignedSknt || (newRace !== null ? newRace : 7);
+                        console.log(`[GenericFacePicker] ✓ SET ON HANDSONTABLE SOURCE DATA: assignedGenr="${genrValueDraft}", visuals.genericHeadName="${genrValueDraft}"`);
+                    }
+                }
             }
 
             // Close modal after updates
             console.log(`[GenericFacePicker] Closing modal...`);
             this.closeGenericFacePicker();
             console.log(`[GenericFacePicker] Complete - portrait and PID updated, no freeze`);
+
+            // FINAL DEBUG: After all updates, verify the grid data has the changes
+            if (isDraftAgGrid && this.draftAgGrid) {
+                console.log('[GenericFacePicker] FINAL VERIFICATION - checking grid data:');
+                this.draftAgGrid.forEachNode((node, idx) => {
+                    if (idx < 3) {
+                        console.log(`  Row ${idx}: ${node.data.firstName} ${node.data.lastName}`);
+                        console.log(`    assignedGenr: ${node.data.assignedGenr}`);
+                        console.log(`    visuals?.genericHeadName: ${node.data.visuals?.genericHeadName}`);
+                    }
+                });
+            }
 
             console.log(`[GenericFacePicker] ===== DONE =====`);
 
@@ -6121,10 +6414,16 @@ class MaddenEditorApp {
                 player.assignedSknt = skinTone;
                 player.race = skinTone;
 
-                if (player.visuals) {
-                    player.visuals.skinTone = skinTone;
-                    if (pamValue) player.visuals.genericHeadName = pamValue;
+                // CRITICAL FIX: Create visuals if it doesn't exist
+                // Without this, genericHeadName won't be set and the face won't persist
+                if (!player.visuals) {
+                    player.visuals = {};
+                    console.log(`[PAMPicker] Created empty visuals object for draft prospect`);
                 }
+
+                player.visuals.skinTone = skinTone;
+                if (pamValue) player.visuals.genericHeadName = pamValue;
+                console.log(`[PAMPicker] Set visuals.genericHeadName="${pamValue}", skinTone=${skinTone}`)
 
                 // Store PGHE data for draft class
                 if (pgheEntry) {
@@ -8401,6 +8700,29 @@ class MaddenEditorApp {
                 console.log('[Save] Using Handsontable data, count:', gridData.length);
             }
 
+            // =====================================================================
+            // CRITICAL: Merge assignedGenr/visuals from this.draftProspects
+            // AG-Grid's setGridOption can break object references, so face picker
+            // updates to this.draftProspects may not be reflected in node.data
+            // =====================================================================
+            if (this.draftProspects && this.draftProspects.length === gridData.length) {
+                for (let i = 0; i < gridData.length; i++) {
+                    const sourceProspect = this.draftProspects[i];
+                    const gridProspect = gridData[i];
+
+                    // If source has assignedGenr but grid doesn't, copy it over
+                    if (sourceProspect.assignedGenr && !gridProspect.assignedGenr) {
+                        console.log(`[Save] Merging assignedGenr from draftProspects[${i}]: ${sourceProspect.assignedGenr}`);
+                        gridProspect.assignedGenr = sourceProspect.assignedGenr;
+                        if (sourceProspect.visuals) {
+                            if (!gridProspect.visuals) gridProspect.visuals = {};
+                            gridProspect.visuals.genericHeadName = sourceProspect.visuals.genericHeadName;
+                            gridProspect.visuals.skinTone = sourceProspect.visuals.skinTone;
+                        }
+                    }
+                }
+            }
+
             // Debug: Log first prospect to see what we're getting
             if (gridData.length > 0) {
                 console.log('[Save] First prospect data from grid:');
@@ -8455,22 +8777,23 @@ class MaddenEditorApp {
                     devTrait: devTraitId,
                     // Archetype ID
                     archetype: archetypeId,
-                    // Keep body type as string (M26Writer expects strings: "Thin", "Muscular", "Heavy")
-                    // "Standard" is NOT a valid Madden bodyType - must use one of the three above
+                    // Keep body type as string (M26Writer expects strings: "Thin", "Muscular", "Heavy", "Lean", "Standard")
+                    // All five body types are valid in Madden draft class files
                     bodyType: (() => {
                         const bt = prospect.bodyType;
                         console.log(`[Save] Prospect ${index}: bodyType from grid = "${bt}"`);
-                        if (bt === 'Standard' || bt === null || bt === undefined) {
-                            // Standard means no specific bodyType - use template default
-                            console.log(`[Save] Prospect ${index}: Using template default (Standard/null)`);
-                            return originalProspect.bodyType ?? null;
-                        }
-                        if (['Thin', 'Muscular', 'Heavy'].includes(bt)) {
+                        // All valid body types - including Standard (code 0) and Lean (code 4)
+                        if (['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'].includes(bt)) {
                             console.log(`[Save] Prospect ${index}: Using bodyType "${bt}"`);
                             return bt;
                         }
+                        if (bt === null || bt === undefined) {
+                            // No body type set - use template default
+                            console.log(`[Save] Prospect ${index}: No bodyType, using template default`);
+                            return originalProspect.bodyType ?? 'Standard';
+                        }
                         console.log(`[Save] Prospect ${index}: Unknown bodyType "${bt}", using template default`);
-                        return originalProspect.bodyType ?? null;
+                        return originalProspect.bodyType ?? 'Standard';
                     })(),
                     // Explicitly preserve PEPS from grid
                     PEPS: prospect.PEPS
@@ -8483,16 +8806,48 @@ class MaddenEditorApp {
                     updated.visuals = { ...originalProspect.visuals };
                 }
 
+                // Also create visuals if we have assignedGenr but no visuals object
+                // This can happen when face picker sets assignedGenr but visuals wasn't initialized
+                if (!updated.visuals && prospect.assignedGenr) {
+                    updated.visuals = {};
+                    console.log(`[Save] Created empty visuals object for prospect ${index + 1} to store assignedGenr`);
+                }
+
                 // ALWAYS update visuals to match PEPS/bodyType from grid (even if null)
                 // This ensures M26Writer has the correct values to write
                 if (updated.visuals) {
-                    // Update genericHeadName from PEPS (use prospect.PEPS from grid, or fallback to original)
-                    updated.visuals.genericHeadName = prospect.PEPS !== undefined ? prospect.PEPS : (originalProspect.PEPS || originalProspect.visuals?.genericHeadName);
-                    console.log(`[Save] Updated visuals.genericHeadName for prospect ${index + 1}: ${updated.visuals.genericHeadName}`);
+                    // Update genericHeadName - prioritize assignedGenr (from PAM-only mode face picker)
+                    // over PEPS (which is empty in PAM-only mode to avoid showing a specific face asset)
+                    // PAM-only mode: PEPS="" but assignedGenr="gen_7_B_B_001" for the selected generic face
+                    // Full mode: PEPS="gen_7_B_B_001" and assignedGenr may also be set
+                    const genericHeadSource = prospect.assignedGenr ||
+                                              prospect.visuals?.genericHeadName ||
+                                              prospect.PEPS ||
+                                              originalProspect.PEPS ||
+                                              originalProspect.visuals?.genericHeadName;
+                    updated.visuals.genericHeadName = genericHeadSource || '';
+                    console.log(`[Save] Updated visuals.genericHeadName for prospect ${index + 1}: "${updated.visuals.genericHeadName}" (from: assignedGenr=${prospect.assignedGenr}, visuals.genericHeadName=${prospect.visuals?.genericHeadName}, PEPS=${prospect.PEPS})`);
+
+                    // CRITICAL FIX: Sync skinTone to match the face category from GENR value
+                    // Format: gen_X_... where X is the skin tone category (1-7)
+                    // If face is from a different category than player's original race, in-game face won't match
+                    // assignedSknt is the verified skin tone from the PGHE lookup
+                    if (prospect.assignedSknt !== undefined && prospect.assignedSknt !== null) {
+                        updated.visuals.skinTone = prospect.assignedSknt;
+                        console.log(`[Save] Updated visuals.skinTone for prospect ${index + 1}: ${updated.visuals.skinTone} (from assignedSknt)`);
+                    } else if (updated.visuals.genericHeadName) {
+                        // Extract skin tone from genericHeadName (e.g., gen_1_B_N_03 -> 1)
+                        const genrMatch = updated.visuals.genericHeadName.match(/^gen_(\d+)_/);
+                        if (genrMatch) {
+                            updated.visuals.skinTone = parseInt(genrMatch[1]);
+                            console.log(`[Save] Updated visuals.skinTone for prospect ${index + 1}: ${updated.visuals.skinTone} (extracted from genericHeadName)`);
+                        }
+                    }
 
                     // Update bodyType from grid or original
                     // Must update BOTH: top-level bodyType AND the loadout itemAssetName
-                    if (prospect.bodyType !== undefined && prospect.bodyType !== 'Standard') {
+                    // All body types are valid: Standard, Thin, Muscular, Heavy, Lean
+                    if (prospect.bodyType !== undefined && prospect.bodyType !== null) {
                         updated.visuals.bodyType = prospect.bodyType;
                         console.log(`[Save] Updated visuals.bodyType for prospect ${index + 1}: ${prospect.bodyType}`);
 
@@ -8636,12 +8991,23 @@ class MaddenEditorApp {
                 return updated;
             });
 
+            // DEBUG TRACE: Check what gridData contains BEFORE transformation
+            console.log('[Save] ====== DEBUG TRACE START ======');
+            console.log('[Save] gridData[0] BEFORE transformation:');
+            if (gridData.length > 0) {
+                console.log('  assignedGenr:', gridData[0].assignedGenr);
+                console.log('  Has visuals:', !!gridData[0].visuals);
+                console.log('  visuals.genericHeadName:', gridData[0].visuals?.genericHeadName);
+            }
+            console.log('[Save] ====== DEBUG TRACE END ======');
+
             // Debug: Log first prospect being sent to backend
             if (updatedProspects.length > 0) {
                 console.log('[Save] First prospect being sent to backend:');
                 console.log('  firstName:', updatedProspects[0].firstName, `(type: ${typeof updatedProspects[0].firstName})`);
                 console.log('  lastName:', updatedProspects[0].lastName, `(type: ${typeof updatedProspects[0].lastName})`);
                 console.log('  PEPS:', updatedProspects[0].PEPS);
+                console.log('  assignedGenr:', updatedProspects[0].assignedGenr);
                 console.log('  bodyType:', updatedProspects[0].bodyType);
                 console.log('  archetype:', updatedProspects[0].archetype, `(type: ${typeof updatedProspects[0].archetype})`);
                 console.log('  Has visuals?:', !!updatedProspects[0].visuals);
@@ -10367,20 +10733,35 @@ class MaddenEditorApp {
                 // Get template prospect's visuals (for M26Writer to update)
                 const templateVisuals = templateData.prospects[index]?.visuals || null;
 
-                // CRITICAL: Update template visuals' bodyType to match our generated bodyType
-                // Must update BOTH: top-level bodyType AND the loadout itemAssetName
-                if (templateVisuals && player.bodyType) {
-                    templateVisuals.bodyType = player.bodyType;
+                // CRITICAL: Update template visuals to match our generated player data
+                // Must update genericHeadName (face), skinTone, bodyType, and loadout itemAssetName
+                if (templateVisuals) {
+                    // FIX: Update genericHeadName to match generated PEPS (face)
+                    // Without this, the template's face is used instead of the generated face
+                    if (player.PEPS) {
+                        templateVisuals.genericHeadName = player.PEPS;
+                        // Extract and set skin tone from PEPS (e.g., "gen_7_B_G_005" -> 7)
+                        const skinMatch = player.PEPS.match(/^gen_(\d+)_/i);
+                        if (skinMatch) {
+                            templateVisuals.skinTone = parseInt(skinMatch[1], 10);
+                        }
+                        console.log(`[Creator] Updated templateVisuals for ${player.firstName} ${player.lastName}: genericHeadName="${player.PEPS}", skinTone=${templateVisuals.skinTone}`);
+                    }
 
-                    // Also update loadout itemAssetName (game reads body type from here!)
-                    const bodyTypeAssetName = `${player.bodyType}_BodyType`;
-                    if (templateVisuals.loadouts && Array.isArray(templateVisuals.loadouts)) {
-                        for (const loadout of templateVisuals.loadouts) {
-                            if (loadout.loadoutElements && Array.isArray(loadout.loadoutElements)) {
-                                for (const element of loadout.loadoutElements) {
-                                    if (element.slotType === 'CharacterBodyType' ||
-                                        (element.itemAssetName && element.itemAssetName.endsWith('_BodyType'))) {
-                                        element.itemAssetName = bodyTypeAssetName;
+                    // Update bodyType
+                    if (player.bodyType) {
+                        templateVisuals.bodyType = player.bodyType;
+
+                        // Also update loadout itemAssetName (game reads body type from here!)
+                        const bodyTypeAssetName = `${player.bodyType}_BodyType`;
+                        if (templateVisuals.loadouts && Array.isArray(templateVisuals.loadouts)) {
+                            for (const loadout of templateVisuals.loadouts) {
+                                if (loadout.loadoutElements && Array.isArray(loadout.loadoutElements)) {
+                                    for (const element of loadout.loadoutElements) {
+                                        if (element.slotType === 'CharacterBodyType' ||
+                                            (element.itemAssetName && element.itemAssetName.endsWith('_BodyType'))) {
+                                            element.itemAssetName = bodyTypeAssetName;
+                                        }
                                     }
                                 }
                             }
