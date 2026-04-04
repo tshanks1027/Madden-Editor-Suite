@@ -11,7 +11,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+
 import Database from 'better-sqlite3';
+
 import { lookupService } from './lookup-service';
 
 // All rating fields from the database schema
@@ -343,7 +345,7 @@ class UserDatabaseService {
   private customDb: Database.Database | null = null;
   private userDataPath: string;
   private backupPath: string;
-  private initialized: boolean = false;
+  private initialized = false;
   private initPromise: Promise<void>;
 
   constructor() {
@@ -717,6 +719,24 @@ class UserDatabaseService {
 
   private async initializeCustomDatabase(): Promise<void> {
     const dbPath = path.join(this.userDataPath, 'custom-players.db');
+
+    // If custom-players.db doesn't exist in AppData, check for bundled version
+    if (!fs.existsSync(dbPath)) {
+      const bundledPaths = [
+        path.join(app.getAppPath(), '.vite', 'build', 'data', 'custom-players.db'),
+        path.join(app.getAppPath(), 'data', 'custom-players.db'),
+        path.join(process.cwd(), 'data', 'custom-players.db'),
+      ];
+
+      for (const bundledPath of bundledPaths) {
+        if (fs.existsSync(bundledPath)) {
+          console.log(`[UserDatabaseService] Copying bundled custom-players.db from ${bundledPath}`);
+          fs.copyFileSync(bundledPath, dbPath);
+          break;
+        }
+      }
+    }
+
     this.customDb = new Database(dbPath);
     console.log(`[UserDatabaseService] Opened custom players database: ${dbPath}`);
 
@@ -2582,7 +2602,7 @@ class UserDatabaseService {
     }));
   }
 
-  public searchCustomPlayers(query: string, limit: number = 50): CustomPlayer[] {
+  public searchCustomPlayers(query: string, limit = 50): CustomPlayer[] {
     if (!this.customDb) return [];
 
     const searchPattern = `%${query}%`;
@@ -3466,7 +3486,60 @@ class UserDatabaseService {
     console.log(`[UserDatabaseService] Cleared all custom coaches and seasons`);
   }
 
-  public searchCustomCoaches(query: string, limit: number = 50): CustomCoach[] {
+  /**
+   * Migrate stranded coach portrait assignments from coach_appearance_edits to custom_coaches
+   * This fixes portraits that were incorrectly saved to the appearance edits table
+   * instead of directly to the custom coach record.
+   */
+  public migrateStrandedCoachPortraits(): { migrated: number; errors: string[] } {
+    const result = { migrated: 0, errors: [] as string[] };
+
+    if (!this.editsDb || !this.customDb) {
+      result.errors.push('Databases not initialized');
+      return result;
+    }
+
+    try {
+      // Get all custom coach IDs
+      const customCoaches = this.getAllCustomCoaches();
+      const customCoachIds = new Set(customCoaches.map(c => c.id));
+      console.log(`[UserDatabaseService] Found ${customCoachIds.size} custom coaches`);
+
+      // Get all coach appearance edits
+      const appearanceEdits = this.getAllCoachAppearanceEdits();
+      console.log(`[UserDatabaseService] Found ${appearanceEdits.size} appearance edits`);
+
+      // Find stranded edits (edits for custom coaches)
+      for (const [coachId, edit] of appearanceEdits) {
+        if (customCoachIds.has(coachId) && edit.maddenPid !== undefined && edit.maddenPid !== null) {
+          console.log(`[UserDatabaseService] Migrating portrait PID ${edit.maddenPid} to custom coach ${coachId}`);
+
+          try {
+            // Update the custom coach with the portrait data
+            this.updateCustomCoach(coachId, {
+              maddenPid: edit.maddenPid,
+              maddenPam: edit.maddenPam
+            });
+
+            // Delete the stranded appearance edit
+            this.editsDb.prepare('DELETE FROM coach_appearance_edits WHERE original_coach_id = ?').run(coachId);
+
+            result.migrated++;
+          } catch (err) {
+            result.errors.push(`Failed to migrate coach ${coachId}: ${(err as Error).message}`);
+          }
+        }
+      }
+
+      console.log(`[UserDatabaseService] Migration complete: ${result.migrated} portraits migrated`);
+    } catch (err) {
+      result.errors.push(`Migration failed: ${(err as Error).message}`);
+    }
+
+    return result;
+  }
+
+  public searchCustomCoaches(query: string, limit = 50): CustomCoach[] {
     if (!this.customDb) return [];
 
     const searchTerm = `%${query}%`;
@@ -3769,6 +3842,74 @@ class UserDatabaseService {
     }
 
     return null;
+  }
+
+  /**
+   * Search custom coaches for Retro Editor
+   * Searches by partial name match and filters by year (career_from <= year)
+   */
+  public searchCustomCoachesForRetro(query: string, year: number, limit = 20): Array<{
+    id: number;
+    firstName: string;
+    lastName: string;
+    position: string;
+    careerFrom: number;
+    careerTo: number;
+    careerWins: number;
+    careerLosses: number;
+    source: 'custom';
+  }> {
+    if (!this.customDb) {
+      console.log('[UserDatabaseService] Custom DB not initialized for coach search');
+      return [];
+    }
+
+    const queryLower = query.toLowerCase().trim();
+    if (!queryLower) return [];
+
+    console.log(`[UserDatabaseService] Searching custom coaches for "${query}", year=${year}`);
+
+    try {
+      // Search custom_coaches with partial name match and year filter
+      // Note: foreign key is custom_coach_id, not coach_id
+      const rows = this.customDb.prepare(`
+        SELECT
+          c.id,
+          c.first_name,
+          c.last_name,
+          c.position,
+          c.career_from,
+          c.career_to,
+          COALESCE(c.career_wins, 0) as career_wins,
+          COALESCE(c.career_losses, 0) as career_losses
+        FROM custom_coaches c
+        WHERE (
+          LOWER(c.first_name) LIKE ? OR
+          LOWER(c.last_name) LIKE ? OR
+          LOWER(c.first_name || ' ' || c.last_name) LIKE ?
+        )
+        AND (c.career_from IS NULL OR c.career_from <= ?)
+        ORDER BY c.last_name, c.first_name
+        LIMIT ?
+      `).all(`%${queryLower}%`, `%${queryLower}%`, `%${queryLower}%`, year, limit) as Record<string, unknown>[];
+
+      console.log(`[UserDatabaseService] Found ${rows.length} custom coaches matching "${query}"`);
+
+      return rows.map(row => ({
+        id: row.id as number,
+        firstName: row.first_name as string,
+        lastName: row.last_name as string,
+        position: (row.position as string) || 'HC',
+        careerFrom: (row.career_from as number) || 0,
+        careerTo: (row.career_to as number) || 0,
+        careerWins: (row.career_wins as number) || 0,
+        careerLosses: (row.career_losses as number) || 0,
+        source: 'custom' as const
+      }));
+    } catch (err) {
+      console.error(`[UserDatabaseService] Error searching custom coaches:`, err);
+      return [];
+    }
   }
 }
 

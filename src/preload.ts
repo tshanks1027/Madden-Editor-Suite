@@ -99,7 +99,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Creator APIs (web scraping and rating generation)
   creator: {
-    generateDraftClass: (year: number, testingMode: boolean = false, ratingMode: string = 'semi-historical') =>
+    generateDraftClass: (year: number, testingMode = false, ratingMode = 'semi-historical') =>
       ipcRenderer.invoke('creator:generate-draft-class', year, testingMode, ratingMode),
     generateDraftClassV2: (options: {
       year?: number;
@@ -112,7 +112,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('creator:generate-draft-class-v2', options),
     generateDecadeDraftClass: (startYear: number, endYear: number) =>
       ipcRenderer.invoke('creator:generate-decade-draft-class', startYear, endYear),
-    generateRoster: (year: number, teams: string[], ratingMode: string = 'semi-historical') =>
+    generateRoster: (year: number, teams: string[], ratingMode = 'semi-historical') =>
       ipcRenderer.invoke('creator:generate-roster', year, teams, ratingMode),
     testScraper: (year: number) =>
       ipcRenderer.invoke('creator:test-scraper', year)
@@ -139,7 +139,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Roster Creator APIs
   rosterCreator: {
-    generate: (year: number, templatePath: string, ratingMode: string = 'semi-historical') =>
+    generate: (year: number, templatePath: string, ratingMode = 'semi-historical') =>
       ipcRenderer.invoke('roster-creator:generate', year, templatePath, ratingMode),
     save: (players: any[], templatePath: string, outputPath: string, year?: number) =>
       ipcRenderer.invoke('roster-creator:save', players, templatePath, outputPath, year),
@@ -240,6 +240,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Portrait APIs
   portrait: {
+    initialize: () => ipcRenderer.invoke('portrait:initialize'),
     getByPLPO: (plpoKey: string) => ipcRenderer.invoke('portrait:get-image-data-by-plpo', plpoKey),
     getByPID: (pid: number) => ipcRenderer.invoke('portrait:get-image-data-by-pid', pid),
     getImageDataByPam: (pamCode: string) => ipcRenderer.invoke('portrait:get-image-data-by-pam', pamCode),
@@ -557,6 +558,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('retro:get-fa-coaches', filePath),
     searchCoachDatabase: (query: string, year: number, limit?: number) =>
       ipcRenderer.invoke('retro:search-coach-database', query, year, limit),
+    debugListCustomCoaches: () =>
+      ipcRenderer.invoke('retro:debug-list-custom-coaches'),
     replaceFACoach: (filePath: string, faCoachIndex: number, dbCoach: any, year: number) =>
       ipcRenderer.invoke('retro:replace-fa-coach', filePath, faCoachIndex, dbCoach, year),
 
@@ -927,7 +930,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getRetroImportStatus: () =>
       ipcRenderer.invoke('coach-database:get-retro-import-status'),
     clearAllCoaches: () =>
-      ipcRenderer.invoke('coach-database:clear-all-coaches')
+      ipcRenderer.invoke('coach-database:clear-all-coaches'),
+
+    // Migration/repair operations
+    migrateStrandedPortraits: () =>
+      ipcRenderer.invoke('coach-database:migrate-stranded-portraits')
   },
 
   // Window APIs (focus restoration after native dialogs, multi-window support)

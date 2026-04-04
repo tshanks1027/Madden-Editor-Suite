@@ -2416,9 +2416,18 @@
       });
 
       // Update coach's appearance with the new PID
-      await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
-        maddenPid: pid
-      });
+      // Use different method for custom vs original coaches
+      if (isCustom) {
+        // Custom coaches: update the custom_coaches table directly
+        await window.electronAPI.coachDatabase.updateCustomCoach(id, {
+          maddenPid: pid
+        });
+      } else {
+        // Original coaches: use appearance edits overlay
+        await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
+          maddenPid: pid
+        });
+      }
 
       showToast(`Assigned portrait to ${name}`, 'success');
 
@@ -2463,9 +2472,16 @@
         databaseCoachId: bestMatch.id
       });
 
-      await window.electronAPI.coachDatabase.saveAppearanceEdit(bestMatch.id, {
-        maddenPid: pid
-      });
+      // Use different method for custom vs original coaches
+      if (bestMatch.isCustom) {
+        await window.electronAPI.coachDatabase.updateCustomCoach(bestMatch.id, {
+          maddenPid: pid
+        });
+      } else {
+        await window.electronAPI.coachDatabase.saveAppearanceEdit(bestMatch.id, {
+          maddenPid: pid
+        });
+      }
 
       showToast(`Assigned to ${bestMatch.displayName}`, 'success');
       refreshCoachPortraits();
@@ -2800,7 +2816,7 @@
         const hasExistingPid = coach.pam && coach.pam.length > 0;
         const pidWarning = hasExistingPid ? `<span class="has-portrait-badge" title="Has PAM: ${coach.pam}">📸</span>` : '';
         return `
-        <div class="assign-result-item ${hasExistingPid ? 'has-portrait' : ''}" data-coach-id="${coach.id}" data-coach-name="${coach.displayName}" data-existing-pid="${coach.pam || ''}">
+        <div class="assign-result-item ${hasExistingPid ? 'has-portrait' : ''}" data-coach-id="${coach.id}" data-coach-name="${coach.displayName}" data-existing-pid="${coach.pam || ''}" data-is-custom="${coach.isCustom ? 'true' : 'false'}">
           <span class="result-name">${coach.displayName} ${pidWarning}</span>
           <span class="result-info">${coach.position || ''}</span>
         </div>
@@ -2812,7 +2828,8 @@
           selectCoachForAssignment(
             item.dataset.coachId,
             item.dataset.coachName,
-            item.dataset.existingPid ? parseInt(item.dataset.existingPid) : null
+            item.dataset.existingPid ? parseInt(item.dataset.existingPid) : null,
+            item.dataset.isCustom === 'true'
           );
         });
       });
@@ -2825,8 +2842,8 @@
   /**
    * Select coach for assignment
    */
-  function selectCoachForAssignment(coachId, coachName, existingPid = null) {
-    selectedCoachForAssignment = { id: parseInt(coachId), name: coachName, existingPid };
+  function selectCoachForAssignment(coachId, coachName, existingPid = null, isCustom = false) {
+    selectedCoachForAssignment = { id: parseInt(coachId), name: coachName, existingPid, isCustom };
 
     // Show selected coach info
     const selectedDiv = document.getElementById('assignSelectedCoach');
@@ -2862,7 +2879,7 @@
     }
 
     const pid = Array.from(coachSelectedPids)[0];
-    const { id, name, existingPid } = selectedCoachForAssignment;
+    const { id, name, existingPid, isCustom } = selectedCoachForAssignment;
 
     // Check if "Model Only" checkbox is checked
     const modelOnlyCheckbox = document.getElementById('coachAssignModelOnlyCheckbox');
@@ -2883,10 +2900,19 @@
         const pamValue = portraitData?.pam || `_C_PRO`; // Default to generic coach PAM if none set
 
         // Update only the PAM in the coach database
-        await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
-          maddenPam: pamValue
-          // Note: maddenPid is NOT set, keeping current portrait
-        });
+        if (isCustom) {
+          // Custom coaches: update the custom_coaches table directly
+          await window.electronAPI.coachDatabase.updateCustomCoach(id, {
+            maddenPam: pamValue
+            // Note: maddenPid is NOT set, keeping current portrait
+          });
+        } else {
+          // Original coaches: use appearance edits overlay
+          await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
+            maddenPam: pamValue
+            // Note: maddenPid is NOT set, keeping current portrait
+          });
+        }
 
         showToast(`Applied 3D model only to ${name} (portrait unchanged)`, 'success');
         closeCoachAssignModal();
@@ -2918,9 +2944,17 @@
         });
 
         // Also update the coach's appearance with the new PID
-        await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
-          maddenPid: pid
-        });
+        if (isCustom) {
+          // Custom coaches: update the custom_coaches table directly
+          await window.electronAPI.coachDatabase.updateCustomCoach(id, {
+            maddenPid: pid
+          });
+        } else {
+          // Original coaches: use appearance edits overlay
+          await window.electronAPI.coachDatabase.saveAppearanceEdit(id, {
+            maddenPid: pid
+          });
+        }
 
         showToast(`Assigned portrait to ${name}`, 'success');
         closeCoachAssignModal();

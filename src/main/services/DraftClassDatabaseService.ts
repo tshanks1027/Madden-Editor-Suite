@@ -5,6 +5,10 @@
  * Supports creating new custom players and updating existing bundled/custom players.
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+
 import { lookupService } from './lookup-service';
 import {
   userDatabaseService,
@@ -12,9 +16,6 @@ import {
   CustomPlayerSeason
 } from './UserDatabaseService';
 import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
 
 // Debug log file - use os.tmpdir() instead of app.getPath to avoid timing issues
 const DEBUG_LOG_PATH = path.join(os.tmpdir(), 'draft-push-debug.log');

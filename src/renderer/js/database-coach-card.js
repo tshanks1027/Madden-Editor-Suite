@@ -105,7 +105,7 @@
    */
   function setupEventListeners() {
     // Close button
-    var closeBtn = document.getElementById('closeDbCoachCard');
+    const closeBtn = document.getElementById('closeDbCoachCard');
     if (closeBtn) {
       closeBtn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -114,7 +114,7 @@
     }
 
     // Modal background click
-    var modal = document.getElementById('dbCoachCardModal');
+    const modal = document.getElementById('dbCoachCardModal');
     if (modal) {
       modal.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -127,7 +127,7 @@
     // Tab switching
     document.querySelectorAll('.db-coach-tab').forEach(function(tab) {
       tab.addEventListener('click', function() {
-        var tabId = tab.dataset.tab;
+        const tabId = tab.dataset.tab;
 
         // Update active tab button
         document.querySelectorAll('.db-coach-tab').forEach(function(t) {
@@ -141,14 +141,14 @@
         });
 
         // Map tab IDs to content IDs
-        var tabContentMap = {
+        const tabContentMap = {
           'info': 'dbCoachTabInfo',
           'traits': 'dbCoachTabTraits',
           'seasons': 'dbCoachTabSeasons'
         };
-        var tabContentId = tabContentMap[tabId];
+        const tabContentId = tabContentMap[tabId];
         if (tabContentId) {
-          var tabContent = document.getElementById(tabContentId);
+          const tabContent = document.getElementById(tabContentId);
           if (tabContent) {
             tabContent.classList.add('active');
           }
@@ -157,56 +157,56 @@
     });
 
     // Save button
-    var saveBtn = document.getElementById('dbCoachSaveBtn');
+    const saveBtn = document.getElementById('dbCoachSaveBtn');
     if (saveBtn) {
       saveBtn.addEventListener('click', saveDbCoachChanges);
     }
 
     // Cancel button
-    var cancelBtn = document.getElementById('dbCoachCancelBtn');
+    const cancelBtn = document.getElementById('dbCoachCancelBtn');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', closeDbCoachCard);
     }
 
     // Reset button
-    var resetBtn = document.getElementById('dbCoachResetBtn');
+    const resetBtn = document.getElementById('dbCoachResetBtn');
     if (resetBtn) {
       resetBtn.addEventListener('click', resetDbCoach);
     }
 
     // Hide button
-    var hideBtn = document.getElementById('dbCoachHideBtn');
+    const hideBtn = document.getElementById('dbCoachHideBtn');
     if (hideBtn) {
       hideBtn.addEventListener('click', hideDbCoach);
     }
 
     // Delete button (only for custom coaches)
-    var deleteBtn = document.getElementById('dbCoachDeleteBtn');
+    const deleteBtn = document.getElementById('dbCoachDeleteBtn');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', deleteDbCoach);
     }
 
     // Load from Retro Data button
-    var loadRetroBtn = document.getElementById('dbCoachLoadRetroBtn');
+    const loadRetroBtn = document.getElementById('dbCoachLoadRetroBtn');
     if (loadRetroBtn) {
       loadRetroBtn.addEventListener('click', loadFromRetroData);
     }
 
     // Year selector change
-    var yearSelect = document.getElementById('dbCoachSeasonYear');
+    const yearSelect = document.getElementById('dbCoachSeasonYear');
     if (yearSelect) {
       yearSelect.addEventListener('change', loadSeasonData);
     }
 
     // Save Year button
-    var saveYearBtn = document.getElementById('dbCoachSaveYearBtn');
+    const saveYearBtn = document.getElementById('dbCoachSaveYearBtn');
     if (saveYearBtn) {
       saveYearBtn.addEventListener('click', saveCurrentYearData);
     }
 
     // Career From/To change - update year selector
-    var careerFromInput = document.getElementById('dbCoachCareerFrom');
-    var careerToInput = document.getElementById('dbCoachCareerTo');
+    const careerFromInput = document.getElementById('dbCoachCareerFrom');
+    const careerToInput = document.getElementById('dbCoachCareerTo');
     if (careerFromInput) {
       careerFromInput.addEventListener('change', setupYearSelector);
     }
@@ -238,7 +238,7 @@
       }
 
       // Search through all years for this coach
-      let foundSeasons = [];
+      const foundSeasons = [];
       const nameLower = (firstName + ' ' + lastName).toLowerCase();
       const lastNameLower = lastName.toLowerCase();
 
@@ -518,7 +518,10 @@
     setValue('dbCoachCareerTo', coach.careerTo || '');
 
     // Coach Info tab - Portrait/Asset
-    setValue('dbCoachPid', coach.maddenPid !== undefined ? coach.maddenPid : (coach.pid || ''));
+    // Use explicit checks to handle PID 0 correctly (0 is falsy but valid)
+    const pidValue = coach.maddenPid !== undefined && coach.maddenPid !== null ? coach.maddenPid :
+                   (coach.pid !== undefined && coach.pid !== null ? coach.pid : '');
+    setValue('dbCoachPid', pidValue);
     setValue('dbCoachPam', coach.maddenPam || coach.pam || '');
 
     // Coach Traits tab
@@ -542,8 +545,9 @@
     setValue('dbCoachCareerSBLosses', coach.careerSBLosses || '');
     setValue('dbCoachCareerPlayoffsMade', coach.careerPlayoffsMade || '');
 
-    // Load portrait
-    loadCoachPortrait(coach.maddenPid || coach.pid);
+    // Load portrait - use explicit check to handle PID 0 correctly
+    const portraitPid = coach.maddenPid !== undefined && coach.maddenPid !== null ? coach.maddenPid : coach.pid;
+    loadCoachPortrait(portraitPid);
 
     // Reset to first tab
     document.querySelectorAll('.db-coach-tab').forEach(t => t.classList.remove('active'));
@@ -568,12 +572,18 @@
    * Load coach portrait
    */
   async function loadCoachPortrait(pid) {
+    console.log('[DatabaseCoachCard] loadCoachPortrait called with pid:', pid, 'type:', typeof pid);
     const portraitEl = document.getElementById('dbCoachCardPortrait');
-    if (!portraitEl) return;
+    if (!portraitEl) {
+      console.error('[DatabaseCoachCard] Portrait element NOT FOUND!');
+      return;
+    }
+    console.log('[DatabaseCoachCard] Portrait element found:', portraitEl.id);
 
     try {
       // Check for custom coach portrait first (PID >= 50000)
-      if (pid && pid >= 50000 && window.electronAPI?.customCoachPortrait) {
+      // Use typeof check to handle PID 0 correctly (0 is falsy but valid)
+      if (typeof pid === 'number' && pid >= 50000 && window.electronAPI?.customCoachPortrait) {
         const hasCustom = await window.electronAPI.customCoachPortrait.has(pid);
         if (hasCustom) {
           const imageData = await window.electronAPI.customCoachPortrait.get(pid);
@@ -585,17 +595,23 @@
       }
 
       // Check bundled coach portraits
-      if (pid && window.electronAPI?.coachPortrait) {
+      // Use typeof check to handle PID 0 correctly (0 is falsy but valid)
+      console.log('[DatabaseCoachCard] Checking bundled portraits for pid:', pid);
+      if (typeof pid === 'number' && window.electronAPI?.coachPortrait) {
         const hasPortrait = await window.electronAPI.coachPortrait.hasPortrait(pid);
+        console.log('[DatabaseCoachCard] hasPortrait result:', hasPortrait);
         if (hasPortrait) {
           const imageData = await window.electronAPI.coachPortrait.getImageDataByPID(pid);
+          console.log('[DatabaseCoachCard] Got image data:', imageData ? 'YES (' + imageData.length + ' chars)' : 'NO');
           if (imageData) {
             portraitEl.src = imageData.startsWith('data:') ? imageData : `data:image/png;base64,${imageData}`;
+            console.log('[DatabaseCoachCard] Portrait loaded successfully!');
             return;
           }
         }
       }
       // Fallback to placeholder
+      console.log('[DatabaseCoachCard] Using placeholder (no portrait found)');
       portraitEl.src = COACH_PLACEHOLDER_SVG;
     } catch (error) {
       console.error('[DatabaseCoachCard] Error loading portrait:', error);
@@ -665,18 +681,29 @@
 
       let html = '';
 
+      // Helper function to escape strings for use in HTML attributes and JS strings
+      function escapeForHtml(str) {
+        return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      function escapeForJs(str) {
+        return (str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      }
+
       // Section 1: Real coaches with portraits
       if (realCoachesWithPortrait.length > 0) {
         html += '<div class="portrait-section-header">Real Coaches</div>';
         for (const coach of realCoachesWithPortrait) {
           const pam = coach.pam || '';
           const displayName = coach.displayName || (coach.firstName + ' ' + coach.lastName);
+          const escapedPam = escapeForJs(pam);
+          const escapedDisplayName = escapeForHtml(displayName);
+          const escapedPamAttr = escapeForHtml(pam);
           html += `
-            <div class="coach-portrait-option" data-pid="${coach.pid}" data-pam="${pam}"
-                 onclick="window.selectCoachPortrait(${coach.pid}, '${pam}')"
-                 title="${displayName}">
-              <img src="${COACH_PLACEHOLDER_SVG}" data-coach-pid="${coach.pid}" alt="${displayName}">
-              <div class="portrait-name">${coach.lastName || ''}</div>
+            <div class="coach-portrait-option" data-pid="${coach.pid}" data-pam="${escapedPamAttr}"
+                 onclick="window.selectCoachPortrait(${coach.pid}, '${escapedPam}')"
+                 title="${escapedDisplayName}">
+              <img src="${COACH_PLACEHOLDER_SVG}" data-coach-pid="${coach.pid}" alt="${escapedDisplayName}">
+              <div class="portrait-name">${escapeForHtml(coach.lastName || '')}</div>
             </div>
           `;
         }
@@ -688,15 +715,19 @@
         for (const coach of pamOnlyCoaches) {
           const pam = coach.pam || '';
           const displayName = coach.displayName || (coach.firstName + ' ' + coach.lastName);
+          const escapedPam = escapeForJs(pam);
+          const escapedDisplayName = escapeForJs(displayName);
+          const escapedDisplayNameHtml = escapeForHtml(displayName);
+          const escapedPamAttr = escapeForHtml(pam);
           // Use a special "no-pid" class for styling
           html += `
-            <div class="coach-portrait-option pam-only" data-pam="${pam}"
-                 onclick="window.selectCoachPamOnly('${pam}', '${displayName}')"
-                 title="${displayName} (PAM: ${pam})">
+            <div class="coach-portrait-option pam-only" data-pam="${escapedPamAttr}"
+                 onclick="window.selectCoachPamOnly('${escapedPam}', '${escapedDisplayName}')"
+                 title="${escapedDisplayNameHtml} (PAM: ${escapedPamAttr})">
               <div class="pam-only-placeholder">
-                <span class="pam-initials">${(coach.firstName || '').charAt(0)}${(coach.lastName || '').charAt(0)}</span>
+                <span class="pam-initials">${escapeForHtml((coach.firstName || '').charAt(0))}${escapeForHtml((coach.lastName || '').charAt(0))}</span>
               </div>
-              <div class="portrait-name">${coach.lastName || ''}</div>
+              <div class="portrait-name">${escapeForHtml(coach.lastName || '')}</div>
             </div>
           `;
         }
@@ -711,8 +742,9 @@
           for (const [race, portraits] of Object.entries(genericsResult.data)) {
             if (portraits && portraits.length > 0) {
               for (const portrait of portraits) {
-                const pid = portrait.pid || portrait.PID;
-                if (pid) {
+                const pid = portrait.pid !== undefined ? portrait.pid : portrait.PID;
+                // Use typeof check to handle PID 0 correctly (0 is falsy but valid)
+                if (typeof pid === 'number') {
                   allGenerics.push({ pid, race });
                 }
               }
@@ -758,7 +790,8 @@
       const genericImgs = grid.querySelectorAll('img[data-generic-pid]');
       for (const img of genericImgs) {
         const pid = parseInt(img.dataset.genericPid);
-        if (pid && window.electronAPI?.coachPortrait) {
+        // Use !isNaN check to handle PID 0 correctly (0 is falsy but valid)
+        if (!isNaN(pid) && window.electronAPI?.coachPortrait) {
           window.electronAPI.coachPortrait.getImageDataByPID(pid).then(imageData => {
             if (imageData) {
               img.src = imageData.startsWith('data:') ? imageData : `data:image/png;base64,${imageData}`;
@@ -782,7 +815,7 @@
     setValue('dbCoachPam', pam);
 
     // Clear PID or prompt user
-    var currentPid = getValue('dbCoachPid');
+    const currentPid = getValue('dbCoachPid');
     if (!currentPid || currentPid === '') {
       // Optionally prompt user to enter PID
       console.log('[DatabaseCoachCard] Selected PAM-only coach:', displayName, 'PAM:', pam);
@@ -804,15 +837,17 @@
    * Select a coach portrait from the picker
    */
   window.selectCoachPortrait = function(pid, pam) {
+    console.log('[DatabaseCoachCard] *** PORTRAIT CLICKED *** pid:', pid, 'pam:', pam);
+
     // Check if "Model Only" checkbox is checked
-    var modelOnlyCheckbox = document.getElementById('coachModelOnlyCheckbox');
-    var modelOnly = modelOnlyCheckbox && modelOnlyCheckbox.checked;
+    const modelOnlyCheckbox = document.getElementById('coachModelOnlyCheckbox');
+    const modelOnly = modelOnlyCheckbox && modelOnlyCheckbox.checked;
 
     // If PAM is empty, try to derive from coach data or use generic
-    var pamValue = pam;
+    let pamValue = pam;
     if (!pamValue || pamValue.trim() === '') {
       // Look up the coach from our cached options to get their name for PAM derivation
-      var coachOption = coachPortraitOptions.find(function(c) { return c.pid === pid; });
+      const coachOption = coachPortraitOptions.find(function(c) { return c.pid === pid; });
       if (coachOption && coachOption.lastName && coachOption.firstName) {
         // Generate PAM from name: LastNameFirstName_C_PRO
         pamValue = coachOption.lastName + coachOption.firstName + '_C_PRO';

@@ -19,8 +19,18 @@
   /**
    * Initialize the coach browser module
    */
-  function initCoachBrowser() {
+  async function initCoachBrowser() {
     console.log('[CoachBrowser] Initializing...');
+
+    // Auto-migrate any stranded coach portraits (one-time fix for old assignments)
+    try {
+      const migrationResult = await window.electronAPI.coachDatabase.migrateStrandedPortraits();
+      if (migrationResult.migrated > 0) {
+        console.log(`[CoachBrowser] Migrated ${migrationResult.migrated} stranded coach portraits`);
+      }
+    } catch (err) {
+      console.warn('[CoachBrowser] Portrait migration check failed:', err);
+    }
 
     setupEventListeners();
     performSearch();

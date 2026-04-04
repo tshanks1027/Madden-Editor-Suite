@@ -6,6 +6,7 @@
  */
 
 import { ipcMain } from 'electron';
+
 import {
   userDatabaseService,
   CoachEdit,
@@ -1228,6 +1229,27 @@ ipcMain.handle('coach-database:get-retro-import-status', async () => {
   } catch (error) {
     console.error('[coach-database-handlers] Error checking retro import status:', error);
     return { success: false, error: String(error) };
+  }
+});
+
+// =============================================
+// MIGRATION/REPAIR OPERATIONS
+// =============================================
+
+/**
+ * Handle: coach-database:migrate-stranded-portraits
+ * Migrate coach portrait assignments that were incorrectly saved to coach_appearance_edits
+ * instead of directly to custom_coaches table.
+ */
+ipcMain.handle('coach-database:migrate-stranded-portraits', async () => {
+  try {
+    await userDatabaseService.waitForReady();
+    const result = userDatabaseService.migrateStrandedCoachPortraits();
+    console.log(`[coach-database-handlers] Migration result:`, result);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('[coach-database-handlers] Error migrating stranded portraits:', error);
+    return { success: false, error: String(error), migrated: 0, errors: [] };
   }
 });
 
