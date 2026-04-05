@@ -6,12 +6,14 @@
  */
 
 import { ipcMain, BrowserWindow, dialog } from 'electron';
+import fs from 'fs';
+import path from 'path';
+
+import sharp from 'sharp';
+
 import { portraitSpriteService } from '../services/PortraitSpriteService';
 import { coachPortraitService } from '../services/CoachPortraitService';
 import { customPortraitService } from '../services/CustomPortraitService';
-import sharp from 'sharp';
-import fs from 'fs';
-import path from 'path';
 
 // Custom portrait PID range starts at 12000
 const CUSTOM_PORTRAIT_PID_START = 12000;
@@ -72,15 +74,21 @@ ipcMain.handle('portrait:get-by-plpo', async (event, plpoName: string) => {
  */
 ipcMain.handle('portrait:get-by-pid', async (event, pid: number) => {
   try {
+    // Ensure PID is a number (Maps use strict equality, "361" !== 361)
+    const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+    if (isNaN(numericPid) || numericPid <= 0) {
+      return null;
+    }
+
     // Check if this is a custom portrait
-    if (pid >= CUSTOM_PORTRAIT_PID_START) {
-      const hasCustom = customPortraitService.hasPortrait(pid);
+    if (numericPid >= CUSTOM_PORTRAIT_PID_START) {
+      const hasCustom = customPortraitService.hasPortrait(numericPid);
       if (hasCustom) {
-        return { isCustom: true, pid };
+        return { isCustom: true, pid: numericPid };
       }
       return null;
     }
-    return portraitSpriteService.getPortraitByPID(pid);
+    return portraitSpriteService.getPortraitByPID(numericPid);
   } catch (error) {
     console.error('Error getting portrait by PID:', error);
     return null;
@@ -261,28 +269,35 @@ ipcMain.handle('portrait:get-image-data-by-plpo', async (event, plpoName: string
  */
 ipcMain.handle('portrait:get-image-data-by-pid', async (event, pid: number) => {
   try {
-    console.log(`[portrait-handlers] get-image-data-by-pid called with PID: ${pid}`);
+    // Ensure PID is a number (Maps use strict equality, "361" !== 361)
+    const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+    console.log(`[portrait-handlers] get-image-data-by-pid called with PID: ${pid} (numeric: ${numericPid})`);
+
+    if (isNaN(numericPid) || numericPid <= 0) {
+      console.log(`[portrait-handlers] Invalid PID: ${pid}`);
+      return null;
+    }
 
     // Check if this is a custom portrait (PID >= 12000)
-    if (pid >= CUSTOM_PORTRAIT_PID_START) {
-      console.log(`[portrait-handlers] PID ${pid} is in custom portrait range, checking custom portraits...`);
-      const customDataUrl = await customPortraitService.getPortraitDataUrl(pid);
+    if (numericPid >= CUSTOM_PORTRAIT_PID_START) {
+      console.log(`[portrait-handlers] PID ${numericPid} is in custom portrait range, checking custom portraits...`);
+      const customDataUrl = await customPortraitService.getPortraitDataUrl(numericPid);
       if (customDataUrl) {
-        console.log(`[portrait-handlers] Found custom portrait for PID ${pid}`);
+        console.log(`[portrait-handlers] Found custom portrait for PID ${numericPid}`);
         return customDataUrl;
       }
-      console.log(`[portrait-handlers] No custom portrait found for PID ${pid}`);
+      console.log(`[portrait-handlers] No custom portrait found for PID ${numericPid}`);
       return null;
     }
 
     // Standard portrait lookup from sprite sheets
-    const spriteInfo = portraitSpriteService.getPortraitByPID(pid);
+    const spriteInfo = portraitSpriteService.getPortraitByPID(numericPid);
 
     if (!spriteInfo) {
-      console.log(`[portrait-handlers] No sprite info found for PID: ${pid}`);
+      console.log(`[portrait-handlers] No sprite info found for PID: ${numericPid}`);
       return null;
     }
-    console.log(`[portrait-handlers] Found sprite info for PID ${pid}:`, spriteInfo.sheetPath, `x=${spriteInfo.x}, y=${spriteInfo.y}`);
+    console.log(`[portrait-handlers] Found sprite info for PID ${numericPid}:`, spriteInfo.sheetPath, `x=${spriteInfo.x}, y=${spriteInfo.y}`);
 
     // Check if sprite sheet exists
     if (!fs.existsSync(spriteInfo.sheetPath)) {
@@ -303,7 +318,7 @@ ipcMain.handle('portrait:get-image-data-by-pid', async (event, pid: number) => {
 
     const base64Image = imageBuffer.toString('base64');
     const dataUrl = `data:image/png;base64,${base64Image}`;
-    console.log(`[portrait-handlers] Successfully extracted portrait for PID ${pid}, data URL length: ${dataUrl.length}`);
+    console.log(`[portrait-handlers] Successfully extracted portrait for PID ${numericPid}, data URL length: ${dataUrl.length}`);
 
     return dataUrl;
   } catch (error) {
@@ -427,7 +442,12 @@ ipcMain.handle('coach-portrait:initialize', async (event) => {
  */
 ipcMain.handle('coach-portrait:get-by-pid', async (event, pid: number) => {
   try {
-    return coachPortraitService.getPortraitByPID(pid);
+    // Ensure PID is numeric (Maps use strict equality)
+    const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+    if (isNaN(numericPid) || numericPid <= 0) {
+      return null;
+    }
+    return coachPortraitService.getPortraitByPID(numericPid);
   } catch (error) {
     console.error('Error getting coach portrait by PID:', error);
     return null;
@@ -440,7 +460,12 @@ ipcMain.handle('coach-portrait:get-by-pid', async (event, pid: number) => {
  */
 ipcMain.handle('coach-portrait:has-portrait', async (event, pid: number) => {
   try {
-    return coachPortraitService.hasPortrait(pid);
+    // Ensure PID is numeric (Maps use strict equality)
+    const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+    if (isNaN(numericPid) || numericPid <= 0) {
+      return false;
+    }
+    return coachPortraitService.hasPortrait(numericPid);
   } catch (error) {
     console.error('Error checking coach portrait:', error);
     return false;
@@ -453,7 +478,13 @@ ipcMain.handle('coach-portrait:has-portrait', async (event, pid: number) => {
  */
 ipcMain.handle('coach-portrait:get-image-data-by-pid', async (event, pid: number) => {
   try {
-    const spriteInfo = coachPortraitService.getPortraitByPID(pid);
+    // Ensure PID is a number (Maps use strict equality)
+    const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+    if (isNaN(numericPid) || numericPid <= 0) {
+      return null;
+    }
+
+    const spriteInfo = coachPortraitService.getPortraitByPID(numericPid);
 
     if (!spriteInfo) {
       return null;
@@ -505,7 +536,14 @@ ipcMain.handle('coach-portrait:export-batch-dds', async (event, pids: number[]) 
   };
 
   for (const pid of pids) {
-    const exportResult = await coachPortraitService.exportPortraitAsDDS(pid, outputPath);
+    // Ensure PID is numeric
+    const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+    if (isNaN(numericPid) || numericPid <= 0) {
+      results.failed++;
+      results.errors.push(`Invalid coach PID: ${pid}`);
+      continue;
+    }
+    const exportResult = await coachPortraitService.exportPortraitAsDDS(numericPid, outputPath);
     if (exportResult.success) {
       results.exported++;
     } else {
@@ -519,10 +557,69 @@ ipcMain.handle('coach-portrait:export-batch-dds', async (event, pids: number[]) 
 });
 
 /**
+ * Handle: coach-portrait:search-with-images
+ * Search coach portraits by name and return with base64 thumbnails
+ */
+ipcMain.handle('coach-portrait:search-with-images', async (event, query: string, limit = 100) => {
+  try {
+    // Get all available coach PIDs from the sprite service
+    const availablePids = coachPortraitService.getAvailablePIDs();
+
+    // Get portraits with images for all available PIDs (we'll filter by name on the result)
+    const pidsToLoad = availablePids.slice(0, limit * 2); // Load more to account for filtering
+    const portraits = await coachPortraitService.getPortraitsWithImages(pidsToLoad);
+
+    // Return portraits with PID info - the UI will match with coach names
+    return {
+      success: true,
+      portraits: portraits.map(p => ({
+        pid: p.pid,
+        name: `Coach ${p.pid}`, // Default name, UI can override with coach database
+        imageData: p.imageData
+      }))
+    };
+  } catch (error: any) {
+    console.error('Error searching coach portraits:', error);
+    return { success: false, error: error.message, portraits: [] };
+  }
+});
+
+/**
+ * Handle: coach-portrait:get-all-with-images
+ * Get all coach portraits with base64 thumbnails
+ */
+ipcMain.handle('coach-portrait:get-all-with-images', async (event, limit = 500) => {
+  try {
+    const status = coachPortraitService.getStatus();
+    console.log('[coach-portrait:get-all-with-images] Service status:', status);
+
+    const availablePids = coachPortraitService.getAvailablePIDs().slice(0, limit);
+    console.log(`[coach-portrait:get-all-with-images] Loading ${availablePids.length} portraits`);
+
+    const portraits = await coachPortraitService.getPortraitsWithImages(availablePids);
+    console.log(`[coach-portrait:get-all-with-images] Loaded ${portraits.length} portraits successfully`);
+
+    return {
+      success: true,
+      portraits
+    };
+  } catch (error: any) {
+    console.error('Error getting all coach portraits:', error);
+    return { success: false, error: error.message, portraits: [] };
+  }
+});
+
+/**
  * Handle: portrait:export-dds-by-pid
  * Export a sprite sheet portrait as DDS file (extracts + upscales to 512x512)
  */
 ipcMain.handle('portrait:export-dds-by-pid', async (event, pid: number) => {
+  // Ensure PID is numeric
+  const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+  if (isNaN(numericPid) || numericPid <= 0) {
+    return { success: false, error: `Invalid PID: ${pid}` };
+  }
+
   const window = BrowserWindow.fromWebContents(event.sender);
 
   const result = await dialog.showOpenDialog(window!, {
@@ -534,7 +631,7 @@ ipcMain.handle('portrait:export-dds-by-pid', async (event, pid: number) => {
     return { success: false, canceled: true };
   }
 
-  return await portraitSpriteService.exportPortraitAsDDS(pid, result.filePaths[0]);
+  return await portraitSpriteService.exportPortraitAsDDS(numericPid, result.filePaths[0]);
 });
 
 /**
@@ -542,7 +639,12 @@ ipcMain.handle('portrait:export-dds-by-pid', async (event, pid: number) => {
  * Export a sprite sheet portrait as DDS file to a specific path
  */
 ipcMain.handle('portrait:export-dds-by-pid-to-path', async (event, pid: number, outputPath: string) => {
-  return await portraitSpriteService.exportPortraitAsDDS(pid, outputPath);
+  // Ensure PID is numeric
+  const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+  if (isNaN(numericPid) || numericPid <= 0) {
+    return { success: false, error: `Invalid PID: ${pid}` };
+  }
+  return await portraitSpriteService.exportPortraitAsDDS(numericPid, outputPath);
 });
 
 /**
@@ -567,12 +669,19 @@ ipcMain.handle('portrait:export-batch-dds', async (event, pids: number[]) => {
   let failed = 0;
 
   for (const pid of pids) {
-    const exportResult = await portraitSpriteService.exportPortraitAsDDS(pid, outputPath);
+    // Ensure PID is numeric
+    const numericPid = typeof pid === 'string' ? parseInt(pid, 10) : Number(pid);
+    if (isNaN(numericPid) || numericPid <= 0) {
+      failed++;
+      errors.push(`Invalid PID: ${pid}`);
+      continue;
+    }
+    const exportResult = await portraitSpriteService.exportPortraitAsDDS(numericPid, outputPath);
     if (exportResult.success) {
       exported++;
     } else {
       failed++;
-      errors.push(`PID ${pid}: ${exportResult.error}`);
+      errors.push(`PID ${numericPid}: ${exportResult.error}`);
     }
   }
 
@@ -598,7 +707,7 @@ ipcMain.handle('portrait:get-all-pids', async () => {
  * Handle: portrait:search-with-images
  * Search sprite sheet portraits and return with base64 thumbnails and PIDs
  */
-ipcMain.handle('portrait:search-with-images', async (event, query: string, limit: number = 100) => {
+ipcMain.handle('portrait:search-with-images', async (event, query: string, limit = 100) => {
   try {
     const results = portraitSpriteService.searchPortraitsWithPid(query, limit);
     const withImages = [];

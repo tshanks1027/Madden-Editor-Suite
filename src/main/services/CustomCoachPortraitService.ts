@@ -10,7 +10,9 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+
 import sharp from 'sharp';
+
 import { userDatabaseService, CustomCoachPortrait } from './UserDatabaseService';
 
 interface ImportResult {
@@ -210,8 +212,8 @@ class CustomCoachPortraitService {
       // Build DDS file
       const ddsBuffer = this.buildDdsFile(dxt5Data, info.width, info.height);
 
-      // Write file with C_ prefix for coaches
-      const filename = `C_${pid}.dds`;
+      // Write file - just the PID number to match in-game format
+      const filename = `${pid}.dds`;
       const filePath = path.join(outputDir, filename);
       fs.writeFileSync(filePath, ddsBuffer);
 
@@ -397,7 +399,8 @@ class CustomCoachPortraitService {
       indices |= idx << (i * 2);
     }
 
-    result.writeUInt32LE(indices, 4);
+    // Use >>> 0 to convert to unsigned 32-bit integer (JS bitwise ops use signed 32-bit)
+    result.writeUInt32LE(indices >>> 0, 4);
     return result;
   }
 

@@ -3002,7 +3002,7 @@
             }
 
             // Global functions for onclick handlers
-            window.selectPlayerForPreview = function(playerId, isCustom) {
+            window.selectPlayerForPreview = async function(playerId, isCustom) {
                 // Update selected row styling
                 document.querySelectorAll('.database-player-row').forEach(row => {
                     row.classList.remove('selected');
@@ -3011,14 +3011,14 @@
                     }
                 });
 
-                // Load preview (simplified - just show basic info for now)
+                // Load preview
                 const player = currentResults.find(p => p.internalId === playerId);
                 if (player) {
                     const previewContent = document.getElementById('previewContent');
                     if (previewContent) {
                         const photoId = player.photoId || player.pid || 0;
                         previewContent.innerHTML = `
-                            <div class="preview-portrait">
+                            <div class="preview-portrait" id="previewPortraitContainer">
                                 <span class="preview-portrait-placeholder">👤</span>
                             </div>
                             <div class="preview-name">${player.firstName || ''} ${player.lastName || ''}</div>
@@ -3039,6 +3039,28 @@
                                 <button class="preview-btn preview-btn-secondary" onclick="window.addToDraft(${playerId})">Add to Draft</button>
                             </div>
                         `;
+
+                        // Load portrait asynchronously if PID exists
+                        if (photoId && photoId > 0) {
+                            try {
+                                let imageData = null;
+                                // Custom portraits (PID >= 12000) use getImageDataByPid
+                                if (photoId >= 12000) {
+                                    imageData = await window.electronAPI.portrait.getImageDataByPid(photoId);
+                                } else {
+                                    imageData = await window.electronAPI.portrait.getByPID(photoId);
+                                }
+
+                                if (imageData) {
+                                    const container = document.getElementById('previewPortraitContainer');
+                                    if (container) {
+                                        container.innerHTML = `<img src="${imageData}" alt="Player Portrait" style="max-width: 100%; max-height: 100%; border-radius: 8px;">`;
+                                    }
+                                }
+                            } catch (err) {
+                                console.log('[Preview] Failed to load portrait for PID', photoId, err);
+                            }
+                        }
                     }
                 }
             };

@@ -278,7 +278,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-by-pid', pid),
     getImageDataByPID: (pid: number) => ipcRenderer.invoke('coach-portrait:get-image-data-by-pid', pid),
     hasPortrait: (pid: number) => ipcRenderer.invoke('coach-portrait:has-portrait', pid),
-    exportBatchDds: (pids: number[]) => ipcRenderer.invoke('coach-portrait:export-batch-dds', pids)
+    exportBatchDds: (pids: number[]) => ipcRenderer.invoke('coach-portrait:export-batch-dds', pids),
+    searchWithImages: (query: string, limit?: number) =>
+      ipcRenderer.invoke('coach-portrait:search-with-images', query, limit),
+    getAllWithImages: (limit?: number) =>
+      ipcRenderer.invoke('coach-portrait:get-all-with-images', limit)
   },
 
   // Gear Image APIs

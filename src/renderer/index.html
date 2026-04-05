@@ -4524,6 +4524,30 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Bundled Coach Portraits Section -->
+                        <div class="bundled-portraits-section" style="margin-top: 24px; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                            <div id="coachBundledPortraitsHeader" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-tertiary); cursor: pointer;">
+                                <h4 style="margin: 0; color: var(--text-primary);">🎮 Bundled Coach Portraits (From Game)</h4>
+                                <span class="toggle-icon" style="color: var(--text-secondary); transition: transform 0.2s;">▼</span>
+                            </div>
+                            <div class="section-content" style="padding: 16px;">
+                                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px;">
+                                    Search and export pre-bundled coach portraits from the game's sprite sheets as DDS files for modding.
+                                </p>
+                                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                                    <input type="text" id="coachBundledPortraitSearch" placeholder="Search by coach name (e.g., Belichick, Reid)..."
+                                        style="flex: 1; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-primary);">
+                                    <button id="coachBundledSearchBtn" class="btn btn-secondary">Search</button>
+                                    <button id="exportCoachBundledSelectedBtn" class="btn btn-primary" disabled>Export Selected</button>
+                                </div>
+                                <div id="coachBundledPortraitResults" class="bundled-portrait-grid" style="min-height: 150px; max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px;">
+                                    <div class="bundled-empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-secondary);">
+                                        <p>Search for coach portraits above to browse and export.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -5732,19 +5756,19 @@
                             </div>
                             <div class="db-rating-item">
                                 <span class="db-rating-label">RBF</span>
-                                <input type="number" class="db-rating-input" id="dbRating_PFMS" min="0" max="99">
+                                <input type="number" class="db-rating-input" id="dbRating_PRBF" min="0" max="99">
                             </div>
                             <div class="db-rating-item">
-                                <span class="db-rating-label">RBP</span>
-                                <input type="number" class="db-rating-input" id="dbRating_PRNS" min="0" max="99">
+                                <span class="db-rating-label">RBS</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PRBS" min="0" max="99">
                             </div>
                             <div class="db-rating-item">
                                 <span class="db-rating-label">PBF</span>
-                                <input type="number" class="db-rating-input" id="dbRating_PPBS" min="0" max="99">
+                                <input type="number" class="db-rating-input" id="dbRating_PPBF" min="0" max="99">
                             </div>
                             <div class="db-rating-item">
-                                <span class="db-rating-label">PBP</span>
-                                <input type="number" class="db-rating-input" id="dbRating_PPBP" min="0" max="99">
+                                <span class="db-rating-label">PBS</span>
+                                <input type="number" class="db-rating-input" id="dbRating_PPBS" min="0" max="99">
                             </div>
                         </div>
                     </div>
@@ -6214,6 +6238,10 @@
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
                                         </button>
                                     </div>
+                                </div>
+                                <div class="equipment-item">
+                                    <label class="equipment-label">Shoulder Pads</label>
+                                    <select class="equipment-select draft-equipment-select" id="draftEquipShoulderPads" data-slot="ShoulderPads"></select>
                                 </div>
                             </div>
                         </div>

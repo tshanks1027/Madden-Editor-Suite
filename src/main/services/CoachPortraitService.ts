@@ -132,7 +132,15 @@ export class CoachPortraitService {
       return null;
     }
 
-    const entry = this.portraitMap.get(pid);
+    // Ensure PID is a number (defensive - Maps use strict equality)
+    const numericPid = typeof pid === 'string' ? parseInt(pid as unknown as string, 10) : Number(pid);
+    if (isNaN(numericPid)) {
+      console.warn(`[CoachPortraitService] Invalid PID: ${pid}`);
+      return null;
+    }
+
+    const entry = this.portraitMap.get(numericPid);
+    console.log(`[CoachPortraitService] PID ${numericPid} -> ${entry ? entry.filename : 'NOT FOUND'}`);
 
     if (!entry) {
       return null;
@@ -153,7 +161,12 @@ export class CoachPortraitService {
    * @returns True if portrait exists
    */
   public hasPortrait(pid: number): boolean {
-    return this.portraitMap.has(pid);
+    // Ensure PID is numeric (Maps use strict equality)
+    const numericPid = typeof pid === 'string' ? parseInt(pid as unknown as string, 10) : Number(pid);
+    if (isNaN(numericPid)) {
+      return false;
+    }
+    return this.portraitMap.has(numericPid);
   }
 
   /**
@@ -176,6 +189,85 @@ export class CoachPortraitService {
       portraitCount: this.portraitMap.size,
       sheets: this.atlas?.sheets || 0
     };
+  }
+
+  /**
+   * Get all coach portraits with their sprite info
+   * @returns Array of coach entries with PID and sprite location
+   */
+  public getAllCoachPortraits(): CoachSpriteInfo[] {
+    if (!this.initialized || !this.atlas) {
+      return [];
+    }
+
+    return this.atlas.coaches.map(coach => ({
+      ...coach,
+      sheetPath: path.join(this.spritesDir, `coach-sheet-${coach.sheet}.png`)
+    }));
+  }
+
+  /**
+   * Search coach portraits by PIDs and return with images
+   * @param pids Array of PIDs to get portraits for
+   * @returns Array of portraits with base64 images
+   */
+  public async getPortraitsWithImages(pids: number[]): Promise<Array<{ pid: number; imageData: string }>> {
+    const results: Array<{ pid: number; imageData: string }> = [];
+    let errorCount = 0;
+    let firstError: any = null;
+
+    console.log(`[CoachPortraitService] getPortraitsWithImages called with ${pids.length} PIDs`);
+    console.log(`[CoachPortraitService] spritesDir: ${this.spritesDir}`);
+    console.log(`[CoachPortraitService] initialized: ${this.initialized}`);
+
+    for (const pid of pids) {
+      const info = this.getPortraitByPID(pid);
+      if (!info) {
+        errorCount++;
+        if (errorCount === 1) {
+          console.log(`[CoachPortraitService] First PID ${pid} has no info`);
+        }
+        continue;
+      }
+
+      // Log first path attempt
+      if (results.length === 0 && errorCount === 0) {
+        console.log(`[CoachPortraitService] First sheet path: ${info.sheetPath}`);
+        console.log(`[CoachPortraitService] File exists: ${fs.existsSync(info.sheetPath)}`);
+        console.log(`[CoachPortraitService] Extract region: x=${info.x}, y=${info.y}, w=${info.width}, h=${info.height}`);
+      }
+
+      try {
+        const imageBuffer = await sharp(info.sheetPath)
+          .extract({
+            left: info.x,
+            top: info.y,
+            width: info.width,
+            height: info.height
+          })
+          .png()
+          .toBuffer();
+
+        const base64Image = imageBuffer.toString('base64');
+        results.push({
+          pid,
+          imageData: `data:image/png;base64,${base64Image}`
+        });
+      } catch (err) {
+        errorCount++;
+        if (!firstError) {
+          firstError = err;
+          console.error(`[CoachPortraitService] First extraction error for PID ${pid}:`, err);
+        }
+      }
+    }
+
+    console.log(`[CoachPortraitService] Loaded ${results.length} portraits, ${errorCount} errors`);
+    if (errorCount > 0 && firstError) {
+      console.log(`[CoachPortraitService] First error was:`, firstError.message);
+    }
+
+    return results;
   }
 
   /**
@@ -227,33 +319,47 @@ export class CoachPortraitService {
    */
   public async exportPortraitAsDDS(pid: number, outputPath: string): Promise<{ success: boolean; filePath?: string; error?: string }> {
     try {
+      // Debug: log first export attempt
+      const info = this.getPortraitByPID(pid);
+      if (!info) {
+        console.log(`[CoachPortraitService] exportPortraitAsDDS: No info for PID ${pid}, initialized=${this.initialized}, mapSize=${this.portraitMap.size}`);
+        return { success: false, error: `No portrait info for coach PID ${pid}` };
+      }
+
+      // Check if sheet exists
+      if (!fs.existsSync(info.sheetPath)) {
+        console.log(`[CoachPortraitService] Sheet NOT FOUND: ${info.sheetPath}`);
+        console.log(`[CoachPortraitService] spritesDir: ${this.spritesDir}`);
+        return { success: false, error: `Sheet not found: ${info.sheetPath}` };
+      }
+
       // Extract and upscale portrait
       const pngBuffer = await this.extractPortraitByPID(pid, true);
       if (!pngBuffer) {
-        return { success: false, error: `Portrait not found for coach PID ${pid}` };
+        return { success: false, error: `Failed to extract portrait for coach PID ${pid}` };
       }
 
       // Get raw RGBA pixels
-      const { data: rgbaData, info } = await sharp(pngBuffer)
+      const { data: rgbaData, info: sharpInfo } = await sharp(pngBuffer)
         .ensureAlpha()
         .raw()
         .toBuffer({ resolveWithObject: true });
 
-      console.log(`[CoachPortraitService] Exporting coach PID ${pid}: ${info.width}x${info.height}`);
+      console.log(`[CoachPortraitService] Exporting coach PID ${pid}: ${sharpInfo.width}x${sharpInfo.height}`);
 
       // Compress to DXT5
-      const dxt5Data = this.compressToDxt5(rgbaData, info.width, info.height);
+      const dxt5Data = this.compressToDxt5(rgbaData, sharpInfo.width, sharpInfo.height);
 
       // Build DDS file
-      const ddsBuffer = this.buildDdsFile(dxt5Data, info.width, info.height);
+      const ddsBuffer = this.buildDdsFile(dxt5Data, sharpInfo.width, sharpInfo.height);
 
       // Ensure output directory exists
       if (!fs.existsSync(outputPath)) {
         fs.mkdirSync(outputPath, { recursive: true });
       }
 
-      // Write file (use C_ prefix to distinguish from player portraits)
-      const filename = `C_${pid}.dds`;
+      // Write file - just the PID number to match in-game format
+      const filename = `${pid}.dds`;
       const filePath = path.join(outputPath, filename);
       fs.writeFileSync(filePath, ddsBuffer);
 
@@ -423,7 +529,8 @@ export class CoachPortraitService {
       indices |= idx << (i * 2);
     }
 
-    result.writeUInt32LE(indices, 4);
+    // Use >>> 0 to convert to unsigned 32-bit integer (JS bitwise ops use signed 32-bit)
+    result.writeUInt32LE(indices >>> 0, 4);
     return result;
   }
 

@@ -1867,101 +1867,83 @@
 
     if (!resultsGrid) return;
 
-    resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>Searching coaches...</p></div>';
+    resultsGrid.innerHTML = '<div class="bundled-empty-state" style="grid-column: 1 / -1;"><p>Loading coach portraits...</p></div>';
     coachBundledSelectedPids.clear();
     updateCoachBundledExportButton();
 
     try {
-      // Search coach portraits using the coach database
-      const result = await window.electronAPI.coachDatabase.getAllCoaches();
+      // Get all coach portraits with images from the sprite sheets
+      const portraitsResult = await window.electronAPI.coachPortrait.getAllWithImages(500);
 
-      if (!result.success || !result.data || result.data.length === 0) {
-        resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>No coaches found</p></div>';
+      if (!portraitsResult.success || !portraitsResult.portraits || portraitsResult.portraits.length === 0) {
+        resultsGrid.innerHTML = '<div class="bundled-empty-state" style="grid-column: 1 / -1;"><p>No coach portraits found in sprite sheets</p></div>';
         return;
       }
 
-      // Filter coaches by search query
+      // Get coach names from database
+      const coachResult = await window.electronAPI.coachDatabase.getAllCoaches();
+      const coachNameMap = new Map();
+
+      if (coachResult.success && coachResult.data) {
+        for (const coach of coachResult.data) {
+          if (coach.pid) {
+            coachNameMap.set(coach.pid, coach.displayName || `${coach.firstName || ''} ${coach.lastName || ''}`.trim());
+          }
+        }
+      }
+
+      // Add names to portraits and filter by query
       const queryLower = query.toLowerCase();
-      const matchingCoaches = result.data.filter(coach => {
-        const fullName = `${coach.firstName || ''} ${coach.lastName || ''}`.toLowerCase();
-        const displayName = (coach.displayName || '').toLowerCase();
-        return fullName.includes(queryLower) || displayName.includes(queryLower);
-      });
+      const matchingPortraits = portraitsResult.portraits
+        .map(p => ({
+          ...p,
+          name: coachNameMap.get(p.pid) || `Coach PID ${p.pid}`
+        }))
+        .filter(p => p.name.toLowerCase().includes(queryLower));
 
-      if (matchingCoaches.length === 0) {
-        resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>No coaches found matching "' + query + '"</p></div>';
+      if (matchingPortraits.length === 0) {
+        resultsGrid.innerHTML = '<div class="bundled-empty-state" style="grid-column: 1 / -1;"><p>No coaches found matching "' + query + '"</p></div>';
         return;
       }
 
-      // Render results with portraits
+      // Render results
       resultsGrid.innerHTML = '';
-      let loadedCount = 0;
 
-      for (const coach of matchingCoaches.slice(0, 100)) {
+      for (const portrait of matchingPortraits.slice(0, 100)) {
         const card = document.createElement('div');
         card.className = 'bundled-portrait-card';
-        card.dataset.name = coach.displayName || `${coach.firstName} ${coach.lastName}`;
-        card.dataset.pid = coach.pid || '';
+        card.dataset.name = portrait.name;
+        card.dataset.pid = portrait.pid;
 
         const img = document.createElement('img');
-        img.alt = coach.displayName || `${coach.firstName} ${coach.lastName}`;
-
-        // Load coach portrait
-        if (coach.pid && window.electronAPI?.coachPortrait) {
-          try {
-            const hasPortrait = await window.electronAPI.coachPortrait.hasPortrait(coach.pid);
-            if (hasPortrait) {
-              const imageData = await window.electronAPI.coachPortrait.getImageDataByPID(coach.pid);
-              if (imageData) {
-                img.src = imageData;
-                loadedCount++;
-              } else {
-                img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#333" width="64" height="64"/><text x="32" y="36" text-anchor="middle" fill="#666" font-size="10">No Img</text></svg>');
-              }
-            } else {
-              img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#333" width="64" height="64"/><text x="32" y="36" text-anchor="middle" fill="#666" font-size="10">No Img</text></svg>');
-            }
-          } catch (e) {
-            img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#333" width="64" height="64"/></svg>');
-          }
-        } else {
-          img.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="#333" width="64" height="64"/></svg>');
-        }
-
+        img.src = portrait.imageData;
+        img.alt = portrait.name;
         card.appendChild(img);
 
         const name = document.createElement('div');
         name.className = 'portrait-name';
-        name.textContent = coach.pid ? `${coach.displayName || coach.firstName + ' ' + coach.lastName} (${coach.pid})` : (coach.displayName || coach.firstName + ' ' + coach.lastName);
-        name.title = coach.pid ? `PID: ${coach.pid}` : 'No PID';
+        name.textContent = `${portrait.name} (${portrait.pid})`;
+        name.title = `PID: ${portrait.pid}`;
         card.appendChild(name);
 
-        // Only allow selection if coach has a PID
-        if (coach.pid) {
-          card.addEventListener('click', () => {
-            const coachName = coach.displayName || `${coach.firstName} ${coach.lastName}`;
-            if (coachBundledSelectedPids.has(coachName)) {
-              coachBundledSelectedPids.delete(coachName);
-              card.classList.remove('selected');
-            } else {
-              coachBundledSelectedPids.set(coachName, coach.pid);
-              card.classList.add('selected');
-            }
-            updateCoachBundledExportButton();
-          });
-        } else {
-          card.style.opacity = '0.5';
-          card.title = 'No PID mapping available for this coach';
-        }
+        card.addEventListener('click', () => {
+          if (coachBundledSelectedPids.has(portrait.name)) {
+            coachBundledSelectedPids.delete(portrait.name);
+            card.classList.remove('selected');
+          } else {
+            coachBundledSelectedPids.set(portrait.name, portrait.pid);
+            card.classList.add('selected');
+          }
+          updateCoachBundledExportButton();
+        });
 
         resultsGrid.appendChild(card);
       }
 
-      const exportableCount = matchingCoaches.filter(c => c.pid).length;
-      showToast(`Found ${matchingCoaches.length} coach(es), ${loadedCount} with portraits`, 'success');
+      showToast(`Found ${matchingPortraits.length} coach portrait(s) matching "${query}"`, 'success');
     } catch (error) {
       console.error('[PortraitManager] Coach search error:', error);
-      resultsGrid.innerHTML = '<div class="bundled-empty-state"><p>Search failed: ' + error.message + '</p></div>';
+      resultsGrid.innerHTML = '<div class="bundled-empty-state" style="grid-column: 1 / -1;"><p>Search failed: ' + error.message + '</p></div>';
     }
   }
 
@@ -3210,6 +3192,7 @@
         break;
       case 'coaches':
         document.getElementById('modal-coach-portraits').style.display = 'flex';
+        initCoachPortraitSection();
         refreshCoachPortraits();
         break;
     }
