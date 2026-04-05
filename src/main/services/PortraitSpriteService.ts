@@ -73,9 +73,10 @@ export class PortraitSpriteService {
 
     // Sprite sheets directory - check multiple locations
     const possibleSpritesPaths = [
+      path.join(__dirname, 'data', 'portrait-sprites'),  // Packaged: __dirname is .vite/build, data is in .vite/build/data
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'portrait-sprites'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'portrait-sprites'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'portrait-sprites'),
+      path.join(process.cwd(), 'data', 'portrait-sprites'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'portrait-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'portrait-sprites'), // For unpacked ASAR
       path.join(__dirname, '..', '..', 'data', 'portrait-sprites'),
@@ -92,9 +93,10 @@ export class PortraitSpriteService {
 
     // Atlas file path
     const possibleAtlasPaths = [
+      path.join(__dirname, 'data', 'portrait-atlas.json'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'portrait-atlas.json'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'portrait-atlas.json'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'portrait-atlas.json'),
+      path.join(process.cwd(), 'data', 'portrait-atlas.json'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'portrait-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'portrait-atlas.json'),
       path.join(__dirname, '..', '..', 'data', 'portrait-atlas.json'),
@@ -111,9 +113,10 @@ export class PortraitSpriteService {
 
     // PID Portrait Mapping CSV path
     const possibleMappingPaths = [
+      path.join(__dirname, 'data', 'lookups', 'PID_Portrait_Mapping.csv'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
+      path.join(process.cwd(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
       path.join(app.getAppPath(), '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
       path.join(__dirname, '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
@@ -130,18 +133,20 @@ export class PortraitSpriteService {
 
     // Developer portraits sprite sheets and atlas (PIDs 11000-11999)
     const possibleDevSpritesPaths = [
+      path.join(__dirname, 'data', 'developer-sprites'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'developer-sprites'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'developer-sprites'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'developer-sprites'),
+      path.join(process.cwd(), 'data', 'developer-sprites'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'developer-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'developer-sprites'),
       path.join(__dirname, '..', '..', 'data', 'developer-sprites'),
     ];
 
     const possibleDevAtlasPaths = [
+      path.join(__dirname, 'data', 'developer-portrait-atlas.json'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'developer-portrait-atlas.json'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'developer-portrait-atlas.json'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'developer-portrait-atlas.json'),
+      path.join(process.cwd(), 'data', 'developer-portrait-atlas.json'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'developer-portrait-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'developer-portrait-atlas.json'),
       path.join(__dirname, '..', '..', 'data', 'developer-portrait-atlas.json'),
@@ -152,18 +157,20 @@ export class PortraitSpriteService {
 
     // Custom portraits sprite sheets and atlas (PIDs 12000+)
     const possibleCustomSpritesPaths = [
+      path.join(__dirname, 'data', 'custom-sprites'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'custom-sprites'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'custom-sprites'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'custom-sprites'),
+      path.join(process.cwd(), 'data', 'custom-sprites'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'custom-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'custom-sprites'),
       path.join(__dirname, '..', '..', 'data', 'custom-sprites'),
     ];
 
     const possibleCustomAtlasPaths = [
+      path.join(__dirname, 'data', 'custom-portrait-atlas.json'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'custom-portrait-atlas.json'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'custom-portrait-atlas.json'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'custom-portrait-atlas.json'),
+      path.join(process.cwd(), 'data', 'custom-portrait-atlas.json'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'custom-portrait-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'custom-portrait-atlas.json'),
       path.join(__dirname, '..', '..', 'data', 'custom-portrait-atlas.json'),
@@ -348,9 +355,10 @@ export class PortraitSpriteService {
   private async loadPGHEMapping(): Promise<void> {
     // Find PGHE_lookup.csv
     const possiblePaths = [
+      path.join(__dirname, 'data', 'lookups', 'PGHE_lookup.csv'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PGHE_lookup.csv'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'lookups', 'PGHE_lookup.csv'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'lookups', 'PGHE_lookup.csv'),
+      path.join(process.cwd(), 'data', 'lookups', 'PGHE_lookup.csv'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'lookups', 'PGHE_lookup.csv'),
       path.join(app.getAppPath(), '..', '..', 'data', 'lookups', 'PGHE_lookup.csv'),
       path.join(__dirname, '..', '..', 'data', 'lookups', 'PGHE_lookup.csv'),

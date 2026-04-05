@@ -52,9 +52,10 @@ export class CoachPortraitService {
   constructor() {
     // Sprite sheets directory - check multiple locations
     const possibleSpritesPaths = [
+      path.join(__dirname, 'data', 'coach-sprites'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'coach-sprites'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'coach-sprites'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'coach-sprites'),
+      path.join(process.cwd(), 'data', 'coach-sprites'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'coach-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'coach-sprites'), // For unpacked ASAR
       path.join(__dirname, '..', '..', 'data', 'coach-sprites'),
@@ -64,9 +65,10 @@ export class CoachPortraitService {
 
     // Atlas file path
     const possibleAtlasPaths = [
+      path.join(__dirname, 'data', 'coach-atlas.json'),  // Packaged: __dirname is .vite/build
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'coach-atlas.json'),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'coach-atlas.json'),  // Packaged with resourcesPath
-      path.join(process.cwd(), 'data', 'coach-atlas.json'),
+      path.join(process.cwd(), 'data', 'coach-atlas.json'),  // Dev mode
       path.join(app.getAppPath(), 'data', 'coach-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'coach-atlas.json'),
       path.join(__dirname, '..', '..', 'data', 'coach-atlas.json'),

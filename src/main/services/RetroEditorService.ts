@@ -125,8 +125,10 @@ function resolveRetroDataPath(...segments: string[]): string {
   const appPath = app.getAppPath();
   const resourcesPath = (process as any).resourcesPath || '';
 
+  // In packaged app, __dirname is .vite/build, so data is at __dirname/data
   const possiblePaths = app.isPackaged
     ? [
+        path.join(__dirname, 'data', ...segments),  // Packaged: __dirname is .vite/build
         path.join(appPath, '.vite', 'build', 'data', ...segments),
         path.join(resourcesPath, 'app', '.vite', 'build', 'data', ...segments),
       ]

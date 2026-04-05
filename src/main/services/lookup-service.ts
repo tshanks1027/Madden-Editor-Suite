@@ -102,6 +102,7 @@ export class LookupService {
     // In packaged builds, data is in .vite/build/data
     // In dev mode, data is in the project root data folder
     const possiblePaths = [
+      path.join(__dirname, 'data', ...segments),  // Packaged: __dirname is .vite/build, data is in .vite/build/data
       path.join(app.getAppPath(), '.vite', 'build', 'data', ...segments),  // Packaged build
       path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', ...segments),  // Packaged with resourcesPath (installed app)
       path.join(app.getAppPath(), 'data', ...segments),                     // Dev mode

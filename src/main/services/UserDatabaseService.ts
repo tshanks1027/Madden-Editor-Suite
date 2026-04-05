@@ -405,8 +405,10 @@ class UserDatabaseService {
    */
   private async copyBundledDatabases(): Promise<void> {
     // Determine bundled database location based on packaged vs dev mode
+    // __dirname in packaged app is .vite/build, so data is at __dirname/data
     const possibleBundledPaths = app.isPackaged
       ? [
+          path.join(__dirname, 'data', 'user-database'),  // Packaged: __dirname is .vite/build
           path.join(app.getAppPath(), '.vite', 'build', 'data', 'user-database'),
           path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'user-database'),
         ]
