@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+
 import { lookupService } from './lookup-service';
 import { userDatabaseService } from './UserDatabaseService';
 
@@ -115,6 +116,34 @@ const TABLE_IDS = {
 
 // Empty reference constant - marks unused slots in array tables
 const ZERO_REF = '00000000000000000000000000000000';
+
+/**
+ * Helper function to resolve data paths that works in both dev and packaged modes
+ * Checks multiple possible locations and returns the first that exists
+ */
+function resolveRetroDataPath(...segments: string[]): string {
+  const appPath = app.getAppPath();
+  const resourcesPath = (process as any).resourcesPath || '';
+
+  const possiblePaths = app.isPackaged
+    ? [
+        path.join(appPath, '.vite', 'build', 'data', ...segments),
+        path.join(resourcesPath, 'app', '.vite', 'build', 'data', ...segments),
+      ]
+    : [
+        path.join(appPath, 'data', ...segments),
+        path.join(process.cwd(), 'data', ...segments),
+      ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      return p;
+    }
+  }
+
+  // Return first path as default (will fail gracefully if not found)
+  return possiblePaths[0];
+}
 
 // SeasonGame field mappings for M26 (when schema is missing)
 // Based on schema-output.xml indices:
@@ -510,12 +539,8 @@ export class RetroEditorService {
    */
   private loadHistoricalData(): void {
     try {
-      const appPath = app.getAppPath();
-      // In packaged mode, data is in .vite/build/data/retro
-      // In dev mode, data is directly in data/retro (Vite copies it there)
-      const dataPath = app.isPackaged
-        ? path.join(appPath, '.vite', 'build', 'data', 'retro')
-        : path.join(appPath, 'data', 'retro');
+      // Use helper function to find the correct data path
+      const dataPath = resolveRetroDataPath('retro');
       console.log('[RetroEditorService] Loading historical data from:', dataPath);
       console.log('[RetroEditorService] app.isPackaged:', app.isPackaged);
 
@@ -1519,7 +1544,7 @@ export class RetroEditorService {
               f.toLowerCase().includes('rating')
             );
 
-            let debugContent = `=== PLAYER FIELDS DEBUG (from first player) ===
+            const debugContent = `=== PLAYER FIELDS DEBUG (from first player) ===
 Player: ${player.FirstName} ${player.LastName}
 
 OVR-RELATED FIELDS: ${ovrRelatedFields.join(', ') || 'NONE FOUND'}
@@ -3632,11 +3657,7 @@ ${fieldsList}
    */
   async loadCoachData(year: number): Promise<any | null> {
     try {
-      const appPath = app.getAppPath();
-      const dataPath = app.isPackaged
-        ? path.join(appPath, '.vite', 'build', 'data', 'retro', 'coaches')
-        : path.join(appPath, 'data', 'retro', 'coaches');
-
+      const dataPath = resolveRetroDataPath('retro', 'coaches');
       const coachFilePath = path.join(dataPath, `${year}.json`);
 
       if (!fs.existsSync(coachFilePath)) {
@@ -3657,11 +3678,7 @@ ${fieldsList}
    * Check if coach data is available for a year
    */
   async hasCoachData(year: number): Promise<boolean> {
-    const appPath = app.getAppPath();
-    const dataPath = app.isPackaged
-      ? path.join(appPath, '.vite', 'build', 'data', 'retro', 'coaches')
-      : path.join(appPath, 'data', 'retro', 'coaches');
-
+    const dataPath = resolveRetroDataPath('retro', 'coaches');
     const coachFilePath = path.join(dataPath, `${year}.json`);
     return fs.existsSync(coachFilePath);
   }
@@ -4766,11 +4783,7 @@ ${fieldsList}
    */
   private async getCareerStatsDatabase(): Promise<SqlJsWrapper | null> {
     try {
-      const appPath = app.getAppPath();
-      const dbPath = app.isPackaged
-        ? path.join(appPath, '.vite', 'build', 'data', 'player-career-stats.db')
-        : path.join(appPath, 'data', 'player-career-stats.db');
-
+      const dbPath = resolveRetroDataPath('player-career-stats.db');
       console.log('[RetroEditorService] Loading career stats database from:', dbPath);
       console.log('[RetroEditorService] app.isPackaged:', app.isPackaged);
 
@@ -4897,7 +4910,7 @@ ${fieldsList}
 
       // Use nextRecordToUse from table headers for proper record allocation
       // This is the correct way to allocate new records according to madden-franchise-utils
-      let offNextRecord = careerOffTable.header.nextRecordToUse || 0;
+      const offNextRecord = careerOffTable.header.nextRecordToUse || 0;
       const offCapacity = careerOffTable.header.recordCapacity || careerOffTable.records.length;
       console.log(`[RetroEditorService] CareerOffensiveStats: nextRecordToUse=${offNextRecord}, capacity=${offCapacity}`);
 
@@ -6487,7 +6500,7 @@ ${fieldsList}
     position: string,
     overall: number,
     year: number,
-    yearsOfService: number = 0
+    yearsOfService = 0
   ): {
     salary: number;      // Annual salary in thousands
     length: number;      // Contract length in years
@@ -6810,13 +6823,16 @@ ${fieldsList}
   private loadCoachDatabase(): any | null {
     try {
       const appPath = app.getAppPath();
+      const resourcesPath = (process as any).resourcesPath || '';
       console.log(`[RetroEditorService] app.getAppPath() = ${appPath}`);
       console.log(`[RetroEditorService] app.isPackaged = ${app.isPackaged}`);
+      console.log(`[RetroEditorService] process.resourcesPath = ${resourcesPath}`);
 
       // Try multiple potential paths
       const possiblePaths = [
         path.join(appPath, 'data', 'lookups', 'retro-coaches-database.json'),
         path.join(appPath, '.vite', 'build', 'data', 'lookups', 'retro-coaches-database.json'),
+        path.join(resourcesPath, 'app', '.vite', 'build', 'data', 'lookups', 'retro-coaches-database.json'),
         path.join(process.cwd(), 'data', 'lookups', 'retro-coaches-database.json'),
       ];
 
@@ -7565,7 +7581,7 @@ ${fieldsList}
           }
         } else {
           // Handle expansion draft
-          let selections = config.expansionDraftSelections || [];
+          const selections = config.expansionDraftSelections || [];
 
           // If no selections provided, auto-compute them
           if (selections.length === 0) {
@@ -7792,7 +7808,7 @@ ${fieldsList}
     // Step 2: Move players to FA (set TeamIndex = 32)
     const FA = 32;
     let playersMoved = 0;
-    let firstFewChanges: string[] = [];
+    const firstFewChanges: string[] = [];
 
     // Collect player references for adding to FA array
     const playerRefsToAddToFA: string[] = [];
@@ -8410,7 +8426,7 @@ ${fieldsList}
    * Search the coach database for coaches matching a query
    * Searches by first name, last name, or full name
    */
-  searchCoachDatabase(query: string, year: number, limit: number = 20): {
+  searchCoachDatabase(query: string, year: number, limit = 20): {
     success: boolean;
     results: Array<{
       firstName: string;
@@ -8420,24 +8436,11 @@ ${fieldsList}
       careerTo: number;
       careerWins: number;
       careerLosses: number;
+      source?: string;
     }>;
     error?: string;
   } {
     console.log(`[RetroEditorService] searchCoachDatabase called: query="${query}", year=${year}, limit=${limit}`);
-
-    const coachDb = this.loadCoachDatabase();
-    if (!coachDb) {
-      console.warn('[RetroEditorService] Could not load coach database');
-      return { success: false, results: [], error: 'Could not load coach database file' };
-    }
-
-    console.log(`[RetroEditorService] Coach database loaded with ${coachDb.coaches?.length || 0} coaches`);
-
-    const queryLower = query.toLowerCase().trim();
-    if (!queryLower) {
-      console.log('[RetroEditorService] Empty query, returning empty results');
-      return { success: true, results: [] };
-    }
 
     const results: Array<{
       firstName: string;
@@ -8447,36 +8450,85 @@ ${fieldsList}
       careerTo: number;
       careerWins: number;
       careerLosses: number;
+      source?: string;
     }> = [];
 
-    for (const coach of coachDb.coaches) {
-      // Skip if coach started after the target year
-      if (coach.careerFrom > year) continue;
+    const queryLower = query.toLowerCase().trim();
+    if (!queryLower) {
+      console.log('[RetroEditorService] Empty query, returning empty results');
+      return { success: true, results: [] };
+    }
 
-      const fullName = `${coach.firstName} ${coach.lastName}`.toLowerCase();
-      const firstName = coach.firstName.toLowerCase();
-      const lastName = coach.lastName.toLowerCase();
+    // FIRST: Search user's custom coaches database (players.db)
+    try {
+      const customCoaches = userDatabaseService.searchCustomCoachesForRetro(query, year, limit);
+      console.log(`[RetroEditorService] Found ${customCoaches.length} custom coaches matching "${query}"`);
 
-      if (fullName.includes(queryLower) || firstName.includes(queryLower) || lastName.includes(queryLower)) {
-        // Get primary position
-        const positions = coach.positions || [];
-        const position = positions.includes('HC') ? 'HC' : positions[0] || 'Unknown';
-
+      for (const coach of customCoaches) {
         results.push({
           firstName: coach.firstName,
           lastName: coach.lastName,
-          position,
+          position: coach.position,
           careerFrom: coach.careerFrom,
           careerTo: coach.careerTo,
-          careerWins: coach.careerWins || 0,
-          careerLosses: coach.careerLosses || 0
+          careerWins: coach.careerWins,
+          careerLosses: coach.careerLosses,
+          source: 'Your Database'
         });
-
-        if (results.length >= limit) break;
       }
+    } catch (err) {
+      console.warn('[RetroEditorService] Error searching custom coaches:', err);
     }
 
-    console.log(`[RetroEditorService] Search found ${results.length} results for query "${query}"`);
+    // SECOND: Search historical JSON database
+    const coachDb = this.loadCoachDatabase();
+    if (coachDb) {
+      console.log(`[RetroEditorService] Coach database loaded with ${coachDb.coaches?.length || 0} coaches`);
+
+      // Count coaches available for the given year
+      const coachesForYear = coachDb.coaches.filter((c: any) => c.careerFrom <= year);
+      console.log(`[RetroEditorService] Historical coaches available for year ${year}: ${coachesForYear.length} out of ${coachDb.coaches?.length || 0} total`);
+
+      for (const coach of coachDb.coaches) {
+        // Skip if coach started after the target year
+        if (coach.careerFrom > year) continue;
+
+        // Skip if we already have enough results
+        if (results.length >= limit) break;
+
+        const fullName = `${coach.firstName} ${coach.lastName}`.toLowerCase();
+        const firstName = coach.firstName.toLowerCase();
+        const lastName = coach.lastName.toLowerCase();
+
+        if (fullName.includes(queryLower) || firstName.includes(queryLower) || lastName.includes(queryLower)) {
+          // Check if this coach is already in results from custom db (avoid duplicates)
+          const isDuplicate = results.some(r =>
+            r.firstName.toLowerCase() === coach.firstName.toLowerCase() &&
+            r.lastName.toLowerCase() === coach.lastName.toLowerCase()
+          );
+          if (isDuplicate) continue;
+
+          // Get primary position
+          const positions = coach.positions || [];
+          const position = positions.includes('HC') ? 'HC' : positions[0] || 'Unknown';
+
+          results.push({
+            firstName: coach.firstName,
+            lastName: coach.lastName,
+            position,
+            careerFrom: coach.careerFrom,
+            careerTo: coach.careerTo,
+            careerWins: coach.careerWins || 0,
+            careerLosses: coach.careerLosses || 0,
+            source: 'Historical'
+          });
+        }
+      }
+    } else {
+      console.warn('[RetroEditorService] Could not load historical coach database');
+    }
+
+    console.log(`[RetroEditorService] Search found ${results.length} total results for query "${query}"`);
     return { success: true, results };
   }
 
@@ -8780,7 +8832,7 @@ ${fieldsList}
           const slotType = gear.SlotName;
           const gearAsset = gear.GearAsset;
 
-          let loadoutElements = loadouts[gearLoadoutIndex]['loadoutElements'];
+          const loadoutElements = loadouts[gearLoadoutIndex]['loadoutElements'];
           let foundSlot = false;
 
           // Check if slot already exists, update it

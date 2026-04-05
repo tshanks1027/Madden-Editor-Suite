@@ -405,11 +405,19 @@ class UserDatabaseService {
    */
   private async copyBundledDatabases(): Promise<void> {
     // Determine bundled database location based on packaged vs dev mode
-    const bundledPath = app.isPackaged
-      ? path.join(app.getAppPath(), '.vite', 'build', 'data', 'user-database')
-      : path.join(app.getAppPath(), 'data', 'user-database');
+    const possibleBundledPaths = app.isPackaged
+      ? [
+          path.join(app.getAppPath(), '.vite', 'build', 'data', 'user-database'),
+          path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'user-database'),
+        ]
+      : [
+          path.join(app.getAppPath(), 'data', 'user-database'),
+          path.join(process.cwd(), 'data', 'user-database'),
+        ];
 
-    if (!fs.existsSync(bundledPath)) {
+    const bundledPath = possibleBundledPaths.find(p => fs.existsSync(p));
+
+    if (!bundledPath) {
       console.log('[UserDatabaseService] No bundled user-database found, skipping copy');
       return;
     }

@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+
 import Database from 'better-sqlite3';
 
 export interface LookupEntry {
@@ -86,7 +87,7 @@ export class LookupService {
   private coachByPAMCache: Map<string, CoachLookupEntry> = new Map(); // PAM → CoachLookupEntry
   private commentaryCache: Map<string, number> = new Map(); // lastName (lowercase) → commentary ID
   private initPromise: Promise<void>;
-  private initialized: boolean = false;
+  private initialized = false;
 
   constructor() {
     this.initPromise = this.initializeLookups();
@@ -102,6 +103,7 @@ export class LookupService {
     // In dev mode, data is in the project root data folder
     const possiblePaths = [
       path.join(app.getAppPath(), '.vite', 'build', 'data', ...segments),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', ...segments),  // Packaged with resourcesPath (installed app)
       path.join(app.getAppPath(), 'data', ...segments),                     // Dev mode
       path.join(process.cwd(), 'data', ...segments),                        // Fallback to cwd
     ];
@@ -1029,7 +1031,7 @@ export class LookupService {
   }
 
   // Search players by name - returns all players matching query
-  public searchPlayers(query: string, limit: number = 50): FullDataEntry[] {
+  public searchPlayers(query: string, limit = 50): FullDataEntry[] {
     // Always use cache for search - it has all players loaded with all fields
     const results: FullDataEntry[] = [];
     const lowerQuery = query.toLowerCase().trim();
@@ -1951,6 +1953,117 @@ export class LookupService {
    */
   public hasBundledDeveloperPortrait(playerId: number): boolean {
     return this.getBundledDeveloperPortrait(playerId) !== null;
+  }
+
+  // ========== BUNDLED CUSTOM PORTRAITS ==========
+
+  /**
+   * Get bundled custom portrait by PID
+   * Custom portraits use PIDs in range 12000+
+   * @param pid Portrait ID
+   * @returns Portrait data with image_data blob, or null
+   */
+  public getBundledCustomPortrait(pid: number): { pid: number; playerName: string | null; imageData: Buffer } | null {
+    if (!this.db) {
+      console.log('[LookupService] getBundledCustomPortrait: Database not initialized');
+      return null;
+    }
+    try {
+      const tableExists = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bundled_custom_portraits'"
+      ).get();
+      if (!tableExists) {
+        console.log('[LookupService] getBundledCustomPortrait: bundled_custom_portraits table does not exist');
+        return null;
+      }
+
+      const row = this.db.prepare(
+        'SELECT pid, player_name, image_data FROM bundled_custom_portraits WHERE pid = ?'
+      ).get(pid) as { pid: number; player_name: string | null; image_data: Buffer } | undefined;
+
+      if (!row) {
+        console.log(`[LookupService] getBundledCustomPortrait: No row found for PID ${pid}`);
+        return null;
+      }
+
+      console.log(`[LookupService] getBundledCustomPortrait: Found portrait for PID ${pid}, imageData size: ${row.image_data?.length || 0}`);
+      return {
+        pid: row.pid,
+        playerName: row.player_name,
+        imageData: row.image_data
+      };
+    } catch (e) {
+      console.error('[LookupService] Error getting bundled custom portrait:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Get all bundled custom portraits (metadata only, no image data)
+   * @returns Array of {pid, playerName}
+   */
+  public getAllBundledCustomPortraits(): { pid: number; playerName: string | null }[] {
+    if (!this.db) return [];
+    try {
+      const tableExists = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bundled_custom_portraits'"
+      ).get();
+      if (!tableExists) return [];
+
+      const rows = this.db.prepare(
+        'SELECT pid, player_name FROM bundled_custom_portraits ORDER BY pid'
+      ).all() as { pid: number; player_name: string | null }[];
+
+      return rows.map(r => ({
+        pid: r.pid,
+        playerName: r.player_name
+      }));
+    } catch (e) {
+      console.error('[LookupService] Error getting bundled custom portraits:', e);
+      return [];
+    }
+  }
+
+  /**
+   * Check if a bundled custom portrait exists
+   * @param pid Portrait ID
+   * @returns true if bundled custom portrait exists
+   */
+  public hasBundledCustomPortrait(pid: number): boolean {
+    if (!this.db) return false;
+    try {
+      const tableExists = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bundled_custom_portraits'"
+      ).get();
+      if (!tableExists) return false;
+
+      const row = this.db.prepare(
+        'SELECT 1 FROM bundled_custom_portraits WHERE pid = ?'
+      ).get(pid);
+      return !!row;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /**
+   * Get bundled custom portrait count
+   */
+  public getBundledCustomPortraitCount(): number {
+    if (!this.db) return 0;
+    try {
+      const tableExists = this.db.prepare(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='bundled_custom_portraits'"
+      ).get();
+      if (!tableExists) return 0;
+
+      const row = this.db.prepare(
+        'SELECT COUNT(*) as count FROM bundled_custom_portraits'
+      ).get() as { count: number };
+      return row.count;
+    } catch (e) {
+      return 0;
+    }
   }
 }
 

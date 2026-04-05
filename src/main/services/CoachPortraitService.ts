@@ -8,6 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
+
 import sharp from 'sharp';
 
 interface CoachAtlasEntry {
@@ -46,11 +47,13 @@ export class CoachPortraitService {
   private portraitMap: Map<number, CoachAtlasEntry> = new Map();
   private spritesDir: string;
   private atlasPath: string;
-  private initialized: boolean = false;
+  private initialized = false;
 
   constructor() {
     // Sprite sheets directory - check multiple locations
     const possibleSpritesPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'coach-sprites'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'coach-sprites'),  // Packaged with resourcesPath
       path.join(process.cwd(), 'data', 'coach-sprites'),
       path.join(app.getAppPath(), 'data', 'coach-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'coach-sprites'), // For unpacked ASAR
@@ -61,6 +64,8 @@ export class CoachPortraitService {
 
     // Atlas file path
     const possibleAtlasPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'coach-atlas.json'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'coach-atlas.json'),  // Packaged with resourcesPath
       path.join(process.cwd(), 'data', 'coach-atlas.json'),
       path.join(app.getAppPath(), 'data', 'coach-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'coach-atlas.json'),
@@ -177,7 +182,7 @@ export class CoachPortraitService {
    * @param upscale Whether to upscale to 512x512 for DDS export
    * @returns PNG buffer or null
    */
-  public async extractPortraitByPID(pid: number, upscale: boolean = false): Promise<Buffer | null> {
+  public async extractPortraitByPID(pid: number, upscale = false): Promise<Buffer | null> {
     try {
       const info = this.getPortraitByPID(pid);
       if (!info) {

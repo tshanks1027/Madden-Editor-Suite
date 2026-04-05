@@ -8,6 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
+
 import sharp from 'sharp';
 
 interface AtlasEntry {
@@ -50,7 +51,9 @@ export class PortraitSpriteService {
   private pidMappingPath: string;
   private devSpritesDir: string; // Developer portraits sprite sheets
   private devAtlasPath: string;  // Developer portraits atlas
-  private initialized: boolean = false;
+  private customSpritesDir: string; // Custom portraits sprite sheets (PIDs 12000+)
+  private customAtlasPath: string;  // Custom portraits atlas
+  private initialized = false;
 
   constructor() {
     // Debug log to file
@@ -71,6 +74,7 @@ export class PortraitSpriteService {
     // Sprite sheets directory - check multiple locations
     const possibleSpritesPaths = [
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'portrait-sprites'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'portrait-sprites'),  // Packaged with resourcesPath
       path.join(process.cwd(), 'data', 'portrait-sprites'),
       path.join(app.getAppPath(), 'data', 'portrait-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'portrait-sprites'), // For unpacked ASAR
@@ -89,6 +93,7 @@ export class PortraitSpriteService {
     // Atlas file path
     const possibleAtlasPaths = [
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'portrait-atlas.json'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'portrait-atlas.json'),  // Packaged with resourcesPath
       path.join(process.cwd(), 'data', 'portrait-atlas.json'),
       path.join(app.getAppPath(), 'data', 'portrait-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'portrait-atlas.json'),
@@ -107,6 +112,7 @@ export class PortraitSpriteService {
     // PID Portrait Mapping CSV path
     const possibleMappingPaths = [
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),  // Packaged with resourcesPath
       path.join(process.cwd(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
       path.join(app.getAppPath(), 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
       path.join(app.getAppPath(), '..', '..', 'data', 'lookups', 'PID_Portrait_Mapping.csv'),
@@ -125,6 +131,7 @@ export class PortraitSpriteService {
     // Developer portraits sprite sheets and atlas (PIDs 11000-11999)
     const possibleDevSpritesPaths = [
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'developer-sprites'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'developer-sprites'),  // Packaged with resourcesPath
       path.join(process.cwd(), 'data', 'developer-sprites'),
       path.join(app.getAppPath(), 'data', 'developer-sprites'),
       path.join(app.getAppPath(), '..', '..', 'data', 'developer-sprites'),
@@ -133,6 +140,7 @@ export class PortraitSpriteService {
 
     const possibleDevAtlasPaths = [
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'developer-portrait-atlas.json'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'developer-portrait-atlas.json'),  // Packaged with resourcesPath
       path.join(process.cwd(), 'data', 'developer-portrait-atlas.json'),
       path.join(app.getAppPath(), 'data', 'developer-portrait-atlas.json'),
       path.join(app.getAppPath(), '..', '..', 'data', 'developer-portrait-atlas.json'),
@@ -142,6 +150,28 @@ export class PortraitSpriteService {
     this.devSpritesDir = possibleDevSpritesPaths.find(p => fs.existsSync(p)) || possibleDevSpritesPaths[0];
     this.devAtlasPath = possibleDevAtlasPaths.find(p => fs.existsSync(p)) || possibleDevAtlasPaths[0];
 
+    // Custom portraits sprite sheets and atlas (PIDs 12000+)
+    const possibleCustomSpritesPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'custom-sprites'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'custom-sprites'),  // Packaged with resourcesPath
+      path.join(process.cwd(), 'data', 'custom-sprites'),
+      path.join(app.getAppPath(), 'data', 'custom-sprites'),
+      path.join(app.getAppPath(), '..', '..', 'data', 'custom-sprites'),
+      path.join(__dirname, '..', '..', 'data', 'custom-sprites'),
+    ];
+
+    const possibleCustomAtlasPaths = [
+      path.join(app.getAppPath(), '.vite', 'build', 'data', 'custom-portrait-atlas.json'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'custom-portrait-atlas.json'),  // Packaged with resourcesPath
+      path.join(process.cwd(), 'data', 'custom-portrait-atlas.json'),
+      path.join(app.getAppPath(), 'data', 'custom-portrait-atlas.json'),
+      path.join(app.getAppPath(), '..', '..', 'data', 'custom-portrait-atlas.json'),
+      path.join(__dirname, '..', '..', 'data', 'custom-portrait-atlas.json'),
+    ];
+
+    this.customSpritesDir = possibleCustomSpritesPaths.find(p => fs.existsSync(p)) || possibleCustomSpritesPaths[0];
+    this.customAtlasPath = possibleCustomAtlasPaths.find(p => fs.existsSync(p)) || possibleCustomAtlasPaths[0];
+
     console.log('[PortraitSpriteService] Sprites directory:', this.spritesDir);
     console.log('[PortraitSpriteService] Sprites directory exists:', fs.existsSync(this.spritesDir));
     console.log('[PortraitSpriteService] Atlas path:', this.atlasPath);
@@ -150,6 +180,8 @@ export class PortraitSpriteService {
     console.log('[PortraitSpriteService] PID Mapping file exists:', fs.existsSync(this.pidMappingPath));
     console.log('[PortraitSpriteService] Developer sprites dir:', this.devSpritesDir);
     console.log('[PortraitSpriteService] Developer atlas path:', this.devAtlasPath);
+    console.log('[PortraitSpriteService] Custom sprites dir:', this.customSpritesDir);
+    console.log('[PortraitSpriteService] Custom atlas path:', this.customAtlasPath);
   }
 
   /**
@@ -210,8 +242,13 @@ export class PortraitSpriteService {
           this.portraitMap.set(legendKey, entry);
         }
 
-        // Handle generic with morphed suffix
+        // Handle generic faces - store with plpo_generic_ prefix
         if (entry.category === 'generic') {
+          // New PFCG-keyed entries: store as plpo_generic_1_B_B_005
+          const pfcgKey = `plpo_generic_${entry.id}`.toLowerCase();
+          this.portraitMap.set(pfcgKey, entry);
+
+          // Legacy support: also store with _morphed suffix for old-style entries
           const morphedKey = `plpo_generic_${entry.id}_morphed`.toLowerCase();
           this.portraitMap.set(morphedKey, entry);
         }
@@ -225,6 +262,9 @@ export class PortraitSpriteService {
 
       // Load developer portraits (PIDs 11000-11999)
       await this.loadDeveloperPortraits();
+
+      // Load custom portraits (PIDs 12000+)
+      await this.loadCustomPortraits();
 
       this.initialized = true;
       console.log('[PortraitSpriteService] Portrait map initialized with', this.portraitMap.size, 'keys');
@@ -309,6 +349,7 @@ export class PortraitSpriteService {
     // Find PGHE_lookup.csv
     const possiblePaths = [
       path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PGHE_lookup.csv'),  // Packaged build
+      path.join(process.resourcesPath || '', 'app', '.vite', 'build', 'data', 'lookups', 'PGHE_lookup.csv'),  // Packaged with resourcesPath
       path.join(process.cwd(), 'data', 'lookups', 'PGHE_lookup.csv'),
       path.join(app.getAppPath(), 'data', 'lookups', 'PGHE_lookup.csv'),
       path.join(app.getAppPath(), '..', '..', 'data', 'lookups', 'PGHE_lookup.csv'),
@@ -432,6 +473,64 @@ export class PortraitSpriteService {
   }
 
   /**
+   * Load custom portraits from custom-portrait-atlas.json
+   * Custom portraits use PIDs in range 12000+
+   */
+  private async loadCustomPortraits(): Promise<void> {
+    if (!fs.existsSync(this.customAtlasPath)) {
+      console.log('[PortraitSpriteService] No custom portrait atlas found (this is normal if no custom portraits have been added)');
+      return;
+    }
+
+    try {
+      const customAtlasData = fs.readFileSync(this.customAtlasPath, 'utf8');
+      const customAtlas = JSON.parse(customAtlasData);
+
+      if (!customAtlas.portraits || customAtlas.portraits.length === 0) {
+        console.log('[PortraitSpriteService] Custom portrait atlas is empty');
+        return;
+      }
+
+      console.log(`[PortraitSpriteService] Loading ${customAtlas.portraits.length} custom portraits...`);
+
+      let mappedCount = 0;
+
+      for (const entry of customAtlas.portraits) {
+        if (!entry.pid || entry.sheet < 0) {
+          console.warn(`[PortraitSpriteService] Skipping invalid custom portrait entry: ${JSON.stringify(entry)}`);
+          continue;
+        }
+
+        // Create an atlas entry with custom sprite path info
+        // We mark it with category 'custom' to identify it later
+        const atlasEntry: AtlasEntry = {
+          id: entry.id,
+          filename: entry.filename,
+          category: 'custom',
+          sheet: entry.sheet,
+          x: entry.x,
+          y: entry.y,
+          width: entry.width,
+          height: entry.height
+        };
+
+        // Store in PID map
+        this.pidMap.set(entry.pid, atlasEntry);
+
+        // Also store in portrait map by ID
+        const key = entry.id.toLowerCase();
+        this.portraitMap.set(key, atlasEntry);
+
+        mappedCount++;
+      }
+
+      console.log(`[PortraitSpriteService] Loaded ${mappedCount} custom portraits`);
+    } catch (err) {
+      console.error('[PortraitSpriteService] Error loading custom portraits:', err);
+    }
+  }
+
+  /**
    * Get sprite portrait info by player name
    * @param firstName Player first name
    * @param lastName Player last name
@@ -514,7 +613,7 @@ export class PortraitSpriteService {
    * They should only be used when explicitly assigned by generators.
    * This prevents random developer portraits from showing for unrelated players.
    */
-  public getPortraitByPID(pid: number, includeDevPortraits: boolean = false): SpritePortraitInfo | null {
+  public getPortraitByPID(pid: number, includeDevPortraits = false): SpritePortraitInfo | null {
     if (!this.initialized || !this.atlas) {
       console.warn('[PortraitSpriteService] Service not initialized');
       return null;
@@ -530,14 +629,27 @@ export class PortraitSpriteService {
     // Skip developer portraits unless explicitly requested
     // This prevents PIDs like 11096 from getting random developer portraits
     const isDevPortrait = entry.category === 'developer';
+    const isCustomPortrait = entry.category === 'custom';
+
     if (isDevPortrait && !includeDevPortraits) {
       console.log(`[PortraitSpriteService] Skipping developer portrait for PID ${pid} (not explicitly requested)`);
       return null;
     }
 
     // Use correct sprite directory based on portrait category
-    const spritesDirectory = isDevPortrait ? this.devSpritesDir : this.spritesDir;
-    const sheetPrefix = isDevPortrait ? 'developer-sheet' : 'portraits-sheet';
+    let spritesDirectory: string;
+    let sheetPrefix: string;
+
+    if (isCustomPortrait) {
+      spritesDirectory = this.customSpritesDir;
+      sheetPrefix = 'custom-sheet';
+    } else if (isDevPortrait) {
+      spritesDirectory = this.devSpritesDir;
+      sheetPrefix = 'developer-sheet';
+    } else {
+      spritesDirectory = this.spritesDir;
+      sheetPrefix = 'portraits-sheet';
+    }
 
     return {
       sheetPath: path.join(spritesDirectory, `${sheetPrefix}-${entry.sheet}.png`),
@@ -554,7 +666,7 @@ export class PortraitSpriteService {
    * @param limit Maximum results
    * @returns Array of {name, sheetPath, x, y, width, height}
    */
-  public searchPortraits(query: string, limit: number = 50): Array<{name: string} & SpritePortraitInfo> {
+  public searchPortraits(query: string, limit = 50): Array<{name: string} & SpritePortraitInfo> {
     if (!this.initialized || !this.atlas) {
       return [];
     }
@@ -588,7 +700,7 @@ export class PortraitSpriteService {
    * @param limit Maximum results
    * @returns Array of {name, pid, sheetPath, x, y, width, height}
    */
-  public searchPortraitsWithPid(query: string, limit: number = 50): Array<{name: string; pid: number | null} & SpritePortraitInfo> {
+  public searchPortraitsWithPid(query: string, limit = 50): Array<{name: string; pid: number | null} & SpritePortraitInfo> {
     if (!this.initialized || !this.atlas) {
       return [];
     }
@@ -702,7 +814,7 @@ export class PortraitSpriteService {
    * @param upscale Whether to upscale from 256 to 512 (default true)
    * @returns PNG buffer or null
    */
-  public async extractPortraitByPID(pid: number, upscale: boolean = true): Promise<Buffer | null> {
+  public async extractPortraitByPID(pid: number, upscale = true): Promise<Buffer | null> {
     const info = this.getPortraitByPID(pid);
     if (!info) {
       console.log(`[PortraitSpriteService] No portrait found for PID ${pid}`);
@@ -718,7 +830,7 @@ export class PortraitSpriteService {
    * @param upscale Whether to upscale from 256 to 512 (default true)
    * @returns PNG buffer or null
    */
-  public async extractPortraitByPLPO(plpoName: string, upscale: boolean = true): Promise<Buffer | null> {
+  public async extractPortraitByPLPO(plpoName: string, upscale = true): Promise<Buffer | null> {
     const info = this.getPortraitByPLPO(plpoName);
     if (!info) {
       console.log(`[PortraitSpriteService] No portrait found for PLPO ${plpoName}`);
