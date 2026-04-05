@@ -1,6 +1,7 @@
-import { defineConfig } from 'vite';
 import path from 'path';
 import { copyFileSync, existsSync, mkdirSync } from 'fs';
+
+import { defineConfig } from 'vite';
 
 // https://vitejs.dev/config
 export default defineConfig({
@@ -93,6 +94,51 @@ export default defineConfig({
             }
           }
 
+          // Copy custom-players.db SQLite database (custom portraits for distribution)
+          const srcCustomPlayersDb = path.join(srcDataDir, 'custom-players.db');
+          if (existsSync(srcCustomPlayersDb)) {
+            const destCustomPlayersDb = path.join(destDataDir, 'custom-players.db');
+            try {
+              copyFileSync(srcCustomPlayersDb, destCustomPlayersDb);
+              console.log('Copied custom-players.db to build output');
+            } catch (dbError) {
+              if (dbError.code === 'EBUSY') {
+                console.log('custom-players.db is locked, using existing copy if available');
+              } else {
+                throw dbError;
+              }
+            }
+          }
+
+          // Copy user-database folder (user edits, custom coaches, portrait assignments)
+          const srcUserDbDir = path.join(srcDataDir, 'user-database');
+          const destUserDbDir = path.join(destDataDir, 'user-database');
+          if (existsSync(srcUserDbDir)) {
+            if (!existsSync(destUserDbDir)) {
+              mkdirSync(destUserDbDir, { recursive: true });
+            }
+            const userDbFiles = ['user-edits.db', 'custom-players.db'];
+            let copiedCount = 0;
+            for (const dbFile of userDbFiles) {
+              const srcFile = path.join(srcUserDbDir, dbFile);
+              const destFile = path.join(destUserDbDir, dbFile);
+              if (existsSync(srcFile)) {
+                try {
+                  copyFileSync(srcFile, destFile);
+                  copiedCount++;
+                  console.log(`Copied user-database/${dbFile} to build output`);
+                } catch (dbError) {
+                  if (dbError.code === 'EBUSY') {
+                    console.log(`user-database/${dbFile} is locked, using existing copy if available`);
+                  } else {
+                    throw dbError;
+                  }
+                }
+              }
+            }
+            console.log(`Copied ${copiedCount} user database files to build output`);
+          }
+
           // Copy portrait atlas JSON
           const atlasFile = path.join(srcDataDir, 'portrait-atlas.json');
           if (existsSync(atlasFile)) {
@@ -179,6 +225,35 @@ export default defineConfig({
             const devPngCount = devFiles.filter(f => f.endsWith('.png')).length;
             if (devPngCount > 0) {
               console.log(`Copied ${devPngCount} developer sprite sheets`);
+            }
+          }
+
+          // Copy custom portrait atlas JSON (PIDs 12000+)
+          const customAtlasFile = path.join(srcDataDir, 'custom-portrait-atlas.json');
+          if (existsSync(customAtlasFile)) {
+            const destCustomAtlasFile = path.join(destDataDir, 'custom-portrait-atlas.json');
+            copyFileSync(customAtlasFile, destCustomAtlasFile);
+            console.log('Copied custom-portrait-atlas.json to build output');
+          }
+
+          // Copy custom sprites directory (PIDs 12000+)
+          const srcCustomSpritesDir = path.join(srcDataDir, 'custom-sprites');
+          const destCustomSpritesDir = path.join(destDataDir, 'custom-sprites');
+          if (existsSync(srcCustomSpritesDir)) {
+            if (!existsSync(destCustomSpritesDir)) {
+              mkdirSync(destCustomSpritesDir, { recursive: true });
+            }
+            const customFiles = fs.readdirSync(srcCustomSpritesDir);
+            customFiles.forEach(file => {
+              if (file.endsWith('.png')) {
+                const srcFile = path.join(srcCustomSpritesDir, file);
+                const destFile = path.join(destCustomSpritesDir, file);
+                copyFileSync(srcFile, destFile);
+              }
+            });
+            const customPngCount = customFiles.filter(f => f.endsWith('.png')).length;
+            if (customPngCount > 0) {
+              console.log(`Copied ${customPngCount} custom portrait sprite sheets`);
             }
           }
 
