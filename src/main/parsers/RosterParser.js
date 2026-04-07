@@ -652,26 +652,52 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     }
     console.log(`[RosterParser] Portrait fix complete: ${portraitFixedCount} custom portrait players fixed`);
 
-    // CRITICAL FIX: Clear unused record slots beyond players.length
-    // This prevents "ghost" duplicates from remaining in the file when players are removed
-    let clearedSlots = 0;
+    // CRITICAL FIX: Disable unused record slots to prevent blank QBs appearing
+    // Setting PTEN=0 should disable the player slot. Also distribute positions to avoid QB flood.
+    let disabledSlots = 0;
     if (players.length < playerTable.records.length) {
-      console.log(`[RosterParser] *** CLEARING ${playerTable.records.length - players.length} UNUSED RECORD SLOTS ***`);
+      const slotsToDisable = playerTable.records.length - players.length;
+      console.log(`[RosterParser] *** DISABLING ${slotsToDisable} UNUSED SLOTS (PTEN=0) ***`);
+
+      // Cycle through non-QB positions for empty slots
+      const positions = [19, 20, 21]; // K, P, LS - least visible positions
+      let posIndex = 0;
+
       for (let i = players.length; i < playerTable.records.length; i++) {
         const record = playerTable.records[i];
-        // Clear player identity fields to make this an "empty" slot
+
+        // DISABLE the player slot
+        if (record.fields['PTEN']) record.fields['PTEN'].value = 0; // Player NOT enabled
+
+        // Clear identity
         if (record.fields['PFNA']) record.fields['PFNA'].value = '';
         if (record.fields['PLNA']) record.fields['PLNA'].value = '';
+        if (record.fields['PEPS']) record.fields['PEPS'].value = '';
         if (record.fields['PGID']) record.fields['PGID'].value = 0;
-        if (record.fields['TGID']) record.fields['TGID'].value = 1009; // Free agent team
-        if (record.fields['PSXP']) record.fields['PSXP'].value = 0; // Clear PID
-        if (record.fields['PEPS']) record.fields['PEPS'].value = ''; // Clear PAM
-        if (record.fields['POVR']) record.fields['POVR'].value = 0; // Clear overall
-        if (record.fields['PPOS']) record.fields['PPOS'].value = 0; // Clear position
-        if (record.fields['PAGE']) record.fields['PAGE'].value = 0; // Clear age
-        clearedSlots++;
+        if (record.fields['PSXP']) record.fields['PSXP'].value = 0;
+
+        // Set to free agent with non-QB position (K/P/LS cycle)
+        if (record.fields['TGID']) record.fields['TGID'].value = 1009;
+        if (record.fields['PPOS']) record.fields['PPOS'].value = positions[posIndex % positions.length];
+
+        // Zero out ratings
+        if (record.fields['POVR']) record.fields['POVR'].value = 0;
+        if (record.fields['PSPD']) record.fields['PSPD'].value = 0;
+        if (record.fields['PACC']) record.fields['PACC'].value = 0;
+        if (record.fields['PSTR']) record.fields['PSTR'].value = 0;
+        if (record.fields['PAGI']) record.fields['PAGI'].value = 0;
+        if (record.fields['PAWR']) record.fields['PAWR'].value = 0;
+        if (record.fields['PJEN']) record.fields['PJEN'].value = 0;
+        if (record.fields['PAGE']) record.fields['PAGE'].value = 0;
+        if (record.fields['PHGT']) record.fields['PHGT'].value = 0;
+        if (record.fields['PWGT']) record.fields['PWGT'].value = 0;
+        if (record.fields['PLTY']) record.fields['PLTY'].value = 0;
+
+        disabledSlots++;
+        posIndex++;
       }
-      console.log(`[RosterParser] Cleared ${clearedSlots} unused record slots`);
+
+      console.log(`[RosterParser] Disabled ${disabledSlots} unused slots (PTEN=0, distributed to K/P/LS positions)`);
     }
 
     // Track results for debugging
