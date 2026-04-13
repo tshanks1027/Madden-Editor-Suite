@@ -6,6 +6,7 @@
  */
 
 import { ipcMain, dialog } from 'electron';
+
 import { retroEditorService } from '../services/RetroEditorService';
 
 /**
@@ -1356,6 +1357,8 @@ ipcMain.handle('retro:apply-all-and-save', async (event, config: {
   expansionEvent?: any;
   expansionDraftSelections?: Array<{ playerRecordIndex: number; newTeamIndex: number }>;
   expansionTeamIndices?: number[]; // Team indices for clearing rosters before expansion draft
+  editableCoaches?: Record<number, any>; // User-edited coach assignments from UI
+  customSalaryCap?: number;
 }) => {
   console.log('[retro-editor-handlers] ===== APPLY ALL AND SAVE (SINGLE OPERATION) =====');
   console.log('[retro-editor-handlers] Source file:', config.sourcePath);
@@ -1403,7 +1406,8 @@ ipcMain.handle('retro:apply-all-and-save', async (event, config: {
         expansionEvent: config.expansionEvent,
         expansionDraftSelections: config.expansionDraftSelections,
         expansionTeamIndices: config.expansionTeamIndices,
-        customSalaryCap: config.customSalaryCap // Custom cap in dollars, or undefined to use historical
+        customSalaryCap: config.customSalaryCap, // Custom cap in dollars, or undefined to use historical
+        editableCoaches: config.editableCoaches // User-edited coach assignments from UI
       }
     );
 
@@ -1479,6 +1483,19 @@ ipcMain.handle('retro:get-fa-coaches', async (event, filePath: string) => {
 });
 
 /**
+ * Get current team coaches from the franchise file
+ */
+ipcMain.handle('retro:get-team-coaches', async (event, filePath: string) => {
+  try {
+    console.log('[retro-editor-handlers] Getting team coaches');
+    return await retroEditorService.getTeamCoaches(filePath);
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error getting team coaches:', error);
+    return { success: false, teamCoaches: {}, error: error.message };
+  }
+});
+
+/**
  * Search the coach database
  */
 ipcMain.handle('retro:search-coach-database', async (event, query: string, year: number, limit?: number) => {
@@ -1494,6 +1511,42 @@ ipcMain.handle('retro:search-coach-database', async (event, query: string, year:
 });
 
 /**
+ * DEBUG: List all custom coaches AND coach edits in the database
+ */
+ipcMain.handle('retro:debug-list-custom-coaches', async () => {
+  try {
+    // Get custom coaches
+    const customCoaches = userDatabaseService.getAllCustomCoaches();
+    console.log(`[retro-editor-handlers] DEBUG: Found ${customCoaches.length} CUSTOM coaches`);
+    for (const c of customCoaches) {
+      console.log(`  [CUSTOM] ${c.firstName} ${c.lastName}, careerFrom=${c.careerFrom}, careerTo=${c.careerTo}`);
+    }
+
+    // Get coach edits (returns a Map)
+    const coachEditsMap = userDatabaseService.getAllCoachEdits();
+    const coachEdits = Array.from(coachEditsMap.values());
+    console.log(`[retro-editor-handlers] DEBUG: Found ${coachEdits.length} EDITED coaches`);
+    for (const c of coachEdits) {
+      console.log(`  [EDIT] ${c.firstName} ${c.lastName}, originalId=${c.originalId}`);
+    }
+
+    // Get database stats
+    const stats = userDatabaseService.getCoachDatabaseStats();
+    console.log(`[retro-editor-handlers] DEBUG: Stats:`, stats);
+
+    return {
+      success: true,
+      customCoaches: customCoaches,
+      coachEdits: coachEdits,
+      stats: stats
+    };
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error listing coaches:', error);
+    return { success: false, error: error.message, customCoaches: [], coachEdits: [] };
+  }
+});
+
+/**
  * Replace an FA coach with a coach from the database
  */
 ipcMain.handle('retro:replace-fa-coach', async (event, filePath: string, faCoachIndex: number, dbCoach: any, year: number) => {
@@ -1503,6 +1556,30 @@ ipcMain.handle('retro:replace-fa-coach', async (event, filePath: string, faCoach
   } catch (error: any) {
     console.error('[retro-editor-handlers] Error replacing FA coach:', error);
     return { success: false, error: error.message };
+  }
+});
+
+// ============================================
+// Equipment Handlers
+// ============================================
+
+/**
+ * Apply era-appropriate equipment to all players in franchise file
+ */
+ipcMain.handle('retro:apply-equipment', async (event, filePath: string, year: number) => {
+  try {
+    console.log(`[retro-editor-handlers] Applying equipment for year ${year}`);
+    return await retroEditorService.applyEquipmentToFranchise(filePath, year);
+  } catch (error: any) {
+    console.error('[retro-editor-handlers] Error applying equipment:', error);
+    return {
+      success: false,
+      playersUpdated: 0,
+      playersSkipped: 0,
+      message: '',
+      warnings: [],
+      error: error.message
+    };
   }
 });
 

@@ -93,7 +93,7 @@
       "currentName": "Colts",
       "currentCity": "Indianapolis",
       "changes": [
-        { "yearRange": [1953, 1983], "city": "Baltimore", "name": "Colts", "abbreviation": "BAL" },
+        { "yearRange": [1953, 1983], "city": "Baltimore", "name": "Colts", "abbreviation": "COL" },
         { "yearRange": [1984, 2099], "city": "Indianapolis", "name": "Colts", "abbreviation": "IND" }
       ]
     },

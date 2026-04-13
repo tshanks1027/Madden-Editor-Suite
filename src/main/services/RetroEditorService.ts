@@ -117,6 +117,10 @@ const TABLE_IDS = {
 // Empty reference constant - marks unused slots in array tables
 const ZERO_REF = '00000000000000000000000000000000';
 
+// Main Player table uniqueId (from madden-franchise-utils FranchiseTableId.js)
+// Used to identify the primary Player table vs overflow tables
+const MAIN_PLAYER_TABLE_UNIQUE_ID = 1612938518;
+
 /**
  * Helper function to resolve data paths that works in both dev and packaged modes
  * Checks multiple possible locations and returns the first that exists
@@ -490,6 +494,7 @@ export class RetroEditorService {
   private specialCases: Record<string, SpecialCase> = {};
   private expansionEvents: ExpansionEvent[] = [];
   private draftPickCompensation: Record<string, any> = {};
+  private historicalDraftOrders: Record<string, number[]> = {};
   private dataLoaded = false;
 
   constructor() {
@@ -584,6 +589,16 @@ export class RetroEditorService {
         console.log('[RetroEditorService] Event years:', this.expansionEvents.map(e => `${e.year}:${e.type}`).join(', '));
       } else {
         console.log('[RetroEditorService] expansion-events.json NOT FOUND - expansion features will not work');
+      }
+
+      // Load historical draft order data
+      const draftOrderPath = path.join(dataPath, 'draft-order.json');
+      if (fs.existsSync(draftOrderPath)) {
+        const draftData = JSON.parse(fs.readFileSync(draftOrderPath, 'utf-8'));
+        this.historicalDraftOrders = draftData.orders || {};
+        console.log('[RetroEditorService] Loaded historical draft orders for', Object.keys(this.historicalDraftOrders).length, 'years');
+      } else {
+        console.log('[RetroEditorService] draft-order.json NOT FOUND - historical draft order will not be available');
       }
 
       this.dataLoaded = true;
@@ -2201,20 +2216,22 @@ ${fieldsList}
         // Get actual values from franchise file (what's currently in the file)
         const franchiseCity = teamRecord.LongName || '';
         const franchiseName = teamRecord.DisplayName || teamRecord.NickName || '';
+        const franchiseAbbr = teamRecord.ShortName || '';
 
         // Get target values for this year
         const targetCity = change.city || '';
         const targetName = change.name || '';
+        const targetAbbr = change.abbreviation || '';
 
-        // Compare franchise file values against target year values
-        if (targetCity !== franchiseCity || targetName !== franchiseName) {
+        // Compare franchise file values against target year values (including abbreviation)
+        if (targetCity !== franchiseCity || targetName !== franchiseName || targetAbbr !== franchiseAbbr) {
           teamChanges.push({
             teamIndex: teamIndex,
             originalCity: franchiseCity,
             originalName: franchiseName,
             newCity: targetCity,
             newName: targetName,
-            newAbbreviation: change.abbreviation || ''
+            newAbbreviation: targetAbbr
           });
         }
       }
@@ -2222,6 +2239,13 @@ ${fieldsList}
 
     // Calculate inactive teams for draft reordering
     const inactiveTeams = this.getInactiveTeamsForYear(targetYear);
+    const inactiveTeamIndices = new Set(inactiveTeams.map(t => t.teamIndex));
+
+    // Helper to extract team index from binary reference (15-bit tableId + 17-bit rowNumber)
+    const extractTeamIndex = (binaryRef: string): number => {
+      if (!binaryRef || typeof binaryRef !== 'string' || binaryRef.length < 32) return -1;
+      return parseInt(binaryRef.substring(15), 2);
+    };
 
     // Estimate picks to reorder
     const draftPickTable = franchise.getTableByUniqueId(TABLE_IDS.draftPickTable);
@@ -2229,8 +2253,9 @@ ${fieldsList}
     if (draftPickTable) {
       await draftPickTable.readRecords();
       picksToReorder = draftPickTable.records.filter((r: any) => {
-        const teamIndex = r.TeamIndex || r.teamIndex;
-        return inactiveTeams.some(t => t.teamIndex === teamIndex);
+        if (r.isEmpty || r.YearOffset !== 0) return false;
+        const teamIndex = extractTeamIndex(r.OriginalTeam);
+        return inactiveTeamIndices.has(teamIndex);
       }).length;
     }
 
@@ -2476,8 +2501,13 @@ ${fieldsList}
    * Reorder draft picks for expansion year - assign picks to expansion teams at specified positions
    */
   async reorderDraftPicks(filePath: string, year: number): Promise<number> {
+    console.log(`[RetroEditorService] ========== REORDER DRAFT PICKS CALLED ==========`);
+    console.log(`[RetroEditorService] File: ${filePath}, Year: ${year}`);
+    console.log(`[RetroEditorService] Historical draft orders loaded: ${Object.keys(this.historicalDraftOrders).length} years`);
+
     const franchise = this.getFranchise(filePath);
     if (!franchise) {
+      console.error('[RetroEditorService] ERROR: Franchise not loaded!');
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
     }
 
@@ -2491,11 +2521,17 @@ ${fieldsList}
 
     await draftPickTable.readRecords();
 
+    // Get the Team table to build proper binary references for inactive team comparison
+    const teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+    if (teamTable) {
+      await teamTable.readRecords();
+    }
+
     // Get draft pick compensation for this year
     const compensation = this.draftPickCompensation[year.toString()];
     if (!compensation || !compensation.teams || !compensation.pickPositions) {
       console.log(`[RetroEditorService] No draft pick compensation data for ${year}, using default inactive team logic`);
-      return this.reorderDraftPicksForInactiveTeams(draftPickTable, year);
+      return await this.reorderDraftPicksForInactiveTeams(draftPickTable, year, teamTable);
     }
 
     console.log(`[RetroEditorService] Applying expansion draft pick compensation for ${year}`);
@@ -2595,56 +2631,319 @@ ${fieldsList}
   }
 
   /**
-   * Fallback: Reorder draft picks for years without specific compensation data
+   * Helper: Create binary reference string matching madden-franchise format
+   * Format: 15-bit tableId + 17-bit rowNumber = 32-bit binary string
    */
-  private reorderDraftPicksForInactiveTeams(draftPickTable: any, year: number): number {
-    const inactiveTeams = this.getInactiveTeamsForYear(year);
-    const inactiveTeamIndices = new Set(inactiveTeams.map(t => t.teamIndex));
+  private getBinaryReferenceData(tableId: number, rowNumber: number): string {
+    const tableIdBinary = (tableId >>> 0).toString(2).padStart(15, '0');
+    const rowNumberBinary = (rowNumber >>> 0).toString(2).padStart(17, '0');
+    return tableIdBinary + rowNumberBinary;
+  }
 
-    if (inactiveTeamIndices.size === 0) {
-      console.log('[RetroEditorService] No inactive teams for this year');
+  /**
+   * Reorder draft picks to match historical NFL draft order for the given year.
+   * Uses historical draft order data when available, with inactive teams moved to end.
+   *
+   * IMPORTANT: This function properly reassigns which team OWNS each pick by modifying
+   * OriginalTeam and CurrentTeam binary references, not just PickNumber.
+   */
+  private async reorderDraftPicksForInactiveTeams(draftPickTable: any, year: number, teamTable?: any): Promise<number> {
+    const TOTAL_ROUNDS = 7;
+    const DRAFT_LENGTH = 224; // 7 rounds * 32 picks
+
+    // Team debut years - teams are "inactive" before their debut year
+    const TEAM_DEBUT_YEARS: Record<number, number> = {
+      0: 1922, 1: 1968, 2: 1960, 3: 1960, 4: 1946, 5: 1976, 6: 1920, 7: 1960,
+      8: 1960, 9: 1953, 10: 1960, 11: 1966, 12: 1933, 13: 1966, 14: 1946, 15: 1925,
+      16: 1995, 17: 1960, 18: 1930, 19: 1921, 20: 1995, 21: 1960, 22: 1960, 23: 1936,
+      24: 1996, 25: 1932, 26: 1967, 27: 1976, 28: 1933, 29: 1960, 30: 1961, 31: 2002
+    };
+
+    const isTeamInactiveForYear = (teamIndex: number, seasonYear: number): boolean => {
+      // Browns special case: inactive 1996-1998
+      if (teamIndex === 4 && seasonYear >= 1996 && seasonYear < 1999) return true;
+      const debutYear = TEAM_DEBUT_YEARS[teamIndex];
+      return debutYear !== undefined && debutYear > seasonYear;
+    };
+
+    // Extract team index from binary reference (15-bit tableId + 17-bit rowNumber)
+    const extractTeamIndex = (binaryRef: string): number => {
+      if (!binaryRef || typeof binaryRef !== 'string' || binaryRef.length < 32) return -1;
+      return parseInt(binaryRef.substring(15), 2);
+    };
+
+    console.log(`[RetroEditorService] Reordering draft picks for year ${year}`);
+    console.log(`[RetroEditorService] NEW ALGORITHM: ALL inactive team picks will be at the END of the entire draft`);
+
+    // Get getBinaryReferenceData from madden-franchise
+    const franchiseModule = await getFranchiseModule();
+    const utilService = franchiseModule.utilService || franchiseModule.default?.utilService;
+    if (!utilService || !utilService.getBinaryReferenceData) {
+      console.error('[RetroEditorService] Could not get getBinaryReferenceData from madden-franchise');
+      return 0;
+    }
+    const getBinaryReferenceData = utilService.getBinaryReferenceData;
+
+    // We need the team table ID to create binary references
+    if (!teamTable) {
+      console.error('[RetroEditorService] Team table required for draft order reordering');
+      return 0;
+    }
+    const teamTableId = teamTable.header?.tableId;
+    if (!teamTableId) {
+      console.error('[RetroEditorService] Could not get team table ID');
+      return 0;
+    }
+    console.log(`[RetroEditorService] Team table ID: ${teamTableId}`);
+
+    // CRITICAL: Build mapping from TeamIndex -> row index in team table
+    // The binary reference needs the ROW index, not the TeamIndex value!
+    const teamIndexToRow: Map<number, number> = new Map();
+    const rowToTeamIndex: Map<number, number> = new Map(); // Reverse mapping for verification
+    for (let row = 0; row < teamTable.records.length; row++) {
+      const record = teamTable.records[row];
+      if (record.isEmpty) continue;
+      const teamIndex = record['TeamIndex'];
+      if (teamIndex !== undefined && teamIndex !== null) {
+        teamIndexToRow.set(Number(teamIndex), row);
+        rowToTeamIndex.set(row, Number(teamIndex));
+      }
+    }
+    console.log(`[RetroEditorService] Built TeamIndex<->Row mapping for ${teamIndexToRow.size} teams`);
+    // Log a few mappings to verify
+    console.log(`[RetroEditorService] Sample mappings: TeamIndex 0 -> Row ${teamIndexToRow.get(0)}, TeamIndex 30 (Vikings) -> Row ${teamIndexToRow.get(30)}, TeamIndex 21 (Patriots) -> Row ${teamIndexToRow.get(21)}`);
+
+    // Helper to get row from team index
+    const getTeamRow = (teamIndex: number): number => {
+      const row = teamIndexToRow.get(teamIndex);
+      if (row === undefined) {
+        console.error(`[RetroEditorService] ERROR: No row found for TeamIndex ${teamIndex}`);
+        return teamIndex; // Fallback to using teamIndex as row (old broken behavior)
+      }
+      return row;
+    };
+
+    // Helper to get team index from row (for verification)
+    const getTeamIndexFromRow = (row: number): number => {
+      return rowToTeamIndex.get(row) ?? -1;
+    };
+
+    // Get historical draft order for this year
+    const historicalOrder = this.historicalDraftOrders[year.toString()];
+    if (historicalOrder) {
+      console.log(`[RetroEditorService] Using historical draft order for ${year}: ${historicalOrder.slice(0, 10).join(', ')}...`);
+    } else {
+      console.log(`[RetroEditorService] No historical draft order for ${year}, using default order`);
+    }
+
+    // Build list of inactive team indices
+    const inactiveTeamList: number[] = [];
+    for (let i = 0; i < 32; i++) {
+      if (isTeamInactiveForYear(i, year)) {
+        inactiveTeamList.push(i);
+      }
+    }
+    const inactiveTeamSet = new Set(inactiveTeamList);
+    console.log(`[RetroEditorService] Inactive teams (${inactiveTeamList.length}): ${inactiveTeamList.map(t => `${t}(${this.getTeamName(t)})`).join(', ')}`);
+
+    // Build the active team order (historical order, excluding inactive teams)
+    const activeTeamOrder: number[] = [];
+    if (historicalOrder) {
+      for (const teamIndex of historicalOrder) {
+        if (!inactiveTeamSet.has(teamIndex)) {
+          activeTeamOrder.push(teamIndex);
+        }
+      }
+    } else {
+      for (let i = 0; i < 32; i++) {
+        if (!inactiveTeamSet.has(i)) {
+          activeTeamOrder.push(i);
+        }
+      }
+    }
+
+    // Safety check: ensure all active teams are in the order
+    const teamsInActiveOrder = new Set(activeTeamOrder);
+    for (let i = 0; i < 32; i++) {
+      if (!inactiveTeamSet.has(i) && !teamsInActiveOrder.has(i)) {
+        console.log(`[RetroEditorService] WARNING: Team ${i} (${this.getTeamName(i)}) missing from historical order, adding at end of active teams`);
+        activeTeamOrder.push(i);
+      }
+    }
+
+    const activeTeamCount = activeTeamOrder.length;
+    const inactiveTeamCount = inactiveTeamList.length;
+    const activeTotalPicks = activeTeamCount * TOTAL_ROUNDS;
+    const inactiveTotalPicks = inactiveTeamCount * TOTAL_ROUNDS;
+
+    console.log(`[RetroEditorService] Active teams: ${activeTeamCount}, Inactive teams: ${inactiveTeamCount}`);
+    console.log(`[RetroEditorService] Active team picks: 0-${activeTotalPicks - 1} (${activeTotalPicks} picks)`);
+    console.log(`[RetroEditorService] Inactive team picks: ${activeTotalPicks}-${activeTotalPicks + inactiveTotalPicks - 1} (${inactiveTotalPicks} picks at END)`);
+    console.log(`[RetroEditorService] Active team order (first 10): ${activeTeamOrder.slice(0, 10).map(t => `${t}(${this.getTeamName(t)})`).join(', ')}`);
+
+    // Collect all current year draft pick row indices
+    const draftPickIndices: number[] = [];
+    for (let i = 0; i < draftPickTable.records.length; i++) {
+      const pick = draftPickTable.records[i];
+      if (pick.isEmpty || pick.YearOffset !== 0) continue;
+      draftPickIndices.push(i);
+    }
+
+    console.log(`[RetroEditorService] Total current year picks: ${draftPickIndices.length}`);
+    if (draftPickIndices.length === 0) {
+      console.error('[RetroEditorService] No current year picks found!');
       return 0;
     }
 
-    let reorderedCount = 0;
+    // Sort picks by current PickNumber to process in order
+    draftPickIndices.sort((a, b) => {
+      return (draftPickTable.records[a].PickNumber ?? 0) - (draftPickTable.records[b].PickNumber ?? 0);
+    });
 
-    // Group picks by round
-    const picksByRound = new Map<number, any[]>();
-    for (const pick of draftPickTable.records) {
-      if (pick.isEmpty) continue;
-      const round = pick.Round || pick.round || 1;
-      if (!picksByRound.has(round)) {
-        picksByRound.set(round, []);
+    // Log BEFORE state
+    console.log('[RetroEditorService] BEFORE reordering - First 10 picks:');
+    for (let i = 0; i < Math.min(10, draftPickIndices.length); i++) {
+      const pick = draftPickTable.records[draftPickIndices[i]];
+      const team = extractTeamIndex(pick.OriginalTeam);
+      console.log(`  Pick ${pick.PickNumber}: Team ${team} (${this.getTeamName(team)}), Inactive: ${inactiveTeamSet.has(team)}`);
+    }
+
+    let picksReordered = 0;
+
+    // REDISTRIBUTE ALL PICKS TO ACTIVE TEAMS ONLY
+    // Following the exact pattern from madden-franchise-utils reference implementation
+    // Key: Do NOT modify Round field - Madden calculates it from PickNumber
+    // Only modify: CurrentTeam, OriginalTeam, PickNumber
+
+    console.log(`[RetroEditorService] Redistributing ALL ${draftPickIndices.length} picks to ${activeTeamCount} active teams`);
+    console.log(`[RetroEditorService] Using reference implementation pattern - NOT modifying Round field`);
+
+    // Store traded picks BEFORE making changes (where CurrentTeam != OriginalTeam)
+    const tradedPicks: Array<{
+      originalTeam: string;
+      currentTeam: string;
+      round: number;
+    }> = [];
+
+    for (const idx of draftPickIndices) {
+      const record = draftPickTable.records[idx];
+      if (record['CurrentTeam'] !== record['OriginalTeam']) {
+        tradedPicks.push({
+          originalTeam: record['OriginalTeam'],
+          currentTeam: record['CurrentTeam'],
+          round: record['Round']
+        });
       }
-      picksByRound.get(round)!.push(pick);
+    }
+    console.log(`[RetroEditorService] Found ${tradedPicks.length} traded picks to preserve`);
+
+    // Iterate through all picks and assign to active teams
+    // Cycle through ENTIRE draft (not per-round) so picks are distributed evenly
+    for (let i = 0; i < draftPickIndices.length; i++) {
+      const pickIdx = draftPickIndices[i];
+
+      // Cycle through active teams across the ENTIRE draft
+      // Pick 0 -> Team 0, Pick 1 -> Team 1, ... Pick 26 -> Team 0 again, etc.
+      const newTeamIndex = activeTeamOrder[i % activeTeamCount];
+
+      // Create binary reference for the new team
+      // CRITICAL: Use the ROW in the team table, not the TeamIndex value!
+      const teamRow = getTeamRow(newTeamIndex);
+      const newTeamBinary = getBinaryReferenceData(teamTableId, teamRow);
+
+      // Check if this is actually changing something
+      const oldTeam = extractTeamIndex(draftPickTable.records[pickIdx]['OriginalTeam']);
+      const oldPickNumber = draftPickTable.records[pickIdx]['PickNumber'];
+      if (oldTeam !== newTeamIndex || oldPickNumber !== i) {
+        picksReordered++;
+      }
+
+      // Set the pick - EXACTLY like the reference implementation
+      // DO NOT modify Round - Madden calculates it from PickNumber
+      draftPickTable.records[pickIdx]['CurrentTeam'] = newTeamBinary;
+      draftPickTable.records[pickIdx]['OriginalTeam'] = newTeamBinary;
+      draftPickTable.records[pickIdx]['PickNumber'] = i;
+
+      // VERIFY key picks
+      if (i < 5 || (i >= 26 && i < 34) || i >= draftPickIndices.length - 3) {
+        const verifyTeamRow = extractTeamIndex(draftPickTable.records[pickIdx]['OriginalTeam']);
+        const verifyPick = draftPickTable.records[pickIdx]['PickNumber'];
+        const cycleNum = Math.floor(i / activeTeamCount) + 1;
+        console.log(`[RetroEditorService] Pick ${i}: TeamIndex ${newTeamIndex}(${this.getTeamName(newTeamIndex)}) Row ${teamRow} -> verified row ${verifyTeamRow}, PickNumber ${verifyPick} [Cycle ${cycleNum}]`);
+      }
     }
 
-    // For each round, move inactive team picks to the end
-    for (const [round, picks] of picksByRound) {
-      picks.sort((a, b) => {
-        const aTeamIndex = a.TeamIndex || a.teamIndex;
-        const bTeamIndex = b.TeamIndex || b.teamIndex;
-        const aInactive = inactiveTeamIndices.has(aTeamIndex);
-        const bInactive = inactiveTeamIndices.has(bTeamIndex);
+    // Skip traded picks restoration for now - we're reassigning ALL picks to active teams
+    // Traded picks would need to be recalculated based on new team assignments
+    console.log(`[RetroEditorService] NOTE: ${tradedPicks.length} traded picks - not restoring (all picks reassigned)`);
 
-        if (aInactive && !bInactive) return 1;
-        if (!aInactive && bInactive) return -1;
-        return (a.PickNumber || a.pickNumber || 0) - (b.PickNumber || b.pickNumber || 0);
-      });
-
-      picks.forEach((pick, index) => {
-        const teamIndex = pick.TeamIndex || pick.teamIndex;
-        if (inactiveTeamIndices.has(teamIndex)) {
-          reorderedCount++;
-        }
-        // NOTE: Don't use 'in' check - properties are on prototype
-        try { pick.PickNumber = index + 1; } catch (e) { /* field may not exist */ }
-        try { pick.pickNumber = index + 1; } catch (e) { /* field may not exist */ }
-      });
+    // Log AFTER state - sort by PickNumber to see new order
+    console.log('[RetroEditorService] AFTER reordering - First 10 picks:');
+    const sortedAfter = [...draftPickIndices].sort((a, b) =>
+      (draftPickTable.records[a].PickNumber ?? 0) - (draftPickTable.records[b].PickNumber ?? 0)
+    );
+    for (let i = 0; i < Math.min(10, sortedAfter.length); i++) {
+      const pick = draftPickTable.records[sortedAfter[i]];
+      const teamRow = extractTeamIndex(pick.OriginalTeam);
+      const teamIndex = getTeamIndexFromRow(teamRow);
+      console.log(`  Pick ${pick.PickNumber}: Row ${teamRow} -> TeamIndex ${teamIndex} (${this.getTeamName(teamIndex)})`);
     }
 
-    console.log(`[RetroEditorService] Reordered ${reorderedCount} picks for inactive teams`);
-    return reorderedCount;
+    // Log picks 26-31 (the redistributed picks that would have gone to inactive teams)
+    console.log('[RetroEditorService] AFTER - Picks 26-31 (redistributed from inactive teams):');
+    for (let i = 26; i < 32 && i < sortedAfter.length; i++) {
+      const pick = draftPickTable.records[sortedAfter[i]];
+      const teamRow = extractTeamIndex(pick.OriginalTeam);
+      const teamIndex = getTeamIndexFromRow(teamRow);
+      console.log(`  Pick ${pick.PickNumber}: Row ${teamRow} -> TeamIndex ${teamIndex} (${this.getTeamName(teamIndex)}) [redistributed]`);
+    }
+
+    // Verify NO inactive teams have picks
+    let inactiveTeamsWithPicks = 0;
+    for (const idx of sortedAfter) {
+      const teamRow = extractTeamIndex(draftPickTable.records[idx].OriginalTeam);
+      const teamIndex = getTeamIndexFromRow(teamRow);
+      if (inactiveTeamSet.has(teamIndex)) {
+        inactiveTeamsWithPicks++;
+        console.log(`[RetroEditorService] ERROR: Inactive team ${teamIndex} (${this.getTeamName(teamIndex)}) still has a pick!`);
+      }
+    }
+
+    if (inactiveTeamsWithPicks === 0) {
+      console.log(`[RetroEditorService] SUCCESS: All ${inactiveTeamCount} inactive teams have ZERO picks`);
+    } else {
+      console.log(`[RetroEditorService] FAILED: ${inactiveTeamsWithPicks} picks still assigned to inactive teams`);
+    }
+
+    console.log(`[RetroEditorService] Reordered ${picksReordered} picks total`);
+
+    // Check if table knows it was modified
+    console.log(`[RetroEditorService] draftPickTable.isChanged=${draftPickTable.isChanged}`);
+    console.log(`[RetroEditorService] draftPickTable._isChanged=${(draftPickTable as any)._isChanged}`);
+
+    // Force mark table as changed if needed
+    if (!draftPickTable.isChanged && picksReordered > 0) {
+      console.log(`[RetroEditorService] WARNING: Table not marked as changed despite modifications, forcing...`);
+      (draftPickTable as any)._isChanged = true;
+      (draftPickTable as any).isChanged = true;
+    }
+
+    return picksReordered;
+  }
+
+  /**
+   * Helper to get team name from index for logging
+   */
+  private getTeamName(teamIndex: number): string {
+    const teamNames: Record<number, string> = {
+      0: 'Cardinals', 1: 'Bengals', 2: 'Bills', 3: 'Broncos', 4: 'Browns', 5: 'Buccaneers',
+      6: 'Bears', 7: 'Chargers', 8: 'Chiefs', 9: 'Rams', 10: 'Cowboys', 11: 'Dolphins',
+      12: 'Eagles', 13: 'Falcons', 14: '49ers', 15: 'Giants', 16: 'Jaguars', 17: 'Jets',
+      18: 'Lions', 19: 'Packers', 20: 'Panthers', 21: 'Patriots', 22: 'Raiders', 23: 'Redskins',
+      24: 'Ravens', 25: 'Steelers', 26: 'Saints', 27: 'Seahawks', 28: 'Titans', 29: 'Colts',
+      30: 'Vikings', 31: 'Texans'
+    };
+    return teamNames[teamIndex] || `Team${teamIndex}`;
   }
 
   /**
@@ -2670,6 +2969,19 @@ ${fieldsList}
     const franchise = this.getFranchise(filePath);
     if (!franchise) {
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
+    }
+
+    // Auto-fix: Merge multiple Player tables if detected
+    try {
+      if (await this.hasMultiplePlayerTables(franchise)) {
+        console.log('[RetroEditorService] Multiple Player tables detected, merging before save...');
+        const result = await this.mergePlayerTables(franchise);
+        if (result.merged > 0) {
+          console.log(`[RetroEditorService] Merged ${result.merged} overflow player(s) into main table`);
+        }
+      }
+    } catch (e) {
+      console.log('[RetroEditorService] Could not check/merge Player tables:', e);
     }
 
     // VERIFY: Check player counts before save to confirm changes are in memory
@@ -2706,6 +3018,19 @@ ${fieldsList}
     const franchise = this.getFranchise(originalPath);
     if (!franchise) {
       throw new Error('Franchise file not loaded. Call loadFranchiseFile first.');
+    }
+
+    // Auto-fix: Merge multiple Player tables if detected
+    try {
+      if (await this.hasMultiplePlayerTables(franchise)) {
+        console.log('[RetroEditorService] Multiple Player tables detected, merging before save...');
+        const result = await this.mergePlayerTables(franchise);
+        if (result.merged > 0) {
+          console.log(`[RetroEditorService] Merged ${result.merged} overflow player(s) into main table`);
+        }
+      }
+    } catch (e) {
+      console.log('[RetroEditorService] Could not check/merge Player tables:', e);
     }
 
     console.log('[RetroEditorService] Saving franchise file as:', newPath);
@@ -2762,6 +3087,50 @@ ${fieldsList}
       }
     }
 
+    return null;
+  }
+
+  /**
+   * Helper: Find an unused coach slot (free agent or placeholder) and assign it to a team
+   * Returns the coach record if found and assigned, null otherwise
+   */
+  private findUnusedCoachSlot(coachTable: any, teamIndex: number, position: string): any | null {
+    // Look for free agent coaches (TeamIndex >= 32) or coaches with placeholder names
+    // that we can reassign to this team
+    for (const record of coachTable.records) {
+      if (record.isEmpty) continue;
+
+      const coachTeamIndex = record.TeamIndex;
+      const contractStatus = record.ContractStatus;
+      const coachPosition = record.Position;
+
+      // Check if this is a free agent (TeamIndex = 32 or 33, typically FA pool)
+      const isFreeAgent = coachTeamIndex >= 32 ||
+                          contractStatus === 'FreeAgent' ||
+                          contractStatus === 'ContractStatus:FreeAgent';
+
+      // Check if this coach matches the position we need
+      const positionMatch =
+        (position === 'OffensiveCoordinator' && (coachPosition === 1 || coachPosition === 'OffensiveCoordinator' || coachPosition === 'CoachPosition:OffensiveCoordinator')) ||
+        (position === 'DefensiveCoordinator' && (coachPosition === 2 || coachPosition === 'DefensiveCoordinator' || coachPosition === 'CoachPosition:DefensiveCoordinator'));
+
+      if (isFreeAgent && positionMatch) {
+        // Found an unused coach slot - assign it to the team
+        console.log(`[RetroEditorService] Found unused ${position} slot: ${record.FirstName} ${record.LastName} (TeamIndex=${coachTeamIndex})`);
+
+        // Update TeamIndex to assign to the team
+        record.TeamIndex = teamIndex;
+
+        // Set ContractStatus to Signed so the game recognizes this as the active coach
+        if (record.ContractStatus !== undefined) {
+          record.ContractStatus = 'Signed';
+        }
+
+        return record;
+      }
+    }
+
+    console.log(`[RetroEditorService] No unused ${position} slot found for team ${teamIndex}`);
     return null;
   }
 
@@ -3779,8 +4148,9 @@ ${fieldsList}
    * 2. Identify HC, OC, DC by Position field (0=HC, 1=OC, 2=DC typically)
    * 3. Update FirstName/LastName fields
    * 4. If OC or DC is empty in historical data, leave the game's default
+   * 5. If editableCoaches provided, use user's edits instead of JSON file data
    */
-  async applyHistoricalCoaches(filePath: string, year: number): Promise<{
+  async applyHistoricalCoaches(filePath: string, year: number, editableCoaches?: Record<number, any>): Promise<{
     success: boolean;
     coachesUpdated: number;
     warnings: string[];
@@ -3857,6 +4227,22 @@ ${fieldsList}
     for (const teamData of coachData.teams) {
       const teamIndex = teamData.teamIndex;
       const teamCoaches = coachesByTeam.get(teamIndex);
+
+      // Check if user has edited coaches for this team
+      const editedTeam = editableCoaches ? editableCoaches[teamIndex] : null;
+      if (editedTeam) {
+        console.log(`[RetroEditorService] Using EDITED coach data for ${teamData.teamAbbr}:`, JSON.stringify(editedTeam));
+        // Log specific data objects for debugging
+        if (editedTeam.headCoachData) {
+          console.log(`[RetroEditorService]   HC Data: isFA=${editedTeam.headCoachData.isFA}, faCoachIndex=${editedTeam.headCoachData.faCoachIndex}, keepCurrent=${editedTeam.headCoachData.keepCurrent}`);
+        }
+        if (editedTeam.offensiveCoordinatorData) {
+          console.log(`[RetroEditorService]   OC Data: isFA=${editedTeam.offensiveCoordinatorData.isFA}, faCoachIndex=${editedTeam.offensiveCoordinatorData.faCoachIndex}`);
+        }
+        if (editedTeam.defensiveCoordinatorData) {
+          console.log(`[RetroEditorService]   DC Data: isFA=${editedTeam.defensiveCoordinatorData.isFA}, faCoachIndex=${editedTeam.defensiveCoordinatorData.faCoachIndex}`);
+        }
+      }
 
       console.log(`[RetroEditorService] Processing ${teamData.teamAbbr} (teamIndex=${teamIndex}): Found ${teamCoaches?.length || 0} coaches in file`);
 
@@ -4043,24 +4429,164 @@ ${fieldsList}
         console.log(`[RetroEditorService]   Portrait: ${oldPortrait} -> ${record.Portrait}, AssetName: "${oldAssetName}" -> "${record.AssetName}"`);
       };
 
+      // Helper to parse "First Last" name string into first/last parts
+      const parseName = (nameStr: string): { firstName: string; lastName: string } | null => {
+        if (!nameStr || nameStr === 'N/A' || nameStr === '(Keep Default)') return null;
+        const parts = nameStr.trim().split(' ');
+        if (parts.length < 2) return null;
+        return {
+          firstName: parts[0],
+          lastName: parts.slice(1).join(' ')
+        };
+      };
+
+      // Determine which coach data to use - edited data takes priority over JSON file data
+      const getHCData = () => {
+        if (editedTeam?.headCoachData?.firstName && editedTeam?.headCoachData?.lastName) {
+          return { firstName: editedTeam.headCoachData.firstName, lastName: editedTeam.headCoachData.lastName, stats: editedTeam.headCoachData };
+        }
+        if (editedTeam?.headCoach) {
+          const parsed = parseName(editedTeam.headCoach);
+          if (parsed) return { firstName: parsed.firstName, lastName: parsed.lastName, stats: teamData.headCoach };
+        }
+        if (teamData.headCoach.firstName && teamData.headCoach.lastName) {
+          return { firstName: teamData.headCoach.firstName, lastName: teamData.headCoach.lastName, stats: teamData.headCoach };
+        }
+        return null;
+      };
+
+      const getOCData = () => {
+        if (editedTeam?.offensiveCoordinatorData?.firstName && editedTeam?.offensiveCoordinatorData?.lastName) {
+          return { firstName: editedTeam.offensiveCoordinatorData.firstName, lastName: editedTeam.offensiveCoordinatorData.lastName, stats: editedTeam.offensiveCoordinatorData };
+        }
+        if (editedTeam?.offensiveCoordinator) {
+          const parsed = parseName(editedTeam.offensiveCoordinator);
+          if (parsed) return { firstName: parsed.firstName, lastName: parsed.lastName, stats: teamData.offensiveCoordinator };
+        }
+        if (teamData.offensiveCoordinator.firstName && teamData.offensiveCoordinator.lastName) {
+          return { firstName: teamData.offensiveCoordinator.firstName, lastName: teamData.offensiveCoordinator.lastName, stats: teamData.offensiveCoordinator };
+        }
+        return null;
+      };
+
+      const getDCData = () => {
+        if (editedTeam?.defensiveCoordinatorData?.firstName && editedTeam?.defensiveCoordinatorData?.lastName) {
+          return { firstName: editedTeam.defensiveCoordinatorData.firstName, lastName: editedTeam.defensiveCoordinatorData.lastName, stats: editedTeam.defensiveCoordinatorData };
+        }
+        if (editedTeam?.defensiveCoordinator) {
+          const parsed = parseName(editedTeam.defensiveCoordinator);
+          if (parsed) return { firstName: parsed.firstName, lastName: parsed.lastName, stats: teamData.defensiveCoordinator };
+        }
+        if (teamData.defensiveCoordinator.firstName && teamData.defensiveCoordinator.lastName) {
+          return { firstName: teamData.defensiveCoordinator.firstName, lastName: teamData.defensiveCoordinator.lastName, stats: teamData.defensiveCoordinator };
+        }
+        return null;
+      };
+
+      const hcData = getHCData();
+      const ocData = getOCData();
+      const dcData = getDCData();
+
+      // Helper to get coach record by index (for FA coaches)
+      const getCoachByIndex = (faCoachIndex: number): any | null => {
+        let idx = 0;
+        for (const record of coachTable.records) {
+          if (idx === faCoachIndex && !record.isEmpty) {
+            return record;
+          }
+          idx++;
+        }
+        return null;
+      };
+
+      // Helper to assign FA coach to team and position
+      const assignFACoach = (faCoachIndex: number, newTeamIndex: number, positionName: string, positionValue: number) => {
+        const faCoach = getCoachByIndex(faCoachIndex);
+        if (faCoach) {
+          faCoach.TeamIndex = newTeamIndex;
+          faCoach.Position = positionValue; // 0=HC, 1=OC, 2=DC
+          faCoach.ContractStatus = 1; // 1 = Active
+          console.log(`[RetroEditorService] Moved FA coach index ${faCoachIndex} to team ${newTeamIndex} as ${positionName}`);
+          return faCoach;
+        }
+        return null;
+      };
+
       // Update Head Coach (with stats - HC has career record)
-      if (hcRecord && teamData.headCoach.firstName && teamData.headCoach.lastName) {
-        updateCoachRecord(hcRecord, teamData.headCoach.firstName, teamData.headCoach.lastName, 'HC', teamData.headCoach);
+      // Check if user wants to keep the current coach
+      if (editedTeam?.headCoachData?.keepCurrent) {
+        console.log(`[RetroEditorService] Keeping current HC for ${teamData.teamAbbr}`);
+        // Don't update - keep the existing coach
+      }
+      // Check if user selected a specific FA coach
+      else if (editedTeam?.headCoachData?.isFA && editedTeam?.headCoachData?.faCoachIndex !== undefined) {
+        const faRecord = assignFACoach(editedTeam.headCoachData.faCoachIndex, teamIndex, 'HC', 0);
+        if (faRecord && hcData) {
+          updateCoachRecord(faRecord, hcData.firstName, hcData.lastName, 'HC', hcData.stats);
+        } else if (!faRecord) {
+          warnings.push(`Could not find FA coach at index ${editedTeam.headCoachData.faCoachIndex} for ${teamData.teamAbbr} HC`);
+        }
+      } else if (hcRecord && hcData) {
+        updateCoachRecord(hcRecord, hcData.firstName, hcData.lastName, 'HC', hcData.stats);
       } else if (!hcRecord) {
         warnings.push(`No HC record found for ${teamData.teamAbbr}`);
       }
 
-      // Update Offensive Coordinator (only if historical data has one)
-      if (ocRecord && teamData.offensiveCoordinator.firstName && teamData.offensiveCoordinator.lastName) {
-        updateCoachRecord(ocRecord, teamData.offensiveCoordinator.firstName, teamData.offensiveCoordinator.lastName, 'OC', teamData.offensiveCoordinator);
+      // Update Offensive Coordinator
+      // Check if user wants to keep the current coach
+      if (editedTeam?.offensiveCoordinatorData?.keepCurrent) {
+        console.log(`[RetroEditorService] Keeping current OC for ${teamData.teamAbbr}`);
+        // Don't update - keep the existing coach
       }
-      // If no OC in historical data, leave the game's default (don't update)
+      // Check if user selected a specific FA coach
+      else if (editedTeam?.offensiveCoordinatorData?.isFA && editedTeam?.offensiveCoordinatorData?.faCoachIndex !== undefined) {
+        const faRecord = assignFACoach(editedTeam.offensiveCoordinatorData.faCoachIndex, teamIndex, 'OC', 1);
+        if (faRecord && ocData) {
+          updateCoachRecord(faRecord, ocData.firstName, ocData.lastName, 'OC', ocData.stats);
+        } else if (!faRecord) {
+          warnings.push(`Could not find FA coach at index ${editedTeam.offensiveCoordinatorData.faCoachIndex} for ${teamData.teamAbbr} OC`);
+        }
+      } else if (ocRecord && ocData) {
+        updateCoachRecord(ocRecord, ocData.firstName, ocData.lastName, 'OC', ocData.stats);
+      } else if (!ocRecord && ocData) {
+        // Data has OC but no record exists - try to find an unused coach slot
+        const unusedCoach = this.findUnusedCoachSlot(coachTable, teamIndex, 'OffensiveCoordinator');
+        if (unusedCoach) {
+          updateCoachRecord(unusedCoach, ocData.firstName, ocData.lastName, 'OC', ocData.stats);
+          console.log(`[RetroEditorService] Assigned unused coach slot to ${teamData.teamAbbr} as OC`);
+        } else {
+          warnings.push(`No OC slot available for ${teamData.teamAbbr} - data has ${ocData.firstName} ${ocData.lastName}`);
+        }
+      }
+      // If no OC data, leave the game's default (don't update)
 
-      // Update Defensive Coordinator (only if historical data has one)
-      if (dcRecord && teamData.defensiveCoordinator.firstName && teamData.defensiveCoordinator.lastName) {
-        updateCoachRecord(dcRecord, teamData.defensiveCoordinator.firstName, teamData.defensiveCoordinator.lastName, 'DC', teamData.defensiveCoordinator);
+      // Update Defensive Coordinator
+      // Check if user wants to keep the current coach
+      if (editedTeam?.defensiveCoordinatorData?.keepCurrent) {
+        console.log(`[RetroEditorService] Keeping current DC for ${teamData.teamAbbr}`);
+        // Don't update - keep the existing coach
       }
-      // If no DC in historical data, leave the game's default (don't update)
+      // Check if user selected a specific FA coach
+      else if (editedTeam?.defensiveCoordinatorData?.isFA && editedTeam?.defensiveCoordinatorData?.faCoachIndex !== undefined) {
+        const faRecord = assignFACoach(editedTeam.defensiveCoordinatorData.faCoachIndex, teamIndex, 'DC', 2);
+        if (faRecord && dcData) {
+          updateCoachRecord(faRecord, dcData.firstName, dcData.lastName, 'DC', dcData.stats);
+        } else if (!faRecord) {
+          warnings.push(`Could not find FA coach at index ${editedTeam.defensiveCoordinatorData.faCoachIndex} for ${teamData.teamAbbr} DC`);
+        }
+      } else if (dcRecord && dcData) {
+        updateCoachRecord(dcRecord, dcData.firstName, dcData.lastName, 'DC', dcData.stats);
+      } else if (!dcRecord && dcData) {
+        // Data has DC but no record exists - try to find an unused coach slot
+        const unusedCoach = this.findUnusedCoachSlot(coachTable, teamIndex, 'DefensiveCoordinator');
+        if (unusedCoach) {
+          updateCoachRecord(unusedCoach, dcData.firstName, dcData.lastName, 'DC', dcData.stats);
+          console.log(`[RetroEditorService] Assigned unused coach slot to ${teamData.teamAbbr} as DC`);
+        } else {
+          warnings.push(`No DC slot available for ${teamData.teamAbbr} - data has ${dcData.firstName} ${dcData.lastName}`);
+        }
+      }
+      // If no DC data, leave the game's default (don't update)
     }
 
     console.log(`[RetroEditorService] Updated ${coachesUpdated} coaches`);
@@ -4723,6 +5249,7 @@ ${fieldsList}
     yearCoverage: string;
     matchedPlayers: number;
     samplePlayers: any[];
+    seasonDetails?: any[];
   }> {
     console.log(`[RetroEditorService] Getting historical stats preview for year ${year}`);
 
@@ -4739,7 +5266,7 @@ ${fieldsList}
       // Get sample players who would have stats before the target year
       // Note: handles both 'success' (PFR scraped) and 'imported' (XLS imported) data
       const samplePlayers = db.prepare(`
-        SELECT p.first_name, p.last_name, p.position, p.from_year, p.to_year,
+        SELECT p.pfr_id, p.first_name, p.last_name, p.position, p.from_year, p.to_year,
                SUM(s.pass_yds) as pass_yds, SUM(s.rush_yds) as rush_yds,
                SUM(s.rec_yds) as rec_yds, SUM(s.tackles) as tackles, SUM(s.sacks) as sacks
         FROM players p
@@ -4759,6 +5286,20 @@ ${fieldsList}
         WHERE p.to_year >= ? AND p.from_year < ?
       `).get(year, year - 15, year) as any;
 
+      // Get season-by-season details for first sample player (to show team/age columns)
+      let seasonDetails: any[] = [];
+      if (samplePlayers.length > 0) {
+        const topPlayer = samplePlayers[0];
+        seasonDetails = db.prepare(`
+          SELECT s.year, s.team, s.age, s.games, s.games_started,
+                 s.pass_yds, s.rush_yds, s.rec_yds, s.tackles, s.sacks
+          FROM player_season_stats s
+          WHERE s.pfr_id = ? AND s.year < ?
+          ORDER BY s.year DESC
+          LIMIT 5
+        `).all(topPlayer.pfr_id, year) as any[];
+      }
+
       return {
         totalPlayers: playerCount?.c || 0,
         yearCoverage: `${yearRange?.min_year || '?'}-${yearRange?.max_year || '?'}`,
@@ -4772,6 +5313,18 @@ ${fieldsList}
           rec_yds: p.rec_yds || 0,
           tackles: p.tackles || 0,
           sacks: p.sacks || 0
+        })),
+        seasonDetails: seasonDetails.map(s => ({
+          year: s.year,
+          team: s.team || '?',
+          age: s.age || '?',
+          games: s.games || 0,
+          games_started: s.games_started || 0,
+          pass_yds: s.pass_yds || 0,
+          rush_yds: s.rush_yds || 0,
+          rec_yds: s.rec_yds || 0,
+          tackles: s.tackles || 0,
+          sacks: s.sacks || 0
         }))
       };
     } finally {
@@ -4786,6 +5339,7 @@ ${fieldsList}
   private async getCareerStatsDatabase(): Promise<SqlJsWrapper | null> {
     try {
       const dbPath = resolveRetroDataPath('player-career-stats.db');
+      const appPath = app.getAppPath();
       console.log('[RetroEditorService] Loading career stats database from:', dbPath);
       console.log('[RetroEditorService] app.isPackaged:', app.isPackaged);
 
@@ -7315,6 +7869,7 @@ ${fieldsList}
     expansionDraftSelections?: Array<{ playerRecordIndex: number; newTeamIndex: number }>;
     expansionTeamIndices?: number[]; // Team indices for clearing rosters before expansion draft
     customSalaryCap?: number; // Custom salary cap in dollars (e.g., 255400000 for $255.4M)
+    editableCoaches?: Record<number, any>; // User-edited coach assignments from UI
   }): Promise<{
     success: boolean;
     results: {
@@ -7474,7 +8029,7 @@ ${fieldsList}
       if (opts.coaches) {
         console.log(`[RetroEditorService] Step 4: Applying coaches...`);
         try {
-          const coachResult = await this.applyHistoricalCoaches(sourcePath, year);
+          const coachResult = await this.applyHistoricalCoaches(sourcePath, year, config.editableCoaches);
           results.coachesUpdated = coachResult.coachesUpdated;
           console.log(`[RetroEditorService] Coaches: ${results.coachesUpdated} updated`);
         } catch (e) {
@@ -7679,6 +8234,44 @@ ${fieldsList}
       await franchise.save(targetPath);
       diagnostics.steps.push(`SAVE COMPLETED`);
       console.log(`[RetroEditorService] SAVED SUCCESSFULLY`);
+
+      // ===== POST-SAVE VERIFICATION: Reload and check draft picks =====
+      if (results.draftPicksReordered > 0) {
+        console.log(`[RetroEditorService] ===== POST-SAVE VERIFICATION =====`);
+        try {
+          const module = await getFranchiseModule();
+          const createFn = module.create || module.default?.create;
+          const verifyFranchise = await createFn(targetPath);
+          const verifyDraftTable = verifyFranchise.getTableByUniqueId(TABLE_IDS.draftPickTable);
+          await verifyDraftTable.readRecords();
+
+          // Check first 5 picks in round 0
+          console.log(`[RetroEditorService] VERIFICATION - First 5 draft picks after reload:`);
+          let verifyPicks: any[] = [];
+          for (const pick of verifyDraftTable.records) {
+            if (pick.isEmpty || pick.YearOffset !== 0) continue;
+            verifyPicks.push(pick);
+          }
+          verifyPicks.sort((a: any, b: any) => (a.PickNumber ?? 0) - (b.PickNumber ?? 0));
+          for (let i = 0; i < Math.min(5, verifyPicks.length); i++) {
+            const pick = verifyPicks[i];
+            const teamBin = pick.OriginalTeam;
+            const teamIdx = teamBin ? parseInt(teamBin.substring(15), 2) : -1;
+            console.log(`  Pick ${pick.PickNumber}: Team ${teamIdx}, Round ${pick.Round}`);
+          }
+          // Check last 5 picks in round 0
+          console.log(`[RetroEditorService] VERIFICATION - Last 5 picks in round 0:`);
+          const round0 = verifyPicks.filter((p: any) => p.Round === 0);
+          for (let i = Math.max(0, round0.length - 5); i < round0.length; i++) {
+            const pick = round0[i];
+            const teamBin = pick.OriginalTeam;
+            const teamIdx = teamBin ? parseInt(teamBin.substring(15), 2) : -1;
+            console.log(`  Pick ${pick.PickNumber}: Team ${teamIdx}`);
+          }
+        } catch (verifyErr) {
+          console.error(`[RetroEditorService] Post-save verification failed:`, verifyErr);
+        }
+      }
 
       return { success: true, results, diagnostics };
 
@@ -8425,8 +9018,120 @@ ${fieldsList}
   }
 
   /**
+   * Get current team coaches from the franchise file
+   * Returns all coaches currently assigned to teams (team index 0-31)
+   */
+  async getTeamCoaches(filePath: string): Promise<{
+    success: boolean;
+    teamCoaches: Record<number, {
+      teamIndex: number;
+      teamAbbr: string;
+      headCoach?: { coachIndex: number; firstName: string; lastName: string };
+      offensiveCoordinator?: { coachIndex: number; firstName: string; lastName: string };
+      defensiveCoordinator?: { coachIndex: number; firstName: string; lastName: string };
+    }>;
+    error?: string;
+  }> {
+    const franchise = this.getFranchise(filePath);
+    if (!franchise) {
+      return {
+        success: false,
+        teamCoaches: {},
+        error: 'Franchise file not loaded. Call loadFranchiseFile first.'
+      };
+    }
+
+    console.log('[RetroEditorService] Getting team coaches...');
+
+    // Get Coach table
+    let coachTable = franchise.getTableByUniqueId(TABLE_IDS.coachTable);
+    if (!coachTable) {
+      coachTable = franchise.getTableByName('Coach');
+    }
+    if (!coachTable) {
+      return {
+        success: false,
+        teamCoaches: {},
+        error: 'Could not find Coach table'
+      };
+    }
+
+    // Get Team table for abbreviations
+    let teamTable = franchise.getTableByUniqueId(TABLE_IDS.teamTable);
+    if (!teamTable) {
+      teamTable = franchise.getTableByName('Team');
+    }
+
+    await coachTable.readRecords();
+    if (teamTable) await teamTable.readRecords();
+
+    // Build team abbreviation map
+    const teamAbbrMap: Map<number, string> = new Map();
+    if (teamTable) {
+      for (const team of teamTable.records) {
+        if (team.isEmpty) continue;
+        const idx = Number(team.TeamIndex);
+        if (idx >= 0 && idx < 32) {
+          teamAbbrMap.set(idx, team.ShortName || team.LongName || `Team${idx}`);
+        }
+      }
+    }
+
+    const teamCoaches: Record<number, {
+      teamIndex: number;
+      teamAbbr: string;
+      headCoach?: { coachIndex: number; firstName: string; lastName: string };
+      offensiveCoordinator?: { coachIndex: number; firstName: string; lastName: string };
+      defensiveCoordinator?: { coachIndex: number; firstName: string; lastName: string };
+    }> = {};
+
+    // Initialize all 32 teams
+    for (let i = 0; i < 32; i++) {
+      teamCoaches[i] = {
+        teamIndex: i,
+        teamAbbr: teamAbbrMap.get(i) || `Team${i}`
+      };
+    }
+
+    // Process coach records
+    for (const coach of coachTable.records) {
+      if (coach.isEmpty) continue;
+
+      const teamIndex = Number(coach.TeamIndex);
+      if (teamIndex < 0 || teamIndex >= 32) continue; // Skip FA coaches
+
+      const firstName = coach.FirstName || '';
+      const lastName = coach.LastName || '';
+      const position = coach.Position;
+      const coachIndex = coach.index;
+
+      // Skip empty/placeholder coaches
+      if (!lastName || lastName === 'Coach' || lastName.startsWith('Empty')) continue;
+
+      const coachInfo = { coachIndex, firstName, lastName };
+
+      // Position: 0=HC, 1=OC, 2=DC
+      if (position === 0 || position === 'HeadCoach') {
+        teamCoaches[teamIndex].headCoach = coachInfo;
+      } else if (position === 1 || position === 'OffensiveCoordinator') {
+        teamCoaches[teamIndex].offensiveCoordinator = coachInfo;
+      } else if (position === 2 || position === 'DefensiveCoordinator') {
+        teamCoaches[teamIndex].defensiveCoordinator = coachInfo;
+      }
+    }
+
+    console.log(`[RetroEditorService] Found coaches for ${Object.keys(teamCoaches).length} teams`);
+
+    return {
+      success: true,
+      teamCoaches
+    };
+  }
+
+  /**
    * Search the coach database for coaches matching a query
    * Searches by first name, last name, or full name
+   * Shows ALL coaches regardless of year, with outOfEra flag for warning
    */
   searchCoachDatabase(query: string, year: number, limit = 20): {
     success: boolean;
@@ -8438,7 +9143,11 @@ ${fieldsList}
       careerTo: number;
       careerWins: number;
       careerLosses: number;
+      maddenPid?: number;
+      maddenPam?: string;
       source?: string;
+      outOfEra?: boolean;
+      outOfEraReason?: string;
     }>;
     error?: string;
   } {
@@ -8452,7 +9161,11 @@ ${fieldsList}
       careerTo: number;
       careerWins: number;
       careerLosses: number;
+      maddenPid?: number;
+      maddenPam?: string;
       source?: string;
+      outOfEra?: boolean;
+      outOfEraReason?: string;
     }> = [];
 
     const queryLower = query.toLowerCase().trim();
@@ -8467,6 +9180,17 @@ ${fieldsList}
       console.log(`[RetroEditorService] Found ${customCoaches.length} custom coaches matching "${query}"`);
 
       for (const coach of customCoaches) {
+        // Check if coach is outside their coaching era
+        let outOfEra = false;
+        let outOfEraReason = '';
+        if (coach.careerFrom && coach.careerFrom > year) {
+          outOfEra = true;
+          outOfEraReason = `Hasn't started coaching yet (starts ${coach.careerFrom})`;
+        } else if (coach.careerTo && coach.careerTo < year) {
+          outOfEra = true;
+          outOfEraReason = `Retired from coaching (ended ${coach.careerTo})`;
+        }
+
         results.push({
           firstName: coach.firstName,
           lastName: coach.lastName,
@@ -8475,26 +9199,23 @@ ${fieldsList}
           careerTo: coach.careerTo,
           careerWins: coach.careerWins,
           careerLosses: coach.careerLosses,
-          source: 'Your Database'
+          maddenPid: coach.maddenPid,
+          maddenPam: coach.maddenPam,
+          source: 'Your Database',
+          outOfEra,
+          outOfEraReason
         });
       }
     } catch (err) {
       console.warn('[RetroEditorService] Error searching custom coaches:', err);
     }
 
-    // SECOND: Search historical JSON database
+    // SECOND: Search historical JSON database (show ALL coaches, no year filter)
     const coachDb = this.loadCoachDatabase();
     if (coachDb) {
       console.log(`[RetroEditorService] Coach database loaded with ${coachDb.coaches?.length || 0} coaches`);
 
-      // Count coaches available for the given year
-      const coachesForYear = coachDb.coaches.filter((c: any) => c.careerFrom <= year);
-      console.log(`[RetroEditorService] Historical coaches available for year ${year}: ${coachesForYear.length} out of ${coachDb.coaches?.length || 0} total`);
-
       for (const coach of coachDb.coaches) {
-        // Skip if coach started after the target year
-        if (coach.careerFrom > year) continue;
-
         // Skip if we already have enough results
         if (results.length >= limit) break;
 
@@ -8514,15 +9235,75 @@ ${fieldsList}
           const positions = coach.positions || [];
           const position = positions.includes('HC') ? 'HC' : positions[0] || 'Unknown';
 
+          // Check if coach is outside their coaching era
+          let outOfEra = false;
+          let outOfEraReason = '';
+          if (coach.careerFrom && coach.careerFrom > year) {
+            outOfEra = true;
+            outOfEraReason = `Hasn't started coaching yet (starts ${coach.careerFrom})`;
+          } else if (coach.careerTo && coach.careerTo < year) {
+            outOfEra = true;
+            outOfEraReason = `Retired from coaching (ended ${coach.careerTo})`;
+          }
+
+          // Find year-specific stats from seasons array (for HCs, stats are cumulative at start of season)
+          let yearWins = coach.careerWins || 0;
+          let yearLosses = coach.careerLosses || 0;
+          let yearTies = coach.careerTies || 0;
+          let yearsAsHC = 0;
+          let yearsWithTeam = 0;
+          let playoffWins = coach.playoffWins || 0;
+          let playoffLosses = coach.playoffLosses || 0;
+          let superBowlWins = coach.superBowlWins || 0;
+
+          if (coach.seasons && coach.seasons.length > 0) {
+            // Find the season entry for the given year, or the most recent one before it
+            const seasonForYear = coach.seasons.find((s: any) => s.year === year);
+            if (seasonForYear && seasonForYear.careerWins !== undefined) {
+              yearWins = seasonForYear.careerWins;
+              yearLosses = seasonForYear.careerLosses || 0;
+              yearTies = seasonForYear.careerTies || 0;
+              yearsAsHC = seasonForYear.yearsAsHC || 0;
+              yearsWithTeam = seasonForYear.yearsWithTeam || 0;
+              playoffWins = seasonForYear.playoffWins || 0;
+              playoffLosses = seasonForYear.playoffLosses || 0;
+              superBowlWins = seasonForYear.superBowlWins || 0;
+              console.log(`[RetroEditorService] Found year-specific stats for ${coach.firstName} ${coach.lastName} in ${year}: ${yearWins}-${yearLosses}-${yearTies}`);
+            } else {
+              // Find most recent season before the target year
+              const pastSeasons = coach.seasons.filter((s: any) => s.year < year && s.careerWins !== undefined);
+              if (pastSeasons.length > 0) {
+                const mostRecent = pastSeasons[pastSeasons.length - 1];
+                yearWins = mostRecent.careerWins;
+                yearLosses = mostRecent.careerLosses || 0;
+                yearTies = mostRecent.careerTies || 0;
+                yearsAsHC = mostRecent.yearsAsHC || 0;
+                yearsWithTeam = mostRecent.yearsWithTeam || 0;
+                playoffWins = mostRecent.playoffWins || 0;
+                playoffLosses = mostRecent.playoffLosses || 0;
+                superBowlWins = mostRecent.superBowlWins || 0;
+                console.log(`[RetroEditorService] Using most recent stats for ${coach.firstName} ${coach.lastName} from ${mostRecent.year}: ${yearWins}-${yearLosses}-${yearTies}`);
+              }
+            }
+          }
+
           results.push({
             firstName: coach.firstName,
             lastName: coach.lastName,
             position,
             careerFrom: coach.careerFrom,
             careerTo: coach.careerTo,
-            careerWins: coach.careerWins || 0,
-            careerLosses: coach.careerLosses || 0,
-            source: 'Historical'
+            careerWins: yearWins,
+            careerLosses: yearLosses,
+            careerTies: yearTies,
+            yearsAsHC,
+            yearsWithTeam,
+            playoffWins,
+            playoffLosses,
+            superBowlWins,
+            source: 'Historical',
+            outOfEra,
+            outOfEraReason
           });
         }
       }
@@ -8540,7 +9321,7 @@ ${fieldsList}
   async replaceCoachWithDatabaseCoach(
     filePath: string,
     faCoachIndex: number,
-    dbCoach: { firstName: string; lastName: string; careerFrom?: number; careerWins?: number; careerLosses?: number },
+    dbCoach: { firstName: string; lastName: string; careerFrom?: number; careerWins?: number; careerLosses?: number; maddenPid?: number; maddenPam?: string },
     year: number
   ): Promise<{
     success: boolean;
@@ -8600,7 +9381,27 @@ ${fieldsList}
         } catch (e) { /* field may not exist */ }
       }
 
+      // Set portrait PID if provided (custom coach portraits use 500+ range)
+      if (dbCoach.maddenPid !== undefined && dbCoach.maddenPid >= 0) {
+        try {
+          faCoach.Portrait = dbCoach.maddenPid;
+          console.log(`[RetroEditorService]   Portrait: Set to ${dbCoach.maddenPid} for ${dbCoach.firstName} ${dbCoach.lastName}`);
+        } catch (e) { /* Portrait field may not exist */ }
+      }
+
+      // Set asset name if provided
+      if (dbCoach.maddenPam) {
+        try {
+          faCoach.AssetName = dbCoach.maddenPam;
+          console.log(`[RetroEditorService]   AssetName: Set to "${dbCoach.maddenPam}" for ${dbCoach.firstName} ${dbCoach.lastName}`);
+        } catch (e) { /* AssetName field may not exist */ }
+      }
+
       console.log(`[RetroEditorService] Successfully replaced coach with ${dbCoach.firstName} ${dbCoach.lastName}`);
+
+      // SAVE THE FILE - this was missing!
+      await franchise.save();
+      console.log(`[RetroEditorService] File saved after replacing FA coach`);
 
       return { success: true };
     } catch (err: any) {
@@ -8900,6 +9701,170 @@ ${fieldsList}
       message,
       warnings
     };
+  }
+
+  /**
+   * Check if franchise file has multiple Player tables with non-empty data
+   * Returns true if there are overflow tables that need merging
+   */
+  private async hasMultiplePlayerTables(franchise: any): Promise<boolean> {
+    try {
+      const allPlayerTables = franchise.getAllTablesByName('Player');
+      if (!allPlayerTables || allPlayerTables.length <= 1) {
+        return false;
+      }
+
+      console.log(`[RetroEditorService] Found ${allPlayerTables.length} Player tables, checking for overflow data...`);
+
+      for (const playerTable of allPlayerTables) {
+        await playerTable.readRecords();
+
+        // Skip the main player table (by uniqueId)
+        if (playerTable.header.uniqueId === MAIN_PLAYER_TABLE_UNIQUE_ID) {
+          continue;
+        }
+
+        // Check if overflow table has non-empty data
+        // These overflow tables typically have only 1 row
+        if (playerTable.records && playerTable.records.length > 0 && !playerTable.records[0].isEmpty) {
+          console.log(`[RetroEditorService] Found overflow Player table with data (uniqueId: ${playerTable.header.uniqueId})`);
+          return true;
+        }
+      }
+
+      return false;
+    } catch (err) {
+      console.error('[RetroEditorService] Error checking for multiple Player tables:', err);
+      return false;
+    }
+  }
+
+  /**
+   * Merge all overflow Player tables into the main Player table
+   * This fixes the "multiple Player tables" issue that MFT warns about
+   */
+  private async mergePlayerTables(franchise: any): Promise<{ merged: number; errors: number }> {
+    let merged = 0;
+    let errors = 0;
+
+    try {
+      const allPlayerTables = franchise.getAllTablesByName('Player');
+      if (!allPlayerTables || allPlayerTables.length <= 1) {
+        return { merged: 0, errors: 0 };
+      }
+
+      // Find the main player table
+      let mainPlayerTable: any = null;
+      for (const table of allPlayerTables) {
+        if (table.header.uniqueId === MAIN_PLAYER_TABLE_UNIQUE_ID) {
+          mainPlayerTable = table;
+          break;
+        }
+      }
+
+      if (!mainPlayerTable) {
+        // Fallback: use the first table as main
+        mainPlayerTable = allPlayerTables[0];
+        console.log('[RetroEditorService] Could not find main Player table by uniqueId, using first table');
+      }
+
+      await mainPlayerTable.readRecords();
+      console.log(`[RetroEditorService] Main Player table has ${mainPlayerTable.header.recordCapacity} capacity, next slot: ${mainPlayerTable.header.nextRecordToUse}`);
+
+      // Iterate through overflow tables
+      for (const currentTable of allPlayerTables) {
+        await currentTable.readRecords();
+
+        // Skip main table
+        if (currentTable.header.uniqueId === mainPlayerTable.header.uniqueId) {
+          continue;
+        }
+
+        // Check if the table has data to move
+        if (!currentTable.records || currentTable.records.length === 0 || currentTable.records[0].isEmpty) {
+          continue;
+        }
+
+        const nextRecord = mainPlayerTable.header.nextRecordToUse;
+
+        // Check if we have capacity
+        if (nextRecord >= mainPlayerTable.header.recordCapacity) {
+          console.error('[RetroEditorService] Main Player table is full, cannot merge overflow');
+          errors++;
+          continue;
+        }
+
+        try {
+          // Get binary references for updating pointers
+          const originalTableId = currentTable.header.tableId;
+          const originalBin = this.getBinaryReferenceData(originalTableId, 0);
+          const newBin = this.getBinaryReferenceData(mainPlayerTable.header.tableId, nextRecord);
+
+          // Copy all fields from overflow to main table
+          const columnHeaders = Object.keys(currentTable.records[0].fields || {});
+          for (const col of columnHeaders) {
+            try {
+              mainPlayerTable.records[nextRecord][col] = currentTable.records[0][col];
+            } catch (e) {
+              // Some fields may not be writable, skip them
+            }
+          }
+
+          // Find and update all references to the old player
+          const referencedRow = franchise.getReferencesToRecord(originalTableId, 0);
+          if (referencedRow && referencedRow.length > 0) {
+            for (const ref of referencedRow) {
+              try {
+                const relatedTable = franchise.getTableById(ref.tableId);
+                if (!relatedTable) continue;
+                await relatedTable.readRecords();
+
+                const relatedHeaders = Object.keys(relatedTable.records[0]?.fields || {});
+                for (const col of relatedHeaders) {
+                  for (let row = 0; row < relatedTable.header.recordCapacity; row++) {
+                    if (relatedTable.records[row]?.fields[col]?.isReference) {
+                      if (relatedTable.records[row][col] === originalBin) {
+                        relatedTable.records[row][col] = newBin;
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                // Skip tables that can't be updated
+              }
+            }
+          }
+
+          // Empty the old record
+          currentTable.records[0].isEmpty = true;
+
+          merged++;
+          console.log(`[RetroEditorService] Merged player from overflow table (tableId: ${originalTableId}) to main table row ${nextRecord}`);
+        } catch (err) {
+          console.error(`[RetroEditorService] Error merging player from overflow table:`, err);
+          errors++;
+        }
+      }
+
+      if (merged > 0) {
+        console.log(`[RetroEditorService] Successfully merged ${merged} player(s) from overflow tables`);
+      }
+
+      return { merged, errors };
+    } catch (err) {
+      console.error('[RetroEditorService] Error in mergePlayerTables:', err);
+      return { merged, errors: errors + 1 };
+    }
+  }
+
+  /**
+   * Helper to create binary reference string for a table row
+   */
+  private getBinaryReferenceData(tableId: number, rowIndex: number): string {
+    // Binary reference format: first 15 bits = table ID, rest = row number
+    const tableBin = tableId.toString(2).padStart(15, '0');
+    const rowBin = rowIndex.toString(2).padStart(17, '0');
+    return tableBin + rowBin;
   }
 }
 

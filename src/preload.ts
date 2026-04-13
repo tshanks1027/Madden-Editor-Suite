@@ -345,7 +345,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('custom-portrait:get-available-years')
   },
 
-  // Custom Coach Portrait APIs (user-uploaded coach portraits, PID 50000+)
+  // Custom Coach Portrait APIs (user-uploaded coach portraits, PID 500+)
   customCoachPortrait: {
     import: (filePath: string, metadata?: { coachName?: string; year?: number }) =>
       ipcRenderer.invoke('custom-coach-portrait:import', filePath, metadata),
@@ -560,6 +560,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Coach Database APIs
     getFACoaches: (filePath: string) =>
       ipcRenderer.invoke('retro:get-fa-coaches', filePath),
+    getTeamCoaches: (filePath: string) =>
+      ipcRenderer.invoke('retro:get-team-coaches', filePath),
     searchCoachDatabase: (query: string, year: number, limit?: number) =>
       ipcRenderer.invoke('retro:search-coach-database', query, year, limit),
     debugListCustomCoaches: () =>

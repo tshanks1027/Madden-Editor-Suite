@@ -1129,7 +1129,8 @@ async function applyChanges() {
       customSalaryCap: hasValidSalaryCap ? effectiveSalaryCap : null,
       expansionEvent: (expansionEnabled && retroState.expansionEvent) ? retroState.expansionEvent : null,
       expansionDraftSelections: retroState.expansionDraftSelections || [], // Manual selections from draft board
-      expansionTeamIndices: retroState.expansionTeamIndices || [] // Team indices for clearing rosters
+      expansionTeamIndices: retroState.expansionTeamIndices || [], // Team indices for clearing rosters
+      editableCoaches: retroState.editableCoaches || null // User-edited coach assignments
     };
 
     console.log('[RetroEditor] Config for applyAllAndSave:', JSON.stringify(config, null, 2));
@@ -3725,6 +3726,11 @@ async function loadRelocationPreview() {
 }
 
 /**
+ * Current team coaches from the franchise file (stored globally)
+ */
+let currentTeamCoaches = {};
+
+/**
  * Load coaching tool preview
  */
 async function loadCoachingToolPreview() {
@@ -3732,6 +3738,13 @@ async function loadCoachingToolPreview() {
   const countEl = document.getElementById('coaching-count');
 
   try {
+    // Load current coaches from the franchise file first
+    const currentCoachesResult = await window.electronAPI.retro.getTeamCoaches(retroState.filePath);
+    if (currentCoachesResult.success) {
+      currentTeamCoaches = currentCoachesResult.teamCoaches;
+      console.log('[RetroEditor] Loaded current team coaches:', Object.keys(currentTeamCoaches).length);
+    }
+
     const hasCoachResult = await window.electronAPI.retro.hasCoachData(retroState.targetYear);
 
     if (hasCoachResult.success && hasCoachResult.hasData) {
@@ -3757,6 +3770,12 @@ async function loadCoachingToolPreview() {
         listEl.innerHTML = coachChanges
           .sort((a, b) => a.teamAbbr.localeCompare(b.teamAbbr))
           .map(team => {
+            // Get current coaches from franchise file for this team
+            const currentCoach = currentTeamCoaches[team.teamIndex] || {};
+            const currentHC = currentCoach.headCoach ? `${currentCoach.headCoach.firstName} ${currentCoach.headCoach.lastName}` : null;
+            const currentOC = currentCoach.offensiveCoordinator ? `${currentCoach.offensiveCoordinator.firstName} ${currentCoach.offensiveCoordinator.lastName}` : null;
+            const currentDC = currentCoach.defensiveCoordinator ? `${currentCoach.defensiveCoordinator.firstName} ${currentCoach.defensiveCoordinator.lastName}` : null;
+
             // Initialize editable state for this team
             if (!retroState.editableCoaches[team.teamIndex]) {
               retroState.editableCoaches[team.teamIndex] = {
@@ -3770,6 +3789,20 @@ async function loadCoachingToolPreview() {
             }
             const editable = retroState.editableCoaches[team.teamIndex];
 
+            // Helper to show current vs new coach
+            const formatCoachDisplay = (position, currentName, newName, editableValue) => {
+              const displayName = editableValue || newName;
+              if (currentName && currentName !== displayName && displayName && displayName !== '(Keep Default)') {
+                return `<span style="color: var(--text-secondary); text-decoration: line-through;">${currentName}</span> → <span style="color: var(--accent-color);">${displayName}</span>`;
+              } else if (currentName && (!displayName || displayName === '(Keep Default)')) {
+                return `<span>${currentName}</span> <span style="color: var(--text-secondary); font-style: italic;">(keeping)</span>`;
+              } else if (displayName && displayName !== '(Keep Default)') {
+                return `<span style="color: var(--accent-color);">${displayName}</span>`;
+              } else {
+                return `<span style="color: var(--text-secondary);">(empty)</span>`;
+              }
+            };
+
             return `
             <div style="margin-bottom: 8px; padding: 8px; background: var(--bg-tertiary); border-radius: 4px;">
               <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -3777,9 +3810,9 @@ async function loadCoachingToolPreview() {
                 <button class="btn btn-secondary" style="padding: 2px 8px; font-size: 0.8em;" onclick="editTeamCoach(${team.teamIndex}, '${team.teamAbbr}')">Edit</button>
               </div>
               <div style="margin-top: 4px; font-size: 0.85em;">
-                <div><span style="color: var(--text-secondary);">HC:</span> <span id="team-hc-${team.teamIndex}">${editable.headCoach || team.headCoach}</span></div>
-                <div><span style="color: var(--text-secondary);">OC:</span> <span id="team-oc-${team.teamIndex}">${editable.offensiveCoordinator || team.offensiveCoordinator || '(Keep Default)'}</span></div>
-                <div><span style="color: var(--text-secondary);">DC:</span> <span id="team-dc-${team.teamIndex}">${editable.defensiveCoordinator || team.defensiveCoordinator || '(Keep Default)'}</span></div>
+                <div><span style="color: var(--text-secondary);">HC:</span> <span id="team-hc-${team.teamIndex}">${formatCoachDisplay('HC', currentHC, team.headCoach, editable.headCoach)}</span></div>
+                <div><span style="color: var(--text-secondary);">OC:</span> <span id="team-oc-${team.teamIndex}">${formatCoachDisplay('OC', currentOC, team.offensiveCoordinator, editable.offensiveCoordinator)}</span></div>
+                <div><span style="color: var(--text-secondary);">DC:</span> <span id="team-dc-${team.teamIndex}">${formatCoachDisplay('DC', currentDC, team.defensiveCoordinator, editable.defensiveCoordinator)}</span></div>
                 ${team.offScheme ? `<div style="margin-top: 4px;"><span style="color: var(--accent-color);">Off Scheme:</span> ${team.offScheme}</div>` : ''}
                 ${team.defScheme ? `<div><span style="color: var(--accent-color);">Def Scheme:</span> ${team.defScheme}</div>` : ''}
               </div>
@@ -3804,20 +3837,27 @@ async function loadCoachingToolPreview() {
  * Edit team coach - shows inline editor with position buttons and source selection
  */
 async function editTeamCoach(teamIndex, teamAbbr) {
-  // Store editing context
-  retroState.editingTeamCoach = { teamIndex, teamAbbr, position: 'HC', source: 'database' };
+  console.log(`[RetroEditor] editTeamCoach called: teamIndex=${teamIndex}, teamAbbr=${teamAbbr}`);
 
-  // Load FA coaches if not already loaded
-  if (!faCoachesData || faCoachesData.length === 0) {
-    try {
-      const result = await window.electronAPI.retro.getFACoaches(retroState.filePath);
-      if (result.success) {
-        faCoachesData = result.faCoaches;
-      }
-    } catch (e) {
-      console.error('[RetroEditor] Error loading FA coaches:', e);
+  // Always reload FA coaches to ensure we have fresh data
+  try {
+    const result = await window.electronAPI.retro.getFACoaches(retroState.filePath);
+    console.log('[RetroEditor] getFACoaches result:', result);
+    if (result.success) {
+      faCoachesData = result.faCoaches || [];
+      console.log(`[RetroEditor] Loaded ${faCoachesData.length} FA coaches`);
+    } else {
+      console.warn('[RetroEditor] getFACoaches failed:', result.error);
+      faCoachesData = [];
     }
+  } catch (e) {
+    console.error('[RetroEditor] Error loading FA coaches:', e);
+    faCoachesData = [];
   }
+
+  // Store editing context - default to FA if we have FA coaches, otherwise database
+  const defaultSource = faCoachesData.length > 0 ? 'fa' : 'database';
+  retroState.editingTeamCoach = { teamIndex, teamAbbr, position: 'HC', source: defaultSource };
 
   // Switch to search tab
   switchCoachingTab('search');
@@ -3830,29 +3870,61 @@ async function editTeamCoach(teamIndex, teamAbbr) {
  * Update the team coach edit UI
  */
 function updateTeamCoachEditUI() {
-  if (!retroState.editingTeamCoach) return;
+  if (!retroState.editingTeamCoach) {
+    console.warn('[RetroEditor] updateTeamCoachEditUI called but no editingTeamCoach state');
+    return;
+  }
 
   const { teamAbbr, position, source } = retroState.editingTeamCoach;
   const searchResults = document.getElementById('coach-search-results');
+  const mainSearchInput = document.getElementById('coach-search-input');
+  const mainSearchBtn = document.getElementById('btn-search-coaches');
 
-  // Build FA coaches list for inline display
+  if (!searchResults) {
+    console.error('[RetroEditor] coach-search-results element not found!');
+    return;
+  }
+
+  // Hide the main search input when editing a team to avoid conflicts
+  if (mainSearchInput) mainSearchInput.parentElement.style.display = 'none';
+
+  console.log(`[RetroEditor] updateTeamCoachEditUI: teamAbbr=${teamAbbr}, position=${position}, source=${source}, faCoachesData.length=${faCoachesData?.length || 0}`);
+
+  // Build FA coaches list for inline display - show ALL coaches for easier selection
   let faCoachesHtml = '';
   if (faCoachesData && faCoachesData.length > 0) {
-    faCoachesHtml = faCoachesData.slice(0, 10).map(coach => `
+    console.log(`[RetroEditor] Building FA coaches HTML for ${faCoachesData.length} coaches`);
+    faCoachesHtml = faCoachesData.map(coach => {
+      // Escape names for JavaScript onclick handler (handle apostrophes and special chars)
+      const escFirstName = (coach.firstName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escLastName = (coach.lastName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escPosition = (coach.position || 'Coach').replace(/'/g, "\\'");
+      return `
       <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin-bottom: 2px; background: var(--bg-secondary); border-radius: 4px; cursor: pointer;"
-           onclick="assignFACoachToTeam(${coach.coachIndex}, '${coach.firstName}', '${coach.lastName}', '${coach.position}')">
+           onclick="assignFACoachToTeam(${coach.coachIndex}, '${escFirstName}', '${escLastName}', '${escPosition}')">
         <span>${coach.firstName} ${coach.lastName} <span style="color: var(--text-secondary);">(${coach.position})</span></span>
         <span style="color: var(--accent-color); font-size: 0.85em;">Select</span>
       </div>
-    `).join('');
-    if (faCoachesData.length > 10) {
-      faCoachesHtml += `<div style="text-align: center; padding: 4px; color: var(--text-secondary); font-size: 0.85em;">
-        ...and ${faCoachesData.length - 10} more FA coaches
-      </div>`;
-    }
+    `;
+    }).join('');
+    console.log(`[RetroEditor] FA coaches HTML built, length: ${faCoachesHtml.length} chars`);
   } else {
-    faCoachesHtml = '<p style="color: var(--text-secondary); padding: 8px;">No FA coaches available in file.</p>';
+    console.log('[RetroEditor] No FA coaches data available');
+    faCoachesHtml = '<p style="color: var(--text-secondary); padding: 8px;">No FA coaches available in this franchise file. Use "From Database" to search for historical coaches.</p>';
   }
+
+  // Get current coach for this team and position
+  const teamIndex = retroState.editingTeamCoach?.teamIndex;
+  const currentCoach = currentTeamCoaches[teamIndex] || {};
+  let currentCoachForPosition = null;
+  if (position === 'HC' && currentCoach.headCoach) {
+    currentCoachForPosition = currentCoach.headCoach;
+  } else if (position === 'OC' && currentCoach.offensiveCoordinator) {
+    currentCoachForPosition = currentCoach.offensiveCoordinator;
+  } else if (position === 'DC' && currentCoach.defensiveCoordinator) {
+    currentCoachForPosition = currentCoach.defensiveCoordinator;
+  }
+  const currentCoachName = currentCoachForPosition ? `${currentCoachForPosition.firstName} ${currentCoachForPosition.lastName}` : null;
 
   searchResults.innerHTML = `
     <div style="padding: 12px; background: var(--accent-color); color: white; border-radius: 4px; margin-bottom: 12px;">
@@ -3870,6 +3942,18 @@ function updateTeamCoachEditUI() {
       </div>
     </div>
 
+    ${currentCoachName ? `
+    <div style="margin-bottom: 12px; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 4px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="color: var(--text-secondary);">Current ${position}:</span>
+          <strong style="margin-left: 8px;">${currentCoachName}</strong>
+        </div>
+        <button class="btn btn-primary" style="padding: 4px 12px;" onclick="keepCurrentCoach()">Keep Current</button>
+      </div>
+    </div>
+    ` : ''}
+
     <div style="margin-bottom: 16px;">
       <div style="display: flex; gap: 8px; margin-bottom: 8px;">
         <button class="btn ${source === 'database' ? 'btn-primary' : 'btn-secondary'}"
@@ -3880,15 +3964,18 @@ function updateTeamCoachEditUI() {
     </div>
 
     ${source === 'database' ? `
-      <p style="color: var(--text-secondary); margin-bottom: 8px;">Search the database for a coach to assign as ${position}:</p>
+      <p style="color: var(--text-secondary); margin-bottom: 8px;">Search historical coaches to assign as <strong>${position}</strong> for ${teamAbbr}:</p>
       <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-        <input type="text" id="team-coach-search-input" placeholder="Enter coach name..."
+        <input type="text" id="team-coach-search-input" placeholder="Type coach name (e.g. 'Landry', 'Walsh')..."
                style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary);"
                onkeypress="if(event.key==='Enter') searchCoachDatabaseForTeam()">
         <button class="btn btn-primary" onclick="searchCoachDatabaseForTeam()">Search</button>
       </div>
       <div id="team-coach-search-results" style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px; padding: 4px;">
-        <p style="color: var(--text-secondary); text-align: center; padding: 16px;">Enter a name to search.</p>
+        <p style="color: var(--text-secondary); text-align: center; padding: 16px;">
+          <strong>Search for historical coaches above</strong><br>
+          <span style="font-size: 0.9em;">Try searching for names like "Landry", "Walsh", "Shula", "Lombardi"</span>
+        </p>
       </div>
     ` : `
       <p style="color: var(--text-secondary); margin-bottom: 8px;">Select an FA coach from the file to assign as ${position}:</p>
@@ -3897,6 +3984,8 @@ function updateTeamCoachEditUI() {
       </div>
     `}
   `;
+
+  console.log(`[RetroEditor] updateTeamCoachEditUI: Content set to searchResults. Source=${source}, innerHTML length=${searchResults.innerHTML.length}`);
 }
 
 /**
@@ -3917,6 +4006,80 @@ function setCoachSource(source) {
     retroState.editingTeamCoach.source = source;
     updateTeamCoachEditUI();
   }
+}
+
+/**
+ * Keep the current coach (don't replace them with historical data)
+ */
+function keepCurrentCoach() {
+  if (!retroState.editingTeamCoach) return;
+
+  const teamIndex = retroState.editingTeamCoach.teamIndex;
+  const editPosition = retroState.editingTeamCoach.position;
+  const teamAbbr = retroState.editingTeamCoach.teamAbbr;
+
+  // Get current coach info
+  const currentCoach = currentTeamCoaches[teamIndex] || {};
+  let currentCoachForPosition = null;
+  if (editPosition === 'HC' && currentCoach.headCoach) {
+    currentCoachForPosition = currentCoach.headCoach;
+  } else if (editPosition === 'OC' && currentCoach.offensiveCoordinator) {
+    currentCoachForPosition = currentCoach.offensiveCoordinator;
+  } else if (editPosition === 'DC' && currentCoach.defensiveCoordinator) {
+    currentCoachForPosition = currentCoach.defensiveCoordinator;
+  }
+
+  if (!currentCoachForPosition) {
+    showToolStatus(`No current ${editPosition} found for ${teamAbbr}`, 'warning');
+    return;
+  }
+
+  const coachName = `${currentCoachForPosition.firstName} ${currentCoachForPosition.lastName}`;
+
+  // Update the editable state
+  if (!retroState.editableCoaches[teamIndex]) {
+    retroState.editableCoaches[teamIndex] = {};
+  }
+
+  // Mark as "keep current" - set to special value that service recognizes
+  const coachData = {
+    name: coachName,
+    firstName: currentCoachForPosition.firstName,
+    lastName: currentCoachForPosition.lastName,
+    keepCurrent: true, // Signal to service to not modify this coach
+    coachIndex: currentCoachForPosition.coachIndex
+  };
+
+  console.log(`[RetroEditor] Keeping current coach: ${coachName} as ${editPosition} for team ${teamIndex}`);
+
+  if (editPosition === 'HC') {
+    retroState.editableCoaches[teamIndex].headCoach = coachName + ' (keeping)';
+    retroState.editableCoaches[teamIndex].headCoachData = coachData;
+    const el = document.getElementById(`team-hc-${teamIndex}`);
+    if (el) el.innerHTML = `<span>${coachName}</span> <span style="color: var(--text-secondary); font-style: italic;">(keeping)</span>`;
+  } else if (editPosition === 'OC') {
+    retroState.editableCoaches[teamIndex].offensiveCoordinator = coachName + ' (keeping)';
+    retroState.editableCoaches[teamIndex].offensiveCoordinatorData = coachData;
+    const el = document.getElementById(`team-oc-${teamIndex}`);
+    if (el) el.innerHTML = `<span>${coachName}</span> <span style="color: var(--text-secondary); font-style: italic;">(keeping)</span>`;
+  } else if (editPosition === 'DC') {
+    retroState.editableCoaches[teamIndex].defensiveCoordinator = coachName + ' (keeping)';
+    retroState.editableCoaches[teamIndex].defensiveCoordinatorData = coachData;
+    const el = document.getElementById(`team-dc-${teamIndex}`);
+    if (el) el.innerHTML = `<span>${coachName}</span> <span style="color: var(--text-secondary); font-style: italic;">(keeping)</span>`;
+  }
+
+  showToolStatus(`Keeping ${coachName} as ${editPosition} for ${teamAbbr}`, 'success');
+
+  // Restore the main search input visibility
+  const mainSearchInput = document.getElementById('coach-search-input');
+  if (mainSearchInput && mainSearchInput.parentElement) {
+    mainSearchInput.parentElement.style.display = 'flex';
+  }
+
+  // Switch back to teams tab
+  switchCoachingTab('teams');
+  retroState.editingTeamCoach = null;
 }
 
 /**
@@ -3946,29 +4109,63 @@ async function searchCoachDatabaseForTeam() {
     console.log(`[RetroEditor] Searching for team coach: query="${query}", year=${searchYear}`);
     const result = await window.electronAPI.retro.searchCoachDatabase(query, searchYear);
     console.log('[RetroEditor] Team coach search result:', result);
+    console.log('[RetroEditor] Search success:', result?.success, 'Results count:', result?.results?.length);
 
     if (!result || !result.success) {
+      console.error('[RetroEditor] Search failed:', result?.error);
       resultsEl.innerHTML = `<p style="color: var(--error-color); text-align: center; padding: 16px;">Error: ${result?.error || 'Search failed'}</p>`;
       return;
     }
 
     if (result.results.length === 0) {
-      resultsEl.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 16px;">No coaches found matching that name.</p>';
+      console.log('[RetroEditor] No coaches found for query');
+      resultsEl.innerHTML = `
+        <p style="color: var(--text-secondary); text-align: center; padding: 16px;">
+          No coaches found matching "<strong>${query}</strong>".
+          <br><br>
+          <span style="font-size: 0.9em;">
+            Searches both your custom database and historical coaches.<br>
+            Add coaches to your database using the <strong>Database Browser → Coaches</strong> tab.
+          </span>
+        </p>`;
       return;
     }
 
-    resultsEl.innerHTML = result.results.map(coach => `
-      <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin-bottom: 2px; background: var(--bg-secondary); border-radius: 4px; cursor: pointer;"
-           onclick="assignCoachToTeam('${coach.firstName}', '${coach.lastName}', '${coach.position}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses})">
-        <div>
-          <strong style="color: var(--text-primary);">${coach.firstName} ${coach.lastName}</strong>
+    console.log('[RetroEditor] Displaying', result.results.length, 'coaches');
+
+    resultsEl.innerHTML = result.results.map(coach => {
+      // Escape names for JavaScript onclick handler
+      const escFirstName = (coach.firstName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escLastName = (coach.lastName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const escPosition = (coach.position || 'Coach').replace(/'/g, "\\'");
+      const sourceTag = coach.source ? `<span style="color: var(--accent-color); font-size: 0.75em; margin-left: 8px;">[${coach.source}]</span>` : '';
+      // Include maddenPid and maddenPam for portrait assignment
+      const maddenPid = coach.maddenPid !== undefined ? coach.maddenPid : 'undefined';
+      const maddenPam = coach.maddenPam ? `'${coach.maddenPam.replace(/'/g, "\\'")}'` : 'undefined';
+
+      // Out of era warning
+      const outOfEraWarning = coach.outOfEra ? `
+        <div style="font-size: 0.75em; color: #f59e0b; margin-top: 2px;">
+          ⚠️ ${coach.outOfEraReason || 'Outside coaching era for ' + searchYear}
+        </div>
+      ` : '';
+      const borderColor = coach.outOfEra ? '#f59e0b' : 'transparent';
+      const warningIcon = coach.outOfEra ? '<span style="color: #f59e0b; font-size: 0.8em; margin-left: 4px;">⚠️</span>' : '';
+
+      return `
+      <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; margin-bottom: 2px; background: var(--bg-secondary); border-radius: 4px; cursor: pointer; border-left: 3px solid ${borderColor};"
+           onclick="assignCoachToTeam('${escFirstName}', '${escLastName}', '${escPosition}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses}, ${maddenPid}, ${maddenPam}, ${coach.careerTies || 0}, ${coach.yearsAsHC || 0}, ${coach.playoffWins || 0}, ${coach.superBowlWins || 0})">
+        <div style="flex: 1;">
+          <strong style="color: var(--text-primary);">${coach.firstName} ${coach.lastName}</strong>${warningIcon}${sourceTag}
           <div style="font-size: 0.8em; color: var(--text-secondary);">
-            ${coach.position} | ${coach.careerFrom}-${coach.careerTo} | ${coach.careerWins}-${coach.careerLosses}
+            ${coach.position} | ${coach.careerFrom}-${coach.careerTo} | ${coach.careerWins}-${coach.careerLosses}${coach.careerTies ? '-' + coach.careerTies : ''}
           </div>
+          ${outOfEraWarning}
         </div>
         <span style="color: var(--accent-color); font-size: 0.85em;">Assign as ${position}</span>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
   } catch (error) {
     console.error('[RetroEditor] Error searching coach database:', error);
@@ -3981,6 +4178,19 @@ async function searchCoachDatabaseForTeam() {
  */
 function cancelTeamCoachEdit() {
   retroState.editingTeamCoach = null;
+
+  // Restore the main search input visibility
+  const mainSearchInput = document.getElementById('coach-search-input');
+  if (mainSearchInput && mainSearchInput.parentElement) {
+    mainSearchInput.parentElement.style.display = 'flex';
+  }
+
+  // Reset the search results area
+  const searchResults = document.getElementById('coach-search-results');
+  if (searchResults) {
+    searchResults.innerHTML = '<p style="color: var(--text-secondary);">Enter a name to search the coach database.</p>';
+  }
+
   switchCoachingTab('teams');
 }
 
@@ -3999,21 +4209,43 @@ function assignFACoachToTeam(coachIndex, firstName, lastName, coachPosition) {
     retroState.editableCoaches[teamIndex] = {};
   }
 
+  // Store FA coach data including the coachIndex so the service knows which record to use
+  const coachData = {
+    name: coachName,
+    firstName,
+    lastName,
+    faCoachIndex: coachIndex, // Row index in Coach table for this FA coach
+    isFA: true
+  };
+
+  console.log(`[RetroEditor] *** ASSIGNING FA COACH ***`);
+  console.log(`[RetroEditor] FA Coach: ${coachName} (coachIndex=${coachIndex}) as ${editPosition} for team ${teamIndex}`);
+  console.log(`[RetroEditor] FA coachData:`, JSON.stringify(coachData));
+
   if (editPosition === 'HC') {
     retroState.editableCoaches[teamIndex].headCoach = coachName;
+    retroState.editableCoaches[teamIndex].headCoachData = coachData;
     const el = document.getElementById(`team-hc-${teamIndex}`);
     if (el) el.textContent = coachName;
   } else if (editPosition === 'OC') {
     retroState.editableCoaches[teamIndex].offensiveCoordinator = coachName;
+    retroState.editableCoaches[teamIndex].offensiveCoordinatorData = coachData;
     const el = document.getElementById(`team-oc-${teamIndex}`);
     if (el) el.textContent = coachName;
   } else if (editPosition === 'DC') {
     retroState.editableCoaches[teamIndex].defensiveCoordinator = coachName;
+    retroState.editableCoaches[teamIndex].defensiveCoordinatorData = coachData;
     const el = document.getElementById(`team-dc-${teamIndex}`);
     if (el) el.textContent = coachName;
   }
 
   showToolStatus(`Assigned ${coachName} as ${editPosition} for ${retroState.editingTeamCoach.teamAbbr}`, 'success');
+
+  // Restore the main search input visibility
+  const mainSearchInput = document.getElementById('coach-search-input');
+  if (mainSearchInput && mainSearchInput.parentElement) {
+    mainSearchInput.parentElement.style.display = 'flex';
+  }
 
   // Switch back to teams tab
   switchCoachingTab('teams');
@@ -4023,33 +4255,58 @@ function assignFACoachToTeam(coachIndex, firstName, lastName, coachPosition) {
 /**
  * Assign a coach from database to the team being edited
  */
-function assignCoachToTeam(firstName, lastName, position, careerFrom, careerWins, careerLosses) {
+function assignCoachToTeam(firstName, lastName, position, careerFrom, careerWins, careerLosses, maddenPid, maddenPam, careerTies, yearsAsHC, playoffWins, superBowlWins) {
   if (!retroState.editingTeamCoach) return;
 
   const teamIndex = retroState.editingTeamCoach.teamIndex;
   const editPosition = retroState.editingTeamCoach.position;
   const coachName = `${firstName} ${lastName}`;
 
-  // Update the editable state
+  // Update the editable state with maddenPid/maddenPam for portrait support
   if (!retroState.editableCoaches[teamIndex]) {
     retroState.editableCoaches[teamIndex] = {};
   }
 
+  const coachData = {
+    name: coachName,
+    firstName,
+    lastName,
+    careerFrom,
+    careerWins,
+    careerLosses,
+    careerTies: careerTies || 0,
+    yearsAsHC: yearsAsHC || 0,
+    playoffWins: playoffWins || 0,
+    superBowlWins: superBowlWins || 0,
+    maddenPid,
+    maddenPam
+  };
+
   if (editPosition === 'HC') {
     retroState.editableCoaches[teamIndex].headCoach = coachName;
+    retroState.editableCoaches[teamIndex].headCoachData = coachData;
     const el = document.getElementById(`team-hc-${teamIndex}`);
     if (el) el.textContent = coachName;
   } else if (editPosition === 'OC') {
     retroState.editableCoaches[teamIndex].offensiveCoordinator = coachName;
+    retroState.editableCoaches[teamIndex].offensiveCoordinatorData = coachData;
     const el = document.getElementById(`team-oc-${teamIndex}`);
     if (el) el.textContent = coachName;
   } else if (editPosition === 'DC') {
     retroState.editableCoaches[teamIndex].defensiveCoordinator = coachName;
+    retroState.editableCoaches[teamIndex].defensiveCoordinatorData = coachData;
     const el = document.getElementById(`team-dc-${teamIndex}`);
     if (el) el.textContent = coachName;
   }
 
+  console.log(`[RetroEditor] Assigned ${coachName} as ${editPosition} with maddenPid=${maddenPid}`);
   showToolStatus(`Assigned ${coachName} as ${editPosition} for ${retroState.editingTeamCoach.teamAbbr}`, 'success');
+
+  // Restore the main search input visibility
+  const mainSearchInput = document.getElementById('coach-search-input');
+  if (mainSearchInput && mainSearchInput.parentElement) {
+    mainSearchInput.parentElement.style.display = 'flex';
+  }
 
   // Switch back to teams tab
   switchCoachingTab('teams');
@@ -4356,7 +4613,7 @@ async function loadDraftOrderPreview() {
     if (result.success && result.data.draftChanges && result.data.draftChanges.inactiveTeams && result.data.draftChanges.inactiveTeams.length > 0) {
       countEl.textContent = `${result.data.draftChanges.inactiveTeams.length} team(s)`;
       listEl.innerHTML = `
-        <p style="color: var(--text-secondary); margin-bottom: 12px;">Draft picks for the following teams will be moved to the end of each round:</p>
+        <p style="color: var(--text-secondary); margin-bottom: 12px;">Draft picks for the following non-existent teams will be moved to the <strong>end of the entire draft</strong>:</p>
         ${result.data.draftChanges.inactiveTeams.map(team => `<div style="padding: 4px 0;">${team}</div>`).join('')}
       `;
     } else {
@@ -4592,9 +4849,26 @@ async function applyToolCoaching() {
         schemes: true, // Schemes are tied to coaches
         uniforms: false,
         expansion: false
-      }
+      },
+      editableCoaches: retroState.editableCoaches || null // Pass user-edited coach assignments
     };
 
+    // Log full config with data objects
+    console.log('[RetroEditor] applyToolCoaching config:', JSON.stringify(config, null, 2));
+    // Log if any FA coaches are being sent
+    if (config.editableCoaches) {
+      for (const [teamIdx, teamData] of Object.entries(config.editableCoaches)) {
+        if (teamData.headCoachData) {
+          console.log(`[RetroEditor] Team ${teamIdx} HC data:`, JSON.stringify(teamData.headCoachData));
+        }
+        if (teamData.offensiveCoordinatorData) {
+          console.log(`[RetroEditor] Team ${teamIdx} OC data:`, JSON.stringify(teamData.offensiveCoordinatorData));
+        }
+        if (teamData.defensiveCoordinatorData) {
+          console.log(`[RetroEditor] Team ${teamIdx} DC data:`, JSON.stringify(teamData.defensiveCoordinatorData));
+        }
+      }
+    }
     const result = await window.electronAPI.retro.applyAllAndSave(config);
 
     if (result.success) {
@@ -4711,6 +4985,10 @@ async function applyToolCommentary() {
  * Apply draft order tool
  */
 async function applyToolDraftOrder() {
+  console.log('[RetroEditor] ========== APPLY DRAFT ORDER CLICKED ==========');
+  console.log('[RetroEditor] retroState.filePath:', retroState.filePath);
+  console.log('[RetroEditor] retroState.targetYear:', retroState.targetYear);
+
   const btn = document.getElementById('btn-apply-draft-order');
   btn.disabled = true;
   btn.textContent = 'Applying...';
@@ -4733,7 +5011,9 @@ async function applyToolDraftOrder() {
       }
     };
 
+    console.log('[RetroEditor] Calling applyAllAndSave with config:', config);
     const result = await window.electronAPI.retro.applyAllAndSave(config);
+    console.log('[RetroEditor] applyAllAndSave result:', JSON.stringify(result, null, 2));
 
     if (result.success) {
       showToolStatus(`Draft order updated! ${result.results.draftPicksReordered || 0} pick(s) reordered.`, 'success');
@@ -5015,7 +5295,7 @@ async function loadHistoricalStatsPreview() {
     const result = await window.electronAPI.retro.getHistoricalStatsPreview(retroState.targetYear);
 
     if (result.success && result.data) {
-      const { totalPlayers, yearCoverage, matchedPlayers, samplePlayers } = result.data;
+      const { totalPlayers, yearCoverage, matchedPlayers, samplePlayers, seasonDetails } = result.data;
 
       // Update summary stats
       playerCountEl.textContent = totalPlayers.toLocaleString();
@@ -5053,6 +5333,52 @@ async function loadHistoricalStatsPreview() {
       }
 
       html += '</div>';
+
+      // Add season-by-season details for the top player (shows team and age columns)
+      if (seasonDetails && seasonDetails.length > 0 && samplePlayers.length > 0) {
+        const topPlayer = samplePlayers[0];
+        html += `
+          <div style="margin-top: 16px; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden;">
+            <div style="padding: 8px; background: var(--bg-tertiary); font-weight: 600; border-bottom: 1px solid var(--border-color);">
+              Season Details - ${topPlayer.first_name} ${topPlayer.last_name}
+            </div>
+            <table style="width: 100%; font-size: 0.8rem; border-collapse: collapse;">
+              <thead>
+                <tr style="background: var(--bg-secondary);">
+                  <th style="padding: 6px; text-align: left; border-bottom: 1px solid var(--border-color);">Year</th>
+                  <th style="padding: 6px; text-align: left; border-bottom: 1px solid var(--border-color);">Team</th>
+                  <th style="padding: 6px; text-align: center; border-bottom: 1px solid var(--border-color);">Age</th>
+                  <th style="padding: 6px; text-align: center; border-bottom: 1px solid var(--border-color);">G</th>
+                  <th style="padding: 6px; text-align: center; border-bottom: 1px solid var(--border-color);">GS</th>
+                  <th style="padding: 6px; text-align: right; border-bottom: 1px solid var(--border-color);">Stats</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        for (const season of seasonDetails) {
+          const seasonStats = [];
+          if (season.pass_yds > 0) seasonStats.push(`${season.pass_yds} pass`);
+          if (season.rush_yds > 0) seasonStats.push(`${season.rush_yds} rush`);
+          if (season.rec_yds > 0) seasonStats.push(`${season.rec_yds} rec`);
+          if (season.tackles > 0) seasonStats.push(`${season.tackles} tkl`);
+          if (season.sacks > 0) seasonStats.push(`${season.sacks} sk`);
+
+          html += `
+            <tr>
+              <td style="padding: 6px; color: var(--accent-color);">${season.year}</td>
+              <td style="padding: 6px; font-weight: 500;">${season.team}</td>
+              <td style="padding: 6px; text-align: center;">${season.age}</td>
+              <td style="padding: 6px; text-align: center;">${season.games}</td>
+              <td style="padding: 6px; text-align: center;">${season.games_started}</td>
+              <td style="padding: 6px; text-align: right; color: var(--text-secondary);">${seasonStats.join(', ') || '-'}</td>
+            </tr>
+          `;
+        }
+
+        html += '</tbody></table></div>';
+      }
+
       listEl.innerHTML = html;
 
       loadingEl.style.display = 'none';
@@ -5424,21 +5750,35 @@ async function searchCoachDatabase() {
 
         listEl.innerHTML = headerInfo + result.results.map(coach => {
           // Determine click handler based on context
+          // Include maddenPid and maddenPam for portrait assignment
+          const maddenPid = coach.maddenPid !== undefined ? coach.maddenPid : 'undefined';
+          const maddenPam = coach.maddenPam ? `'${coach.maddenPam.replace(/'/g, "\\'")}'` : 'undefined';
           let onclick = '';
           if (isEditingTeam) {
-            onclick = `onclick="assignCoachToTeam('${coach.firstName}', '${coach.lastName}', '${coach.position}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses})"`;
+            onclick = `onclick="assignCoachToTeam('${coach.firstName}', '${coach.lastName}', '${coach.position}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses}, ${maddenPid}, ${maddenPam}, ${coach.careerTies || 0}, ${coach.yearsAsHC || 0}, ${coach.playoffWins || 0}, ${coach.superBowlWins || 0})"`;
           } else if (isReplacingFA) {
-            onclick = `onclick="replaceWithDatabaseCoach('${coach.firstName}', '${coach.lastName}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses})"`;
+            onclick = `onclick="replaceWithDatabaseCoach('${coach.firstName}', '${coach.lastName}', ${coach.careerFrom}, ${coach.careerWins}, ${coach.careerLosses}, ${maddenPid}, ${maddenPam})"`;
           }
 
+          // Out of era warning
+          const outOfEraWarning = coach.outOfEra ? `
+            <div style="font-size: 0.8em; color: #f59e0b; margin-top: 2px;">
+              ⚠️ ${coach.outOfEraReason || 'Outside coaching era for ' + searchYear}
+            </div>
+          ` : '';
+
+          const borderColor = coach.outOfEra ? '#f59e0b' : 'transparent';
+
           return `
-          <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 4px; background: var(--bg-tertiary); border-radius: 4px; cursor: ${isClickable ? 'pointer' : 'default'};"
+          <div class="retro-tool-preview-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; margin-bottom: 4px; background: var(--bg-tertiary); border-radius: 4px; cursor: ${isClickable ? 'pointer' : 'default'}; border-left: 3px solid ${borderColor};"
                ${onclick}>
-            <div>
+            <div style="flex: 1;">
               <strong style="color: var(--text-primary);">${coach.firstName} ${coach.lastName}</strong>
+              ${coach.outOfEra ? '<span style="color: #f59e0b; font-size: 0.8em; margin-left: 6px;">⚠️</span>' : ''}
               <div style="font-size: 0.85em; color: var(--text-secondary);">
                 ${coach.position} | Career: ${coach.careerFrom}-${coach.careerTo} | Record: ${coach.careerWins}-${coach.careerLosses}
               </div>
+              ${outOfEraWarning}
             </div>
             ${isClickable ? '<span style="color: var(--accent-color);">Select</span>' : ''}
           </div>
@@ -5462,7 +5802,7 @@ async function searchCoachDatabase() {
 /**
  * Replace an FA coach with a coach from the database
  */
-async function replaceWithDatabaseCoach(firstName, lastName, careerFrom, careerWins, careerLosses) {
+async function replaceWithDatabaseCoach(firstName, lastName, careerFrom, careerWins, careerLosses, maddenPid, maddenPam) {
   if (selectedFACoachIndex === null) return;
 
   const listEl = document.getElementById('coach-search-results');
@@ -5473,7 +5813,7 @@ async function replaceWithDatabaseCoach(firstName, lastName, careerFrom, careerW
     const result = await window.electronAPI.retro.replaceFACoach(
       retroState.filePath,
       selectedFACoachIndex,
-      { firstName, lastName, careerFrom, careerWins, careerLosses },
+      { firstName, lastName, careerFrom, careerWins, careerLosses, maddenPid, maddenPam },
       retroState.targetYear
     );
 
@@ -5520,6 +5860,7 @@ window.replaceWithDatabaseCoach = replaceWithDatabaseCoach;
 window.editTeamCoach = editTeamCoach;
 window.setEditingPosition = setEditingPosition;
 window.setCoachSource = setCoachSource;
+window.keepCurrentCoach = keepCurrentCoach;
 window.searchCoachDatabaseForTeam = searchCoachDatabaseForTeam;
 window.cancelTeamCoachEdit = cancelTeamCoachEdit;
 window.assignCoachToTeam = assignCoachToTeam;
