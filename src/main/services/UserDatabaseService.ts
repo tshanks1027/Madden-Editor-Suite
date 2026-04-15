@@ -22,6 +22,7 @@ import { lookupService } from './lookup-service';
 const RATING_FIELDS = [
   // Core ratings
   'POVR',  // Overall
+  'PLTY',  // Archetype ID (numeric 0-67) - CRITICAL for consistent OVR calculation
   // Physical
   'PSPD',  // Speed
   'PACC',  // Acceleration
@@ -85,7 +86,8 @@ const RATING_FIELDS = [
   'PKRT',  // Kick Return
   // Special
   'PIMP',  // Long Snap
-  'PBSK'   // Break Sack
+  'PBSK',  // Break Sack
+  'PYCF'   // Confidence
 ];
 
 // Legacy field name mappings for database migration
@@ -243,7 +245,7 @@ export interface CustomPortrait {
 }
 
 export interface CustomCoachPortrait {
-  pid: number;                    // 50000+ range for coaches
+  pid: number;                    // 500+ range for coaches
   imageData: Buffer;              // PNG image bytes (512x512)
   originalFilename?: string;      // Source filename
   coachName?: string;             // Optional: associated coach name
@@ -391,6 +393,9 @@ class UserDatabaseService {
       await this.initializeEditsDatabase();
       await this.initializeCustomDatabase();
 
+      // Migrate any coach portraits from old 50000+ range to new 500+ range
+      this.migrateCoachPortraitPids();
+
       this.initialized = true;
       console.log('[UserDatabaseService] Initialized successfully');
     } catch (error) {
@@ -430,19 +435,18 @@ class UserDatabaseService {
       const srcPath = path.join(bundledPath, dbFile);
       const destPath = path.join(this.userDataPath, dbFile);
 
-      // Always copy bundled database (overwrite existing)
+      // ONLY copy bundled database if user doesn't have one yet (first run)
+      // NEVER overwrite user data - their edits are precious!
       if (fs.existsSync(srcPath)) {
         try {
-          const srcStats = fs.statSync(srcPath);
           const destExists = fs.existsSync(destPath);
-          const destStats = destExists ? fs.statSync(destPath) : null;
 
-          // Copy if dest doesn't exist OR bundled is larger (has more data)
-          if (!destExists || srcStats.size > (destStats?.size || 0)) {
+          if (!destExists) {
+            const srcStats = fs.statSync(srcPath);
             fs.copyFileSync(srcPath, destPath);
-            console.log(`[UserDatabaseService] Copied bundled ${dbFile} to user data (${srcStats.size} bytes)`);
+            console.log(`[UserDatabaseService] Copied bundled ${dbFile} to user data (first run, ${srcStats.size} bytes)`);
           } else {
-            console.log(`[UserDatabaseService] ${dbFile} already exists with equal/more data, keeping existing`);
+            console.log(`[UserDatabaseService] ${dbFile} already exists, preserving user data`);
           }
         } catch (err) {
           console.error(`[UserDatabaseService] Failed to copy ${dbFile}:`, err);
@@ -952,7 +956,7 @@ class UserDatabaseService {
       CREATE INDEX IF NOT EXISTS idx_custom_coach_seasons_coach ON custom_coach_seasons(custom_coach_id);
     `);
 
-    // Custom coach portraits table for user-uploaded coach portraits (PID 50000+)
+    // Custom coach portraits table for user-uploaded coach portraits (PID 500+)
     this.customDb.exec(`
       CREATE TABLE IF NOT EXISTS custom_coach_portraits (
         pid INTEGER PRIMARY KEY,
@@ -2929,13 +2933,126 @@ class UserDatabaseService {
   // =============================================
 
   /**
-   * Get next available coach portrait PID (50000+)
+   * Get next available coach portrait PID (500+)
+   * Note: Game only supports coach PIDs up to ~999, not 50000+
    */
   public getNextAvailableCoachPid(): number {
-    if (!this.customDb) return 50000;
+    if (!this.customDb) return 500;
 
     const row = this.customDb.prepare('SELECT MAX(pid) as max_pid FROM custom_coach_portraits').get() as { max_pid: number | null };
-    return Math.max(50000, (row?.max_pid ?? 49999) + 1);
+    return Math.max(500, (row?.max_pid ?? 499) + 1);
+  }
+
+  /**
+   * Migrate coach portraits from old 50000+ range to new 500+ range
+   * Called during initialization
+   *
+   * This migrates PIDs in:
+   * 1. custom_coach_portraits table (portrait image storage)
+   * 2. custom_coaches table (madden_pid field)
+   * 3. coach_appearance_edits table (madden_pid field)
+   */
+  public migrateCoachPortraitPids(): void {
+    if (!this.customDb) return;
+
+    // Build a mapping from old PID to new PID
+    const pidMapping = new Map<number, number>();
+
+    // Check if any portraits exist in the old 50000+ range
+    const oldPortraits = this.customDb.prepare('SELECT pid FROM custom_coach_portraits WHERE pid >= 50000 ORDER BY pid ASC').all() as { pid: number }[];
+
+    if (oldPortraits.length === 0) {
+      console.log('[UserDatabaseService] No coach portraits to migrate from 50000+ range');
+    } else {
+      console.log(`[UserDatabaseService] Migrating ${oldPortraits.length} coach portraits from 50000+ to 500+ range`);
+
+      // Start new PIDs at 500
+      let newPid = 500;
+
+      // Get existing PIDs in the 500+ range to avoid conflicts
+      const existingPids = new Set<number>();
+      const existing = this.customDb.prepare('SELECT pid FROM custom_coach_portraits WHERE pid >= 500 AND pid < 50000').all() as { pid: number }[];
+      existing.forEach(row => existingPids.add(row.pid));
+
+      // Migrate each portrait
+      for (const portrait of oldPortraits) {
+        // Find next available PID
+        while (existingPids.has(newPid)) {
+          newPid++;
+        }
+
+        // Store the mapping
+        pidMapping.set(portrait.pid, newPid);
+
+        // Update the PID in custom_coach_portraits
+        this.customDb.prepare('UPDATE custom_coach_portraits SET pid = ? WHERE pid = ?').run(newPid, portrait.pid);
+        console.log(`[UserDatabaseService] Migrated coach portrait PID ${portrait.pid} -> ${newPid}`);
+
+        existingPids.add(newPid);
+        newPid++;
+      }
+
+      console.log('[UserDatabaseService] Coach portrait PID migration complete');
+    }
+
+    // Also migrate madden_pid in custom_coaches table
+    try {
+      const oldCoachPids = this.customDb.prepare('SELECT id, madden_pid FROM custom_coaches WHERE madden_pid >= 50000').all() as { id: number; madden_pid: number }[];
+
+      if (oldCoachPids.length > 0) {
+        console.log(`[UserDatabaseService] Migrating ${oldCoachPids.length} custom coach madden_pids from 50000+ to 500+ range`);
+
+        for (const coach of oldCoachPids) {
+          // Use the mapping if available, otherwise calculate new PID
+          let newPid = pidMapping.get(coach.madden_pid);
+          if (newPid === undefined) {
+            // No mapping exists, this coach PID wasn't in portraits table
+            // Find next available PID starting from 500
+            newPid = 500;
+            const existingPids = this.customDb.prepare('SELECT madden_pid FROM custom_coaches WHERE madden_pid >= 500 AND madden_pid < 50000').all() as { madden_pid: number }[];
+            const usedPids = new Set(existingPids.map(r => r.madden_pid));
+            while (usedPids.has(newPid)) {
+              newPid++;
+            }
+          }
+
+          this.customDb.prepare('UPDATE custom_coaches SET madden_pid = ? WHERE id = ?').run(newPid, coach.id);
+          console.log(`[UserDatabaseService] Migrated custom coach id=${coach.id} madden_pid ${coach.madden_pid} -> ${newPid}`);
+        }
+      }
+    } catch (e) {
+      console.log('[UserDatabaseService] custom_coaches table migration skipped (table may not exist or no madden_pid column)');
+    }
+
+    // Also migrate madden_pid in coach_appearance_edits table (in edits database)
+    if (this.editsDb) {
+      try {
+        const oldAppearancePids = this.editsDb.prepare('SELECT original_coach_id, madden_pid FROM coach_appearance_edits WHERE madden_pid >= 50000').all() as { original_coach_id: number; madden_pid: number }[];
+
+        if (oldAppearancePids.length > 0) {
+          console.log(`[UserDatabaseService] Migrating ${oldAppearancePids.length} coach appearance edit madden_pids from 50000+ to 500+ range`);
+
+          for (const edit of oldAppearancePids) {
+            // Use the mapping if available
+            let newPid = pidMapping.get(edit.madden_pid);
+            if (newPid === undefined) {
+              // No mapping exists, find next available PID
+              newPid = 500;
+              const existingPids = this.editsDb.prepare('SELECT madden_pid FROM coach_appearance_edits WHERE madden_pid >= 500 AND madden_pid < 50000').all() as { madden_pid: number }[];
+              const usedPids = new Set(existingPids.map(r => r.madden_pid));
+              while (usedPids.has(newPid)) {
+                newPid++;
+              }
+            }
+
+            this.editsDb.prepare('UPDATE coach_appearance_edits SET madden_pid = ? WHERE original_coach_id = ?').run(newPid, edit.original_coach_id);
+            console.log(`[UserDatabaseService] Migrated coach appearance edit original_coach_id=${edit.original_coach_id} madden_pid ${edit.madden_pid} -> ${newPid}`);
+          }
+        }
+      } catch (e) {
+        console.log('[UserDatabaseService] coach_appearance_edits table migration skipped (table may not exist or no madden_pid column)');
+      }
+    }
   }
 
   /**
@@ -3041,12 +3158,36 @@ class UserDatabaseService {
 
   /**
    * Delete a custom coach portrait
+   * Also clears madden_pid from any coaches that were using this portrait
    */
   public deleteCustomCoachPortrait(pid: number): void {
     if (!this.customDb) return;
 
+    // Delete the portrait
     this.customDb.prepare('DELETE FROM custom_coach_portraits WHERE pid = ?').run(pid);
     console.log(`[UserDatabaseService] Deleted custom coach portrait: PID ${pid}`);
+
+    // Clear madden_pid from any custom coaches that were using this portrait
+    try {
+      const result = this.customDb.prepare('UPDATE custom_coaches SET madden_pid = NULL WHERE madden_pid = ?').run(pid);
+      if (result.changes > 0) {
+        console.log(`[UserDatabaseService] Cleared madden_pid from ${result.changes} custom coach(es)`);
+      }
+    } catch (e) {
+      // Ignore errors if the column doesn't exist
+    }
+
+    // Also clear from coach_appearance_edits in the edits database
+    if (this.editsDb) {
+      try {
+        const result = this.editsDb.prepare('UPDATE coach_appearance_edits SET madden_pid = NULL WHERE madden_pid = ?').run(pid);
+        if (result.changes > 0) {
+          console.log(`[UserDatabaseService] Cleared madden_pid from ${result.changes} coach appearance edit(s)`);
+        }
+      } catch (e) {
+        // Ignore errors if the table/column doesn't exist
+      }
+    }
   }
 
   /**
@@ -3867,6 +4008,8 @@ class UserDatabaseService {
     careerTo: number;
     careerWins: number;
     careerLosses: number;
+    maddenPid?: number;
+    maddenPam?: string;
     source: 'custom';
   }> {
     if (!this.customDb) {
@@ -3880,7 +4023,7 @@ class UserDatabaseService {
     console.log(`[UserDatabaseService] Searching custom coaches for "${query}", year=${year}`);
 
     try {
-      // Search custom_coaches with partial name match and year filter
+      // Search custom_coaches with partial name match (no year filter - show all coaches)
       // Note: foreign key is custom_coach_id, not coach_id
       const rows = this.customDb.prepare(`
         SELECT
@@ -3891,17 +4034,18 @@ class UserDatabaseService {
           c.career_from,
           c.career_to,
           COALESCE(c.career_wins, 0) as career_wins,
-          COALESCE(c.career_losses, 0) as career_losses
+          COALESCE(c.career_losses, 0) as career_losses,
+          c.madden_pid,
+          c.madden_pam
         FROM custom_coaches c
         WHERE (
           LOWER(c.first_name) LIKE ? OR
           LOWER(c.last_name) LIKE ? OR
           LOWER(c.first_name || ' ' || c.last_name) LIKE ?
         )
-        AND (c.career_from IS NULL OR c.career_from <= ?)
         ORDER BY c.last_name, c.first_name
         LIMIT ?
-      `).all(`%${queryLower}%`, `%${queryLower}%`, `%${queryLower}%`, year, limit) as Record<string, unknown>[];
+      `).all(`%${queryLower}%`, `%${queryLower}%`, `%${queryLower}%`, limit) as Record<string, unknown>[];
 
       console.log(`[UserDatabaseService] Found ${rows.length} custom coaches matching "${query}"`);
 
@@ -3914,6 +4058,8 @@ class UserDatabaseService {
         careerTo: (row.career_to as number) || 0,
         careerWins: (row.career_wins as number) || 0,
         careerLosses: (row.career_losses as number) || 0,
+        maddenPid: row.madden_pid as number | undefined,
+        maddenPam: row.madden_pam as string | undefined,
         source: 'custom' as const
       }));
     } catch (err) {

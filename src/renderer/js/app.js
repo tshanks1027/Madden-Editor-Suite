@@ -7396,6 +7396,11 @@ class MaddenEditorApp {
                         const oldOVR = result.data.prospects[i].POVR || result.data.prospects[i].overall;
                         const newOVR = ovrResults[i].ovr;
                         if (oldOVR !== newOVR) {
+                            // DEBUG: Log what's different
+                            if (changedCount < 5) {
+                                console.log(`[Draft OVR MISMATCH] ${result.data.prospects[i].firstName} ${result.data.prospects[i].lastName}: stored=${oldOVR} calc=${newOVR}`);
+                                console.log(`[Draft OVR MISMATCH] archetype=${result.data.prospects[i].archetype} PLTY=${result.data.prospects[i].PLTY}`);
+                            }
                             // Update BOTH fields - POVR for file saving, overall for grid display
                             result.data.prospects[i].POVR = newOVR;
                             result.data.prospects[i].overall = newOVR;
@@ -7714,9 +7719,9 @@ class MaddenEditorApp {
                 PID: prospect.PID,
                 PEPS: peps,
                 commentaryId: prospect.commentaryId || prospect.commID || 0, // Presentation ID for in-game commentary
-                // Body type is now a string from backend ("Thin", "Muscular", "Heavy", or null/undefined for "Standard")
+                // Body type is now a string from backend ("Thin", "Muscular", "Heavy", "Lean", or null/undefined for "Standard")
                 bodyType: bodyType === null || bodyType === undefined ? 'Standard'
-                    : typeof bodyType === 'number' ? ['Standard', 'Thin', 'Muscular', 'Heavy'][bodyType] || 'Standard'
+                    : typeof bodyType === 'number' ? ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'][bodyType] || 'Standard'
                         : bodyType,
                 playerPic: playerPic,
 
@@ -7809,7 +7814,7 @@ class MaddenEditorApp {
         const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
         const stateOptions = getLookupOptions('states').map(opt => opt.label);
         const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
-        const bodyTypeOptions = ['Standard', 'Thin', 'Muscular', 'Heavy'];  // CORRECT Madden M26 format - Standard is default (no bodyType field)
+        const bodyTypeOptions = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];  // Madden M26 body types: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
         // Use capitalized names for player pic autocomplete
         const playerPicOptions = Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face']);
 

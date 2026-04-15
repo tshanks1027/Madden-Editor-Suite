@@ -6,6 +6,7 @@
  */
 
 import { ipcMain } from 'electron';
+
 import { ratingCalculator, MaddenRatings } from '../services/RatingCalculator';
 import { maddenFormulaCalculator } from '../services/rating-modes/MaddenFormulaCalculator';
 import { ovrWeightsCalculator } from '../services/rating-modes/OVRWeightsCalculator';
@@ -282,24 +283,38 @@ export function registerRatingHandlers(): void {
         for (let i = 0; i < players.length; i++) {
           const player = players[i];
           const position = player.PPOS;
-          const storedArchetype = player.PLTY || player.PCBT; // For debug logging only
+          const storedArchetype = player.PLTY ?? player.PCBT;
 
-          // CRITICAL FIX: The game calculates OVR for ALL archetypes and picks the HIGHEST
-          // This is the official Madden behavior - find best archetype, not use stored one
-          const bestResult = ovrWeightsCalculator.findBestArchetype(player, position);
+          // FIX: Use the STORED archetype for OVR calculation, not "best" archetype
+          // When user sets an archetype and adjusts ratings to hit a specific OVR,
+          // recalculation should use that same archetype to get the same result.
+          // Only fall back to findBestArchetype if no archetype is stored.
+          let ovr: number;
+          let archetype: string | null = null;
+
+          if (storedArchetype !== undefined && storedArchetype !== null) {
+            // Use stored archetype for calculation
+            ovr = ovrWeightsCalculator.calculateOVR(player, position, storedArchetype);
+            archetype = `ID:${storedArchetype}`;
+          } else {
+            // No stored archetype - find best one
+            const bestResult = ovrWeightsCalculator.findBestArchetype(player, position);
+            ovr = bestResult?.ovr || 50;
+            archetype = bestResult?.archetype || null;
+          }
 
           // Debug logging for first 3 players
           if (i < 3) {
             console.log(`[RatingHandlers] Player ${i}: ${player.firstName} ${player.lastName}`);
             console.log(`  Position: ${position}`);
-            console.log(`  Stored archetype: ${storedArchetype}, Best archetype: ${bestResult?.archetype}`);
-            console.log(`  Best OVR: ${bestResult?.ovr}`);
+            console.log(`  Stored archetype: ${storedArchetype}, Used archetype: ${archetype}`);
+            console.log(`  Calculated OVR: ${ovr}`);
           }
 
           results.push({
             index: i,
-            ovr: bestResult?.ovr || 50,
-            archetype: bestResult?.archetype || null
+            ovr: ovr,
+            archetype: archetype
           });
         }
 

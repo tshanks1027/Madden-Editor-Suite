@@ -323,7 +323,8 @@ export function createDraftColumnDefs(app, archetypeData = null) {
     const collegeOptions = getLookupOptions('colleges').map(opt => opt.label);
     const stateOptions = getLookupOptions('states').map(opt => opt.label);
     const devTraitOptions = ['Normal', 'Star', 'Superstar', 'X-Factor'];
-    const bodyTypeOptions = ['Standard', 'Thin', 'Muscular', 'Heavy'];
+    // Body type options match roster BTYP values: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+    const bodyTypeOptions = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
     const playerPicOptions = window.lookupData?.pidsCapitalized
         ? Array.from(window.lookupData.pidsCapitalized.values()).concat(['Generic Face'])
         : ['Generic Face'];
@@ -361,9 +362,9 @@ export function createDraftColumnDefs(app, archetypeData = null) {
     const devTraitValueToDisplay = { 0: 'Normal', 1: 'Star', 2: 'Superstar', 3: 'X-Factor' };
     const devTraitDisplayToValue = { 'Normal': 0, 'Star': 1, 'Superstar': 2, 'X-Factor': 3 };
 
-    // Body type mappings
-    const bodyTypeValueToDisplay = { 0: 'Standard', 1: 'Thin', 2: 'Muscular', 3: 'Heavy' };
-    const bodyTypeDisplayToValue = { 'Standard': 0, 'Thin': 1, 'Muscular': 2, 'Heavy': 3 };
+    // Body type mappings - matches roster BTYP values: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+    const bodyTypeValueToDisplay = { 0: 'Standard', 1: 'Thin', 2: 'Muscular', 3: 'Heavy', 4: 'Lean' };
+    const bodyTypeDisplayToValue = { 'Standard': 0, 'Thin': 1, 'Muscular': 2, 'Heavy': 3, 'Lean': 4 };
 
     // Draft Position column (1st)
     columnDefs.push({
@@ -1072,11 +1073,12 @@ export async function initializeDraftAGGrid(app, container, prospects) {
             ? ['Normal', 'Star', 'Superstar', 'X-Factor'][prospect.devTrait] || prospect.devTrait
             : prospect.devTrait;
 
-        // bodyType comes from visuals.bodyType (string like "Heavy", "Muscular", "Thin")
+        // bodyType comes from visuals.bodyType (string like "Heavy", "Muscular", "Thin", "Lean")
         // or from prospect.bodyType if already extracted
         let bodyType = prospect.visuals?.bodyType || prospect.bodyType;
         if (typeof bodyType === 'number') {
-            bodyType = ['Standard', 'Thin', 'Muscular', 'Heavy'][bodyType] || 'Standard';
+            // Numeric body type matches roster BTYP: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+            bodyType = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'][bodyType] || 'Standard';
         } else if (!bodyType || bodyType === 0) {
             // Use position-based defaults when no body type specified
             const posNum = typeof prospect.position === 'number' ? prospect.position : -1;
@@ -1920,11 +1922,12 @@ export async function initializeDraftAGGrid(app, container, prospects) {
     app.draftAgGrid = gridApi;
     app.draftProspects = transformedProspects;
 
-    // CRITICAL: Recalculate OVR for all prospects on load
-    // The game recalculates OVR from ratings at runtime, so we must do the same
-    // to ensure the editor shows the same OVR the game will display
-    if (window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.recalculateOVRBatch) {
-        console.log('[Draft AG-Grid] Recalculating OVR for all prospects on load...');
+    // NOTE: Do NOT recalculate OVR on load!
+    // The OVR stored in the file is authoritative. Recalculating overwrites user's manual adjustments.
+    // The game reads the stored OVR, it doesn't recalculate it at runtime.
+    // Only recalculate when ratings or archetype explicitly change (handled by onCellValueChanged).
+    if (false && window.electronAPI && window.electronAPI.rating && window.electronAPI.rating.recalculateOVRBatch) {
+        console.log('[Draft AG-Grid] DISABLED: Would have recalculated OVR for all prospects on load...');
 
         // Build player data array with all necessary attributes for OVR calculation
         // Debug: Log first few prospects to verify archetype mapping

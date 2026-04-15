@@ -35,6 +35,7 @@ function debugLog(msg: string) {
 const RATING_FIELDS = [
   // Core ratings
   'POVR',  // Overall
+  'PLTY',  // Archetype ID (numeric 0-67) - CRITICAL for consistent OVR calculation
   // Physical
   'PSPD',  // Speed
   'PACC',  // Acceleration
@@ -202,7 +203,9 @@ const RATING_FIELD_MAP: Record<string, string> = {
   'kickReturn': 'PKRT',
   // Special - exact names from parser
   'longSnap': 'PIMP',
-  'breakSack': 'PBSK'
+  'breakSack': 'PBSK',
+  // Archetype - parser outputs this as numeric byte (0-67)
+  'archetype': 'PLTY'
 };
 
 // Bio field names from draft class that need mapping
