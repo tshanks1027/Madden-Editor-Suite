@@ -557,7 +557,8 @@ class GenericFaceService {
 
   /**
    * Update BLBM records for players without real PAM
-   * BLBM and PLAY tables are aligned by index - same position = same player
+   * CRITICAL: PLAY and BLBM tables are NOT aligned by index!
+   * We must find the correct BLBM record by matching player name (CFNM/CLNM = PFNA/PLNA)
    * @param file - The loaded roster file object
    * @param players - Array of player data from PLAY table
    */
@@ -596,6 +597,32 @@ class GenericFaceService {
 
     console.log(`[GenericFaceService] BLBM has ${blbm._records.length} records, processing ${players.length} players`);
 
+    // CRITICAL FIX: Build a name-based lookup for BLBM records
+    // PLAY and BLBM are NOT aligned by index! We must find by name.
+    const blbmByName = new Map();
+    for (let bi = 0; bi < blbm._records.length; bi++) {
+      const rec = blbm._records[bi];
+      const fields = rec.fields || rec._fields;
+      const firstName = (fields?.['CFNM']?.value ?? fields?.['CFNM']?._value ?? '').trim();
+      const lastName = (fields?.['CLNM']?.value ?? fields?.['CLNM']?._value ?? '').trim();
+      const fullName = `${firstName}|${lastName}`.toLowerCase();
+
+      // DEBUG: Log test players found in BLBM
+      const blbmName = `${firstName} ${lastName}`.toLowerCase();
+      if (blbmName.includes('douglass') || blbmName.includes('concannon') ||
+          blbmName === 'ron smith' || blbmName.includes('kent nix')) {
+        const sknt = fields?.['SKNT']?.value ?? fields?.['SKNT']?._value;
+        const genr = fields?.['GENR']?.value ?? fields?.['GENR']?._value;
+        console.log(`[GenericFaceService] TEST: Found BLBM[${bi}] "${firstName} ${lastName}": GENR="${genr}", SKNT=${sknt}`);
+      }
+
+      if (!blbmByName.has(fullName)) {
+        blbmByName.set(fullName, []);
+      }
+      blbmByName.get(fullName).push({ index: bi, record: rec });
+    }
+    console.log(`[GenericFaceService] Built BLBM name lookup with ${blbmByName.size} unique names`);
+
     // Debug: Log first few PGID values from PLAY table
     if (playTable?.records) {
       console.log('[GenericFaceService] First 5 PGID values from PLAY table:');
@@ -619,21 +646,49 @@ class GenericFaceService {
     let updatedCount = 0;
     let skippedWithPAM = 0;
     let skippedNotGeneric = 0;
+    let blbmNotFound = 0;
 
-    // Process each player BY INDEX - BLBM[i] corresponds to PLAY[i]
-    for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+    // Process each player - find matching BLBM record by NAME
+    for (let i = 0; i < players.length; i++) {
       const player = players[i];
-      const blbmRec = blbm._records[i];
+
+      // Find the BLBM record that matches this player's name
+      const playerFirst = (player.PFNA || '').trim();
+      const playerLast = (player.PLNA || '').trim();
+      const playerFullName = `${playerFirst}|${playerLast}`.toLowerCase();
+
+      // Skip empty player slots
+      if (!playerFirst && !playerLast) continue;
+
+      const blbmMatches = blbmByName.get(playerFullName);
+      if (!blbmMatches || blbmMatches.length === 0) {
+        blbmNotFound++;
+        if (blbmNotFound <= 5) {
+          console.log(`[GenericFaceService] No BLBM record found for "${playerFirst} ${playerLast}" - will create new mapping`);
+        }
+        continue; // Skip if no matching BLBM record (might need to be created)
+      }
+
+      // Use the first match (most common case is 1:1 name match)
+      const { index: blbmIndex, record: blbmRec } = blbmMatches[0];
+
+      if (updatedCount < 5) {
+        console.log(`[GenericFaceService] Matched PLAY player "${playerFirst} ${playerLast}" to BLBM[${blbmIndex}]`);
+      }
 
       const peps = player.PEPS; // PAM value
       const psxp = player.PSXP; // PID value
       const plpl = player.PLPL; // Player picture level (0=generic, 100=real)
       const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
 
-      // Debug: Log specific players we're interested in
+      // Debug: Log specific players we're interested in (test players for skin tone)
       const isDebugPlayer = playerName.toLowerCase().includes('staubach') ||
                             playerName.toLowerCase().includes('danny white') ||
-                            playerName.toLowerCase().includes('aikman');
+                            playerName.toLowerCase().includes('aikman') ||
+                            playerName.toLowerCase().includes('douglass') ||
+                            playerName.toLowerCase().includes('concannon') ||
+                            playerName.toLowerCase() === 'ron smith' ||
+                            playerName.toLowerCase().includes('kent nix');
 
       if (isDebugPlayer) {
         console.log(`[GenericFaceService] DEBUG PLAYER: ${playerName}`);
@@ -911,12 +966,12 @@ class GenericFaceService {
         console.log(`  WARNING: No SKNT field found!`);
       }
 
-      // GNHD (Generic Head Number) - required for face persistence!
-      // When CNID=0, the game uses GNHD + GENR to determine and persist the face
-      // Setting GNHD=0 causes faces to reset after save/reload
-      // Use the genr-to-gnhd lookup to get the correct GNHD value for this GENR
+      // GNHD (Generic Head Number) - MUST BE 0 FOR GENERIC FACES!
+      // From ROSTER-HEADTEST dump: All 264 working generic faces have GNHD=0
+      // Real players have GNHD=non-zero (matches their PID)
+      // When GNHD=0 + CNID=0, the game uses GENR to determine the face
       let gnhdUpdated = false;
-      const targetGnhd = getGnhdForGenr(finalGenr);
+      const targetGnhd = 0; // ALWAYS 0 for generic faces!
       if (fields['GNHD']) {
         if (fields['GNHD'].value !== undefined) {
           const oldGnhd = fields['GNHD'].value;
@@ -924,7 +979,7 @@ class GenericFaceService {
             fields['GNHD'].value = targetGnhd;
             gnhdUpdated = true;
             if (isDebugPlayer || updatedCount < 5) {
-              console.log(`  GNHD: ${oldGnhd} -> ${targetGnhd} (from GENR lookup)`);
+              console.log(`  GNHD: ${oldGnhd} -> ${targetGnhd} (MUST be 0 for generic faces)`);
             }
           }
         } else if (fields['GNHD']._value !== undefined) {
@@ -933,7 +988,7 @@ class GenericFaceService {
             fields['GNHD']._value = targetGnhd;
             gnhdUpdated = true;
             if (isDebugPlayer || updatedCount < 5) {
-              console.log(`  GNHD: ${oldGnhd} -> ${targetGnhd} (from GENR lookup)`);
+              console.log(`  GNHD: ${oldGnhd} -> ${targetGnhd} (MUST be 0 for generic faces)`);
             }
           }
         }
@@ -997,8 +1052,8 @@ class GenericFaceService {
       // PCBT in PLAY table is NOT read by the game for body type
       // BTYP values: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
       let btypUpdated = false;
+      const pcbt = player.PCBT; // Declare outside block so it's available for WLBS logging too
       if (fields['BTYP']) {
-        const pcbt = player.PCBT;
         if (pcbt !== undefined && pcbt !== null) {
           if (fields['BTYP'].value !== undefined) {
             const oldBtyp = fields['BTYP'].value;
@@ -1076,6 +1131,7 @@ class GenericFaceService {
     console.log(`[GenericFaceService] ===== BLBM UPDATE COMPLETE =====`);
     console.log(`[GenericFaceService] Updated ${updatedCount} generic face players (CNID=0, ASNM=empty)`);
     console.log(`[GenericFaceService] Skipped with PAM: ${skippedWithPAM}, Skipped not generic: ${skippedNotGeneric}`);
+    console.log(`[GenericFaceService] BLBM not found by name: ${blbmNotFound}`);
 
     return updatedCount;
   }
@@ -1083,6 +1139,7 @@ class GenericFaceService {
   /**
    * Sync BTYP (body type) in BLBM for ALL players from PCBT in PLAY
    * This ensures the game reads the correct body type (game uses BTYP, not PCBT)
+   * CRITICAL: Uses name-based matching since PLAY and BLBM are NOT aligned by index!
    * @param file - The loaded roster file object
    * @param players - Array of player data from PLAY table
    * @returns Number of players updated
@@ -1102,13 +1159,42 @@ class GenericFaceService {
       return 0;
     }
 
-    console.log(`[GenericFaceService] Syncing BTYP for ${Math.min(players.length, blbm._records.length)} players`);
+    // CRITICAL FIX: Build name-based lookup (PLAY and BLBM are NOT aligned by index!)
+    const blbmByName = new Map();
+    for (let bi = 0; bi < blbm._records.length; bi++) {
+      const rec = blbm._records[bi];
+      const fields = rec.fields || rec._fields;
+      const firstName = (fields?.['CFNM']?.value ?? fields?.['CFNM']?._value ?? '').trim();
+      const lastName = (fields?.['CLNM']?.value ?? fields?.['CLNM']?._value ?? '').trim();
+      const fullName = `${firstName}|${lastName}`.toLowerCase();
+      if (!blbmByName.has(fullName)) {
+        blbmByName.set(fullName, []);
+      }
+      blbmByName.get(fullName).push({ index: bi, record: rec });
+    }
+
+    console.log(`[GenericFaceService] Syncing BTYP for ${players.length} players (BLBM lookup: ${blbmByName.size} names)`);
 
     let updatedCount = 0;
+    let notFoundCount = 0;
 
-    for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+    for (let i = 0; i < players.length; i++) {
       const player = players[i];
-      const blbmRec = blbm._records[i];
+      const playerFirst = (player.PFNA || '').trim();
+      const playerLast = (player.PLNA || '').trim();
+      const playerFullName = `${playerFirst}|${playerLast}`.toLowerCase();
+
+      // Skip empty slots
+      if (!playerFirst && !playerLast) continue;
+
+      // Find matching BLBM record by name
+      const blbmMatches = blbmByName.get(playerFullName);
+      if (!blbmMatches || blbmMatches.length === 0) {
+        notFoundCount++;
+        continue;
+      }
+
+      const { record: blbmRec } = blbmMatches[0];
       const fields = blbmRec.fields || blbmRec._fields;
 
       if (!fields) continue;
@@ -1117,7 +1203,7 @@ class GenericFaceService {
       if (pcbt === undefined || pcbt === null) continue;
 
       let updated = false;
-      const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
+      const playerName = `${playerFirst} ${playerLast}`.trim();
 
       // Update BTYP to match PCBT (create field if it doesn't exist)
       if (fields['BTYP']) {
@@ -1218,7 +1304,7 @@ class GenericFaceService {
       }
     }
 
-    console.log(`[GenericFaceService] ===== BTYP SYNC COMPLETE: ${updatedCount} players updated =====`);
+    console.log(`[GenericFaceService] ===== BTYP SYNC COMPLETE: ${updatedCount} players updated, ${notFoundCount} not found in BLBM =====`);
     return updatedCount;
   }
 
@@ -1226,6 +1312,7 @@ class GenericFaceService {
    * Sync SKNT (skin tone) in BLBM for ALL players
    * For GENERIC faces (PLPL=0): SKNT MUST match GENR first digit
    * For REAL faces (PLPL=100): SKNT can come from PLRC
+   * CRITICAL: Uses name-based matching since PLAY and BLBM are NOT aligned by index!
    * @param file - The loaded roster file object
    * @param players - Array of player data from PLAY table
    * @returns Number of players updated
@@ -1245,52 +1332,85 @@ class GenericFaceService {
       return 0;
     }
 
-    console.log(`[GenericFaceService] Syncing SKNT for ${Math.min(players.length, blbm._records.length)} players`);
+    // CRITICAL FIX: Build name-based lookup (PLAY and BLBM are NOT aligned by index!)
+    const blbmByName = new Map();
+    for (let bi = 0; bi < blbm._records.length; bi++) {
+      const rec = blbm._records[bi];
+      const fields = rec.fields || rec._fields;
+      const firstName = (fields?.['CFNM']?.value ?? fields?.['CFNM']?._value ?? '').trim();
+      const lastName = (fields?.['CLNM']?.value ?? fields?.['CLNM']?._value ?? '').trim();
+      const fullName = `${firstName}|${lastName}`.toLowerCase();
+      if (!blbmByName.has(fullName)) {
+        blbmByName.set(fullName, []);
+      }
+      blbmByName.get(fullName).push({ index: bi, record: rec });
+    }
+
+    console.log(`[GenericFaceService] Syncing SKNT for ${players.length} players (BLBM lookup: ${blbmByName.size} names)`);
 
     let updatedCount = 0;
     let genericFixed = 0;
+    let notFoundCount = 0;
 
-    for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+    for (let i = 0; i < players.length; i++) {
       const player = players[i];
-      const blbmRec = blbm._records[i];
+      const playerFirst = (player.PFNA || '').trim();
+      const playerLast = (player.PLNA || '').trim();
+      const playerFullName = `${playerFirst}|${playerLast}`.toLowerCase();
+
+      // Skip empty slots
+      if (!playerFirst && !playerLast) continue;
+
+      // Find matching BLBM record by name
+      const blbmMatches = blbmByName.get(playerFullName);
+      if (!blbmMatches || blbmMatches.length === 0) {
+        notFoundCount++;
+        continue;
+      }
+
+      const { record: blbmRec } = blbmMatches[0];
       const fields = blbmRec.fields || blbmRec._fields;
 
       if (!fields) continue;
 
-      const plpl = player.PLPL;
-      const isGenericFace = plpl === 0 || plpl === '0';
-      const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
+      const playerName = `${playerFirst} ${playerLast}`.trim();
 
       // Determine target SKNT
+      // CRITICAL FIX: Check GENR FIRST, before checking PLPL!
+      // If GENR has a valid value, SKNT MUST match it regardless of PLPL.
+      // This fixes the issue where historical players may have PLPL!=0 but still use generic faces.
       let targetSknt = null;
+      let skntSource = null;
 
-      if (isGenericFace) {
-        // CRITICAL: For generic faces, SKNT MUST match GENR first digit
-        // Extract skin tone from GENR field (e.g., "gen_7_B_N_019" -> 7)
-        const genr = fields['GENR']?.value ?? fields['GENR']?._value;
-        if (genr && typeof genr === 'string') {
-          const genrMatch = genr.match(/^gen_(\d+)/);
-          if (genrMatch) {
-            targetSknt = parseInt(genrMatch[1]);
-          }
+      // FIRST: Check if GENR field has a valid value - this is authoritative!
+      const genr = fields['GENR']?.value ?? fields['GENR']?._value;
+      if (genr && typeof genr === 'string' && genr.startsWith('gen_')) {
+        const genrMatch = genr.match(/^gen_(\d+)/);
+        if (genrMatch) {
+          targetSknt = parseInt(genrMatch[1]);
+          skntSource = 'GENR';
         }
-        // Fallback to PEPS if GENR not available
-        if (targetSknt === null) {
-          const peps = player.PEPS;
-          if (peps && typeof peps === 'string' && peps.startsWith('gen_')) {
-            const pepsMatch = peps.match(/^gen_(\d+)/);
-            if (pepsMatch) {
-              targetSknt = parseInt(pepsMatch[1]);
-            }
+      }
+
+      // SECOND: If no GENR, check PEPS for generic face backup value
+      if (targetSknt === null) {
+        const peps = player.PEPS;
+        if (peps && typeof peps === 'string' && peps.startsWith('gen_')) {
+          const pepsMatch = peps.match(/^gen_(\d+)/);
+          if (pepsMatch) {
+            targetSknt = parseInt(pepsMatch[1]);
+            skntSource = 'PEPS';
           }
         }
       }
 
-      // For real faces, use PLRC
+      // THIRD: For real faces (no GENR), use PLRC
+      // Only use PLRC if there's no valid GENR - GENR is authoritative for skin tone
       if (targetSknt === null) {
         const plrc = player.PLRC;
         if (plrc !== undefined && plrc !== null && plrc >= 1 && plrc <= 7) {
           targetSknt = plrc;
+          skntSource = 'PLRC';
         }
       }
 
@@ -1307,15 +1427,140 @@ class GenericFaceService {
             fields['SKNT']._value = targetSknt;
           }
           updatedCount++;
-          if (isGenericFace) genericFixed++;
+          if (skntSource === 'GENR' || skntSource === 'PEPS') genericFixed++;
           if (updatedCount <= 10) {
-            console.log(`[GenericFaceService] ${playerName}: SKNT ${currentSknt} -> ${targetSknt} (${isGenericFace ? 'generic-from-GENR' : 'real-from-PLRC'})`);
+            console.log(`[GenericFaceService] ${playerName}: SKNT ${currentSknt} -> ${targetSknt} (from-${skntSource})`);
           }
         }
       }
     }
 
-    console.log(`[GenericFaceService] ===== SKNT SYNC COMPLETE: ${updatedCount} players updated (${genericFixed} generic faces fixed from GENR) =====`);
+    console.log(`[GenericFaceService] ===== SKNT SYNC COMPLETE: ${updatedCount} players updated (${genericFixed} generic faces fixed from GENR), ${notFoundCount} not found in BLBM =====`);
+    return updatedCount;
+  }
+
+  /**
+   * Sync PLRC (body skin in PLAY) from SKNT (face skin in BLBM) for generic face players
+   * CRITICAL: PLRC controls body/arm skin, SKNT controls face skin
+   * For generic faces, these MUST match or you get body/face skin mismatch!
+   * @param file - The loaded roster file object
+   * @param players - Array of player data from PLAY table (will be modified in place)
+   * @returns Number of players updated
+   */
+  async syncBodySkinFromFaceSkin(file, players) {
+    console.log('[GenericFaceService] ===== PLRC SYNC FROM BLBM.SKNT START =====');
+
+    const blob = file.BLOB?.records?.[0];
+    if (!blob) {
+      console.log('[GenericFaceService] No BLOB table found');
+      return 0;
+    }
+
+    const blbm = blob.fields?.['BLBM']?.value;
+    if (!blbm || !blbm._records) {
+      console.log('[GenericFaceService] No BLBM table found in BLOB');
+      return 0;
+    }
+
+    // Build name-based lookup for BLBM records
+    const blbmByName = new Map();
+    for (let bi = 0; bi < blbm._records.length; bi++) {
+      const rec = blbm._records[bi];
+      const fields = rec.fields || rec._fields;
+      const firstName = (fields?.['CFNM']?.value ?? fields?.['CFNM']?._value ?? '').trim();
+      const lastName = (fields?.['CLNM']?.value ?? fields?.['CLNM']?._value ?? '').trim();
+      const fullName = `${firstName}|${lastName}`.toLowerCase();
+      if (!blbmByName.has(fullName)) {
+        blbmByName.set(fullName, []);
+      }
+      blbmByName.get(fullName).push({ index: bi, record: rec });
+    }
+
+    console.log(`[GenericFaceService] Syncing PLRC for ${players.length} players (BLBM lookup: ${blbmByName.size} names)`);
+
+    let updatedCount = 0;
+    let notFoundCount = 0;
+
+    for (let i = 0; i < players.length; i++) {
+      const player = players[i];
+      const playerFirst = (player.PFNA || '').trim();
+      const playerLast = (player.PLNA || '').trim();
+      const playerFullName = `${playerFirst}|${playerLast}`.toLowerCase();
+
+      // Skip empty slots
+      if (!playerFirst && !playerLast) continue;
+
+      // Only sync for generic face players (PLPL = 0)
+      const plpl = player.PLPL;
+      const isGenericFace = plpl === 0 || plpl === '0';
+      if (!isGenericFace) continue;
+
+      // Find matching BLBM record by name
+      const blbmMatches = blbmByName.get(playerFullName);
+      if (!blbmMatches || blbmMatches.length === 0) {
+        notFoundCount++;
+        continue;
+      }
+
+      const { record: blbmRec } = blbmMatches[0];
+      const fields = blbmRec.fields || blbmRec._fields;
+      if (!fields) continue;
+
+      const playerName = `${playerFirst} ${playerLast}`.trim();
+
+      // DEBUG: Log for test players (Bears QBs from 1970s)
+      const isTestPlayer = playerName.toLowerCase().includes('douglass') ||
+                           playerName.toLowerCase().includes('concannon') ||
+                           playerName.toLowerCase() === 'ron smith' ||
+                           playerName.toLowerCase().includes('kent nix');
+
+      // Get SKNT from BLBM (this is the correct skin tone from GENR)
+      let targetPlrc = null;
+
+      // First try SKNT
+      const sknt = fields['SKNT']?.value ?? fields['SKNT']?._value;
+      const genr = fields['GENR']?.value ?? fields['GENR']?._value;
+
+      if (isTestPlayer) {
+        console.log(`[GenericFaceService] TEST PLAYER ${playerName}: BLBM.SKNT=${sknt}, BLBM.GENR="${genr}", player.PLRC=${player.PLRC}, player.assignedSknt=${player.assignedSknt}`);
+      }
+
+      if (sknt !== undefined && sknt !== null && sknt >= 1 && sknt <= 7) {
+        targetPlrc = sknt;
+      }
+
+      // Fallback: Extract from GENR if SKNT not available
+      if (targetPlrc === null) {
+        if (genr && typeof genr === 'string' && genr.startsWith('gen_')) {
+          const genrMatch = genr.match(/^gen_(\d+)/);
+          if (genrMatch) {
+            targetPlrc = parseInt(genrMatch[1]);
+          }
+        }
+      }
+
+      // Skip if no valid target
+      if (targetPlrc === null || targetPlrc < 1 || targetPlrc > 7) {
+        if (isTestPlayer) {
+          console.log(`[GenericFaceService] TEST PLAYER ${playerName}: SKIPPED - no valid targetPlrc (${targetPlrc})`);
+        }
+        continue;
+      }
+
+      // Update PLRC in the players array (this will be written to PLAY table)
+      const currentPlrc = player.PLRC;
+      if (currentPlrc !== targetPlrc) {
+        player.PLRC = targetPlrc;
+        updatedCount++;
+        if (updatedCount <= 10 || isTestPlayer) {
+          console.log(`[GenericFaceService] ${playerName}: PLRC ${currentPlrc} -> ${targetPlrc} (from BLBM.SKNT=${sknt})`);
+        }
+      } else if (isTestPlayer) {
+        console.log(`[GenericFaceService] TEST PLAYER ${playerName}: PLRC already matches (${currentPlrc} == ${targetPlrc})`);
+      }
+    }
+
+    console.log(`[GenericFaceService] ===== PLRC SYNC COMPLETE: ${updatedCount} generic face players updated, ${notFoundCount} not found in BLBM =====`);
     return updatedCount;
   }
 
@@ -1354,15 +1599,35 @@ class GenericFaceService {
       if (!fields) continue;
 
       let updated = false;
+      let nameChanged = false; // Track if player name changed (for GENR invalidation)
       const firstName = player.PFNA || '';
       const lastName = player.PLNA || '';
       const jerseyNum = player.PJEN;
       const heightInches = player.PHGT;
       const peps = player.PEPS || '';
 
+      // CRITICAL FIX: Update BLBM record's .index to match player's PGID
+      // The game links PLAY records to BLBM records by finding BLBM[].index === POID
+      // POID is set to PGID in RosterParser, so BLBM.index MUST equal PGID
+      // Without this, faces get assigned to wrong players because the game's lookup fails!
+      const pgid = player.PGID;
+      if (pgid !== undefined && pgid !== null && pgid > 0) {
+        const oldIndex = blbmRec.index;
+        if (oldIndex !== pgid) {
+          blbmRec.index = pgid;
+          updated = true;
+          if (i < 10) {
+            console.log(`[GenericFaceService] BLBM[${i}].index: ${oldIndex} -> ${pgid} (for ${firstName} ${lastName})`);
+          }
+        }
+      }
+
+      // Get current BLBM names before syncing
+      const currentCfnm = fields['CFNM']?.value ?? fields['CFNM']?._value ?? '';
+      const currentClnm = fields['CLNM']?.value ?? fields['CLNM']?._value ?? '';
+
       // Sync CFNM (first name in BLBM)
       if (fields['CFNM']) {
-        const currentCfnm = fields['CFNM'].value ?? fields['CFNM']._value;
         if (currentCfnm !== firstName) {
           if (fields['CFNM'].value !== undefined) {
             fields['CFNM'].value = firstName;
@@ -1370,12 +1635,12 @@ class GenericFaceService {
             fields['CFNM']._value = firstName;
           }
           updated = true;
+          nameChanged = true;
         }
       }
 
       // Sync CLNM (last name in BLBM)
       if (fields['CLNM']) {
-        const currentClnm = fields['CLNM'].value ?? fields['CLNM']._value;
         if (currentClnm !== lastName) {
           if (fields['CLNM'].value !== undefined) {
             fields['CLNM'].value = lastName;
@@ -1383,6 +1648,23 @@ class GenericFaceService {
             fields['CLNM']._value = lastName;
           }
           updated = true;
+          nameChanged = true;
+        }
+      }
+
+      // CRITICAL: If name changed, clear GENR so updateBLBMForGenericFaces will derive a new one
+      // This prevents inheriting the previous player's face when indices shift
+      if (nameChanged && fields['GENR']) {
+        const oldGenr = fields['GENR'].value ?? fields['GENR']._value;
+        if (oldGenr && oldGenr !== '') {
+          if (fields['GENR'].value !== undefined) {
+            fields['GENR'].value = '';
+          } else if (fields['GENR']._value !== undefined) {
+            fields['GENR']._value = '';
+          }
+          if (i < 10) {
+            console.log(`[GenericFaceService] Name changed at index ${i}: "${currentCfnm} ${currentClnm}" -> "${firstName} ${lastName}", cleared GENR="${oldGenr}"`);
+          }
         }
       }
 
