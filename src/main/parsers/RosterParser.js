@@ -538,6 +538,10 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
           if (fieldName === 'PLPL' && oldValue !== newValue) {
             console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PLPL changed from ${oldValue} to ${newValue}`);
           }
+          // Log PSKI changes (body skin index) - DEBUG for face picker skin sync
+          if (fieldName === 'PSKI' && oldValue !== newValue) {
+            console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PSKI changed from ${oldValue} to ${newValue}`);
+          }
 
           fieldsUpdated++;
         } else if (fieldName === 'PEPS') {
@@ -586,10 +590,10 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     }
     console.log(`[RosterParser] POID fix complete: ${poidFixedCount} players updated (POID now equals PGID)`);
 
-    // CRITICAL FIX: For custom portrait PIDs (>= 12000), set PEPS from BLBM.GENR
+    // CRITICAL FIX: For custom portrait PIDs (>= 12000), set PEPS from assignedGenr or BLBM.GENR
     // This ensures modded portraits persist after in-game editing
     // The game checks PEPS - if empty, it regenerates the player's appearance on edit
-    // Fix: PEPS = BLBM.GENR, BLBM.ASNM = BLBM.GENR, PLPL=100, PGHE=0
+    // Fix: PEPS = assignedGenr (preferred) or BLBM.GENR, PLPL=100, PGHE=0
     const CUSTOM_PORTRAIT_PID_START = 12000;
     console.log('[RosterParser] *** PORTRAIT FIX: Setting PEPS from GENR for custom portrait PIDs ***');
 
@@ -614,37 +618,50 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
         // If this is a custom portrait PID with empty PEPS, fix it
         if (psxp >= CUSTOM_PORTRAIT_PID_START && (!currentPeps || currentPeps.length === 0)) {
-          // Find BLBM record by POID
-          const blbmRec = blbmRecords.find(r => r.index === poid);
+          // CRITICAL FIX: Use assignedGenr from player data if available (set by face picker)
+          // This takes priority over BLBM.GENR which might not have been updated yet
+          const playerAssignedGenr = players[i]?.assignedGenr;
+          let genr = null;
 
-          if (blbmRec) {
-            const bf = blbmRec.fields || blbmRec._fields;
-            const genr = bf?.GENR?.value ?? bf?.GENR?._value;
+          if (playerAssignedGenr && typeof playerAssignedGenr === 'string' && playerAssignedGenr.startsWith('gen_')) {
+            genr = playerAssignedGenr;
+            console.log(`[RosterParser] Portrait fix: Using assignedGenr="${genr}" for player ${i}`);
+          } else {
+            // Fallback to BLBM.GENR
+            const blbmRec = blbmRecords.find(r => r.index === poid);
+            if (blbmRec) {
+              const bf = blbmRec.fields || blbmRec._fields;
+              genr = bf?.GENR?.value ?? bf?.GENR?._value;
+            }
+          }
 
-            if (genr && genr.length > 0) {
-              // Set PEPS = GENR
-              pepsField.value = genr;
-              if (players[i]) players[i].PEPS = genr;
+          if (genr && genr.length > 0) {
+            // Set PEPS = GENR
+            pepsField.value = genr;
+            if (players[i]) players[i].PEPS = genr;
 
-              // Set BLBM.ASNM = GENR
+            // Set BLBM.ASNM = GENR
+            const blbmRec = blbmRecords.find(r => r.index === poid);
+            if (blbmRec) {
+              const bf = blbmRec.fields || blbmRec._fields;
               if (bf?.ASNM) {
                 if (bf.ASNM.value !== undefined) bf.ASNM.value = genr;
                 else if (bf.ASNM._value !== undefined) bf.ASNM._value = genr;
               }
+            }
 
-              // Set PLPL=100, PGHE=0
-              plplField.value = 100;
-              pgheField.value = 0;
-              if (players[i]) {
-                players[i].PLPL = 100;
-                players[i].PGHE = 0;
-              }
+            // Set PLPL=100, PGHE=0
+            plplField.value = 100;
+            pgheField.value = 0;
+            if (players[i]) {
+              players[i].PLPL = 100;
+              players[i].PGHE = 0;
+            }
 
-              portraitFixedCount++;
-              if (portraitFixedCount <= 5) {
-                const playerName = `${record.fields['PFNA']?.value || ''} ${record.fields['PLNA']?.value || ''}`.trim();
-                console.log(`[RosterParser] Portrait fix ${portraitFixedCount}: ${playerName} - PEPS="${genr}", PLPL=100, PGHE=0`);
-              }
+            portraitFixedCount++;
+            if (portraitFixedCount <= 5) {
+              const playerName = `${record.fields['PFNA']?.value || ''} ${record.fields['PLNA']?.value || ''}`.trim();
+              console.log(`[RosterParser] Portrait fix ${portraitFixedCount}: ${playerName} - PEPS="${genr}", PLPL=100, PGHE=0`);
             }
           }
         }
@@ -711,7 +728,15 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     console.log('[RosterParser] genericFaceService loaded:', genericFaceService ? 'YES' : 'NULL');
     if (genericFaceService) {
       try {
-        console.log('[RosterParser] Updating BLBM generic faces...');
+        // CRITICAL FIX: Sync player identity fields FIRST!
+        // syncPlayerIdentityForAllPlayers copies names from PLAY to BLBM using INDEX matching
+        // This MUST happen BEFORE updateBLBMForGenericFaces which uses NAME matching
+        // Otherwise the name lookup fails because BLBM still has old/different names
+        console.log('[RosterParser] Step 1: Syncing player identity (names) from PLAY to BLBM...');
+        const identitySynced = await genericFaceService.syncPlayerIdentityForAllPlayers(file, players);
+        console.log('[RosterParser] Player identity sync complete:', identitySynced, 'players synced');
+
+        console.log('[RosterParser] Step 2: Updating BLBM generic faces...');
 
         // DEBUG: Check if assignedGenr values survived IPC
         const playersWithAssignedGenr = players.filter(p => p.assignedGenr);
@@ -733,18 +758,60 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
         // CRITICAL: Sync BTYP (body type) in BLBM for ALL players
         // The game reads body type from BTYP in BLBM, not PCBT in PLAY!
+        console.log('[RosterParser] Step 3: Syncing BTYP (body type)...');
         btypSynced = await genericFaceService.syncBodyTypeForAllPlayers(file, players);
         console.log('[RosterParser] BTYP sync complete:', btypSynced, 'players synced');
 
         // Sync SKNT (skin tone) in BLBM from PLRC for ALL players
         // The game reads skin tone from SKNT in BLBM
+        console.log('[RosterParser] Step 4: Syncing SKNT (skin tone)...');
         skntSynced = await genericFaceService.syncSkinToneForAllPlayers(file, players);
         console.log('[RosterParser] SKNT sync complete:', skntSynced, 'players synced');
 
-        // CRITICAL: Sync player identity fields (name, jersey, height) from PLAY to BLBM
-        // Without this, BLBM records may contain stale data from template (wrong player!)
-        const identitySynced = await genericFaceService.syncPlayerIdentityForAllPlayers(file, players);
-        console.log('[RosterParser] Player identity sync complete:', identitySynced, 'players synced');
+        // CRITICAL: Sync PLRC (body skin in PLAY) from SKNT (face skin in BLBM)
+        // For generic face players, body skin must match face skin!
+        // This updates the players array and then writes back to PLAY table
+        console.log('[RosterParser] Step 5: Syncing PLRC (body skin) from BLBM.SKNT...');
+        const plrcSynced = await genericFaceService.syncBodySkinFromFaceSkin(file, players);
+        console.log('[RosterParser] PLRC sync complete:', plrcSynced, 'players synced');
+
+        // Write updated PLRC values back to PLAY table records
+        // (The PLAY table was written earlier, so we need to update it again)
+        if (plrcSynced > 0 && playerTable?.records) {
+          console.log('[RosterParser] Writing PLRC updates back to PLAY table...');
+          let plrcWritten = 0;
+          let plrcDebugCount = 0;
+          for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
+            const player = players[i];
+            const record = playerTable.records[i];
+            const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
+
+            // DEBUG: Log first 5 players to understand the comparison
+            if (plrcDebugCount < 5 && playerName) {
+              const hasField = !!record.fields?.['PLRC'];
+              const hasValue = player.PLRC !== undefined;
+              const oldPlrc = record.fields?.['PLRC']?.value;
+              console.log(`[RosterParser] PLRC DEBUG [${i}] ${playerName}: hasField=${hasField}, hasValue=${hasValue}, record=${oldPlrc} (type=${typeof oldPlrc}), player=${player.PLRC} (type=${typeof player.PLRC}), equal=${oldPlrc === player.PLRC}`);
+              plrcDebugCount++;
+            }
+
+            if (record.fields?.['PLRC'] && player.PLRC !== undefined) {
+              const oldPlrc = record.fields['PLRC'].value;
+              // CRITICAL FIX: Use != instead of !== to handle type coercion (string vs number)
+              // Also force write if types differ
+              const typesMatch = typeof oldPlrc === typeof player.PLRC;
+              const valuesDiffer = oldPlrc != player.PLRC || !typesMatch;
+              if (valuesDiffer) {
+                record.fields['PLRC'].value = Number(player.PLRC);
+                plrcWritten++;
+                if (plrcWritten <= 10) {
+                  console.log(`[RosterParser] PLRC write: ${playerName} ${oldPlrc} -> ${player.PLRC} (types: ${typeof oldPlrc} vs ${typeof player.PLRC})`);
+                }
+              }
+            }
+          }
+          console.log(`[RosterParser] Wrote ${plrcWritten} PLRC updates to PLAY table`);
+        }
       } catch (err) {
         blbmError = err.message;
         console.warn('[RosterParser] BLBM update failed (non-fatal):', err.message);

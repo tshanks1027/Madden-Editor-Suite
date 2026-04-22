@@ -4628,9 +4628,11 @@ class MaddenEditorApp {
                 // Also sync from filteredPlayers for face-related properties
                 // CRITICAL: Include PLPL and PEPS in the sync - these are needed for generic face handling
                 for (const filteredPlayer of this.filteredPlayers) {
+                    // Check for face-related properties that need syncing
+                    // Note: PEPS can be empty string '' for generic faces, so use !== undefined
                     if (filteredPlayer.assignedGenr || filteredPlayer.assignedSknt !== undefined ||
                         filteredPlayer.assignedRace !== undefined || filteredPlayer.PLPL !== undefined ||
-                        filteredPlayer.PEPS) {
+                        filteredPlayer.PEPS !== undefined || filteredPlayer.PSKI !== undefined) {
                         const mainPlayer = playersMap.get(filteredPlayer.PGID);
                         if (mainPlayer && mainPlayer !== filteredPlayer) {
                             if (filteredPlayer.assignedGenr) mainPlayer.assignedGenr = filteredPlayer.assignedGenr;
@@ -4638,8 +4640,11 @@ class MaddenEditorApp {
                             if (filteredPlayer.assignedRace !== undefined) mainPlayer.assignedRace = filteredPlayer.assignedRace;
                             // CRITICAL: Sync PLPL (generic face indicator) and PEPS (PAM)
                             if (filteredPlayer.PLPL !== undefined) mainPlayer.PLPL = filteredPlayer.PLPL;
-                            if (filteredPlayer.PEPS) mainPlayer.PEPS = filteredPlayer.PEPS;
+                            // CRITICAL FIX: Sync PEPS even when empty - generic faces NEED empty PEPS!
+                            if (filteredPlayer.PEPS !== undefined) mainPlayer.PEPS = filteredPlayer.PEPS;
                             if (filteredPlayer.PLRC !== undefined) mainPlayer.PLRC = filteredPlayer.PLRC;
+                            // CRITICAL FIX: Also sync PSKI (body skin index) - required for correct body/arm skin
+                            if (filteredPlayer.PSKI !== undefined) mainPlayer.PSKI = filteredPlayer.PSKI;
                         }
                     }
                 }
@@ -4648,7 +4653,16 @@ class MaddenEditorApp {
                 const playersWithGenr = this.players.filter(p => p.assignedGenr);
                 const playersWithSknt = this.players.filter(p => p.assignedSknt !== undefined);
                 const playersWithPLPL0 = this.players.filter(p => p.PLPL === 0);
-                console.log(`[app.js] DEBUG: Before save - ${playersWithGenr.length} players have assignedGenr, ${playersWithSknt.length} have assignedSknt, ${playersWithPLPL0.length} have PLPL=0`);
+                console.log(`%c[SAVE DEBUG] Before save - ${playersWithGenr.length} players have assignedGenr, ${playersWithSknt.length} have assignedSknt, ${playersWithPLPL0.length} have PLPL=0`, 'color: yellow; background: black; font-size: 14px;');
+
+                // Also check filteredPlayers for comparison
+                const filteredWithGenr = this.filteredPlayers.filter(p => p.assignedGenr);
+                console.log(`%c[SAVE DEBUG] filteredPlayers: ${filteredWithGenr.length} have assignedGenr`, 'color: cyan; background: black; font-size: 14px;');
+                if (filteredWithGenr.length > 0) {
+                    filteredWithGenr.forEach(p => {
+                        console.log(`  - ${p.PFNA} ${p.PLNA}: assignedGenr="${p.assignedGenr}", assignedSknt=${p.assignedSknt}`);
+                    });
+                }
                 if (playersWithGenr.length > 0) {
                     const sample = playersWithGenr[0];
                     console.log(`[app.js] DEBUG: Sample: ${sample.PFNA} ${sample.PLNA} - assignedGenr="${sample.assignedGenr}", assignedSknt=${sample.assignedSknt}, PLPL=${sample.PLPL}, PEPS="${sample.PEPS}", PLRC=${sample.PLRC}`);
@@ -5230,7 +5244,20 @@ class MaddenEditorApp {
         // The player object is a shared reference that can be modified by other operations
         // Capture roster-specific fields (PSXP, PLAYERPIC, PLRC)
         this.currentFacePickerOriginalPSXP = player.PSXP;
-        this.currentFacePickerOriginalPlayerpic = player.PLAYERPIC;
+        // PLAYERPIC is a virtual column - need to determine the player name to restore
+        // CRITICAL FIX: Custom portrait PIDs (>= 12000) are NOT in pidsCapitalized lookup!
+        // For custom portraits, construct the name from player.PFNA + player.PLNA
+        const CUSTOM_PORTRAIT_PID_START = 12000;
+        if (player.PSXP >= CUSTOM_PORTRAIT_PID_START) {
+            // Custom portrait - use player's actual name fields
+            this.currentFacePickerOriginalPlayerpic = `${player.PFNA} ${player.PLNA}`;
+            console.log(`[GenericFacePicker] Custom portrait PID ${player.PSXP}: using name "${this.currentFacePickerOriginalPlayerpic}"`);
+        } else if (player.PSXP && window.lookupData?.pidsCapitalized) {
+            // Standard PID - look up from database
+            this.currentFacePickerOriginalPlayerpic = window.lookupData.pidsCapitalized.get(String(player.PSXP)) || null;
+        } else {
+            this.currentFacePickerOriginalPlayerpic = player.PLAYERPIC;
+        }
         this.currentFacePickerOriginalRace = player.PLRC;
         // Also capture draft class-specific fields (PID, playerPic, race)
         this.currentFacePickerOriginalPID = player.PID;
@@ -5268,7 +5295,7 @@ class MaddenEditorApp {
         if (isDraftPlayer) {
             console.log(`[GenericFacePicker] Opened for DRAFT ${playerName} ${playerLastName}, capturing originalPID=${this.currentFacePickerOriginalPID}, originalPlayerPic=${this.currentFacePickerOriginalPlayerPic}, originalRace=${this.currentFacePickerOriginalDraftRace}`);
         } else {
-            console.log(`[GenericFacePicker] Opened for ROSTER ${playerName} ${playerLastName}, capturing originalPSXP=${this.currentFacePickerOriginalPSXP}, originalPlayerpic=${this.currentFacePickerOriginalPlayerpic}, originalRace=${this.currentFacePickerOriginalRace}`);
+            console.log(`[GenericFacePicker] Opened for ROSTER ${playerName} ${playerLastName}, capturing originalPSXP=${this.currentFacePickerOriginalPSXP}, originalPlayerpic="${this.currentFacePickerOriginalPlayerpic}", originalRace=${this.currentFacePickerOriginalRace}`);
         }
 
         // Reset PAM Only checkbox to unchecked each time the picker opens
@@ -5316,11 +5343,26 @@ class MaddenEditorApp {
                     img.alt = `Generic Face ${face.pid}`;
                     img.src = placeholderSvg;
 
+                    // Face picker number label (1-264) - the in-game picker position
+                    const faceNumLabel = document.createElement('div');
+                    faceNumLabel.className = 'generic-face-num';
+                    faceNumLabel.textContent = `#${face.facePickerPosition}`;
+                    faceNumLabel.style.cssText = 'font-weight: bold; color: #00ff00; font-size: 12px;';
+
+                    // GENR label - the actual face model code
+                    const genrLabel = document.createElement('div');
+                    genrLabel.className = 'generic-face-genr';
+                    genrLabel.textContent = face._verifiedGenr || '';
+                    genrLabel.style.cssText = 'font-size: 9px; color: #aaa; overflow: hidden; text-overflow: ellipsis;';
+
+                    // PID label at bottom
                     const pidLabel = document.createElement('div');
                     pidLabel.className = 'generic-face-pid';
                     pidLabel.textContent = `PID ${face.pid}`;
 
                     faceItem.appendChild(img);
+                    faceItem.appendChild(faceNumLabel);
+                    faceItem.appendChild(genrLabel);
                     faceItem.appendChild(pidLabel);
 
                     // Click handler to select this face
@@ -5367,93 +5409,42 @@ class MaddenEditorApp {
 
     async loadGenericFaces() {
         try {
-            // Get the VERIFIED portrait->GENR mapping (268 faces that work correctly in-game)
-            // This mapping was extracted by comparing working roster files
-            let verifiedMapping = {};
-            try {
-                verifiedMapping = await window.electronAPI.lookup.getVerifiedPortraitGenrMapping();
-                console.log(`[loadGenericFaces] Loaded ${Object.keys(verifiedMapping).length} verified portrait->GENR mappings`);
-            } catch (e) {
-                console.error('[loadGenericFaces] Could not load verified mapping:', e);
-            }
+            // Load the face picker mapping (positions 1-264) extracted from ROSTER-HEADTEST
+            // This is the ground truth - each position maps to the correct GENR, SKNT, and PID
+            const facePickerMapping = await window.electronAPI.lookup.getFacePickerMapping();
+            console.log(`[loadGenericFaces] Loaded ${Object.keys(facePickerMapping).length} face picker positions`);
 
-            // CRITICAL: Get PGHE data which contains the CORRECT game PIDs!
-            // PID_Portrait_Mapping.csv has wrong PIDs that don't work in-game
-            // PGHE_lookup.csv has the actual game PIDs that show portraits
-            let pgheData = [];
-            try {
-                await window.electronAPI.pghe.initialize();
-                pgheData = await window.electronAPI.pghe.getAll();
-                console.log(`[loadGenericFaces] Loaded ${pgheData.length} PGHE entries with correct game PIDs`);
-            } catch (e) {
-                console.error('[loadGenericFaces] Could not load PGHE data:', e);
-            }
-
-            // Build mapping from PFCG code to PGHE entry (which has correct PID)
-            // PFCG like "7_M_G_005" maps to portrait "plpo_generic_7_M_G_005"
-            const pfcgToPghe = new Map();
-            for (const entry of pgheData) {
-                pfcgToPghe.set(entry.pfcg.toLowerCase(), entry);
-            }
-
-            // Get PID_Portrait_Mapping.csv data for portrait images (to know which portraits exist)
-            const mapping = await window.electronAPI.lookup.getPIDPortraitMapping();
-
-            // Filter to only type='generic' entries
-            const allGenericFaces = mapping.filter(entry => entry.type === 'generic');
-
-            // CRITICAL: Only include portraits that exist in our verified mapping
-            // These are the 268 faces that have correct GENR values and work in-game
-            const verifiedPortraits = new Set(Object.keys(verifiedMapping));
-            const validGenericFaces = allGenericFaces.filter(face => verifiedPortraits.has(face.portrait));
-
-            console.log(`[loadGenericFaces] Filtered from ${allGenericFaces.length} to ${validGenericFaces.length} faces with verified GENR mappings`);
-
-            // Deduplicate by portrait - keep only first entry for each unique face appearance
-            // CRITICAL: Override PID with PGHE PID for correct in-game portraits!
-            const seenPortraits = new Set();
-            const uniqueFaces = [];
-
-            for (const face of validGenericFaces) {
-                if (!seenPortraits.has(face.portrait)) {
-                    seenPortraits.add(face.portrait);
-
-                    // Extract PFCG code from portrait name: "plpo_generic_7_M_G_005" -> "7_M_G_005"
-                    const pfcgMatch = face.portrait.match(/plpo_generic_(.+)$/i);
-                    const pfcg = pfcgMatch ? pfcgMatch[1].toLowerCase() : null;
-
-                    // Look up the correct PGHE PID
-                    const pgheEntry = pfcg ? pfcgToPghe.get(pfcg) : null;
-
-                    if (pgheEntry) {
-                        // Use the PGHE PID - this is the PID that works in-game!
-                        face.pid = pgheEntry.psxp;
-                        face._pgheEntry = pgheEntry;
-                        console.log(`[loadGenericFaces] ${face.portrait}: Using PGHE PID ${pgheEntry.psxp} (was ${face.pid})`);
-                    } else {
-                        console.warn(`[loadGenericFaces] No PGHE entry for ${face.portrait} (PFCG: ${pfcg})`);
-                    }
-
-                    // Attach the verified GENR/SKNT directly to the face object
-                    const verifiedData = verifiedMapping[face.portrait];
-                    face._verifiedGenr = verifiedData?.genr;
-                    face._verifiedSknt = verifiedData?.sknt;
-                    uniqueFaces.push(face);
+            // Build faces array in picker position order (1-264)
+            const faces = [];
+            for (let pos = 1; pos <= 264; pos++) {
+                const entry = facePickerMapping[pos.toString()];
+                if (!entry) {
+                    console.warn(`[loadGenericFaces] Missing position ${pos}`);
+                    continue;
                 }
+
+                // Convert GENR to portrait name: gen_7_T_S_004 -> plpo_generic_7_T_S_004
+                const portrait = 'plpo_' + entry.genr.replace('gen_', 'generic_');
+
+                faces.push({
+                    facePickerPosition: pos,
+                    portrait: portrait,
+                    pid: entry.pid,
+                    _verifiedGenr: entry.genr,
+                    _verifiedSknt: entry.sknt,
+                    _pgheEntry: {
+                        pghe: pos,  // Use picker position as the reference
+                        psxp: entry.pid,
+                        genr: entry.genr,
+                        skinTone: entry.sknt
+                    }
+                });
             }
 
-            // Sort by skin tone category (1-7) for better organization
-            uniqueFaces.sort((a, b) => {
-                const toneA = parseInt(a.portrait.match(/plpo_generic_(\d+)_/)?.[1] || '0');
-                const toneB = parseInt(b.portrait.match(/plpo_generic_(\d+)_/)?.[1] || '0');
-                return toneA - toneB;
-            });
-
-            console.log(`Loaded ${allGenericFaces.length} total generic entries, filtered to ${uniqueFaces.length} unique verified faces with PGHE PIDs`);
-
-            return uniqueFaces;
+            console.log(`[loadGenericFaces] Built ${faces.length} faces in picker position order`);
+            return faces;
         } catch (error) {
-            console.error('Error loading generic faces from CSV:', error);
+            console.error('Error loading generic faces:', error);
             return [];
         }
     }
@@ -5604,7 +5595,7 @@ class MaddenEditorApp {
             }
 
             // Check if "PAM Only" checkbox is enabled (only applies to roster, not draft class)
-            // PAM Only mode: Apply FULL picker, then restore original PID
+            // PAM Only mode: Apply FULL generic face, then restore original PID at the end
             const pamOnlyCheckbox = document.getElementById('pamOnlyCheckbox');
             const isPamOnly = isRoster && pamOnlyCheckbox && pamOnlyCheckbox.checked;
             console.log(`[GenericFacePicker] PAM Only mode: ${isPamOnly}`);
@@ -5620,21 +5611,11 @@ class MaddenEditorApp {
                 const oldPID = originalPSXP;
                 const oldRace = this.currentFacePickerOriginalRace;
 
-                // PAM-ONLY MODE: Do NOT change PSXP or PLAYERPIC - only change in-game 3D face
-                // FULL MODE: Change both portrait (PSXP/PLAYERPIC) AND in-game 3D face
-                if (isPamOnly) {
-                    console.log(`[GenericFacePicker] PAM-only: Preserving PSXP=${oldPID}, PLAYERPIC (not changing portrait)`);
-                    // Don't touch player.PSXP or player.PLAYERPIC
-                } else {
-                    player.PSXP = pid;
-                    player.PLAYERPIC = 'Generic Face';
-                    console.log(`[GenericFacePicker] Full mode: Set PSXP=${pid}, PLAYERPIC='Generic Face'`);
-                }
-
-                // CRITICAL: Game clears PEPS to "" for generic faces - it's NOT used for face selection
-                // The face model is controlled by PGHE and BLBM.GENR only
-                player.PEPS = '';
-                console.log(`[GenericFacePicker] Set player.PEPS to "" (game clears this for generic faces)`);
+                // ALWAYS apply FULL generic face first (this sets all required values)
+                // Then if PAM-only is checked, restore the original PID at the end
+                player.PSXP = pid;
+                player.PLAYERPIC = 'Generic Face';
+                console.log(`[GenericFacePicker] Applied full generic loadout: PSXP=${pid}, PLAYERPIC='Generic Face'`);
 
                 // CRITICAL: Use VERIFIED GENR/SKNT values for exact face matching
                 // These are the 268 faces that work correctly in-game
@@ -5645,7 +5626,7 @@ class MaddenEditorApp {
                     player.assignedGenr = verifiedGenr;
                     player.assignedSknt = verifiedSknt;
                     genrValue = verifiedGenr;
-                    console.log(`[GenericFacePicker] Set VERIFIED assignedGenr="${verifiedGenr}", assignedSknt=${verifiedSknt}`);
+                    console.log(`%c[FACE SELECTED] ${player.PFNA} ${player.PLNA}: assignedGenr="${verifiedGenr}", assignedSknt=${verifiedSknt}`, 'color: lime; background: black; font-size: 14px;');
                 } else if (pgheEntry && pgheEntry.genr) {
                     // Fallback to pgheEntry if verifiedGenr wasn't passed but pgheEntry has genr
                     genrValue = pgheEntry.genr;
@@ -5669,6 +5650,13 @@ class MaddenEditorApp {
                     console.warn(`[GenericFacePicker] Roster: Could not determine GENR value! verifiedGenr=${verifiedGenr}, pgheEntry=${JSON.stringify(pgheEntry)}, portrait=${portrait}`);
                 }
 
+                // CRITICAL FIX: PEPS must be EMPTY for generic faces to work correctly
+                // From ROSTER-HEADTEST: ALL working generic faces have PEPS=""
+                // The GENR is stored in assignedGenr and synced to BLBM.GENR during save
+                // Setting PEPS to a value causes body skin mismatch issues
+                player.PEPS = '';
+                console.log(`[GenericFacePicker] Set player.PEPS="" (MUST be empty for generic faces)`)
+
                 // CRITICAL: Sync ALL fields to this.players array to ensure persistence
                 // Use STRICT matching - PGID + name OR name + originalPSXP (for FA/retired players)
                 if (genrValue) {
@@ -5683,61 +5671,82 @@ class MaddenEditorApp {
                     if (originalPlayer) {
                         originalPlayer.assignedGenr = player.assignedGenr;
                         originalPlayer.assignedSknt = player.assignedSknt;
+                        originalPlayer.assignedRace = player.assignedRace;
                         originalPlayer.PEPS = player.PEPS;
                         originalPlayer.PLPL = 0;
-                        // PAM-ONLY: Do NOT sync PSXP/PLAYERPIC - these control the portrait
-                        if (!isPamOnly) {
-                            originalPlayer.PSXP = player.PSXP;
-                            originalPlayer.PLAYERPIC = player.PLAYERPIC;
+                        // CRITICAL: Sync PGHE - required for correct body skin in game
+                        const pgheForSync = pgheEntry?.pghe ?? 0;
+                        originalPlayer.PGHE = pgheForSync;
+
+                        // CRITICAL: ALWAYS sync PLRC and PSKI - these control BODY skin which must match FACE
+                        // PAM-only only preserves the PORTRAIT (PSXP/PLAYERPIC), not the body appearance
+                        if (player.assignedSknt !== null && player.assignedSknt !== undefined) {
+                            originalPlayer.PLRC = player.assignedSknt;
+                            // PSKI=1 for dark skins (4-7), PSKI=2 for light (1-3)
+                            originalPlayer.PSKI = player.assignedSknt >= 4 ? 1 : 2;
                         }
+
+                        // Sync PSXP/PLAYERPIC (will be restored to original if PAM-only mode)
+                        originalPlayer.PSXP = player.PSXP;
+                        originalPlayer.PLAYERPIC = player.PLAYERPIC;
                         const playerIndex = this.players.indexOf(originalPlayer);
-                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] - PEPS="${player.PEPS}", PSXP=${originalPlayer.PSXP}, isPamOnly=${isPamOnly}`);
+                        console.log(`[GenericFacePicker] Synced to this.players[${playerIndex}] - PEPS="${player.PEPS}", PGHE=${pgheForSync}, PSXP=${originalPlayer.PSXP}, PLRC=${originalPlayer.PLRC}, PSKI=${originalPlayer.PSKI}, isPamOnly=${isPamOnly}`);
+
+                        // CRITICAL FIX: Also sync to filteredPlayers to prevent save-time sync from overwriting
+                        // The save process syncs from filteredPlayers -> this.players, so we must update both!
+                        const filteredPlayer = this.filteredPlayers?.find(p => {
+                            const nameMatch = p.PFNA === player.PFNA && p.PLNA === player.PLNA;
+                            const pgidMatch = player.PGID && player.PGID !== 0 && p.PGID === player.PGID;
+                            return pgidMatch && nameMatch;
+                        });
+                        if (filteredPlayer && filteredPlayer !== originalPlayer) {
+                            filteredPlayer.assignedGenr = player.assignedGenr;
+                            filteredPlayer.assignedSknt = player.assignedSknt;
+                            filteredPlayer.assignedRace = player.assignedRace;
+                            filteredPlayer.PEPS = player.PEPS;
+                            filteredPlayer.PLPL = originalPlayer.PLPL;
+                            filteredPlayer.PGHE = pgheForSync;
+                            filteredPlayer.PLRC = originalPlayer.PLRC;
+                            filteredPlayer.PSKI = originalPlayer.PSKI;
+                            filteredPlayer.PSXP = player.PSXP;
+                            filteredPlayer.PLAYERPIC = player.PLAYERPIC;
+                            console.log(`[GenericFacePicker] Also synced to filteredPlayers - PEPS="${filteredPlayer.PEPS}"`);
+                        }
                     } else {
                         console.warn(`[GenericFacePicker] Could not find player ${player.PFNA} ${player.PLNA} (originalPSXP=${originalPSXP}) in this.players to sync!`);
                     }
                 }
 
-                // Update race based on the selected generic face
-                // PAM-ONLY: Do NOT update race - we're keeping the player's portrait/identity
-                // so their body skin tone should match their original portrait, not the generic face
-                if (newRace !== null && !isPamOnly) {
-                    player.PLRC = newRace;
-                    player.assignedRace = newRace; // Also update assignedRace for BLBM GENR/SKNT assignment
-                    console.log(`[GenericFacePicker] Updated player.PLRC from ${oldRace} to ${newRace}`);
-                } else if (isPamOnly) {
-                    console.log(`[GenericFacePicker] PAM-only: Keeping original race ${oldRace} (not changing to ${newRace})`);
+                // Update body skin to match the selected generic face
+                // CRITICAL: Body skin (PLRC/PSKI) must ALWAYS match face skin, even in PAM-only mode
+                // PAM-only only preserves the PORTRAIT (PSXP), not the body appearance
+                // CRITICAL FIX: Use assignedSknt (from GENR string) instead of newRace (from database lookup)
+                // The GENR string is the source of truth for skin tone, not the database
+                const correctSkinTone = player.assignedSknt ?? newRace;
+                if (correctSkinTone !== null) {
+                    player.PLRC = correctSkinTone;
+                    player.assignedRace = correctSkinTone; // Also update assignedRace for BLBM GENR/SKNT assignment
+                    console.log(`[GenericFacePicker] Updated player.PLRC from ${oldRace} to ${correctSkinTone} (assignedSknt=${player.assignedSknt}, dbRace=${newRace}, isPamOnly=${isPamOnly})`);
+
+                    // CRITICAL FIX: Set PSKI (body skin index) to match the face skin tone
+                    // Analysis shows: PSKI=1 for darker skins (4-7), PSKI=2 for lighter skins (1-3)
+                    // Without this, body skin doesn't match face skin for generic faces!
+                    const oldPSKI = player.PSKI;
+                    const newPSKI = correctSkinTone >= 4 ? 1 : 2;
+                    player.PSKI = newPSKI;
+                    console.log(`[GenericFacePicker] Set PSKI from ${oldPSKI} to ${newPSKI} (skinTone=${correctSkinTone}, darker=${correctSkinTone >= 4})`);
                 }
 
                 // CRITICAL: Set PLPL=0 to indicate this player uses a generic face (BLBM GENR)
                 player.PLPL = 0;
                 console.log(`[GenericFacePicker] Set player.PLPL=0 (generic face indicator)`);
 
-                // CRITICAL: Set PGHE (Player Generic Head) for the face model
-                // PGHE controls which face MODEL appears in-game (values 1-290)
-                // FIX: Use the EXACT PGHE value from the pgheEntry (matches what game does)
-                // The game sets a SPECIFIC PGHE value, NOT a random one from a pool
+                // PGHE: Keep at 0 for generic faces
+                // The face model is determined by GENR in BLBM, not PGHE
+                // PGHE values in HEADTEST were from original players, not required for generic faces
                 const oldPGHE = player.PGHE;
-                if (pgheEntry && pgheEntry.pghe !== undefined) {
-                    player.PGHE = pgheEntry.pghe;
-                    console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to ${player.PGHE} (from pgheEntry)`);
-                } else {
-                    // Fallback: Use race-based pools only if no pgheEntry available
-                    const blackPGHEs = [6, 42, 57, 64, 79, 89, 101, 102, 108, 114, 131, 138, 143, 148, 160, 161, 164, 190, 209, 210, 211, 224, 230, 255, 257, 267, 274, 280];
-                    const whitePGHEs = [11, 12, 18, 24, 50, 54, 55, 56, 85, 90, 146, 154, 155, 158, 176, 202, 212, 227, 239, 243, 245, 253, 256, 264, 290];
-                    const sharedPGHEs = [1, 7, 21, 25, 27, 34, 36, 53, 59, 62, 67, 77, 84, 93, 99, 100, 109, 119, 120, 128, 132, 139, 142, 147, 157, 162, 183, 188, 200, 232, 246, 247, 261, 271, 273, 278, 282, 286, 287, 288];
-
-                    const raceForPGHE = newRace !== null ? newRace : (player.PLRC ?? 7);
-                    let pghePool;
-                    if (raceForPGHE === 7) {
-                        pghePool = [...blackPGHEs, ...sharedPGHEs];
-                    } else if (raceForPGHE === 1) {
-                        pghePool = [...whitePGHEs, ...sharedPGHEs];
-                    } else {
-                        pghePool = sharedPGHEs;
-                    }
-                    player.PGHE = pghePool[Math.floor(Math.random() * pghePool.length)];
-                    console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to ${player.PGHE} (fallback random, race=${raceForPGHE})`);
-                }
+                player.PGHE = 0;
+                console.log(`[GenericFacePicker] Set PGHE from ${oldPGHE} to 0 (generic faces use BLBM.GENR for face model)`);
 
                 // Sync PGHE to this.players array using strict matching
                 const pghePlayerIndex = this.players.indexOf(player);
@@ -5756,10 +5765,40 @@ class MaddenEditorApp {
                     }
                 }
 
+                // PAM-ONLY MODE: After applying full generic loadout, restore original PID
+                // This gives us all the correct generic face settings but keeps the original portrait
                 if (isPamOnly) {
-                    console.log(`[GenericFacePicker] PAM-only applied: PSXP=${oldPID} (preserved), PEPS="", PLPL=0, PGHE=${player.PGHE}`);
+                    player.PSXP = oldPID;
+                    player.PLAYERPIC = oldPlayerpic || player.PLAYERPIC;
+
+                    // CRITICAL: Restore PLPL=100 for custom portrait PIDs (>= 12000)
+                    // This is what makes the original portrait persist in-game
+                    const CUSTOM_PORTRAIT_PID_START = 12000;
+                    if (oldPID >= CUSTOM_PORTRAIT_PID_START) {
+                        player.PLPL = 100;
+                        console.log(`[GenericFacePicker] PAM-only: Restored PLPL=100 for custom portrait PID ${oldPID}`);
+                    }
+                    console.log(`[GenericFacePicker] PAM-only: Restored PSXP=${oldPID}, PLAYERPIC=${player.PLAYERPIC}, PLPL=${player.PLPL}`);
+
+                    // Also restore in this.players array
+                    const restorePlayer = this.players.find(p => {
+                        const nameMatch = p.PFNA === player.PFNA && p.PLNA === player.PLNA;
+                        const pgidMatch = player.PGID && player.PGID !== 0 && p.PGID === player.PGID;
+                        return pgidMatch && nameMatch;
+                    });
+                    if (restorePlayer) {
+                        restorePlayer.PSXP = oldPID;
+                        restorePlayer.PLAYERPIC = oldPlayerpic || restorePlayer.PLAYERPIC;
+                        if (oldPID >= CUSTOM_PORTRAIT_PID_START) {
+                            restorePlayer.PLPL = 100;
+                        }
+                    }
+                }
+
+                if (isPamOnly) {
+                    console.log(`[GenericFacePicker] PAM-only applied: PSXP=${player.PSXP} (restored), assignedGenr=${player.assignedGenr}, PEPS="", PLPL=${player.PLPL}`);
                 } else {
-                    console.log(`[GenericFacePicker] Full mode applied: PSXP ${oldPID} -> ${pid}, PLAYERPIC=Generic Face, PEPS="", PLPL=0`);
+                    console.log(`[GenericFacePicker] Full mode applied: PSXP=${player.PSXP}, assignedGenr=${player.assignedGenr}, PEPS="", PLPL=${player.PLPL}`);
                 }
             } else if (isDraft) {
                 // Draft class prospect - update the actual prospect object in draftProspects
@@ -5879,15 +5918,8 @@ class MaddenEditorApp {
 
             // PAM-only mode: portrait stays the same (existing player's PID), only in-game face changes
             // Normal mode: portrait changes to match the new generic PID
-            // NOTE: In PAM-only, player.PSXP was temporarily changed to pid, so use originalPSXP
-            // CRITICAL FIX: Use a unified PAM-only check that handles both roster and draft class
-            const pamOnlyCheckboxForCache = document.getElementById('pamOnlyCheckbox');
-            const isAnyPamOnly = pamOnlyCheckboxForCache && pamOnlyCheckboxForCache.checked;
-
-            // For roster: use originalPSXP if PAM-only
-            // For draft: use originalPID if PAM-only
             let cacheKey;
-            if (isAnyPamOnly) {
+            if (isPamOnly) {
                 if (isRoster) {
                     cacheKey = `pid_${originalPSXP}`;
                 } else if (isDraft) {
@@ -5896,12 +5928,12 @@ class MaddenEditorApp {
             } else {
                 cacheKey = `pid_${pid}`;
             }
-            console.log(`[GenericFacePicker] PAM-only mode: ${isAnyPamOnly}, cacheKey: ${cacheKey}`);
+            console.log(`[GenericFacePicker] PAM-only mode: ${isPamOnly}, cacheKey: ${cacheKey}`);
 
             // Load portrait immediately and wait for it before refreshing the grid
             // This ensures the portrait is ready when we refresh the cells
             const cachedPortrait = this.portraitCache.get(cacheKey);
-            if (!isAnyPamOnly && (!cachedPortrait || cachedPortrait === 'loading')) {
+            if (!isPamOnly && (!cachedPortrait || cachedPortrait === 'loading')) {
                 console.log(`[GenericFacePicker] Loading portrait for cache key: ${cacheKey}`);
                 this.portraitCache.set(cacheKey, 'loading');
 
@@ -5965,39 +5997,55 @@ class MaddenEditorApp {
                     const foundPSXP = rowNode.data?.PSXP;
                     console.log(`[GenericFacePicker] Found rowNode at index ${foundRowIndex}, PGID=${foundPGID}, current PSXP=${foundPSXP}`);
 
-                    if (isPamOnly) {
-                        // PAM-ONLY MODE: Only change the in-game 3D face, NOT the portrait
-                        // DO NOT touch PLAYERPIC or PSXP - they control the portrait display
-                        // Only update: PEPS (clear), PLPL (0 for generic)
-                        // PGHE is already set on the player object above
-                        console.log(`[GenericFacePicker] PAM-only: Updating ONLY PEPS and PLPL (not touching PLAYERPIC/PSXP)`);
-                        rowNode.setDataValue('PEPS', '');
-                        rowNode.setDataValue('PLPL', 0);
+                    // Get skin tone from GENR (source of truth)
+                    const gridSkinTone = player.assignedSknt ?? newRace;
 
-                        // Verify the data was updated
-                        const verifyPSXP = rowNode.data?.PSXP;
-                        const verifyPLPL = rowNode.data?.PLPL;
-                        const verifyPEPS = rowNode.data?.PEPS;
-                        const verifyPLRC = rowNode.data?.PLRC;
-                        console.log(`[GenericFacePicker] PAM-only final: PSXP=${verifyPSXP} (preserved), PEPS="${verifyPEPS}", PLPL=${verifyPLPL}, PLRC=${verifyPLRC} (preserved)`);
-                    } else {
-                        // FULL MODE: Change both portrait AND in-game 3D face
-                        // CRITICAL: Set PSXP LAST because PLAYERPIC valueSetter can overwrite PSXP!
-                        rowNode.setDataValue('PLAYERPIC', 'Generic Face');
+                    if (isPamOnly) {
+                        // =====================================================
+                        // PAM-ONLY MODE: Keep original PID/portrait, only set face MODEL
+                        // This assigns the generic 3D face without changing the portrait
+                        // =====================================================
+                        console.log(`[GenericFacePicker] PAM-only: Keeping PID=${originalPSXP}, only setting face model`);
+
+                        // Set PEPS to empty (required for generic faces)
                         rowNode.setDataValue('PEPS', '');
-                        if (newRace !== null) {
-                            rowNode.setDataValue('PLRC', newRace);
+
+                        // Update skin tone to match selected face
+                        if (gridSkinTone !== null) {
+                            rowNode.setDataValue('PLRC', gridSkinTone);
+                            if (rowNode.data) rowNode.data.PSKI = gridSkinTone >= 4 ? 1 : 2;
                         }
-                        rowNode.setDataValue('PLPL', 0);
-                        // CRITICAL: Set PSXP LAST to ensure correct PID (not overwritten by PLAYERPIC valueSetter)
+
+                        // PLPL stays at original value - custom portraits (>=12000) keep PLPL=100
+                        // Don't touch PSXP or PLAYERPIC at all!
+
+                        console.log(`[GenericFacePicker] PAM-only complete: PSXP=${rowNode.data?.PSXP} (unchanged), assignedGenr=${player.assignedGenr}, PLRC=${gridSkinTone}`);
+                    } else {
+                        // =====================================================
+                        // FULL MODE: Change both portrait AND face model
+                        // =====================================================
+                        rowNode.setDataValue('PLAYERPIC', 'Generic Face');
+                        rowNode.setDataValue('PEPS', player.PEPS || '');
+
+                        if (gridSkinTone !== null) {
+                            rowNode.setDataValue('PLRC', gridSkinTone);
+                            if (rowNode.data) rowNode.data.PSKI = gridSkinTone >= 4 ? 1 : 2;
+                        }
+
+                        // Set PLPL=0 for generic face
+                        if (rowNode.data) rowNode.data.PLPL = 0;
+
+                        // Set PSXP to the generic face's PID
                         rowNode.setDataValue('PSXP', pid);
 
-                        // Verify the data was updated
-                        const verifyPSXP = rowNode.data?.PSXP;
-                        const verifyPLPL = rowNode.data?.PLPL;
-                        const verifyPEPS = rowNode.data?.PEPS;
-                        console.log(`[GenericFacePicker] Updated row via setDataValue: PSXP=${pid} (verified: ${verifyPSXP}), PLAYERPIC=Generic Face, PEPS="${verifyPEPS}", PLPL=${verifyPLPL}, PLRC=${newRace}`);
+                        console.log(`[GenericFacePicker] Full mode complete: PSXP=${pid}, PLAYERPIC=Generic Face, PLPL=0`);
                     }
+
+                    // Verify the data was updated
+                    const verifyPSXP = rowNode.data?.PSXP;
+                    const verifyPLPL = rowNode.data?.PLPL;
+                    const verifyPEPS = rowNode.data?.PEPS;
+                    console.log(`[GenericFacePicker] Grid updated: PSXP=${verifyPSXP}, PLAYERPIC=${rowNode.data?.PLAYERPIC}, PEPS="${verifyPEPS}", PLPL=${verifyPLPL}, PLRC=${gridSkinTone}`);
 
                     // Force refresh the portrait column specifically
                     this.agGrid.refreshCells({
@@ -6391,14 +6439,27 @@ class MaddenEditorApp {
                     }
                 }
 
+                // CRITICAL FIX: Also sync to filteredPlayers to prevent save-time sync from overwriting
+                // The save process syncs from filteredPlayers -> this.players, so we must update both!
+                const filteredPlayer = this.filteredPlayers?.find(p =>
+                    p.PFNA === player.PFNA && p.PLNA === player.PLNA &&
+                    (player.PGID ? p.PGID === player.PGID : p.PSXP === player.PSXP)
+                );
+                if (filteredPlayer) {
+                    syncFields(filteredPlayer);
+                    console.log(`[PAMPicker] Also synced to filteredPlayers - PEPS="${filteredPlayer.PEPS}"`);
+                }
+
                 // Update AG-Grid via setDataValue to ensure it detects the change
                 if (this.agGrid && gridRowIndex !== null) {
                     const rowNode = this.agGrid.getDisplayedRowAtIndex(gridRowIndex);
                     if (rowNode) {
                         rowNode.setDataValue('PEPS', '');
-                        rowNode.setDataValue('PLPL', 0);
+                        // CRITICAL FIX: PLPL is NOT an AG-Grid column, must set directly on rowNode.data
+                        if (rowNode.data) rowNode.data.PLPL = 0;
                         if (skinTone !== null) rowNode.setDataValue('PLRC', skinTone);
-                        if (pgheValue !== null) rowNode.setDataValue('PGHE', pgheValue);
+                        // CRITICAL FIX: PGHE is NOT an AG-Grid column, must set directly on rowNode.data
+                        if (pgheValue !== null && rowNode.data) rowNode.data.PGHE = pgheValue;
                         console.log(`[PAMPicker] Updated AG-Grid row ${gridRowIndex}`);
                     }
                 }
