@@ -4626,18 +4626,28 @@ class MaddenEditorApp {
                 console.log(`[app.js] PRE-SAVE SYNC: Synced ${syncedCount} players, added ${addedCount} missing players, updated ${fieldsUpdated} fields`);
 
                 // Also sync from filteredPlayers for face-related properties
-                // CRITICAL: Include PLPL and PEPS in the sync - these are needed for generic face handling
+                // CRITICAL: Include ALL face-related fields in the sync
                 for (const filteredPlayer of this.filteredPlayers) {
                     // Check for face-related properties that need syncing
                     // Note: PEPS can be empty string '' for generic faces, so use !== undefined
                     if (filteredPlayer.assignedGenr || filteredPlayer.assignedSknt !== undefined ||
                         filteredPlayer.assignedRace !== undefined || filteredPlayer.PLPL !== undefined ||
-                        filteredPlayer.PEPS !== undefined || filteredPlayer.PSKI !== undefined) {
+                        filteredPlayer.PEPS !== undefined || filteredPlayer.PSKI !== undefined ||
+                        filteredPlayer.assignedPghe !== undefined || filteredPlayer.PSXP !== undefined) {
                         const mainPlayer = playersMap.get(filteredPlayer.PGID);
                         if (mainPlayer && mainPlayer !== filteredPlayer) {
+                            // CRITICAL: Sync ALL face-related fields including PSXP (PID) and PGHE
+                            if (filteredPlayer.PSXP !== undefined) mainPlayer.PSXP = filteredPlayer.PSXP;
+                            if (filteredPlayer.PGHE !== undefined) mainPlayer.PGHE = filteredPlayer.PGHE;
                             if (filteredPlayer.assignedGenr) mainPlayer.assignedGenr = filteredPlayer.assignedGenr;
                             if (filteredPlayer.assignedSknt !== undefined) mainPlayer.assignedSknt = filteredPlayer.assignedSknt;
                             if (filteredPlayer.assignedRace !== undefined) mainPlayer.assignedRace = filteredPlayer.assignedRace;
+                            if (filteredPlayer.assignedPghe !== undefined) mainPlayer.assignedPghe = filteredPlayer.assignedPghe;
+                            if (filteredPlayer.assignedPfcg !== undefined) mainPlayer.assignedPfcg = filteredPlayer.assignedPfcg;
+                            if (filteredPlayer.assignedGpan !== undefined) mainPlayer.assignedGpan = filteredPlayer.assignedGpan;
+                            if (filteredPlayer.assignedGslp !== undefined) mainPlayer.assignedGslp = filteredPlayer.assignedGslp;
+                            if (filteredPlayer.assignedPghePid !== undefined) mainPlayer.assignedPghePid = filteredPlayer.assignedPghePid;
+                            if (filteredPlayer.assignedCpvf !== undefined) mainPlayer.assignedCpvf = filteredPlayer.assignedCpvf;
                             // CRITICAL: Sync PLPL (generic face indicator) and PEPS (PAM)
                             if (filteredPlayer.PLPL !== undefined) mainPlayer.PLPL = filteredPlayer.PLPL;
                             // CRITICAL FIX: Sync PEPS even when empty - generic faces NEED empty PEPS!
@@ -6529,329 +6539,187 @@ class MaddenEditorApp {
     }
 
     /**
-     * Fix generic faces - looks up correct race from database and assigns proper GENR/SKNT
-     * Uses PGHE lookup from game's streameddata.DB to assign proper generic faces.
-     * Each generic face has its own PID (PSXP) - we assign that PID to the player.
-     * Sets: PSXP (PID), PEPS (GENR), assignedGenr, assignedSknt, assignedRace
-     * GenericFaceService.updateBLBMForGenericFaces() applies BLBM changes on save.
-     * Works on both ROSTER files and DRAFT CLASS files.
+     * Fix generic faces for entire roster
+     * Simple logic:
+     * 1. If player has a generic face PID → Apply FULL config from that entry
+     * 2. If player has a non-generic PID → PAM-only mode (preserve PID, assign matching generic model)
+     *
+     * Result: Every player has either a full generic match OR their original portrait with a matching 3D model
      */
     async fixGenericFaces() {
-        // Determine data source: roster (this.players) or draft class (this.currentDraftClass)
-        const isDraftClass = this.currentDraftClass && this.currentDraftClass.prospects && this.currentDraftClass.prospects.length > 0;
-        const isRoster = this.players && this.players.length > 0;
-
-        if (!isDraftClass && !isRoster) {
-            this.showError('No roster or draft class loaded. Please load a file first.');
+        // Only works on roster files (filteredPlayers)
+        if (!this.filteredPlayers || this.filteredPlayers.length === 0) {
+            this.showError('No roster loaded. Please load a roster file first.');
             return;
         }
 
-        const dataSource = isDraftClass ? this.currentDraftClass.prospects : this.players;
-        const dataType = isDraftClass ? 'draft class' : 'roster';
+        console.log(`[FixFaces] Starting face fix for ${this.filteredPlayers.length} players...`);
 
-        console.log(`[FixFaces] Starting PGHE-based face assignment on ${dataType}...`);
-        console.log(`[FixFaces] Processing ${dataSource.length} ${isDraftClass ? 'prospects' : 'players'}`);
+        // Load face picker mapping - same data source as working face picker
+        let facePickerMapping = null;
+        const validGenericPIDs = new Set();
+        const pidToFaceData = new Map(); // PID -> { genr, sknt, position }
+        const facesBySkintone = new Map(); // skin tone -> array of faces
 
-        // Initialize PGHE service
         try {
-            await window.electronAPI.pghe.initialize();
-            console.log('[FixFaces] PGHE service initialized');
-        } catch (e) {
-            console.error('[FixFaces] Failed to initialize PGHE service:', e);
-            this.showError('Failed to initialize generic face service');
-            return;
-        }
+            facePickerMapping = await window.electronAPI.lookup.getFacePickerMapping();
+            console.log(`[FixFaces] Loaded ${Object.keys(facePickerMapping).length} face picker entries`);
 
-        let fixedCount = 0;
-        let skippedReal = 0;
-        let noRaceFound = 0;
-        let failedAssignment = 0;
+            // Build lookup structures
+            for (const posStr of Object.keys(facePickerMapping)) {
+                const entry = facePickerMapping[posStr];
+                if (entry && entry.pid) {
+                    validGenericPIDs.add(entry.pid);
+                    pidToFaceData.set(entry.pid, {
+                        position: parseInt(posStr),
+                        genr: entry.genr,
+                        sknt: entry.sknt || 4
+                    });
 
-        // DEBUG: Log first 5 entries BEFORE fix
-        console.log(`[FixFaces] BEFORE - First 5 ${isDraftClass ? 'prospects' : 'players'}:`);
-        for (let i = 0; i < Math.min(5, dataSource.length); i++) {
-            const p = dataSource[i];
-            if (isDraftClass) {
-                console.log(`  ${i}: ${p.firstName} ${p.lastName} - PID=${p.PID}, PEPS="${p.PEPS}"`);
-            } else {
-                console.log(`  ${i}: ${p.PFNA} ${p.PLNA} - PID=${p.PSXP}, PLPL=${p.PLPL}, PEPS="${p.PEPS}", PLRC=${p.PLRC}`);
-            }
-        }
-
-        // Build a set of real player/legend PIDs from window.lookupData
-        // These PIDs should NEVER be modified by Fix Faces
-        const realPlayerPIDs = new Set();
-        const legendPIDs = new Set();
-
-        // Get PID types from portrait mapping if available
-        if (window.pidPortraitTypes) {
-            for (const [pid, type] of window.pidPortraitTypes.entries()) {
-                if (type === 'player') {
-                    realPlayerPIDs.add(pid);
-                } else if (type === 'legend') {
-                    legendPIDs.add(pid);
+                    const sknt = entry.sknt || 4;
+                    if (!facesBySkintone.has(sknt)) {
+                        facesBySkintone.set(sknt, []);
+                    }
+                    facesBySkintone.get(sknt).push({
+                        position: parseInt(posStr),
+                        pid: entry.pid,
+                        genr: entry.genr,
+                        sknt: entry.sknt
+                    });
                 }
             }
-            console.log(`[FixFaces] Loaded ${realPlayerPIDs.size} current player PIDs and ${legendPIDs.size} legend PIDs to protect`);
-        } else {
-            // Fallback: load the mapping now
-            try {
-                const mappings = await window.electronAPI.lookup.getPIDPortraitMapping();
-                if (mappings && mappings.length > 0) {
-                    for (const mapping of mappings) {
-                        if (mapping.type === 'player') {
-                            realPlayerPIDs.add(mapping.pid);
-                        } else if (mapping.type === 'legend') {
-                            legendPIDs.add(mapping.pid);
+            console.log(`[FixFaces] ${validGenericPIDs.size} valid generic PIDs, skin tones: ${Array.from(facesBySkintone.keys()).sort().join(', ')}`);
+        } catch (e) {
+            console.error('[FixFaces] Failed to load face picker mapping:', e);
+            this.showError('Failed to load face picker data');
+            return;
+        }
+
+        let fullModeCount = 0;
+        let pamOnlyCount = 0;
+        let skippedEmpty = 0;
+
+        for (const player of this.filteredPlayers) {
+            const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
+            const currentPID = player.PSXP;
+
+            // Skip empty player slots
+            if (!playerName || playerName.trim() === '') {
+                skippedEmpty++;
+                continue;
+            }
+
+            // Check if current PID is a known generic face PID
+            const isGenericPID = validGenericPIDs.has(currentPID);
+
+            if (isGenericPID) {
+                // FULL MODE: Player already has a generic face PID
+                // Apply all settings from that entry's data
+                const faceData = pidToFaceData.get(currentPID);
+
+                if (faceData) {
+                    // Set all fields exactly like the face picker does in full mode
+                    player.PEPS = '';
+                    player.PLPL = 0;
+                    player.PGHE = 0;
+                    player.assignedGenr = faceData.genr;
+                    player.assignedSknt = faceData.sknt;
+                    player.PLRC = faceData.sknt;
+                    player.PSKI = faceData.sknt >= 4 ? 1 : 2;
+                    player.assignedRace = faceData.sknt;
+
+                    fullModeCount++;
+                    if (fullModeCount <= 5) {
+                        console.log(`[FixFaces] FULL: ${playerName} PID=${currentPID} -> genr="${faceData.genr}", sknt=${faceData.sknt}`);
+                    }
+                }
+            } else {
+                // PAM-ONLY MODE: Player has a non-generic PID (custom portrait, real player, etc.)
+                // Preserve their PID but assign a matching generic 3D model
+
+                // Determine skin tone from PLRC, or default to 4
+                let skinTone = player.PLRC;
+                if (!skinTone || skinTone < 1 || skinTone > 7) {
+                    // Try to look up from database
+                    if (currentPID) {
+                        try {
+                            skinTone = await window.electronAPI.lookup.getRaceByPID(currentPID);
+                        } catch (e) {
+                            // Silent fail
                         }
                     }
-                    console.log(`[FixFaces] Loaded ${realPlayerPIDs.size} current player PIDs and ${legendPIDs.size} legend PIDs to protect`);
+                    if (!skinTone || skinTone < 1 || skinTone > 7) {
+                        skinTone = 4; // Default to middle
+                    }
                 }
-            } catch (e) {
-                console.warn('[FixFaces] Could not load PID portrait mapping:', e);
-            }
-        }
 
-        for (const entry of dataSource) {
-            // Get field values based on data type (roster vs draft class)
-            const plpl = isDraftClass ? 0 : (entry.PLPL ?? 0); // Draft class = all generic by default
-            const peps = entry.PEPS ?? '';
-            const existingPid = isDraftClass ? entry.PID : entry.PSXP;
-            const playerName = isDraftClass
-                ? `${entry.firstName || ''} ${entry.lastName || ''}`.trim()
-                : `${entry.PFNA || ''} ${entry.PLNA || ''}`.trim();
-
-            // Check if PID is a custom Portrait Manager assignment (12000+)
-            const CUSTOM_PORTRAIT_PID_START = 12000;
-            const hasCustomPortrait = existingPid && existingPid >= CUSTOM_PORTRAIT_PID_START;
-
-            // CRITICAL: Check if this PID belongs to a REAL in-game player or legend
-            // These PIDs should NEVER be modified - they have real face scans/portraits
-            const isRealPlayerPID = existingPid && realPlayerPIDs.has(existingPid);
-            const isLegendPID = existingPid && legendPIDs.has(existingPid);
-
-            // Check if PAM is for a real player (not generic)
-            const hasRealPAM = peps && typeof peps === 'string' && peps.length > 0 &&
-                !peps.startsWith('gen_') && !peps.includes('generic');
-
-            // Check if player has a generic PEPS that might need fixing
-            const hasGenericPEPS = peps && typeof peps === 'string' && peps.startsWith('gen_');
-
-            // For Portrait Manager portraits (PID >= 12000):
-            // - If they have a generic PEPS, process them to fix skin tone consistency (keep PID)
-            // - If they don't have a generic PEPS, skip them
-            if (hasCustomPortrait) {
-                if (!hasGenericPEPS) {
-                    skippedReal++;
-                    console.log(`[FixFaces] Skipping ${playerName}: has Portrait Manager portrait without generic PEPS (PID=${existingPid})`);
-                    continue;
+                // Get a random face for this skin tone
+                let facesForTone = facesBySkintone.get(skinTone);
+                if (!facesForTone || facesForTone.length === 0) {
+                    // Try adjacent skin tones
+                    for (let offset = 1; offset <= 3; offset++) {
+                        facesForTone = facesBySkintone.get(skinTone - offset) || facesBySkintone.get(skinTone + offset);
+                        if (facesForTone && facesForTone.length > 0) break;
+                    }
                 }
-                // Has Portrait Manager portrait WITH generic PEPS - will process below to fix skin tone
-                console.log(`[FixFaces] Processing ${playerName}: Portrait Manager portrait (PID=${existingPid}) with generic PEPS="${peps}" - fixing skin tone consistency`);
-            }
 
-            // Skip players with REAL in-game player PIDs (unless they have generic PEPS that needs fixing)
-            if (isRealPlayerPID && !hasGenericPEPS) {
-                skippedReal++;
-                console.log(`[FixFaces] Skipping ${playerName}: has real in-game player PID (${existingPid})`);
-                continue;
-            }
+                if (facesForTone && facesForTone.length > 0) {
+                    const randomFace = facesForTone[Math.floor(Math.random() * facesForTone.length)];
 
-            // Skip players with LEGEND PIDs (unless they have generic PEPS that needs fixing)
-            if (isLegendPID && !hasGenericPEPS) {
-                skippedReal++;
-                console.log(`[FixFaces] Skipping ${playerName}: has legend PID (${existingPid})`);
-                continue;
-            }
+                    // Apply all settings EXCEPT preserve the original PID
+                    // This is exactly what PAM-only mode does in the face picker
+                    player.PEPS = '';
+                    player.PLPL = 0;
+                    player.PGHE = 0;
+                    player.assignedGenr = randomFace.genr;
+                    player.assignedSknt = randomFace.sknt;
+                    player.PLRC = randomFace.sknt;
+                    player.PSKI = randomFace.sknt >= 4 ? 1 : 2;
+                    player.assignedRace = randomFace.sknt;
+                    // CRITICAL: Do NOT change player.PSXP - preserve the original PID
 
-            // Also skip if PLPL indicates a real face scan (PLPL != 0) for roster files
-            if (!isDraftClass && plpl !== 0 && plpl !== '0') {
-                skippedReal++;
-                console.log(`[FixFaces] Skipping ${playerName}: has real face scan (PLPL=${plpl})`);
-                continue;
-            }
-
-            // Skip if has real PAM (not generic)
-            if (hasRealPAM) {
-                skippedReal++;
-                console.log(`[FixFaces] Skipping ${playerName}: has real player PAM (${peps})`);
-                continue;
-            }
-
-            // At this point, we have a player with:
-            // - No Portrait Manager assignment (PID < 12000)
-            // - Not a real in-game player PID
-            // - Not a legend PID
-            // - PLPL = 0 (generic face indicator) for roster
-            // - No real player PAM
-            // This player needs a proper generic face assignment
-
-            // Get race/skin tone - PRIORITY ORDER:
-            // 1. Extract from existing PEPS/GENR if it's a valid generic format (most reliable for existing faces)
-            // 2. Fall back to PLRC (player race field)
-            // 3. Fall back to database lookup by PID
-            // 4. Default to middle skin tone (4)
-            let race = null;
-
-            // First try to extract skin tone from existing PEPS (most reliable for fixing mismatches)
-            if (peps && typeof peps === 'string' && peps.startsWith('gen_')) {
-                const pepsMatch = peps.match(/^gen_(\d+)/);
-                if (pepsMatch) {
-                    race = parseInt(pepsMatch[1]);
-                    if (fixedCount < 5) {
-                        console.log(`[FixFaces] ${playerName}: Using existing PEPS skin tone: ${race} (from "${peps}")`);
+                    pamOnlyCount++;
+                    if (pamOnlyCount <= 5) {
+                        console.log(`[FixFaces] PAM-ONLY: ${playerName} PID=${currentPID} (kept) -> genr="${randomFace.genr}", sknt=${randomFace.sknt}`);
                     }
                 }
             }
 
-            // Fall back to PLRC if no valid PEPS skin tone
-            if (!race || race === 0) {
-                race = isDraftClass ? (entry.race || entry.skinTone) : entry.PLRC;
-            }
-
-            // If no race on player, try to look up from database using existing PID
-            if (!race || race === 0) {
-                if (existingPid) {
-                    try {
-                        race = await window.electronAPI.lookup.getRaceByPID(existingPid);
-                    } catch (e) {
-                        // Silent fail
-                    }
-                }
-            }
-
-            if (!race || race === 0) {
-                noRaceFound++;
-                // Default to middle skin tone (4) if nothing found
-                race = 4;
-            }
-
-            // Use PGHE service to get a random face for this race
-            // Race 1-7 maps directly to skin tone 1-7
-            let pgheEntry = null;
-            try {
-                pgheEntry = await window.electronAPI.pghe.getRandomByRace(race);
-            } catch (e) {
-                console.error(`[FixFaces] Failed to get PGHE for race ${race}:`, e);
-            }
-
-            if (!pgheEntry) {
-                failedAssignment++;
-                console.warn(`[FixFaces] No PGHE entry found for ${playerName}, race=${race}`);
-                continue;
-            }
-
-            // Assign the PGHE face to this player/prospect
-            // Set ALL fields from PGHE lookup (PGHE, PFCG, GPAN, GSLP, PSXP, CPVF)
-
-            if (isDraftClass) {
-                // Draft class uses different field names
-                entry.PID = pgheEntry.psxp;      // CRITICAL: Set PID to PGHE entry's PID
-                entry.PEPS = '';                 // CRITICAL: Game clears PEPS for generic faces
-
-                // Update visuals.genericHeadName if visuals object exists
-                if (entry.visuals) {
-                    entry.visuals.genericHeadName = pgheEntry.genr;
-                    entry.visuals.skinTone = pgheEntry.skinTone;
-                }
-
-                // Store PGHE matched set for saving
-                entry.assignedPghe = pgheEntry.pghe;
-                entry.assignedPfcg = pgheEntry.pfcg;
-                entry.assignedGpan = pgheEntry.gpan;
-                entry.assignedGslp = pgheEntry.gslp;
-                entry.assignedPghePid = pgheEntry.psxp;
-                entry.assignedCpvf = pgheEntry.cpvf;
-                entry.assignedGenr = pgheEntry.genr;
-                entry.assignedSknt = pgheEntry.skinTone;
-                entry.race = race;
-                entry.skinTone = pgheEntry.skinTone;
-
-                // Update playerPic for grid display
-                entry.playerPic = 'Generic Face';
-            } else {
-                // Roster uses PSXP, PLPL, PLRC field names
-
-                // For Portrait Manager portraits, legend PIDs, or real player PIDs:
-                // Keep their portrait (PID) but fix skin tone consistency
-                const keepPortrait = hasCustomPortrait || isLegendPID || isRealPlayerPID;
-
-                if (!keepPortrait) {
-                    entry.PSXP = pgheEntry.psxp;     // Set PSXP to PGHE entry's PID
-                    entry.PLAYERPIC = 'Generic Face';
-                }
-
-                entry.PEPS = '';                 // CRITICAL: Game clears PEPS for generic faces
-                entry.PGHE = pgheEntry.pghe;     // Set PGHE (face picker index)
-
-                // Store ALL PGHE data for GenericFaceService
-                entry.assignedPghe = pgheEntry.pghe;
-                entry.assignedPfcg = pgheEntry.pfcg;
-                entry.assignedGpan = pgheEntry.gpan;
-                entry.assignedGslp = pgheEntry.gslp;
-                entry.assignedPghePid = pgheEntry.psxp;
-                entry.assignedCpvf = pgheEntry.cpvf;
-                entry.assignedGenr = pgheEntry.genr;
-                entry.assignedSknt = pgheEntry.skinTone;
-                entry.assignedRace = race;
-
-                // Update PLRC to match the assigned skin tone
-                entry.PLRC = race;
-
-                // CRITICAL: Set PLPL based on portrait type
-                // - Custom portraits (PID >= 12000) or real PIDs must have PLPL=100 to persist
-                // - Generic faces use PLPL=0 (game regenerates PSXP from GENR)
-                if (keepPortrait) {
-                    entry.PLPL = 100;
-                    console.log(`[FixFaces] ${playerName}: Keeping portrait (PID=${existingPid}), fixing skin tone: PEPS="", PLRC=${race}, PLPL=100 (real face), assignedGenr="${pgheEntry.genr}"`);
-                } else {
-                    entry.PLPL = 0;
-                }
-            }
-
-            fixedCount++;
-
-            if (fixedCount <= 10) {
-                console.log(`[FixFaces] ${playerName}: race=${race} -> PGHE=${pgheEntry.pghe}, PFCG="${pgheEntry.pfcg}", PSXP=${pgheEntry.psxp}, GENR="${pgheEntry.genr}", SKNT=${pgheEntry.skinTone}`);
+            // Sync to this.players array
+            const mainPlayer = this.players.find(p =>
+                p.PFNA === player.PFNA && p.PLNA === player.PLNA &&
+                (player.PGID ? p.PGID === player.PGID : p.PSXP === currentPID)
+            );
+            if (mainPlayer && mainPlayer !== player) {
+                mainPlayer.PEPS = player.PEPS;
+                mainPlayer.PLPL = player.PLPL;
+                mainPlayer.PGHE = player.PGHE;
+                mainPlayer.PLRC = player.PLRC;
+                mainPlayer.PSKI = player.PSKI;
+                mainPlayer.assignedGenr = player.assignedGenr;
+                mainPlayer.assignedSknt = player.assignedSknt;
+                mainPlayer.assignedRace = player.assignedRace;
             }
         }
 
-        // DEBUG: Log first 5 entries AFTER fix
-        console.log(`[FixFaces] AFTER - First 5 ${isDraftClass ? 'prospects' : 'players'}:`);
-        for (let i = 0; i < Math.min(5, dataSource.length); i++) {
-            const p = dataSource[i];
-            if (isDraftClass) {
-                console.log(`  ${i}: ${p.firstName} ${p.lastName} - PID=${p.PID}, PEPS="${p.PEPS}"`);
-            } else {
-                console.log(`  ${i}: ${p.PFNA} ${p.PLNA} - PID=${p.PSXP}, PLPL=${p.PLPL}, PEPS="${p.PEPS}", PLRC=${p.PLRC}`);
-            }
-        }
+        console.log(`[FixFaces] Complete: ${fullModeCount} full mode, ${pamOnlyCount} PAM-only, ${skippedEmpty} skipped`);
 
-        console.log(`[FixFaces] Clearing portrait cache and reloading...`);
-
-        // Clear ALL portrait cache to force reload with new PID values
+        // Clear portrait cache and refresh grid
         if (this.portraitCache) {
             this.portraitCache.clear();
         }
-
-        // Force reload portraits for current page
         await this.reloadCurrentPagePortraits();
 
-        // Refresh the appropriate grid
-        if (isDraftClass && this.draftGrid) {
-            this.draftGrid.render();
-        } else if (this.hot) {
+        if (this.hot) {
             this.hot.render();
         } else if (this.agGrid) {
             this.agGrid.refreshCells({ force: true });
         }
 
-        const saveTarget = isDraftClass ? 'draft class' : 'roster';
-        const msg = `Fixed ${fixedCount} ${isDraftClass ? 'prospects' : 'players'} with PGHE generic faces.\n\n` +
-            `Skipped ${skippedReal} with real PAM.\n` +
-            `${noRaceFound} had no race data (used default).\n` +
-            `${failedAssignment} failed to find matching face.\n\n` +
-            `SAVE the ${saveTarget} to apply changes!`;
+        const msg = `Fixed ${fullModeCount + pamOnlyCount} players:\n` +
+            `- ${fullModeCount} with existing generic PIDs (full config applied)\n` +
+            `- ${pamOnlyCount} with custom portraits (PAM-only mode)\n\n` +
+            `SAVE the roster to apply changes!`;
 
         console.log('[FixFaces]', msg);
         alert(msg);
