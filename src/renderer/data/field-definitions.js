@@ -1084,83 +1084,45 @@ export const BODY_TYPE_NAMES = {
 };
 
 /**
- * Generate body type using EA's exact algorithm from FranchiseUtils.js
- * This matches the official Madden body type calculation.
+ * Generate body type based on in-game weight cutoffs
+ *
+ * In-game weight ranges (with overlaps):
+ * - Lean: 160-180 lbs
+ * - Thin: 180-240 lbs
+ * - Standard: 175-220 lbs
+ * - Muscular: 220-285 lbs
+ * - Heavy: 280-400 lbs
+ *
+ * Simplified to non-overlapping cutoffs:
+ * - Lean: <= 180 lbs
+ * - Standard: 181-219 lbs (thin and standard overlap here)
+ * - Muscular: 220-279 lbs
+ * - Heavy: >= 280 lbs
  *
  * @param {number} weight - Actual weight in pounds (PWGT + 160)
- * @param {number} height - Height in inches (PHGT value)
- * @param {number|string} position - Position ID (numeric) or name (string)
+ * @param {number} height - Height in inches (PHGT value) - NOT USED
+ * @param {number|string} position - Position ID or name - NOT USED
  * @returns {number} Body type code (0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean)
  */
 export function generateBodyType(weight, height, position) {
-    // Convert numeric position ID to string name
-    let pos = position;
-    if (typeof position === 'number') {
-        pos = POSITION_MAPPINGS[position] || '';
-    }
-    // Normalize to uppercase for comparison
-    pos = (pos || '').toUpperCase();
+    // Weight-only cutoffs based on in-game ranges
 
-    // M26 rule: very light players get Lean body type
+    // Lean: <= 180 lbs
     if (weight <= 180) {
         return 4; // Lean
     }
 
-    // Special teams positions: Standard
-    if (pos === 'K' || pos === 'P') {
-        return 0; // Standard
+    // Heavy: >= 280 lbs (highest priority after Lean)
+    if (weight >= 280) {
+        return 3; // Heavy
     }
 
-    // QB or WR: height and weight dependent
-    if (pos === 'QB' || pos === 'WR') {
-        if (weight >= 210 && height <= 71) {
-            return 2; // Muscular (short and heavy)
-        } else if (height >= 76) {
-            return 1; // Thin (tall)
-        }
-        return 0; // Standard
-    }
-
-    // Offensive Line positions: Heavy or Muscular based on weight
-    if (['LT', 'LG', 'C', 'RG', 'RT'].includes(pos)) {
-        if (weight >= 300) {
-            return 3; // Heavy
-        }
+    // Muscular: 220-279 lbs
+    if (weight >= 220) {
         return 2; // Muscular
     }
 
-    // Linebackers (SAM/MIKE/WILL or LOLB/MLB/ROLB), Tight Ends, Fullbacks: always Muscular
-    if (['SAM', 'MIKE', 'WILL', 'LOLB', 'MLB', 'ROLB', 'TE', 'FB'].includes(pos)) {
-        return 2; // Muscular
-    }
-
-    // Defensive Line positions (LEDG/REDG or LE/RE, and DT): Heavy or Muscular based on weight
-    if (['LEDG', 'REDG', 'LE', 'RE', 'DT'].includes(pos)) {
-        if (weight >= 275) {
-            return 3; // Heavy
-        }
-        return 2; // Muscular
-    }
-
-    // Halfback: weight dependent
-    if (pos === 'HB') {
-        if (weight >= 220) {
-            return 2; // Muscular
-        } else if (weight >= 180) {
-            return 0; // Standard
-        }
-        return 1; // Thin
-    }
-
-    // Defensive Backs: weight dependent
-    if (['CB', 'FS', 'SS'].includes(pos)) {
-        if (weight >= 180) {
-            return 0; // Standard
-        }
-        return 1; // Thin
-    }
-
-    // Default fallback
+    // Standard: 181-219 lbs (default for middle range)
     return 0; // Standard
 }
 

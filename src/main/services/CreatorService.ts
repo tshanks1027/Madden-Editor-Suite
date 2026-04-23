@@ -5190,36 +5190,34 @@ export class CreatorService {
   }
 
   /**
-   * Determine body type based on position, weight, and height
+   * Determine body type based on weight only
    * Returns Madden body type STRING: "Thin", "Muscular", "Heavy"
    * These are the ONLY valid values for draft class visuals JSON
+   *
+   * In-game weight cutoffs (simplified):
+   * - Lean/Thin: <= 219 lbs → "Thin"
+   * - Muscular: 220-279 lbs → "Muscular"
+   * - Heavy: >= 280 lbs → "Heavy"
    */
   private determineBodyType(position: string, weight?: number, height?: number): string {
-    const pos = position.toUpperCase();
     const w = weight || this.getDefaultWeight(position);
-    const h = height || 73; // Default 6'1"
 
-    // Ensure we have valid numbers
-    if (!w || !h || w <= 0 || h <= 0) {
-      console.warn(`[CreatorService] Invalid weight/height for body type: w=${w}, h=${h}, using default Muscular`);
+    // Ensure we have valid weight
+    if (!w || w <= 0) {
+      console.warn(`[CreatorService] Invalid weight for body type: w=${w}, using default Muscular`);
       return 'Muscular'; // Default Muscular
     }
 
-    // CORRECT Madden body types: "Thin", "Muscular", "Heavy"
-    // These are the only valid values for draft class JSON
-    const bmi = (w / (h * h)) * 703; // Calculate BMI
-
-    // HB should ALWAYS be Muscular - never Heavy (causes fat appearance)
-    if (['HB', 'QB'].includes(pos)) {
-      return 'Muscular'; // RBs and QBs are always Muscular
-    } else if (['WR', 'CB', 'FS'].includes(pos)) {
-      return bmi < 24 ? 'Thin' : 'Muscular'; // Thin for lean receivers/DBs, Muscular otherwise
-    } else if (['FB', 'SAM', 'MIKE', 'WILL', 'SS', 'TE'].includes(pos)) {
-      return bmi < 28 ? 'Muscular' : 'Heavy'; // Higher threshold - only very large players get Heavy
-    } else if (['LT', 'LG', 'C', 'RG', 'RT', 'LEDG', 'REDG', 'DT'].includes(pos)) {
-      return 'Heavy'; // Linemen are Heavy
+    // Simple weight-based cutoffs (draft class only supports Thin/Muscular/Heavy)
+    // Lean (<=180) and Standard (181-219) map to "Thin"
+    // Muscular (220-279) maps to "Muscular"
+    // Heavy (>=280) maps to "Heavy"
+    if (w >= 280) {
+      return 'Heavy';
+    } else if (w >= 220) {
+      return 'Muscular';
     } else {
-      return 'Muscular'; // Default Muscular
+      return 'Thin';
     }
   }
 

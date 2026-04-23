@@ -2193,6 +2193,27 @@ export class RosterGeneratorService {
     const genericFace = this.selectGenericFaceByRace(fillerRace);
     // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
 
+    // Generate weight-based body type (consistent with other generators)
+    // Weight range: 180-259 lbs (PWGT offset: 20-99)
+    const fillerActualWeight = 180 + Math.floor(Math.random() * 80); // 180-259 lbs
+    const fillerPwgt = fillerActualWeight - 160; // Convert to offset format (20-99)
+    // Body type codes: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+    let fillerPcbt: number;
+    let fillerPtar: string;
+    if (fillerActualWeight <= 180) {
+      fillerPcbt = 4; // Lean
+      fillerPtar = 'Thin'; // Draft format doesn't support Lean
+    } else if (fillerActualWeight >= 280) {
+      fillerPcbt = 3; // Heavy
+      fillerPtar = 'Heavy';
+    } else if (fillerActualWeight >= 220) {
+      fillerPcbt = 2; // Muscular
+      fillerPtar = 'Muscular';
+    } else {
+      fillerPcbt = 0; // Standard (181-219)
+      fillerPtar = 'Thin'; // Draft format doesn't support Standard
+    }
+
     const player = {
       firstName: firstName,
       lastName: lastName,
@@ -2200,7 +2221,7 @@ export class RosterGeneratorService {
       jerseyNum: Math.floor(Math.random() * 99) + 1,
       age: 23 + Math.floor(Math.random() * 5), // 23-27
       heightInches: 70 + Math.floor(Math.random() * 10), // 70-79 inches
-      weight: 180 + Math.floor(Math.random() * 80), // 180-259 lbs
+      weight: fillerActualWeight, // Use pre-calculated weight for consistency with body type
       team: 'FA',
 
       // IDs - For generic faces: PLPL=0 (number), use GENR from PGHE lookup
@@ -2278,14 +2299,14 @@ export class RosterGeneratorService {
       PAGE: 23 + Math.floor(Math.random() * 5),
       PSXP: genericFace.pid, // PID from race-matched generic face
       PHGT: 70 + Math.floor(Math.random() * 10),
-      PWGT: 20 + Math.floor(Math.random() * 80), // Offset: 20-99 = actual 180-259 lbs
+      PWGT: fillerPwgt, // Pre-calculated weight offset (actual weight for body type calc)
       PCOL: Math.floor(Math.random() * 264) + 1,  // 1-264 (skip 0=Blank, 265=No College)
       PHSN: Math.floor(Math.random() * 50),
       PJEN: Math.floor(Math.random() * 99) + 1,
       PLTY: this.getDefaultArchetype(positionName), // Default archetype for position - will be synced below
       PYRP: Math.floor(Math.random() * 3) + 1, // Years Pro: 1-3 (rookie/young players)
-      PCBT: this.determineFillerPCBT(positionCode), // Body type based on position (numeric)
-      PTAR: this.determineFillerPTAR(positionCode), // Body type based on position (string)
+      PCBT: fillerPcbt, // Weight-based body type (numeric)
+      PTAR: fillerPtar, // Weight-based body type (string)
       PGHE: genericFace.pghe, // Generic head ID from race-matched face
       // DON'T SET PSKI - BLBM handles it
       PLPL: 0, // Generic face marker (number, not string)
@@ -3269,30 +3290,28 @@ export class RosterGeneratorService {
   }
 
   /**
-   * Determine PCBT (body type display) from database row
+   * Determine PCBT (body type code) from database row
+   * Uses simple weight-based cutoffs:
+   * - Lean: <= 180 lbs → 4
+   * - Standard: 181-219 lbs → 0
+   * - Muscular: 220-279 lbs → 2
+   * - Heavy: >= 280 lbs → 3
    */
   private determinePCBTFromDb(dbRow: any): number {
     const weight = dbRow.weight || 200;
-    const height = dbRow.height || 72;
-    const bmi = (weight / (height * height)) * 703;
 
-    if (bmi < 24) return 1;      // Thin
-    if (bmi < 28) return 0;      // Standard
-    if (bmi < 32) return 2;      // Muscular
-    if (bmi < 36) return 3;      // Heavy
-    return 4;                     // Extra Heavy
+    if (weight <= 180) return 4;      // Lean
+    if (weight >= 280) return 3;      // Heavy
+    if (weight >= 220) return 2;      // Muscular
+    return 0;                          // Standard (181-219)
   }
 
   /**
    * Determine body type code from database row
+   * Uses same weight-based cutoffs as determinePCBTFromDb
    */
   private determineBodyTypeFromDb(dbRow: any): number {
-    const weight = dbRow.weight || 200;
-    if (weight < 180) return 0;       // Thin
-    if (weight < 220) return 1;       // Normal
-    if (weight < 260) return 2;       // Muscular
-    if (weight < 300) return 3;       // Heavy
-    return 4;                          // Extra Heavy
+    return this.determinePCBTFromDb(dbRow);
   }
 
   /**
@@ -4429,45 +4448,27 @@ export class RosterGeneratorService {
 
   /**
    * Determine PCBT (body type code) for roster files
-   * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy
-   * Based on EA's official roster file body type distribution
+   * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
+   *
+   * In-game weight cutoffs:
+   * - Lean: <= 180 lbs → 4
+   * - Standard: 181-219 lbs → 0
+   * - Muscular: 220-279 lbs → 2
+   * - Heavy: >= 280 lbs → 3
    */
   private determinePCBT(csvRow: any): number {
     const weight = parseInt(csvRow.Weight) || 200;
-    const position = (csvRow.Position || '').toUpperCase();
 
-    // Offensive Line - Heavy (3) for most, Extra Heavy (4) for 330+ lbs
-    if (['LT', 'LG', 'C', 'RG', 'RT'].includes(position)) {
-      return weight >= 330 ? 4 : 3; // Extra Heavy for massive OL, otherwise Heavy
-    }
-
-    // Defensive Tackle - Heavy (3) for most, Extra Heavy (4) for 330+ lbs
-    if (position === 'DT') {
-      return weight >= 330 ? 4 : 3;
-    }
-
-    // Edge Rushers - Muscular (2)
-    if (['LEDG', 'REDG', 'LE', 'RE', 'DE'].includes(position)) {
+    // Simple weight-based cutoffs
+    if (weight <= 180) {
+      return 4; // Lean
+    } else if (weight >= 280) {
+      return 3; // Heavy
+    } else if (weight >= 220) {
       return 2; // Muscular
+    } else {
+      return 0; // Standard (181-219)
     }
-
-    // Tight End - Muscular (2) for bigger TEs, Standard (0) for others
-    if (position === 'TE') {
-      return weight >= 260 ? 2 : 0;
-    }
-
-    // Fullback - Heavy (3) or Muscular (2) based on weight
-    if (position === 'FB') {
-      return weight >= 250 ? 3 : 2;
-    }
-
-    // Kicker/Punter - Thin (1)
-    if (position === 'K' || position === 'P') {
-      return 1; // Thin
-    }
-
-    // All other positions (QB, WR, HB, CB, FS, SS, LB, LS): Standard (0)
-    return 0;
   }
 
   /**
@@ -4558,56 +4559,26 @@ export class RosterGeneratorService {
   }
 
   /**
-   * Determine body type based on position and weight/height using BMI
+   * Determine body type based on weight only
    * Returns Madden body type STRING: "Thin", "Muscular", or "Heavy"
-   * NEVER returns null - null causes Madden to default to incorrect body types (fat players)
-   * Based on CreatorService BMI-based logic for realistic body proportions
+   * NEVER returns null - null causes Madden to default to incorrect body types
+   *
+   * In-game weight cutoffs (simplified for draft class format):
+   * - Lean/Standard: <= 219 lbs → "Thin"
+   * - Muscular: 220-279 lbs → "Muscular"
+   * - Heavy: >= 280 lbs → "Heavy"
    */
   private determineBodyType(csvRow: any): string {
     const weight = parseInt(csvRow.Weight) || 200;
-    const position = (csvRow.Position || '').toUpperCase();
-    const height = parseInt(csvRow.Height) || 73; // Default 6'1"
 
-    // Calculate BMI for proportional body type assignment
-    const bmi = (weight / (height * height)) * 703;
-
-    // Offensive Line - ALWAYS Heavy
-    if (['LT', 'LG', 'C', 'RG', 'RT'].includes(position)) {
+    // Simple weight-based cutoffs (draft class only supports Thin/Muscular/Heavy)
+    if (weight >= 280) {
       return 'Heavy';
-    }
-
-    // Defensive Tackle - Heavy
-    if (position === 'DT') {
-      return 'Heavy';
-    }
-
-    // Edge Rushers (LEDG/REDG, LE/RE) - Muscular
-    if (['LEDG', 'REDG', 'LE', 'RE', 'DE'].includes(position)) {
+    } else if (weight >= 220) {
       return 'Muscular';
-    }
-
-    // Kicker/Punter - Thin
-    if (position === 'K' || position === 'P') {
+    } else {
       return 'Thin';
     }
-
-    // QB - Muscular (not Heavy, not Thin)
-    if (position === 'QB') {
-      return 'Muscular';
-    }
-
-    // WR, CB, FS - Thin for lean players, Muscular for bigger ones
-    if (['WR', 'CB', 'FS'].includes(position)) {
-      return bmi < 24 ? 'Thin' : 'Muscular';
-    }
-
-    // HB, FB, SS, TE, Linebackers - Muscular for skill players, Heavy for bigger ones
-    if (['HB', 'FB', 'SS', 'TE', 'SAM', 'MIKE', 'WILL', 'MLB', 'LOLB', 'ROLB'].includes(position)) {
-      return bmi < 26 ? 'Muscular' : 'Heavy';
-    }
-
-    // Default: Muscular (safe default that looks normal in-game)
-    return 'Muscular';
   }
 
   /**

@@ -563,43 +563,25 @@ export class RosterCreatorService {
    * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy
    * Position codes: QB=0, HB=1, FB=2, WR=3, TE=4, LT=5, LG=6, C=7, RG=8, RT=9, LE=10, RE=11, DT=12, LOLB=13, MLB=14, ROLB=15, CB=16, FS=17, SS=18, K=19, P=20
    *
-   * IMPORTANT: Do NOT return 0 (Standard) for QB/HB/WR - they look fat in-game!
-   * Use 2 (Muscular) as the default for skill positions.
+   * In-game weight cutoffs:
+   * - Lean: <= 180 lbs → 4
+   * - Standard: 181-219 lbs → 0
+   * - Muscular: 220-279 lbs → 2
+   * - Heavy: >= 280 lbs → 3
    */
-  private determineBodyType(positionCode: number): number {
-    // Offensive Line (LT=5, LG=6, C=7, RG=8, RT=9) - Heavy
-    if (positionCode >= 5 && positionCode <= 9) {
+  private determineBodyType(positionCode: number, weight?: number): number {
+    const w = weight || 220; // Default 220 if no weight provided
+
+    // Simple weight-based cutoffs
+    if (w <= 180) {
+      return 4; // Lean
+    } else if (w >= 280) {
       return 3; // Heavy
-    }
-
-    // Defensive Tackle (DT=12) - Heavy
-    if (positionCode === 12) {
-      return 3; // Heavy
-    }
-
-    // Edge Rushers (LE=10, RE=11) - Muscular
-    if (positionCode === 10 || positionCode === 11) {
+    } else if (w >= 220) {
       return 2; // Muscular
+    } else {
+      return 0; // Standard (181-219)
     }
-
-    // Tight End (TE=4) - Muscular
-    if (positionCode === 4) {
-      return 2; // Muscular
-    }
-
-    // Fullback (FB=2) - Muscular
-    if (positionCode === 2) {
-      return 2; // Muscular
-    }
-
-    // Kicker/Punter (K=19, P=20) - Thin
-    if (positionCode === 19 || positionCode === 20) {
-      return 1; // Thin
-    }
-
-    // QB (0), HB (1), WR (3), CB (16), FS (17), SS (18), Linebackers (13, 14, 15)
-    // Use Muscular (2) - NOT Standard (0) which causes fat appearance!
-    return 2; // Muscular
   }
 
   /**
@@ -724,7 +706,7 @@ export class RosterCreatorService {
     }
 
     const positionCode = this.positionStringToCode(stats.position || 'HB');
-    const bodyType = this.determineBodyType(positionCode);
+    const bodyType = this.determineBodyType(positionCode, stats.weight);
 
     // Build the RosterPlayer object with all ratings from lookup
     const rosterPlayer: RosterPlayer = {
@@ -2029,6 +2011,7 @@ export class RosterCreatorService {
 
     // Low-tier stats (40-55 OVR range)
     const baseRating = 40 + Math.floor(Math.random() * 16); // 40-55
+    const fillerWeight = 200 + Math.floor(Math.random() * 80); // 200-279 lbs
 
     return {
       firstName: firstName,
@@ -2039,14 +2022,14 @@ export class RosterCreatorService {
       age: 23 + Math.floor(Math.random() * 5), // 23-27
       jerseyNum: 50 + Math.floor(Math.random() * 50), // 50-99
       heightInches: 70 + Math.floor(Math.random() * 8), // 70-77 inches
-      weight: 200 + Math.floor(Math.random() * 80), // 200-279 lbs
+      weight: fillerWeight,
       college: 0,
       homeState: 0,
       devTrait: 0,
       PID: 0,
       PEPS: '',
       yearsPro: 0,
-      bodyType: this.determineBodyType(position), // Position-aware body type
+      bodyType: this.determineBodyType(position, fillerWeight), // Weight-based body type
       ratings: {
         overall: baseRating,
         speed: baseRating + Math.floor(Math.random() * 10) - 5,
@@ -2134,6 +2117,9 @@ export class RosterCreatorService {
     const genericFace = this.selectGenericFaceByRace(race);
     // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
 
+    // Generate random weight first so we can use it for both PWGT and body type
+    const fillerWeight = 200 + Math.floor(Math.random() * 80); // 200-279 lbs
+
     const player: RosterPlayer = {
       PFNA: firstName,
       PLNA: lastName,
@@ -2142,14 +2128,14 @@ export class RosterCreatorService {
       PAGE: 23 + Math.floor(Math.random() * 5), // 23-27
       PJEN: 50 + Math.floor(Math.random() * 50), // 50-99
       PHGT: 70 + Math.floor(Math.random() * 8), // 70-77 inches
-      PWGT: 200 + Math.floor(Math.random() * 80), // 200-279 lbs
+      PWGT: fillerWeight, // 200-279 lbs (actual weight)
       PCOL: 0,
       PHSN: 0,
       PROL: 0, // Dev trait: Normal
       PSXP: genericFace.pid, // Generic PID from race-matched face
       PEPS: '', // EMPTY - BLBM GENR/SKNT controls the face
       PYRP: 0,
-      PBOD: this.determineBodyType(position), // Position-aware body type
+      PBOD: this.determineBodyType(position, fillerWeight), // Weight-based body type
       PLPL: 0, // Generic face (not real face)
       PGHE: genericFace.pghe, // Generic head mesh from race-matched face
       // DON'T SET PSKI - BLBM handles it

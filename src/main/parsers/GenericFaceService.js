@@ -619,7 +619,9 @@ class GenericFaceService {
       if (!blbmByName.has(fullName)) {
         blbmByName.set(fullName, []);
       }
-      blbmByName.get(fullName).push({ index: bi, record: rec });
+      // CRITICAL: Store BLBM record's .index (set to PGID by syncPlayerIdentityForAllPlayers) for disambiguation
+      // This allows us to find the correct BLBM record when multiple players have the same name
+      blbmByName.get(fullName).push({ index: bi, record: rec, pgid: rec.index });
     }
     console.log(`[GenericFaceService] Built BLBM name lookup with ${blbmByName.size} unique names`);
 
@@ -660,6 +662,11 @@ class GenericFaceService {
       // Skip empty player slots
       if (!playerFirst && !playerLast) continue;
 
+      // DEBUG: Log players that have face picker data (assignedGenr set)
+      if (player.assignedGenr) {
+        console.log(`[GenericFaceService] FACE PICKER DATA: "${playerFirst} ${playerLast}" has assignedGenr="${player.assignedGenr}", assignedSknt=${player.assignedSknt}, PGID=${player.PGID}`);
+      }
+
       const blbmMatches = blbmByName.get(playerFullName);
       if (!blbmMatches || blbmMatches.length === 0) {
         blbmNotFound++;
@@ -669,8 +676,21 @@ class GenericFaceService {
         continue; // Skip if no matching BLBM record (might need to be created)
       }
 
-      // Use the first match (most common case is 1:1 name match)
-      const { index: blbmIndex, record: blbmRec } = blbmMatches[0];
+      // CRITICAL FIX: For duplicate names, find the BLBM record with matching PGID
+      // syncPlayerIdentityForAllPlayers sets BLBM.index = player.PGID, so we can use this for disambiguation
+      let bestMatch = blbmMatches[0];
+      if (blbmMatches.length > 1 && player.PGID) {
+        const pgidMatch = blbmMatches.find(m => m.pgid === player.PGID);
+        if (pgidMatch) {
+          bestMatch = pgidMatch;
+          if (updatedCount < 10) {
+            console.log(`[GenericFaceService] DUPLICATE NAME: Found BLBM by PGID=${player.PGID} for "${playerFirst} ${playerLast}" (${blbmMatches.length} matches)`);
+          }
+        } else {
+          console.warn(`[GenericFaceService] DUPLICATE NAME: Could not find BLBM with PGID=${player.PGID} for "${playerFirst} ${playerLast}", using first match`);
+        }
+      }
+      const { index: blbmIndex, record: blbmRec } = bestMatch;
 
       if (updatedCount < 5) {
         console.log(`[GenericFaceService] Matched PLAY player "${playerFirst} ${playerLast}" to BLBM[${blbmIndex}]`);
@@ -1206,11 +1226,24 @@ class GenericFaceService {
       const playerName = `${playerFirst} ${playerLast}`.trim();
 
       // Update BTYP to match PCBT (create field if it doesn't exist)
+      // CRITICAL: Handle both .value and ._value patterns (TDB2 field inconsistency)
       if (fields['BTYP']) {
-        const currentBtyp = fields['BTYP'].value;
+        const currentBtyp = fields['BTYP'].value ?? fields['BTYP']._value;
         if (currentBtyp !== pcbt) {
-          fields['BTYP'].value = pcbt;
+          // Update whichever property exists
+          if (fields['BTYP'].value !== undefined) {
+            fields['BTYP'].value = pcbt;
+          } else if (fields['BTYP']._value !== undefined) {
+            fields['BTYP']._value = pcbt;
+          } else {
+            // Neither exists, create .value
+            fields['BTYP'].value = pcbt;
+          }
+          fields['BTYP']._isChanged = true;
           updated = true;
+          if (updatedCount < 10) {
+            console.log(`[GenericFaceService] ${playerName}: BTYP ${currentBtyp} -> ${pcbt}`);
+          }
         }
       } else if (pcbt !== 0) {
         // BTYP field doesn't exist - need to CREATE it for non-Standard body types
@@ -1237,15 +1270,24 @@ class GenericFaceService {
 
       // CRITICAL: Update WLBS (weight/body size) - this controls the in-game body visual!
       // WLBS should be the actual weight (PWGT + 160)
+      // CRITICAL: Handle both .value and ._value patterns (TDB2 field inconsistency)
       if (fields['WLBS']) {
         // PWGT is stored as (actual_weight - 160), so actual weight = PWGT + 160
         const pwgt = player.PWGT;
         if (pwgt !== undefined && pwgt !== null) {
           const actualWeight = pwgt + 160; // Convert to real weight
-          const currentWlbs = fields['WLBS'].value;
+          const currentWlbs = fields['WLBS'].value ?? fields['WLBS']._value;
 
           if (currentWlbs !== actualWeight) {
-            fields['WLBS'].value = actualWeight;
+            // Update whichever property exists
+            if (fields['WLBS'].value !== undefined) {
+              fields['WLBS'].value = actualWeight;
+            } else if (fields['WLBS']._value !== undefined) {
+              fields['WLBS']._value = actualWeight;
+            } else {
+              fields['WLBS'].value = actualWeight;
+            }
+            fields['WLBS']._isChanged = true;
             updated = true;
             if (updatedCount < 10) {
               console.log(`[GenericFaceService] ${playerName}: WLBS ${currentWlbs} -> ${actualWeight} (PWGT=${pwgt})`);
@@ -1279,8 +1321,15 @@ class GenericFaceService {
 
                   if (currentITAN !== targetITAN) {
                     // Update ITAN to new body type
+                    // CRITICAL: Handle both .value and ._value patterns
                     if (pinFields?.ITAN) {
-                      pinFields.ITAN.value = targetITAN;
+                      if (pinFields.ITAN.value !== undefined) {
+                        pinFields.ITAN.value = targetITAN;
+                      } else if (pinFields.ITAN._value !== undefined) {
+                        pinFields.ITAN._value = targetITAN;
+                      } else {
+                        pinFields.ITAN.value = targetITAN;
+                      }
                       pinFields.ITAN._isChanged = true;
                       updated = true;
 
@@ -1343,7 +1392,8 @@ class GenericFaceService {
       if (!blbmByName.has(fullName)) {
         blbmByName.set(fullName, []);
       }
-      blbmByName.get(fullName).push({ index: bi, record: rec });
+      // Store BLBM.index (=PGID) for disambiguation with duplicate names
+      blbmByName.get(fullName).push({ index: bi, record: rec, pgid: rec.index });
     }
 
     console.log(`[GenericFaceService] Syncing SKNT for ${players.length} players (BLBM lookup: ${blbmByName.size} names)`);
@@ -1368,7 +1418,13 @@ class GenericFaceService {
         continue;
       }
 
-      const { record: blbmRec } = blbmMatches[0];
+      // Use PGID to find correct record when multiple players have same name
+      let bestMatch = blbmMatches[0];
+      if (blbmMatches.length > 1 && player.PGID) {
+        const pgidMatch = blbmMatches.find(m => m.pgid === player.PGID);
+        if (pgidMatch) bestMatch = pgidMatch;
+      }
+      const { record: blbmRec } = bestMatch;
       const fields = blbmRec.fields || blbmRec._fields;
 
       if (!fields) continue;
@@ -1473,7 +1529,8 @@ class GenericFaceService {
       if (!blbmByName.has(fullName)) {
         blbmByName.set(fullName, []);
       }
-      blbmByName.get(fullName).push({ index: bi, record: rec });
+      // Store BLBM.index (=PGID) for disambiguation with duplicate names
+      blbmByName.get(fullName).push({ index: bi, record: rec, pgid: rec.index });
     }
 
     console.log(`[GenericFaceService] Syncing PLRC for ${players.length} players (BLBM lookup: ${blbmByName.size} names)`);
@@ -1502,7 +1559,13 @@ class GenericFaceService {
         continue;
       }
 
-      const { record: blbmRec } = blbmMatches[0];
+      // Use PGID to find correct record when multiple players have same name
+      let bestMatch = blbmMatches[0];
+      if (blbmMatches.length > 1 && player.PGID) {
+        const pgidMatch = blbmMatches.find(m => m.pgid === player.PGID);
+        if (pgidMatch) bestMatch = pgidMatch;
+      }
+      const { record: blbmRec } = bestMatch;
       const fields = blbmRec.fields || blbmRec._fields;
       if (!fields) continue;
 
