@@ -2200,18 +2200,18 @@ export class RosterGeneratorService {
     // Body type codes: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
     let fillerPcbt: number;
     let fillerPtar: string;
-    if (fillerActualWeight <= 180) {
+    if (fillerActualWeight < 180) {
       fillerPcbt = 4; // Lean
       fillerPtar = 'Thin'; // Draft format doesn't support Lean
     } else if (fillerActualWeight >= 280) {
       fillerPcbt = 3; // Heavy
       fillerPtar = 'Heavy';
-    } else if (fillerActualWeight >= 220) {
+    } else if (fillerActualWeight >= 241) {
       fillerPcbt = 2; // Muscular
       fillerPtar = 'Muscular';
     } else {
-      fillerPcbt = 0; // Standard (181-219)
-      fillerPtar = 'Thin'; // Draft format doesn't support Standard
+      fillerPcbt = 1; // Thin (180-240)
+      fillerPtar = 'Thin';
     }
 
     const player = {
@@ -3292,18 +3292,18 @@ export class RosterGeneratorService {
   /**
    * Determine PCBT (body type code) from database row
    * Uses simple weight-based cutoffs:
-   * - Lean: <= 180 lbs → 4
-   * - Standard: 181-219 lbs → 0
-   * - Muscular: 220-279 lbs → 2
+   * - Lean: < 180 lbs → 4
+   * - Thin: 180-240 lbs → 1
+   * - Muscular: 241-279 lbs → 2
    * - Heavy: >= 280 lbs → 3
    */
   private determinePCBTFromDb(dbRow: any): number {
     const weight = dbRow.weight || 200;
 
-    if (weight <= 180) return 4;      // Lean
+    if (weight < 180) return 4;       // Lean
     if (weight >= 280) return 3;      // Heavy
-    if (weight >= 220) return 2;      // Muscular
-    return 0;                          // Standard (181-219)
+    if (weight >= 241) return 2;      // Muscular
+    return 1;                          // Thin (180-240)
   }
 
   /**
@@ -4451,23 +4451,23 @@ export class RosterGeneratorService {
    * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
    *
    * In-game weight cutoffs:
-   * - Lean: <= 180 lbs → 4
-   * - Standard: 181-219 lbs → 0
-   * - Muscular: 220-279 lbs → 2
+   * - Lean: < 180 lbs → 4
+   * - Thin: 180-240 lbs → 1
+   * - Muscular: 241-279 lbs → 2
    * - Heavy: >= 280 lbs → 3
    */
   private determinePCBT(csvRow: any): number {
     const weight = parseInt(csvRow.Weight) || 200;
 
     // Simple weight-based cutoffs
-    if (weight <= 180) {
+    if (weight < 180) {
       return 4; // Lean
     } else if (weight >= 280) {
       return 3; // Heavy
-    } else if (weight >= 220) {
+    } else if (weight >= 241) {
       return 2; // Muscular
     } else {
-      return 0; // Standard (181-219)
+      return 1; // Thin (180-240)
     }
   }
 

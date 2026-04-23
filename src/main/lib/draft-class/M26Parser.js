@@ -193,6 +193,20 @@ function parseM26AttributeData(attributeData) {
     attributes.assetName = binaryAssetName || null;  // Store in assetName for later use
     attributes.PEPS = null;  // Will be populated from assetName or visuals.genericHeadName
 
+    // DEBUG: Log what we're reading from binary assetName field
+    if (attributes.firstName && (attributes.firstName.includes('Zero') || attributes.lastName?.includes('Ten'))) {
+      console.log(`[M26Parser DEBUG] ${attributes.firstName} ${attributes.lastName}:`);
+      console.log(`  commentaryId: ${attributes.commentaryId}`);
+      console.log(`  binaryAssetName raw: "${binaryAssetName}" (length: ${binaryAssetName?.length || 0})`);
+      console.log(`  assetName: ${attributes.assetName}`);
+      // Show raw hex of the assetName area
+      const hexBytes = [];
+      for (let i = 0x9E; i < Math.min(0x9E + 20, attributeData.length); i++) {
+        hexBytes.push(attributeData[i].toString(16).padStart(2, '0'));
+      }
+      console.log(`  assetName hex (first 20 bytes): ${hexBytes.join(' ')}`);
+    }
+
     // M26 Attribute Mapping (reverse-engineered from binary analysis)
     // Ratings are NOT sequential - M26 uses a different byte order than M25
     // Mapped using Garrett Nussmeier & Fernando Mendoza as reference players

@@ -1107,23 +1107,23 @@ export const BODY_TYPE_NAMES = {
 export function generateBodyType(weight, height, position) {
     // Weight-only cutoffs based on in-game ranges
 
-    // Lean: <= 180 lbs
-    if (weight <= 180) {
+    // Lean: < 180 lbs
+    if (weight < 180) {
         return 4; // Lean
     }
 
-    // Heavy: >= 280 lbs (highest priority after Lean)
+    // Heavy: >= 280 lbs
     if (weight >= 280) {
         return 3; // Heavy
     }
 
-    // Muscular: 220-279 lbs
-    if (weight >= 220) {
+    // Muscular: 241-279 lbs
+    if (weight >= 241) {
         return 2; // Muscular
     }
 
-    // Standard: 181-219 lbs (default for middle range)
-    return 0; // Standard
+    // Thin: 180-240 lbs
+    return 1; // Thin
 }
 
 /**

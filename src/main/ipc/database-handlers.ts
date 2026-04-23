@@ -2297,82 +2297,27 @@ const POSITION_ID_MAP: { [key: number]: string } = {
  */
 function generateBodyType(weight: number, height: number, position: string | number): number {
   const w = weight || 200;
-  const h = height || 74;
 
-  // Convert numeric position ID to string name
-  let pos: string;
-  if (typeof position === 'number') {
-    pos = POSITION_ID_MAP[position] || '';
-  } else {
-    pos = position || '';
-  }
-  pos = pos.toUpperCase();
+  // Simple weight-based cutoffs that match in-game behavior
+  // These cutoffs are consistent across the entire codebase
 
-  // M26 rule: very light players get Lean body type
-  if (w <= 180) {
+  // Lean: < 180 lbs
+  if (w < 180) {
     return 4; // Lean
   }
 
-  // Special teams positions: Standard
-  if (pos === 'K' || pos === 'P') {
-    return 0; // Standard
+  // Heavy: >= 280 lbs
+  if (w >= 280) {
+    return 3; // Heavy
   }
 
-  // QB or WR: height and weight dependent
-  if (pos === 'QB' || pos === 'WR') {
-    if (w >= 210 && h <= 71) {
-      return 2; // Muscular (short and heavy)
-    } else if (h >= 76) {
-      return 1; // Thin (tall)
-    }
-    return 0; // Standard
-  }
-
-  // Offensive Line positions: Heavy or Muscular based on weight
-  if (['LT', 'LG', 'C', 'RG', 'RT'].includes(pos)) {
-    if (w >= 300) {
-      return 3; // Heavy
-    }
+  // Muscular: 241-279 lbs
+  if (w >= 241) {
     return 2; // Muscular
   }
 
-  // Linebackers, Tight Ends, Fullbacks: always Muscular
-  // Map alternative position names
-  const lbPositions = ['LOLB', 'MLB', 'ROLB', 'WILL', 'MIKE', 'SAM', 'OLB'];
-  if (lbPositions.includes(pos) || pos === 'TE' || pos === 'FB') {
-    return 2; // Muscular
-  }
-
-  // Defensive Line positions: Heavy or Muscular based on weight
-  // Map alternative position names
-  const dlPositions = ['LE', 'RE', 'DT', 'LEDG', 'REDG', 'DE'];
-  if (dlPositions.includes(pos)) {
-    if (w >= 275) {
-      return 3; // Heavy
-    }
-    return 2; // Muscular
-  }
-
-  // Halfback: weight dependent
-  if (pos === 'HB' || pos === 'RB') {
-    if (w >= 220) {
-      return 2; // Muscular
-    } else if (w >= 180) {
-      return 0; // Standard
-    }
-    return 1; // Thin
-  }
-
-  // Defensive Backs: weight dependent
-  if (['CB', 'FS', 'SS'].includes(pos)) {
-    if (w >= 180) {
-      return 0; // Standard
-    }
-    return 1; // Thin
-  }
-
-  // Default fallback
-  return 0; // Standard
+  // Thin: 180-240 lbs
+  return 1; // Thin
 }
 
 /**

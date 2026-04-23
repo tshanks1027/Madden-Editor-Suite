@@ -559,28 +559,27 @@ export class RosterCreatorService {
   }
 
   /**
-   * Determine PBOD (body type code) based on position code
-   * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Extra Heavy
-   * Position codes: QB=0, HB=1, FB=2, WR=3, TE=4, LT=5, LG=6, C=7, RG=8, RT=9, LE=10, RE=11, DT=12, LOLB=13, MLB=14, ROLB=15, CB=16, FS=17, SS=18, K=19, P=20
+   * Determine PBOD (body type code) based on weight
+   * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
    *
    * In-game weight cutoffs:
-   * - Lean: <= 180 lbs → 4
-   * - Standard: 181-219 lbs → 0
-   * - Muscular: 220-279 lbs → 2
+   * - Lean: < 180 lbs → 4
+   * - Thin: 180-240 lbs → 1
+   * - Muscular: 241-279 lbs → 2
    * - Heavy: >= 280 lbs → 3
    */
   private determineBodyType(positionCode: number, weight?: number): number {
     const w = weight || 220; // Default 220 if no weight provided
 
     // Simple weight-based cutoffs
-    if (w <= 180) {
+    if (w < 180) {
       return 4; // Lean
     } else if (w >= 280) {
       return 3; // Heavy
-    } else if (w >= 220) {
+    } else if (w >= 241) {
       return 2; // Muscular
     } else {
-      return 0; // Standard (181-219)
+      return 1; // Thin (180-240)
     }
   }
 

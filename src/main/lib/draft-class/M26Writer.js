@@ -447,6 +447,10 @@ function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
   // Offset: 200 - 42 = 158 (0x9E)
   // Real assets (like "WilliamsCaleb_14500") go here, NOT in visuals JSON
   // Generic assets (like "gen_7_B_G_005") go to visuals.genericHeadName only
+
+  // CRITICAL: If PEPS is explicitly empty string, we MUST clear the binary field
+  // This allows converting a real player face to a generic face
+  const pepsIsExplicitlyEmpty = prospect.PEPS === '';
   let newPEPS = prospect.PEPS || prospect.visuals?.genericHeadName || null;
 
   // CRITICAL FIX: Ensure newPEPS is a string before calling .toUpperCase()
@@ -470,8 +474,25 @@ function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
         console.log(`[M26Writer] ✓ Writing real asset to binary assetName field: "${newPEPS}"`);
         console.log(`[M26Writer]   Offset: 0x${(offset + 0x9E).toString(16)}, Length: 42 bytes`);
       }
+    } else {
+      // CRITICAL FIX: Generic assets MUST CLEAR the binary field
+      // Otherwise the existing real player asset remains and is loaded on next read
+      const emptyAssetName = '\0'.repeat(42);
+      buffer.write(emptyAssetName, offset + 0x9E, 42, 'ascii');
+
+      if (prospectIndex === 0) {
+        console.log(`[M26Writer] ✓ Cleared binary assetName field for generic face: "${newPEPS}"`);
+      }
     }
-    // Generic assets don't go in binary field - only in visuals.genericHeadName
+  } else if (pepsIsExplicitlyEmpty) {
+    // PEPS was explicitly set to empty string - clear the binary field
+    // This handles converting a real player face to a generic face
+    const emptyAssetName = '\0'.repeat(42);
+    buffer.write(emptyAssetName, offset + 0x9E, 42, 'ascii');
+
+    if (prospectIndex === 0) {
+      console.log(`[M26Writer] ✓ Cleared binary assetName field (PEPS explicitly empty)`);
+    }
   }
 }
 

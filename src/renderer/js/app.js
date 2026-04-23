@@ -572,7 +572,7 @@ class MaddenEditorApp {
 
         document.getElementById('draftToolsFixFacesBtn')?.addEventListener('click', () => {
             draftToolsPopup?.classList.remove('show');
-            this.fixGenericFaces();
+            this.fixDraftGenericFaces();
         });
 
         document.getElementById('draftToolsFixBodyTypesBtn')?.addEventListener('click', () => {
@@ -1470,6 +1470,189 @@ class MaddenEditorApp {
         } else {
             console.log('[normalizeDraftBodyTypes] All body types already correct');
         }
+    }
+
+    /**
+     * Fix generic faces for all draft class prospects
+     * Assigns race-appropriate generic faces based on skin tone
+     * Works in two modes:
+     * - FULL MODE: If prospect has a known generic face, apply all settings from that face
+     * - PAM-ONLY MODE: If prospect has a custom/real player face, assign a matching 3D model by skin tone
+     */
+    async fixDraftGenericFaces() {
+        if (!this.draftProspects || this.draftProspects.length === 0) {
+            this.showError('No draft class loaded. Please load a draft class file first.');
+            return;
+        }
+
+        console.log(`[FixDraftFaces] Starting face fix for ${this.draftProspects.length} prospects...`);
+
+        // Load face picker mapping
+        let facePickerMapping = null;
+        const facesBySkintone = new Map(); // skin tone -> array of faces
+        const genrToFaceData = new Map(); // genr string -> face data
+
+        try {
+            facePickerMapping = await window.electronAPI.lookup.getFacePickerMapping();
+            console.log(`[FixDraftFaces] Loaded ${Object.keys(facePickerMapping).length} face picker entries`);
+
+            // Build lookup structures
+            for (const posStr of Object.keys(facePickerMapping)) {
+                const entry = facePickerMapping[posStr];
+                if (entry && entry.genr) {
+                    const sknt = entry.sknt || 4;
+
+                    // Map GENR to face data for FULL mode lookups
+                    genrToFaceData.set(entry.genr.toLowerCase(), {
+                        position: parseInt(posStr),
+                        genr: entry.genr,
+                        sknt: sknt,
+                        pid: entry.pid
+                    });
+
+                    // Group faces by skin tone for PAM-only mode
+                    if (!facesBySkintone.has(sknt)) {
+                        facesBySkintone.set(sknt, []);
+                    }
+                    facesBySkintone.get(sknt).push({
+                        position: parseInt(posStr),
+                        genr: entry.genr,
+                        sknt: sknt,
+                        pid: entry.pid
+                    });
+                }
+            }
+            console.log(`[FixDraftFaces] ${genrToFaceData.size} GENR mappings, skin tones: ${Array.from(facesBySkintone.keys()).sort().join(', ')}`);
+        } catch (e) {
+            console.error('[FixDraftFaces] Failed to load face picker mapping:', e);
+            this.showError('Failed to load face picker data');
+            return;
+        }
+
+        let fullModeCount = 0;
+        let pamOnlyCount = 0;
+        let skippedEmpty = 0;
+
+        for (const prospect of this.draftProspects) {
+            const prospectName = `${prospect.firstName || ''} ${prospect.lastName || ''}`.trim();
+
+            // Skip empty prospect slots
+            if (!prospectName || prospectName.trim() === '') {
+                skippedEmpty++;
+                continue;
+            }
+
+            // Check if prospect already has a generic face assigned
+            const existingGenr = (prospect.visuals?.genericHeadName || prospect.assignedGenr || prospect.PEPS || '').toLowerCase();
+            const isGenericFace = existingGenr && existingGenr.startsWith('gen_');
+
+            if (isGenericFace) {
+                // FULL MODE: Prospect has a generic face - apply all settings from that face
+                const faceData = genrToFaceData.get(existingGenr);
+
+                if (faceData) {
+                    // Ensure visuals object exists
+                    if (!prospect.visuals) {
+                        prospect.visuals = {};
+                    }
+
+                    // Apply all face settings
+                    // CRITICAL: For draft classes, generic faces go ONLY in visuals.genericHeadName
+                    // The binary PEPS field must be EMPTY for generic faces
+                    prospect.visuals.genericHeadName = faceData.genr;
+                    prospect.visuals.skinTone = faceData.sknt;
+                    prospect.assignedGenr = faceData.genr;
+                    prospect.assignedSknt = faceData.sknt;
+                    prospect.PEPS = ''; // MUST be empty for generic faces in draft classes
+
+                    fullModeCount++;
+                    if (fullModeCount <= 5) {
+                        console.log(`[FixDraftFaces] FULL: ${prospectName} -> genr="${faceData.genr}", sknt=${faceData.sknt}`);
+                    }
+                } else {
+                    // Generic face not in our mapping - still valid, just log it
+                    if (fullModeCount <= 5) {
+                        console.log(`[FixDraftFaces] FULL (unmapped): ${prospectName} has genr="${existingGenr}"`);
+                    }
+                    fullModeCount++;
+                }
+            } else {
+                // PAM-ONLY MODE: Prospect needs a generic face assigned
+                // Determine skin tone from existing data
+                let skinTone = prospect.visuals?.skinTone || prospect.assignedSknt;
+
+                // Try to extract from existing genr string if partial
+                if (!skinTone && existingGenr) {
+                    const match = existingGenr.match(/gen_(\d+)/i);
+                    if (match) {
+                        skinTone = parseInt(match[1]);
+                    }
+                }
+
+                // Default to middle skin tone if not found
+                if (!skinTone || skinTone < 1 || skinTone > 7) {
+                    skinTone = 4;
+                }
+
+                // Get faces for this skin tone
+                let facesForTone = facesBySkintone.get(skinTone);
+                if (!facesForTone || facesForTone.length === 0) {
+                    // Try adjacent skin tones
+                    for (let offset = 1; offset <= 3; offset++) {
+                        facesForTone = facesBySkintone.get(skinTone - offset) || facesBySkintone.get(skinTone + offset);
+                        if (facesForTone && facesForTone.length > 0) break;
+                    }
+                }
+
+                if (facesForTone && facesForTone.length > 0) {
+                    const randomFace = facesForTone[Math.floor(Math.random() * facesForTone.length)];
+
+                    // Ensure visuals object exists
+                    if (!prospect.visuals) {
+                        prospect.visuals = {};
+                    }
+
+                    // Apply face settings (PAM-only - assign 3D model)
+                    // CRITICAL: For draft classes, generic faces go ONLY in visuals.genericHeadName
+                    // The binary PEPS field must be EMPTY for generic faces
+                    prospect.visuals.genericHeadName = randomFace.genr;
+                    prospect.visuals.skinTone = randomFace.sknt;
+                    prospect.assignedGenr = randomFace.genr;
+                    prospect.assignedSknt = randomFace.sknt;
+                    // For generic faces, PEPS must be empty - only visuals.genericHeadName is used
+                    prospect.PEPS = '';
+
+                    pamOnlyCount++;
+                    if (pamOnlyCount <= 5) {
+                        console.log(`[FixDraftFaces] PAM-ONLY: ${prospectName} skinTone=${skinTone} -> genr="${randomFace.genr}"`);
+                    }
+                }
+            }
+        }
+
+        console.log(`[FixDraftFaces] Complete: ${fullModeCount} full mode, ${pamOnlyCount} PAM-only, ${skippedEmpty} skipped`);
+
+        // Mark as unsaved and refresh grid
+        if (fullModeCount + pamOnlyCount > 0) {
+            this.draftHasUnsavedChanges = true;
+            const saveBtn = document.getElementById('saveDraftClassBtn');
+            if (saveBtn) saveBtn.style.display = 'inline-block';
+
+            if (this.draftGrid) {
+                this.draftGrid.render();
+            }
+            if (this.draftAgGrid) {
+                this.draftAgGrid.refreshCells({ force: true });
+            }
+        }
+
+        const msg = `Fixed ${fullModeCount + pamOnlyCount} prospects:\n` +
+            `- ${fullModeCount} with existing generic faces (config verified)\n` +
+            `- ${pamOnlyCount} assigned new generic faces by skin tone\n\n` +
+            `SAVE the draft class to apply changes!`;
+
+        console.log('[FixDraftFaces]', msg);
+        alert(msg);
     }
 
     /**

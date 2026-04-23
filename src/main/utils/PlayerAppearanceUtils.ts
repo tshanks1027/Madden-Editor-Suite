@@ -83,8 +83,8 @@ export function calculateBodyType(
   // These match the game's actual body type display behavior
   const w = weight > 0 ? weight : 200;
 
-  // Lean: <= 180 lbs (NOTE: Draft class format only supports Thin/Muscular/Heavy)
-  if (w <= 180) {
+  // Lean: < 180 lbs (NOTE: Draft class format only supports Thin/Muscular/Heavy)
+  if (w < 180) {
     return 'Thin'; // Use Thin for draft classes (closest to Lean)
   }
 
@@ -93,13 +93,12 @@ export function calculateBodyType(
     return 'Heavy';
   }
 
-  // Muscular: 220-279 lbs
-  if (w >= 220) {
+  // Muscular: 241-279 lbs
+  if (w >= 241) {
     return 'Muscular';
   }
 
-  // Standard/Thin: 181-219 lbs
-  // Draft classes don't support "Standard", so use "Thin" for this range
+  // Thin: 180-240 lbs
   return 'Thin';
 }
 
@@ -107,19 +106,17 @@ export function calculateBodyType(
  * Calculate body type code from position code (numeric).
  * Used by RosterCreatorService for roster format.
  *
- * Position codes: QB=0, HB=1, FB=2, WR=3, TE=4, LT=5, LG=6, C=7, RG=8, RT=9,
- *                 LE=10, RE=11, DT=12, LOLB=13, MLB=14, ROLB=15, CB=16, FS=17, SS=18, K=19, P=20
- *
  * @param positionCode - Numeric position code (0-20)
- * @returns Body type code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy
+ * @param weight - Weight in pounds
+ * @returns Body type code: 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
  */
 export function calculateBodyTypeCode(positionCode: number, weight?: number): BodyTypeCode {
   // Weight-only cutoffs based on in-game ranges
   // These match the game's actual body type display behavior
-  const w = weight && weight > 0 ? weight : 220; // Default to Muscular range
+  const w = weight && weight > 0 ? weight : 220; // Default to Thin range
 
-  // Lean: <= 180 lbs
-  if (w <= 180) {
+  // Lean: < 180 lbs
+  if (w < 180) {
     return 4; // Lean
   }
 
@@ -128,13 +125,13 @@ export function calculateBodyTypeCode(positionCode: number, weight?: number): Bo
     return 3; // Heavy
   }
 
-  // Muscular: 220-279 lbs
-  if (w >= 220) {
+  // Muscular: 241-279 lbs
+  if (w >= 241) {
     return 2; // Muscular
   }
 
-  // Standard: 181-219 lbs
-  return 0; // Standard
+  // Thin: 180-240 lbs
+  return 1; // Thin
 }
 
 /**
