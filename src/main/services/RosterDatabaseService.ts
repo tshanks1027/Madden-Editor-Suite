@@ -10,6 +10,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
 import { lookupService } from './lookup-service';
+import { pgheLookupService } from './PGHELookupService';
+import { ArchetypeSyncService } from './ArchetypeSyncService';
 
 // File-based logging for debugging roster push
 const LOG_FILE = path.join(app.getPath('temp'), 'roster-push-debug.log');
@@ -149,6 +151,39 @@ export interface RosterPushExecutionResult {
 }
 
 class RosterDatabaseService {
+  /**
+   * Extract PGHE face data from a player's PEPS/PAM value (GENR string)
+   * Returns face fields or null if no match found
+   */
+  private extractFaceData(player: any): {
+    maddenPghe: number;
+    maddenPfcg: string;
+    maddenGpan: string;
+    maddenGslp: number;
+    maddenCpvf: number;
+    maddenSkinTone: number;
+  } | null {
+    // Check assignedGenr FIRST - this is what the face picker sets when user selects a face
+    const genr = player.assignedGenr || player.PEPS || player.pam;
+    if (!genr || !genr.startsWith('gen_')) {
+      return null;
+    }
+
+    const entry = pgheLookupService.getByGenr(genr);
+    if (!entry) {
+      return null;
+    }
+
+    return {
+      maddenPghe: entry.pghe,
+      maddenPfcg: entry.pfcg,
+      maddenGpan: entry.gpan,
+      maddenGslp: entry.gslp,
+      maddenCpvf: entry.cpvf,
+      maddenSkinTone: entry.skinTone
+    };
+  }
+
   /**
    * Derive race from generic head name (PAM value)
    * Generic heads follow the pattern gen_X_* where X indicates race category
@@ -644,6 +679,13 @@ class RosterDatabaseService {
       fillEmptyBioFields = true
     } = options;
 
+    // CRITICAL DEBUG: Log what options were received vs defaults
+    console.log(`[RosterDatabaseService] ========== OPTIONS RECEIVED ==========`);
+    console.log(`[RosterDatabaseService] RAW options object:`, JSON.stringify(options));
+    console.log(`[RosterDatabaseService] DESTRUCTURED fillEmptyBioFields=${fillEmptyBioFields} (type: ${typeof fillEmptyBioFields})`);
+    console.log(`[RosterDatabaseService] options.fillEmptyBioFields=${options.fillEmptyBioFields} (type: ${typeof options.fillEmptyBioFields})`);
+    console.log(`[RosterDatabaseService] pushMode=${pushMode}, overwriteExistingSeasons=${overwriteExistingSeasons}`);
+
     // Set defaults for bioFieldOptions - all bio fields default to true now
     const bioFields = {
       team: bioFieldOptions.team ?? true,
@@ -742,6 +784,18 @@ class RosterDatabaseService {
     writeDebugLog(`Created: ${result.created}, Updated: ${result.updated}, Skipped: ${result.skipped}, Errors: ${result.errors.length}`);
     writeDebugLog(`DEBUG LOG FILE: ${LOG_FILE}`);
 
+    // POST-PUSH VERIFICATION: Check if data was actually saved
+    if (result.updated > 0 && analysis.existingBundled?.length > 0) {
+      const firstBundled = analysis.existingBundled[0];
+      const playerId = firstBundled.existingPlayerId;
+      const verifyData = userDatabaseService.getSeasonEdit(playerId!, analysis.seasonYear);
+      console.log(`[RosterDatabaseService] POST-PUSH VERIFY: Player ${playerId} year ${analysis.seasonYear}`);
+      console.log(`[RosterDatabaseService] POST-PUSH VERIFY: Found data = ${!!verifyData}`);
+      if (verifyData) {
+        console.log(`[RosterDatabaseService] POST-PUSH VERIFY: team=${verifyData.team}, POVR=${verifyData.ratings?.POVR}`);
+      }
+    }
+
     return result;
   }
 
@@ -826,11 +880,24 @@ class RosterDatabaseService {
       careerFrom,
       careerTo: undefined,
       maddenPid: bioFields.pid ? (player.PSXP || 0) : undefined,
-      maddenPam: bioFields.pam ? player.PEPS : undefined,
+      // Check assignedGenr FIRST - this is what face picker sets
+      maddenPam: bioFields.pam ? (player.assignedGenr || player.PEPS) : undefined,
       bodyType: bioFields.bodyType ? player.PCBT : undefined,
       handedness: bioFields.handedness ? player.PHAN : undefined,
       has3DModel: bioFields.pid ? ((player.PSXP || 0) > 0) : undefined
     };
+
+    // Extract and add face data if available
+    const faceData = this.extractFaceData(player);
+    if (faceData) {
+      customPlayer.maddenPghe = faceData.maddenPghe;
+      customPlayer.maddenPfcg = faceData.maddenPfcg;
+      customPlayer.maddenGpan = faceData.maddenGpan;
+      customPlayer.maddenGslp = faceData.maddenGslp;
+      customPlayer.maddenCpvf = faceData.maddenCpvf;
+      customPlayer.maddenSkinTone = faceData.maddenSkinTone;
+      console.log(`[RosterDatabaseService] createNewPlayer - extracted face data: PGHE=${faceData.maddenPghe}`);
+    }
 
     const customPlayerId = userDatabaseService.createCustomPlayer(customPlayer);
 
@@ -937,19 +1004,16 @@ class RosterDatabaseService {
           bioEdits.collegeId = collegeIdVal;
         }
       }
+      // Always save home state when checkbox is selected (like bodyType)
       if (bioFields.homeState && homeStateName !== undefined) {
-        if (!fillEmptyBioFields || !currentPlayer.homeState) {
-          bioEdits.homeState = homeStateName;  // Now passing the state NAME, not the ID
-        }
+        bioEdits.homeState = homeStateName;  // Now passing the state NAME, not the ID
       }
-      // Push hometown (PHTN) - use homeState checkbox since there's no separate hometown checkbox
+      // Always save hometown when homeState checkbox is selected (like bodyType)
       // PHTN should be a string (city name), not an ID
       if (bioFields.homeState && hometownVal !== undefined) {
-        if (!fillEmptyBioFields || !(currentPlayer as any).hometown) {
-          // Only use string values for hometown
-          if (typeof hometownVal === 'string' && hometownVal.trim()) {
-            bioEdits.hometown = hometownVal;
-          }
+        // Only use string values for hometown
+        if (typeof hometownVal === 'string' && hometownVal.trim()) {
+          bioEdits.hometown = hometownVal;
         }
       }
       if (bioFields.height && heightVal !== undefined) {
@@ -958,11 +1022,24 @@ class RosterDatabaseService {
         }
       }
       if (bioFields.weight && weightVal !== undefined) {
+        // DEBUG: Log weight decision
+        console.log(`[RosterDatabaseService] WEIGHT DECISION for ${player.PFNA} ${player.PLNA}:`);
+        console.log(`  - bioFields.weight=${bioFields.weight}`);
+        console.log(`  - weightVal=${weightVal} (from roster)`);
+        console.log(`  - fillEmptyBioFields=${fillEmptyBioFields}`);
+        console.log(`  - currentPlayer.weight=${currentPlayer.weight}`);
+        console.log(`  - Condition: !fillEmptyBioFields(${!fillEmptyBioFields}) || !currentPlayer.weight(${!currentPlayer.weight}) = ${!fillEmptyBioFields || !currentPlayer.weight}`);
+
         if (!fillEmptyBioFields || !currentPlayer.weight) {
           // Only add 160 offset if using PWGT (stored format)
           const actualWeight = player.PWGT !== undefined ? weightVal + 160 : weightVal;
           bioEdits.weight = actualWeight;
+          console.log(`  - WILL SAVE weight=${actualWeight} (PWGT offset=${player.PWGT !== undefined})`);
+        } else {
+          console.log(`  - SKIPPING weight save - fillEmptyBioFields=true and currentPlayer already has weight`);
         }
+      } else {
+        console.log(`[RosterDatabaseService] WEIGHT SKIPPED: bioFields.weight=${bioFields.weight}, weightVal=${weightVal}`);
       }
       if (bioFields.race && (player.PLRC !== undefined || item.derivedRace !== undefined)) {
         if (!fillEmptyBioFields || !currentPlayer.race) {
@@ -1004,20 +1081,47 @@ class RosterDatabaseService {
       // Save bio edits if any
       if (Object.keys(bioEdits).length > 0) {
         writeDebugLog(`Saving ${Object.keys(bioEdits).length} bio edits for player ${playerId}`);
+        console.log(`[RosterDatabaseService] SAVING BIO EDITS for player ${playerId}:`, bioEdits);
         userDatabaseService.savePlayerEdit(playerId, bioEdits);
+
+        // VERIFY: Read back the saved bio edits
+        const verifyBio = userDatabaseService.getPlayerEdit(playerId);
+        console.log(`[RosterDatabaseService] VERIFY BIO SAVE for player ${playerId}:`);
+        console.log(`  - Saved weight: ${bioEdits.weight}, Read back weight: ${verifyBio?.weight}`);
+        console.log(`  - Saved height: ${bioEdits.height}, Read back height: ${verifyBio?.height}`);
+        console.log(`  - Match: ${bioEdits.weight === verifyBio?.weight ? 'YES' : 'NO'}`);
       } else {
         writeDebugLog(`NO bio edits to save for player ${playerId}`);
+        console.log(`[RosterDatabaseService] NO BIO EDITS TO SAVE for player ${playerId}`);
+        console.log(`  - fillEmptyBioFields=${fillEmptyBioFields}`);
+        console.log(`  - currentPlayer.weight=${currentPlayer.weight}, currentPlayer.height=${currentPlayer.height}`);
+        console.log(`  - Roster weightVal=${weightVal}, heightVal=${heightVal}`);
       }
 
-      // Save PID and PAM to appearance_edits table (separate from player_edits)
+      // Save PID, PAM, and PGHE face data to appearance_edits table
       if (bioFields.pid || bioFields.pam) {
         const appearanceEdits: any = {};
         if (bioFields.pid && player.PSXP !== undefined) {
           appearanceEdits.maddenPid = player.PSXP;
         }
-        if (bioFields.pam && player.PEPS !== undefined) {
-          appearanceEdits.maddenPam = player.PEPS;
+        // Check assignedGenr FIRST - this is what face picker sets
+        const playerPam = player.assignedGenr || player.PEPS;
+        if (bioFields.pam && playerPam !== undefined) {
+          appearanceEdits.maddenPam = playerPam;
         }
+
+        // Extract and include face data from GENR string
+        const faceData = this.extractFaceData(player);
+        if (faceData) {
+          appearanceEdits.maddenPghe = faceData.maddenPghe;
+          appearanceEdits.maddenPfcg = faceData.maddenPfcg;
+          appearanceEdits.maddenGpan = faceData.maddenGpan;
+          appearanceEdits.maddenGslp = faceData.maddenGslp;
+          appearanceEdits.maddenCpvf = faceData.maddenCpvf;
+          appearanceEdits.maddenSkinTone = faceData.maddenSkinTone;
+          console.log(`[RosterDatabaseService] updateBundledPlayer - extracted face data for ${player.PFNA} ${player.PLNA}: PGHE=${faceData.maddenPghe}`);
+        }
+
         if (Object.keys(appearanceEdits).length > 0) {
           console.log(`[RosterDatabaseService] updateBundledPlayer - saving appearance edits:`, appearanceEdits);
           userDatabaseService.saveAppearanceEdit(playerId, appearanceEdits);
@@ -1165,9 +1269,25 @@ class RosterDatabaseService {
           bioUpdates.maddenPid = player.PSXP;
         }
       }
-      if (bioFields.pam && player.PEPS !== undefined) {
+      // Check assignedGenr FIRST - this is what face picker sets
+      const playerPam = player.assignedGenr || player.PEPS;
+      if (bioFields.pam && playerPam !== undefined) {
         if (!fillEmptyBioFields || !currentPlayer.maddenPam) {
-          bioUpdates.maddenPam = player.PEPS;
+          bioUpdates.maddenPam = playerPam;
+        }
+      }
+
+      // Extract and save face data for custom players (stored in custom_players table)
+      const faceData = this.extractFaceData(player);
+      if (faceData) {
+        if (!fillEmptyBioFields || !currentPlayer.maddenPghe) {
+          bioUpdates.maddenPghe = faceData.maddenPghe;
+          bioUpdates.maddenPfcg = faceData.maddenPfcg;
+          bioUpdates.maddenGpan = faceData.maddenGpan;
+          bioUpdates.maddenGslp = faceData.maddenGslp;
+          bioUpdates.maddenCpvf = faceData.maddenCpvf;
+          bioUpdates.maddenSkinTone = faceData.maddenSkinTone;
+          console.log(`[RosterDatabaseService] updateCustomPlayer - extracted face data: PGHE=${faceData.maddenPghe}`);
         }
       }
 
@@ -1262,15 +1382,31 @@ class RosterDatabaseService {
     pushMode: 'all' | 'ratings',
     bioFields: Record<string, boolean>
   ): Promise<void> {
-    // Archetype - PLTY is what franchise reads!
-    const archetype = player.PLTY ?? player.ARCHETYPE ?? player.archetype;
     const position = this.getPositionName(player.PPOS) || 'HB';
+
+    // Archetype - PLTY is numeric ID, ARCHETYPE is string name
+    // Priority: string name > convert from numeric ID
+    let archetype: string | undefined;
+    if (typeof player.ARCHETYPE === 'string' && player.ARCHETYPE) {
+      archetype = player.ARCHETYPE;
+    } else if (typeof player.archetype === 'string' && player.archetype) {
+      archetype = player.archetype;
+    } else if (typeof player.PLTY === 'number') {
+      // Convert numeric ID to name using ArchetypeSyncService
+      archetype = ArchetypeSyncService.getArchetypeName(player.PLTY, position);
+    }
+    console.log(`[RosterDatabaseService] Archetype resolved: PLTY=${player.PLTY}, ARCHETYPE=${player.ARCHETYPE}, archetype=${player.archetype} -> "${archetype}"`);
+
 
     const seasonEdits: any = {};
 
     // Only include bio fields if pushMode is 'all' and field is enabled
     if (pushMode === 'all') {
-      if (bioFields.team) seasonEdits.team = this.getTeamAbbrForYear(player.TGID, year);
+      if (bioFields.team) {
+        const teamAbbr = this.getTeamAbbrForYear(player.TGID, year);
+        seasonEdits.team = teamAbbr;
+        console.log(`[RosterDatabaseService] TEAM DEBUG: TGID=${player.TGID} -> team="${teamAbbr}" for ${player.PFNA} ${player.PLNA}`);
+      }
       if (bioFields.jersey) seasonEdits.jersey = player.PJEN;
       if (bioFields.position) seasonEdits.position = position;
       if (bioFields.archetype) seasonEdits.archetype = archetype;
@@ -1392,11 +1528,14 @@ class RosterDatabaseService {
     // Verify the save by immediately reading back
     const verifyRead = userDatabaseService.getSeasonEdit(playerId, year);
     if (verifyRead) {
-      console.log(`[RosterDatabaseService] VERIFY: Season edit saved successfully for player ${playerId}, year ${year}`);
-      console.log(`  - Saved POVR: ${verifyRead.ratings?.POVR}, Team: ${verifyRead.team}, Position: ${verifyRead.position}`);
-      console.log(`  - VERIFY KICK: PKPW=${verifyRead.ratings?.PKPW}, PKPR=${verifyRead.ratings?.PKPR}, PKAC=${verifyRead.ratings?.PKAC}`);
+      console.log(`[RosterDatabaseService] VERIFY SEASON SAVE SUCCESS for player ${playerId}, year ${year}:`);
+      console.log(`  - ATTEMPTED to save: POVR=${seasonEdits.POVR}, PSPD=${seasonEdits.PSPD}, team=${seasonEdits.team}`);
+      console.log(`  - READ BACK: POVR=${verifyRead.ratings?.POVR}, PSPD=${verifyRead.ratings?.PSPD}, team=${verifyRead.team}`);
+      console.log(`  - MATCH: POVR=${seasonEdits.POVR === verifyRead.ratings?.POVR}, PSPD=${seasonEdits.PSPD === verifyRead.ratings?.PSPD}`);
+      console.log(`  - Total ratings saved: ${Object.keys(verifyRead.ratings || {}).length}`);
     } else {
       console.error(`[RosterDatabaseService] VERIFY FAILED: Could not read back season edit for player ${playerId}, year ${year}`);
+      console.error(`  - This means the save operation failed silently!`);
     }
   }
 

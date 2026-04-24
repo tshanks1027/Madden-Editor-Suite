@@ -791,6 +791,16 @@ export class RosterGeneratorService {
     const userEditsMap = userDatabaseService.getAllSeasonEditsForYear(year);
     console.log(`[RosterGeneratorService] User edits found for year ${year}: ${userEditsMap.size}`);
 
+    // DEBUG: Check for specific player (Chris Greisen ID 22859)
+    const testId = 22859;
+    const hasTestEdit = userEditsMap.has(testId);
+    const testLookup = lookupService.getPlayerByInternalId(testId);
+    console.log(`[RosterGeneratorService] DEBUG - Greisen check: ID ${testId} in edits=${hasTestEdit}, in lookup=${!!testLookup}${testLookup ? ` (${testLookup.firstName} ${testLookup.lastName})` : ''}`);
+    if (hasTestEdit) {
+      const edit = userEditsMap.get(testId);
+      console.log(`[RosterGeneratorService] DEBUG - Greisen edit: team=${edit?.team}, position=${edit?.position}, POVR=${edit?.ratings?.POVR}`);
+    }
+
     // BULK LOAD appearance edits (PID, PAM, PGHE, etc.) - these are NOT year-specific
     const appearanceEditsMap = userDatabaseService.getAllAppearanceEdits();
     console.log(`[RosterGeneratorService] Appearance edits found: ${appearanceEditsMap.size}`);
@@ -885,16 +895,29 @@ export class RosterGeneratorService {
     // (matched by name) but doesn't have a player_seasons entry for that year
     const dbPlayerIds = new Set(dbPlayers.map(p => p.playerId));
     let addedFromEditsCount = 0;
+    let skippedAlreadyInDb = 0;
+    let skippedNotInBundled = 0;
+
+    // DEBUG: Log all user edits being processed
+    console.log(`[RosterGeneratorService] Processing ${userEditsMap.size} user edits for synthetic players`);
+    if (userEditsMap.size <= 10) {
+      for (const [editPlayerId, userEdit] of userEditsMap.entries()) {
+        console.log(`[RosterGeneratorService] USER EDIT: playerId=${editPlayerId}, team=${userEdit.team}, position=${userEdit.position}`);
+      }
+    }
 
     for (const [editPlayerId, userEdit] of userEditsMap.entries()) {
       // Skip if this player is already in dbPlayers
       if (dbPlayerIds.has(editPlayerId)) {
+        skippedAlreadyInDb++;
         continue;
       }
 
       // Look up the player's bio info from bundled database
       const bundledPlayer = lookupService.getPlayerByInternalId(editPlayerId);
       if (!bundledPlayer) {
+        skippedNotInBundled++;
+        console.log(`[RosterGeneratorService] SKIPPING edit playerId=${editPlayerId} - NOT FOUND in bundled database (team=${userEdit.team})`);
         continue; // Player not found in bundled DB, skip
       }
 
@@ -952,6 +975,7 @@ export class RosterGeneratorService {
       }
     }
 
+    console.log(`[RosterGeneratorService] Synthetic player summary: added=${addedFromEditsCount}, skippedAlreadyInDb=${skippedAlreadyInDb}, skippedNotInBundled=${skippedNotInBundled}`);
     if (addedFromEditsCount > 0) {
       console.log(`[RosterGeneratorService] Added ${addedFromEditsCount} players from user edits (no bundled season entry)`);
     }
@@ -2628,8 +2652,15 @@ export class RosterGeneratorService {
     const finalHometown = userBioEdits?.hometown ?? csvHometown;
     // Handedness: userBioEdits stores as numeric (0=Right, 1=Left)
     const finalHandedness = userBioEdits?.handedness ?? (parseInt(csvRow.Handedness) || 0);
-    // BodyType: userBioEdits stores as numeric, or use position-based determination
-    const finalBodyType = userBioEdits?.bodyType ?? this.determinePCBT(csvRow);
+    // BodyType: userBioEdits may store as string from database - ensure numeric
+    // NOTE: Can't use || with parseInt because 0 (Standard) is falsy - use isNaN check instead
+    const userBodyType = userBioEdits?.bodyType;
+    const finalBodyType = (() => {
+      if (userBodyType === undefined) return this.determinePCBT(csvRow);
+      if (typeof userBodyType === 'number') return userBodyType;
+      const parsed = parseInt(String(userBodyType), 10);
+      return !isNaN(parsed) ? parsed : this.determinePCBT(csvRow);
+    })();
 
     // Map CSV field names to UPPERCASE roster editor field codes
     const player: any = {
@@ -3026,7 +3057,15 @@ export class RosterGeneratorService {
       PHGT: dbRow.height || 72,
       PWGT: Math.max(1, (dbRow.weight || 200) - 160),
       TGID: teamCode,
-      PCBT: this.determinePCBTFromDb(dbRow),
+      // PCBT: Check for user-edited bodyType first, then fall back to weight-based calculation
+      // bodyType from user edits may be a string - convert to number
+      // NOTE: Can't use || with parseInt because 0 (Standard) is falsy - use isNaN check instead
+      PCBT: (() => {
+        if (dbRow.bodyType === undefined) return this.determinePCBTFromDb(dbRow);
+        if (typeof dbRow.bodyType === 'number') return dbRow.bodyType;
+        const parsed = parseInt(String(dbRow.bodyType), 10);
+        return !isNaN(parsed) ? parsed : this.determinePCBTFromDb(dbRow);
+      })(),
       PHAN: dbRow.handedness ?? 0,  // Handedness: 0=Right, 1=Left (default to right-handed)
 
       // IDs
