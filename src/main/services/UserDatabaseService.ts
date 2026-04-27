@@ -215,6 +215,13 @@ export interface CustomPlayer {
   maddenPam?: string;
   maddenPlpo?: string;
   maddenCommid?: string;
+  // PGHE matched set fields for generic faces
+  maddenPghe?: number;       // PGHE index (face picker index, 1-294)
+  maddenPfcg?: string;       // PFCG code (e.g., "1_B_B_005")
+  maddenGpan?: string;       // GPAN portrait asset name
+  maddenGslp?: number;       // GSLP skin tone value from file
+  maddenCpvf?: number;       // CPVF flag (0 or 1)
+  maddenSkinTone?: number;   // Derived skin tone (1-7)
   bodyType?: number;
   handedness?: number;
   has3DModel?: boolean;
@@ -802,6 +809,25 @@ class UserDatabaseService {
     try {
       this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN has_3d_model INTEGER DEFAULT 0`);
     } catch { /* Column already exists */ }
+    // Migration: add PGHE face fields for generic face storage
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN madden_pghe INTEGER`);
+    } catch { /* Column already exists */ }
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN madden_pfcg TEXT`);
+    } catch { /* Column already exists */ }
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN madden_gpan TEXT`);
+    } catch { /* Column already exists */ }
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN madden_gslp INTEGER`);
+    } catch { /* Column already exists */ }
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN madden_cpvf INTEGER`);
+    } catch { /* Column already exists */ }
+    try {
+      this.customDb.exec(`ALTER TABLE custom_players ADD COLUMN madden_skin_tone INTEGER`);
+    } catch { /* Column already exists */ }
 
     // Build custom_player_seasons table with all rating fields
     const ratingColumns = RATING_FIELDS.map(f => `${f} INTEGER`).join(', ');
@@ -1305,9 +1331,11 @@ class UserDatabaseService {
   public saveSeasonEdit(originalPlayerId: number, year: number, edits: Partial<SeasonEdit>): void {
     if (!this.editsDb) throw new Error('Edits database not initialized');
 
-    console.log(`[UserDatabaseService] saveSeasonEdit called: player=${originalPlayerId}, year=${year}`);
-    console.log(`[UserDatabaseService] Incoming edits keys:`, Object.keys(edits));
-    console.log(`[UserDatabaseService] Incoming edits.ratings:`, edits.ratings);
+    console.log(`[UserDatabaseService] ========== SAVE SEASON EDIT ==========`);
+    console.log(`[UserDatabaseService] player=${originalPlayerId}, year=${year}`);
+    console.log(`[UserDatabaseService] Incoming edits keys (${Object.keys(edits).length}):`, Object.keys(edits).slice(0, 20).join(', '));
+    console.log(`[UserDatabaseService] Has edits.ratings? ${!!edits.ratings}`);
+    console.log(`[UserDatabaseService] Sample values: POVR=${(edits as any).POVR}, PSPD=${(edits as any).PSPD}, team=${edits.team}`);
 
     // Log flat rating fields (how frontend sends them)
     const flatRatings: Record<string, unknown> = {};
@@ -1352,6 +1380,11 @@ class UserDatabaseService {
           WHERE original_player_id = ? AND year = ?
         `).run(...values);
         console.log(`[UserDatabaseService] Updated ${setClauses.length} fields for player_id=${originalPlayerId}, year=${year}`);
+
+        // VERIFY UPDATE: Read back immediately to confirm save worked
+        const verifyRow = this.editsDb.prepare('SELECT POVR, PSPD, team FROM season_edits WHERE original_player_id = ? AND year = ?')
+          .get(originalPlayerId, year) as Record<string, unknown> | undefined;
+        console.log(`[UserDatabaseService] VERIFY UPDATE: ${verifyRow ? `POVR=${verifyRow.POVR}, PSPD=${verifyRow.PSPD}, team=${verifyRow.team}` : 'FAILED - row not found!'}`);
       } else {
         console.log(`[UserDatabaseService] No fields to update!`);
       }
@@ -1382,11 +1415,22 @@ class UserDatabaseService {
         VALUES (${placeholders})
       `).run(...values);
       console.log(`[UserDatabaseService] Inserted season edit for player_id=${originalPlayerId}, year=${year}`);
+
+      // VERIFY INSERT: Read back immediately to confirm save worked
+      const verifyRow = this.editsDb.prepare('SELECT POVR, PSPD, team FROM season_edits WHERE original_player_id = ? AND year = ?')
+        .get(originalPlayerId, year) as Record<string, unknown> | undefined;
+      console.log(`[UserDatabaseService] VERIFY INSERT: ${verifyRow ? `POVR=${verifyRow.POVR}, PSPD=${verifyRow.PSPD}, team=${verifyRow.team}` : 'FAILED - row not found!'}`);
     }
   }
 
   public getSeasonEdit(originalPlayerId: number, year: number): SeasonEdit | null {
-    if (!this.editsDb) return null;
+    if (!this.editsDb) {
+      console.log(`[UserDatabaseService] getSeasonEdit: editsDb not initialized!`);
+      return null;
+    }
+
+    const dbPath = path.join(this.userDataPath, 'user-edits.db');
+    console.log(`[UserDatabaseService] getSeasonEdit: player=${originalPlayerId}, year=${year}, db=${dbPath}`);
 
     const row = this.editsDb.prepare('SELECT * FROM season_edits WHERE original_player_id = ? AND year = ?')
       .get(originalPlayerId, year) as Record<string, unknown> | undefined;
@@ -1421,10 +1465,22 @@ class UserDatabaseService {
   }
 
   public getSeasonEditsForPlayer(originalPlayerId: number): SeasonEdit[] {
-    if (!this.editsDb) return [];
+    if (!this.editsDb) {
+      console.log(`[UserDatabaseService] getSeasonEditsForPlayer: editsDb not initialized!`);
+      return [];
+    }
+
+    const dbPath = path.join(this.userDataPath, 'user-edits.db');
+    console.log(`[UserDatabaseService] getSeasonEditsForPlayer: player=${originalPlayerId}, db=${dbPath}`);
 
     const rows = this.editsDb.prepare('SELECT * FROM season_edits WHERE original_player_id = ? ORDER BY year')
       .all(originalPlayerId) as Record<string, unknown>[];
+
+    console.log(`[UserDatabaseService] getSeasonEditsForPlayer: found ${rows.length} rows for player ${originalPlayerId}`);
+    if (rows.length > 0) {
+      const years = rows.map(r => r.year);
+      console.log(`[UserDatabaseService] getSeasonEditsForPlayer: years=${years.join(', ')}`);
+    }
 
     return rows.map(row => {
       const ratings: { [key: string]: number } = {};
@@ -1885,8 +1941,9 @@ class UserDatabaseService {
                                    hometown, home_state, position,
                                    draft_class, draft_round, draft_pick, career_from, career_to,
                                    madden_pid, madden_pam, madden_plpo, madden_commid,
+                                   madden_pghe, madden_pfcg, madden_gpan, madden_gslp, madden_cpvf, madden_skin_tone,
                                    body_type, handedness, has_3d_model)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       player.firstName,
       player.lastName,
@@ -1906,6 +1963,12 @@ class UserDatabaseService {
       player.maddenPam ?? null,
       player.maddenPlpo ?? null,
       player.maddenCommid ?? null,
+      player.maddenPghe ?? null,
+      player.maddenPfcg ?? null,
+      player.maddenGpan ?? null,
+      player.maddenGslp ?? null,
+      player.maddenCpvf ?? null,
+      player.maddenSkinTone ?? null,
       player.bodyType ?? null,
       player.handedness ?? null,
       player.has3DModel ? 1 : 0
@@ -1939,6 +2002,13 @@ class UserDatabaseService {
     if (updates.maddenPam !== undefined) { updateFields.push('madden_pam = ?'); values.push(updates.maddenPam); }
     if (updates.maddenPlpo !== undefined) { updateFields.push('madden_plpo = ?'); values.push(updates.maddenPlpo); }
     if (updates.maddenCommid !== undefined) { updateFields.push('madden_commid = ?'); values.push(updates.maddenCommid); }
+    // PGHE face fields
+    if (updates.maddenPghe !== undefined) { updateFields.push('madden_pghe = ?'); values.push(updates.maddenPghe); }
+    if (updates.maddenPfcg !== undefined) { updateFields.push('madden_pfcg = ?'); values.push(updates.maddenPfcg); }
+    if (updates.maddenGpan !== undefined) { updateFields.push('madden_gpan = ?'); values.push(updates.maddenGpan); }
+    if (updates.maddenGslp !== undefined) { updateFields.push('madden_gslp = ?'); values.push(updates.maddenGslp); }
+    if (updates.maddenCpvf !== undefined) { updateFields.push('madden_cpvf = ?'); values.push(updates.maddenCpvf); }
+    if (updates.maddenSkinTone !== undefined) { updateFields.push('madden_skin_tone = ?'); values.push(updates.maddenSkinTone); }
     if (updates.bodyType !== undefined) { updateFields.push('body_type = ?'); values.push(updates.bodyType); }
     if (updates.handedness !== undefined) { updateFields.push('handedness = ?'); values.push(updates.handedness); }
     if (updates.has3DModel !== undefined) { updateFields.push('has_3d_model = ?'); values.push(updates.has3DModel ? 1 : 0); }
@@ -1977,6 +2047,12 @@ class UserDatabaseService {
       maddenPam: row.madden_pam as string | undefined,
       maddenPlpo: row.madden_plpo as string | undefined,
       maddenCommid: row.madden_commid as string | undefined,
+      maddenPghe: row.madden_pghe as number | undefined,
+      maddenPfcg: row.madden_pfcg as string | undefined,
+      maddenGpan: row.madden_gpan as string | undefined,
+      maddenGslp: row.madden_gslp as number | undefined,
+      maddenCpvf: row.madden_cpvf as number | undefined,
+      maddenSkinTone: row.madden_skin_tone as number | undefined,
       bodyType: row.body_type as number | undefined,
       handedness: row.handedness as number | undefined,
       has3DModel: row.has_3d_model === 1,
@@ -2010,6 +2086,12 @@ class UserDatabaseService {
       maddenPam: row.madden_pam as string | undefined,
       maddenPlpo: row.madden_plpo as string | undefined,
       maddenCommid: row.madden_commid as string | undefined,
+      maddenPghe: row.madden_pghe as number | undefined,
+      maddenPfcg: row.madden_pfcg as string | undefined,
+      maddenGpan: row.madden_gpan as string | undefined,
+      maddenGslp: row.madden_gslp as number | undefined,
+      maddenCpvf: row.madden_cpvf as number | undefined,
+      maddenSkinTone: row.madden_skin_tone as number | undefined,
       bodyType: row.body_type as number | undefined,
       handedness: row.handedness as number | undefined,
       has3DModel: row.has_3d_model === 1,

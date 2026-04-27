@@ -16,6 +16,7 @@ import {
   CustomPlayerSeason
 } from './UserDatabaseService';
 import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
+import { pgheLookupService } from './PGHELookupService';
 
 // Debug log file - use os.tmpdir() instead of app.getPath to avoid timing issues
 const DEBUG_LOG_PATH = path.join(os.tmpdir(), 'draft-push-debug.log');
@@ -213,6 +214,8 @@ const BIO_FIELD_MAP: Record<string, string> = {
   'firstName': 'firstName',
   'lastName': 'lastName',
   'homeState': 'homeState',
+  'hometown': 'hometown',
+  'homeTown': 'hometown',
   'college': 'college',
   'heightInches': 'height',
   'height': 'height',
@@ -272,6 +275,7 @@ export interface PushExecutionResult {
 export interface BioFieldOptions {
   college?: boolean;
   homeState?: boolean;
+  hometown?: boolean;
   height?: boolean;
   weight?: boolean;
   jersey?: boolean;
@@ -289,6 +293,44 @@ export interface BioFieldOptions {
 }
 
 class DraftClassDatabaseService {
+  /**
+   * Extract PGHE face data from a prospect's GENR string (PEPS/genericHeadName)
+   * Returns face fields or null if no match found
+   */
+  private extractFaceData(prospect: any): {
+    maddenPghe: number;
+    maddenPfcg: string;
+    maddenGpan: string;
+    maddenGslp: number;
+    maddenCpvf: number;
+    maddenSkinTone: number;
+  } | null {
+    // Check multiple sources for GENR string:
+    // 1. assignedGenr - set by face picker
+    // 2. visuals.genericHeadName - set by face picker or parser
+    // 3. PEPS - from parser (but empty for generic faces)
+    const genr = prospect.assignedGenr || prospect.visuals?.genericHeadName || prospect.PEPS;
+    if (!genr || !genr.startsWith('gen_')) {
+      return null;
+    }
+
+    const entry = pgheLookupService.getByGenr(genr);
+    if (!entry) {
+      console.log(`[DraftClassDB] No PGHE entry found for GENR: ${genr}`);
+      return null;
+    }
+
+    console.log(`[DraftClassDB] Extracted face data for GENR ${genr}: PGHE=${entry.pghe}, PFCG=${entry.pfcg}, skinTone=${entry.skinTone}`);
+    return {
+      maddenPghe: entry.pghe,
+      maddenPfcg: entry.pfcg,
+      maddenGpan: entry.gpan,
+      maddenGslp: entry.gslp,
+      maddenCpvf: entry.cpvf,
+      maddenSkinTone: entry.skinTone
+    };
+  }
+
   /**
    * Derive race from generic head name
    * Generic heads follow the pattern gen_X_* where X indicates race category
@@ -461,22 +503,40 @@ class DraftClassDatabaseService {
 
   /**
    * Find bio field conflicts between prospect and bundled player
+   * IMPORTANT: Checks stored edits first, so re-pushing after a push shows no conflicts
    */
   private findBioConflicts(prospect: any, bundledPlayer: any, derivedRace: number | null): FieldConflict[] {
     const conflicts: FieldConflict[] = [];
 
+    // CRITICAL: Get any stored edits from the database first
+    // This ensures that after a push, re-analyzing shows no conflicts
+    const storedEdits = userDatabaseService.getPlayerEdit(bundledPlayer.internalId);
+
+    // DEBUG: Log for first few players to see what's happening
+    const playerName = `${prospect.firstName} ${prospect.lastName}`;
+    if (playerName.includes('Hall') || playerName.includes('Montgomery') || conflicts.length === 0) {
+      console.log(`\n=== CONFLICT CHECK: ${playerName} (internalId=${bundledPlayer.internalId}) ===`);
+      console.log(`storedEdits:`, storedEdits);
+      console.log(`prospect.bodyType:`, prospect.bodyType, `bundledPlayer.bodyType:`, bundledPlayer.bodyType);
+    }
+
     const fieldsToCheck = [
-      { prospectField: 'college', bundledField: 'collegeId', displayName: 'College', transform: 'college' },
-      { prospectField: 'homeState', bundledField: 'homeState', displayName: 'Home State' },
-      { prospectField: 'height', bundledField: 'height', displayName: 'Height' },
-      { prospectField: 'heightInches', bundledField: 'height', displayName: 'Height' },
-      { prospectField: 'weight', bundledField: 'weight', displayName: 'Weight' },
-      { prospectField: 'bodyType', bundledField: 'bodyType', displayName: 'Body Type' }
+      { prospectField: 'college', bundledField: 'collegeId', editField: 'collegeId', displayName: 'College', transform: 'college' },
+      { prospectField: 'homeState', bundledField: 'homeState', editField: 'homeState', displayName: 'Home State' },
+      { prospectField: 'homeTown', bundledField: 'hometown', editField: 'hometown', displayName: 'Hometown' },
+      { prospectField: 'height', bundledField: 'height', editField: 'height', displayName: 'Height' },
+      { prospectField: 'heightInches', bundledField: 'height', editField: 'height', displayName: 'Height' },
+      { prospectField: 'weight', bundledField: 'weight', editField: 'weight', displayName: 'Weight' },
+      { prospectField: 'bodyType', bundledField: 'bodyType', editField: 'bodyType', displayName: 'Body Type' }
     ];
 
-    for (const { prospectField, bundledField, displayName, transform } of fieldsToCheck) {
+    for (const { prospectField, bundledField, editField, displayName, transform } of fieldsToCheck) {
       let newValue = prospect[prospectField];
-      const currentValue = bundledPlayer[bundledField];
+
+      // Use stored edit value if available, otherwise use bundled player value
+      const currentValue = (storedEdits && storedEdits[editField] !== undefined && storedEdits[editField] !== null)
+        ? storedEdits[editField]
+        : bundledPlayer[bundledField];
 
       // Skip if new value is empty/null
       if (newValue === undefined || newValue === null || newValue === '') continue;
@@ -493,7 +553,34 @@ class DraftClassDatabaseService {
       }
 
       // Check if values differ
-      if (String(newValue) !== String(currentValue)) {
+      // Special handling for bodyType - need to normalize both to same format
+      let normalizedNewValue = newValue;
+      let normalizedCurrentValue = currentValue;
+
+      if (bundledField === 'bodyType') {
+        // Body type names to index mapping
+        const bodyTypeNames = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+
+        // Normalize new value to index
+        if (typeof newValue === 'string' && isNaN(Number(newValue))) {
+          const idx = bodyTypeNames.findIndex(name => name.toLowerCase() === newValue.toLowerCase());
+          normalizedNewValue = idx >= 0 ? idx : newValue;
+        } else {
+          normalizedNewValue = Number(newValue);
+        }
+
+        // Normalize current value to index
+        if (typeof currentValue === 'string' && isNaN(Number(currentValue))) {
+          const idx = bodyTypeNames.findIndex(name => name.toLowerCase() === currentValue.toLowerCase());
+          normalizedCurrentValue = idx >= 0 ? idx : currentValue;
+        } else {
+          normalizedCurrentValue = Number(currentValue);
+        }
+      }
+
+      if (String(normalizedNewValue) !== String(normalizedCurrentValue)) {
+        // Log ALL conflicts to terminal
+        console.log(`  CONFLICT ${displayName}: stored/bundled=${currentValue} (norm=${normalizedCurrentValue}) vs prospect=${newValue} (norm=${normalizedNewValue})`);
         conflicts.push({
           field: bundledField,
           displayName,
@@ -504,12 +591,18 @@ class DraftClassDatabaseService {
     }
 
     // Check race conflict if we derived one
-    if (derivedRace !== null && bundledPlayer.race !== undefined && bundledPlayer.race !== null) {
-      if (derivedRace !== bundledPlayer.race) {
+    // Also check stored race edit first
+    const currentRace = (storedEdits && storedEdits.race !== undefined && storedEdits.race !== null)
+      ? storedEdits.race
+      : bundledPlayer.race;
+
+    if (derivedRace !== null && currentRace !== undefined && currentRace !== null) {
+      // Use Number() conversion to handle string vs number comparison ("1" vs 1)
+      if (Number(derivedRace) !== Number(currentRace)) {
         conflicts.push({
           field: 'race',
           displayName: 'Race',
-          currentValue: bundledPlayer.race,
+          currentValue: currentRace,
           newValue: derivedRace
         });
       }
@@ -527,6 +620,7 @@ class DraftClassDatabaseService {
     const fieldsToCheck = [
       { prospectField: 'college', customField: 'collegeId', displayName: 'College', transform: 'college' },
       { prospectField: 'homeState', customField: 'homeState', displayName: 'Home State' },
+      { prospectField: 'homeTown', customField: 'hometown', displayName: 'Hometown' },
       { prospectField: 'height', customField: 'height', displayName: 'Height' },
       { prospectField: 'heightInches', customField: 'height', displayName: 'Height' },
       { prospectField: 'weight', customField: 'weight', displayName: 'Weight' },
@@ -552,7 +646,32 @@ class DraftClassDatabaseService {
       }
 
       // Check if values differ
-      if (String(newValue) !== String(currentValue)) {
+      // Special handling for bodyType - need to normalize both to same format
+      let normalizedNewValue = newValue;
+      let normalizedCurrentValue = currentValue;
+
+      if (customField === 'bodyType') {
+        // Body type names to index mapping
+        const bodyTypeNames = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+
+        // Normalize new value to index
+        if (typeof newValue === 'string' && isNaN(Number(newValue))) {
+          const idx = bodyTypeNames.findIndex(name => name.toLowerCase() === newValue.toLowerCase());
+          normalizedNewValue = idx >= 0 ? idx : newValue;
+        } else {
+          normalizedNewValue = Number(newValue);
+        }
+
+        // Normalize current value to index
+        if (typeof currentValue === 'string' && isNaN(Number(currentValue))) {
+          const idx = bodyTypeNames.findIndex(name => name.toLowerCase() === currentValue.toLowerCase());
+          normalizedCurrentValue = idx >= 0 ? idx : currentValue;
+        } else {
+          normalizedCurrentValue = Number(currentValue);
+        }
+      }
+
+      if (String(normalizedNewValue) !== String(normalizedCurrentValue)) {
         conflicts.push({
           field: customField,
           displayName,
@@ -564,7 +683,8 @@ class DraftClassDatabaseService {
 
     // Check race conflict if we derived one
     if (derivedRace !== null && customPlayer.race !== undefined && customPlayer.race !== null) {
-      if (derivedRace !== customPlayer.race) {
+      // Use Number() conversion to handle string vs number comparison ("1" vs 1)
+      if (Number(derivedRace) !== Number(customPlayer.race)) {
         conflicts.push({
           field: 'race',
           displayName: 'Race',
@@ -615,6 +735,13 @@ class DraftClassDatabaseService {
       bioFieldOptions = {}
     } = options;
 
+    // CRITICAL DEBUG: Log what options were received vs defaults
+    console.log(`[DraftClassDatabaseService] ========== OPTIONS RECEIVED ==========`);
+    console.log(`[DraftClassDatabaseService] RAW options object:`, JSON.stringify(options));
+    console.log(`[DraftClassDatabaseService] DESTRUCTURED fillEmptyBioFields=${fillEmptyBioFields} (type: ${typeof fillEmptyBioFields})`);
+    console.log(`[DraftClassDatabaseService] options.fillEmptyBioFields=${options.fillEmptyBioFields} (type: ${typeof options.fillEmptyBioFields})`);
+    console.log(`[DraftClassDatabaseService] pushMode=${pushMode}, overwriteExistingSeasons=${overwriteExistingSeasons}`);
+
     debugLog(`Push mode: ${pushMode}, overwrite: ${overwriteExistingSeasons}`);
     const result: PushExecutionResult = {
       success: true,
@@ -629,6 +756,13 @@ class DraftClassDatabaseService {
     for (const res of resolutions) {
       resolutionMap.set(`${res.prospectIndex}_${res.field}`, res.keepCurrent);
     }
+
+    // DEBUG: Log all resolutions received
+    console.log(`\n=== PUSH EXECUTION: ${resolutions.length} resolutions received ===`);
+    resolutions.slice(0, 10).forEach((res, i) => {
+      console.log(`  res[${i}]: prospectIndex=${res.prospectIndex}, field=${res.field}, keepCurrent=${res.keepCurrent}`);
+    });
+    if (resolutions.length > 10) console.log(`  ... and ${resolutions.length - 10} more`);
 
     try {
       // Process new players - create custom players
@@ -747,6 +881,12 @@ class DraftClassDatabaseService {
       }
     }
 
+    // Extract face data from GENR string if available
+    const faceData = this.extractFaceData(prospect);
+
+    // Get PAM (3D model) from multiple sources: assignedGenr, PEPS, visuals.genericHeadName
+    const prospectPam = prospect.assignedGenr || prospect.PEPS || prospect.visuals?.genericHeadName;
+
     // Create the custom player - always include name and draft class
     const customPlayer: CustomPlayer = {
       firstName: prospect.firstName,
@@ -755,8 +895,17 @@ class DraftClassDatabaseService {
       careerFrom: draftYear,
       careerTo: draftYear + 15,  // Default 15 year career span
       maddenPid: prospect.PID || 0,
-      maddenPam: prospect.PEPS || prospect.visuals?.genericHeadName,
-      has3DModel: (prospect.PID || 0) > 0
+      maddenPam: prospectPam,
+      has3DModel: (prospect.PID || 0) > 0,
+      // Include face data if extracted
+      ...(faceData && {
+        maddenPghe: faceData.maddenPghe,
+        maddenPfcg: faceData.maddenPfcg,
+        maddenGpan: faceData.maddenGpan,
+        maddenGslp: faceData.maddenGslp,
+        maddenCpvf: faceData.maddenCpvf,
+        maddenSkinTone: faceData.maddenSkinTone
+      })
     };
 
     // Conditionally add bio fields based on pushMode and options
@@ -775,6 +924,9 @@ class DraftClassDatabaseService {
       }
       if (bioFieldOptions.homeState !== false && homeStateId !== undefined) {
         customPlayer.homeState = String(homeStateId);
+      }
+      if (bioFieldOptions.hometown !== false && (prospect.homeTown || prospect.hometown)) {
+        customPlayer.hometown = prospect.homeTown || prospect.hometown;
       }
       if (bioFieldOptions.position !== false && positionName) {
         customPlayer.position = positionName;
@@ -828,74 +980,126 @@ class DraftClassDatabaseService {
 
     // Only process bio fields if pushMode is 'all'
     if (includeBioFields) {
+      // DEBUG: Log resolution processing
+      console.log(`\n=== RESOLUTION PROCESSING: ${prospect.firstName} ${prospect.lastName} (idx=${item.prospectIndex}) ===`);
+      console.log(`  conflicts count: ${item.conflicts?.length || 0}`);
+      console.log(`  fillEmptyBioFields: ${fillEmptyBioFields}`);
+
+      // Track fields where user chose "Keep Current" - these should NOT be overwritten
+      const keepCurrentFields = new Set<string>();
+
       // Process conflicts with resolutions
       for (const conflict of item.conflicts || []) {
-        const keepCurrent = resolutionMap.get(`${item.prospectIndex}_${conflict.field}`) ?? true;
+        const resKey = `${item.prospectIndex}_${conflict.field}`;
+        const keepCurrent = resolutionMap.get(resKey) ?? true;
+        console.log(`  Resolution for ${conflict.field}: key="${resKey}", keepCurrent=${keepCurrent}, newValue=${conflict.newValue}`);
         if (!keepCurrent) {
-          // Check if this field is enabled in bioFieldOptions
+          // User chose "Use New" - apply the prospect value
           const fieldEnabled = this.isBioFieldEnabled(conflict.field, bioFieldOptions);
           if (fieldEnabled) {
             bioEdits[conflict.field] = conflict.newValue;
+            console.log(`    -> SET bioEdits.${conflict.field} = ${conflict.newValue}`);
           }
+        } else {
+          // User chose "Keep Current" - mark this field to skip in default code
+          keepCurrentFields.add(conflict.field);
+          console.log(`    -> KEEPING CURRENT for ${conflict.field}`);
         }
       }
 
       // Push bio fields when checkbox is selected
-      // If fillEmptyBioFields is true, only fill empty fields
-      // If fillEmptyBioFields is false, always push (overwrite)
-      if (bioFieldOptions.college !== false && prospect.college) {
-        if (!fillEmptyBioFields || !currentPlayer.collegeId) {
-          let collegeId: number | undefined = undefined;
-          if (typeof prospect.college === 'string') {
-            const id = this.getCollegeId(prospect.college);
-            if (id) collegeId = id;
-          } else if (typeof prospect.college === 'number') {
-            collegeId = prospect.college;
-          }
-          if (collegeId) bioEdits.collegeId = collegeId;
+      // Only set defaults for fields NOT in keepCurrentFields (user wants to keep DB value)
+      // The resolution loop already handled explicit choices, default code fills in the rest
+
+      if (bioFieldOptions.college !== false && prospect.college && bioEdits.collegeId === undefined && !keepCurrentFields.has('collegeId')) {
+        let collegeId: number | undefined = undefined;
+        if (typeof prospect.college === 'string') {
+          const id = this.getCollegeId(prospect.college);
+          if (id) collegeId = id;
+        } else if (typeof prospect.college === 'number') {
+          collegeId = prospect.college;
+        }
+        if (collegeId) {
+          bioEdits.collegeId = collegeId;
         }
       }
 
-      if (bioFieldOptions.homeState !== false && prospect.homeState) {
-        if (!fillEmptyBioFields || !currentPlayer.homeState) {
-          bioEdits.homeState = prospect.homeState;
-        }
+      if (bioFieldOptions.homeState !== false && prospect.homeState && bioEdits.homeState === undefined && !keepCurrentFields.has('homeState')) {
+        bioEdits.homeState = prospect.homeState;
       }
 
-      if (bioFieldOptions.height !== false && (prospect.height || prospect.heightInches)) {
-        if (!fillEmptyBioFields || !currentPlayer.height) {
-          bioEdits.height = prospect.heightInches || prospect.height;
-        }
+      if (bioFieldOptions.hometown !== false && (prospect.homeTown || prospect.hometown) && bioEdits.hometown === undefined && !keepCurrentFields.has('hometown')) {
+        bioEdits.hometown = prospect.homeTown || prospect.hometown;
       }
 
-      if (bioFieldOptions.weight !== false && prospect.weight) {
-        if (!fillEmptyBioFields || !currentPlayer.weight) {
-          bioEdits.weight = prospect.weight;
-        }
+      if (bioFieldOptions.height !== false && (prospect.height || prospect.heightInches) && bioEdits.height === undefined && !keepCurrentFields.has('height')) {
+        bioEdits.height = prospect.heightInches || prospect.height;
       }
 
-      if (bioFieldOptions.race !== false && (prospect.race || item.derivedRace)) {
-        if (!fillEmptyBioFields || !currentPlayer.race) {
-          bioEdits.race = item.derivedRace ?? prospect.race;
-        }
+      if (bioFieldOptions.weight !== false && prospect.weight && bioEdits.weight === undefined && !keepCurrentFields.has('weight')) {
+        bioEdits.weight = prospect.weight;
       }
 
-      if (bioFieldOptions.bodyType !== false && prospect.bodyType !== undefined) {
-        if (!fillEmptyBioFields || !currentPlayer.bodyType) {
-          bioEdits.bodyType = this.normalizeBodyType(prospect.bodyType);
-        }
+      if (bioFieldOptions.race !== false && (prospect.race || item.derivedRace) && bioEdits.race === undefined && !keepCurrentFields.has('race')) {
+        bioEdits.race = item.derivedRace ?? prospect.race;
       }
 
-      if (bioFieldOptions.handedness !== false && prospect.handedness !== undefined) {
-        if (!fillEmptyBioFields || !currentPlayer.handedness) {
-          bioEdits.handedness = prospect.handedness;
-        }
+      if (bioFieldOptions.bodyType !== false && prospect.bodyType !== undefined && bioEdits.bodyType === undefined && !keepCurrentFields.has('bodyType')) {
+        bioEdits.bodyType = this.normalizeBodyType(prospect.bodyType);
       }
+
+      if (bioFieldOptions.handedness !== false && prospect.handedness !== undefined && bioEdits.handedness === undefined && !keepCurrentFields.has('handedness')) {
+        bioEdits.handedness = prospect.handedness;
+      }
+
+      // DEBUG: Final bioEdits before save
+      console.log(`  FINAL bioEdits:`, JSON.stringify(bioEdits));
 
       // Save bio edits if any
       if (Object.keys(bioEdits).length > 0) {
-        console.log(`[DraftClassDatabaseService] updateBundledPlayer - bioEdits:`, bioEdits);
+        console.log(`[DraftClassDatabaseService] SAVING BIO EDITS for player ${playerId}:`, bioEdits);
         userDatabaseService.savePlayerEdit(playerId, bioEdits);
+
+        // VERIFY: Read back the saved bio edits
+        const verifyBio = userDatabaseService.getPlayerEdit(playerId);
+        console.log(`[DraftClassDatabaseService] VERIFY BIO SAVE for player ${playerId}:`);
+        console.log(`  - Saved weight: ${bioEdits.weight}, Read back weight: ${verifyBio?.weight}`);
+        console.log(`  - Match: ${bioEdits.weight === verifyBio?.weight ? 'YES' : 'NO'}`);
+      } else {
+        console.log(`[DraftClassDatabaseService] NO BIO EDITS TO SAVE for player ${playerId}`);
+        console.log(`  - fillEmptyBioFields=${fillEmptyBioFields}`);
+        console.log(`  - currentPlayer.weight=${currentPlayer.weight}`);
+      }
+    }
+
+    // Extract and save face data to appearance_edits
+    // Check multiple sources for PAM (3D model): assignedGenr, PEPS, visuals.genericHeadName
+    const prospectPam = prospect.assignedGenr || prospect.PEPS || prospect.visuals?.genericHeadName;
+    const faceData = this.extractFaceData(prospect);
+
+    if (faceData) {
+      const appearanceEdits: any = {
+        maddenPid: prospect.PID || 0,
+        maddenPam: prospectPam,
+        maddenPghe: faceData.maddenPghe,
+        maddenPfcg: faceData.maddenPfcg,
+        maddenGpan: faceData.maddenGpan,
+        maddenGslp: faceData.maddenGslp,
+        maddenCpvf: faceData.maddenCpvf,
+        maddenSkinTone: faceData.maddenSkinTone
+      };
+      console.log(`[DraftClassDatabaseService] updateBundledPlayer - saving appearance edits:`, appearanceEdits);
+      userDatabaseService.saveAppearanceEdit(playerId, appearanceEdits);
+    } else if (prospect.PID !== undefined || prospectPam) {
+      // Save PID/PAM even without full PGHE data
+      const appearanceEdits: any = {};
+      if (prospect.PID !== undefined) appearanceEdits.maddenPid = prospect.PID;
+      if (prospectPam) {
+        appearanceEdits.maddenPam = prospectPam;
+      }
+      if (Object.keys(appearanceEdits).length > 0) {
+        console.log(`[DraftClassDatabaseService] updateBundledPlayer - saving basic appearance:`, appearanceEdits);
+        userDatabaseService.saveAppearanceEdit(playerId, appearanceEdits);
       }
     }
 
@@ -967,6 +1171,12 @@ class DraftClassDatabaseService {
         }
       }
 
+      if (bioFieldOptions.hometown !== false && (prospect.homeTown || prospect.hometown)) {
+        if (!fillEmptyBioFields || !currentPlayer.hometown) {
+          bioUpdates.hometown = prospect.homeTown || prospect.hometown;
+        }
+      }
+
       if (bioFieldOptions.height !== false && (prospect.height || prospect.heightInches)) {
         if (!fillEmptyBioFields || !currentPlayer.height) {
           bioUpdates.height = prospect.heightInches || prospect.height;
@@ -998,14 +1208,32 @@ class DraftClassDatabaseService {
       }
 
       // Push PID and PAM for custom players
+      // PAM sources: assignedGenr (face picker), PEPS (parser), visuals.genericHeadName
+      const prospectPam = prospect.assignedGenr || prospect.PEPS || prospect.visuals?.genericHeadName;
+
       if (bioFieldOptions.pid !== false && prospect.PID !== undefined) {
         if (!fillEmptyBioFields || !currentPlayer.maddenPid) {
           bioUpdates.maddenPid = prospect.PID;
         }
       }
-      if (bioFieldOptions.pam !== false && (prospect.PEPS || prospect.visuals?.genericHeadName)) {
+      if (bioFieldOptions.pam !== false && prospectPam) {
         if (!fillEmptyBioFields || !currentPlayer.maddenPam) {
-          bioUpdates.maddenPam = prospect.PEPS || prospect.visuals?.genericHeadName;
+          bioUpdates.maddenPam = prospectPam;
+        }
+      }
+
+      // Extract and save face data for custom players
+      const faceData = this.extractFaceData(prospect);
+      if (faceData) {
+        // For custom players, face data is stored directly in custom_players table
+        if (!fillEmptyBioFields || !currentPlayer.maddenPghe) {
+          bioUpdates.maddenPghe = faceData.maddenPghe;
+          bioUpdates.maddenPfcg = faceData.maddenPfcg;
+          bioUpdates.maddenGpan = faceData.maddenGpan;
+          bioUpdates.maddenGslp = faceData.maddenGslp;
+          bioUpdates.maddenCpvf = faceData.maddenCpvf;
+          bioUpdates.maddenSkinTone = faceData.maddenSkinTone;
+          console.log(`[DraftClassDatabaseService] updateCustomPlayer - adding face data:`, faceData);
         }
       }
 
@@ -1028,6 +1256,8 @@ class DraftClassDatabaseService {
       'collegeId': 'college',
       'college': 'college',
       'homeState': 'homeState',
+      'hometown': 'hometown',
+      'homeTown': 'hometown',
       'height': 'height',
       'weight': 'weight',
       'race': 'race',
@@ -1049,6 +1279,7 @@ class DraftClassDatabaseService {
 
   /**
    * Save season data for a custom player
+   * SIMPLIFIED: Uses same pattern as RosterDatabaseService
    */
   private async saveSeasonData(
     customPlayerId: number,
@@ -1078,49 +1309,37 @@ class DraftClassDatabaseService {
       }
       if (bioFieldOptions.archetype !== false) {
         season.archetype = prospect.archetype;
+        // Also store numeric archetype ID (PLTY)
+        if (prospect.PLTY !== undefined) {
+          (season as any).PLTY = prospect.PLTY;
+        }
       }
     }
 
-    // Extract ratings - check both direct fields and mapped names (always include ratings)
-    const ratings: Record<string, number> = {};
+    // Extract ratings - EXACTLY like RosterDatabaseService
+    this.extractRatingsToSeason(prospect, season);
 
-    // DEBUG: Log first prospect's data to see what fields exist
-    console.log(`[DraftClassDatabaseService] saveSeasonData - Prospect keys:`, Object.keys(prospect).slice(0, 30));
-    console.log(`[DraftClassDatabaseService] Sample values: speed=${prospect.speed}, breakTackle=${prospect.breakTackle}, overall=${prospect.overall}`);
-
-    // First check M26 rating field names (POVR, PSPD, PSTA, PBKT, etc.)
-    for (const field of RATING_FIELDS) {
-      if (prospect[field] !== undefined && prospect[field] !== null) {
-        ratings[field] = prospect[field];
-      }
-    }
-    console.log(`[DraftClassDatabaseService] After M26 field check: ${Object.keys(ratings).length} ratings found`);
-
-    // Check for legacy field names (PSTM, PBTK, etc.) and convert to M26 names
-    for (const [legacyName, m26Name] of Object.entries(LEGACY_TO_M26_FIELD_MAP)) {
-      if (prospect[legacyName] !== undefined && prospect[legacyName] !== null && !ratings[m26Name]) {
-        ratings[m26Name] = prospect[legacyName];
-      }
-    }
-    console.log(`[DraftClassDatabaseService] After legacy field check: ${Object.keys(ratings).length} ratings found`);
-
-    // Also check alternative names (overall, speed, etc.)
-    for (const [altName, dbName] of Object.entries(RATING_FIELD_MAP)) {
-      if (prospect[altName] !== undefined && prospect[altName] !== null && !ratings[dbName]) {
-        ratings[dbName] = prospect[altName];
-      }
-    }
-    console.log(`[DraftClassDatabaseService] After alt name check: ${Object.keys(ratings).length} ratings found`);
-    console.log(`[DraftClassDatabaseService] Final ratings object:`, ratings);
-
-    // Merge ratings into season
-    Object.assign(season, ratings);
+    console.log(`[DraftClassDB] saveSeasonData for custom player ${customPlayerId}, year ${year}, POVR=${(season as any).POVR}`);
 
     userDatabaseService.saveCustomPlayerSeason(customPlayerId, year, season);
   }
 
   /**
+   * Extract ratings from prospect to season object
+   * COPIED DIRECTLY FROM RosterDatabaseService - IDENTICAL LOGIC
+   */
+  private extractRatingsToSeason(prospect: any, season: any): void {
+    // Simple loop - EXACTLY like RosterDatabaseService
+    for (const field of RATING_FIELDS) {
+      if (prospect[field] !== undefined && prospect[field] !== null) {
+        season[field] = prospect[field];
+      }
+    }
+  }
+
+  /**
    * Save season edit data for a bundled player
+   * SIMPLIFIED: Uses same pattern as RosterDatabaseService
    */
   private async saveSeasonEditData(
     playerId: number,
@@ -1129,27 +1348,13 @@ class DraftClassDatabaseService {
     pushMode: 'all' | 'ratings' = 'all',
     bioFieldOptions: BioFieldOptions = {}
   ): Promise<void> {
-    // DUMP ALL PROSPECT KEYS AND VALUES FOR DEBUGGING
-    const allKeys = Object.keys(prospect);
-    console.log(`\n[DraftClassDB] ====== PROSPECT DATA DUMP for ${prospect.firstName} ${prospect.lastName} ======`);
-    console.log(`[DraftClassDB] Total keys: ${allKeys.length}`);
-    console.log(`[DraftClassDB] ALL KEYS: ${allKeys.join(', ')}`);
-
-    // Log all rating-related values (both camelCase and M26)
-    const ratingKeys = ['speed', 'overall', 'acceleration', 'strength', 'awareness', 'tackle',
-                        'PSPD', 'POVR', 'PACC', 'PSTR', 'PAWR', 'PTAK'];
-    for (const key of ratingKeys) {
-      console.log(`[DraftClassDB]   ${key} = ${prospect[key]} (type: ${typeof prospect[key]})`);
-    }
-
     debugLog(`saveSeasonEditData called for player ${playerId}, year ${year}`);
-    debugLog(`Prospect keys: ${Object.keys(prospect).slice(0, 40).join(', ')}`);
-    debugLog(`Prospect sample: speed=${prospect.speed}, overall=${prospect.overall}, PSPD=${prospect.PSPD}, POVR=${prospect.POVR}`);
+    console.log(`[DraftClassDB] saveSeasonEditData: ${prospect.firstName} ${prospect.lastName} (id=${playerId}), year=${year}`);
 
     const includeBioFields = pushMode === 'all';
 
     const seasonEdits: any = {
-      team: prospect.team
+      team: prospect.team || 'FA'  // Default to Free Agent if no team specified
     };
 
     // Conditionally include bio fields in season edits
@@ -1164,57 +1369,27 @@ class DraftClassDatabaseService {
         seasonEdits.position = typeof prospect.position === 'string' ? prospect.position : undefined;
       }
       if (bioFieldOptions.archetype !== false) {
+        // Support both string archetype and numeric PLTY
         seasonEdits.archetype = prospect.archetype;
-      }
-    }
-
-    // Extract ratings (always include)
-    let m26Count = 0, legacyCount = 0, camelCount = 0;
-
-    // First check M26 rating field names
-    for (const field of RATING_FIELDS) {
-      if (prospect[field] !== undefined && prospect[field] !== null) {
-        seasonEdits[field] = prospect[field];
-        m26Count++;
-      }
-    }
-    console.log(`[DraftClassDB] M26 fields found directly: ${m26Count}`);
-
-    // Check for legacy field names and convert to M26 names
-    for (const [legacyName, m26Name] of Object.entries(LEGACY_TO_M26_FIELD_MAP)) {
-      if (prospect[legacyName] !== undefined && prospect[legacyName] !== null && !seasonEdits[m26Name]) {
-        seasonEdits[m26Name] = prospect[legacyName];
-        legacyCount++;
-      }
-    }
-    console.log(`[DraftClassDB] Legacy fields mapped: ${legacyCount}`);
-
-    // Also check alternative names (overall, speed, etc.)
-    for (const [altName, dbName] of Object.entries(RATING_FIELD_MAP)) {
-      if (prospect[altName] !== undefined && prospect[altName] !== null && !seasonEdits[dbName]) {
-        seasonEdits[dbName] = prospect[altName];
-        camelCount++;
-        // Log the first few mappings for debugging
-        if (camelCount <= 5) {
-          console.log(`[DraftClassDB]   Mapped ${altName}=${prospect[altName]} -> ${dbName}`);
+        if (prospect.PLTY !== undefined) {
+          seasonEdits.PLTY = prospect.PLTY;
         }
       }
     }
-    console.log(`[DraftClassDB] CamelCase fields mapped: ${camelCount}`);
 
-    // Count how many ratings were found
-    const ratingCount = Object.keys(seasonEdits).filter(k => k.startsWith('P') || k.startsWith('S')).length;
-    console.log(`[DraftClassDB] Extracted ${ratingCount} rating fields for ${prospect.firstName} ${prospect.lastName}`);
-    console.log(`[DraftClassDB] seasonEdits: POVR=${seasonEdits.POVR}, PSPD=${seasonEdits.PSPD}, PTAK=${seasonEdits.PTAK}`);
-    debugLog(`saveSeasonEditData - extracted ${ratingCount} ratings`);
+    // Extract ratings - EXACTLY like RosterDatabaseService
+    this.extractRatingsToSeason(prospect, seasonEdits);
 
-    // NOTE: Do NOT recalculate OVR here - the draft class editor already calculates the correct OVR
-    // using findBestArchetype. The POVR from the draft class is authoritative.
-    // Recalculating here was causing OVR mismatches (e.g., 81 in draft → 75 in database).
+    console.log(`[DraftClassDB] seasonEdits: POVR=${seasonEdits.POVR}, PSPD=${seasonEdits.PSPD}, PTAK=${seasonEdits.PTAK}, PLTY=${seasonEdits.PLTY}`);
 
     userDatabaseService.saveSeasonEdit(playerId, year, seasonEdits);
     console.log(`[DraftClassDB] saveSeasonEdit CALLED for player ${playerId}, year ${year}`);
-    debugLog(`saveSeasonEdit called successfully for player ${playerId}, year ${year}`);
+
+    // Verify save
+    const verify = userDatabaseService.getSeasonEdit(playerId, year);
+    if (verify) {
+      console.log(`[DraftClassDB] VERIFY: Saved POVR=${seasonEdits.POVR}, Read back POVR=${verify.ratings?.POVR}`);
+    }
   }
 
   /**

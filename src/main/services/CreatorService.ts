@@ -1977,20 +1977,51 @@ export class CreatorService {
         }
 
         // CRITICAL: Check for Portrait Manager assignment (appearance_edits table)
-        // This OVERRIDES any CSV/lookup PID because user explicitly assigned a custom portrait
+        // This OVERRIDES any CSV/lookup PID because user explicitly assigned a custom portrait or generic face
         const CUSTOM_PID_START = 12000;
         const dbPlayerForPid = lookupService.findPlayerByNameAndYear(firstName, lastName, year);
+        let userAssignedGenericFace: { pam: string; pid: number; pghe?: number } | null = null;
+
+        // DEBUG: Log player lookup for first 5 players
+        if (i < 5) {
+          console.log(`[CreatorService] DEBUG LOOKUP: ${firstName} ${lastName} for year ${year}: found=${!!dbPlayerForPid}, internalId=${dbPlayerForPid?.internalId}`);
+        }
+
         if (dbPlayerForPid && dbPlayerForPid.internalId) {
-          const genAppearanceEditPidsMap = userDatabaseService.getAllAppearanceEditPids();
-          const genCustomPortraitPidsMap = userDatabaseService.getAllCustomPortraitAssignments();
-          const genAppearanceEditPid = genAppearanceEditPidsMap.get(dbPlayerForPid.internalId);
-          const genCustomPortraitPid = genCustomPortraitPidsMap.get(dbPlayerForPid.internalId);
-          if (genAppearanceEditPid != null && genAppearanceEditPid >= CUSTOM_PID_START) {
-            console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using appearance_edits PID ${genAppearanceEditPid} (was ${matchedPID})`);
-            matchedPID = genAppearanceEditPid;
-          } else if (genCustomPortraitPid != null && genCustomPortraitPid >= CUSTOM_PID_START) {
-            console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using custom_portraits PID ${genCustomPortraitPid} (was ${matchedPID})`);
-            matchedPID = genCustomPortraitPid;
+          // First check for full appearance edit with generic face data
+          const appearanceEdit = userDatabaseService.getAppearanceEdit(dbPlayerForPid.internalId);
+
+          // DEBUG: Log appearance edit for first 5 players
+          if (i < 5) {
+            console.log(`[CreatorService] DEBUG APPEARANCE: ${firstName} ${lastName}: exists=${!!appearanceEdit}, maddenPam=${appearanceEdit?.maddenPam}, maddenPghe=${appearanceEdit?.maddenPghe}, maddenPid=${appearanceEdit?.maddenPid}`);
+          }
+
+          // Check if user assigned a generic face (maddenPam starting with gen_ or maddenPghe > 0)
+          const hasGenericFaceAssignment = appearanceEdit && (
+            (appearanceEdit.maddenPam && typeof appearanceEdit.maddenPam === 'string' && appearanceEdit.maddenPam.startsWith('gen_')) ||
+            (appearanceEdit.maddenPghe !== undefined && appearanceEdit.maddenPghe > 0)
+          );
+
+          if (hasGenericFaceAssignment) {
+            // User assigned a specific generic face - use it
+            const genPam = appearanceEdit.maddenPam || '';
+            const genPid = appearanceEdit.maddenPid || 0;
+            console.log(`[CreatorService] GENERIC FACE OVERRIDE: ${firstName} ${lastName} - using appearance_edits PAM='${genPam}', PID=${genPid}, PGHE=${appearanceEdit.maddenPghe} (was ${matchedPID})`);
+            matchedPID = genPid;
+            userAssignedGenericFace = { pam: genPam, pid: genPid, pghe: appearanceEdit.maddenPghe };
+          } else {
+            // Check for custom portrait PID (>= 12000)
+            const genAppearanceEditPidsMap = userDatabaseService.getAllAppearanceEditPids();
+            const genCustomPortraitPidsMap = userDatabaseService.getAllCustomPortraitAssignments();
+            const genAppearanceEditPid = genAppearanceEditPidsMap.get(dbPlayerForPid.internalId);
+            const genCustomPortraitPid = genCustomPortraitPidsMap.get(dbPlayerForPid.internalId);
+            if (genAppearanceEditPid != null && genAppearanceEditPid >= CUSTOM_PID_START) {
+              console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using appearance_edits PID ${genAppearanceEditPid} (was ${matchedPID})`);
+              matchedPID = genAppearanceEditPid;
+            } else if (genCustomPortraitPid != null && genCustomPortraitPid >= CUSTOM_PID_START) {
+              console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using custom_portraits PID ${genCustomPortraitPid} (was ${matchedPID})`);
+              matchedPID = genCustomPortraitPid;
+            }
           }
         }
 
@@ -2009,15 +2040,22 @@ export class CreatorService {
         // Get PAM (Player Assets ID) from MASTER_LOOKUP
         let playerAssetId = lookupEntry ? lookupEntry['Player Assets ID'] : undefined;
 
-        // If no real portrait found, assign appropriate generic face WITH race data
-        if (matchedPID === 0) {
+        // If user assigned a generic face, use that PAM instead
+        if (userAssignedGenericFace?.pam) {
+          playerAssetId = userAssignedGenericFace.pam;
+          console.log(`[CreatorService] Using user-assigned generic face PAM: ${playerAssetId}`);
+        }
+
+        // If no real portrait found and no user-assigned generic face, assign appropriate generic face WITH race data
+        if (matchedPID === 0 && !userAssignedGenericFace) {
           matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
         }
 
         // Auto-populate asset ID if missing:
-        // 1. Use real asset from MASTER_LOOKUP if available
-        // 2. If no asset but has PID, assign generic asset matching their portrait
-        // 3. If neither, assign generic asset based on race
+        // 1. Use user-assigned generic face PAM if available
+        // 2. Use real asset from MASTER_LOOKUP if available
+        // 3. If no asset but has PID, assign generic asset matching their portrait
+        // 4. If neither, assign generic asset based on race
         if (!playerAssetId || playerAssetId.trim() === '') {
           playerAssetId = this.assignGenericAsset(matchedPID, raceData);
         }
@@ -2050,10 +2088,39 @@ export class CreatorService {
           commID = lookupService.getCommentaryId(lastName) || 0;
         }
 
-        // Get PGHE index from last assigned generic face (if applicable)
-        const pgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
-          ? this.lastAssignedPgheEntry.pghe
-          : undefined;
+        // Get PGHE value - prefer user-assigned, then from generic face assignment
+        const pgheValue = userAssignedGenericFace?.pghe
+          ?? (this.lastAssignedPgheEntry?.psxp === matchedPID ? this.lastAssignedPgheEntry.pghe : undefined);
+
+        // Generate body type - check for stored body type edit first
+        let bodyType = this.determineBodyType(mappedPosition.name, weight, heightInches);
+        if (dbPlayerForPid && dbPlayerForPid.internalId) {
+          const bioEdit = userDatabaseService.getPlayerEdit(dbPlayerForPid.internalId);
+          if (bioEdit && bioEdit.bodyType !== undefined && bioEdit.bodyType !== null) {
+            // Convert numeric body type to string if needed
+            // Handle both actual numbers AND string numbers like "2" or "2.0"
+            const bodyTypeNames = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+            let storedBodyType: string;
+
+            if (typeof bioEdit.bodyType === 'number') {
+              storedBodyType = bodyTypeNames[bioEdit.bodyType] || bodyType;
+            } else if (typeof bioEdit.bodyType === 'string') {
+              const numericValue = parseFloat(bioEdit.bodyType);
+              if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 4) {
+                storedBodyType = bodyTypeNames[Math.floor(numericValue)] || bodyType;
+              } else {
+                storedBodyType = bioEdit.bodyType;
+              }
+            } else {
+              storedBodyType = bodyType;
+            }
+
+            if (i < 5) {
+              console.log(`[CreatorService] BODY TYPE OVERRIDE: ${firstName} ${lastName} - using stored bodyType='${storedBodyType}' (raw=${bioEdit.bodyType}, was ${bodyType})`);
+            }
+            bodyType = storedBodyType;
+          }
+        }
 
         // Generate player
         const player: GeneratedPlayer = {
@@ -2072,7 +2139,7 @@ export class CreatorService {
           PID: matchedPID,
           PEPS: playerAssetId || null, // GENR from PGHE lookup for generic faces
           PGHE: pgheValue, // Face picker index from PGHE lookup
-          bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
+          bodyType,
           yearsPro: 0,
           commID: commID || undefined,
           _sourceStats: stats || undefined
@@ -2467,21 +2534,54 @@ export class CreatorService {
         }
 
         // CRITICAL: Check for Portrait Manager assignment (appearance_edits table)
-        // This OVERRIDES any CSV/lookup PID because user explicitly assigned a custom portrait
+        // This OVERRIDES any CSV/lookup PID because user explicitly assigned a custom portrait or generic face
         const CUSTOM_PID_START = 12000;
         const dbPlayerForPid = lookupService.findPlayerByNameAndYear(firstName, lastName, year);
+        let userAssignedGenericFace: { pam: string; pid: number; pghe?: number } | null = null;
+
+        // DEBUG: Log player lookup for first 5 players
+        if (i < 5) {
+          console.log(`[CreatorService] DEBUG LOOKUP: ${firstName} ${lastName} for year ${year}: found=${!!dbPlayerForPid}, internalId=${dbPlayerForPid?.internalId}`);
+        }
+
         if (dbPlayerForPid && dbPlayerForPid.internalId) {
-          const genAppearanceEditPidsMap = userDatabaseService.getAllAppearanceEditPids();
-          const genCustomPortraitPidsMap = userDatabaseService.getAllCustomPortraitAssignments();
-          const genAppearanceEditPid = genAppearanceEditPidsMap.get(dbPlayerForPid.internalId);
-          const genCustomPortraitPid = genCustomPortraitPidsMap.get(dbPlayerForPid.internalId);
-          if (genAppearanceEditPid != null && genAppearanceEditPid >= CUSTOM_PID_START) {
-            console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using appearance_edits PID ${genAppearanceEditPid} (was ${matchedPID})`);
-            matchedPID = genAppearanceEditPid;
-          } else if (genCustomPortraitPid != null && genCustomPortraitPid >= CUSTOM_PID_START) {
-            console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using custom_portraits PID ${genCustomPortraitPid} (was ${matchedPID})`);
-            matchedPID = genCustomPortraitPid;
+          // First check for full appearance edit with generic face data
+          const appearanceEdit = userDatabaseService.getAppearanceEdit(dbPlayerForPid.internalId);
+
+          // DEBUG: Log appearance edit for first 5 players
+          if (i < 5) {
+            console.log(`[CreatorService] DEBUG APPEARANCE: ${firstName} ${lastName}: exists=${!!appearanceEdit}, maddenPam=${appearanceEdit?.maddenPam}, maddenPghe=${appearanceEdit?.maddenPghe}, maddenPid=${appearanceEdit?.maddenPid}`);
           }
+
+          // Check if user assigned a generic face (maddenPam starting with gen_ or maddenPghe > 0)
+          const hasGenericFaceAssignment = appearanceEdit && (
+            (appearanceEdit.maddenPam && typeof appearanceEdit.maddenPam === 'string' && appearanceEdit.maddenPam.startsWith('gen_')) ||
+            (appearanceEdit.maddenPghe !== undefined && appearanceEdit.maddenPghe > 0)
+          );
+
+          if (hasGenericFaceAssignment) {
+            // User assigned a specific generic face - use it
+            const genPam = appearanceEdit.maddenPam || '';
+            const genPid = appearanceEdit.maddenPid || 0;
+            console.log(`[CreatorService] GENERIC FACE OVERRIDE: ${firstName} ${lastName} - using appearance_edits PAM='${genPam}', PID=${genPid}, PGHE=${appearanceEdit.maddenPghe} (was ${matchedPID})`);
+            matchedPID = genPid;
+            userAssignedGenericFace = { pam: genPam, pid: genPid, pghe: appearanceEdit.maddenPghe };
+          } else {
+            // Check for custom portrait PID (>= 12000)
+            const genAppearanceEditPidsMap = userDatabaseService.getAllAppearanceEditPids();
+            const genCustomPortraitPidsMap = userDatabaseService.getAllCustomPortraitAssignments();
+            const genAppearanceEditPid = genAppearanceEditPidsMap.get(dbPlayerForPid.internalId);
+            const genCustomPortraitPid = genCustomPortraitPidsMap.get(dbPlayerForPid.internalId);
+            if (genAppearanceEditPid != null && genAppearanceEditPid >= CUSTOM_PID_START) {
+              console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using appearance_edits PID ${genAppearanceEditPid} (was ${matchedPID})`);
+              matchedPID = genAppearanceEditPid;
+            } else if (genCustomPortraitPid != null && genCustomPortraitPid >= CUSTOM_PID_START) {
+              console.log(`[CreatorService] PORTRAIT MANAGER OVERRIDE: ${firstName} ${lastName} - using custom_portraits PID ${genCustomPortraitPid} (was ${matchedPID})`);
+              matchedPID = genCustomPortraitPid;
+            }
+          }
+        } else if (i < 5) {
+          console.log(`[CreatorService] DEBUG: Player ${firstName} ${lastName} NOT FOUND in database for year ${year}`);
         }
 
         // Check for custom portrait by player name (user-imported portraits)
@@ -2499,15 +2599,22 @@ export class CreatorService {
         // Get PAM (Player Assets ID) from MASTER_LOOKUP
         let playerAssetId = lookupEntry ? lookupEntry['Player Assets ID'] : undefined;
 
-        // If no real portrait found, assign appropriate generic face WITH race data
-        if (matchedPID === 0) {
+        // If user assigned a generic face, use that PAM instead
+        if (userAssignedGenericFace?.pam) {
+          playerAssetId = userAssignedGenericFace.pam;
+          console.log(`[CreatorService] Using user-assigned generic face PAM: ${playerAssetId}`);
+        }
+
+        // If no real portrait found and no user-assigned generic face, assign appropriate generic face WITH race data
+        if (matchedPID === 0 && !userAssignedGenericFace) {
           matchedPID = this.assignGenericFace(firstName, lastName, mappedPosition.name, raceData);
         }
 
         // Auto-populate asset ID if missing:
-        // 1. Use real asset from MASTER_LOOKUP if available
-        // 2. If no asset but has PID, assign generic asset matching their portrait
-        // 3. If neither, assign generic asset based on race
+        // 1. Use user-assigned generic face PAM if available
+        // 2. Use real asset from MASTER_LOOKUP if available
+        // 3. If no asset but has PID, assign generic asset matching their portrait
+        // 4. If neither, assign generic asset based on race
         if (!playerAssetId || playerAssetId.trim() === '') {
           playerAssetId = this.assignGenericAsset(matchedPID, raceData);
         }
@@ -2535,10 +2642,39 @@ export class CreatorService {
           commID = lookupService.getCommentaryId(lastName) || 0;
         }
 
-        // Get PGHE value if we assigned a generic face (ensures matched set)
-        const pgheValue = this.lastAssignedPgheEntry?.psxp === matchedPID
-          ? this.lastAssignedPgheEntry.pghe
-          : undefined;
+        // Get PGHE value - prefer user-assigned, then from generic face assignment
+        const pgheValue = userAssignedGenericFace?.pghe
+          ?? (this.lastAssignedPgheEntry?.psxp === matchedPID ? this.lastAssignedPgheEntry.pghe : undefined);
+
+        // Generate body type - check for stored body type edit first
+        let bodyType = this.determineBodyType(mappedPosition.name, weight, heightInches);
+        if (dbPlayerForPid && dbPlayerForPid.internalId) {
+          const bioEdit = userDatabaseService.getPlayerEdit(dbPlayerForPid.internalId);
+          if (bioEdit && bioEdit.bodyType !== undefined && bioEdit.bodyType !== null) {
+            // Convert numeric body type to string if needed
+            // Handle both actual numbers AND string numbers like "2" or "2.0"
+            const bodyTypeNames = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+            let storedBodyType: string;
+
+            if (typeof bioEdit.bodyType === 'number') {
+              storedBodyType = bodyTypeNames[bioEdit.bodyType] || bodyType;
+            } else if (typeof bioEdit.bodyType === 'string') {
+              const numericValue = parseFloat(bioEdit.bodyType);
+              if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 4) {
+                storedBodyType = bodyTypeNames[Math.floor(numericValue)] || bodyType;
+              } else {
+                storedBodyType = bioEdit.bodyType;
+              }
+            } else {
+              storedBodyType = bodyType;
+            }
+
+            if (i < 5) {
+              console.log(`[CreatorService] BODY TYPE OVERRIDE: ${firstName} ${lastName} - using stored bodyType='${storedBodyType}' (raw=${bioEdit.bodyType}, was ${bodyType})`);
+            }
+            bodyType = storedBodyType;
+          }
+        }
 
         // Generate player
         const player: GeneratedPlayer = {
@@ -2557,7 +2693,7 @@ export class CreatorService {
           PID: matchedPID,
           PEPS: playerAssetId || null, // Load PAM from MASTER_LOOKUP if available
           PGHE: pgheValue, // Face picker index from PGHE lookup (matched set)
-          bodyType: this.determineBodyType(mappedPosition.name, weight, heightInches),
+          bodyType,
           yearsPro: 0,
           commID: commID || undefined,
           _sourceStats: stats || undefined
@@ -2947,8 +3083,44 @@ export class CreatorService {
           context.fortyTime = parseFloat((player as any).fortyTime);
         }
 
-        // Generate ratings
-        const ratings = await ratingGenerator.generateRatings(context);
+        // CRITICAL: Check database for existing season edits BEFORE generating ratings
+        // This ensures pushed data is used instead of regenerating
+        let ratings: Record<string, number>;
+        let usedDatabaseRatings = false;
+
+        // Look up player internal ID early (moved from later in the function)
+        const masterLookup = this.loadMasterLookup();
+        const draftYear = player.draftClass ? parseInt(String(player.draftClass)) : options.year;
+        const lookupKey = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${draftYear}`;
+        const lookupEntry = masterLookup.get(lookupKey);
+        let effectiveInternalId = lookupEntry ? lookupEntry['InternalId'] : undefined;
+
+        // Also try findPlayerByNameAndYear if MASTER_LOOKUP didn't have the player
+        if (!effectiveInternalId) {
+          const dbPlayer = lookupService.findPlayerByNameAndYear(firstName, lastName, draftYear || options.year || 0);
+          if (dbPlayer) {
+            effectiveInternalId = dbPlayer.internalId;
+          }
+        }
+
+        // Check for existing season edits in database (ratings AND bio fields)
+        let databaseSeasonEdit: { team?: string; jersey?: number; age?: number; position?: string; archetype?: string; ratings?: Record<string, number> } | null = null;
+
+        if (effectiveInternalId) {
+          const seasonEdit = userDatabaseService.getSeasonEdit(effectiveInternalId, draftYear || options.year || 0);
+          if (seasonEdit?.ratings && Object.keys(seasonEdit.ratings).length > 0) {
+            // Use database ratings instead of generating
+            ratings = { ...seasonEdit.ratings };
+            usedDatabaseRatings = true;
+            databaseSeasonEdit = seasonEdit; // Store for bio fields later
+            console.log(`[CreatorService V2] ✅ Using DATABASE data for ${fullName}: POVR=${ratings.POVR}, PSPD=${ratings.PSPD}, archetype=${seasonEdit.archetype}`);
+          }
+        }
+
+        // Only generate if no database ratings found
+        if (!usedDatabaseRatings) {
+          ratings = await ratingGenerator.generateRatings(context);
+        }
 
         // DEBUG: Log specific players for troubleshooting
         if (fullName === 'Joe Burrow' || fullName === 'Chase Young') {
@@ -2986,21 +3158,49 @@ export class CreatorService {
         // Map position
         const mappedPosition = this.mapPosition(player.position);
 
-        // Look up player in MASTER_LOOKUP to get their database internal ID
-        const masterLookup = this.loadMasterLookup();
-        const draftYear = player.draftClass ? parseInt(String(player.draftClass)) : options.year;
-        const lookupKey = `${firstName.toLowerCase()} ${lastName.toLowerCase()} ${draftYear}`;
-        const lookupEntry = masterLookup.get(lookupKey);
-        const playerInternalId = lookupEntry ? lookupEntry['InternalId'] : undefined;
+        // NOTE: effectiveInternalId was already computed above for database ratings lookup
+        // No need to re-lookup - use the value we already have
+
+        // Track user-assigned generic face from appearance_edits
+        let userAssignedGenericFace: { pam: string; pid: number; pghe?: number; skinTone?: number } | null = null;
+
+        // Check for appearance_edits with generic face assignment (from push operation)
+        if (effectiveInternalId) {
+          const appearanceEdit = userDatabaseService.getAppearanceEdit(effectiveInternalId);
+
+          // DEBUG: Log appearance edit for first 5 players
+          if (i < 5) {
+            console.log(`[CreatorService V2] DEBUG APPEARANCE: ${firstName} ${lastName} (ID:${effectiveInternalId}): exists=${!!appearanceEdit}, maddenPam=${appearanceEdit?.maddenPam}, maddenPghe=${appearanceEdit?.maddenPghe}, skinTone=${appearanceEdit?.maddenSkinTone}`);
+          }
+
+          // Check if user assigned a generic face (maddenPam starting with gen_ or maddenPghe > 0)
+          const hasGenericFaceAssignment = appearanceEdit && (
+            (appearanceEdit.maddenPam && typeof appearanceEdit.maddenPam === 'string' && appearanceEdit.maddenPam.startsWith('gen_')) ||
+            (appearanceEdit.maddenPghe !== undefined && appearanceEdit.maddenPghe > 0)
+          );
+
+          if (hasGenericFaceAssignment) {
+            // User assigned a specific generic face - use it
+            const genPam = appearanceEdit.maddenPam || '';
+            const genPid = appearanceEdit.maddenPid || 0;
+            console.log(`[CreatorService V2] GENERIC FACE OVERRIDE: ${firstName} ${lastName} - using appearance_edits PAM='${genPam}', PID=${genPid}, PGHE=${appearanceEdit.maddenPghe}, skinTone=${appearanceEdit.maddenSkinTone}`);
+            userAssignedGenericFace = {
+              pam: genPam,
+              pid: genPid,
+              pghe: appearanceEdit.maddenPghe,
+              skinTone: appearanceEdit.maddenSkinTone
+            };
+          }
+        }
 
         // FIRST: Check for custom portrait by database player ID (most reliable)
         // This uses the exact player assignment from portrait editor
-        let pid = 0;
-        if (playerInternalId) {
-          const customPID = userDatabaseService.getCustomPortraitByPlayerId(playerInternalId);
+        let pid = userAssignedGenericFace?.pid || 0;
+        if (pid === 0 && effectiveInternalId) {
+          const customPID = userDatabaseService.getCustomPortraitByPlayerId(effectiveInternalId);
           if (customPID) {
             pid = customPID;
-            console.log(`[CreatorService V2] ✅ Using custom portrait for ${firstName} ${lastName} (ID:${playerInternalId}): PID ${customPID}`);
+            console.log(`[CreatorService V2] ✅ Using custom portrait for ${firstName} ${lastName} (ID:${effectiveInternalId}): PID ${customPID}`);
           }
         }
 
@@ -3014,16 +3214,19 @@ export class CreatorService {
           pid = this.matchPID(firstName, lastName, draftYear, player.position, player.college);
         }
 
-        // LAST: Assign a generic face so every player has a portrait
-        if (pid === 0) {
+        // LAST: Assign a generic face so every player has a portrait (only if no user assignment)
+        if (pid === 0 && !userAssignedGenericFace) {
           const raceData = (player as any).race;
           pid = this.assignGenericFace(firstName, lastName, player.position, raceData);
         }
 
         // Always assign generic asset based on the PID (whether real or generic)
-        const pam = player.playerAssetsID && player.playerAssetsID.trim() !== ''
-          ? player.playerAssetsID.trim()
-          : this.assignGenericAsset(pid);
+        // Prefer user-assigned PAM from appearance_edits if available
+        const pam = userAssignedGenericFace?.pam
+          ? userAssignedGenericFace.pam
+          : (player.playerAssetsID && player.playerAssetsID.trim() !== ''
+            ? player.playerAssetsID.trim()
+            : this.assignGenericAsset(pid));
 
         // Match college
         const collegeId = player.college ? this.matchCollege(player.college) : 0;
@@ -3075,8 +3278,74 @@ export class CreatorService {
           player.wAV
         );
 
-        // Generate body type
-        const bodyType = this.determineBodyType(player.position, player.weight || 200, player.height || 72);
+        // Generate body type - check for stored body type edit first
+        let bodyType = this.determineBodyType(player.position, player.weight || 200, player.height || 72);
+
+        // Check if user has stored player edits (bio fields) in the database
+        // This includes: bodyType, hometown, homeState, height, weight, etc.
+        let databaseHometown: string | undefined = undefined;
+        let databaseHomeState: number | undefined = undefined;
+
+        if (effectiveInternalId) {
+          const bioEdit = userDatabaseService.getPlayerEdit(effectiveInternalId);
+          if (bioEdit) {
+            // Use database hometown if available
+            if (bioEdit.hometown !== undefined && bioEdit.hometown !== null && bioEdit.hometown !== '') {
+              databaseHometown = bioEdit.hometown;
+              if (i < 5) {
+                console.log(`[CreatorService V2] ✅ Using DATABASE hometown for ${firstName} ${lastName}: "${databaseHometown}"`);
+              }
+            }
+
+            // Use database homeState if available (convert string to ID if needed)
+            if (bioEdit.homeState !== undefined && bioEdit.homeState !== null && bioEdit.homeState !== '') {
+              // homeState in database could be a string like "California" or already a number
+              if (typeof bioEdit.homeState === 'number') {
+                databaseHomeState = bioEdit.homeState;
+              } else if (typeof bioEdit.homeState === 'string') {
+                // Try parsing as number first (in case it's stored as "4" for California)
+                const parsed = parseInt(bioEdit.homeState);
+                if (!isNaN(parsed)) {
+                  databaseHomeState = parsed;
+                } else {
+                  // Convert state name to ID
+                  databaseHomeState = this.matchHomeState(bioEdit.homeState);
+                }
+              }
+              if (databaseHomeState !== undefined && i < 5) {
+                console.log(`[CreatorService V2] ✅ Using DATABASE homeState for ${firstName} ${lastName}: ${databaseHomeState} (raw="${bioEdit.homeState}")`);
+              }
+            }
+
+            // Use database bodyType if available
+            if (bioEdit.bodyType !== undefined && bioEdit.bodyType !== null) {
+              // Convert numeric body type to string if needed
+              // Handle both actual numbers AND string numbers like "2" or "2.0"
+              const bodyTypeNames = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+              let storedBodyType: string;
+
+              if (typeof bioEdit.bodyType === 'number') {
+                storedBodyType = bodyTypeNames[bioEdit.bodyType] || bodyType;
+              } else if (typeof bioEdit.bodyType === 'string') {
+                // Check if it's a numeric string like "2" or "2.0"
+                const numericValue = parseFloat(bioEdit.bodyType);
+                if (!isNaN(numericValue) && numericValue >= 0 && numericValue <= 4) {
+                  storedBodyType = bodyTypeNames[Math.floor(numericValue)] || bodyType;
+                } else {
+                  // It's already a string name like "Muscular"
+                  storedBodyType = bioEdit.bodyType;
+                }
+              } else {
+                storedBodyType = bodyType;
+              }
+
+              if (i < 5) {
+                console.log(`[CreatorService V2] BODY TYPE OVERRIDE: ${firstName} ${lastName} - using stored bodyType='${storedBodyType}' (raw=${bioEdit.bodyType}, was ${bodyType})`);
+              }
+              bodyType = storedBodyType;
+            }
+          }
+        }
 
         // Convert archetype NAME to NUMERIC ID for Madden draft class format
         let archetypeId = 0;
@@ -3180,24 +3449,44 @@ export class CreatorService {
         // Get CommID from player entry for in-game commentary
         const commID = player.commID ? parseInt(String(player.commID)) || 0 : 0;
 
-        // Get PGHE value if we assigned a generic face (ensures matched set)
-        const pgheValue = this.lastAssignedPgheEntry?.psxp === pid
-          ? this.lastAssignedPgheEntry.pghe
-          : undefined;
+        // Get PGHE value - prefer user-assigned from appearance_edits, then from generic face assignment
+        const pgheValue = userAssignedGenericFace?.pghe
+          ?? (this.lastAssignedPgheEntry?.psxp === pid ? this.lastAssignedPgheEntry.pghe : undefined);
 
-        // Create generated player
+        // Create generated player - use database values when available
+        // Database season edit has: team, jersey, age, position, archetype
+        const dbAge = databaseSeasonEdit?.age;
+        const dbJersey = databaseSeasonEdit?.jersey;
+        const dbArchetype = databaseSeasonEdit?.archetype;
+
+        // Use database archetype if available (stored as numeric or string)
+        let finalArchetypeId = archetypeId;
+        if (dbArchetype !== undefined && dbArchetype !== null) {
+          if (typeof dbArchetype === 'number') {
+            finalArchetypeId = dbArchetype;
+          } else if (typeof dbArchetype === 'string') {
+            const parsed = parseInt(dbArchetype);
+            if (!isNaN(parsed) && parsed > 0) {
+              finalArchetypeId = parsed;
+            }
+          }
+          if (usedDatabaseRatings && i < 5) {
+            console.log(`[CreatorService V2] Using DATABASE archetype ${finalArchetypeId} for ${fullName}`);
+          }
+        }
+
         const generatedPlayer: GeneratedPlayer = {
           firstName,
           lastName,
           position: mappedPosition.name,
           positionCode: mappedPosition.code,
           college: collegeId,
-          jerseyNum,
-          age: this.calculateAge(player.draftClass ? parseInt(String(player.draftClass)) : options.year || 2024),
+          jerseyNum: dbJersey ?? jerseyNum,
+          age: dbAge ?? this.calculateAge(player.draftClass ? parseInt(String(player.draftClass)) : options.year || 2024),
           heightInches: player.height || this.getDefaultHeight(player.position),
           weight: player.weight || this.getDefaultWeight(player.position),
-          hometown: player.hometown,  // City from "City, State" format
-          homeState,
+          hometown: databaseHometown ?? player.hometown,  // Use database value if pushed, otherwise scraped
+          homeState: databaseHomeState ?? homeState,  // Use database value if pushed, otherwise scraped/generated
           devTrait,
           ratings: maddenRatings,
           PID: pid,
@@ -3206,7 +3495,7 @@ export class CreatorService {
           PGHE: pgheValue, // Face picker index from PGHE lookup (matched set)
           bodyType,
           yearsPro: 0,
-          archetype: archetypeId,  // NUMERIC archetype ID, not string
+          archetype: finalArchetypeId,  // NUMERIC archetype ID - use database value when available
           commID: commID || undefined
         };
 
@@ -4602,6 +4891,7 @@ export class CreatorService {
 
       return {
         overall: normalized.POVR,
+        POVR: normalized.POVR,  // Also include POVR for frontend compatibility
         speed: normalized.PSPD,
         acceleration: normalized.PACC,
         agility: normalized.PAGI,
@@ -4662,6 +4952,7 @@ export class CreatorService {
     // For other modes, use defaults for missing values
     return {
       overall: factoryRatings.POVR || 65,
+      POVR: factoryRatings.POVR || 65,  // Also include POVR for frontend compatibility
       speed: factoryRatings.PSPD || 75,
       acceleration: factoryRatings.PACC || 75,
       agility: factoryRatings.PAGI || 75,
