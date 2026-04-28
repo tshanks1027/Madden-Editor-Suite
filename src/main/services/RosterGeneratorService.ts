@@ -3330,19 +3330,19 @@ export class RosterGeneratorService {
 
   /**
    * Determine PCBT (body type code) from database row
-   * Uses simple weight-based cutoffs:
-   * - Lean: < 180 lbs → 4
-   * - Thin: 180-240 lbs → 1
-   * - Muscular: 241-279 lbs → 2
+   * Prefers Standard/Muscular over Thin/Lean:
+   * - Standard: 175-219 lbs → 0
+   * - Muscular: 220-279 lbs → 2
    * - Heavy: >= 280 lbs → 3
+   * - Lean: < 175 lbs → 4
    */
   private determinePCBTFromDb(dbRow: any): number {
     const weight = dbRow.weight || 200;
 
-    if (weight < 180) return 4;       // Lean
     if (weight >= 280) return 3;      // Heavy
-    if (weight >= 241) return 2;      // Muscular
-    return 1;                          // Thin (180-240)
+    if (weight >= 220) return 2;      // Muscular
+    if (weight >= 175) return 0;      // Standard
+    return 4;                          // Lean (< 175)
   }
 
   /**

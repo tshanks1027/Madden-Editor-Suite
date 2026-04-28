@@ -1309,8 +1309,17 @@ ipcMain.handle('database:get-merged-player', async (event, internalId: number) =
     // Get user edits
     const playerEdit = userDatabaseService.getPlayerEdit(internalId);
     const appearanceEdit = userDatabaseService.getAppearanceEdit(internalId);
-    console.log('[database-handlers] get-merged-player: playerEdit:', JSON.stringify(playerEdit, null, 2));
-    console.log('[database-handlers] get-merged-player: appearanceEdit:', JSON.stringify(appearanceEdit, null, 2));
+    console.log('[database-handlers] ======= READING PLAYER EDIT =======');
+    console.log(`[database-handlers] Player: ${original.firstName} ${original.lastName} (internalId=${internalId})`);
+    console.log('[database-handlers] playerEdit exists:', !!playerEdit);
+    if (playerEdit) {
+      console.log('[database-handlers] playerEdit.weight:', playerEdit.weight);
+      console.log('[database-handlers] playerEdit.height:', playerEdit.height);
+    } else {
+      console.log('[database-handlers] NO player edit found - will use original data only');
+    }
+    console.log('[database-handlers] original.weight:', original.weight);
+    console.log('[database-handlers] original.height:', original.height);
 
     // Auto-fill commID from commentary lookup if not already set
     // Use the merged lastName (playerEdit overrides original)
@@ -1413,9 +1422,17 @@ ipcMain.handle('database:get-merged-player-season', async (event, internalId: nu
 
     // Get user edits for this season
     const seasonEdit = userDatabaseService.getSeasonEdit(internalId, year);
-    console.log(`[database-handlers] Season edit for internalId=${internalId}, year=${year}:`, seasonEdit ? 'EXISTS' : 'NULL');
+    console.log(`[database-handlers] ======= READING SEASON EDIT =======`);
+    console.log(`[database-handlers] Player: ${player.firstName} ${player.lastName} (internalId=${internalId})`);
+    console.log(`[database-handlers] Year: ${year}`);
+    console.log(`[database-handlers] Season edit found: ${seasonEdit ? 'YES' : 'NO'}`);
     if (seasonEdit) {
-      console.log(`[database-handlers] Season edit details: POVR=${seasonEdit.ratings?.POVR}, team=${seasonEdit.team}, position=${seasonEdit.position}`);
+      console.log(`[database-handlers] Season edit details:`);
+      console.log(`  - POVR=${seasonEdit.ratings?.POVR}, PSPD=${seasonEdit.ratings?.PSPD}`);
+      console.log(`  - team=${seasonEdit.team}, position=${seasonEdit.position}`);
+      console.log(`  - Total rating keys: ${Object.keys(seasonEdit.ratings || {}).length}`);
+    } else {
+      console.log(`[database-handlers] NO season edit found - will use original data only`);
     }
 
     if (!originalSeason && !seasonEdit) {
@@ -1469,11 +1486,21 @@ ipcMain.handle('database:get-player-season-years', async (event, internalId: num
     const userEdits = userDatabaseService.getSeasonEditsForPlayer(internalId);
     const userYears = userEdits.map(edit => edit.year);
 
-    // Merge both sources and deduplicate
-    const allYearsSet = new Set([...bundledYears, ...userYears]);
-    const years = Array.from(allYearsSet).sort((a, b) => a - b);
+    // Get hidden seasons that user has deleted
+    const hiddenYears = new Set(userDatabaseService.getHiddenSeasons(internalId));
 
-    console.log(`[database-handlers] Player ${internalId} years: bundled=${bundledYears.length}, user=${userYears.length}, merged=${years.length}`);
+    // Merge both sources and deduplicate, then filter out hidden years
+    const allYearsSet = new Set([...bundledYears, ...userYears]);
+    const years = Array.from(allYearsSet)
+      .filter(year => !hiddenYears.has(year))
+      .sort((a, b) => a - b);
+
+    console.log(`[database-handlers] ======= GET PLAYER SEASON YEARS =======`);
+    console.log(`[database-handlers] internalId=${internalId}`);
+    console.log(`[database-handlers] bundledYears (${bundledYears.length}): ${bundledYears.slice(0, 10).join(', ')}${bundledYears.length > 10 ? '...' : ''}`);
+    console.log(`[database-handlers] USER EDIT YEARS (${userYears.length}): ${userYears.join(', ')}`);
+    console.log(`[database-handlers] HIDDEN YEARS (${hiddenYears.size}): ${Array.from(hiddenYears).join(', ')}`);
+    console.log(`[database-handlers] final years (${years.length}): ${years.join(', ')}`);
 
     return { success: true, years };
   } catch (error) {
@@ -1490,7 +1517,7 @@ ipcMain.handle('database:get-player-season-years', async (event, internalId: num
  * Handle: database:search-players
  * Search for players by name or other criteria
  */
-ipcMain.handle('database:search-players', async (event, query: string, options?: { limit?: number; position?: string; draftYearFrom?: number; draftYearTo?: number; team?: string; hof?: string; pid?: number; college?: string; emptyField?: string; positions?: string[] }) => {
+ipcMain.handle('database:search-players', async (event, query: string, options?: { limit?: number; position?: string; draftYearFrom?: number; draftYearTo?: number; team?: string; hof?: string; pid?: number; college?: string; emptyField?: string; positions?: string[]; includeHidden?: boolean }) => {
   try {
     await lookupService.waitForReady();
     await userDatabaseService.waitForReady();
@@ -1501,8 +1528,8 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
     const allPlayerEdits = userDatabaseService.getAllPlayerEdits();
     const allAppearanceEdits = userDatabaseService.getAllAppearanceEdits();
 
-    // NOTE: Hidden player filtering is NOT done here - it's only for roster generation
-    // All players should be searchable for portrait management and editing
+    // Get hidden players for filtering (unless includeHidden is true)
+    const hiddenPlayerIds = options?.includeHidden ? new Set<number>() : new Set(userDatabaseService.getHiddenPlayers());
 
     let results = lookupService.searchPlayers(query, options?.limit || 100);
 
@@ -1692,7 +1719,14 @@ ipcMain.handle('database:search-players', async (event, query: string, options?:
     });
 
     // Combine results - custom players first
-    const allPlayers = [...customMapped, ...players];
+    let allPlayers = [...customMapped, ...players];
+
+    // Filter out hidden players (unless includeHidden option is true)
+    if (hiddenPlayerIds.size > 0) {
+      const beforeFilter = allPlayers.length;
+      allPlayers = allPlayers.filter(p => !hiddenPlayerIds.has(p.internalId));
+      console.log(`[database-handlers] Hidden player filter: removed ${beforeFilter - allPlayers.length} hidden players`);
+    }
 
     // Deduplicate players by name + draftClass (handles AFL/NFL duplicate drafts from 1960s)
     // Keep the first occurrence (custom players take priority, then order by internalId)
@@ -1751,6 +1785,7 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
   college?: string;
   emptyField?: string;
   positions?: string[];
+  includeHidden?: boolean;
 }) => {
   try {
     await lookupService.waitForReady();
@@ -1765,8 +1800,8 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     const offset = options?.offset || 0;
     const limit = options?.limit || 50;
 
-    // NOTE: Hidden player filtering is NOT done in search - it's only for roster generation
-    // All players should be searchable for portrait management and editing
+    // Get hidden players for filtering (unless includeHidden is true)
+    const hiddenPlayerIds = options?.includeHidden ? new Set<number>() : new Set(userDatabaseService.getHiddenPlayers());
 
     // Get all custom players first
     let customPlayers = userDatabaseService.getAllCustomPlayers();
@@ -1885,9 +1920,6 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     // Get all players from the cache (this is already loaded in memory)
     let allPlayers = lookupService.getAllPlayers();
     console.log(`[database-handlers] getAllPlayers - Total players in cache: ${allPlayers.length}, custom: ${customMapped.length}`);
-
-    // NOTE: Hidden players are NOT filtered in search - filtering is only for roster generation
-    // All players must be searchable for portrait management and editing
 
     // Apply server-side filters BEFORE pagination
     // Apply HOF filter first (most restrictive)
@@ -2013,7 +2045,14 @@ ipcMain.handle('database:get-all-players', async (event, options?: {
     });
 
     // Combine: custom players first, then database players
-    const combined = [...customMapped, ...dbMapped];
+    let combined = [...customMapped, ...dbMapped];
+
+    // Filter out hidden players (unless includeHidden option is true)
+    if (hiddenPlayerIds.size > 0) {
+      const beforeFilter = combined.length;
+      combined = combined.filter(p => !hiddenPlayerIds.has(p.internalId));
+      console.log(`[database-handlers] Hidden player filter: removed ${beforeFilter - combined.length} hidden players`);
+    }
 
     // Deduplicate players by name + draftClass (handles AFL/NFL duplicate drafts from 1960s)
     // Keep the first occurrence (custom players take priority)
@@ -2298,26 +2337,27 @@ const POSITION_ID_MAP: { [key: number]: string } = {
 function generateBodyType(weight: number, height: number, position: string | number): number {
   const w = weight || 200;
 
-  // Simple weight-based cutoffs that match in-game behavior
-  // These cutoffs are consistent across the entire codebase
+  // Weight-based body type assignment
+  // Preference order: Standard/Muscular over Thin/Lean
+  // Body type ranges: Standard (175-220), Thin (180-240), Muscular (220-285), Heavy (280-400), Lean (160-180)
 
-  // Lean: < 180 lbs
-  if (w < 180) {
-    return 4; // Lean
-  }
-
-  // Heavy: >= 280 lbs
+  // Heavy: >= 280 lbs (required for this weight range)
   if (w >= 280) {
     return 3; // Heavy
   }
 
-  // Muscular: 241-279 lbs
-  if (w >= 241) {
+  // Muscular: 220-279 lbs (prefer muscular for larger players)
+  if (w >= 220) {
     return 2; // Muscular
   }
 
-  // Thin: 180-240 lbs
-  return 1; // Thin
+  // Standard: 175-219 lbs (prefer standard over thin)
+  if (w >= 175) {
+    return 0; // Standard
+  }
+
+  // Lean: < 175 lbs (only for lighter players below standard range)
+  return 4; // Lean
 }
 
 /**
@@ -2788,45 +2828,46 @@ ipcMain.handle('database:get-player-for-roster', async (event, internalId: numbe
       rosterPlayer.PRBK = r.PRBK || 70;
       rosterPlayer.PPBK = r.PPBK || 70;
       rosterPlayer.PTAK = r.PTAK || 70;
-      rosterPlayer.PBKT = r.PBTK || 70; // PBTK in db = PBKT in roster (break tackle)
-      rosterPlayer.PJMP = r.PJMP || r.PJUM || 70; // PJUM or PJMP
+      // M26 field codes stored in database - check M26 first, fallback to legacy
+      rosterPlayer.PBKT = r.PBKT || r.PBTK || 70; // M26: PBKT (break tackle)
+      rosterPlayer.PJMP = r.PJMP || r.PJUM || 70;
       rosterPlayer.PSTA = r.PSTA || 85;
       rosterPlayer.PINJ = r.PINJ || 85;
       rosterPlayer.PTGH = r.PTGH || 70;
-      rosterPlayer.PLPU = r.PLPU || r.PPUR || 70; // DB uses PLPU, old CSV uses PPUR (pursuit)
-      rosterPlayer.PLPR = r.PLPR || r.PPRC || 70; // DB uses PLPR, old CSV uses PPRC (play recognition)
-      rosterPlayer.PLMC = r.PMCV || 70; // PMCV in db = PLMC (man coverage)
-      rosterPlayer.PLZC = r.PZCV || 70; // PZCV in db = PLZC (zone coverage)
-      rosterPlayer.PLPE = r.PPRS || 70; // PPRS in db = PLPE (press)
-      rosterPlayer.PLHT = r.PHIT || 70; // PHIT in db = PLHT (hit power)
-      rosterPlayer.PBSG = r.PBSH || 70; // PBSH in db = PBSG (block shedding)
-      rosterPlayer.PLPM = r.PPWM || 70; // PPWM in db = PLPM (power moves)
-      rosterPlayer.PFMS = r.PFMV || 70; // PFMV in db = PFMS (finesse moves)
+      rosterPlayer.PLPU = r.PLPU || r.PPUR || 70; // M26: PLPU (pursuit)
+      rosterPlayer.PLPR = r.PLPR || r.PPRC || 70; // M26: PLPR (play recognition)
+      rosterPlayer.PLMC = r.PLMC || r.PMCV || 70; // M26: PLMC (man coverage)
+      rosterPlayer.PLZC = r.PLZC || r.PZCV || 70; // M26: PLZC (zone coverage)
+      rosterPlayer.PLPE = r.PLPE || r.PPRS || 70; // M26: PLPE (press)
+      rosterPlayer.PLHT = r.PLHT || r.PHIT || 70; // M26: PLHT (hit power)
+      rosterPlayer.PBSG = r.PBSG || r.PBSH || 70; // M26: PBSG (block shedding)
+      rosterPlayer.PLPM = r.PLPM || r.PPWM || 70; // M26: PLPM (power moves)
+      rosterPlayer.PFMS = r.PFMS || r.PFMV || 70; // M26: PFMS (finesse moves)
       rosterPlayer.PTAS = r.PTAS || 70;
       rosterPlayer.PTAM = r.PTAM || 70;
       rosterPlayer.PTAD = r.PTAD || 70;
-      rosterPlayer.PPLA = r.PPLA || 70;  // Play Action (QB attribute)
+      rosterPlayer.PPLA = r.PPLA || 70;
       rosterPlayer.PTOR = r.PTOR || 70;
       rosterPlayer.PTUP = r.PTUP || 70;
       rosterPlayer.PBCV = r.PBCV || 70;
-      rosterPlayer.PLJM = r.PJKM || 70; // PJKM in db = PLJM (juke move)
-      rosterPlayer.PLSM = r.PSPN || 70; // PSPN in db = PLSM (spin move)
-      rosterPlayer.PLSA = r.PSFA || 70; // PSFA in db = PLSA (stiff arm)
-      rosterPlayer.PLTR = r.PLTR || r.PTRK || 70; // PTRK or PLTR (trucking)
-      rosterPlayer.PELU = r.PCOD || 70; // PCOD in db = PELU (change of direction)
-      rosterPlayer.PLRL = r.PREL || 70; // PREL in db = PLRL (release)
-      rosterPlayer.SRRN = r.PSRR || 70; // PSRR in db = SRRN (short route running)
+      rosterPlayer.PLJM = r.PLJM || r.PJKM || 70; // M26: PLJM (juke move)
+      rosterPlayer.PLSM = r.PLSM || r.PSPN || 70; // M26: PLSM (spin move)
+      rosterPlayer.PLSA = r.PLSA || r.PSFA || 70; // M26: PLSA (stiff arm)
+      rosterPlayer.PLTR = r.PLTR || r.PTRK || 70; // M26: PLTR (trucking)
+      rosterPlayer.PELU = r.PELU || r.PCOD || 70; // M26: PELU (change of direction)
+      rosterPlayer.PLRL = r.PLRL || r.PREL || 70; // M26: PLRL (release)
+      rosterPlayer.SRRN = r.SRRN || r.PSRR || 70; // M26: SRRN (short route running)
       rosterPlayer.PMRR = r.PMRR || 70;
       rosterPlayer.PDRR = r.PDRR || 70;
-      rosterPlayer.PLCI = r.PCIT || 70; // PCIT in db = PLCI (catch in traffic)
-      rosterPlayer.PLSC = r.PSPC || 70; // PSPC in db = PLSC (spectacular catch)
-      rosterPlayer.PLIB = r.PIBK || 70; // PIBK in db = PLIB (impact blocking)
-      rosterPlayer.PLBK = r.PLBK || 70; // PLBK in db = PLBK (lead block)
+      rosterPlayer.PLCI = r.PLCI || r.PCIT || 70; // M26: PLCI (catch in traffic)
+      rosterPlayer.PLSC = r.PLSC || r.PSPC || 70; // M26: PLSC (spectacular catch)
+      rosterPlayer.PLIB = r.PLIB || r.PIBK || 70; // M26: PLIB (impact blocking)
+      rosterPlayer.PLBK = r.PLBK || 70;
       rosterPlayer.PPBF = r.PPBF || 70;
-      rosterPlayer.PPBS = r.PPBP || 70; // PPBP in db = PPBS (pass block power/strength)
+      rosterPlayer.PPBS = r.PPBS || r.PPBP || 70; // M26: PPBS (pass block power)
       rosterPlayer.PRBF = r.PRBF || 70;
-      rosterPlayer.PRBS = r.PRBP || 70; // PRBP in db = PRBS (run block power/strength)
-      rosterPlayer.PBSK = r.PBRS || 70; // PBRS in db = PBSK (break sack)
+      rosterPlayer.PRBS = r.PRBS || r.PRBP || 70; // M26: PRBS (run block power)
+      rosterPlayer.PBSK = r.PBSK || r.PBRS || 70; // M26: PBSK (break sack)
       rosterPlayer.PKRT = r.PKRT || 70;
 
       // Parse archetype - PRIORITY ORDER:
@@ -2966,6 +3007,9 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       ...(playerEdit?.height !== undefined && { height: playerEdit.height }),
       ...(playerEdit?.weight !== undefined && { weight: playerEdit.weight }),
       ...(playerEdit?.hometown && { hometown: playerEdit.hometown }),
+      // Include bodyType and handedness from bio edits
+      ...(playerEdit?.bodyType !== undefined && { bodyType: playerEdit.bodyType }),
+      ...(playerEdit?.handedness !== undefined && { handedness: playerEdit.handedness }),
     };
 
     // DEBUG: Log raw player data from database
@@ -3324,7 +3368,13 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
 
       // Visuals structure for M26
       visuals: {
-        bodyType: getDraftBodyType(positionName, weight, heightInches),
+        // Use user's bio edit bodyType if available, otherwise calculate from weight
+        bodyType: (() => {
+          if (player.bodyType === undefined) return getDraftBodyType(positionName, weight, heightInches);
+          if (typeof player.bodyType === 'number') return player.bodyType;
+          const parsed = parseInt(String(player.bodyType), 10);
+          return !isNaN(parsed) ? parsed : getDraftBodyType(positionName, weight, heightInches);
+        })(),
         assetName: pam && !pam.startsWith('gen_') ? pam : null,
         genericHeadName: storedPgheData ? storedPgheData.genr : (pam.startsWith('gen_') ? pam : null),
         skinTone: storedPgheData ? storedPgheData.skinTone : getSkinToneFromRace(effectiveRace)
@@ -3346,28 +3396,28 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       prospect.awareness = r.PAWR || 70;
       prospect.jumping = r.PJMP || 70;
       prospect.stamina = r.PSTA || 85;
-      prospect.changeOfDirection = r.PCOD || 70;
+      // M26 field codes - database stores these
+      prospect.changeOfDirection = r.PELU || r.PCOD || 70;  // M26: PELU
       prospect.toughness = r.PTGH || 70;
       prospect.injury = r.PINJ || 85;
 
-      // Ball carrier
+      // Ball carrier - M26 codes (PBKT, PLTR, PLSA, PLSM, PLJM)
       prospect.carrying = r.PCAR || 70;
       prospect.ballCarrierVision = r.PBCV || 70;
-      prospect.breakTackle = r.PBTK || 70;
-      prospect.trucking = r.PTRK || 70;
-      // Support both old CSV codes (PSTF/PSPM/PJUM) AND database codes (PSFA/PSPN/PJKM)
-      prospect.stiffArm = r.PSFA || r.PSTF || 70;
-      prospect.spinMove = r.PSPN || r.PSPM || 70;
-      prospect.jukeMove = r.PJKM || r.PJUM || 70;
+      prospect.breakTackle = r.PBKT || r.PBTK || 70;  // M26: PBKT
+      prospect.trucking = r.PLTR || r.PTRK || 70;  // M26: PLTR
+      prospect.stiffArm = r.PLSA || r.PSFA || r.PSTF || 70;  // M26: PLSA
+      prospect.spinMove = r.PLSM || r.PSPN || r.PSPM || 70;  // M26: PLSM
+      prospect.jukeMove = r.PLJM || r.PJKM || r.PJUM || 70;  // M26: PLJM
 
-      // Receiving
+      // Receiving - M26 codes (PLCI, PLSC, SRRN, PLRL)
       prospect.catching = r.PCTH || 70;
-      prospect.catchInTraffic = r.PCIT || 70;
-      prospect.spectacularCatch = r.PSPC || 70;
-      prospect.shortRouteRunning = r.PSRR || 70;
+      prospect.catchInTraffic = r.PLCI || r.PCIT || 70;  // M26: PLCI
+      prospect.spectacularCatch = r.PLSC || r.PSPC || 70;  // M26: PLSC
+      prospect.shortRouteRunning = r.SRRN || r.PSRR || 70;  // M26: SRRN
       prospect.mediumRouteRunning = r.PMRR || 70;
       prospect.deepRouteRunning = r.PDRR || 70;
-      prospect.release = r.PREL || 70;
+      prospect.release = r.PLRL || r.PREL || 70;  // M26: PLRL
 
       // Throwing
       prospect.throwPower = r.PTHP || 70;
@@ -3376,30 +3426,30 @@ ipcMain.handle('database:get-player-for-draft', async (event, internalId: number
       prospect.throwAccuracyDeep = r.PTAD || 70;
       prospect.throwOnTheRun = r.PTOR || 70;
       prospect.throwUnderPressure = r.PTUP || 70;
-      prospect.playAction = r.PPLA || 70;  // Play Action (QB attribute)
-      prospect.breakSack = r.PBRS || 70;
+      prospect.playAction = r.PPLA || 70;
+      prospect.breakSack = r.PBSK || r.PBRS || 70;  // M26: PBSK
 
-      // Blocking
+      // Blocking - M26 codes (PPBS, PRBS, PLIB)
       prospect.passBlock = r.PPBK || 70;
-      prospect.passBlockPower = r.PPBP || 70;
+      prospect.passBlockPower = r.PPBS || r.PPBP || 70;  // M26: PPBS
       prospect.passBlockFinesse = r.PPBF || 70;
       prospect.runBlock = r.PRBK || 70;
-      prospect.runBlockPower = r.PRBP || 70;
+      prospect.runBlockPower = r.PRBS || r.PRBP || 70;  // M26: PRBS
       prospect.runBlockFinesse = r.PRBF || 70;
-      prospect.leadBlock = r.PLBK || 70;  // Database uses PLBK
-      prospect.impactBlocking = r.PIBK || 70;  // Database uses PIBK
+      prospect.leadBlock = r.PLBK || 70;
+      prospect.impactBlocking = r.PLIB || r.PIBK || 70;  // M26: PLIB
 
-      // Defense
+      // Defense - M26 codes (PLHT, PLPM, PBSG, PLPU, PLPR, PLMC, PLZC, PLPE)
       prospect.tackle = r.PTAK || 70;
-      prospect.hitPower = r.PLHT || r.PHIT || r.PHTP || 70;  // DB uses PLHT
-      prospect.powerMoves = r.PLPM || r.PPWM || 70;  // DB uses PLPM
-      prospect.finesseMoves = r.PFMS || r.PFMV || r.PFNM || 70;  // DB uses PFMS
-      prospect.blockShedding = r.PBSG || r.PBSH || 70;  // DB uses PBSG
-      prospect.pursuit = r.PLPU || r.PPUR || 70;  // DB uses PLPU, old CSV uses PPUR
-      prospect.playRecognition = r.PLPR || r.PPRC || 70;  // DB uses PLPR, old CSV uses PPRC
-      prospect.manCoverage = r.PMCV || 70;
-      prospect.zoneCoverage = r.PZCV || 70;
-      prospect.pressCoverage = r.PPRS || 70;
+      prospect.hitPower = r.PLHT || r.PHIT || r.PHTP || 70;  // M26: PLHT
+      prospect.powerMoves = r.PLPM || r.PPWM || 70;  // M26: PLPM
+      prospect.finesseMoves = r.PFMS || r.PFMV || r.PFNM || 70;  // M26: PFMS
+      prospect.blockShedding = r.PBSG || r.PBSH || 70;  // M26: PBSG
+      prospect.pursuit = r.PLPU || r.PPUR || 70;  // M26: PLPU
+      prospect.playRecognition = r.PLPR || r.PPRC || 70;  // M26: PLPR
+      prospect.manCoverage = r.PLMC || r.PMCV || 70;  // M26: PLMC
+      prospect.zoneCoverage = r.PLZC || r.PZCV || 70;  // M26: PLZC
+      prospect.pressCoverage = r.PLPE || r.PPRS || 70;  // M26: PLPE
 
       // Special teams
       prospect.kickPower = r.PKPR || r.PKPW || 70;
@@ -3704,7 +3754,12 @@ ipcMain.handle('database:get-player-available-years', async (event, internalId: 
       }
     } else {
       const seasons = lookupService.getPlayerSeasons(internalId);
-      availableYears = seasons.map(s => s.year).sort((a, b) => b - a);
+      // Filter out hidden seasons
+      const hiddenYears = new Set(userDatabaseService.getHiddenSeasons(internalId));
+      availableYears = seasons
+        .map(s => s.year)
+        .filter(year => !hiddenYears.has(year))
+        .sort((a, b) => b - a);
     }
 
     // If no seasons in database, use career range
@@ -4338,11 +4393,51 @@ ipcMain.handle('database:execute-roster-push', async (
   }
 ) => {
   try {
-    console.log(`[database-handlers] Executing roster push for year ${analysis.seasonYear}`);
-    console.log(`[database-handlers] Push options:`, JSON.stringify(options, null, 2));
+    console.log(`[database-handlers] ========== EXECUTE ROSTER PUSH IPC ==========`);
+    console.log(`[database-handlers] Year: ${analysis?.seasonYear}`);
+    console.log(`[database-handlers] Analysis received:`, {
+      newPlayers: analysis?.newPlayers?.length || 0,
+      existingBundled: analysis?.existingBundled?.length || 0,
+      existingCustom: analysis?.existingCustom?.length || 0,
+      totalConflicts: analysis?.totalConflicts || 0
+    });
+    console.log(`[database-handlers] Resolutions: ${resolutions?.length || 0}`);
+    console.log(`[database-handlers] Options:`, JSON.stringify(options, null, 2));
+
+    // Log first bundled player to verify data made it through IPC
+    if (analysis?.existingBundled?.[0]) {
+      const first = analysis.existingBundled[0];
+      console.log(`[database-handlers] First bundled player: ${first.player?.PFNA} ${first.player?.PLNA}`);
+      console.log(`[database-handlers] First bundled has player keys: ${Object.keys(first.player || {}).length}`);
+      console.log(`[database-handlers] First bundled POVR=${first.player?.POVR}, PWGT=${first.player?.PWGT}`);
+    }
+
     await userDatabaseService.waitForReady();
     const result = await rosterDatabaseService.executePush(analysis, resolutions, options);
-    return { success: true, result };
+    console.log(`[database-handlers] Push result:`, result);
+
+    // DIAGNOSTIC: Verify first bundled player's data was actually saved
+    let verifyData = null;
+    if (analysis?.existingBundled?.[0]) {
+      const firstBundled = analysis.existingBundled[0];
+      const playerId = firstBundled.existingPlayerId;
+      const savedSeason = userDatabaseService.getSeasonEdit(playerId!, analysis.seasonYear);
+      if (savedSeason) {
+        verifyData = {
+          playerId,
+          year: analysis.seasonYear,
+          savedTeam: savedSeason.team,
+          savedPOVR: savedSeason.ratings?.POVR,
+          savedPSPD: savedSeason.ratings?.PSPD,
+          ratingCount: Object.keys(savedSeason.ratings || {}).length
+        };
+        console.log(`[database-handlers] VERIFY DIAGNOSTIC:`, verifyData);
+      } else {
+        console.log(`[database-handlers] VERIFY DIAGNOSTIC: NO DATA FOUND for player ${playerId}, year ${analysis.seasonYear}`);
+      }
+    }
+
+    return { success: true, result, verifyData };
   } catch (error) {
     console.error('[database-handlers] Error executing roster push:', error);
     return { success: false, error: String(error) };
@@ -4367,43 +4462,55 @@ ipcMain.handle('database:merge-players', async (
 
     if (isCustomMerge) {
       // Merging custom players
+      console.log(`[database-handlers] CUSTOM MERGE: Processing ${secondaryPlayerIds.length} secondary players`);
       for (const secondaryId of secondaryPlayerIds) {
         // Get all seasons from secondary player
         const secondarySeasons = userDatabaseService.getCustomPlayerSeasons(secondaryId);
+        console.log(`[database-handlers] Secondary player ${secondaryId} has ${secondarySeasons.length} seasons: ${secondarySeasons.map(s => s.year).join(', ')}`);
 
         for (const season of secondarySeasons) {
           // Check if primary already has this year
           const existingSeason = userDatabaseService.getCustomPlayerSeason(primaryPlayerId, season.year);
+          console.log(`[database-handlers] Checking year ${season.year}: primary has existing=${!!existingSeason}`);
           if (!existingSeason) {
             // Copy season to primary player
             userDatabaseService.saveCustomPlayerSeason(primaryPlayerId, season.year, season);
             seasonsMerged++;
             console.log(`[database-handlers] Copied season ${season.year} from custom player ${secondaryId} to ${primaryPlayerId}`);
+          } else {
+            console.log(`[database-handlers] Skipping year ${season.year} - primary already has data`);
           }
         }
 
         // Delete the secondary custom player
+        console.log(`[database-handlers] About to delete custom player ${secondaryId}`);
         userDatabaseService.deleteCustomPlayer(secondaryId);
         console.log(`[database-handlers] Deleted custom player ${secondaryId}`);
       }
     } else {
       // Merging bundled players (only user edits can be merged)
+      console.log(`[database-handlers] BUNDLED MERGE: Processing ${secondaryPlayerIds.length} secondary players`);
       for (const secondaryId of secondaryPlayerIds) {
         // Get all season edits from secondary player
         const secondaryEdits = userDatabaseService.getSeasonEditsForPlayer(secondaryId);
+        console.log(`[database-handlers] Secondary player ${secondaryId} has ${secondaryEdits.length} season edits: ${secondaryEdits.map(e => e.year).join(', ')}`);
 
         for (const edit of secondaryEdits) {
           // Check if primary already has edits for this year
           const existingEdit = userDatabaseService.getSeasonEdit(primaryPlayerId, edit.year);
+          console.log(`[database-handlers] Checking year ${edit.year}: primary has existing=${!!existingEdit}`);
           if (!existingEdit) {
             // Copy season edit to primary player
             userDatabaseService.saveSeasonEdit(primaryPlayerId, edit.year, edit);
             seasonsMerged++;
             console.log(`[database-handlers] Copied season edit ${edit.year} from bundled player ${secondaryId} to ${primaryPlayerId}`);
+          } else {
+            console.log(`[database-handlers] Skipping year ${edit.year} - primary already has edits`);
           }
         }
 
         // Clear all edits from secondary bundled player (don't delete - it's bundled)
+        console.log(`[database-handlers] About to clear seasons and hide bundled player ${secondaryId}`);
         userDatabaseService.clearPlayerSeasons(secondaryId);
 
         // Hide the secondary player so they don't appear in search results

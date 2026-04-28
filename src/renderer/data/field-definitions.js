@@ -1105,25 +1105,67 @@ export const BODY_TYPE_NAMES = {
  * @returns {number} Body type code (0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean)
  */
 export function generateBodyType(weight, height, position) {
-    // Weight-only cutoffs based on in-game ranges
+    // Weight-based body type assignment
+    // Preference order: Standard/Muscular over Thin/Lean
+    // Body type ranges: Standard (175-220), Thin (180-240), Muscular (220-285), Heavy (280-400), Lean (160-180)
 
-    // Lean: < 180 lbs
-    if (weight < 180) {
-        return 4; // Lean
-    }
-
-    // Heavy: >= 280 lbs
+    // Heavy: >= 280 lbs (required for this weight range)
     if (weight >= 280) {
         return 3; // Heavy
     }
 
-    // Muscular: 241-279 lbs
-    if (weight >= 241) {
+    // Muscular: 220-279 lbs (prefer muscular for larger players)
+    if (weight >= 220) {
         return 2; // Muscular
     }
 
-    // Thin: 180-240 lbs
-    return 1; // Thin
+    // Standard: 175-219 lbs (prefer standard over thin)
+    if (weight >= 175) {
+        return 0; // Standard
+    }
+
+    // Lean: < 175 lbs (only for lighter players below standard range)
+    return 4; // Lean
+}
+
+/**
+ * In-game valid weight ranges for each body type
+ * These are the ACTUAL overlapping ranges the game allows
+ */
+export const BODY_TYPE_WEIGHT_RANGES = {
+    0: { min: 175, max: 220 },   // Standard: 175-220 lbs
+    1: { min: 180, max: 240 },   // Thin: 180-240 lbs
+    2: { min: 220, max: 285 },   // Muscular: 220-285 lbs
+    3: { min: 280, max: 400 },   // Heavy: 280-400 lbs
+    4: { min: 160, max: 180 }    // Lean: 160-180 lbs
+};
+
+/**
+ * Check if a weight is valid for a specific body type
+ * Uses the actual in-game overlapping ranges
+ * @param {number} weight - Actual weight in pounds
+ * @param {number} bodyType - Body type code (0-4)
+ * @returns {boolean} True if weight is valid for the body type
+ */
+export function isWeightValidForBodyType(weight, bodyType) {
+    const range = BODY_TYPE_WEIGHT_RANGES[bodyType];
+    if (!range) return false;
+    return weight >= range.min && weight <= range.max;
+}
+
+/**
+ * Get all valid body types for a given weight
+ * @param {number} weight - Actual weight in pounds
+ * @returns {number[]} Array of valid body type codes
+ */
+export function getValidBodyTypesForWeight(weight) {
+    const validTypes = [];
+    for (const [bodyType, range] of Object.entries(BODY_TYPE_WEIGHT_RANGES)) {
+        if (weight >= range.min && weight <= range.max) {
+            validTypes.push(parseInt(bodyType));
+        }
+    }
+    return validTypes;
 }
 
 /**

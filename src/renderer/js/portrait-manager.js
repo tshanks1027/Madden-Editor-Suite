@@ -435,6 +435,17 @@
     });
     card.appendChild(deleteBtn);
 
+    // Edit button
+    const editBtn = document.createElement('button');
+    editBtn.className = 'portrait-edit-btn';
+    editBtn.innerHTML = '✏️';
+    editBtn.title = 'Edit portrait';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleOpenEditModal(portrait);
+    });
+    card.appendChild(editBtn);
+
     // Quick Assign button (on each card)
     const assignCardBtn = document.createElement('button');
     assignCardBtn.className = 'portrait-assign-btn';
@@ -3371,6 +3382,39 @@
       pidEl.textContent = `PID: ${p.pid}`;
       card.appendChild(pidEl);
 
+      // Delete button
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'portrait-delete';
+      deleteBtn.innerHTML = '×';
+      deleteBtn.title = 'Delete portrait';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleDeletePortrait(p.pid);
+      });
+      card.appendChild(deleteBtn);
+
+      // Edit button
+      const editBtn = document.createElement('button');
+      editBtn.className = 'portrait-edit-btn';
+      editBtn.innerHTML = '✏️';
+      editBtn.title = 'Edit portrait';
+      editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleOpenEditModal(p);
+      });
+      card.appendChild(editBtn);
+
+      // Assign button
+      const assignBtn = document.createElement('button');
+      assignBtn.className = 'portrait-assign-btn';
+      assignBtn.innerHTML = '👤';
+      assignBtn.title = 'Assign to player';
+      assignBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handleQuickAssign(p.pid);
+      });
+      card.appendChild(assignBtn);
+
       const nameEl = document.createElement('div');
       nameEl.className = 'portrait-name';
       nameEl.textContent = p.playerName || 'Unassigned';
@@ -4235,6 +4279,170 @@
     document.addEventListener('DOMContentLoaded', initToolCardLandingPage);
   } else {
     initToolCardLandingPage();
+  }
+
+  // =============================================
+  // EDIT PORTRAIT MODAL FUNCTIONS
+  // =============================================
+
+  let editingPortrait = null; // Currently editing portrait data
+
+  /**
+   * Open the edit modal for a portrait
+   */
+  async function handleOpenEditModal(portrait) {
+    editingPortrait = portrait;
+
+    const modal = document.getElementById('portraitEditModal');
+    const preview = document.getElementById('editPortraitPreview');
+    const pidLabel = document.getElementById('editPortraitPid');
+    const nameInput = document.getElementById('editPlayerName');
+    const yearInput = document.getElementById('editYear');
+    const connectionDiv = document.getElementById('editPlayerConnection');
+    const clearConnectionBtn = document.getElementById('clearPlayerConnectionBtn');
+
+    if (!modal) {
+      console.error('[PortraitManager] Edit modal not found');
+      return;
+    }
+
+    // Load portrait preview
+    try {
+      const imageData = await window.electronAPI.customPortrait.get(portrait.pid);
+      if (preview) preview.src = imageData || '';
+      if (pidLabel) pidLabel.textContent = `PID: ${portrait.pid}`;
+    } catch (error) {
+      console.error('[PortraitManager] Error loading portrait preview:', error);
+    }
+
+    // Fill form with current values
+    if (nameInput) nameInput.value = portrait.playerName || '';
+    if (yearInput) yearInput.value = portrait.year || '';
+
+    // Show database connection info
+    if (connectionDiv) {
+      if (portrait.databasePlayerId) {
+        connectionDiv.innerHTML = `<span class="connected-player">Connected to Player ID: ${portrait.databasePlayerId}</span>`;
+        if (clearConnectionBtn) clearConnectionBtn.style.display = 'inline-block';
+      } else {
+        connectionDiv.innerHTML = '<span class="no-connection">Not connected to database</span>';
+        if (clearConnectionBtn) clearConnectionBtn.style.display = 'none';
+      }
+    }
+
+    // Bind modal event handlers (only once)
+    if (!modal.dataset.bound) {
+      modal.dataset.bound = 'true';
+
+      document.getElementById('closeEditModal')?.addEventListener('click', handleCloseEditModal);
+      document.getElementById('cancelEditBtn')?.addEventListener('click', handleCloseEditModal);
+      document.getElementById('saveEditBtn')?.addEventListener('click', handleSaveEdit);
+      document.getElementById('deleteFromEditBtn')?.addEventListener('click', handleDeleteFromEditModal);
+      document.getElementById('clearPlayerConnectionBtn')?.addEventListener('click', handleClearPlayerConnection);
+
+      // Close on overlay click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          handleCloseEditModal();
+        }
+      });
+    }
+
+    modal.style.display = 'flex';
+  }
+
+  /**
+   * Close the edit modal
+   */
+  function handleCloseEditModal() {
+    const modal = document.getElementById('portraitEditModal');
+    if (modal) modal.style.display = 'none';
+    editingPortrait = null;
+  }
+
+  /**
+   * Save changes from the edit modal
+   */
+  async function handleSaveEdit() {
+    if (!editingPortrait) return;
+
+    const nameInput = document.getElementById('editPlayerName');
+    const yearInput = document.getElementById('editYear');
+
+    const newName = nameInput?.value?.trim() || null;
+    const newYear = yearInput?.value ? parseInt(yearInput.value, 10) : null;
+
+    try {
+      await window.electronAPI.customPortrait.updateMetadata(editingPortrait.pid, {
+        playerName: newName,
+        year: newYear
+      });
+
+      showToast(`Portrait PID ${editingPortrait.pid} updated`, 'success');
+      handleCloseEditModal();
+      await refreshPortraits();
+    } catch (error) {
+      console.error('[PortraitManager] Save error:', error);
+      showToast(`Save failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Delete portrait from the edit modal
+   */
+  async function handleDeleteFromEditModal() {
+    if (!editingPortrait) return;
+
+    const pid = editingPortrait.pid;
+    if (!confirm(`Delete portrait PID ${pid}?\n\nThis will free up this PID for reuse.`)) {
+      return;
+    }
+
+    try {
+      await window.electronAPI.customPortrait.delete(pid);
+      showToast(`Deleted portrait PID ${pid}`, 'success');
+      handleCloseEditModal();
+      await refreshPortraits();
+    } catch (error) {
+      console.error('[PortraitManager] Delete error:', error);
+      showToast(`Delete failed: ${error.message}`, 'error');
+    }
+  }
+
+  /**
+   * Clear the database player connection
+   */
+  async function handleClearPlayerConnection() {
+    if (!editingPortrait) return;
+
+    if (!confirm('Disconnect this portrait from the database player?')) {
+      return;
+    }
+
+    try {
+      await window.electronAPI.customPortrait.updateMetadata(editingPortrait.pid, {
+        playerName: editingPortrait.playerName,
+        databasePlayerId: null
+      });
+
+      // Update local state
+      editingPortrait.databasePlayerId = null;
+
+      // Update UI
+      const connectionDiv = document.getElementById('editPlayerConnection');
+      const clearConnectionBtn = document.getElementById('clearPlayerConnectionBtn');
+      if (connectionDiv) {
+        connectionDiv.innerHTML = '<span class="no-connection">Not connected to database</span>';
+      }
+      if (clearConnectionBtn) {
+        clearConnectionBtn.style.display = 'none';
+      }
+
+      showToast('Disconnected from database player', 'success');
+    } catch (error) {
+      console.error('[PortraitManager] Clear connection error:', error);
+      showToast(`Failed: ${error.message}`, 'error');
+    }
   }
 
   // Export for potential external use

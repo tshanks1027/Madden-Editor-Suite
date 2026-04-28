@@ -505,6 +505,34 @@
             background: rgba(76, 175, 80, 0.9);
         }
 
+        /* Edit button on portrait card */
+        .portrait-card .portrait-edit-btn {
+            position: absolute;
+            top: 36px;
+            left: 8px;
+            background: rgba(100, 100, 200, 0.9);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .portrait-card:hover .portrait-edit-btn {
+            opacity: 1;
+        }
+
+        .portrait-card .portrait-edit-btn:hover {
+            background: rgba(255, 165, 0, 0.9);
+        }
+
         /* Suggested name from filename (not yet assigned) */
         .portrait-name-suggested {
             color: #888 !important;
@@ -955,6 +983,74 @@
             color: #888;
             font-size: 11px;
             margin-top: 8px;
+        }
+
+        /* Edit Portrait Form */
+        .edit-portrait-form {
+            margin-top: 16px;
+        }
+
+        .edit-portrait-form .form-group {
+            margin-bottom: 16px;
+        }
+
+        .edit-portrait-form label {
+            display: block;
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .edit-portrait-form input[type="text"],
+        .edit-portrait-form input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            background: #252220;
+            border: 1px solid #333;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        .edit-portrait-form input:focus {
+            outline: none;
+            border-color: #ffa726;
+        }
+
+        .edit-player-connection {
+            padding: 10px 12px;
+            background: #252220;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        .edit-player-connection .no-connection {
+            color: #888;
+            font-style: italic;
+        }
+
+        .edit-player-connection .connected-player {
+            color: #4caf50;
+        }
+
+        .edit-delete-section {
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .edit-delete-section .btn-danger {
+            background: #d32f2f;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .edit-delete-section .btn-danger:hover {
+            background: #f44336;
         }
 
         /* Search result states */
@@ -4596,6 +4692,59 @@
                     <div class="modal-footer">
                         <button class="btn btn-secondary" id="cancelAssignBtn">Cancel</button>
                         <button class="btn btn-primary" id="confirmAssignBtn" disabled>Assign Portrait</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Portrait Edit Modal (for editing portrait metadata) -->
+            <div id="portraitEditModal" class="modal-overlay" style="display: none;">
+                <div class="modal-content portrait-assign-modal">
+                    <div class="modal-header">
+                        <h3>Edit Portrait</h3>
+                        <button class="modal-close" id="closeEditModal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Portrait Preview -->
+                        <div class="assign-portrait-preview">
+                            <img id="editPortraitPreview" src="" alt="Portrait">
+                            <div class="assign-portrait-info">
+                                <span id="editPortraitPid">PID: 12000</span>
+                            </div>
+                        </div>
+
+                        <!-- Edit Form -->
+                        <div class="edit-portrait-form">
+                            <div class="form-group">
+                                <label for="editPlayerName">Player Name:</label>
+                                <input type="text" id="editPlayerName" placeholder="Enter player name or leave blank">
+                            </div>
+                            <div class="form-group">
+                                <label for="editYear">Year:</label>
+                                <input type="number" id="editYear" min="1920" max="2030" placeholder="e.g. 1976">
+                            </div>
+                            <div class="form-group">
+                                <label>Database Player Connection:</label>
+                                <div id="editPlayerConnection" class="edit-player-connection">
+                                    <span class="no-connection">Not connected to database</span>
+                                </div>
+                                <button id="clearPlayerConnectionBtn" class="btn btn-sm btn-secondary" style="display: none;">
+                                    Disconnect from Player
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Delete Section -->
+                        <div class="edit-delete-section">
+                            <hr style="border-color: #333; margin: 16px 0;">
+                            <p style="color: #888; font-size: 12px;">Delete this portrait to free up its PID for reuse:</p>
+                            <button id="deleteFromEditBtn" class="btn btn-danger">
+                                🗑️ Delete Portrait
+                            </button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" id="cancelEditBtn">Cancel</button>
+                        <button class="btn btn-primary" id="saveEditBtn">Save Changes</button>
                     </div>
                 </div>
             </div>

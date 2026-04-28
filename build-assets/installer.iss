@@ -2,7 +2,7 @@
 ; Supports installers larger than 2GB (no NSIS limitation)
 
 #define MyAppName "Madden Editor Suite"
-#define MyAppVersion "3.4.0"
+#define MyAppVersion "3.4.1"
 #define MyAppPublisher "KRaZyNuttZ"
 #define MyAppURL "https://github.com/tshanks1027/madden-editor-suite"
 #define MyAppExeName "madden-editor-suite.exe"
@@ -16,7 +16,7 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={localappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 ; Output settings

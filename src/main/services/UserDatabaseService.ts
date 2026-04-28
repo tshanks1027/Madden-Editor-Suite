@@ -636,6 +636,17 @@ class UserDatabaseService {
       )
     `);
 
+    // Table to hide specific seasons for bundled players
+    // When user deletes a season that exists in bundled data, we add it here
+    this.editsDb.exec(`
+      CREATE TABLE IF NOT EXISTS hidden_seasons (
+        original_player_id INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        hidden_at TEXT DEFAULT (datetime('now')),
+        PRIMARY KEY (original_player_id, year)
+      )
+    `);
+
     // Table to store player-level archetype (constant across all seasons)
     // Archetypes rarely change for a player, so we store at player level
     // This ensures consistent OVR calculation everywhere
@@ -1211,18 +1222,59 @@ class UserDatabaseService {
 
   /**
    * Delete a specific season for a player (edited/added seasons only)
+   * Also hides the season if it exists in bundled data
    * @param originalPlayerId The player's original ID
    * @param year The year to delete
-   * @returns true if a record was deleted
+   * @returns true if the season was deleted or hidden
    */
   public deletePlayerSeason(originalPlayerId: number, year: number): boolean {
     if (!this.editsDb) throw new Error('Edits database not initialized');
 
+    // Delete any user edits for this season
     const result = this.editsDb.prepare(
       'DELETE FROM season_edits WHERE original_player_id = ? AND year = ?'
     ).run(originalPlayerId, year);
 
-    console.log(`[UserDatabaseService] Deleted season ${year} for player_id=${originalPlayerId}, affected=${result.changes}`);
+    // Also hide this season so bundled data doesn't show it
+    this.editsDb.prepare(
+      'INSERT OR REPLACE INTO hidden_seasons (original_player_id, year) VALUES (?, ?)'
+    ).run(originalPlayerId, year);
+
+    console.log(`[UserDatabaseService] Deleted/hid season ${year} for player_id=${originalPlayerId}, edits deleted=${result.changes}`);
+    return true; // Always return true since we're also hiding the season
+  }
+
+  /**
+   * Check if a specific season is hidden for a player
+   */
+  public isSeasonHidden(originalPlayerId: number, year: number): boolean {
+    if (!this.editsDb) return false;
+    const row = this.editsDb.prepare(
+      'SELECT 1 FROM hidden_seasons WHERE original_player_id = ? AND year = ?'
+    ).get(originalPlayerId, year);
+    return !!row;
+  }
+
+  /**
+   * Get all hidden season years for a player
+   */
+  public getHiddenSeasons(originalPlayerId: number): number[] {
+    if (!this.editsDb) return [];
+    const rows = this.editsDb.prepare(
+      'SELECT year FROM hidden_seasons WHERE original_player_id = ?'
+    ).all(originalPlayerId) as { year: number }[];
+    return rows.map(r => r.year);
+  }
+
+  /**
+   * Unhide a specific season (restore it to visibility)
+   */
+  public unhideSeason(originalPlayerId: number, year: number): boolean {
+    if (!this.editsDb) return false;
+    const result = this.editsDb.prepare(
+      'DELETE FROM hidden_seasons WHERE original_player_id = ? AND year = ?'
+    ).run(originalPlayerId, year);
+    console.log(`[UserDatabaseService] Unhid season ${year} for player_id=${originalPlayerId}`);
     return result.changes > 0;
   }
 

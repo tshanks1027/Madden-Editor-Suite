@@ -13,7 +13,8 @@ import {
     onBodyTypeChange,
     onWeightChange,
     storedWeightToActual,
-    BODY_TYPE_NAMES
+    BODY_TYPE_NAMES,
+    isWeightValidForBodyType
 } from '../data/field-definitions.js';
 import { FastSelectEditor } from './FastSelectEditor.js';
 import { getTeamById } from '../data/team-data.js';
@@ -1138,42 +1139,55 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                 }
 
                 // ========== BODY TYPE / WEIGHT LINKING ==========
-                // When body type changes, update weight to match
+                // When body type changes, only update weight if current weight is NOT valid for the new body type
                 if (fieldName === 'PCBT') {
                     const newBodyType = valueToStore; // Numeric ID (0-4)
                     const position = actualPlayer.PPOS;
-                    const newStoredWeight = onBodyTypeChange(newBodyType, position);
-                    const newActualWeight = storedWeightToActual(newStoredWeight);
+                    const currentStoredWeight = actualPlayer.PWGT || 60; // Default 220 lbs stored as 60
+                    const currentActualWeight = storedWeightToActual(currentStoredWeight);
 
-                    console.log(`[AG-Grid] Body type changed to ${BODY_TYPE_NAMES[newBodyType]} (${newBodyType}), auto-updating weight to ${newActualWeight} lbs (stored: ${newStoredWeight})`);
+                    // Check if current weight is valid for the new body type
+                    if (isWeightValidForBodyType(currentActualWeight, newBodyType)) {
+                        // Current weight is valid for new body type - keep it!
+                        console.log(`[AG-Grid] Body type changed to ${BODY_TYPE_NAMES[newBodyType]} (${newBodyType}), keeping current weight ${currentActualWeight} lbs (valid for this body type)`);
+                    } else {
+                        // Current weight is NOT valid - use default weight for new body type
+                        const newStoredWeight = onBodyTypeChange(newBodyType, position);
+                        const newActualWeight = storedWeightToActual(newStoredWeight);
 
-                    // Update weight in player data (stored value)
-                    actualPlayer.PWGT = newStoredWeight;
-                    event.data.PWGT = newStoredWeight;
-                    if (playerIndex !== -1) {
-                        app.players[playerIndex].PWGT = newStoredWeight;
+                        console.log(`[AG-Grid] Body type changed to ${BODY_TYPE_NAMES[newBodyType]} (${newBodyType}), updating weight from ${currentActualWeight} to ${newActualWeight} lbs (current weight not valid for new body type)`);
+
+                        // Update weight in player data (stored value)
+                        actualPlayer.PWGT = newStoredWeight;
+                        event.data.PWGT = newStoredWeight;
+                        if (playerIndex !== -1) {
+                            app.players[playerIndex].PWGT = newStoredWeight;
+                        }
+
+                        // Refresh the weight cell to show updated value
+                        event.api.refreshCells({
+                            rowNodes: [event.node],
+                            columns: ['PWGT'],
+                            force: true
+                        });
                     }
-
-                    // Refresh the weight cell to show updated value
-                    event.api.refreshCells({
-                        rowNodes: [event.node],
-                        columns: ['PWGT'],
-                        force: true
-                    });
                 }
 
-                // When weight changes, update body type to match
+                // When weight changes, only update body type if current body type is NOT valid for the new weight
                 if (fieldName === 'PWGT' && storedWeightForLinking !== null) {
                     const position = actualPlayer.PPOS;
-                    const newBodyType = onWeightChange(storedWeightForLinking, position);
-                    const oldBodyType = actualPlayer.PCBT;
                     const actualWeight = storedWeightToActual(storedWeightForLinking);
+                    const oldBodyType = actualPlayer.PCBT;
 
-                    console.log(`[AG-Grid] Weight changed: actual=${actualWeight}, stored=${storedWeightForLinking}, position=${position}, newBodyType=${newBodyType}, oldBodyType=${oldBodyType}`);
+                    // Check if current body type is still valid for the new weight
+                    if (isWeightValidForBodyType(actualWeight, oldBodyType)) {
+                        // Current body type is valid for new weight - keep it!
+                        console.log(`[AG-Grid] Weight changed to ${actualWeight} lbs, keeping body type ${BODY_TYPE_NAMES[oldBodyType] || oldBodyType} (still valid)`);
+                    } else {
+                        // Current body type is NOT valid for new weight - calculate new one
+                        const newBodyType = onWeightChange(storedWeightForLinking, position);
 
-                    // Only update body type if it actually changed
-                    if (newBodyType !== oldBodyType) {
-                        console.log(`[AG-Grid] Auto-updating body type from ${BODY_TYPE_NAMES[oldBodyType] || oldBodyType} to ${BODY_TYPE_NAMES[newBodyType]}`);
+                        console.log(`[AG-Grid] Weight changed to ${actualWeight} lbs, current body type ${BODY_TYPE_NAMES[oldBodyType] || oldBodyType} not valid, updating to ${BODY_TYPE_NAMES[newBodyType]}`);
 
                         // Update body type in player data
                         actualPlayer.PCBT = newBodyType;
@@ -3186,12 +3200,43 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
         executeBtn.disabled = true;
         executeBtn.textContent = 'Pushing...';
 
+        // CRITICAL DEBUG: Log exactly what we're sending to the backend
+        console.log('[Push to DB] ========== SENDING TO BACKEND ==========');
+        console.log('[Push to DB] filteredAnalysis.seasonYear:', filteredAnalysis.seasonYear);
+        console.log('[Push to DB] filteredAnalysis.existingBundled:', filteredAnalysis.existingBundled?.length || 0);
+        console.log('[Push to DB] filteredAnalysis.existingCustom:', filteredAnalysis.existingCustom?.length || 0);
+        console.log('[Push to DB] filteredAnalysis.newPlayers:', filteredAnalysis.newPlayers?.length || 0);
+        if (filteredAnalysis.existingBundled?.[0]) {
+            const first = filteredAnalysis.existingBundled[0];
+            console.log('[Push to DB] First bundled player:', first.player?.PFNA, first.player?.PLNA);
+            console.log('[Push to DB] First bundled existingPlayerId:', first.existingPlayerId);
+            console.log('[Push to DB] First bundled POVR:', first.player?.POVR, 'PWGT:', first.player?.PWGT);
+        }
+        console.log('[Push to DB] resolutions:', resolutions);
+        console.log('[Push to DB] options:', { pushMode, bioFieldOptions, overwriteExistingSeasons, fillEmptyBioFields });
+
         try {
             const response = await window.electronAPI.database.executeRosterPush(
                 filteredAnalysis,
                 resolutions,
                 { pushMode, bioFieldOptions, overwriteExistingSeasons, fillEmptyBioFields }
             );
+
+            console.log('[Push to DB] Response received:', response);
+            console.log('[Push to DB] RESULT DETAILS: created=' + response.result?.created + ', updated=' + response.result?.updated + ', skipped=' + response.result?.skipped + ', errors=' + response.result?.errors?.length);
+            // DIAGNOSTIC: Show what was actually saved to database
+            if (response.verifyData) {
+                console.log('[Push to DB] ===== VERIFY: DATA SAVED TO DATABASE =====');
+                console.log('[Push to DB] Player ID:', response.verifyData.playerId);
+                console.log('[Push to DB] Year:', response.verifyData.year);
+                console.log('[Push to DB] Saved Team:', response.verifyData.savedTeam);
+                console.log('[Push to DB] Saved POVR:', response.verifyData.savedPOVR);
+                console.log('[Push to DB] Saved PSPD:', response.verifyData.savedPSPD);
+                console.log('[Push to DB] Total ratings saved:', response.verifyData.ratingCount);
+                console.log('[Push to DB] ==========================================');
+            } else {
+                console.log('[Push to DB] WARNING: No verification data returned - save may have failed');
+            }
 
             if (response.success && response.result) {
                 const result = response.result;
@@ -3227,6 +3272,15 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
                                     </div>
                                 ` : ''}
                             </div>
+                            <div style="background: #263238; padding: 12px; border-radius: 4px; margin-bottom: 20px; font-size: 13px; text-align: left;">
+                                <strong style="color: #81D4FA;">Where to view pushed data:</strong>
+                                <div style="margin-top: 8px; color: #B0BEC5;">
+                                    Player Browser → Search for player → Click "View" → Select year <strong>${app.seasonYear || '(pushed year)'}</strong>
+                                </div>
+                                <div style="margin-top: 5px; color: #78909C; font-size: 11px;">
+                                    Note: The roster file itself is not modified. Data is saved to the player database.
+                                </div>
+                            </div>
                             <button id="roster-push-db-success-close-btn" style="padding: 10px 30px; background: #2196F3; border: none; color: #fff; border-radius: 4px; cursor: pointer; font-weight: bold;">
                                 Close
                             </button>
@@ -3240,13 +3294,15 @@ function showRosterPushConfirmationModal(app, analysis, seasonYear) {
                 });
 
             } else {
+                console.error('[Push to DB] Push failed - response:', response);
                 alert(`Push failed: ${response.error}`);
                 executeBtn.disabled = false;
                 executeBtn.textContent = `Push ${totalPlayers} Players to Database`;
             }
 
         } catch (error) {
-            console.error('[Push to DB] Error:', error);
+            console.error('[Push to DB] Error during push:', error);
+            console.error('[Push to DB] Error stack:', error.stack);
             alert(`Error: ${error.message || error}`);
             executeBtn.disabled = false;
             executeBtn.textContent = `Push ${totalPlayers} Players to Database`;

@@ -562,24 +562,24 @@ export class RosterCreatorService {
    * Determine PBOD (body type code) based on weight
    * Returns numeric code: 0=Standard, 1=Thin, 2=Muscular, 3=Heavy, 4=Lean
    *
-   * In-game weight cutoffs:
-   * - Lean: < 180 lbs → 4
-   * - Thin: 180-240 lbs → 1
-   * - Muscular: 241-279 lbs → 2
+   * Prefers Standard/Muscular over Thin/Lean:
+   * - Standard: 175-219 lbs → 0
+   * - Muscular: 220-279 lbs → 2
    * - Heavy: >= 280 lbs → 3
+   * - Lean: < 175 lbs → 4
    */
   private determineBodyType(positionCode: number, weight?: number): number {
     const w = weight || 220; // Default 220 if no weight provided
 
-    // Simple weight-based cutoffs
-    if (w < 180) {
-      return 4; // Lean
-    } else if (w >= 280) {
+    // Weight-based cutoffs preferring Standard/Muscular
+    if (w >= 280) {
       return 3; // Heavy
-    } else if (w >= 241) {
+    } else if (w >= 220) {
       return 2; // Muscular
+    } else if (w >= 175) {
+      return 0; // Standard
     } else {
-      return 1; // Thin (180-240)
+      return 4; // Lean (< 175)
     }
   }
 

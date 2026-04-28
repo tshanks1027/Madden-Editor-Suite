@@ -11,7 +11,8 @@ import {
     onBodyTypeChange,
     onWeightChange,
     storedWeightToActual,
-    getWeightFromBodyType
+    getWeightFromBodyType,
+    isWeightValidForBodyType
 } from '../data/field-definitions.js';
 import { FastSelectEditor } from './FastSelectEditor.js';
 import { getCollegeById, getCollegeByName, NCAA_LOGO, NCAA_COLORS } from '../data/college-data.js';
@@ -615,21 +616,28 @@ export function createDraftColumnDefs(app, archetypeData = null) {
 
             params.data.weight = newWeight;
 
-            // Update body type based on new weight
-            const position = params.data.position || params.data.positionId;
-            const height = params.data.heightInches || 74;
-            // onWeightChange expects stored weight (actual - 160), but draft class uses actual weight
-            const storedWeight = newWeight - 160;
-            const newBodyTypeId = onWeightChange(storedWeight, position, height);
-            const newBodyTypeName = bodyTypeValueToDisplay[newBodyTypeId] || 'Standard';
+            // Only update body type if current body type is NOT valid for the new weight
+            const currentBodyTypeId = params.data.bodyTypeId ?? bodyTypeDisplayToValue[params.data.bodyType] ?? 0;
 
-            params.data.bodyType = newBodyTypeName;
-            params.data.bodyTypeId = newBodyTypeId;
-            console.log(`[Draft] Weight changed to ${newWeight} lbs, auto-updating body type to ${newBodyTypeName} (${newBodyTypeId})`);
+            if (isWeightValidForBodyType(newWeight, currentBodyTypeId)) {
+                // Current body type is still valid for new weight - keep it!
+                console.log(`[Draft] Weight changed to ${newWeight} lbs, keeping body type ${params.data.bodyType} (still valid)`);
+            } else {
+                // Current body type is NOT valid for new weight - calculate new one
+                const position = params.data.position || params.data.positionId;
+                const height = params.data.heightInches || 74;
+                const storedWeight = newWeight - 160;
+                const newBodyTypeId = onWeightChange(storedWeight, position, height);
+                const newBodyTypeName = bodyTypeValueToDisplay[newBodyTypeId] || 'Standard';
 
-            // Refresh the body type cell to show new value
-            if (params.api) {
-                params.api.refreshCells({ rowNodes: [params.node], columns: ['bodyType'] });
+                params.data.bodyType = newBodyTypeName;
+                params.data.bodyTypeId = newBodyTypeId;
+                console.log(`[Draft] Weight changed to ${newWeight} lbs, current body type not valid, updating to ${newBodyTypeName} (${newBodyTypeId})`);
+
+                // Refresh the body type cell to show new value
+                if (params.api) {
+                    params.api.refreshCells({ rowNodes: [params.node], columns: ['bodyType'] });
+                }
             }
             return true;
         },
@@ -812,15 +820,22 @@ export function createDraftColumnDefs(app, archetypeData = null) {
                 params.data.bodyType = params.newValue;
                 params.data.bodyTypeId = id;
 
-                // Update weight to match body type
-                const position = params.data.position || params.data.positionId;
-                const newWeight = getWeightFromBodyType(id, position);
-                params.data.weight = newWeight;
-                console.log(`[Draft] Body type changed to ${params.newValue} (${id}), auto-updating weight to ${newWeight} lbs`);
+                // Only update weight if current weight is NOT valid for the new body type
+                const currentWeight = params.data.weight || 220;
+                if (isWeightValidForBodyType(currentWeight, id)) {
+                    // Current weight is valid for new body type - keep it!
+                    console.log(`[Draft] Body type changed to ${params.newValue} (${id}), keeping weight ${currentWeight} lbs (valid for this body type)`);
+                } else {
+                    // Current weight is NOT valid - use default weight for new body type
+                    const position = params.data.position || params.data.positionId;
+                    const newWeight = getWeightFromBodyType(id, position);
+                    params.data.weight = newWeight;
+                    console.log(`[Draft] Body type changed to ${params.newValue} (${id}), updating weight from ${currentWeight} to ${newWeight} lbs (current weight not valid)`);
 
-                // Refresh the weight cell to show new value
-                if (params.api) {
-                    params.api.refreshCells({ rowNodes: [params.node], columns: ['weight'] });
+                    // Refresh the weight cell to show new value
+                    if (params.api) {
+                        params.api.refreshCells({ rowNodes: [params.node], columns: ['weight'] });
+                    }
                 }
                 return true;
             }
