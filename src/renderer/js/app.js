@@ -436,8 +436,8 @@ class MaddenEditorApp {
             toolsPopup?.classList.remove('show');
             this.normalizeBodyTypes();
             // Refresh the grid to show updated values
-            if (window.rosterGrid) {
-                window.rosterGrid.refreshCells({ force: true });
+            if (window.rosterGridApi) {
+                window.rosterGridApi.refreshCells({ force: true });
             }
         });
 
@@ -1103,26 +1103,12 @@ class MaddenEditorApp {
                         return player;
                     }));
 
-                    // Recalculate OVR using the CORRECT game formula
-                    // This ensures POVR matches what the game will display
-                    this.updateLoadingProgress('Recalculating OVR...', 82);
-                    try {
-                        const ovrResults = await window.electronAPI.rating.recalculateOVRBatch(this.players);
-                        if (ovrResults && ovrResults.length === this.players.length) {
-                            let changedCount = 0;
-                            for (let i = 0; i < ovrResults.length; i++) {
-                                const oldOVR = this.players[i].POVR;
-                                const newOVR = ovrResults[i].ovr;
-                                if (oldOVR !== newOVR) {
-                                    this.players[i].POVR = newOVR;
-                                    changedCount++;
-                                }
-                            }
-                            console.log(`[app.js] OVR recalculation: ${changedCount} players changed`);
-                        }
-                    } catch (err) {
-                        console.error('[app.js] Error recalculating OVR:', err);
-                    }
+                    // NOTE: OVR recalculation on load is DISABLED
+                    // The stored POVR value in the roster file is authoritative
+                    // OVR should only be recalculated when rating fields are changed by the user
+                    // Recalculating on load caused OVRs to change unexpectedly (e.g., 354 players changed)
+                    // because our formula doesn't match Madden's internal formula exactly
+                    this.updateLoadingProgress('Loading OVR values...', 82);
 
                     // NOTE: Body types are synced from BTYP (BLBM table) in RosterParser.js
                     // We do NOT normalize here because BTYP is authoritative - users may
