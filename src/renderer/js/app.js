@@ -1103,12 +1103,51 @@ class MaddenEditorApp {
                         return player;
                     }));
 
-                    // NOTE: OVR recalculation on load is DISABLED
-                    // The stored POVR value in the roster file is authoritative
-                    // OVR should only be recalculated when rating fields are changed by the user
-                    // Recalculating on load caused OVRs to change unexpectedly (e.g., 354 players changed)
-                    // because our formula doesn't match Madden's internal formula exactly
-                    this.updateLoadingProgress('Loading OVR values...', 82);
+                    // Recalculate OVR using the CORRECT game formula for informational logging
+                    // NOTE: We do NOT overwrite stored POVR - just log discrepancies
+                    // POVR only changes when rating fields are actually edited
+                    this.updateLoadingProgress('Checking OVR values...', 82);
+                    try {
+                        const ovrResults = await window.electronAPI.rating.recalculateOVRBatch(this.players);
+                        if (ovrResults && ovrResults.length === this.players.length) {
+                            let changedCount = 0;
+                            const bigChanges = []; // Track players with >5 point OVR change
+                            for (let i = 0; i < ovrResults.length; i++) {
+                                const player = this.players[i];
+                                const oldOVR = player.POVR;
+                                const newOVR = ovrResults[i].ovr;
+                                const ovrChange = Math.abs(newOVR - oldOVR);
+                                if (oldOVR !== newOVR) {
+                                    // Log players with big OVR changes to help debug
+                                    // NOTE: We do NOT update player.POVR here!
+                                    // The stored OVR from the file is kept.
+                                    // POVR only changes when rating fields are actually edited.
+                                    if (ovrChange > 5) {
+                                        bigChanges.push({
+                                            name: `${player.PFNA} ${player.PLNA}`,
+                                            pos: player.PPOS,
+                                            PLTY: player.PLTY,
+                                            oldOVR,
+                                            newOVR,
+                                            change: newOVR - oldOVR
+                                        });
+                                    }
+                                    // DO NOT overwrite stored POVR - just count for informational logging
+                                    // player.POVR = newOVR;  // REMOVED - this was causing OVRs to change on reload
+                                    changedCount++;
+                                }
+                            }
+                            console.log(`[app.js] OVR recalculation: ${changedCount} players had different calculated OVR (stored values kept)`);
+                            if (bigChanges.length > 0) {
+                                console.log(`[app.js] ⚠️ Players with >5 point OVR difference from formula:`);
+                                bigChanges.forEach(p => {
+                                    console.log(`  ${p.name} (pos:${p.pos}): stored=${p.oldOVR}, calc=${p.newOVR} (diff: ${p.change > 0 ? '+' : ''}${p.change}) | PLTY=${p.PLTY}`);
+                                });
+                            }
+                        }
+                    } catch (err) {
+                        console.error('[app.js] Error checking OVR values:', err);
+                    }
 
                     // NOTE: Body types are synced from BTYP (BLBM table) in RosterParser.js
                     // We do NOT normalize here because BTYP is authoritative - users may
@@ -3329,8 +3368,8 @@ class MaddenEditorApp {
             'PSPC': 'spectacularCatch',
             'PSPD': 'speed',
             'PSPM': 'spinMove',
-            'PSTM': 'stamina',
-            'PSTA': 'stiffArm',
+            'PSTA': 'stamina',
+            'PLSA': 'stiffArm',
             'PSTR': 'strength',
             'PSRR': 'shortRouteRunning',
             'PTAK': 'tackle',
@@ -7499,9 +7538,10 @@ class MaddenEditorApp {
                                 console.log(`[Draft OVR MISMATCH] ${result.data.prospects[i].firstName} ${result.data.prospects[i].lastName}: stored=${oldOVR} calc=${newOVR}`);
                                 console.log(`[Draft OVR MISMATCH] archetype=${result.data.prospects[i].archetype} PLTY=${result.data.prospects[i].PLTY}`);
                             }
-                            // Update BOTH fields - POVR for file saving, overall for grid display
-                            result.data.prospects[i].POVR = newOVR;
-                            result.data.prospects[i].overall = newOVR;
+                            // DO NOT overwrite stored OVR - just count for informational logging
+                            // The stored OVR from the file is kept. OVR only changes when rating fields are edited.
+                            // result.data.prospects[i].POVR = newOVR;  // REMOVED
+                            // result.data.prospects[i].overall = newOVR;  // REMOVED
                             changedCount++;
                         }
                     }

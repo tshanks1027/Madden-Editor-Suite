@@ -9,6 +9,7 @@ export default defineConfig({
     // Don't empty out dir - avoids EBUSY errors when SQLite db is locked
     emptyOutDir: false,
     rollupOptions: {
+      shimMissingExports: true,
       external: [
         'electron',
         'sqlite3',

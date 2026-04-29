@@ -94,7 +94,7 @@ const RATING_FIELDS = [
 // Maps old wrong names to correct M26 roster names
 const LEGACY_TO_M26_FIELD_MAP: Record<string, string> = {
   'PKPW': 'PKPR',  // Kick Power
-  'PSTM': 'PSTA',  // Stamina (PSTM was sleeve temp, wrong!)
+  // NOTE: PSTM is Sleeve Temperature, NOT stamina! PSTA is stamina in both formats.
   'PBTK': 'PBKT',  // Break Tackle
   'PTRK': 'PLTR',  // Trucking
   'PCOD': 'PELU',  // Change of Direction

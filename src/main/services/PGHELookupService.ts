@@ -31,6 +31,7 @@ class PGHELookupService {
   private bySkinTone: Map<number, PGHEEntry[]> = new Map();
   private byPGHE: Map<number, PGHEEntry> = new Map();
   private byPID: Map<number, PGHEEntry> = new Map();
+  private byGenr: Map<string, PGHEEntry> = new Map();  // Lookup by GENR string (e.g., "gen_1_B_B_005")
   private verifiedGenrs: Set<string> = new Set();  // Only faces with portraits
   private initialized = false;
 
@@ -114,52 +115,45 @@ class PGHELookupService {
         }
       }
 
-      // Find CSV file
-      const possiblePaths = [
-        path.join(process.cwd(), 'data', 'lookups', 'PGHE_lookup.csv'),
-        path.join(app.getAppPath(), 'data', 'lookups', 'PGHE_lookup.csv'),
-        path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'PGHE_lookup.csv'),
+      // CRITICAL: Use face-picker-to-genr.json - the SAME lookup the face picker uses
+      // This ensures Fix Faces uses identical data to the face picker
+      const jsonPaths = [
+        path.join(process.cwd(), 'data', 'lookups', 'face-picker-to-genr.json'),
+        path.join(app.getAppPath(), 'data', 'lookups', 'face-picker-to-genr.json'),
+        path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'face-picker-to-genr.json'),
       ];
 
-      let csvPath = '';
-      for (const p of possiblePaths) {
+      let jsonPath = '';
+      for (const p of jsonPaths) {
         if (fs.existsSync(p)) {
-          csvPath = p;
+          jsonPath = p;
           break;
         }
       }
 
-      if (!csvPath) {
-        console.error('[PGHELookup] CSV file not found');
+      if (!jsonPath) {
+        console.error('[PGHELookup] face-picker-to-genr.json not found');
         return;
       }
 
-      const content = fs.readFileSync(csvPath, 'utf-8');
-      const lines = content.split('\n');
+      const content = fs.readFileSync(jsonPath, 'utf-8');
+      const facePickerData = JSON.parse(content);
 
       let skippedCount = 0;
 
-      // Parse CSV (skip header)
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
+      // Parse JSON - keys are PGHE values as strings
+      for (const pgheStr of Object.keys(facePickerData)) {
+        const pghe = parseInt(pgheStr);
+        const data = facePickerData[pgheStr];
 
-        // Parse: PGHE,PFCG,GPAN,GSLP,PSXP,CPVF
-        const parts = line.split(',');
-        if (parts.length < 6) continue;
+        if (!data || !data.genr || data.pid === undefined) continue;
 
-        const pghe = parseInt(parts[0]);
-        const pfcg = parts[1].replace(/"/g, '');
-        const gpan = parts[2].replace(/"/g, '');
-        const gslp = parseInt(parts[3]);
-        const psxp = parseInt(parts[4]);
-        const cpvf = parseInt(parts[5]);
+        const genr = data.genr;  // Already in "gen_X_X_X_XXX" format
+        const psxp = data.pid;   // PID from face picker
+        const skinTone = data.sknt || parseInt(genr.split('_')[1]) || 7;
 
-        // Derive skin tone from first digit of PFCG
-        const skinTone = parseInt(pfcg.split('_')[0]) || 1;
-
-        // Derive GENR format
-        const genr = `gen_${pfcg}`;
+        // Derive PFCG from GENR (strip "gen_" prefix)
+        const pfcg = genr.replace('gen_', '');
 
         // CRITICAL: Only include faces that have verified portraits
         if (this.verifiedGenrs.size > 0 && !this.verifiedGenrs.has(genr)) {
@@ -168,12 +162,20 @@ class PGHELookupService {
         }
 
         const entry: PGHEEntry = {
-          pghe, pfcg, gpan, gslp, psxp, cpvf, skinTone, genr
+          pghe,
+          pfcg,
+          gpan: `GenericHead_${pfcg}_portrait`,  // Derive portrait asset name
+          gslp: skinTone,
+          psxp,
+          cpvf: 1,
+          skinTone,
+          genr
         };
 
         this.entries.push(entry);
         this.byPGHE.set(pghe, entry);
         this.byPID.set(psxp, entry);
+        this.byGenr.set(genr.toLowerCase(), entry);  // Store lowercase for case-insensitive lookup
 
         // Group by skin tone
         if (!this.bySkinTone.has(skinTone)) {
@@ -233,6 +235,15 @@ class PGHELookupService {
    */
   getByPID(pid: number): PGHEEntry | null {
     return this.byPID.get(pid) || null;
+  }
+
+  /**
+   * Get face by GENR string (e.g., "gen_1_B_B_005")
+   * Used to extract PGHE fields from PAM/PEPS values
+   */
+  getByGenr(genr: string): PGHEEntry | null {
+    if (!genr) return null;
+    return this.byGenr.get(genr.toLowerCase()) || null;
   }
 
   /**

@@ -328,26 +328,56 @@ export class PlayerDataService {
    */
   public async initialize(): Promise<void> {
     if (this.isInitialized) {
+      console.log('[PlayerDataService] Already initialized, skipping');
       return;
     }
 
+    const fs = require('fs');
+    const path = require('path');
+    const { app } = require('electron');
+    const logFile = path.join(app.getPath('temp'), 'player-data-service-init.log');
+
+    const log = (msg: string) => {
+      console.log(msg);
+      try {
+        fs.appendFileSync(logFile, `${new Date().toISOString()} ${msg}\n`);
+      } catch (e) { /* ignore */ }
+    };
+
     try {
-      console.log('[PlayerDataService] Initializing from DATABASE...');
+      log('========================================');
+      log('[PlayerDataService] STARTING INITIALIZATION');
+      log('========================================');
 
       // Wait for lookupService to be ready (it loads from players.db)
+      log('[PlayerDataService] Waiting for lookupService...');
       await lookupService.waitForReady();
+      log('[PlayerDataService] lookupService ready');
 
       // Load player data from database
+      log('[PlayerDataService] Loading historical players from DB...');
       await this.loadHistoricalPlayersFromDB();
+      log(`[PlayerDataService] Loaded ${this.allHistoricalPlayers.length} historical players`);
+
+      log('[PlayerDataService] Loading future prospects from DB...');
       await this.loadFutureProspectsFromDB();
-      await this.loadRosterLookupFromDB();
+      log(`[PlayerDataService] Loaded ${this.allFutureProspects.length} future prospects`);
+
+      // Load roster lookup from CSV (for Madden mode ratings) with database overlay
+      log('[PlayerDataService] Loading roster lookup from CSV...');
+      await this.loadRosterLookup();
+      log(`[PlayerDataService] Loaded ${this.rosterLookupCache.size} roster lookup entries`);
 
       this.isInitialized = true;
-      console.log('[PlayerDataService] Initialization complete (DATABASE SOURCE)');
-      console.log(`  - Historical players: ${this.allHistoricalPlayers.length}`);
-      console.log(`  - Future prospects: ${this.allFutureProspects.length}`);
-      console.log(`  - Roster lookup entries: ${this.rosterLookupCache.size}`);
+      log('========================================');
+      log('[PlayerDataService] INITIALIZATION COMPLETE');
+      log(`  - Historical players: ${this.allHistoricalPlayers.length}`);
+      log(`  - Future prospects: ${this.allFutureProspects.length}`);
+      log(`  - Roster lookup entries: ${this.rosterLookupCache.size}`);
+      log(`  - Log file: ${logFile}`);
+      log('========================================');
     } catch (error) {
+      log(`[PlayerDataService] INITIALIZATION FAILED: ${error}`);
       console.error('[PlayerDataService] Initialization failed:', error);
       throw error;
     }
@@ -557,34 +587,103 @@ export class PlayerDataService {
     console.log(`[PlayerDataService] Cache has ${this.rosterLookupCache.size} unique player-year keys`);
   }
 
-  // DEPRECATED: CSV loading method - kept for reference only
+  // Load roster lookup from CSV first, then overlay database edits
   private async loadRosterLookup(): Promise<void> {
-    console.warn('[PlayerDataService] DEPRECATED: loadRosterLookup() CSV method called. Use loadRosterLookupFromDB() instead.');
-    return this.loadRosterLookupFromDB();
+    // First load from CSV for base historical ratings (Madden mode depends on this)
+    await this.loadRosterLookupLEGACY_CSV();
+
+    // Then overlay any database edits (user-pushed ratings take priority)
+    await this.overlayDatabaseEdits();
+  }
+
+  // Overlay database edits on top of CSV data (user edits take priority)
+  private async overlayDatabaseEdits(): Promise<void> {
+    console.log('[PlayerDataService] Overlaying database edits on CSV data...');
+    const allPlayers = lookupService.getAllPlayers();
+    if (!allPlayers || allPlayers.length === 0) return;
+
+    let overlayCount = 0;
+    for (const dbPlayer of allPlayers) {
+      const playerName = `${dbPlayer.firstName} ${dbPlayer.lastName}`;
+      const normalizedName = this.normalizeName(playerName);
+      const careerFrom = dbPlayer.careerFrom || parseInt(dbPlayer.draftClass);
+      const careerTo = dbPlayer.careerTo || (careerFrom ? careerFrom + 5 : undefined);
+
+      if (!careerFrom || isNaN(careerFrom)) continue;
+
+      for (let year = careerFrom; year <= (careerTo || careerFrom + 15); year++) {
+        const seasonData = lookupService.getPlayerRatingsForYear(dbPlayer.pid, year);
+
+        // Only overlay if we have actual ratings from the database
+        if (seasonData?.ratings && Object.keys(seasonData.ratings).length > 0) {
+          const key = `${normalizedName}_${year}`;
+          const existingEntries = this.rosterLookupCache.get(key);
+
+          if (existingEntries && existingEntries.length > 0) {
+            // Merge database ratings into existing CSV entry
+            const entry = existingEntries[0];
+            if (seasonData.ratings.POVR !== undefined) entry.povr = seasonData.ratings.POVR;
+            if (seasonData.ratings.PSPD !== undefined) entry.pspd = seasonData.ratings.PSPD;
+            if (seasonData.ratings.PACC !== undefined) entry.pacc = seasonData.ratings.PACC;
+            // ... other ratings would be merged here
+            overlayCount++;
+          }
+        }
+      }
+    }
+    console.log(`[PlayerDataService] Overlayed ${overlayCount} database edits on CSV data`);
   }
 
   // LEGACY CSV PARSING CODE BELOW - WILL BE REMOVED IN FUTURE VERSION
   private async loadRosterLookupLEGACY_CSV(): Promise<void> {
     const filePath = this.resolveDataPath('ROSTER_lookup.csv');
 
-    console.log(`[PlayerDataService] ======= LOADING ROSTER_LOOKUP.CSV =======`);
-    console.log(`[PlayerDataService] Attempting to load from: ${filePath}`);
-    console.log(`[PlayerDataService] app.getAppPath(): ${app.getAppPath()}`);
+    // Also try the .vite/build path directly as a fallback
+    const viteBuildPath = path.join(app.getAppPath(), '.vite', 'build', 'data', 'lookups', 'ROSTER_lookup.csv');
+    const originalDataPath = path.join(app.getAppPath(), 'data', 'lookups', 'ROSTER_lookup.csv');
 
+    console.log(`[PlayerDataService] ======= LOADING ROSTER_LOOKUP.CSV =======`);
+    console.log(`[PlayerDataService] app.isPackaged: ${app.isPackaged}`);
+    console.log(`[PlayerDataService] app.getAppPath(): ${app.getAppPath()}`);
+    console.log(`[PlayerDataService] Resolved path: ${filePath}`);
+    console.log(`[PlayerDataService] Vite build path: ${viteBuildPath}`);
+    console.log(`[PlayerDataService] Original data path: ${originalDataPath}`);
+    console.log(`[PlayerDataService] Resolved exists: ${fs.existsSync(filePath)}`);
+    console.log(`[PlayerDataService] Vite build exists: ${fs.existsSync(viteBuildPath)}`);
+    console.log(`[PlayerDataService] Original exists: ${fs.existsSync(originalDataPath)}`);
+
+    // Try multiple paths to find the CSV
+    let actualPath = filePath;
     if (!fs.existsSync(filePath)) {
-      console.error(`[PlayerDataService] ❌ ROSTER_lookup.csv NOT FOUND at ${filePath}`);
-      console.error(`[PlayerDataService] This is the reason ROSTER_lookup data is not available!`);
-      return; // Not fatal - can continue without rookie stats
+      console.warn(`[PlayerDataService] ⚠️ Primary path not found: ${filePath}`);
+      if (fs.existsSync(viteBuildPath)) {
+        actualPath = viteBuildPath;
+        console.log(`[PlayerDataService] ✅ Using Vite build path instead: ${viteBuildPath}`);
+      } else if (fs.existsSync(originalDataPath)) {
+        actualPath = originalDataPath;
+        console.log(`[PlayerDataService] ✅ Using original data path instead: ${originalDataPath}`);
+      } else {
+        console.error(`[PlayerDataService] ❌ ROSTER_lookup.csv NOT FOUND at any location!`);
+        console.error(`[PlayerDataService]   Tried: ${filePath}`);
+        console.error(`[PlayerDataService]   Tried: ${viteBuildPath}`);
+        console.error(`[PlayerDataService]   Tried: ${originalDataPath}`);
+        console.error(`[PlayerDataService] This is the reason ROSTER_lookup data is not available!`);
+        return; // Not fatal - can continue without rookie stats
+      }
+    } else {
+      console.log(`[PlayerDataService] ✅ ROSTER_lookup.csv EXISTS at primary path: ${filePath}`);
     }
 
-    console.log(`[PlayerDataService] ✅ ROSTER_lookup.csv EXISTS at ${filePath}`);
-
-    const csvContent = fs.readFileSync(filePath, 'utf-8');
+    // Use actualPath from here on
+    console.log(`[PlayerDataService] Reading CSV from: ${actualPath}`);
+    const csvContent = fs.readFileSync(actualPath, 'utf-8');
 
     if (!csvContent) {
-      console.warn('[PlayerDataService] ROSTER_lookup.csv is empty or could not be read');
+      console.warn(`[PlayerDataService] ROSTER_lookup.csv is empty or could not be read from: ${actualPath}`);
       return; // Not fatal - can continue without rookie stats
     }
+
+    console.log(`[PlayerDataService] CSV content length: ${csvContent.length} characters`);
 
     const lines = csvContent.trim().split('\n');
 
@@ -732,6 +831,32 @@ export class PlayerDataService {
     console.log(`[PlayerDataService] Cache has ${this.rosterLookupCache.size} unique player-year keys`);
     console.log(`[PlayerDataService] Cache has ${this.teamYearCache.size} unique team-year keys`);
 
+    // Debug: Check specifically for 1971 draft class players (Jim Plunkett)
+    console.log(`[PlayerDataService] ======= 1971 DRAFT CLASS CHECK =======`);
+    const keys1971 = Array.from(this.rosterLookupCache.keys()).filter(k => k.endsWith('_1971'));
+    console.log(`[PlayerDataService] Found ${keys1971.length} player-year entries for 1971`);
+    if (keys1971.length > 0) {
+      console.log(`[PlayerDataService] First 10 keys for 1971:`, keys1971.slice(0, 10));
+      // Specifically check for Jim Plunkett
+      const plunkettKey = 'jim plunkett_1971';
+      const plunkettData = this.rosterLookupCache.get(plunkettKey);
+      if (plunkettData && plunkettData.length > 0) {
+        console.log(`[PlayerDataService] ✅ Jim Plunkett 1971 FOUND in cache!`);
+        console.log(`[PlayerDataService]   Key: "${plunkettKey}"`);
+        console.log(`[PlayerDataService]   POVR: ${plunkettData[0].povr}`);
+        console.log(`[PlayerDataService]   Position: ${plunkettData[0].position}`);
+        console.log(`[PlayerDataService]   PlayerName: ${plunkettData[0].playerName}`);
+      } else {
+        console.log(`[PlayerDataService] ❌ Jim Plunkett 1971 NOT FOUND with key "${plunkettKey}"`);
+        // Try to find any Plunkett entries
+        const plunkettKeys = keys1971.filter(k => k.includes('plunkett'));
+        console.log(`[PlayerDataService]   Plunkett keys in 1971: ${plunkettKeys.length > 0 ? plunkettKeys.join(', ') : 'NONE'}`);
+      }
+    } else {
+      console.log(`[PlayerDataService] ❌ NO players found for 1971!`);
+    }
+    console.log(`[PlayerDataService] ======================================`);
+
     // DEBUG: Check for 1992 teams specifically
     const teams1992 = Array.from(this.teamYearCache.keys()).filter(k => k.endsWith('_1992'));
     console.log(`[PlayerDataService] ======= 1992 TEAMS IN CACHE =======`);
@@ -761,8 +886,8 @@ export class PlayerDataService {
       const debugPath = path.join(app.getPath('temp'), 'roster-lookup-debug.log');
       const debugInfo = [
         `=== ROSTER_LOOKUP DEBUG LOG - ${new Date().toISOString()} ===`,
-        `CSV path: ${filePath}`,
-        `File exists: ${fs.existsSync(filePath)}`,
+        `CSV path used: ${actualPath}`,
+        `File exists: ${fs.existsSync(actualPath)}`,
         `app.getAppPath(): ${app.getAppPath()}`,
         `Parsed entries: ${parsedCount}`,
         `teamYearCache.size: ${this.teamYearCache.size}`,
@@ -838,39 +963,50 @@ export class PlayerDataService {
   public async getRookieStats(playerName: string, draftYear: number): Promise<RookieStats | null> {
     await this.initialize();
 
-    // Convert draft year to rookie season year (draft year + 1)
-    const rookieSeasonYear = draftYear + 1;
+    // NFL draft is in April, rookie season is same calendar year
+    // So draft year = rookie season year (not draft year + 1)
+    const rookieSeasonYear = draftYear;
 
     // Normalize the search name to match how cache keys were built
     const normalizedName = this.normalizeName(playerName);
     const key = `${normalizedName}_${rookieSeasonYear}`;
     const stats = this.rosterLookupCache.get(key);
 
-    // Debug ALL lookups to understand what's happening
-    const isDebugPlayer = playerName.includes('Luck') || playerName.includes('Burrow') || playerName.includes('Young') || playerName.includes('Wills') || playerName.includes('Wirfs');
+    // ALWAYS log lookups for debugging - remove condition to always see what's happening
+    const fs = require('fs');
+    const path = require('path');
+    const { app } = require('electron');
+    const logFile = path.join(app.getPath('temp'), 'rookie-stats-lookup.log');
 
-    // Always log to console for first few lookups and debug players
-    if (isDebugPlayer || this.rosterLookupCache.size < 10) {
-      console.log(`[PlayerDataService] getRookieStats lookup: "${playerName}"`);
-      console.log(`[PlayerDataService]   Normalized: "${normalizedName}"`);
-      console.log(`[PlayerDataService]   Draft Year: ${draftYear} -> Rookie Season: ${rookieSeasonYear}`);
-      console.log(`[PlayerDataService]   Lookup Key: "${key}"`);
-      console.log(`[PlayerDataService]   Cache size: ${this.rosterLookupCache.size}`);
-      console.log(`[PlayerDataService]   Found in cache: ${stats ? 'YES (' + stats.length + ' entries)' : 'NO'}`);
-      if (stats && stats.length > 0) {
-        console.log(`[PlayerDataService]   Returning stats - Position: ${stats[0].position}, OVR: ${stats[0].povr}`);
-      } else {
-        // Try to find similar keys for debugging
-        const lastName = normalizedName.split(' ')[1] || '';
-        const similarKeys = Array.from(this.rosterLookupCache.keys())
-          .filter(k => k.includes(lastName))
-          .slice(0, 10);
-        console.log(`[PlayerDataService]   Similar keys with "${lastName}":`, similarKeys);
+    const logMsg = [
+      `\n=== getRookieStats LOOKUP ===`,
+      `Input: playerName="${playerName}", draftYear=${draftYear}`,
+      `Normalized name: "${normalizedName}"`,
+      `Lookup key: "${key}"`,
+      `Cache size: ${this.rosterLookupCache.size}`,
+      `Found in cache: ${stats ? 'YES (' + stats.length + ' entries)' : 'NO'}`,
+      stats && stats.length > 0
+        ? `  -> Position: ${stats[0].position}, POVR: ${stats[0].povr}, PlayerName: ${stats[0].playerName}`
+        : `  -> MISS! Will use fallback generator`,
+      `==============================`
+    ].join('\n');
 
-        // Also try the exact key we're looking for
-        const hasExactKey = this.rosterLookupCache.has(key);
-        console.log(`[PlayerDataService]   Has exact key "${key}": ${hasExactKey}`);
-      }
+    try {
+      fs.appendFileSync(logFile, logMsg + '\n');
+    } catch (e) {
+      // Ignore write errors
+    }
+
+    // Also log to console for real-time debugging
+    console.log(logMsg);
+
+    // If no match found, try to find what we should have matched
+    if (!stats || stats.length === 0) {
+      const lastName = normalizedName.split(' ')[1] || normalizedName.split(' ')[0] || '';
+      const similarKeys = Array.from(this.rosterLookupCache.keys())
+        .filter(k => k.includes(lastName) && k.includes(`_${rookieSeasonYear}`))
+        .slice(0, 5);
+      console.log(`[PlayerDataService] Similar keys with "${lastName}" for ${rookieSeasonYear}:`, similarKeys);
     }
 
     return stats && stats.length > 0 ? stats[0] : null;

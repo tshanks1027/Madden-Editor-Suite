@@ -11,7 +11,7 @@ async function analyze() {
   const teams = [];
   for (const team of teamTable.records) {
     if (team.isEmpty) continue;
-    if (team.TeamIndex \!== undefined) {
+    if (team.TeamIndex !== undefined) {
       teams.push({
         teamIndex: team.TeamIndex,
         recordIndex: team.index,

@@ -516,21 +516,30 @@ class RosterDatabaseService {
 
   /**
    * Find bio field conflicts between roster player and bundled player
+   * IMPORTANT: Checks stored edits first, so re-pushing after a push shows no conflicts
    */
   private findBioConflicts(player: any, bundledPlayer: any, derivedRace: number | null): FieldConflict[] {
     const conflicts: FieldConflict[] = [];
 
+    // CRITICAL: Get any stored edits from the database first
+    // This ensures that after a push, re-analyzing shows no conflicts
+    const storedEdits = userDatabaseService.getPlayerEdit(bundledPlayer.internalId);
+
     const fieldsToCheck = [
-      { rosterField: 'PCOL', bundledField: 'collegeId', displayName: 'College' },
-      { rosterField: 'PHSN', bundledField: 'homeState', displayName: 'Home State' },
-      { rosterField: 'PHGT', bundledField: 'height', displayName: 'Height' },
-      { rosterField: 'PWGT', bundledField: 'weight', displayName: 'Weight', transform: (v: number) => v + 160 },
-      { rosterField: 'PCBT', bundledField: 'bodyType', displayName: 'Body Type' }
+      { rosterField: 'PCOL', bundledField: 'collegeId', editField: 'collegeId', displayName: 'College' },
+      { rosterField: 'PHSN', bundledField: 'homeState', editField: 'homeState', displayName: 'Home State' },
+      { rosterField: 'PHGT', bundledField: 'height', editField: 'height', displayName: 'Height' },
+      { rosterField: 'PWGT', bundledField: 'weight', editField: 'weight', displayName: 'Weight', transform: (v: number) => v + 160 },
+      { rosterField: 'PCBT', bundledField: 'bodyType', editField: 'bodyType', displayName: 'Body Type' }
     ];
 
-    for (const { rosterField, bundledField, displayName, transform } of fieldsToCheck) {
+    for (const { rosterField, bundledField, editField, displayName, transform } of fieldsToCheck) {
       let newValue = player[rosterField];
-      const currentValue = bundledPlayer[bundledField];
+
+      // Use stored edit value if available, otherwise use bundled player value
+      const currentValue = (storedEdits && storedEdits[editField] !== undefined && storedEdits[editField] !== null)
+        ? storedEdits[editField]
+        : bundledPlayer[bundledField];
 
       // Skip if new value is empty/null
       if (newValue === undefined || newValue === null || newValue === '') continue;
@@ -544,7 +553,32 @@ class RosterDatabaseService {
       }
 
       // Check if values differ
-      if (String(newValue) !== String(currentValue)) {
+      // Special handling for bodyType - need to normalize both to same format
+      let normalizedNewValue = newValue;
+      let normalizedCurrentValue = currentValue;
+
+      if (bundledField === 'bodyType') {
+        // Body type names to index mapping
+        const bodyTypeNames = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+
+        // Normalize new value to index
+        if (typeof newValue === 'string' && isNaN(Number(newValue))) {
+          const idx = bodyTypeNames.findIndex(name => name.toLowerCase() === newValue.toLowerCase());
+          normalizedNewValue = idx >= 0 ? idx : newValue;
+        } else {
+          normalizedNewValue = Number(newValue);
+        }
+
+        // Normalize current value to index
+        if (typeof currentValue === 'string' && isNaN(Number(currentValue))) {
+          const idx = bodyTypeNames.findIndex(name => name.toLowerCase() === currentValue.toLowerCase());
+          normalizedCurrentValue = idx >= 0 ? idx : currentValue;
+        } else {
+          normalizedCurrentValue = Number(currentValue);
+        }
+      }
+
+      if (String(normalizedNewValue) !== String(normalizedCurrentValue)) {
         conflicts.push({
           field: bundledField,
           displayName,
@@ -555,12 +589,18 @@ class RosterDatabaseService {
     }
 
     // Check race conflict if we derived one
-    if (derivedRace !== null && bundledPlayer.race !== undefined && bundledPlayer.race !== null) {
-      if (derivedRace !== bundledPlayer.race) {
+    // Also check stored race edit first
+    const currentRace = (storedEdits && storedEdits.race !== undefined && storedEdits.race !== null)
+      ? storedEdits.race
+      : bundledPlayer.race;
+
+    if (derivedRace !== null && currentRace !== undefined && currentRace !== null) {
+      // Use Number() conversion to handle string vs number comparison ("1" vs 1)
+      if (Number(derivedRace) !== Number(currentRace)) {
         conflicts.push({
           field: 'race',
           displayName: 'Race',
-          currentValue: bundledPlayer.race,
+          currentValue: currentRace,
           newValue: derivedRace
         });
       }
@@ -599,7 +639,32 @@ class RosterDatabaseService {
       }
 
       // Check if values differ
-      if (String(newValue) !== String(currentValue)) {
+      // Special handling for bodyType - need to normalize both to same format
+      let normalizedNewValue = newValue;
+      let normalizedCurrentValue = currentValue;
+
+      if (customField === 'bodyType') {
+        // Body type names to index mapping
+        const bodyTypeNames = ['Standard', 'Thin', 'Muscular', 'Heavy', 'Lean'];
+
+        // Normalize new value to index
+        if (typeof newValue === 'string' && isNaN(Number(newValue))) {
+          const idx = bodyTypeNames.findIndex(name => name.toLowerCase() === newValue.toLowerCase());
+          normalizedNewValue = idx >= 0 ? idx : newValue;
+        } else {
+          normalizedNewValue = Number(newValue);
+        }
+
+        // Normalize current value to index
+        if (typeof currentValue === 'string' && isNaN(Number(currentValue))) {
+          const idx = bodyTypeNames.findIndex(name => name.toLowerCase() === currentValue.toLowerCase());
+          normalizedCurrentValue = idx >= 0 ? idx : currentValue;
+        } else {
+          normalizedCurrentValue = Number(currentValue);
+        }
+      }
+
+      if (String(normalizedNewValue) !== String(normalizedCurrentValue)) {
         conflicts.push({
           field: customField,
           displayName,
@@ -611,7 +676,8 @@ class RosterDatabaseService {
 
     // Check race conflict if we derived one
     if (derivedRace !== null && customPlayer.race !== undefined && customPlayer.race !== null) {
-      if (derivedRace !== customPlayer.race) {
+      // Use Number() conversion to handle string vs number comparison ("1" vs 1)
+      if (Number(derivedRace) !== Number(customPlayer.race)) {
         conflicts.push({
           field: 'race',
           displayName: 'Race',

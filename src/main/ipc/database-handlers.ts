@@ -48,7 +48,7 @@ import {
 // This ensures ONE calculation produces the same result everywhere
 const DB_TO_OVR_FIELD_MAP: { [key: string]: string } = {
   'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI', 'PJMP': 'PJMP',
-  'PSTM': 'PSTA', 'PSTA': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',
+  'PSTA': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',  // NOTE: PSTM is Sleeve Temp, not stamina
   'PCOD': 'PELU', 'PELU': 'PELU', 'PBCV': 'PBCV',
   'PBTK': 'PBKT', 'PBKT': 'PBKT', 'PTRK': 'PLTR', 'PLTR': 'PLTR',
   'PSFA': 'PLSA', 'PLSA': 'PLSA', 'PSPN': 'PLSM', 'PLSM': 'PLSM',

@@ -504,10 +504,25 @@ function writeM26AttributeData(buffer, offset, prospect, prospectIndex) {
  * @param {Object} prospect - Prospect data with PEPS and/or bodyType
  */
 function updateM26VisualJSON(buffer, blockStart, prospect) {
-  const JSON_START_MARKER = Buffer.from('{"bodyType"');
+  // JSON key order is NOT guaranteed - try multiple possible start patterns
+  const JSON_START_MARKERS = [
+    Buffer.from('{"bodyType"'),
+    Buffer.from('{"genericHeadName"'),
+    Buffer.from('{"skinTone"'),
+    Buffer.from('{"loadouts"')
+  ];
 
-  // Find existing JSON in this block
-  const jsonStartIndex = buffer.indexOf(JSON_START_MARKER, blockStart);
+  // Find existing JSON in this block by trying all possible start markers
+  let jsonStartIndex = -1;
+  for (const marker of JSON_START_MARKERS) {
+    const idx = buffer.indexOf(marker, blockStart);
+    if (idx !== -1 && idx < blockStart + 0x1000) {
+      // Found a valid marker - use the earliest one
+      if (jsonStartIndex === -1 || idx < jsonStartIndex) {
+        jsonStartIndex = idx;
+      }
+    }
+  }
 
   console.log(`[M26Writer] updateM26VisualJSON called for block at 0x${blockStart.toString(16)}`);
   console.log(`  PEPS to write: ${prospect.PEPS}`);

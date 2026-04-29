@@ -290,27 +290,37 @@ export function registerRatingHandlers(): void {
           // Use the STORED archetype for OVR calculation when available.
           // When user sets an archetype and adjusts ratings to hit a specific OVR,
           // recalculation should use that same archetype to get the same result.
-          // Only fall back to findBestArchetype if no archetype is stored.
+          // CRITICAL: 0 IS a valid archetype (QB_FieldGeneral), so only skip if truly undefined/null
           let ovr: number;
           let archetype: string | null = null;
 
-          if (storedArchetype !== undefined && storedArchetype !== null && storedArchetype !== 0) {
-            // Use stored archetype for calculation (0 can mean "not set" in some rosters)
+          // Check if PLTY has a real value (including 0 which is valid for QB_FieldGeneral)
+          const hasStoredArchetype = storedArchetype !== undefined && storedArchetype !== null;
+
+          if (hasStoredArchetype) {
+            // Use stored archetype for calculation
             ovr = ovrWeightsCalculator.calculateOVR(player, position, storedArchetype);
             archetype = `ID:${storedArchetype}`;
           } else {
-            // No stored archetype - find best one based on ratings
-            const bestResult = ovrWeightsCalculator.findBestArchetype(player, position);
-            ovr = bestResult?.ovr || 50;
-            archetype = bestResult?.archetype || null;
+            // No stored archetype - DO NOT recalculate, keep stored POVR
+            // Recalculating with findBestArchetype can give inconsistent results
+            // because our formula may not match Madden's exactly
+            ovr = player.POVR || 50;
+            archetype = 'KEPT_STORED';
           }
 
-          // Debug logging for first 3 players
-          if (i < 3) {
-            console.log(`[RatingHandlers] Player ${i}: ${player.firstName} ${player.lastName}`);
-            console.log(`  Position: ${position}`);
-            console.log(`  Stored archetype: ${storedArchetype}, Used archetype: ${archetype}`);
-            console.log(`  Calculated OVR: ${ovr}`);
+          // Debug logging for first 3 players OR players with significant OVR change OR missing PLTY
+          const ovrChange = Math.abs(ovr - (player.POVR || 0));
+          const playerName = `${player.PFNA || player.firstName || ''} ${player.PLNA || player.lastName || ''}`.trim();
+          const isWatson = playerName.toLowerCase().includes('watson');
+
+          if (i < 3 || ovrChange > 5 || !hasStoredArchetype || isWatson) {
+            console.log(`[RatingHandlers] Player ${i}: ${playerName}`);
+            console.log(`  Position: ${position}, Stored POVR: ${player.POVR}`);
+            console.log(`  PLTY value: ${player.PLTY} (type: ${typeof player.PLTY}), hasStoredArchetype: ${hasStoredArchetype}`);
+            console.log(`  PCBT (body type - NOT archetype): ${player.PCBT}`);
+            console.log(`  Archetype formula used: ${archetype}`);
+            console.log(`  Calculated OVR: ${ovr}, Change from stored: ${ovrChange > 0 ? (ovr > player.POVR ? '+' : '-') + ovrChange : 0}`);
           }
 
           results.push({

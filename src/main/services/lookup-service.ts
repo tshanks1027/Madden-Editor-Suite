@@ -883,7 +883,7 @@ export class LookupService {
         PBSG: row.PBSH,   // Block Shedding (OVR calc) = PBSH (db)
         // M26 field name aliases (frontend uses these)
         PPWR: row.PTHP,   // Throw Power (M26) = PTHP (old)
-        PSTM: row.PSTA,   // Stamina (M26) = PSTA (old)
+        // NOTE: PSTM is Sleeve Temperature, NOT stamina! PSTA is stamina in both formats.
         PSFA: row.PSTF,   // Stiff Arm (M26) = PSTF (old)
         PSPN: row.PSPM,   // Spin Move (M26) = PSPM (old)
         PJKM: row.PJUM,   // Juke Move (M26) = PJUM (old)
@@ -948,7 +948,7 @@ export class LookupService {
         PBSG: row.PBSH,   // Block Shedding (OVR calc) = PBSH (db)
         // M26 field name aliases (frontend uses these)
         PPWR: row.PTHP,   // Throw Power (M26) = PTHP (old)
-        PSTM: row.PSTA,   // Stamina (M26) = PSTA (old)
+        // NOTE: PSTM is Sleeve Temperature, NOT stamina! PSTA is stamina in both formats.
         PSFA: row.PSTF,   // Stiff Arm (M26) = PSTF (old)
         PSPN: row.PSPM,   // Spin Move (M26) = PSPM (old)
         PJKM: row.PJUM,   // Juke Move (M26) = PJUM (old)

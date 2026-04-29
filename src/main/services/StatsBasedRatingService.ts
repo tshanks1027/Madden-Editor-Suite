@@ -761,7 +761,7 @@ export class StatsBasedRatingService {
       PAGI: this.clamp(baseAttr - 5),      // Agility
       PAWR: this.clamp(baseAttr),          // Awareness
       PJMP: this.clamp(baseAttr - 10),     // Jumping
-      PSTM: this.clamp(baseAttr + 5),      // Stamina (was PSTA)
+      PSTA: this.clamp(baseAttr + 5),      // Stamina
       PINJ: this.clamp(85),                // Injury
       PTGH: this.clamp(75),                // Toughness
       PCOD: this.clamp(baseAttr - 5),      // Change of Direction

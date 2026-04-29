@@ -317,7 +317,7 @@ async function generateDraftClass() {
         console.log(`[DraftWizard] Player ${i+1}: ${p.firstName} ${p.lastName}`);
         console.log(`  position: ${p.position} (code: ${p.positionCode})`);
         console.log(`  archetype: ${p.archetype} (type: ${typeof p.archetype})`);
-        console.log(`  ratings.POVR: ${p.ratings?.POVR}`);
+        console.log(`  overall: ${p.ratings?.overall || p.ratings?.POVR || p.overall}`);
       }
       console.log('[DraftWizard] =======================================================');
 
@@ -374,7 +374,7 @@ function renderResultGrid(players) {
     firstName: p.firstName,
     lastName: p.lastName,
     position: p.position,
-    overall: p.ratings.POVR,
+    overall: p.ratings?.overall || p.ratings?.POVR || p.overall || 0,
     college: p.college,
     heightInches: p.heightInches,
     weight: p.weight,

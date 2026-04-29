@@ -106,7 +106,7 @@ const RATING_FIELDS = [
 // Map legacy/draft class field names to correct M26 field names
 // This allows draft class files using old names to still work
 const LEGACY_TO_M26_FIELD_MAP: Record<string, string> = {
-  'PSTM': 'PSTA',  // Stamina
+  // NOTE: PSTM is Sleeve Temperature, NOT stamina! PSTA is stamina in both formats.
   'PCOD': 'PELU',  // Change of Direction
   'PBTK': 'PBKT',  // Break Tackle
   'PTRK': 'PLTR',  // Trucking

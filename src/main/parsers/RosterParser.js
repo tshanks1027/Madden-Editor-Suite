@@ -430,7 +430,8 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     // Some services use different field codes internally than the roster file format
     const INTERNAL_TO_TDB2_FIELD_MAP = {
       'PKPW': 'PKPR',  // Kick power: internal=PKPW, TDB2=PKPR
-      'PSTM': 'PSTA',  // Stamina: internal=PSTM, TDB2=PSTA
+      // NOTE: PSTM is Sleeve Temperature, NOT stamina! Do not map it.
+      // Stamina is PSTA in both internal and TDB2 format.
       'PBTK': 'PBKT',  // Break tackle: internal=PBTK, TDB2=PBKT
       'PTRK': 'PLTR',  // Trucking: internal=PTRK, TDB2=PLTR
       'PCOD': 'PELU',  // Change of direction: internal=PCOD, TDB2=PELU
@@ -2292,14 +2293,30 @@ function getPlayerEquipment(playerIndex) {
     return null;
   }
 
+  // Get player's POID from PLAY table
+  const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
+  const playerRec = playTable?.records?.[playerIndex];
+  if (!playerRec) {
+    console.error('[RosterParser] Could not find player at index', playerIndex);
+    return null;
+  }
+  const poid = playerRec.POID;
+
   const blob = file.BLOB?.records?.[0];
   const blbm = blob?.fields?.BLBM?.value;
-  if (!blbm || !blbm._records || playerIndex >= blbm._records.length) {
-    console.error('[RosterParser] Could not find BLBM record for player', playerIndex);
+  if (!blbm || !blbm._records) {
+    console.error('[RosterParser] Could not find BLBM records');
     return null;
   }
 
-  const blbmRec = blbm._records[playerIndex];
+  // CRITICAL: Find BLBM record by POID, not array index
+  // The game links PLAY records to BLBM records by finding BLBM[].index === POID
+  const blbmRec = blbm._records.find(r => r.index === poid);
+  if (!blbmRec) {
+    console.error('[RosterParser] Could not find BLBM record for POID', poid);
+    return null;
+  }
+
   const fields = blbmRec.fields || blbmRec._fields;
   const lout = fields?.LOUT?.value;
 
@@ -2355,27 +2372,41 @@ function getPlayerEquipment(playerIndex) {
  * @returns {boolean} Success
  */
 function setPlayerEquipment(playerIndex, equipment) {
-  // CRITICAL: Store the equipment changes for later application during save
-  // This is necessary because saveRosterFile reloads the file fresh, which
-  // would discard any in-memory modifications made to global.rosterFile
-  pendingEquipmentChanges.set(playerIndex, { ...equipment });
-  console.log(`[RosterParser] Queued equipment changes for player ${playerIndex}:`, equipment);
-
-  // Also apply immediately to global.rosterFile for any code that reads from it
   const file = global.rosterFile;
   if (!file) {
     console.error('[RosterParser] No roster file loaded');
-    return true; // Still return true since we queued the changes
+    return false;
   }
 
+  // Get player's POID from PLAY table - this is the stable identifier
+  const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
+  const playerRec = playTable?.records?.[playerIndex];
+  if (!playerRec) {
+    console.error('[RosterParser] Could not find player at index', playerIndex);
+    return false;
+  }
+  const poid = playerRec.POID;
+
+  // CRITICAL: Store equipment changes keyed by POID, not playerIndex
+  // This ensures we find the correct BLBM record during save
+  pendingEquipmentChanges.set(poid, { ...equipment });
+  console.log(`[RosterParser] Queued equipment changes for POID ${poid} (player ${playerIndex}):`, equipment);
+
+  // Also apply immediately to global.rosterFile for any code that reads from it
   const blob = file.BLOB?.records?.[0];
   const blbm = blob?.fields?.BLBM?.value;
-  if (!blbm || !blbm._records || playerIndex >= blbm._records.length) {
-    console.error('[RosterParser] Could not find BLBM record for player', playerIndex);
+  if (!blbm || !blbm._records) {
+    console.error('[RosterParser] Could not find BLBM records');
     return true; // Still return true since we queued the changes
   }
 
-  const blbmRec = blbm._records[playerIndex];
+  // CRITICAL: Find BLBM record by POID, not array index
+  const blbmRec = blbm._records.find(r => r.index === poid);
+  if (!blbmRec) {
+    console.error('[RosterParser] Could not find BLBM record for POID', poid);
+    return true; // Still return true since we queued the changes
+  }
+
   const fields = blbmRec.fields || blbmRec._fields;
   const lout = fields?.LOUT?.value;
 
@@ -2454,18 +2485,21 @@ function applyPendingEquipmentChanges(file) {
 
   let totalUpdated = 0;
 
-  for (const [playerIndex, equipment] of pendingEquipmentChanges.entries()) {
-    if (playerIndex >= blbm._records.length) {
-      console.warn(`[RosterParser] Player index ${playerIndex} out of bounds, skipping`);
+  // pendingEquipmentChanges is now keyed by POID (not playerIndex)
+  for (const [poid, equipment] of pendingEquipmentChanges.entries()) {
+    // CRITICAL: Find BLBM record by POID, not array index
+    // The game links PLAY records to BLBM records by finding BLBM[].index === POID
+    const blbmRec = blbm._records.find(r => r.index === poid);
+    if (!blbmRec) {
+      console.warn(`[RosterParser] Could not find BLBM record for POID ${poid}, skipping`);
       continue;
     }
 
-    const blbmRec = blbm._records[playerIndex];
     const fields = blbmRec.fields || blbmRec._fields;
     const lout = fields?.LOUT?.value;
 
     if (!lout || !lout._records) {
-      console.warn(`[RosterParser] No LOUT data for player ${playerIndex}`);
+      console.warn(`[RosterParser] No LOUT data for POID ${poid}`);
       continue;
     }
 
@@ -2476,7 +2510,7 @@ function applyPendingEquipmentChanges(file) {
     });
 
     if (!playerOnFieldRec) {
-      console.warn(`[RosterParser] No PlayerOnField loadout for player ${playerIndex}`);
+      console.warn(`[RosterParser] No PlayerOnField loadout for POID ${poid}`);
       continue;
     }
 
@@ -2484,7 +2518,7 @@ function applyPendingEquipmentChanges(file) {
     const pins = pinsField?.value;
 
     if (!pins || !pins._records) {
-      console.warn(`[RosterParser] No PINS data for player ${playerIndex}`);
+      console.warn(`[RosterParser] No PINS data for POID ${poid}`);
       continue;
     }
 
@@ -2511,7 +2545,7 @@ function applyPendingEquipmentChanges(file) {
       }
     }
 
-    console.log(`[RosterParser] Applied ${playerUpdated} equipment slots for player ${playerIndex}`);
+    console.log(`[RosterParser] Applied ${playerUpdated} equipment slots for POID ${poid}`);
     totalUpdated += playerUpdated;
   }
 

@@ -29,7 +29,7 @@ const teamNameMappings = {
 
 function resolveTeamIndex(teamName, year) {
   if (teamNameMappings[teamName] !== undefined) return teamNameMappings[teamName];
-  const withoutThe = teamName.replace(/^the\\s+/i, '');
+  const withoutThe = teamName.replace(/^the\s+/i, '');
   if (teamNameMappings[withoutThe] !== undefined) return teamNameMappings[withoutThe];
   for (const [name, index] of Object.entries(teamNameMappings)) {
     if (teamName.toLowerCase().includes(name.toLowerCase()) ||
@@ -69,7 +69,7 @@ async function scrapePreseasonSchedule(year) {
 
     // Parse game rows - look for table rows with game data
     // Format varies by year but typically has visitor team, home team columns
-    const gameRowRegex = /<tr[^>]*>.*?<th[^>]*data-stat="week_num"[^>]*>(\\d+)<\\/th>.*?<td[^>]*data-stat="visitor_team"[^>]*>.*?<a[^>]*>([^<]+)<\\/a>.*?<td[^>]*data-stat="home_team"[^>]*>.*?<a[^>]*>([^<]+)<\\/a>/gs;
+    const gameRowRegex = /<tr[^>]*>.*?<th[^>]*data-stat="week_num"[^>]*>(\d+)<\/th>.*?<td[^>]*data-stat="visitor_team"[^>]*>.*?<a[^>]*>([^<]+)<\/a>.*?<td[^>]*data-stat="home_team"[^>]*>.*?<a[^>]*>([^<]+)<\/a>/gs;
 
     let match;
     while ((match = gameRowRegex.exec(html)) !== null) {
@@ -94,7 +94,7 @@ async function scrapePreseasonSchedule(year) {
 
     // Alternative simpler regex if primary fails
     if (preseasonGames.length === 0) {
-      const simpleGameRegex = /<a[^>]*href="\\/teams\\/\\w+\\/\\d+\\.htm"[^>]*>([^<]+)<\\/a>.*?<a[^>]*href="\\/teams\\/\\w+\\/\\d+\\.htm"[^>]*>([^<]+)<\\/a>/gs;
+      const simpleGameRegex = /<a[^>]*href="\/teams\/\w+\/\d+\.htm"[^>]*>([^<]+)<\/a>.*?<a[^>]*href="\/teams\/\w+\/\d+\.htm"[^>]*>([^<]+)<\/a>/gs;
       let weekNum = 1;
       let gameCount = 0;
 
@@ -168,7 +168,7 @@ async function main() {
   const endYear = parseInt(args[1]) || 1982;
 
   console.log(`Re-scraping preseason schedules for ${startYear}-${endYear}`);
-  console.log('Press Ctrl+C to stop if rate limited\\n');
+  console.log('Press Ctrl+C to stop if rate limited\n');
 
   let updated = 0;
   let rateLimited = false;
@@ -183,7 +183,7 @@ async function main() {
     await new Promise(resolve => setTimeout(resolve, 3000));
   }
 
-  console.log(`\\nDone! Updated ${updated} schedule files.`);
+  console.log(`\nDone! Updated ${updated} schedule files.`);
 }
 
 main().catch(console.error);
