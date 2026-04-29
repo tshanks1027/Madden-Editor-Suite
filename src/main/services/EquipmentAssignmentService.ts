@@ -42,6 +42,12 @@ const EQUIPMENT_FIELDS = {
   RIGHT_SPATS: 'RightSpats',
   LEFT_ELBOW: 'LeftElbow',
   RIGHT_ELBOW: 'RightElbow',
+  // New era-appropriate fields
+  VISOR: 'Visor',
+  JERSEY_STYLE: 'JerseyStyle',
+  NECKPAD: 'Neckpad',
+  SHOULDER_PADS: 'ShoulderPads',
+  GUARDIAN_CAP: 'GuardianCap',
 };
 
 // Map positions to their categories for equipment selection
@@ -132,19 +138,177 @@ class EquipmentAssignmentService {
   }
 
   /**
-   * Get position-appropriate gloves for era
+   * Get era-appropriate visor
+   * - Before 1990: No visors
+   * - 1990-1999: Low chance (~10%) of clear visor only
+   * - 2000+: Increasing chance based on era
    */
-  private getPositionGloves(position: string, eraGloves: string[] | null, year: number, linemanGloves?: string[] | null): string | null {
-    if (!eraGloves) return 'GearHand_None';
-
-    // QBs, K, P typically don't wear gloves
-    if (position === 'QB' || KICKER_POSITIONS.includes(position)) {
-      // Very rare for QB to wear gloves
-      if (Math.random() < 0.05) {
-        return this.randomFrom(eraGloves.filter(g => g.includes('tapedHand'))) || 'GearHand_None';
-      }
-      return 'GearHand_None';
+  private getEraVisor(year: number): string {
+    // No visors before 1990
+    if (year < 1990) {
+      return 'GearVisor_None';
     }
+
+    // 1990-1999: Very rare, only clear
+    if (year < 2000) {
+      if (Math.random() < 0.10) {
+        return 'GearVisor_visorClear';
+      }
+      return 'GearVisor_None';
+    }
+
+    // 2000-2009: Emerging, mostly clear
+    if (year < 2010) {
+      if (Math.random() < 0.30) {
+        return Math.random() < 0.8 ? 'GearVisor_visorClear' : 'GearVisor_visorDark';
+      }
+      return 'GearVisor_None';
+    }
+
+    // 2010-2019: Common, more variety
+    if (year < 2020) {
+      if (Math.random() < 0.50) {
+        const roll = Math.random();
+        if (roll < 0.5) return 'GearVisor_visorClear';
+        if (roll < 0.8) return 'GearVisor_visorDark';
+        return 'GearVisor_visorOakley_clear';
+      }
+      return 'GearVisor_None';
+    }
+
+    // 2020+: Very common, full variety including Oakley Prizm
+    if (Math.random() < 0.60) {
+      const visors = [
+        'GearVisor_visorClear',
+        'GearVisor_visorDark',
+        'GearVisor_visorDarkLight',
+        'GearVisor_visorOakley_clear',
+        'GearVisor_visorOakley_Dark',
+        'GearVisor_visorOakley_DarkLight',
+        'GearVisor_visorOakley_Prizm'
+      ];
+      return this.randomFrom(visors) || 'GearVisor_visorClear';
+    }
+    return 'GearVisor_None';
+  }
+
+  /**
+   * Get era-appropriate jersey style
+   * - 1970-1989: Long sleeves (100%)
+   * - 1990-1999: Mix of Long (60%) and Standard (40%)
+   * - 2000+: Mix trending toward Tight in modern era
+   */
+  private getEraJerseyStyle(year: number): string {
+    // 1970s and 1980s: Long sleeves were standard
+    if (year < 1990) {
+      return 'Gear_JerseyStyle_SleeveLong';
+    }
+
+    // 1990-1999: Transition era
+    if (year < 2000) {
+      return Math.random() < 0.60 ? 'Gear_JerseyStyle_SleeveLong' : 'Gear_JerseyStyle_SleeveStandard';
+    }
+
+    // 2000-2009: Standard becoming norm
+    if (year < 2010) {
+      const roll = Math.random();
+      if (roll < 0.20) return 'Gear_JerseyStyle_SleeveLong';
+      if (roll < 0.80) return 'Gear_JerseyStyle_SleeveStandard';
+      return 'Gear_JerseyStyle_SleeveTight';
+    }
+
+    // 2010-2019: Tight sleeves emerging
+    if (year < 2020) {
+      const roll = Math.random();
+      if (roll < 0.10) return 'Gear_JerseyStyle_SleeveLong';
+      if (roll < 0.50) return 'Gear_JerseyStyle_SleeveStandard';
+      return 'Gear_JerseyStyle_SleeveTight';
+    }
+
+    // 2020+: Tight sleeves dominant
+    const roll = Math.random();
+    if (roll < 0.05) return 'Gear_JerseyStyle_SleeveLong';
+    if (roll < 0.30) return 'Gear_JerseyStyle_SleeveStandard';
+    return 'Gear_JerseyStyle_SleeveTight';
+  }
+
+  /**
+   * Get era-appropriate neckpad (cowboy collar / neck roll)
+   * - 1970s: High chance (50%) for LB/Lineman/FB
+   * - 1980s: Medium chance (30%) for same positions
+   * - 1990-2005: Lower chance (15%)
+   * - 2006+: Very rare (5%)
+   */
+  private getEraNeckpad(year: number, position: string): string {
+    // Only LB, Linemen, and FB typically wore neck rolls
+    const neckpadPositions = [...LINEBACKER_POSITIONS, ...LINEMAN_POSITIONS, 'FB'];
+    if (!neckpadPositions.includes(position)) {
+      return 'GearNeckpad_None';
+    }
+
+    let chance: number;
+    if (year < 1980) {
+      chance = 0.50;
+    } else if (year < 1990) {
+      chance = 0.30;
+    } else if (year < 2006) {
+      chance = 0.15;
+    } else {
+      chance = 0.05;
+    }
+
+    if (Math.random() < chance) {
+      // 70% cowboy collar, 30% butterfly
+      return Math.random() < 0.70 ? 'GearNeckpad_CowboyCollarNeckRoll' : 'GearNeckpad_ButterflyNeckRoll';
+    }
+
+    return 'GearNeckpad_None';
+  }
+
+  /**
+   * Get era-appropriate Guardian Cap
+   * - Before 2021: Not available
+   * - 2021+: Optional (mostly none, rarely used in games)
+   */
+  private getEraGuardianCap(year: number): string {
+    // Guardian caps weren't used until 2022 preseason, keep them rare
+    if (year < 2022) {
+      return 'GuardianCap_None';
+    }
+    // Even in modern era, very rare in actual games
+    return 'GuardianCap_None';
+  }
+
+  /**
+   * Get position-appropriate gloves for era
+   * Updated with QB-specific rules: no tape on throwing hand
+   */
+  private getPositionGloves(position: string, eraGloves: string[] | null, year: number, linemanGloves?: string[] | null): { left: string; right: string } {
+    if (!eraGloves) return { left: 'GearHand_None', right: 'GearHand_None' };
+
+    // QBs - special handling: NEVER tape on throwing hand (right), very rare on left
+    if (position === 'QB') {
+      // QB throwing hand (right) - NEVER has tape/gloves
+      // QB non-throwing hand (left) - very rare tape (5%)
+      const leftHand = Math.random() < 0.05 ? 'GearHand_tapedHandNormal_White' : 'GearHand_None';
+      return { left: leftHand, right: 'GearHand_None' };
+    }
+
+    // Kickers - no gloves
+    if (KICKER_POSITIONS.includes(position)) {
+      return { left: 'GearHand_None', right: 'GearHand_None' };
+    }
+
+    // For other positions, use existing logic but return both hands
+    const glove = this.getPositionGlovesSingle(position, eraGloves, year, linemanGloves);
+    return { left: glove, right: glove };
+  }
+
+  /**
+   * Internal helper for single glove selection (non-QB positions)
+   */
+  private getPositionGlovesSingle(position: string, eraGloves: string[] | null, year: number, linemanGloves?: string[] | null): string {
+    if (!eraGloves) return 'GearHand_None';
 
     // Pre-2000 era - taped hands very common for linemen
     if (year < 2000) {
@@ -373,6 +537,7 @@ class EquipmentAssignmentService {
 
   /**
    * Get era-appropriate equipment for a player
+   * Now includes: visor, jersey style, neckpad, shoulder pads, guardian cap
    */
   async getEraEquipment(year: number, position: string): Promise<EquipmentAssignment> {
     await this.initialize();
@@ -405,14 +570,10 @@ class EquipmentAssignmentService {
     }
 
     // Gloves (pass linemanGloves for vintage era linemen)
-    const glove = this.getPositionGloves(position, eraDefaults.gloves, year, eraDefaults.linemanGloves);
-    if (glove && glove !== 'GearHand_None') {
-      equipment[EQUIPMENT_FIELDS.LEFT_GLOVE] = glove;
-      equipment[EQUIPMENT_FIELDS.RIGHT_GLOVE] = glove;
-    } else {
-      equipment[EQUIPMENT_FIELDS.LEFT_GLOVE] = 'GearHand_None';
-      equipment[EQUIPMENT_FIELDS.RIGHT_GLOVE] = 'GearHand_None';
-    }
+    // Now returns { left, right } for QB-specific handling
+    const gloves = this.getPositionGloves(position, eraDefaults.gloves, year, eraDefaults.linemanGloves);
+    equipment[EQUIPMENT_FIELDS.LEFT_GLOVE] = gloves.left;
+    equipment[EQUIPMENT_FIELDS.RIGHT_GLOVE] = gloves.right;
 
     // Sleeves (random per arm for variety)
     const leftSleeve = this.getEraSleeve(year, position);
@@ -434,6 +595,23 @@ class EquipmentAssignmentService {
       equipment[EQUIPMENT_FIELDS.RIGHT_SPATS] = tape.spats;
     }
 
+    // ====== NEW ERA-APPROPRIATE EQUIPMENT ======
+
+    // Visor - no visors before 1990, increasing after
+    equipment[EQUIPMENT_FIELDS.VISOR] = this.getEraVisor(year);
+
+    // Jersey Style - long sleeves in 70s/80s, trending to tight in modern era
+    equipment[EQUIPMENT_FIELDS.JERSEY_STYLE] = this.getEraJerseyStyle(year);
+
+    // Neckpad (Cowboy Collar) - common in 70s/80s for LB/Linemen/FB
+    equipment[EQUIPMENT_FIELDS.NECKPAD] = this.getEraNeckpad(year, position);
+
+    // Shoulder Pads - large in vintage eras, small in modern
+    equipment[EQUIPMENT_FIELDS.SHOULDER_PADS] = this.getShoulderPadSize(year, position);
+
+    // Guardian Cap - only available 2022+, always set to none
+    equipment[EQUIPMENT_FIELDS.GUARDIAN_CAP] = this.getEraGuardianCap(year);
+
     return equipment;
   }
 
@@ -448,6 +626,10 @@ class EquipmentAssignmentService {
     sleeves: string;
     spats: string;
     shoulderPads: string;
+    visor: string;
+    jerseyStyle: string;
+    neckpad: string;
+    guardianCap: string;
     notes: string;
   }> {
     await this.initialize();
@@ -475,6 +657,10 @@ class EquipmentAssignmentService {
       sleeves: year < 2005 ? 'None/Elbow pads' : year < 2015 ? 'Compression sleeves' : 'Shooter sleeves',
       spats: year < 1990 ? 'Common (white)' : year < 2000 ? 'Declining' : 'None',
       shoulderPads: year < 2000 ? 'Large' : year < 2010 ? 'Medium' : 'Small (skill) / Medium (line)',
+      visor: year < 1990 ? 'None' : year < 2000 ? 'Rare (clear only)' : year < 2020 ? 'Common' : 'Very common (Oakley Prizm)',
+      jerseyStyle: year < 1990 ? 'Long sleeves' : year < 2010 ? 'Standard' : 'Tight',
+      neckpad: year < 1990 ? 'Common (LB/Line/FB)' : year < 2006 ? 'Declining' : 'Rare',
+      guardianCap: year < 2022 ? 'Not available' : 'Optional (rare in games)',
       notes: summary
     };
   }
