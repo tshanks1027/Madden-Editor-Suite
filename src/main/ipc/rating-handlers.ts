@@ -283,21 +283,23 @@ export function registerRatingHandlers(): void {
         for (let i = 0; i < players.length; i++) {
           const player = players[i];
           const position = player.PPOS;
-          const storedArchetype = player.PLTY ?? player.PCBT;
+          // FIX: ONLY use PLTY for archetype - PCBT is body type (pad sizes 0-6), NOT archetype!
+          // Using PCBT as fallback caused wrong OVR calculations (e.g., body type 3 = QB_Scrambler archetype)
+          const storedArchetype = player.PLTY;
 
-          // FIX: Use the STORED archetype for OVR calculation, not "best" archetype
+          // Use the STORED archetype for OVR calculation when available.
           // When user sets an archetype and adjusts ratings to hit a specific OVR,
           // recalculation should use that same archetype to get the same result.
           // Only fall back to findBestArchetype if no archetype is stored.
           let ovr: number;
           let archetype: string | null = null;
 
-          if (storedArchetype !== undefined && storedArchetype !== null) {
-            // Use stored archetype for calculation
+          if (storedArchetype !== undefined && storedArchetype !== null && storedArchetype !== 0) {
+            // Use stored archetype for calculation (0 can mean "not set" in some rosters)
             ovr = ovrWeightsCalculator.calculateOVR(player, position, storedArchetype);
             archetype = `ID:${storedArchetype}`;
           } else {
-            // No stored archetype - find best one
+            // No stored archetype - find best one based on ratings
             const bestResult = ovrWeightsCalculator.findBestArchetype(player, position);
             ovr = bestResult?.ovr || 50;
             archetype = bestResult?.archetype || null;
