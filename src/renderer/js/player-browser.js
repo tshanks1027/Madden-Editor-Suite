@@ -1337,21 +1337,40 @@
             }
           }
 
-          // Fallback: if no generic Free Agents, find any Free Agent with low overall
+          // Fallback: if no generic Free Agents, find the LOWEST RATED Free Agent
           if (replaceIndex === -1) {
-            for (let i = window.app.players.length - 1; i >= 0; i--) {
+            let lowestOvr = 999;
+            for (let i = 0; i < window.app.players.length; i++) {
               const p = window.app.players[i];
-              if (p.TGID === 1009 && (p.POVR || 99) < 50) {
-                replaceIndex = i;
-                replacePlayer = p;
-                break;
+              if (p.TGID === 1009) {
+                const ovr = p.POVR || 0;
+                if (ovr < lowestOvr) {
+                  lowestOvr = ovr;
+                  replaceIndex = i;
+                  replacePlayer = p;
+                }
               }
+            }
+            if (replacePlayer) {
+              // Show confirmation dialog before replacing
+              const faName = `${replacePlayer.PFNA || ''} ${replacePlayer.PLNA || ''}`.trim() || 'Unknown';
+              const faPos = replacePlayer.position || 'FA';
+              const confirmed = confirm(
+                `No empty Free Agent slots available.\n\n` +
+                `Replace lowest-rated Free Agent?\n\n` +
+                `${faName} (${faPos}, ${lowestOvr} OVR)`
+              );
+              if (!confirmed) {
+                document.getElementById('addToRosterModal').style.display = 'none';
+                return;
+              }
+              console.log(`[PlayerBrowser] User confirmed: Replacing lowest-rated FA: ${faName} (OVR: ${lowestOvr})`);
             }
           }
 
           if (replaceIndex === -1) {
-            console.error('[PlayerBrowser] No generic Free Agent slot available!');
-            alert('No generic Free Agent slot available. Remove a Free Agent first.');
+            console.error('[PlayerBrowser] No Free Agent available to replace!');
+            alert('No Free Agents available to replace. The roster may be full of team players.');
             document.getElementById('addToRosterModal').style.display = 'none';
             return;
           }
