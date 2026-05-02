@@ -1832,13 +1832,12 @@ class MaddenEditorApp {
                 if (result.success && result.equipment) {
                     if (mode === 'roster') {
                         // Use the parser API to set equipment on roster players
-                        // Pass POID for stable lookup (doesn't shift after deletions)
+                        // The player's index in this.players matches the parser's player index
                         const playerIndex = player._originalIndex !== undefined ? player._originalIndex : i;
-                        const playerPoid = player.POID;
                         if (i < 3) {
-                            console.log(`[MassEquipment] Player ${i}: calling setPlayerEquipment(${playerIndex}, {...${Object.keys(result.equipment).length} fields}, POID=${playerPoid})`);
+                            console.log(`[MassEquipment] Player ${i}: calling setPlayerEquipment(${playerIndex}, {...${Object.keys(result.equipment).length} fields})`);
                         }
-                        const setResult = await window.electronAPI.parser.setPlayerEquipment(playerIndex, result.equipment, playerPoid);
+                        const setResult = await window.electronAPI.parser.setPlayerEquipment(playerIndex, result.equipment);
                         if (i < 3) {
                             console.log(`[MassEquipment] Player ${i} setResult:`, setResult);
                         }
@@ -12184,26 +12183,13 @@ class MaddenEditorApp {
         }
 
         // Load equipment data for this player
-        // DEBUG: Log what index we're using for equipment
+        // Find the actual roster index (index in this.players which matches BLBM index)
         const rosterIndex = this.players.findIndex(p =>
             p.PGID === playerData.PGID ||
             (p.PFNA === playerData.PFNA && p.PLNA === playerData.PLNA && p.TGID === playerData.TGID)
         );
         this.currentPlayerRosterIndex = rosterIndex >= 0 ? rosterIndex : rowIndex;
-        // Store POID for equipment operations (stable identifier that survives array shifts)
-        this.currentPlayerPOID = playerData.POID;
-
-        // DEBUG: This is the bug location - we use app.players index but parser uses file index
-        console.log('[PlayerCard Equipment] ===== LOADING EQUIPMENT =====');
-        console.log('[PlayerCard Equipment] Player:', playerData.PFNA, playerData.PLNA);
-        console.log('[PlayerCard Equipment] POID:', playerData.POID, 'PGID:', playerData.PGID);
-        console.log('[PlayerCard Equipment] UI rosterIndex:', rosterIndex, 'rowIndex:', rowIndex);
-        console.log('[PlayerCard Equipment] currentPlayerRosterIndex:', this.currentPlayerRosterIndex);
-        console.log('[PlayerCard Equipment] Total players in app.players:', this.players.length);
-
-        // CRITICAL: Pass POID instead of array index for accurate equipment lookup
-        // The parser will use POID to find the correct BLBM record
-        this.loadPlayerEquipment(this.currentPlayerRosterIndex, this.currentPlayerPOID);
+        this.loadPlayerEquipment(this.currentPlayerRosterIndex);
 
         // Reset to first tab when opening
         document.querySelectorAll('.player-card-tab').forEach(t => t.classList.remove('active'));
@@ -12672,18 +12658,15 @@ class MaddenEditorApp {
 
     /**
      * Load equipment data for a player and populate the Equipment tab
-     * @param {number} playerIndex - The player index in the UI array (fallback)
-     * @param {number} poid - The player POID for direct BLBM lookup (preferred)
      */
-    async loadPlayerEquipment(playerIndex, poid = null) {
+    async loadPlayerEquipment(playerIndex) {
         try {
             // Ensure dropdowns are initialized
             if (!this.equipmentOptions) {
                 await this.initializeEquipmentDropdowns();
             }
 
-            console.log('[loadPlayerEquipment] Loading equipment - playerIndex:', playerIndex, 'POID:', poid);
-            const result = await window.electronAPI.parser.getPlayerEquipment(playerIndex, poid);
+            const result = await window.electronAPI.parser.getPlayerEquipment(playerIndex);
             if (result.success && result.equipment) {
                 const eq = result.equipment;
                 console.log('[PlayerCard] Loaded equipment:', eq);
@@ -12951,9 +12934,9 @@ class MaddenEditorApp {
             console.log('[Player Card] Saved changes for Handsontable row:', this.currentPlayerCardRow);
         }
 
-        // Save equipment changes (use POID for stable lookup, index as fallback)
+        // Save equipment changes (use roster index, not filtered index)
         if (this.currentPlayerRosterIndex !== undefined) {
-            this.savePlayerEquipment(this.currentPlayerRosterIndex, this.currentPlayerPOID);
+            this.savePlayerEquipment(this.currentPlayerRosterIndex);
         }
 
         // Close the modal
@@ -12962,12 +12945,9 @@ class MaddenEditorApp {
 
     /**
      * Save equipment data for the current player
-     * @param {number} playerIndex - The player index in the UI array (fallback)
-     * @param {number} poid - The player POID for direct BLBM lookup (preferred)
      */
-    async savePlayerEquipment(playerIndex, poid = null) {
+    async savePlayerEquipment(playerIndex) {
         try {
-            console.log('[savePlayerEquipment] Saving equipment - playerIndex:', playerIndex, 'POID:', poid);
             const equipment = {
                 // Head/Face
                 Helmet: document.getElementById('equipHelmet')?.value || '',
@@ -13013,8 +12993,8 @@ class MaddenEditorApp {
                 RightThighPad: document.getElementById('equipRightThighPad')?.value || ''
             };
 
-            console.log('[PlayerCard] Saving equipment with POID:', poid, 'index:', playerIndex);
-            const result = await window.electronAPI.parser.setPlayerEquipment(playerIndex, equipment, poid);
+            console.log('[PlayerCard] Saving equipment:', equipment);
+            const result = await window.electronAPI.parser.setPlayerEquipment(playerIndex, equipment);
             if (result.success) {
                 console.log('[PlayerCard] Equipment saved successfully');
             } else {

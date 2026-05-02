@@ -2282,33 +2282,25 @@ const EQUIPMENT_OPTIONS = {
 };
 
 /**
- * Get equipment data for a player by POID (preferred) or index (fallback)
- * @param {number} playerIndex - The player index in the roster (fallback if no POID)
- * @param {number} poid - The player POID to use for BLBM lookup (preferred)
+ * Get equipment data for a player by index
+ * @param {number} playerIndex - The player index in the roster
  * @returns {Object} Equipment slot values
  */
-function getPlayerEquipment(playerIndex, poid = null) {
+function getPlayerEquipment(playerIndex) {
   const file = global.rosterFile;
   if (!file) {
     console.error('[RosterParser] No roster file loaded');
     return null;
   }
 
-  // If POID not provided, look it up from PLAY table using index (legacy fallback)
-  let effectivePoid = poid;
-  if (effectivePoid === null || effectivePoid === undefined) {
-    const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
-    const playerRec = playTable?.records?.[playerIndex];
-    if (!playerRec) {
-      console.error('[RosterParser] Could not find player at index', playerIndex);
-      return null;
-    }
-    effectivePoid = playerRec.POID;
-    console.log('[RosterParser] getPlayerEquipment: Using index fallback, POID from index', playerIndex, 'is', effectivePoid);
-  } else {
-    console.log('[RosterParser] getPlayerEquipment: Using provided POID', effectivePoid, '(index was', playerIndex, ')');
+  // Get player's POID from PLAY table
+  const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
+  const playerRec = playTable?.records?.[playerIndex];
+  if (!playerRec) {
+    console.error('[RosterParser] Could not find player at index', playerIndex);
+    return null;
   }
-  const poidToUse = effectivePoid;
+  const poid = playerRec.POID;
 
   const blob = file.BLOB?.records?.[0];
   const blbm = blob?.fields?.BLBM?.value;
@@ -2319,9 +2311,9 @@ function getPlayerEquipment(playerIndex, poid = null) {
 
   // CRITICAL: Find BLBM record by POID, not array index
   // The game links PLAY records to BLBM records by finding BLBM[].index === POID
-  const blbmRec = blbm._records.find(r => r.index === poidToUse);
+  const blbmRec = blbm._records.find(r => r.index === poid);
   if (!blbmRec) {
-    console.error('[RosterParser] Could not find BLBM record for POID', poidToUse);
+    console.error('[RosterParser] Could not find BLBM record for POID', poid);
     return null;
   }
 
@@ -2374,39 +2366,31 @@ function getPlayerEquipment(playerIndex, poid = null) {
 }
 
 /**
- * Set equipment for a player by POID (preferred) or index (fallback)
- * @param {number} playerIndex - The player index in the roster (fallback if no POID)
+ * Set equipment for a player by index
+ * @param {number} playerIndex - The player index in the roster
  * @param {Object} equipment - Equipment slot values to set
- * @param {number} poid - The player POID to use for BLBM lookup (preferred)
  * @returns {boolean} Success
  */
-function setPlayerEquipment(playerIndex, equipment, poid = null) {
+function setPlayerEquipment(playerIndex, equipment) {
   const file = global.rosterFile;
   if (!file) {
     console.error('[RosterParser] No roster file loaded');
     return false;
   }
 
-  // If POID not provided, look it up from PLAY table using index (legacy fallback)
-  let effectivePoid = poid;
-  if (effectivePoid === null || effectivePoid === undefined) {
-    const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
-    const playerRec = playTable?.records?.[playerIndex];
-    if (!playerRec) {
-      console.error('[RosterParser] Could not find player at index', playerIndex);
-      return false;
-    }
-    effectivePoid = playerRec.POID;
-    console.log('[RosterParser] setPlayerEquipment: Using index fallback, POID from index', playerIndex, 'is', effectivePoid);
-  } else {
-    console.log('[RosterParser] setPlayerEquipment: Using provided POID', effectivePoid, '(index was', playerIndex, ')');
+  // Get player's POID from PLAY table - this is the stable identifier
+  const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
+  const playerRec = playTable?.records?.[playerIndex];
+  if (!playerRec) {
+    console.error('[RosterParser] Could not find player at index', playerIndex);
+    return false;
   }
-  const poidToUse = effectivePoid;
+  const poid = playerRec.POID;
 
   // CRITICAL: Store equipment changes keyed by POID, not playerIndex
   // This ensures we find the correct BLBM record during save
-  pendingEquipmentChanges.set(poidToUse, { ...equipment });
-  console.log(`[RosterParser] Queued equipment changes for POID ${poidToUse} (player ${playerIndex}):`, equipment);
+  pendingEquipmentChanges.set(poid, { ...equipment });
+  console.log(`[RosterParser] Queued equipment changes for POID ${poid} (player ${playerIndex}):`, equipment);
 
   // Also apply immediately to global.rosterFile for any code that reads from it
   const blob = file.BLOB?.records?.[0];
@@ -2417,9 +2401,9 @@ function setPlayerEquipment(playerIndex, equipment, poid = null) {
   }
 
   // CRITICAL: Find BLBM record by POID, not array index
-  const blbmRec = blbm._records.find(r => r.index === poidToUse);
+  const blbmRec = blbm._records.find(r => r.index === poid);
   if (!blbmRec) {
-    console.error('[RosterParser] Could not find BLBM record for POID', poidToUse);
+    console.error('[RosterParser] Could not find BLBM record for POID', poid);
     return true; // Still return true since we queued the changes
   }
 

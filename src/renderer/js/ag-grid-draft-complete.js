@@ -1667,22 +1667,6 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                     const prospect = event.data;
                     const playerName = `${prospect.firstName || ''} ${prospect.lastName || ''}`.trim();
 
-                    // DEBUG: Log equipment state BEFORE delete
-                    console.log('[Draft Delete] ===== BEFORE DELETE =====');
-                    console.log('[Draft Delete] Deleting:', playerName, 'at row', rowIndex);
-                    console.log('[Draft Delete] Prospect equipment:', prospect.equipment);
-                    console.log('[Draft Delete] draftProspects count:', app.draftProspects?.length);
-
-                    // Sample equipment from first 5 prospects before delete
-                    if (app.draftProspects) {
-                        for (let i = 0; i < Math.min(5, app.draftProspects.length); i++) {
-                            const p = app.draftProspects[i];
-                            console.log(`[Draft Delete] BEFORE - Prospect ${i}: ${p.firstName} ${p.lastName}, equipment keys:`,
-                                p.equipment ? Object.keys(p.equipment) : 'none',
-                                'visuals.equipment:', p.visuals?.equipment ? Object.keys(p.visuals.equipment) : 'none');
-                        }
-                    }
-
                     if (confirm(`Delete ${playerName}?`)) {
                         const allData = [];
                         event.api.forEachNode(node => {
@@ -1698,22 +1682,9 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                             row.round = pickNum <= 224 ? Math.floor((pickNum - 1) / 32) + 1 : 8;
                         });
 
-                        // CRITICAL: Also update app.draftProspects to stay in sync
-                        app.draftProspects = allData;
-
                         event.api.setGridOption('rowData', allData);
                         app.hasUnsavedChanges = true;
                         app.updateSaveButton();
-
-                        // DEBUG: Log equipment state AFTER delete
-                        console.log('[Draft Delete] ===== AFTER DELETE =====');
-                        console.log('[Draft Delete] draftProspects count:', app.draftProspects?.length);
-                        for (let i = 0; i < Math.min(5, app.draftProspects.length); i++) {
-                            const p = app.draftProspects[i];
-                            console.log(`[Draft Delete] AFTER - Prospect ${i}: ${p.firstName} ${p.lastName}, equipment keys:`,
-                                p.equipment ? Object.keys(p.equipment) : 'none',
-                                'visuals.equipment:', p.visuals?.equipment ? Object.keys(p.visuals.equipment) : 'none');
-                        }
                     }
                 } else if (action === 'view-player-card') {
                     app.showDraftPlayerCard(rowIndex);

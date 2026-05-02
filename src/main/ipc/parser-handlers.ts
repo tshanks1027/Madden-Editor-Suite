@@ -93,12 +93,12 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
 
 /**
  * Handle: parser:get-player-equipment
- * Get equipment data for a player by POID (preferred) or index (fallback)
+ * Get equipment data for a player by index
  */
-ipcMain.handle('parser:get-player-equipment', async (event, playerIndex: number, poid?: number) => {
+ipcMain.handle('parser:get-player-equipment', async (event, playerIndex: number) => {
   try {
-    console.log('[parser-handlers] Getting equipment for player index:', playerIndex, 'POID:', poid);
-    const equipment = getPlayerEquipment(playerIndex, poid);
+    console.log('[parser-handlers] Getting equipment for player index:', playerIndex);
+    const equipment = getPlayerEquipment(playerIndex);
     return {
       success: true,
       equipment: equipment || {}
@@ -115,12 +115,12 @@ ipcMain.handle('parser:get-player-equipment', async (event, playerIndex: number,
 
 /**
  * Handle: parser:set-player-equipment
- * Set equipment data for a player by POID (preferred) or index (fallback)
+ * Set equipment data for a player by index
  */
-ipcMain.handle('parser:set-player-equipment', async (event, playerIndex: number, equipment: Record<string, string>, poid?: number) => {
+ipcMain.handle('parser:set-player-equipment', async (event, playerIndex: number, equipment: Record<string, string>) => {
   try {
-    console.log('[parser-handlers] Setting equipment for player index:', playerIndex, 'POID:', poid);
-    const success = setPlayerEquipment(playerIndex, equipment, poid);
+    console.log('[parser-handlers] Setting equipment for player index:', playerIndex, equipment);
+    const success = setPlayerEquipment(playerIndex, equipment);
     return {
       success
     };
