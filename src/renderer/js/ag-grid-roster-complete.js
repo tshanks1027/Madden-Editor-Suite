@@ -1515,6 +1515,29 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
 
                     const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim() || 'this player';
 
+                    // DEBUG: Log equipment state BEFORE delete
+                    console.log('[Roster Delete] ===== BEFORE DELETE =====');
+                    console.log('[Roster Delete] Deleting:', playerName, 'POID:', player.POID, 'PSXP:', player.PSXP);
+
+                    // Sample equipment from first 5 and surrounding players
+                    const sampleIndices = [0, 1, 2, 3, 4];
+                    const deleteIdx = app.players.findIndex(p => p === player);
+                    if (deleteIdx > 0) sampleIndices.push(deleteIdx - 1);
+                    sampleIndices.push(deleteIdx);
+                    if (deleteIdx < app.players.length - 1) sampleIndices.push(deleteIdx + 1);
+
+                    for (const i of [...new Set(sampleIndices)].sort((a, b) => a - b)) {
+                        if (i >= 0 && i < app.players.length) {
+                            const p = app.players[i];
+                            console.log(`[Roster Delete] BEFORE - Player ${i}: ${p.PFNA} ${p.PLNA} (POID:${p.POID}), equipment snapshot:`,
+                                {
+                                    PGEA: p.PGEA?.substring?.(0, 50) || p.PGEA,
+                                    hasEquipment: !!p.equipment,
+                                    equipKeys: p.equipment ? Object.keys(p.equipment).slice(0, 5) : []
+                                });
+                        }
+                    }
+
                     if (confirm(`Are you sure you want to delete ${playerName}?`)) {
                         // Find and remove from app.players array using a unique identifier
                         // Use multiple fields to ensure we find the right player
@@ -1523,12 +1546,12 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                             (p.PFNA === player.PFNA && p.PLNA === player.PLNA && p.TGID === player.TGID && p.PPOS === player.PPOS)
                         );
 
-                        console.log('[AG-Grid] Found player at index:', playerIndex, 'of', app.players.length);
+                        console.log('[Roster Delete] Found player at index:', playerIndex, 'of', app.players.length);
 
                         if (playerIndex !== -1) {
                             // Remove from main array
                             app.players.splice(playerIndex, 1);
-                            console.log('[AG-Grid] Spliced player, remaining:', app.players.length);
+                            console.log('[Roster Delete] Spliced player, remaining:', app.players.length);
 
                             // Also remove from filtered array
                             const filteredIndex = app.filteredPlayers.findIndex(p =>
@@ -1547,9 +1570,23 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                             const saveBtn = document.getElementById('saveRosterBtn');
                             if (saveBtn) saveBtn.style.display = 'inline-block';
 
-                            console.log('[AG-Grid] Player deleted successfully, remaining:', app.players.length);
+                            console.log('[Roster Delete] Player deleted successfully, remaining:', app.players.length);
+
+                            // DEBUG: Log equipment state AFTER delete
+                            console.log('[Roster Delete] ===== AFTER DELETE =====');
+                            for (const i of [0, 1, 2, 3, 4]) {
+                                if (i < app.players.length) {
+                                    const p = app.players[i];
+                                    console.log(`[Roster Delete] AFTER - Player ${i}: ${p.PFNA} ${p.PLNA} (POID:${p.POID}), equipment snapshot:`,
+                                        {
+                                            PGEA: p.PGEA?.substring?.(0, 50) || p.PGEA,
+                                            hasEquipment: !!p.equipment,
+                                            equipKeys: p.equipment ? Object.keys(p.equipment).slice(0, 5) : []
+                                        });
+                                }
+                            }
                         } else {
-                            console.error('[AG-Grid] Could not find player in array to delete');
+                            console.error('[Roster Delete] Could not find player in array to delete');
                         }
                     }
                 } else if (action === 'view-player-card') {
@@ -3440,6 +3477,16 @@ async function executeMultiDelete(app, editorType, grid) {
 
     console.log(`[Multi-Delete] Deleting ${count} players from ${editorType}`);
 
+    // DEBUG: Log equipment state BEFORE delete
+    console.log('[Multi-Delete] ===== BEFORE DELETE =====');
+    const mainArrayBefore = editorType === 'roster' ? app.players : app.draftProspects;
+    for (let i = 0; i < Math.min(5, mainArrayBefore.length); i++) {
+        const p = mainArrayBefore[i];
+        const name = editorType === 'roster' ? `${p.PFNA} ${p.PLNA}` : `${p.firstName} ${p.lastName}`;
+        console.log(`[Multi-Delete] BEFORE - Row ${i}: ${name}, equipment:`,
+            p.equipment ? Object.keys(p.equipment).slice(0, 3) : 'none');
+    }
+
     // Determine which arrays to modify based on editor type
     const mainArray = editorType === 'roster' ? app.players : app.draftProspects;
     const filteredArray = editorType === 'roster' ? app.filteredPlayers : app.filteredDraftProspects;
@@ -3464,6 +3511,15 @@ async function executeMultiDelete(app, editorType, grid) {
     }
 
     console.log(`[Multi-Delete] Removed ${count} players. Remaining: ${newMainArray.length}`);
+
+    // DEBUG: Log equipment state AFTER delete
+    console.log('[Multi-Delete] ===== AFTER DELETE =====');
+    for (let i = 0; i < Math.min(5, newMainArray.length); i++) {
+        const p = newMainArray[i];
+        const name = editorType === 'roster' ? `${p.PFNA} ${p.PLNA}` : `${p.firstName} ${p.lastName}`;
+        console.log(`[Multi-Delete] AFTER - Row ${i}: ${name}, equipment:`,
+            p.equipment ? Object.keys(p.equipment).slice(0, 3) : 'none');
+    }
 
     // Mark as modified
     app.hasUnsavedChanges = true;

@@ -14,10 +14,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('parser:parse-roster-file', filePath),
     saveRosterFile: (filePath: string, players: any[], originalData: any, options?: { clearInjuries?: boolean }) =>
       ipcRenderer.invoke('parser:save-roster-file', filePath, players, originalData, options),
-    getPlayerEquipment: (playerIndex: number) =>
-      ipcRenderer.invoke('parser:get-player-equipment', playerIndex),
-    setPlayerEquipment: (playerIndex: number, equipment: Record<string, string>) =>
-      ipcRenderer.invoke('parser:set-player-equipment', playerIndex, equipment),
+    getPlayerEquipment: (playerIndex: number, poid?: number) =>
+      ipcRenderer.invoke('parser:get-player-equipment', playerIndex, poid),
+    setPlayerEquipment: (playerIndex: number, equipment: Record<string, string>, poid?: number) =>
+      ipcRenderer.invoke('parser:set-player-equipment', playerIndex, equipment, poid),
     getEquipmentOptions: () =>
       ipcRenderer.invoke('parser:get-equipment-options')
   },
