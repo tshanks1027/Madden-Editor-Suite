@@ -4047,7 +4047,7 @@
     if (spinner) spinner.style.display = 'inline';
 
     try {
-      console.log('[DatabasePlayerCard] Previewing PFR fill for:', playerName);
+      console.log('[DatabasePlayerCard] Scrape filling data for:', playerName);
 
       // Build player info from current form values to pass to backend
       var playerInfo = {
@@ -4072,63 +4072,71 @@
       console.log('[DatabasePlayerCard] Preview result:', JSON.stringify(preview, null, 2));
 
       if (!preview.found) {
-        alert('Could not find "' + playerName + '" on Pro-Football-Reference.\n\n' +
-              (preview.error || 'Try searching with a different name spelling.'));
+        alert('Could not find "' + playerName + '" on Pro Football Archives.\n\n' +
+              (preview.error || 'This player may not be in the PFA database yet.'));
         return;
       }
 
-      // Build preview message
+      // Build preview message - show ALL scraped data (will overwrite existing values)
       var changes = [];
-      var currentData = preview.currentData || {};
       var scrapedData = preview.scrapedData || {};
 
       console.log('[DatabasePlayerCard] Scraped data:', scrapedData);
-      console.log('[DatabasePlayerCard] homeState value:', scrapedData.homeState, 'type:', typeof scrapedData.homeState);
 
-      if (!currentData.hometown && scrapedData.hometown) {
+      // Show ALL scraped data that will be applied
+      if (scrapedData.hometown) {
         changes.push('Hometown: ' + scrapedData.hometown);
       }
-      if (!currentData.homeState && scrapedData.homeState) {
+      if (scrapedData.homeState) {
         changes.push('Home State: ' + scrapedData.homeState);
       }
-      if (!currentData.height && scrapedData.height) {
-        changes.push('Height: ' + scrapedData.height);
+      if (scrapedData.height) {
+        // Convert to inches for display
+        var heightMatch = scrapedData.height.match(/(\d+)-(\d+)/);
+        if (heightMatch) {
+          var inches = parseInt(heightMatch[1]) * 12 + parseInt(heightMatch[2]);
+          changes.push('Height: ' + scrapedData.height + ' (' + inches + ' inches)');
+        } else {
+          changes.push('Height: ' + scrapedData.height);
+        }
       }
-      if (!currentData.weight && scrapedData.weight) {
+      if (scrapedData.weight) {
         changes.push('Weight: ' + scrapedData.weight + ' lbs');
       }
-      if (!currentData.college && scrapedData.college) {
+      if (scrapedData.college) {
         changes.push('College: ' + scrapedData.college);
       }
 
       // Draft info
-      if (scrapedData.draftYear && !currentData.draftYear) {
+      if (scrapedData.draftYear) {
         changes.push('Draft: Round ' + scrapedData.draftRound + ', Pick ' + scrapedData.draftPick + ' (' + scrapedData.draftYear + ')');
-      } else if (scrapedData.draftRound === 'UDFA' && !currentData.draftRound) {
+      } else if (scrapedData.draftRound === 'UDFA') {
         changes.push('Draft: Undrafted Free Agent');
       }
 
       // Career span
-      if (scrapedData.careerFrom && !currentData.careerFrom) {
-        changes.push('Career: ' + scrapedData.careerFrom + '-' + scrapedData.careerTo);
+      if (scrapedData.careerFrom) {
+        changes.push('Career: ' + scrapedData.careerFrom + '-' + (scrapedData.careerTo || 'present'));
       }
 
-      // Career history (teams by year)
-      var careerYears = preview.careerData ? preview.careerData.length : 0;
-      if (careerYears > 0) {
-        changes.push('Career History: ' + careerYears + ' seasons (team/jersey data)');
+      // Career history (teams by year) - show actual team for each season
+      var careerHistory = preview.careerData || scrapedData.careerHistory || [];
+      if (careerHistory.length > 0) {
+        var teamsByYear = careerHistory.map(function(entry) {
+          return entry.year + ': ' + entry.team;
+        }).join(', ');
+        changes.push('Season Teams: ' + teamsByYear);
       }
 
       if (changes.length === 0) {
-        alert('No missing data to fill for ' + playerName + '.\n\n' +
-              'All bio fields already have values.');
+        alert('No data found for ' + playerName + ' on Pro Football Archives.');
         return;
       }
 
-      // Ask user to confirm
-      var message = 'Found data for ' + playerName + ':\n\n' +
+      // Ask user to confirm - data will OVERWRITE existing values
+      var message = 'Scraped data for ' + playerName + ':\n\n' +
                     changes.join('\n') +
-                    '\n\nFill this data?';
+                    '\n\nApply this data? (Will overwrite existing values)';
       if (!confirm(message)) {
         return;
       }
@@ -4141,20 +4149,21 @@
         return;
       }
 
-      // Update the form with new data - ONLY if field is currently empty
+      // Update the form with new data - ALWAYS overwrite with scraped data
       console.log('[DatabasePlayerCard] Updating form with scraped data:', scrapedData);
 
       if (scrapedData.hometown) {
         var hometownInput = document.getElementById('dbPlayerHometown');
-        if (hometownInput && !hometownInput.value) {
+        if (hometownInput) {
+          var oldHometown = hometownInput.value;
           hometownInput.value = scrapedData.hometown;
-          console.log('[DatabasePlayerCard] Set hometown to:', scrapedData.hometown);
+          console.log('[DatabasePlayerCard] Set hometown:', oldHometown, '->', scrapedData.hometown);
         }
       }
       if (scrapedData.homeState) {
         var stateSelect = document.getElementById('dbPlayerHomeState');
-        console.log('[DatabasePlayerCard] Trying to set state. homeState=', scrapedData.homeState, 'current select value=', stateSelect ? stateSelect.value : 'N/A');
-        if (stateSelect && !stateSelect.value) {
+        if (stateSelect) {
+          var oldState = stateSelect.options[stateSelect.selectedIndex]?.text || '';
           var stateToFind = scrapedData.homeState.toLowerCase();
           var foundMatch = false;
           // Find option with EXACT matching text (case-insensitive)
@@ -4165,7 +4174,7 @@
               stateSelect.selectedIndex = i;
               // Dispatch change event to update custom dropdown display
               stateSelect.dispatchEvent(new Event('change', { bubbles: true }));
-              console.log('[DatabasePlayerCard] State matched and set to:', stateSelect.options[i].text);
+              console.log('[DatabasePlayerCard] Set state:', oldState, '->', stateSelect.options[i].text);
               foundMatch = true;
               break;
             }
@@ -4173,36 +4182,32 @@
           if (!foundMatch) {
             console.log('[DatabasePlayerCard] No exact state match found for:', scrapedData.homeState);
           }
-        } else if (stateSelect && stateSelect.value) {
-          console.log('[DatabasePlayerCard] State already has value, not overwriting:', stateSelect.value);
         }
-      } else {
-        console.log('[DatabasePlayerCard] No homeState in scraped data');
       }
       if (scrapedData.height) {
         var heightInput = document.getElementById('dbPlayerHeight');
-        if (heightInput && !heightInput.value) {
+        if (heightInput) {
           // Convert "6-2" to inches (74)
           var heightMatch = scrapedData.height.match(/(\d+)-(\d+)/);
           if (heightMatch) {
             var heightInches = parseInt(heightMatch[1]) * 12 + parseInt(heightMatch[2]);
+            var oldValue = heightInput.value;
             heightInput.value = heightInches;
-            console.log('[DatabasePlayerCard] Set height to:', heightInches, 'from', scrapedData.height);
+            console.log('[DatabasePlayerCard] Set height to:', heightInches, 'from', scrapedData.height, '(was:', oldValue, ')');
           }
-        } else if (heightInput && heightInput.value) {
-          console.log('[DatabasePlayerCard] Height already has value, not overwriting:', heightInput.value);
         }
       }
       if (scrapedData.weight) {
         var weightInput = document.getElementById('dbPlayerWeight');
-        if (weightInput && !weightInput.value) {
+        if (weightInput) {
+          var oldValue = weightInput.value;
           weightInput.value = scrapedData.weight;
-          console.log('[DatabasePlayerCard] Set weight to:', scrapedData.weight);
+          console.log('[DatabasePlayerCard] Set weight to:', scrapedData.weight, '(was:', oldValue, ')');
         }
       }
       if (scrapedData.college) {
         var collegeSelect = document.getElementById('dbPlayerCollege');
-        if (collegeSelect && !collegeSelect.value) {
+        if (collegeSelect) {
           // Normalize college name for matching (handle "St." vs "State" differences)
           var normalizeCollege = function(name) {
             return name.toLowerCase()
@@ -4215,7 +4220,8 @@
           var foundMatch = false;
           var bestMatchIndex = -1;
           var bestMatchType = 0; // 0=none, 1=partial, 2=exact
-          console.log('[DatabasePlayerCard] Looking for college:', scrapedData.college, '-> normalized:', scrapedNorm);
+          var oldValue = collegeSelect.options[collegeSelect.selectedIndex]?.text || '';
+          console.log('[DatabasePlayerCard] Looking for college:', scrapedData.college, '-> normalized:', scrapedNorm, '(current:', oldValue, ')');
 
           // Find best matching option - prefer exact matches over partial
           for (var j = 0; j < collegeSelect.options.length; j++) {
@@ -4239,64 +4245,61 @@
           if (bestMatchIndex >= 0) {
             collegeSelect.selectedIndex = bestMatchIndex;
             collegeSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            console.log('[DatabasePlayerCard] College matched:', scrapedData.college, '->', collegeSelect.options[bestMatchIndex].text, '(type:', bestMatchType === 2 ? 'exact' : 'partial', ')');
+            console.log('[DatabasePlayerCard] College set:', scrapedData.college, '->', collegeSelect.options[bestMatchIndex].text, '(was:', oldValue, ')');
             foundMatch = true;
           }
           if (!foundMatch) {
             console.log('[DatabasePlayerCard] No college match found for:', scrapedData.college);
           }
-        } else if (collegeSelect && collegeSelect.value) {
-          console.log('[DatabasePlayerCard] College already has value, not overwriting:', collegeSelect.value);
         }
       }
 
-      // Fill draft info
+      // Fill draft info - ALWAYS overwrite with scraped data
       if (scrapedData.draftYear) {
         var draftClassInput = document.getElementById('dbPlayerDraftClass');
-        if (draftClassInput && !draftClassInput.value) {
+        if (draftClassInput) {
+          var oldDraftYear = draftClassInput.value;
           draftClassInput.value = scrapedData.draftYear;
-          console.log('[DatabasePlayerCard] Set draft year to:', scrapedData.draftYear);
+          console.log('[DatabasePlayerCard] Set draft year:', oldDraftYear, '->', scrapedData.draftYear);
         }
         var draftRoundInput = document.getElementById('dbPlayerDraftRound');
-        if (draftRoundInput && !draftRoundInput.value) {
+        if (draftRoundInput && scrapedData.draftRound) {
+          var oldDraftRound = draftRoundInput.value;
           draftRoundInput.value = scrapedData.draftRound;
-          console.log('[DatabasePlayerCard] Set draft round to:', scrapedData.draftRound);
+          console.log('[DatabasePlayerCard] Set draft round:', oldDraftRound, '->', scrapedData.draftRound);
         }
         var draftPickInput = document.getElementById('dbPlayerDraftPick');
-        if (draftPickInput && !draftPickInput.value) {
+        if (draftPickInput && scrapedData.draftPick) {
+          var oldDraftPick = draftPickInput.value;
           draftPickInput.value = scrapedData.draftPick;
-          console.log('[DatabasePlayerCard] Set draft pick to:', scrapedData.draftPick);
+          console.log('[DatabasePlayerCard] Set draft pick:', oldDraftPick, '->', scrapedData.draftPick);
         }
       } else if (scrapedData.draftRound === 'UDFA') {
         var draftRoundInput = document.getElementById('dbPlayerDraftRound');
-        if (draftRoundInput && !draftRoundInput.value) {
+        if (draftRoundInput) {
+          var oldDraftRound = draftRoundInput.value;
           draftRoundInput.value = 'UDFA';
-          console.log('[DatabasePlayerCard] Set draft round to: UDFA');
+          console.log('[DatabasePlayerCard] Set draft round:', oldDraftRound, '-> UDFA');
         }
       }
 
-      // Fill career span
+      // Fill career span - ALWAYS overwrite with scraped data
       console.log('[DatabasePlayerCard] Career span data - careerFrom:', scrapedData.careerFrom, 'careerTo:', scrapedData.careerTo);
-      console.log('[DatabasePlayerCard] careerHistory length:', scrapedData.careerHistory ? scrapedData.careerHistory.length : 'undefined');
       if (scrapedData.careerFrom) {
         var careerFromInput = document.getElementById('dbPlayerCareerFrom');
-        console.log('[DatabasePlayerCard] careerFromInput element:', careerFromInput, 'current value:', careerFromInput ? careerFromInput.value : 'N/A');
-        if (careerFromInput && !careerFromInput.value) {
+        if (careerFromInput) {
+          var oldCareerFrom = careerFromInput.value;
           careerFromInput.value = scrapedData.careerFrom;
-          console.log('[DatabasePlayerCard] Set career from to:', scrapedData.careerFrom);
+          console.log('[DatabasePlayerCard] Set career from:', oldCareerFrom, '->', scrapedData.careerFrom);
         }
-      } else {
-        console.log('[DatabasePlayerCard] No careerFrom in scraped data');
       }
       if (scrapedData.careerTo) {
         var careerToInput = document.getElementById('dbPlayerCareerTo');
-        console.log('[DatabasePlayerCard] careerToInput element:', careerToInput, 'current value:', careerToInput ? careerToInput.value : 'N/A');
-        if (careerToInput && !careerToInput.value) {
+        if (careerToInput) {
+          var oldCareerTo = careerToInput.value;
           careerToInput.value = scrapedData.careerTo;
-          console.log('[DatabasePlayerCard] Set career to:', scrapedData.careerTo);
+          console.log('[DatabasePlayerCard] Set career to:', oldCareerTo, '->', scrapedData.careerTo);
         }
-      } else {
-        console.log('[DatabasePlayerCard] No careerTo in scraped data');
       }
 
       // Mark as having changes
@@ -4311,14 +4314,14 @@
       successMsg += ' for ' + playerName + '.';
       alert(successMsg);
 
-      // Reload year selector if seasons were updated
+      // Reload ratings grid if seasons were updated
       if (result.seasonsUpdated > 0) {
-        await loadSeasonYearOptions();
+        await renderRatingsAllYears();
       }
 
     } catch (error) {
-      console.error('[DatabasePlayerCard] PFR fill error:', error);
-      alert('Error filling from PFR: ' + error.message);
+      console.error('[DatabasePlayerCard] PFA fill error:', error);
+      alert('Error filling from PFA: ' + error.message);
     } finally {
       // Reset button state
       if (btn) btn.disabled = false;

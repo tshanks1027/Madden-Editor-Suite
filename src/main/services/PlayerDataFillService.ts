@@ -132,9 +132,11 @@ class PlayerDataFillService {
     const playerName = `${player.firstName} ${player.lastName}`;
 
     try {
-      // Initialize browser and scrape
+      // Initialize browser and scrape from Pro Football Archives ONLY
       await this.scraper.initBrowser();
-      const scrapedData = await this.scraper.scrapePlayerBioExtended(playerName);
+
+      console.log(`[PlayerDataFillService] Scraping PFA for ${playerName}${player.draftYear ? ` (draft ${player.draftYear})` : ''}...`);
+      const scrapedData = await this.scraper.scrapePlayerFromPFA(playerName, player.draftYear);
 
       if (!scrapedData) {
         return {
@@ -153,7 +155,7 @@ class PlayerDataFillService {
             careerFrom: player.careerFrom,
             careerTo: player.careerTo
           },
-          error: 'Player not found on Pro-Football-Reference'
+          error: 'Player not found on Pro Football Archives'
         };
       }
 
@@ -305,66 +307,88 @@ class PlayerDataFillService {
       console.log(`[PlayerDataFillService] Filled homeState from CSV: ${csvPlayer.homeState}`);
     }
 
-    // STEP 2: Only scrape PFR if we still need hometown (city) or other missing data
-    const needsHometown = !player.hometown && !playerEdits.hometown;
-    const needsOtherData = (!player.height && !playerEdits.height) ||
-                           (!player.weight && !playerEdits.weight) ||
-                           (!player.homeState && !playerEdits.homeState);
+    // STEP 2: ALWAYS scrape from PFA and OVERWRITE existing values with scraped data
+    console.log(`[PlayerDataFillService] Scraping PFA for ${playerName}${player.draftYear ? ` (draft ${player.draftYear})` : ''}...`);
 
-    if (needsHometown || needsOtherData) {
-      console.log(`[PlayerDataFillService] Scraping PFR for ${playerName} (needsHometown: ${needsHometown}, needsOtherData: ${needsOtherData})`);
+    try {
+      await this.scraper.initBrowser();
+      const scrapedData = await this.scraper.scrapePlayerFromPFA(playerName, player.draftYear);
 
-      try {
-        await this.scraper.initBrowser();
-        const scrapedData = await this.scraper.scrapePlayerBioExtended(playerName);
+      if (scrapedData) {
+        console.log(`[PlayerDataFillService] Scraped data for ${playerName}:`, JSON.stringify({
+          hometown: scrapedData.hometown,
+          homeState: scrapedData.homeState,
+          height: scrapedData.height,
+          weight: scrapedData.weight,
+          college: scrapedData.college,
+          careerFrom: scrapedData.careerFrom,
+          careerTo: scrapedData.careerTo
+        }));
 
-        if (scrapedData) {
-          console.log(`[PlayerDataFillService] PFR data for ${playerName}:`, JSON.stringify({
-            hometown: scrapedData.hometown,
-            homeState: scrapedData.homeState,
-            height: scrapedData.height,
-            weight: scrapedData.weight,
-            college: scrapedData.college
-          }));
+        // ALWAYS overwrite with scraped data
+        if (scrapedData.hometown) {
+          playerEdits.hometown = scrapedData.hometown;
+          fieldsUpdated.push('hometown');
+        }
 
-          // Fill hometown from PFR (only available from scraping)
-          if (needsHometown && scrapedData.hometown) {
-            playerEdits.hometown = scrapedData.hometown;
-            fieldsUpdated.push('hometown');
+        if (scrapedData.homeState) {
+          playerEdits.homeState = scrapedData.homeState;
+          fieldsUpdated.push('homeState');
+        }
+
+        if (scrapedData.height) {
+          playerEdits.height = this.convertHeightToInches(scrapedData.height);
+          fieldsUpdated.push('height');
+        }
+
+        if (scrapedData.weight) {
+          playerEdits.weight = scrapedData.weight;
+          fieldsUpdated.push('weight');
+        }
+
+        if (scrapedData.college) {
+          const collegeId = await this.lookupCollegeId(scrapedData.college);
+          if (collegeId) {
+            playerEdits.collegeId = collegeId;
+            fieldsUpdated.push('college');
           }
+        }
 
-          // Fill other fields from PFR only if still missing after CSV check
-          if (!player.homeState && !playerEdits.homeState && scrapedData.homeState) {
-            playerEdits.homeState = scrapedData.homeState;
-            fieldsUpdated.push('homeState');
-          }
+        if (scrapedData.careerFrom) {
+          playerEdits.careerFrom = scrapedData.careerFrom;
+          fieldsUpdated.push('careerFrom');
+        }
 
-          if (!player.height && !playerEdits.height && scrapedData.height) {
-            playerEdits.height = this.convertHeightToInches(scrapedData.height);
-            fieldsUpdated.push('height');
-          }
+        if (scrapedData.careerTo) {
+          playerEdits.careerTo = scrapedData.careerTo;
+          fieldsUpdated.push('careerTo');
+        }
 
-          if (!player.weight && !playerEdits.weight && scrapedData.weight) {
-            playerEdits.weight = scrapedData.weight;
-            fieldsUpdated.push('weight');
-          }
+        // Update season team data from careerHistory
+        if (scrapedData.careerHistory && scrapedData.careerHistory.length > 0) {
+          console.log(`[PlayerDataFillService] Updating season teams from career history:`, scrapedData.careerHistory);
 
-          if (!player.college && !playerEdits.collegeId && scrapedData.college) {
-            const collegeId = await this.lookupCollegeId(scrapedData.college);
-            if (collegeId) {
-              playerEdits.collegeId = collegeId;
-              fieldsUpdated.push('college');
+          for (const entry of scrapedData.careerHistory) {
+            if (entry.year && entry.team) {
+              const maddenTeam = this.pfrToMaddenTeam(entry.team);
+              if (maddenTeam) {
+                // Get or create season record for this year
+                const existingSeason = await userDatabaseService.getSeasonEdit(playerId, entry.year);
+                const seasonUpdate: any = existingSeason || {};
+                seasonUpdate.team = maddenTeam;
+
+                await userDatabaseService.saveSeasonEdit(playerId, entry.year, seasonUpdate);
+                seasonsUpdated++;
+                console.log(`[PlayerDataFillService] Updated season ${entry.year} team to ${maddenTeam} (from ${entry.team})`);
+              }
             }
           }
-        } else {
-          console.log(`[PlayerDataFillService] Player not found on PFR: ${playerName}`);
         }
-      } catch (scrapeError: any) {
-        console.log(`[PlayerDataFillService] PFR scrape failed for ${playerName}: ${scrapeError.message}`);
-        // Continue - we may have filled data from CSV already
+      } else {
+        console.log(`[PlayerDataFillService] Player not found on PFA: ${playerName}`);
       }
-    } else {
-      console.log(`[PlayerDataFillService] Skipping PFR scrape for ${playerName} - all data available from CSV`);
+    } catch (scrapeError: any) {
+      console.log(`[PlayerDataFillService] Scrape failed for ${playerName}: ${scrapeError.message}`);
     }
 
     // Save player bio edits if any
@@ -694,6 +718,13 @@ class PlayerDataFillService {
     return 0;
   }
 
+  /**
+   * Convert PFA/PFR team nickname to Madden team abbreviation
+   */
+  private pfrToMaddenTeam(teamName: string): string | null {
+    return this.mapTeamNameToAbbrev(teamName);
+  }
+
   private async lookupCollegeId(collegeName: string): Promise<number | null> {
     try {
       const colleges = await lookupService.getDropdownOptions('college_lookup.csv');
@@ -740,8 +771,8 @@ class PlayerDataFillService {
       'Pittsburgh Steelers': 'PIT', 'Steelers': 'PIT',
       'San Francisco 49ers': 'SF', '49ers': 'SF',
       'Seattle Seahawks': 'SEA', 'Seahawks': 'SEA',
-      'Tampa Bay Buccaneers': 'TB', 'Buccaneers': 'TB',
-      'Tennessee Titans': 'TEN', 'Titans': 'TEN', 'Houston Oilers': 'TEN',
+      'Tampa Bay Buccaneers': 'TB', 'Buccaneers': 'TB', 'Bucs': 'TB',
+      'Tennessee Titans': 'TEN', 'Titans': 'TEN', 'Houston Oilers': 'TEN', 'Oilers': 'TEN',
       'Washington Commanders': 'WAS', 'Commanders': 'WAS', 'Redskins': 'WAS', 'Football Team': 'WAS'
     };
 

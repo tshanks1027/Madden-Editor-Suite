@@ -1123,6 +1123,39 @@ export class ScraperService {
       const searchUrl = `https://www.pro-football-reference.com/search/search.fcgi?search=${encodeURIComponent(playerName)}`;
       await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 15000 });
 
+      // Check if we're on a search results page (not a player page)
+      const currentUrl = page.url();
+      console.log(`[ScraperService] Current URL after search: ${currentUrl}`);
+
+      // If we're still on search page, we need to click the first player result
+      if (currentUrl.includes('/search/')) {
+        console.log(`[ScraperService] On search results page, looking for player link...`);
+
+        // Look for first player link in search results
+        const playerLink = await page.evaluate(() => {
+          // PFR search results have divs with class "search-item-name" or links to /players/
+          const links = document.querySelectorAll('a[href*="/players/"]');
+          for (const link of Array.from(links)) {
+            const href = link.getAttribute('href');
+            if (href && href.includes('/players/') && href.endsWith('.htm')) {
+              return href;
+            }
+          }
+          return null;
+        });
+
+        if (playerLink) {
+          console.log(`[ScraperService] Found player link: ${playerLink}`);
+          const fullUrl = playerLink.startsWith('http')
+            ? playerLink
+            : `https://www.pro-football-reference.com${playerLink}`;
+          await page.goto(fullUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+          console.log(`[ScraperService] Navigated to player page: ${page.url()}`);
+        } else {
+          console.log(`[ScraperService] No player link found in search results`);
+        }
+      }
+
       // Wait for stats table to load (PFR may load it dynamically)
       try {
         await page.waitForSelector('table.stats_table', { timeout: 5000 });
@@ -1469,6 +1502,368 @@ export class ScraperService {
 
     } catch (error) {
       console.warn(`[ScraperService] Could not scrape extended bio for ${playerName}:`, error);
+      await page.close();
+      return null;
+    }
+  }
+
+  /**
+   * Scrape player biographical data from Pro Football Archives (profootballarchives.com)
+   * Better source for historical players, hometown, and state data
+   * @param playerName - Player's full name
+   * @param draftYear - Optional draft year to help narrow search
+   * @returns Extended bio data, or null if not found
+   */
+  async scrapePlayerFromPFA(playerName: string, draftYear?: number): Promise<ExtendedBioData | null> {
+    await this.initBrowser();
+
+    if (!this.browser) {
+      return null;
+    }
+
+    const page = await this.browser.newPage();
+
+    try {
+      console.log(`[ScraperService] Scraping PFA for ${playerName}${draftYear ? ` (draft ${draftYear})` : ''}`);
+
+      let found = false;
+
+      // Method 1: Try direct profile URL - PFA format is /p{firstname}{lastname}.html (all lowercase, no spaces)
+      const nameParts = playerName.toLowerCase().split(/\s+/);
+      const urlFormats = [
+        // Full name no spaces: "johnsmith"
+        nameParts.join(''),
+        // First + Last (skip middle): "johnsmith" for "John Michael Smith"
+        nameParts.length > 2 ? `${nameParts[0]}${nameParts[nameParts.length - 1]}` : null,
+        // Handle Jr/Sr/III suffixes
+        nameParts.filter(p => !['jr', 'sr', 'ii', 'iii', 'iv'].includes(p)).join('')
+      ].filter(Boolean);
+
+      for (const nameFormat of urlFormats) {
+        if (found) break;
+        const searchUrl = `https://www.profootballarchives.com/p${nameFormat}.html`;
+        console.log(`[ScraperService] Trying PFA URL: ${searchUrl}`);
+
+        try {
+          await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+          const pageText = await page.evaluate(() => document.body.innerText);
+          if (pageText.includes('Height:') || pageText.includes('Born:')) {
+            console.log(`[ScraperService] Found player page at ${searchUrl}`);
+            found = true;
+          }
+        } catch (e) {
+          // URL didn't work, try next format
+        }
+      }
+
+      // Method 2: If we have a draft year, search the draft page for the player
+      // This also extracts college from the draft table (which is more reliable than player page)
+      let draftPageCollege: string | null = null;
+
+      if (!found && draftYear && draftYear >= 1936) {
+        console.log(`[ScraperService] Searching ${draftYear} draft page for ${playerName}...`);
+        const draftPageUrl = `https://www.profootballarchives.com/drafts/${draftYear}nfldraft.html`;
+
+        try {
+          await page.goto(draftPageUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+          // Search for player name in draft table and get their profile link + college
+          const draftInfo = await page.evaluate((searchName: string) => {
+            const searchLower = searchName.toLowerCase();
+            const nameParts = searchName.toLowerCase().split(/\s+/);
+            const firstName = nameParts[0];
+            const lastName = nameParts[nameParts.length - 1];
+
+            const rows = document.querySelectorAll('table tr');
+            for (const row of rows) {
+              const cells = row.querySelectorAll('td');
+              if (cells.length >= 5) {
+                const playerLink = cells[3]?.querySelector('a');
+                if (playerLink) {
+                  const linkText = (playerLink.textContent || '').toLowerCase();
+                  // Check if this row matches our player
+                  if (linkText.includes(firstName) && linkText.includes(lastName)) {
+                    const href = playerLink.getAttribute('href');
+                    if (href && href.startsWith('/p')) {
+                      // Get college from column 6 (index 5)
+                      const college = cells[5]?.textContent?.trim() || null;
+                      return { profileUrl: href, college };
+                    }
+                  }
+                }
+              }
+            }
+            return null;
+          }, playerName);
+
+          if (draftInfo?.profileUrl) {
+            console.log(`[ScraperService] Found player in draft page, URL: ${draftInfo.profileUrl}, College: ${draftInfo.college}`);
+            draftPageCollege = draftInfo.college;
+            await page.goto(`https://www.profootballarchives.com${draftInfo.profileUrl}`, { waitUntil: 'networkidle2', timeout: 15000 });
+            found = true;
+          }
+        } catch (e) {
+          console.log(`[ScraperService] Draft page search failed: ${e}`);
+        }
+      }
+
+      // Method 3: Try Google search as last resort
+      if (!found) {
+        console.log(`[ScraperService] Trying Google search for PFA page...`);
+        const googleUrl = `https://www.google.com/search?q=site:profootballarchives.com+${encodeURIComponent(playerName)}`;
+
+        try {
+          await page.goto(googleUrl, { waitUntil: 'networkidle2', timeout: 15000 });
+
+          const pfaLink = await page.evaluate(() => {
+            const links = document.querySelectorAll('a');
+            for (const link of links) {
+              const href = link.getAttribute('href') || '';
+              if (href.includes('profootballarchives.com') && href.includes('/p')) {
+                // Extract actual URL from Google redirect
+                const match = href.match(/url=([^&]+)/);
+                if (match) {
+                  return decodeURIComponent(match[1]);
+                }
+                if (href.startsWith('http')) {
+                  return href;
+                }
+              }
+            }
+            return null;
+          });
+
+          if (pfaLink) {
+            console.log(`[ScraperService] Found via Google: ${pfaLink}`);
+            await page.goto(pfaLink, { waitUntil: 'networkidle2', timeout: 15000 });
+            found = true;
+          }
+        } catch (e) {
+          console.log(`[ScraperService] Google search failed: ${e}`);
+        }
+      }
+
+      if (!found) {
+        console.log(`[ScraperService] Player not found on PFA: ${playerName}`);
+        await page.close();
+        return null;
+      }
+
+      // Extract RAW data from PFA player page - EXACT same patterns as test-pfa-scraper.js
+      // Processing of hometown/state happens OUTSIDE page.evaluate
+      const rawData = await page.evaluate(() => {
+        const text = document.body.innerText;
+        const result: {
+          height?: string;
+          weight?: string;
+          birthDate?: string;
+          birthPlace?: string;
+          highSchool?: string;
+          careerFrom?: number;
+          careerTo?: number;
+          teams?: string;
+          careerHistory?: Array<{year: number, team: string}>;
+        } = {};
+
+        // Height: 6-8 Weight: 290 (EXACT pattern from test-pfa-scraper.js line 267)
+        const heightWeightMatch = text.match(/Height:\s*(\d+-\d+)\s*Weight:\s*(\d+)/i);
+        if (heightWeightMatch) {
+          result.height = heightWeightMatch[1].trim();
+          result.weight = heightWeightMatch[2].trim();
+        }
+
+        // Born: October 25, 1950 Milwaukee, WI (EXACT pattern from test-pfa-scraper.js line 275)
+        // IMPORTANT: birthPlace must be a real city, NOT "High School" or other keywords
+        const bornMatch = text.match(/Born:\s*(\w+\s+\d+,\s*\d{4})\s+([^,\n]+,\s*\w{2})/i);
+        if (bornMatch) {
+          result.birthDate = bornMatch[1].trim();
+          const potentialPlace = bornMatch[2].trim();
+          // Only set birthPlace if it's a real city (not "High School", "College", etc.)
+          if (!potentialPlace.toLowerCase().includes('high school') &&
+              !potentialPlace.toLowerCase().includes('college') &&
+              !potentialPlace.toLowerCase().includes('position')) {
+            result.birthPlace = potentialPlace;
+          }
+        } else {
+          // Try just date
+          const dateOnlyMatch = text.match(/Born:\s*(\w+\s+\d+,\s*\d{4})/i);
+          if (dateOnlyMatch) {
+            result.birthDate = dateOnlyMatch[1].trim();
+          }
+        }
+
+        // High School: Oak Creek (WI) (EXACT pattern from test-pfa-scraper.js line 288)
+        const highSchoolMatch = text.match(/High School:\s*([^\n]+)/i);
+        if (highSchoolMatch) {
+          result.highSchool = highSchoolMatch[1].trim();
+        }
+
+        // Career years from stats table (EXACT pattern from test-pfa-scraper.js line 294)
+        const yearMatches = text.match(/\b(19[6-9]\d|200\d|201\d|202[0-5])\b/g);
+        if (yearMatches) {
+          const yearCounts: Record<number, number> = {};
+          yearMatches.forEach((y: string) => {
+            const yr = parseInt(y);
+            yearCounts[yr] = (yearCounts[yr] || 0) + 1;
+          });
+
+          const careerYears = Object.keys(yearCounts)
+            .map(y => parseInt(y))
+            .filter(y => y >= 1960 && y <= 2025 && yearCounts[y] >= 2)
+            .sort((a, b) => a - b);
+
+          if (careerYears.length >= 1) {
+            result.careerFrom = Math.min(...careerYears);
+            result.careerTo = Math.max(...careerYears);
+          }
+        }
+
+        // Extract teams (EXACT pattern from test-pfa-scraper.js line 388)
+        const teamPattern = /\b(Oilers|Chiefs|Raiders|Colts|Eagles|Patriots|Cardinals|Bears|Broncos|Bills|Bengals|Browns|Buccaneers|Chargers|Cowboys|Dolphins|Falcons|49ers|Giants|Jets|Lions|Packers|Panthers|Ravens|Redskins|Commanders|Saints|Seahawks|Steelers|Texans|Titans|Vikings|Rams)\b/g;
+        const teamMatches = text.match(teamPattern);
+        if (teamMatches) {
+          result.teams = [...new Set(teamMatches)].join(', ');
+        }
+
+        // Extract year-by-year career history from stats table
+        // Format: "1973  Houston Oilers  RDT  16  16" or "2023 New York Jets"
+        // Look for: YEAR followed by city/team name followed by team nickname
+        const yearTeamData: Array<{year: number, team: string}> = [];
+        const teamNames = ['Oilers', 'Chiefs', 'Raiders', 'Colts', 'Eagles', 'Patriots', 'Cardinals',
+                          'Bears', 'Broncos', 'Bills', 'Bengals', 'Browns', 'Buccaneers', 'Chargers',
+                          'Cowboys', 'Dolphins', 'Falcons', '49ers', 'Giants', 'Jets', 'Lions',
+                          'Packers', 'Panthers', 'Ravens', 'Redskins', 'Commanders', 'Saints',
+                          'Seahawks', 'Steelers', 'Texans', 'Titans', 'Vikings', 'Rams'];
+        const teamNamesPattern = teamNames.join('|');
+
+        // Pattern matches: "YEAR  City Team  ..." or "YEAR Team Name (NFL)"
+        const yearTeamPattern = new RegExp(
+          `\\b(19[6-9]\\d|20[0-2]\\d)\\s+([A-Za-z.\\s]+?)\\s*(${teamNamesPattern})\\b`,
+          'gi'
+        );
+
+        let yearTeamMatch;
+        while ((yearTeamMatch = yearTeamPattern.exec(text)) !== null) {
+          const year = parseInt(yearTeamMatch[1]);
+          const teamNickname = yearTeamMatch[3];
+          if (year >= 1960 && year <= 2030) {
+            yearTeamData.push({ year, team: teamNickname });
+          }
+        }
+
+        // Deduplicate by year (keep first occurrence which is typically the main team)
+        const seenYears = new Set<number>();
+        result.careerHistory = [];
+        for (const entry of yearTeamData) {
+          if (!seenYears.has(entry.year)) {
+            seenYears.add(entry.year);
+            result.careerHistory.push(entry);
+          }
+        }
+
+        return result;
+      });
+
+      console.log(`[ScraperService] Raw PFA data:`, rawData);
+
+      // Process hometown/state OUTSIDE page.evaluate (same as extractHometown in test-pfa-scraper.js)
+      const extractHometown = (birthPlace?: string, highSchool?: string): { city?: string; state?: string } => {
+        // State abbreviation to full name mapping
+        const stateMap: Record<string, string> = {
+          'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+          'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+          'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+          'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+          'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+          'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+          'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+          'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+          'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+          'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+          'DC': 'District of Columbia'
+        };
+        const foreignCodes = new Set(['AU', 'JA', 'IT', 'PO', 'UK', 'GE', 'EN', 'BR', 'NG', 'ME', 'PR']);
+
+        // Try birthPlace first: "City, ST"
+        if (birthPlace) {
+          const parts = birthPlace.split(',').map(p => p.trim());
+          if (parts.length >= 2) {
+            const stateAbbr = parts[1].toUpperCase();
+            const stateName = foreignCodes.has(stateAbbr) ? 'Non-US' : (stateMap[stateAbbr] || stateAbbr);
+            return { city: parts[0], state: stateName };
+          }
+        }
+
+        // Fall back to high school: "School Name (City, ST)" or "School Name (ST)"
+        if (highSchool) {
+          const parenMatch = highSchool.match(/\(([^)]+)\)/);
+          if (parenMatch) {
+            const inner = parenMatch[1];
+            if (inner.includes(',')) {
+              const parts = inner.split(',').map(p => p.trim());
+              const stateAbbr = parts[1].toUpperCase();
+              const stateName = foreignCodes.has(stateAbbr) ? 'Non-US' : (stateMap[stateAbbr] || stateAbbr);
+              return { city: parts[0], state: stateName };
+            } else {
+              // Just state abbreviation like "(WI)"
+              const stateAbbr = inner.trim().toUpperCase();
+              const stateName = foreignCodes.has(stateAbbr) ? 'Non-US' : (stateMap[stateAbbr] || stateAbbr);
+              // Use school name without parentheses as city approximation
+              const schoolName = highSchool.replace(/\s*\([^)]+\)/, '').trim();
+              return { city: schoolName, state: stateName };
+            }
+          }
+        }
+
+        return {};
+      };
+
+      // Parse height to inches (same as parseHeight in test-pfa-scraper.js)
+      const parseHeight = (heightStr?: string): number | undefined => {
+        if (!heightStr) return undefined;
+        const match = heightStr.match(/(\d+)-(\d+)/);
+        if (match) {
+          return parseInt(match[1]) * 12 + parseInt(match[2]);
+        }
+        return undefined;
+      };
+
+      // Build final bio data
+      const hometown = extractHometown(rawData.birthPlace, rawData.highSchool);
+      const bioData: any = {
+        height: rawData.height,
+        weight: rawData.weight ? parseInt(rawData.weight) : undefined,
+        heightInches: parseHeight(rawData.height),
+        birthDate: rawData.birthDate,
+        birthPlace: rawData.birthPlace,
+        highSchool: rawData.highSchool,
+        hometown: hometown.city,
+        homeState: hometown.state,
+        careerFrom: rawData.careerFrom,
+        careerTo: rawData.careerTo,
+        teams: rawData.teams,
+        careerHistory: rawData.careerHistory || [],
+        college: draftPageCollege || undefined // College comes from draft page
+      };
+
+      console.log(`[ScraperService] Processed PFA data:`, bioData);
+      if (bioData.careerHistory && bioData.careerHistory.length > 0) {
+        console.log(`[ScraperService] Career history:`, bioData.careerHistory);
+      }
+
+      // Check if we actually got useful data - if not, return null to trigger PFR fallback
+      const hasUsefulData = bioData.hometown || bioData.homeState || bioData.height || bioData.weight || bioData.college;
+      if (!hasUsefulData) {
+        console.log(`[ScraperService] PFA returned no useful data for ${playerName}, returning null for fallback`);
+        await page.close();
+        return null;
+      }
+
+      await page.close();
+      return bioData as ExtendedBioData;
+
+    } catch (error) {
+      console.warn(`[ScraperService] Could not scrape PFA for ${playerName}:`, error);
       await page.close();
       return null;
     }
