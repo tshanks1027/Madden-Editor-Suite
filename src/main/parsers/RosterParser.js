@@ -402,6 +402,81 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
       throw new Error('No roster file data available - must load before saving');
     }
 
+    // ========== DEBUG: COMPREHENSIVE EQUIPMENT TRACKING ==========
+    // Helper function to get ALL equipment slots for a BLBM record
+    function getEquipmentSnapshot(blbmRec) {
+      const f = blbmRec.fields || blbmRec._fields;
+      const lout = f?.LOUT?.value;
+      if (!lout || !lout._records) return null;
+
+      const onField = lout._records.find(r => {
+        const rf = r.fields || r._fields;
+        return rf?.LDTY?.value === 1 || rf?.LDTY?._value === 1;
+      });
+      if (!onField) return null;
+
+      const pins = (onField.fields || onField._fields)?.PINS?.value;
+      if (!pins || !pins._records) return null;
+
+      const equipment = {};
+      for (const pinRec of pins._records) {
+        const pf = pinRec.fields || pinRec._fields;
+        const slot = pf?.SLOT?.value ?? pf?.SLOT?._value;
+        const itan = pf?.ITAN?.value ?? pf?.ITAN?._value;
+        if (slot !== undefined) {
+          equipment[slot] = itan || '';
+        }
+      }
+      return equipment;
+    }
+
+    console.log('[RosterParser] ========== EQUIPMENT TRACKING: INITIAL STATE ==========');
+    console.log(`[RosterParser] Players array length: ${players.length}`);
+
+    // Get BLBM records
+    const debugBlob = file.BLOB?.records?.[0];
+    const debugBlbm = debugBlob?.fields?.BLBM?.value;
+    const debugBlbmRecords = debugBlbm?._records || [];
+    console.log(`[RosterParser] BLBM records count: ${debugBlbmRecords.length}`);
+
+    // Track first 10 BLBM records' equipment throughout save
+    // We'll compare this at the end to see what changed
+    const trackedEquipment = {};
+    console.log('[RosterParser] TRACKING first 10 BLBM records equipment:');
+    for (let i = 0; i < Math.min(10, debugBlbmRecords.length); i++) {
+      const rec = debugBlbmRecords[i];
+      const f = rec.fields || rec._fields;
+      const cfnm = f?.CFNM?.value ?? f?.CFNM?._value ?? '';
+      const clnm = f?.CLNM?.value ?? f?.CLNM?._value ?? '';
+      const blbmIndex = rec.index;
+      const equip = getEquipmentSnapshot(rec);
+
+      trackedEquipment[i] = {
+        name: `${cfnm} ${clnm}`,
+        blbmIndex: blbmIndex,
+        initialEquipment: equip ? JSON.stringify(equip) : 'NO_EQUIPMENT'
+      };
+
+      // Show visor (slot 2) and jersey style (slot 125) as representative slots
+      const visor = equip?.[2] || 'N/A';
+      const jersey = equip?.[125] || 'N/A';
+      console.log(`  BLBM[${i}] ${cfnm} ${clnm} (index=${blbmIndex}): visor="${visor}", jersey="${jersey}"`);
+    }
+
+    // Show what players are in the UI array (first 10)
+    console.log('[RosterParser] UI players array (first 10):');
+    for (let i = 0; i < Math.min(10, players.length); i++) {
+      const p = players[i];
+      console.log(`  players[${i}]: ${p.PFNA} ${p.PLNA} POID=${p.POID}, PGID=${p.PGID}`);
+    }
+
+    // Find if any player was DELETED (BLBM has more records than players array)
+    if (debugBlbmRecords.length > players.length) {
+      console.log(`[RosterParser] !!! DELETION DETECTED: ${debugBlbmRecords.length - players.length} fewer players than BLBM records`);
+    }
+
+    console.log('[RosterParser] ========== END INITIAL STATE ==========');
+
     // CRITICAL: Apply any pending equipment changes to the file
     // This is necessary because equipment changes are queued separately and
     // we just reloaded a fresh copy of the file (discarding in-memory changes)
@@ -475,9 +550,43 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
       console.log('[RosterParser] SAVE DEBUG - Will map PKPW to PKPR for save');
     }
 
-    for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
-      const record = playerTable.records[i];
+    // CRITICAL FIX: Build a POID -> record index map for stable lookups
+    // This ensures we write each player's data to the correct record slot
+    // even if players were deleted from the UI array (which shifts indices)
+    const poidToRecordIndex = new Map();
+    for (let i = 0; i < playerTable.records.length; i++) {
+      const poid = playerTable.records[i].fields?.POID?.value;
+      if (poid !== undefined) {
+        poidToRecordIndex.set(poid, i);
+      }
+    }
+    console.log('[RosterParser] Built POID->record map with', poidToRecordIndex.size, 'entries');
+
+    let playersMatched = 0;
+    let playersUnmatched = 0;
+
+    for (let i = 0; i < players.length; i++) {
       const playerData = players[i];
+
+      // Find the correct record by POID (stable identifier)
+      const playerPoid = playerData.POID;
+      let recordIndex = poidToRecordIndex.get(playerPoid);
+
+      // Fallback to array index if POID not found (shouldn't happen normally)
+      if (recordIndex === undefined) {
+        console.warn(`[RosterParser] WARNING: No record found for POID ${playerPoid} (${playerData.PFNA} ${playerData.PLNA}), using index ${i}`);
+        recordIndex = i;
+        playersUnmatched++;
+      } else {
+        playersMatched++;
+      }
+
+      if (recordIndex >= playerTable.records.length) {
+        console.warn(`[RosterParser] Record index ${recordIndex} exceeds table size, skipping player`);
+        continue;
+      }
+
+      const record = playerTable.records[recordIndex];
 
       // Update each field (exclude PLAYERPIC - it's a virtual field for display only)
       for (const fieldName in playerData) {
@@ -512,47 +621,47 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
           // Log field mapping when it differs
           if (fieldName !== targetFieldName && oldValue !== newValue) {
-            console.log(`[RosterParser] Player ${i}: Mapped ${fieldName} -> ${targetFieldName}: ${oldValue} -> ${newValue}`);
+            console.log(`[RosterParser] Record ${recordIndex}: Mapped ${fieldName} -> ${targetFieldName}: ${oldValue} -> ${newValue}`);
           }
 
           // Log PEPS changes
           if (targetFieldName === 'PEPS' && oldValue !== newValue) {
-            console.log(`[RosterParser] Player ${i}: PEPS changed from "${oldValue}" to "${newValue}"`);
+            console.log(`[RosterParser] Record ${recordIndex}: PEPS changed from "${oldValue}" to "${newValue}"`);
           }
           // Log PGHE changes (face model)
           if (fieldName === 'PGHE' && oldValue !== newValue) {
-            console.log(`[RosterParser] Player ${i}: PGHE changed from ${oldValue} to ${newValue}`);
+            console.log(`[RosterParser] Record ${recordIndex}: PGHE changed from ${oldValue} to ${newValue}`);
           }
           // Log PHAN changes (handedness) - DEBUG for save issue
           if (fieldName === 'PHAN' && oldValue !== newValue) {
-            console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PHAN changed from ${oldValue} to ${newValue}`);
+            console.log(`[RosterParser] Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PHAN changed from ${oldValue} to ${newValue}`);
           }
           // Log PROL changes (dev trait) - DEBUG
           if (fieldName === 'PROL' && oldValue !== newValue) {
-            console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PROL changed from ${oldValue} to ${newValue}`);
+            console.log(`[RosterParser] Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PROL changed from ${oldValue} to ${newValue}`);
           }
           // Log PCBT changes (body type) - DEBUG
           if (fieldName === 'PCBT') {
-            console.log(`[RosterParser] *** PCBT SAVE DEBUG *** Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PCBT file=${oldValue}, incoming=${newValue}, changed=${oldValue !== newValue}`);
+            console.log(`[RosterParser] *** PCBT SAVE DEBUG *** Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PCBT file=${oldValue}, incoming=${newValue}, changed=${oldValue !== newValue}`);
           }
           // Log PLPL changes (generic/real face indicator) - DEBUG for PAM-only mode
           if (fieldName === 'PLPL' && oldValue !== newValue) {
-            console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PLPL changed from ${oldValue} to ${newValue}`);
+            console.log(`[RosterParser] Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PLPL changed from ${oldValue} to ${newValue}`);
           }
           // Log PSKI changes (body skin index) - DEBUG for face picker skin sync
           if (fieldName === 'PSKI' && oldValue !== newValue) {
-            console.log(`[RosterParser] Player ${i} (${playerData.PFNA} ${playerData.PLNA}): PSKI changed from ${oldValue} to ${newValue}`);
+            console.log(`[RosterParser] Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PSKI changed from ${oldValue} to ${newValue}`);
           }
 
           fieldsUpdated++;
         } else if (fieldName === 'PEPS') {
-          console.log(`[RosterParser] WARNING: Player ${i} has no PEPS field in record!`);
+          console.log(`[RosterParser] WARNING: Record ${recordIndex} has no PEPS field!`);
         } else if (fieldName === 'PHAN') {
-          console.log(`[RosterParser] WARNING: Player ${i} has no PHAN field in record! Value would be: ${playerData[fieldName]}`);
+          console.log(`[RosterParser] WARNING: Record ${recordIndex} has no PHAN field! Value would be: ${playerData[fieldName]}`);
         } else if (fieldName === 'PLRC') {
-          console.log(`[RosterParser] WARNING: Player ${i} has no PLRC field in record! Value would be: ${playerData[fieldName]}`);
+          console.log(`[RosterParser] WARNING: Record ${recordIndex} has no PLRC field! Value would be: ${playerData[fieldName]}`);
           // List available fields for debugging
-          if (i === 0) {
+          if (recordIndex === 0) {
             console.log(`[RosterParser] Available record fields:`, Object.keys(record.fields).join(', '));
           }
         }
@@ -560,15 +669,17 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     }
 
     console.log('[RosterParser] Updated', fieldsUpdated, 'field values');
+    console.log('[RosterParser] POID matching: ', playersMatched, 'matched,', playersUnmatched, 'unmatched');
     console.log('[RosterParser] Original record has', Object.keys(playerTable.records[0].fields).length, 'fields - all preserved');
 
-    // CRITICAL FIX: Set POID = PGID for all players
+    // CRITICAL FIX: Set POID = PGID for all records in file
     // The game links PLAY records to BLBM records by finding BLBM[].index === POID
     // Our BLBM records have .index === PGID, so POID MUST equal PGID for proper visual linkage
     // Without this fix, players get wrong faces because the game can't find their BLBM record
+    // NOTE: Iterate ALL file records, not just players.length (which may be smaller after deletions)
     console.log('[RosterParser] *** POID FIX: Setting POID = PGID for proper BLBM linkage ***');
     let poidFixedCount = 0;
-    for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
+    for (let i = 0; i < playerTable.records.length; i++) {
       const record = playerTable.records[i];
       const poidField = record.fields['POID'];
       const pgidField = record.fields['PGID'];
@@ -603,8 +714,17 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     const blbmField = blobTable?.fields?.BLBM?.value;
     const blbmRecords = blbmField?.records || blbmField?._records || [];
 
+    // Build POID -> player map for correct lookups after deletions
+    const poidToPlayer = new Map();
+    for (const player of players) {
+      if (player.POID !== undefined && player.POID !== null) {
+        poidToPlayer.set(player.POID, player);
+      }
+    }
+
     let portraitFixedCount = 0;
-    for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
+    // NOTE: Iterate ALL file records, not just players.length (which may be smaller after deletions)
+    for (let i = 0; i < playerTable.records.length; i++) {
       const record = playerTable.records[i];
       const psxpField = record.fields['PSXP'];
       const pepsField = record.fields['PEPS'];
@@ -619,14 +739,15 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
         // If this is a custom portrait PID with empty PEPS, fix it
         if (psxp >= CUSTOM_PORTRAIT_PID_START && (!currentPeps || currentPeps.length === 0)) {
-          // CRITICAL FIX: Use assignedGenr from player data if available (set by face picker)
-          // This takes priority over BLBM.GENR which might not have been updated yet
-          const playerAssignedGenr = players[i]?.assignedGenr;
+          // CRITICAL FIX: Find player by POID, not by array index!
+          // After deletions, players[i] doesn't correspond to record[i]
+          const player = poidToPlayer.get(poid);
+          const playerAssignedGenr = player?.assignedGenr;
           let genr = null;
 
           if (playerAssignedGenr && typeof playerAssignedGenr === 'string' && playerAssignedGenr.startsWith('gen_')) {
             genr = playerAssignedGenr;
-            console.log(`[RosterParser] Portrait fix: Using assignedGenr="${genr}" for player ${i}`);
+            console.log(`[RosterParser] Portrait fix: Using assignedGenr="${genr}" for POID ${poid}`);
           } else {
             // Fallback to BLBM.GENR
             const blbmRec = blbmRecords.find(r => r.index === poid);
@@ -639,7 +760,7 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
           if (genr && genr.length > 0) {
             // Set PEPS = GENR
             pepsField.value = genr;
-            if (players[i]) players[i].PEPS = genr;
+            if (player) player.PEPS = genr;
 
             // Set BLBM.ASNM = GENR
             const blbmRec = blbmRecords.find(r => r.index === poid);
@@ -654,9 +775,9 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
             // Set PLPL=100, PGHE=0
             plplField.value = 100;
             pgheField.value = 0;
-            if (players[i]) {
-              players[i].PLPL = 100;
-              players[i].PGHE = 0;
+            if (player) {
+              player.PLPL = 100;
+              player.PGHE = 0;
             }
 
             portraitFixedCount++;
@@ -672,17 +793,42 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
     // CRITICAL FIX: Disable unused record slots to prevent blank QBs appearing
     // Setting PTEN=0 should disable the player slot. Also distribute positions to avoid QB flood.
+    // IMPORTANT: We must identify unused records by POID, not by array index!
+    // When a player is deleted, the players array shifts but file records don't.
+    // Using array index would incorrectly disable records that are still in use.
     let disabledSlots = 0;
     if (players.length < playerTable.records.length) {
       const slotsToDisable = playerTable.records.length - players.length;
-      console.log(`[RosterParser] *** DISABLING ${slotsToDisable} UNUSED SLOTS (PTEN=0) ***`);
+      console.log(`[RosterParser] *** DISABLING ${slotsToDisable} UNUSED SLOTS (by POID matching) ***`);
+
+      // Build set of POIDs that are STILL IN USE (in players array)
+      const activePoids = new Set();
+      for (const player of players) {
+        if (player.POID !== undefined && player.POID !== null) {
+          activePoids.add(player.POID);
+        }
+      }
+      console.log(`[RosterParser] Active POIDs count: ${activePoids.size}`);
 
       // Cycle through non-QB positions for empty slots
       const positions = [19, 20, 21]; // K, P, LS - least visible positions
       let posIndex = 0;
 
-      for (let i = players.length; i < playerTable.records.length; i++) {
+      // Iterate ALL records and disable only those whose POID is NOT in activePoids
+      for (let i = 0; i < playerTable.records.length; i++) {
         const record = playerTable.records[i];
+        const recordPoid = record.fields['POID']?.value;
+
+        // Skip records that are still in use (their POID is in activePoids)
+        if (recordPoid !== undefined && activePoids.has(recordPoid)) {
+          continue;
+        }
+
+        // This record is NOT in the players array - disable it
+        const playerName = `${record.fields['PFNA']?.value || ''} ${record.fields['PLNA']?.value || ''}`.trim();
+        if (disabledSlots < 5) {
+          console.log(`[RosterParser] Disabling unused record[${i}]: POID=${recordPoid}, name="${playerName}"`);
+        }
 
         // DISABLE the player slot
         if (record.fields['PTEN']) record.fields['PTEN'].value = 0; // Player NOT enabled
@@ -715,7 +861,7 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
         posIndex++;
       }
 
-      console.log(`[RosterParser] Disabled ${disabledSlots} unused slots (PTEN=0, distributed to K/P/LS positions)`);
+      console.log(`[RosterParser] Disabled ${disabledSlots} unused slots (PTEN=0, by POID matching)`);
     }
 
     // Track results for debugging
@@ -782,9 +928,12 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
           console.log('[RosterParser] Writing PLRC updates back to PLAY table...');
           let plrcWritten = 0;
           let plrcDebugCount = 0;
-          for (let i = 0; i < players.length && i < playerTable.records.length; i++) {
+          // Use POID matching to find correct record (handles player deletions)
+          for (let i = 0; i < players.length; i++) {
             const player = players[i];
-            const record = playerTable.records[i];
+            const recordIdx = poidToRecordIndex.get(player.POID);
+            if (recordIdx === undefined) continue;
+            const record = playerTable.records[recordIdx];
             const playerName = `${player.PFNA || ''} ${player.PLNA || ''}`.trim();
 
             // DEBUG: Log first 5 players to understand the comparison
@@ -883,8 +1032,17 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
 
         if (objs.length > 0) {
           // Update each JSON object that contains a bodyType property
-          for (let idx = 0; idx < objs.length && idx < players.length; idx++) {
-            const pos = objs[idx];
+          // NOTE: FBCHUNKS JSON objects are in the same order as PLAY table records
+          // So we iterate through players and use their POID to find the correct objs index
+          for (let i = 0; i < players.length; i++) {
+            const player = players[i];
+            if (!player) continue;
+
+            // Find the correct file record index via POID
+            const recordIdx = poidToRecordIndex.get(player.POID);
+            if (recordIdx === undefined || recordIdx >= objs.length) continue;
+
+            const pos = objs[recordIdx];
             const sub = s.slice(pos.start, pos.end);
             let parsed = null;
             try {
@@ -894,8 +1052,6 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
             }
 
             if (parsed && Object.prototype.hasOwnProperty.call(parsed, 'bodyType')) {
-              const player = players[idx];
-              if (!player) continue;
 
               // Sync bodyType from PLAY.PCBT
               parsed.bodyType = player.PCBT;
@@ -971,6 +1127,62 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
       console.warn('[RosterParser] Failed to sync FBCHUNKS visuals JSON:', e.message);
     }
 
+    // ========== DEBUG: COMPARE EQUIPMENT BEFORE vs AFTER ==========
+    console.log('[RosterParser] ========== EQUIPMENT COMPARISON: INITIAL vs FINAL ==========');
+    const finalBlob = file.BLOB?.records?.[0];
+    const finalBlbm = finalBlob?.fields?.BLBM?.value;
+    const finalBlbmRecords = finalBlbm?._records || [];
+
+    let equipmentChanged = 0;
+    let equipmentUnchanged = 0;
+    let blbmIndexChanged = 0;
+    let nameChanged = 0;
+
+    console.log('[RosterParser] Comparing first 10 BLBM records (INITIAL vs FINAL):');
+    for (let i = 0; i < Math.min(10, finalBlbmRecords.length); i++) {
+      const rec = finalBlbmRecords[i];
+      const f = rec.fields || rec._fields;
+      const cfnm = f?.CFNM?.value ?? f?.CFNM?._value ?? '';
+      const clnm = f?.CLNM?.value ?? f?.CLNM?._value ?? '';
+      const blbmIndex = rec.index;
+      const finalEquip = getEquipmentSnapshot(rec);
+      const finalEquipStr = finalEquip ? JSON.stringify(finalEquip) : 'NO_EQUIPMENT';
+
+      const tracked = trackedEquipment[i];
+      const initialEquipStr = tracked?.initialEquipment || 'NOT_TRACKED';
+      const initialName = tracked?.name || 'NOT_TRACKED';
+      const initialBlbmIndex = tracked?.blbmIndex;
+
+      // Check what changed
+      const equipChanged = initialEquipStr !== finalEquipStr;
+      const indexChanged = initialBlbmIndex !== blbmIndex;
+      const nmChanged = initialName !== `${cfnm} ${clnm}`;
+
+      if (equipChanged) equipmentChanged++;
+      else equipmentUnchanged++;
+      if (indexChanged) blbmIndexChanged++;
+      if (nmChanged) nameChanged++;
+
+      // Get visor (slot 2) for display
+      const initialVisor = tracked?.initialEquipment !== 'NO_EQUIPMENT' && tracked?.initialEquipment !== 'NOT_TRACKED'
+        ? JSON.parse(tracked.initialEquipment)[2] || 'none' : 'N/A';
+      const finalVisor = finalEquip?.[2] || 'none';
+
+      const status = equipChanged ? '!!! CHANGED !!!' : 'unchanged';
+      console.log(`  BLBM[${i}]: ${status}`);
+      console.log(`    Name: "${initialName}" -> "${cfnm} ${clnm}" ${nmChanged ? '(CHANGED!)' : ''}`);
+      console.log(`    Index: ${initialBlbmIndex} -> ${blbmIndex} ${indexChanged ? '(CHANGED!)' : ''}`);
+      console.log(`    Visor: "${initialVisor}" -> "${finalVisor}"`);
+      if (equipChanged) {
+        console.log(`    FULL INITIAL: ${initialEquipStr.substring(0, 200)}`);
+        console.log(`    FULL FINAL:   ${finalEquipStr.substring(0, 200)}`);
+      }
+    }
+
+    console.log(`[RosterParser] SUMMARY: Equipment changed=${equipmentChanged}, unchanged=${equipmentUnchanged}`);
+    console.log(`[RosterParser] SUMMARY: BLBM.index changed=${blbmIndexChanged}, names changed=${nameChanged}`);
+    console.log('[RosterParser] ========== END EQUIPMENT COMPARISON ==========');
+
     // Save using MaddenRosterHelper
     await helper.save(filePath);
 
@@ -1037,12 +1249,18 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
             if (objs.length === 0) continue;
 
             // Update appearance objects matching players[]
+            // NOTE: Use POID to find correct record index (handles player deletions)
             let modified = false;
-            for (let idx = 0; idx < objs.length && idx < players.length; idx++) {
-              const item = objs[idx];
+            for (let i = 0; i < players.length; i++) {
+              const player = players[i];
+              if (!player) continue;
+
+              // Find the correct file record index via POID
+              const recordIdx = poidToRecordIndex.get(player.POID);
+              if (recordIdx === undefined || recordIdx >= objs.length) continue;
+
+              const item = objs[recordIdx];
               if (Object.prototype.hasOwnProperty.call(item.json, 'bodyType')) {
-                const player = players[idx];
-                if (!player) continue;
                 item.json.bodyType = player.PCBT;
                 const pwgt = player.PWGT;
                 const actualWeight = (pwgt !== undefined && pwgt !== null) ? (pwgt + 160) : null;
@@ -2282,25 +2500,40 @@ const EQUIPMENT_OPTIONS = {
 };
 
 /**
- * Get equipment data for a player by index
- * @param {number} playerIndex - The player index in the roster
+ * Get equipment data for a player by POID
+ * @param {number} poidOrIndex - The player's POID (preferred) or legacy index
  * @returns {Object} Equipment slot values
  */
-function getPlayerEquipment(playerIndex) {
+function getPlayerEquipment(poidOrIndex) {
   const file = global.rosterFile;
   if (!file) {
     console.error('[RosterParser] No roster file loaded');
     return null;
   }
 
-  // Get player's POID from PLAY table
+  // Get player's POID - either directly passed or find from PLAY table
   const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
-  const playerRec = playTable?.records?.[playerIndex];
-  if (!playerRec) {
-    console.error('[RosterParser] Could not find player at index', playerIndex);
-    return null;
+
+  let poid;
+
+  // First, try to find a PLAY record with this POID directly
+  // This handles the case where POID is passed directly
+  const directMatch = playTable?.records?.find(r => r.POID === poidOrIndex);
+  if (directMatch) {
+    poid = poidOrIndex;
+    const playerName = `${directMatch.PFNA || ''} ${directMatch.PLNA || ''}`.trim();
+    console.log(`[RosterParser] getPlayerEquipment: Found direct POID match: ${poid} (${playerName})`);
+  } else {
+    // Legacy fallback: treat as array index (but this is unreliable after deletions)
+    const playerRec = playTable?.records?.[poidOrIndex];
+    if (!playerRec) {
+      console.error('[RosterParser] Could not find player with POID or at index', poidOrIndex);
+      return null;
+    }
+    poid = playerRec.POID;
+    const playerName = `${playerRec.PFNA || ''} ${playerRec.PLNA || ''}`.trim();
+    console.log(`[RosterParser] getPlayerEquipment: Using legacy index ${poidOrIndex}, POID: ${poid} (${playerName})`);
   }
-  const poid = playerRec.POID;
 
   const blob = file.BLOB?.records?.[0];
   const blbm = blob?.fields?.BLBM?.value;
@@ -2366,26 +2599,40 @@ function getPlayerEquipment(playerIndex) {
 }
 
 /**
- * Set equipment for a player by index
- * @param {number} playerIndex - The player index in the roster
+ * Set equipment for a player by POID
+ * @param {number} poidOrIndex - The player's POID (preferred) or legacy index
  * @param {Object} equipment - Equipment slot values to set
  * @returns {boolean} Success
  */
-function setPlayerEquipment(playerIndex, equipment) {
+function setPlayerEquipment(poidOrIndex, equipment) {
   const file = global.rosterFile;
   if (!file) {
     console.error('[RosterParser] No roster file loaded');
     return false;
   }
 
-  // Get player's POID from PLAY table - this is the stable identifier
+  // Get player's POID - either directly passed or find from PLAY table
   const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
-  const playerRec = playTable?.records?.[playerIndex];
-  if (!playerRec) {
-    console.error('[RosterParser] Could not find player at index', playerIndex);
-    return false;
+
+  let poid;
+
+  // First, try to find a PLAY record with this POID directly
+  const directMatch = playTable?.records?.find(r => r.POID === poidOrIndex);
+  if (directMatch) {
+    poid = poidOrIndex;
+    const playerName = `${directMatch.PFNA || ''} ${directMatch.PLNA || ''}`.trim();
+    console.log(`[RosterParser] setPlayerEquipment: Found direct POID match: ${poid} (${playerName})`);
+  } else {
+    // Legacy fallback: treat as array index (unreliable after deletions)
+    const playerRec = playTable?.records?.[poidOrIndex];
+    if (!playerRec) {
+      console.error('[RosterParser] Could not find player with POID or at index', poidOrIndex);
+      return false;
+    }
+    poid = playerRec.POID;
+    const playerName = `${playerRec.PFNA || ''} ${playerRec.PLNA || ''}`.trim();
+    console.log(`[RosterParser] setPlayerEquipment: Using legacy index ${poidOrIndex}, POID: ${poid} (${playerName})`);
   }
-  const poid = playerRec.POID;
 
   // CRITICAL: Store equipment changes keyed by POID, not playerIndex
   // This ensures we find the correct BLBM record during save

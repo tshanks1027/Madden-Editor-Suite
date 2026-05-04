@@ -1832,12 +1832,12 @@ class MaddenEditorApp {
                 if (result.success && result.equipment) {
                     if (mode === 'roster') {
                         // Use the parser API to set equipment on roster players
-                        // The player's index in this.players matches the parser's player index
-                        const playerIndex = player._originalIndex !== undefined ? player._originalIndex : i;
+                        // CRITICAL: Use POID for stable identification after deletions
+                        const playerPoid = player.POID;
                         if (i < 3) {
-                            console.log(`[MassEquipment] Player ${i}: calling setPlayerEquipment(${playerIndex}, {...${Object.keys(result.equipment).length} fields})`);
+                            console.log(`[MassEquipment] Player ${i}: calling setPlayerEquipment(POID=${playerPoid}, {...${Object.keys(result.equipment).length} fields})`);
                         }
-                        const setResult = await window.electronAPI.parser.setPlayerEquipment(playerIndex, result.equipment);
+                        const setResult = await window.electronAPI.parser.setPlayerEquipment(playerPoid, result.equipment);
                         if (i < 3) {
                             console.log(`[MassEquipment] Player ${i} setResult:`, setResult);
                         }
@@ -12183,13 +12183,17 @@ class MaddenEditorApp {
         }
 
         // Load equipment data for this player
-        // Find the actual roster index (index in this.players which matches BLBM index)
+        // Use POID directly for equipment lookup - this is the stable identifier
+        // that links PLAY records to BLBM records, and doesn't shift after deletions
+        const playerPoid = playerData.POID;
+        this.currentPlayerPOID = playerPoid;
+        // Also keep array index for other purposes (but not for equipment)
         const rosterIndex = this.players.findIndex(p =>
             p.PGID === playerData.PGID ||
             (p.PFNA === playerData.PFNA && p.PLNA === playerData.PLNA && p.TGID === playerData.TGID)
         );
         this.currentPlayerRosterIndex = rosterIndex >= 0 ? rosterIndex : rowIndex;
-        this.loadPlayerEquipment(this.currentPlayerRosterIndex);
+        this.loadPlayerEquipment(playerPoid);
 
         // Reset to first tab when opening
         document.querySelectorAll('.player-card-tab').forEach(t => t.classList.remove('active'));
@@ -12934,9 +12938,9 @@ class MaddenEditorApp {
             console.log('[Player Card] Saved changes for Handsontable row:', this.currentPlayerCardRow);
         }
 
-        // Save equipment changes (use roster index, not filtered index)
-        if (this.currentPlayerRosterIndex !== undefined) {
-            this.savePlayerEquipment(this.currentPlayerRosterIndex);
+        // Save equipment changes (use POID for stable identification after deletions)
+        if (this.currentPlayerPOID !== undefined) {
+            this.savePlayerEquipment(this.currentPlayerPOID);
         }
 
         // Close the modal
@@ -12945,8 +12949,9 @@ class MaddenEditorApp {
 
     /**
      * Save equipment data for the current player
+     * @param {number} playerPoid - The player's POID (stable identifier)
      */
-    async savePlayerEquipment(playerIndex) {
+    async savePlayerEquipment(playerPoid) {
         try {
             const equipment = {
                 // Head/Face
@@ -12993,8 +12998,8 @@ class MaddenEditorApp {
                 RightThighPad: document.getElementById('equipRightThighPad')?.value || ''
             };
 
-            console.log('[PlayerCard] Saving equipment:', equipment);
-            const result = await window.electronAPI.parser.setPlayerEquipment(playerIndex, equipment);
+            console.log('[PlayerCard] Saving equipment for POID', playerPoid, ':', equipment);
+            const result = await window.electronAPI.parser.setPlayerEquipment(playerPoid, equipment);
             if (result.success) {
                 console.log('[PlayerCard] Equipment saved successfully');
             } else {
