@@ -77,6 +77,21 @@ async function parseRosterFile(filePath) {
     // CRITICAL: Skip empty/unused record slots (they have no name or POVR=0)
     const players = [];
     let skippedEmpty = 0;
+
+    // DEBUG: Check first raw record for PLRL field
+    const firstRec = playerTable.records[0];
+    if (firstRec) {
+      const hasPlrl = 'PLRL' in firstRec.fields;
+      console.log(`[RosterParser] RAW FILE CHECK: PLRL field exists in schema: ${hasPlrl}`);
+      if (hasPlrl) {
+        console.log(`[RosterParser] RAW FILE CHECK: First record PLRL = ${firstRec.fields.PLRL?.value}`);
+      }
+      // List all fields to see what's available
+      const fieldNames = Object.keys(firstRec.fields).sort();
+      const plFields = fieldNames.filter(f => f.includes('PL'));
+      console.log(`[RosterParser] RAW FILE CHECK: PL* fields: ${plFields.join(', ')}`);
+    }
+
     for (const record of playerTable.records) {
       const player = {};
 
@@ -104,6 +119,17 @@ async function parseRosterFile(filePath) {
     if (skippedEmpty > 0) {
       console.log(`[RosterParser] Skipped ${skippedEmpty} empty record slots`);
     }
+
+    // CRITICAL DEBUG: Check PLRL values loaded from file (file-specific issue)
+    console.log('[RosterParser] *** PLRL LOAD CHECK - First 5 players from file ***');
+    for (let i = 0; i < Math.min(5, players.length); i++) {
+      const p = players[i];
+      console.log(`  ${i}: ${p.PFNA} ${p.PLNA} - PLRL=${p.PLRL} (type: ${typeof p.PLRL})`);
+    }
+    // Count players with PLRL=0 vs non-zero
+    const plrl0Count = players.filter(p => p.PLRL === 0 || p.PLRL === undefined).length;
+    const plrlNonZeroCount = players.filter(p => p.PLRL && p.PLRL > 0).length;
+    console.log(`[RosterParser] PLRL stats: ${plrlNonZeroCount} non-zero, ${plrl0Count} zero/undefined`);
 
     // DEBUG: Check if PKPR field exists in the roster
     const firstPlayer = players[0];
@@ -364,6 +390,11 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
   console.log('[RosterParser] Original data:', originalData ? `filePath: ${originalData.filePath}` : 'none');
   console.log('[RosterParser] Options:', JSON.stringify(options));
 
+  // PLRL debug variables (function-scoped for return)
+  let incomingPlrlNonZero = 0;
+  let finalPlrlNonZero = 0;
+  let plrlSamples = [];
+
   try {
     const sourcePath = originalData?.filePath;
 
@@ -562,11 +593,65 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     }
     console.log('[RosterParser] Built POID->record map with', poidToRecordIndex.size, 'entries');
 
+    // DEBUG: Show first few POIDs in the map to verify they match incoming players
+    const firstMapEntries = [...poidToRecordIndex.entries()].slice(0, 10);
+    console.log('[RosterParser] First 10 POIDs in map:', firstMapEntries.map(e => `${e[0]}→rec[${e[1]}]`).join(', '));
+
+    // DEBUG: Check if incoming players' POIDs are in the map
+    console.log('[RosterParser] Checking incoming players POIDs against map:');
+    for (let i = 0; i < Math.min(5, players.length); i++) {
+      const p = players[i];
+      const inMap = poidToRecordIndex.has(p.POID);
+      const recordIdx = poidToRecordIndex.get(p.POID);
+      console.log(`  ${i}: ${p.PFNA} ${p.PLNA} - POID=${p.POID}, inMap=${inMap}, recordIndex=${recordIdx}`);
+    }
+
     let playersMatched = 0;
     let playersUnmatched = 0;
 
+    // DEBUG: Log PLRL values for first 5 incoming players
+    console.log('[RosterParser] *** PLRL SAVE CHECK - First 5 incoming players ***');
+    for (let d = 0; d < Math.min(5, players.length); d++) {
+      const p = players[d];
+      console.log(`  ${d}: ${p.PFNA} ${p.PLNA} - PLRL=${p.PLRL} (type: ${typeof p.PLRL})`);
+      // Check if PLRL is an own property
+      const hasOwnPlrl = Object.prototype.hasOwnProperty.call(p, 'PLRL');
+      console.log(`      hasOwnProperty('PLRL'): ${hasOwnPlrl}, keys include PLRL: ${'PLRL' in p}`);
+    }
+    // Count players with PLRL=0 vs non-zero in INCOMING data
+    const incomingPlrl0 = players.filter(p => p.PLRL === 0 || p.PLRL === undefined).length;
+    incomingPlrlNonZero = players.filter(p => p.PLRL && p.PLRL > 0).length;
+    console.log(`[RosterParser] INCOMING PLRL stats: ${incomingPlrlNonZero} non-zero, ${incomingPlrl0} zero/undefined`);
+    // CRITICAL: If all PLRL=0, the problem is in the frontend, not the save
+    if (incomingPlrlNonZero === 0) {
+      console.error('[RosterParser] ⚠️ WARNING: ALL incoming PLRL values are 0 or undefined! Check frontend data.');
+    }
+    // Show players with non-zero PLRL
+    if (incomingPlrlNonZero > 0 && incomingPlrlNonZero <= 10) {
+      console.log('[RosterParser] Players with non-zero PLRL:');
+      players.filter(p => p.PLRL && p.PLRL > 0).forEach((p, idx) => {
+        console.log(`  [${idx}] ${p.PFNA} ${p.PLNA} - PLRL=${p.PLRL}, POID=${p.POID}`);
+      });
+    }
+
+    // Quick check: does the file schema have PLRL field?
+    const debugRecord = playerTable.records[0];
+    if (debugRecord) {
+      console.log('[RosterParser] File schema has PLRL field:', !!debugRecord.fields['PLRL']);
+    }
+
+    // CRITICAL DEBUG: Track players with non-zero PLRL and their processing
+    const plrlPlayersToTrack = new Map();
+    for (let i = 0; i < players.length; i++) {
+      if (players[i].PLRL && players[i].PLRL > 0) {
+        plrlPlayersToTrack.set(i, { name: `${players[i].PFNA} ${players[i].PLNA}`, plrl: players[i].PLRL, poid: players[i].POID, processed: false, written: false });
+      }
+    }
+    console.log(`[RosterParser] *** TRACKING ${plrlPlayersToTrack.size} players with non-zero PLRL ***`);
+
     for (let i = 0; i < players.length; i++) {
       const playerData = players[i];
+      const isTrackedPlrlPlayer = plrlPlayersToTrack.has(i);
 
       // Find the correct record by POID (stable identifier)
       const playerPoid = playerData.POID;
@@ -577,21 +662,47 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
         console.warn(`[RosterParser] WARNING: No record found for POID ${playerPoid} (${playerData.PFNA} ${playerData.PLNA}), using index ${i}`);
         recordIndex = i;
         playersUnmatched++;
+        if (isTrackedPlrlPlayer) {
+          console.log(`[RosterParser] *** PLRL PLAYER ${playerData.PFNA} ${playerData.PLNA} has NO POID MATCH, using index ${i} ***`);
+        }
       } else {
         playersMatched++;
       }
 
       if (recordIndex >= playerTable.records.length) {
         console.warn(`[RosterParser] Record index ${recordIndex} exceeds table size, skipping player`);
+        if (isTrackedPlrlPlayer) {
+          console.error(`[RosterParser] *** PLRL PLAYER ${playerData.PFNA} ${playerData.PLNA} SKIPPED - record index ${recordIndex} out of bounds! ***`);
+        }
         continue;
       }
 
       const record = playerTable.records[recordIndex];
 
+      // CRITICAL DEBUG: For tracked PLRL players, verify the loop will see PLRL
+      if (isTrackedPlrlPlayer) {
+        const allFieldNames = Object.keys(playerData);
+        const hasPlrlField = 'PLRL' in playerData;
+        const plrlInKeys = allFieldNames.includes('PLRL');
+        console.log(`[RosterParser] *** PLRL TRACE [${playerData.PFNA} ${playerData.PLNA}] ***`);
+        console.log(`    playerData.PLRL = ${playerData.PLRL} (type: ${typeof playerData.PLRL})`);
+        console.log(`    'PLRL' in playerData: ${hasPlrlField}`);
+        console.log(`    PLRL in Object.keys: ${plrlInKeys}`);
+        console.log(`    recordIndex: ${recordIndex}, POID: ${playerPoid}`);
+        console.log(`    record.fields has PLRL: ${!!record.fields['PLRL']}`);
+        plrlPlayersToTrack.get(i).processed = true;
+      }
+
       // Update each field (exclude PLAYERPIC - it's a virtual field for display only)
+      let sawPlrlInLoop = false;
       for (const fieldName in playerData) {
         if (fieldName === 'PLAYERPIC') {
           continue; // Skip virtual field
+        }
+
+        if (fieldName === 'PLRL' && isTrackedPlrlPlayer) {
+          sawPlrlInLoop = true;
+          console.log(`[RosterParser] *** PLRL IN LOOP *** Player ${playerData.PFNA} ${playerData.PLNA} - fieldName='PLRL', value=${playerData.PLRL}`);
         }
 
         // Map internal field name to TDB2 field name if needed
@@ -617,43 +728,50 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
             }
           }
 
+          // CRITICAL DEBUG: For PLRL on tracked players, log the EXACT write operation
+          if (fieldName === 'PLRL' && isTrackedPlrlPlayer) {
+            console.log(`[RosterParser] *** PLRL WRITE ATTEMPT *** ${playerData.PFNA} ${playerData.PLNA}`);
+            console.log(`    targetFieldName: ${targetFieldName}`);
+            console.log(`    oldValue: ${oldValue} (type: ${typeof oldValue})`);
+            console.log(`    newValue: ${newValue} (type: ${typeof newValue})`);
+            console.log(`    BEFORE: record.fields['PLRL'].value = ${record.fields['PLRL']?.value}`);
+          }
+
           record.fields[targetFieldName].value = newValue;
+
+          // CRITICAL DEBUG: Verify write for tracked PLRL players
+          if (fieldName === 'PLRL' && isTrackedPlrlPlayer) {
+            const afterValue = record.fields['PLRL']?.value;
+            console.log(`    AFTER: record.fields['PLRL'].value = ${afterValue}`);
+            if (afterValue === newValue) {
+              console.log(`    *** PLRL WRITE SUCCESS ***`);
+              plrlPlayersToTrack.get(i).written = true;
+            } else {
+              console.error(`    *** PLRL WRITE FAILED *** Expected ${newValue}, got ${afterValue}`);
+            }
+          }
 
           // Log field mapping when it differs
           if (fieldName !== targetFieldName && oldValue !== newValue) {
             console.log(`[RosterParser] Record ${recordIndex}: Mapped ${fieldName} -> ${targetFieldName}: ${oldValue} -> ${newValue}`);
           }
 
-          // Log PEPS changes
-          if (targetFieldName === 'PEPS' && oldValue !== newValue) {
-            console.log(`[RosterParser] Record ${recordIndex}: PEPS changed from "${oldValue}" to "${newValue}"`);
+          // Log important visual changes (face, portrait) and PLRL for debugging
+          if ((fieldName === 'PEPS' || fieldName === 'PGHE' || fieldName === 'PLPL') && oldValue !== newValue) {
+            console.log(`[RosterParser] ${playerData.PFNA} ${playerData.PLNA}: ${fieldName} ${oldValue} -> ${newValue}`);
           }
-          // Log PGHE changes (face model)
-          if (fieldName === 'PGHE' && oldValue !== newValue) {
-            console.log(`[RosterParser] Record ${recordIndex}: PGHE changed from ${oldValue} to ${newValue}`);
-          }
-          // Log PHAN changes (handedness) - DEBUG for save issue
-          if (fieldName === 'PHAN' && oldValue !== newValue) {
-            console.log(`[RosterParser] Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PHAN changed from ${oldValue} to ${newValue}`);
-          }
-          // Log PROL changes (dev trait) - DEBUG
-          if (fieldName === 'PROL' && oldValue !== newValue) {
-            console.log(`[RosterParser] Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PROL changed from ${oldValue} to ${newValue}`);
-          }
-          // Log PCBT changes (body type) - DEBUG
-          if (fieldName === 'PCBT') {
-            console.log(`[RosterParser] *** PCBT SAVE DEBUG *** Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PCBT file=${oldValue}, incoming=${newValue}, changed=${oldValue !== newValue}`);
-          }
-          // Log PLPL changes (generic/real face indicator) - DEBUG for PAM-only mode
-          if (fieldName === 'PLPL' && oldValue !== newValue) {
-            console.log(`[RosterParser] Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PLPL changed from ${oldValue} to ${newValue}`);
-          }
-          // Log PSKI changes (body skin index) - DEBUG for face picker skin sync
-          if (fieldName === 'PSKI' && oldValue !== newValue) {
-            console.log(`[RosterParser] Record ${recordIndex} (${playerData.PFNA} ${playerData.PLNA}): PSKI changed from ${oldValue} to ${newValue}`);
+
+          // CRITICAL DEBUG: Log PLRL changes to trace save issue
+          if (fieldName === 'PLRL' && oldValue !== newValue) {
+            console.log(`[RosterParser] *** PLRL WRITE *** ${playerData.PFNA} ${playerData.PLNA}: ${oldValue} -> ${newValue} (record ${recordIndex})`);
           }
 
           fieldsUpdated++;
+        } else if (fieldName === 'PLRL' && isTrackedPlrlPlayer) {
+          console.error(`[RosterParser] *** PLRL FIELD NOT FOUND *** ${playerData.PFNA} ${playerData.PLNA}`);
+          console.error(`    tdb2FieldName: ${tdb2FieldName}`);
+          console.error(`    targetFieldName: ${targetFieldName}`);
+          console.error(`    record.fields['PLRL'] exists: ${!!record.fields['PLRL']}`);
         } else if (fieldName === 'PEPS') {
           console.log(`[RosterParser] WARNING: Record ${recordIndex} has no PEPS field!`);
         } else if (fieldName === 'PHAN') {
@@ -666,11 +784,93 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
           }
         }
       }
+
+      // Check if PLRL was enumerated in the loop
+      if (isTrackedPlrlPlayer && !sawPlrlInLoop) {
+        console.error(`[RosterParser] *** PLRL NOT ENUMERATED *** ${playerData.PFNA} ${playerData.PLNA} - PLRL was not seen in for...in loop!`);
+        console.error(`    playerData keys: ${Object.keys(playerData).join(', ')}`);
+      }
     }
+
+    // Summary of tracked PLRL players
+    console.log('[RosterParser] *** PLRL TRACKING SUMMARY ***');
+    for (const [idx, info] of plrlPlayersToTrack) {
+      console.log(`  [${idx}] ${info.name}: PLRL=${info.plrl}, POID=${info.poid}, processed=${info.processed}, written=${info.written}`);
+    }
+
+    // CRITICAL FIX: Force-write PLRL for any tracked players that weren't written
+    // This ensures PLRL values persist even if the for...in loop fails to enumerate them
+    let plrlForceWritten = 0;
+    const plrlDiagnostics = []; // Collect detailed info for browser console
+
+    for (const [idx, info] of plrlPlayersToTrack) {
+      const diag = { name: info.name, poid: info.poid, expected: info.plrl, processed: info.processed, writtenInLoop: info.written };
+
+      const recordIndex = poidToRecordIndex.get(info.poid);
+      diag.recordIndex = recordIndex;
+      diag.poidFound = recordIndex !== undefined;
+
+      if (recordIndex !== undefined && recordIndex < playerTable.records.length) {
+        const record = playerTable.records[recordIndex];
+        const plrlField = record.fields['PLRL'];
+        diag.hasPlrlField = !!plrlField;
+        diag.fieldType = plrlField?.type;
+
+        if (plrlField) {
+          const beforeValue = plrlField.value;
+          diag.beforeWrite = beforeValue;
+
+          // CRITICAL FIX: Write PLRL by directly setting _raw buffer
+          // The TDB2Field value setter doesn't work reliably for all field types
+          const utilService = require('../lib/services/utilService');
+          const newRaw = utilService.writeModifiedLebCompressedInteger(info.plrl);
+          plrlField._raw = newRaw;
+          plrlField._isChanged = true;
+          plrlForceWritten++;
+          diag.forceWritten = true;
+
+          // Verify the write
+          const afterValue = plrlField.value;
+          diag.afterWrite = afterValue;
+          diag.success = afterValue === info.plrl;
+
+          if (afterValue !== info.plrl) {
+            console.error(`[RosterParser] PLRL write failed for ${info.name}: expected ${info.plrl}, got ${afterValue}`);
+          }
+        } else {
+          diag.error = 'PLRL field not found in record';
+          console.error(`[RosterParser] *** PLRL FORCE-WRITE FAILED *** ${info.name}: PLRL field not found in record`);
+        }
+      } else {
+        diag.error = `Record not found (POID=${info.poid}, recordIndex=${recordIndex})`;
+        console.error(`[RosterParser] *** PLRL FORCE-WRITE FAILED *** ${info.name}: Record not found (POID=${info.poid}, recordIndex=${recordIndex})`);
+      }
+
+      plrlDiagnostics.push(diag);
+    }
+    if (plrlForceWritten > 0) {
+      console.log(`[RosterParser] Force-wrote PLRL for ${plrlForceWritten} players`);
+    }
+
+    // Log diagnostics summary
+    console.log('[RosterParser] PLRL DIAGNOSTICS:', JSON.stringify(plrlDiagnostics, null, 2));
 
     console.log('[RosterParser] Updated', fieldsUpdated, 'field values');
     console.log('[RosterParser] POID matching: ', playersMatched, 'matched,', playersUnmatched, 'unmatched');
     console.log('[RosterParser] Original record has', Object.keys(playerTable.records[0].fields).length, 'fields - all preserved');
+
+    // CRITICAL DEBUG: Verify PLRL values were written to file records
+    console.log('[RosterParser] *** PLRL POST-WRITE VERIFICATION ***');
+    let plrlNonZeroInFile = 0;
+    for (let i = 0; i < Math.min(playerTable.records.length, 3400); i++) {
+      const rec = playerTable.records[i];
+      const plrl = rec.fields['PLRL']?.value;
+      if (plrl && plrl > 0) plrlNonZeroInFile++;
+    }
+    console.log(`[RosterParser] PLRL in file records after write: ${plrlNonZeroInFile} non-zero`);
+    if (plrlNonZeroInFile === 0) {
+      console.error('[RosterParser] *** CRITICAL: All PLRL values are 0 after write! Save will not preserve PLRL! ***');
+    }
 
     // CRITICAL FIX: Set POID = PGID for all records in file
     // The game links PLAY records to BLBM records by finding BLBM[].index === POID
@@ -1183,6 +1383,36 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
     console.log(`[RosterParser] SUMMARY: BLBM.index changed=${blbmIndexChanged}, names changed=${nameChanged}`);
     console.log('[RosterParser] ========== END EQUIPMENT COMPARISON ==========');
 
+    // CRITICAL: Final PLRL verification before physical save
+    // Check the SPECIFIC players that had non-zero PLRL values, not just first 10 records
+    finalPlrlNonZero = 0;
+    plrlSamples = [];
+
+    // First check the specifically tracked PLRL players
+    for (const [idx, info] of plrlPlayersToTrack) {
+      const recordIndex = poidToRecordIndex.get(info.poid);
+      if (recordIndex !== undefined && recordIndex < playerTable.records.length) {
+        const rec = playerTable.records[recordIndex];
+        const plrl = rec.fields['PLRL']?.value;
+        if (plrl && plrl > 0) {
+          finalPlrlNonZero++;
+          plrlSamples.push({ name: info.name, expected: info.plrl, actual: plrl, recordIndex });
+        } else {
+          console.error(`[RosterParser] *** PLRL NOT IN FILE *** ${info.name}: expected ${info.plrl}, got ${plrl} (record ${recordIndex})`);
+        }
+      }
+    }
+
+    console.log(`[RosterParser] *** FINAL PLRL CHECK BEFORE WRITE: ${finalPlrlNonZero}/${plrlPlayersToTrack.size} tracked players have non-zero PLRL in file records ***`);
+    if (plrlSamples.length > 0) {
+      console.log('[RosterParser] PLRL verified in file records:', JSON.stringify(plrlSamples));
+    }
+
+    // If any tracked PLRL values are missing, log the issue
+    if (finalPlrlNonZero < plrlPlayersToTrack.size) {
+      console.error(`[RosterParser] *** CRITICAL: ${plrlPlayersToTrack.size - finalPlrlNonZero} PLRL values MISSING from file records before save! ***`);
+    }
+
     // Save using MaddenRosterHelper
     await helper.save(filePath);
 
@@ -1377,7 +1607,15 @@ async function saveRosterFile(filePath, players, originalData, options = {}) {
       skntSynced,
       blbmError,
       injuriesCleared,
-      equipmentUpdated
+      equipmentUpdated,
+      // PLRL debug info - will show in browser console
+      plrlDebug: {
+        incomingNonZero: incomingPlrlNonZero,
+        finalNonZero: finalPlrlNonZero,
+        forceWritten: plrlForceWritten,
+        samples: plrlSamples.slice(0, 5),
+        diagnostics: plrlDiagnostics // Detailed per-player diagnostics
+      }
     };
 
   } catch (error) {

@@ -2,7 +2,7 @@
 ; Supports installers larger than 2GB (no NSIS limitation)
 
 #define MyAppName "Madden Editor Suite"
-#define MyAppVersion "3.4.5"
+#define MyAppVersion "3.4.6"
 #define MyAppPublisher "KRaZyNuttZ"
 #define MyAppURL "https://github.com/tshanks1027/madden-editor-suite"
 #define MyAppExeName "madden-editor-suite.exe"

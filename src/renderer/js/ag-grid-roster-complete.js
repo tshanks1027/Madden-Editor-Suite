@@ -1062,6 +1062,15 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
         onCellValueChanged: (event) => {
             console.log('[AG-Grid] Cell value changed:', event.colDef.field, '=', event.newValue, ', old=', event.oldValue);
 
+            // CRITICAL DEBUG: Trace PLRL changes end-to-end
+            if (event.colDef.field === 'PLRL') {
+                console.log('[AG-Grid] *** PLRL EDIT DEBUG ***');
+                console.log(`  event.data.PLRL = ${event.data.PLRL} (type: ${typeof event.data.PLRL})`);
+                console.log(`  event.newValue = ${event.newValue} (type: ${typeof event.newValue})`);
+                console.log(`  event.oldValue = ${event.oldValue}`);
+                console.log(`  Player: ${event.data.PFNA} ${event.data.PLNA}, POID=${event.data.POID}, PGID=${event.data.PGID}`);
+            }
+
             // Debug logging for key lookup fields
             const fieldName = event.colDef.field;
             if (['PHAN', 'PROL', 'PCBT'].includes(fieldName)) {
@@ -1086,48 +1095,74 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                 const fieldName = event.colDef.field;
                 const fieldDef = getFieldDefinition(fieldName);
 
+                // CRITICAL: fieldDef might be undefined for some fields - handle gracefully
+                if (!fieldDef) {
+                    console.warn(`[AG-Grid] No field definition for ${fieldName}, using event.data value directly`);
+                }
+
                 // IMPORTANT: For fields with transforms (like PWGT), we need to get the stored value
                 // BEFORE updating actualPlayer, because event.data may be the same reference
                 let storedWeightForLinking = null;
-                if (fieldName === 'PWGT' && fieldDef.transform && fieldDef.transform.save) {
+                if (fieldName === 'PWGT' && fieldDef?.transform?.save) {
                     // Get the stored value by applying the save transform to the displayed value
                     storedWeightForLinking = fieldDef.transform.save(parseInt(event.newValue));
                     console.log(`[AG-Grid] PWGT: displayed=${event.newValue}, stored=${storedWeightForLinking}`);
                 }
 
                 // Determine what value to store in player data
-                // For lookup fields: use the ID from event.data (set by valueSetter)
-                // For numeric fields with transforms: use the transformed (stored) value
-                // For other fields: use event.newValue
+                // For lookup/numeric fields: use the value from event.data (set by valueSetter)
+                //   - valueSetter converts user input to proper type (parseInt for numeric, ID for lookups)
+                // For text/other fields: use event.newValue directly
+                // CRITICAL: Use optional chaining to prevent crash if fieldDef is undefined
                 let valueToStore;
-                if (fieldDef.type === 'lookup' || fieldDef.type === 'archetype') {
+                const fieldType = fieldDef?.type;
+                if (fieldType === 'lookup' || fieldType === 'archetype') {
                     valueToStore = event.data[fieldName];
-                } else if (fieldDef.transform && fieldDef.transform.save) {
-                    // Numeric fields with transforms - store the transformed value
-                    valueToStore = fieldDef.transform.save(parseInt(event.newValue));
+                } else if (fieldType === 'numeric') {
+                    // CRITICAL FIX: Use event.data[fieldName] which has the parsed integer from valueSetter
+                    // Previously used event.newValue which is a string like "85" instead of number 85
+                    // This caused save failures for rating fields like PLRL (Release)
+                    valueToStore = event.data[fieldName];
                 } else {
-                    valueToStore = event.newValue;
+                    // For text, unknown, or undefined field types - use event.data first, then event.newValue
+                    valueToStore = event.data[fieldName] !== undefined ? event.data[fieldName] : event.newValue;
                 }
 
                 actualPlayer[fieldName] = valueToStore;
 
                 // CRITICAL FIX: Find in main players array and update
-                // First try by reference (fast), then fallback to PGID (reliable)
+                // First try by reference (fast), then fallback to PGID (reliable), then POID
                 let playerIndex = app.players.findIndex(p => p === actualPlayer);
 
                 // CRITICAL: If reference equality fails (common after imports), find by PGID
-                if (playerIndex === -1 && actualPlayer.PGID !== undefined) {
+                if (playerIndex === -1 && actualPlayer.PGID !== undefined && actualPlayer.PGID > 0) {
                     playerIndex = app.players.findIndex(p => p.PGID === actualPlayer.PGID);
                     if (playerIndex !== -1) {
                         console.log(`[AG-Grid] Found player by PGID fallback: ${actualPlayer.PFNA} ${actualPlayer.PLNA} (PGID: ${actualPlayer.PGID})`);
                     }
                 }
 
+                // Additional fallback: find by POID (should match PGID after saves)
+                if (playerIndex === -1 && actualPlayer.POID !== undefined && actualPlayer.POID > 0) {
+                    playerIndex = app.players.findIndex(p => p.POID === actualPlayer.POID);
+                    if (playerIndex !== -1) {
+                        console.log(`[AG-Grid] Found player by POID fallback: ${actualPlayer.PFNA} ${actualPlayer.PLNA} (POID: ${actualPlayer.POID})`);
+                    }
+                }
+
                 if (playerIndex !== -1) {
                     app.players[playerIndex][fieldName] = valueToStore;
-                    // Debug logging for key fields
-                    if (['PHAN', 'PROL', 'PCBT', 'PWGT', 'POVR', 'PEPS'].includes(fieldName)) {
-                        console.log(`[AG-Grid DEBUG] Updated app.players[${playerIndex}].${fieldName} = ${valueToStore}`);
+                    // Debug logging for key fields - including PLRL (Release) for save debugging
+                    if (['PHAN', 'PROL', 'PCBT', 'PWGT', 'POVR', 'PEPS', 'PLRL'].includes(fieldName)) {
+                        console.log(`[AG-Grid DEBUG] Updated app.players[${playerIndex}].${fieldName} = ${valueToStore} (player: ${actualPlayer.PFNA} ${actualPlayer.PLNA})`);
+                    }
+                    // CRITICAL DEBUG: Verify PLRL was actually stored
+                    if (fieldName === 'PLRL') {
+                        const verifyValue = app.players[playerIndex].PLRL;
+                        console.log(`[AG-Grid] *** PLRL VERIFY *** app.players[${playerIndex}].PLRL = ${verifyValue} (expected ${valueToStore})`);
+                        if (verifyValue !== valueToStore) {
+                            console.error(`[AG-Grid] *** PLRL MISMATCH! Value not stored correctly! ***`);
+                        }
                     }
                 } else {
                     // CRITICAL: Player not found in app.players - this is a bug that causes data loss!
@@ -1526,9 +1561,19 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
                         console.log('[AG-Grid] Found player at index:', playerIndex, 'of', app.players.length);
 
                         if (playerIndex !== -1) {
+                            // DEBUG: Log equipment state BEFORE deletion
+                            console.log('[AG-Grid DELETE DEBUG] ===== BEFORE DELETE =====');
+                            console.log('[AG-Grid DELETE DEBUG] Deleting player POID:', player.POID, 'PGID:', player.PGID);
+                            console.log('[AG-Grid DELETE DEBUG] Player at index-1:', playerIndex > 0 ? { POID: app.players[playerIndex-1]?.POID, name: app.players[playerIndex-1]?.PFNA + ' ' + app.players[playerIndex-1]?.PLNA, PGEA: app.players[playerIndex-1]?.PGEA } : 'N/A');
+                            console.log('[AG-Grid DELETE DEBUG] Player at index+1:', playerIndex < app.players.length-1 ? { POID: app.players[playerIndex+1]?.POID, name: app.players[playerIndex+1]?.PFNA + ' ' + app.players[playerIndex+1]?.PLNA, PGEA: app.players[playerIndex+1]?.PGEA } : 'N/A');
+
                             // Remove from main array
                             app.players.splice(playerIndex, 1);
                             console.log('[AG-Grid] Spliced player, remaining:', app.players.length);
+
+                            // DEBUG: Log equipment state AFTER deletion
+                            console.log('[AG-Grid DELETE DEBUG] ===== AFTER DELETE =====');
+                            console.log('[AG-Grid DELETE DEBUG] New player at index:', playerIndex < app.players.length ? { POID: app.players[playerIndex]?.POID, name: app.players[playerIndex]?.PFNA + ' ' + app.players[playerIndex]?.PLNA, PGEA: app.players[playerIndex]?.PGEA } : 'N/A');
 
                             // Also remove from filtered array
                             const filteredIndex = app.filteredPlayers.findIndex(p =>
