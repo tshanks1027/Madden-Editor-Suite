@@ -1355,6 +1355,46 @@ export class ScraperService {
             data._debug?.push('College: ' + data.college);
           }
 
+          // Extract High School - format: "High School: Edison (Stockton, CA)"
+          // This is important for getting hometown when birthPlace doesn't have it
+          var highSchoolMatch = metaText.match(/High School:\s*([^\n]+)/i);
+          if (highSchoolMatch) {
+            var highSchool = highSchoolMatch[1].trim();
+            data._debug?.push('High School: ' + highSchool);
+
+            // If hometown is missing, try to extract from High School field
+            // Format: "SchoolName (City, ST)" or "SchoolName (ST)"
+            if (!data.hometown || !data.homeState) {
+              var hsParenMatch = highSchool.match(/\(([^)]+)\)/);
+              if (hsParenMatch) {
+                var hsInner = hsParenMatch[1].trim();
+                if (hsInner.includes(',')) {
+                  // "Stockton, CA" format
+                  var hsParts = hsInner.split(',').map(function(p) { return p.trim(); });
+                  if (hsParts.length >= 2) {
+                    var hsCity = hsParts[0];
+                    var hsStateAbbr = hsParts[1].toUpperCase();
+                    if (!data.hometown) {
+                      data.hometown = hsCity;
+                      data._debug?.push('HS hometown: ' + hsCity);
+                    }
+                    if (!data.homeState) {
+                      data.homeState = stateAbbrevToName[hsStateAbbr] || hsStateAbbr;
+                      data._debug?.push('HS state: ' + data.homeState);
+                    }
+                  }
+                } else {
+                  // Just state abbreviation like "(CA)"
+                  var hsStateOnly = hsInner.toUpperCase();
+                  if (!data.homeState && hsStateOnly.length === 2) {
+                    data.homeState = stateAbbrevToName[hsStateOnly] || hsStateOnly;
+                    data._debug?.push('HS state only: ' + data.homeState);
+                  }
+                }
+              }
+            }
+          }
+
           // Extract draft info from meta section (metaText already declared above)
           // Format: "Draft: Detroit Lions in the 1st round (3rd overall) of the 1989 NFL Draft."
           const draftMatch = metaText.match(/Draft:\s*(.+?)\s+in\s+the\s+(\d+)(?:st|nd|rd|th)\s+round\s*\((\d+)(?:st|nd|rd|th)\s+overall\)\s+of\s+the\s+(\d{4})\s+NFL\s+Draft/i);
@@ -1767,6 +1807,7 @@ export class ScraperService {
       console.log(`[ScraperService] Raw PFA data:`, rawData);
 
       // Process hometown/state OUTSIDE page.evaluate (same as extractHometown in test-pfa-scraper.js)
+      // IMPORTANT: Per pfa-scraper-spec.md - HIGH SCHOOL FIRST, then birthPlace
       const extractHometown = (birthPlace?: string, highSchool?: string): { city?: string; state?: string } => {
         // State abbreviation to full name mapping
         const stateMap: Record<string, string> = {
@@ -1784,17 +1825,7 @@ export class ScraperService {
         };
         const foreignCodes = new Set(['AU', 'JA', 'IT', 'PO', 'UK', 'GE', 'EN', 'BR', 'NG', 'ME', 'PR']);
 
-        // Try birthPlace first: "City, ST"
-        if (birthPlace) {
-          const parts = birthPlace.split(',').map(p => p.trim());
-          if (parts.length >= 2) {
-            const stateAbbr = parts[1].toUpperCase();
-            const stateName = foreignCodes.has(stateAbbr) ? 'Non-US' : (stateMap[stateAbbr] || stateAbbr);
-            return { city: parts[0], state: stateName };
-          }
-        }
-
-        // Fall back to high school: "School Name (City, ST)" or "School Name (ST)"
+        // HIGH SCHOOL FIRST: "School Name (City, ST)" or "School Name (ST)"
         if (highSchool) {
           const parenMatch = highSchool.match(/\(([^)]+)\)/);
           if (parenMatch) {
@@ -1812,6 +1843,16 @@ export class ScraperService {
               const schoolName = highSchool.replace(/\s*\([^)]+\)/, '').trim();
               return { city: schoolName, state: stateName };
             }
+          }
+        }
+
+        // Fall back to birthPlace: "City, ST"
+        if (birthPlace) {
+          const parts = birthPlace.split(',').map(p => p.trim());
+          if (parts.length >= 2) {
+            const stateAbbr = parts[1].toUpperCase();
+            const stateName = foreignCodes.has(stateAbbr) ? 'Non-US' : (stateMap[stateAbbr] || stateAbbr);
+            return { city: parts[0], state: stateName };
           }
         }
 
