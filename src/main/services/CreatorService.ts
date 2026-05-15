@@ -398,16 +398,19 @@ export class CreatorService {
    * @param raceData Race string from MASTER_LOOKUP (if available)
    * @returns Generic face PID from PGHE lookup
    */
-  private assignGenericFace(firstName: string, lastName: string, position?: string, raceData?: string): number {
+  private assignGenericFace(firstName: string, lastName: string, position?: string, raceData?: string | number): number {
     this.lastAssignedPgheEntry = null; // Reset cache
     let targetRace = 7; // Default to darkest skin tone
 
+    // Ensure raceData is a string (could be number from some data sources)
+    const raceStr = raceData != null ? String(raceData).trim() : '';
+
     // Priority 1: Use race data from MASTER_LOOKUP if available
-    if (raceData && raceData.trim()) {
-      const mappedCategory = this.mapRaceToCategory(raceData);
+    if (raceStr) {
+      const mappedCategory = this.mapRaceToCategory(raceStr);
       if (mappedCategory > 0) {
         targetRace = mappedCategory;
-        console.log(`[CreatorService] Using MASTER_LOOKUP race for "${firstName} ${lastName}": "${raceData}" -> Race ${targetRace}`);
+        console.log(`[CreatorService] Using MASTER_LOOKUP race for "${firstName} ${lastName}": "${raceStr}" -> Race ${targetRace}`);
       }
     }
     // Priority 2: Look up race from ROSTER_lookup.csv
@@ -1681,6 +1684,35 @@ export class CreatorService {
       });
       console.log(`[CreatorService] ✓ Sorted ${draftedProspects.length} prospects by draft order`);
 
+      // Step 1.2.5: Fix positions from database (database has correct positions)
+      // This overrides potentially incorrect positions from the scraper
+      const dbPlayersForPositions = lookupService.getPlayersByDraftClass(year);
+      const positionLookup = new Map<string, string>();
+      for (const dbPlayer of dbPlayersForPositions) {
+        const key = `${dbPlayer.firstName?.toLowerCase()} ${dbPlayer.lastName?.toLowerCase()}`;
+        if (dbPlayer.position) {
+          positionLookup.set(key, dbPlayer.position);
+        }
+      }
+
+      let positionsFixed = 0;
+      for (const prospect of draftedProspects) {
+        const nameParts = prospect.name.split(' ');
+        const firstName = nameParts[0]?.toLowerCase() || '';
+        const lastName = nameParts.slice(1).join(' ')?.toLowerCase() || '';
+        const key = `${firstName} ${lastName}`;
+
+        const dbPosition = positionLookup.get(key);
+        if (dbPosition && dbPosition !== prospect.position) {
+          console.log(`[CreatorService] Fixing position for ${prospect.name}: ${prospect.position} -> ${dbPosition}`);
+          prospect.position = dbPosition;
+          positionsFixed++;
+        }
+      }
+      if (positionsFixed > 0) {
+        console.log(`[CreatorService] ✓ Fixed ${positionsFixed} positions from database`);
+      }
+
       // Step 1.3: Scrape Hall of Fame status from CSV lookup (fast and accurate!)
       const hofMap = await scraperService.scrapeHOFFromWikipedia(year);
       if (hofMap.size > 0) {
@@ -1774,9 +1806,37 @@ export class CreatorService {
         console.log(`[CreatorService] Testing mode: Limited to ${draftedProspects.length} drafted players`);
       }
 
-      // Step 2: Scrape undrafted free agents (UDFAs who signed with teams)
-      let udfaProspects = await scraperService.scrapeUndraftedFreeAgents(year);
-      console.log(`[CreatorService] Scraped ${udfaProspects.length} UDFAs`);
+      // Step 2: Get UDFAs - PRIORITY 1: Database, PRIORITY 2: Wikipedia scraping
+      let udfaProspects: DraftProspect[] = [];
+
+      // First try to get UDFAs from the database
+      const dbPlayers = lookupService.getPlayersByDraftClass(year);
+      const dbUdfas = dbPlayers.filter(p => {
+        const round = p.round?.toString().toUpperCase();
+        return !round || round === '' || round === '0' || round === 'UD' || round === 'UDFA' || round === '8';
+      });
+
+      if (dbUdfas.length > 0) {
+        console.log(`[CreatorService] Found ${dbUdfas.length} UDFAs in database for ${year}`);
+        // Convert database entries to DraftProspect format
+        udfaProspects = dbUdfas.map(p => ({
+          name: `${p.firstName} ${p.lastName}`,
+          position: p.position || 'QB',
+          college: p.college || 'Unknown',
+          round: 0,
+          pick: 0,
+          team: 'FA',
+          draftRound: 'UDFA',
+          height: p.height,
+          weight: p.weight,
+          age: 22
+        } as DraftProspect));
+      } else {
+        // Fallback: Scrape from Wikipedia only if database has no UDFAs
+        console.log(`[CreatorService] No UDFAs in database for ${year}, scraping Wikipedia...`);
+        udfaProspects = await scraperService.scrapeUndraftedFreeAgents(year);
+        console.log(`[CreatorService] Scraped ${udfaProspects.length} UDFAs from Wikipedia`);
+      }
 
       // Testing mode: limit UDFAs to 3
       if (testingMode) {
@@ -1784,16 +1844,18 @@ export class CreatorService {
         console.log(`[CreatorService] Testing mode: Limited to ${udfaProspects.length} UDFAs`);
       }
 
-      // Step 3: Fill roster to 380-400 with filler players instead of slow scraping
-      const targetTotal = testingMode ? 40 : 400; // Target total roster size
+      // Step 3: Only generate filler if we still don't have enough (should be rare with DB UDFAs)
+      const targetTotal = testingMode ? 40 : 400;
       const currentTotal = draftedProspects.length + udfaProspects.length;
-      const fillerNeeded = Math.max(0, targetTotal - currentTotal);
 
       let fillerPlayers: DraftProspect[] = [];
-      if (fillerNeeded > 0) {
-        console.log(`[CreatorService] Need ${fillerNeeded} filler players to reach ${targetTotal}`);
+      if (currentTotal < targetTotal) {
+        const fillerNeeded = targetTotal - currentTotal;
+        console.log(`[CreatorService] Need ${fillerNeeded} filler players to reach ${targetTotal} (have ${currentTotal})`);
         fillerPlayers = this.generateFillerPlayers(fillerNeeded, year);
         console.log(`[CreatorService] Generated ${fillerPlayers.length} filler players`);
+      } else {
+        console.log(`[CreatorService] Have ${currentTotal} players, no filler needed`);
       }
 
       // Combine all prospects
@@ -3713,8 +3775,24 @@ export class CreatorService {
         collegeId = 0;
       }
 
-      // Match home state
-      const homeState = prospect.homestate ? this.matchHomeState(prospect.homestate) : 0;
+      // Match home state - handle number (already ID), numeric string, or string name
+      let homeState: number;
+      if (typeof prospect.homestate === 'number') {
+        // Already a numeric ID
+        homeState = prospect.homestate;
+      } else if (typeof prospect.homestate === 'string' && prospect.homestate.trim()) {
+        // Check if it's a numeric string (e.g., "8" from database)
+        const parsed = parseInt(prospect.homestate, 10);
+        if (!isNaN(parsed) && String(parsed) === prospect.homestate.trim()) {
+          // It's a numeric string like "8" - use directly as ID
+          homeState = parsed;
+        } else {
+          // It's a state name/abbreviation - convert to ID
+          homeState = this.matchHomeState(prospect.homestate);
+        }
+      } else {
+        homeState = 0;
+      }
 
       // Jersey number
       const jerseyNum = prospect.jersey || this.generateJerseyNumber(prospect.position);
@@ -3780,6 +3858,7 @@ export class CreatorService {
         age,
         heightInches: prospect.height || 72,
         weight: prospect.weight || 200,
+        hometown: prospect.hometown,
         homeState,
         devTrait,
         ratings: maddenRatings,

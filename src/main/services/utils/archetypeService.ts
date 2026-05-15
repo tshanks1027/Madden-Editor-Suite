@@ -282,6 +282,67 @@ export class ArchetypeService {
     const validIds = this.archetypesByPosition.get(position) || [];
     return validIds[0] ?? 0;
   }
+
+  /**
+   * Get position from archetype ID (PLTY)
+   * Extracts position prefix from archetype name
+   * @returns Position name (e.g., "QB", "HB", "MLB") or null if unknown
+   */
+  static getPositionFromArchetypeId(archetypeId: number): string | null {
+    const archetypeName = this.globalArchetypeMap.get(archetypeId);
+    if (!archetypeName) return null;
+
+    // Extract position prefix from archetype name
+    const prefixMatch = archetypeName.match(/^([A-Z]+)\s/);
+    if (!prefixMatch) return null;
+
+    const prefix = prefixMatch[1];
+
+    // Map archetype prefixes to position names
+    const prefixToPosition: Record<string, string> = {
+      'QB': 'QB',
+      'HB': 'HB',
+      'FB': 'FB',
+      'WR': 'WR',
+      'TE': 'TE',
+      'C': 'C',
+      'OT': 'LT',  // OT archetypes apply to LT/RT
+      'G': 'LG',   // G archetypes apply to LG/RG
+      'DE': 'LEDG', // DE archetypes apply to LEDG/REDG
+      'DT': 'DT',
+      'OLB': 'SAM', // OLB archetypes apply to SAM/WILL
+      'MLB': 'Mike',
+      'CB': 'CB',
+      'S': 'FS',   // S archetypes apply to FS/SS
+      'KP': 'K',   // KP = Kicker/Punter
+      'KR': 'HB',  // KR = Kick Returner (usually HB position)
+      'PR': 'WR',  // PR = Punt Returner (usually WR position)
+      'LS': 'LS',  // Long Snapper
+      'GAD': 'QB'  // Gadget player (flexible)
+    };
+
+    return prefixToPosition[prefix] || null;
+  }
+
+  /**
+   * Get position ID (PPOS) from archetype ID (PLTY)
+   * @returns Position ID (0-21) or null if unknown
+   */
+  static getPositionIdFromArchetypeId(archetypeId: number): number | null {
+    const position = this.getPositionFromArchetypeId(archetypeId);
+    if (!position) return null;
+
+    const positionToId: Record<string, number> = {
+      'QB': 0, 'HB': 1, 'FB': 2, 'WR': 3, 'TE': 4,
+      'LT': 5, 'LG': 6, 'C': 7, 'RG': 8, 'RT': 9,
+      'LEDG': 10, 'REDG': 11, 'DT': 12,
+      'SAM': 13, 'Mike': 14, 'WILL': 15,
+      'CB': 16, 'FS': 17, 'SS': 18,
+      'K': 19, 'P': 20, 'LS': 21
+    };
+
+    return positionToId[position] ?? null;
+  }
 }
 
 // Export singleton instance for convenience

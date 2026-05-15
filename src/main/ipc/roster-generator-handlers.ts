@@ -67,13 +67,13 @@ ipcMain.handle('roster-generator:generate', async (event, options: RosterGenerat
       _sourceTeam: TEAM_MAP[player.TGID] || 'Unknown'
     }));
 
-    // DEBUG: Log first 5 players to see TGID values
-    console.log('[roster-generator-handlers] === DEBUGGING TEAM MAPPING ===');
-    console.log('[roster-generator-handlers] First 5 players:');
+    // DEBUG: Log first 5 players with RATINGS to verify data flow
+    console.log('[roster-generator-handlers] === DEBUGGING RATINGS ===');
+    console.log('[roster-generator-handlers] First 5 players WITH RATINGS:');
     enrichedPlayers.slice(0, 5).forEach((p, i) => {
       console.log(`  ${i + 1}. ${p.PFNA} ${p.PLNA} - TGID: ${p.TGID} → _sourceTeam: ${p._sourceTeam}`);
+      console.log(`      RATINGS: POVR=${p.POVR}, PSPD=${p.PSPD}, PACC=${p.PACC}, PAWR=${p.PAWR}, PAGI=${p.PAGI}`);
     });
-    console.log('[roster-generator-handlers] Team IDs in TEAM_MAP:', Object.keys(TEAM_MAP).sort((a, b) => Number(a) - Number(b)));
     console.log('[roster-generator-handlers] =============================');
 
     console.log('[roster-generator-handlers] Enriched players with _position and _sourceTeam fields');

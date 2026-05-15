@@ -135,6 +135,68 @@ export class DraftClassService {
         // Parse prospects using M26-specific parser
         const prospects = parseM26Prospects(buffer, header);
 
+        // Fix positions from database (database has correct positions)
+        // PRIORITY 1: Database lookup by name
+        // PRIORITY 2: Derive from archetype (PLTY)
+        const { lookupService } = require('./lookup-service');
+        const { ArchetypeService } = require('./utils/archetypeService');
+
+        // Position name to ID mapping (all uppercase keys)
+        const positionNameToId: Record<string, number> = {
+          'QB': 0, 'HB': 1, 'FB': 2, 'WR': 3, 'TE': 4,
+          'LT': 5, 'LG': 6, 'C': 7, 'RG': 8, 'RT': 9,
+          'LEDG': 10, 'LE': 10, 'REDG': 11, 'RE': 11, 'DT': 12,
+          'LOLB': 13, 'SAM': 13, 'MLB': 14, 'MIKE': 14, 'ROLB': 15, 'WILL': 15,
+          'CB': 16, 'FS': 17, 'SS': 18, 'S': 17,
+          'K': 19, 'P': 20, 'LS': 21
+        };
+
+        // Build database position lookup
+        const dbPlayers = lookupService.getPlayersByDraftClass(year);
+        const dbPositionLookup = new Map<string, number>();
+        for (const dbPlayer of dbPlayers) {
+          const key = `${dbPlayer.firstName?.toLowerCase()} ${dbPlayer.lastName?.toLowerCase()}`;
+          if (dbPlayer.position) {
+            const posId = positionNameToId[dbPlayer.position.toUpperCase()];
+            if (posId !== undefined) {
+              dbPositionLookup.set(key, posId);
+              console.log(`[DraftClassService] DB position: ${dbPlayer.firstName} ${dbPlayer.lastName} -> ${dbPlayer.position} (ID: ${posId})`);
+            } else {
+              console.log(`[DraftClassService] UNKNOWN POSITION: ${dbPlayer.firstName} ${dbPlayer.lastName} -> "${dbPlayer.position}"`);
+            }
+          }
+        }
+        console.log(`[DraftClassService] Built position lookup from database: ${dbPositionLookup.size} players`);
+
+        let positionsFixed = 0;
+        for (const prospect of prospects) {
+          const key = `${prospect.firstName?.toLowerCase()} ${prospect.lastName?.toLowerCase()}`;
+
+          // PRIORITY 1: Use database position
+          const dbPositionId = dbPositionLookup.get(key);
+          if (dbPositionId !== undefined && prospect.position !== dbPositionId) {
+            console.log(`[DraftClassService] Fixing position for ${prospect.firstName} ${prospect.lastName}: ${prospect.position} -> ${dbPositionId} (from database)`);
+            prospect.position = dbPositionId;
+            prospect.PPOS = dbPositionId;
+            positionsFixed++;
+            continue;
+          }
+
+          // PRIORITY 2: Derive from archetype (PLTY) if database lookup failed
+          if (prospect.PLTY !== undefined && prospect.PLTY !== null) {
+            const correctPositionId = ArchetypeService.getPositionIdFromArchetypeId(prospect.PLTY);
+            if (correctPositionId !== null && prospect.position !== correctPositionId) {
+              console.log(`[DraftClassService] Fixing position for ${prospect.firstName} ${prospect.lastName}: ${prospect.position} -> ${correctPositionId} (from PLTY=${prospect.PLTY})`);
+              prospect.position = correctPositionId;
+              prospect.PPOS = correctPositionId;
+              positionsFixed++;
+            }
+          }
+        }
+        if (positionsFixed > 0) {
+          console.log(`[DraftClassService] Fixed ${positionsFixed} mismatched positions`);
+        }
+
         draftClass = {
           header,
           prospects,

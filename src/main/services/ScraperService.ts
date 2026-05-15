@@ -115,6 +115,7 @@ export interface DraftProspect {
   age?: number;
   round?: number;
   pick?: number;
+  team?: string; // Team that drafted this player (from draft page)
   isHallOfFamer?: boolean; // Flag for future HOF players
   homeState?: string; // Two-letter state code (e.g., "CA", "TX")
 
@@ -1699,6 +1700,7 @@ export class ScraperService {
           birthDate?: string;
           birthPlace?: string;
           highSchool?: string;
+          college?: string;
           careerFrom?: number;
           careerTo?: number;
           teams?: string;
@@ -1736,6 +1738,33 @@ export class ScraperService {
         const highSchoolMatch = text.match(/High School:\s*([^\n]+)/i);
         if (highSchoolMatch) {
           result.highSchool = highSchoolMatch[1].trim();
+        }
+
+        // Extract college from the college participation table
+        // PFA format: "Year\tCollege\tParticipation" header followed by data rows
+        // Data rows: "1992\tMiami (Florida)\tLettered" or "1991\tMiami (Florida)\tRedshirted"
+        // Look for Year followed by college name followed by participation type
+        const participationTypes = 'Lettered|Redshirted|College Football|College Basketball|NCAA|Did Not Play';
+        const collegeTablePattern = new RegExp(
+          `\\b(19[3-9]\\d|20[0-2]\\d)\\s+([A-Za-z][A-Za-z\\s\\(\\)\\.\\-\\']+?)\\s+(${participationTypes})`,
+          'i'
+        );
+        const collegeTableMatch = text.match(collegeTablePattern);
+        if (collegeTableMatch) {
+          result.college = collegeTableMatch[2].trim();
+        } else {
+          // Fallback: Look for "College:" label pattern
+          const collegeLabelMatch = text.match(/College:\s*([^\n,]+)/i);
+          if (collegeLabelMatch) {
+            result.college = collegeLabelMatch[1].trim();
+          } else {
+            // Second fallback: Look for common college names in context of "attended" or similar
+            // Pattern: "attended [College Name]" or "[College Name] (" followed by state abbrev
+            const attendedMatch = text.match(/attended\s+([A-Z][A-Za-z\s]+?)(?:\s+\(|\s+where|\s*$)/i);
+            if (attendedMatch) {
+              result.college = attendedMatch[1].trim();
+            }
+          }
         }
 
         // Career years from stats table (EXACT pattern from test-pfa-scraper.js line 294)
@@ -1884,7 +1913,7 @@ export class ScraperService {
         careerTo: rawData.careerTo,
         teams: rawData.teams,
         careerHistory: rawData.careerHistory || [],
-        college: draftPageCollege || undefined // College comes from draft page
+        college: draftPageCollege || rawData.college || undefined // College from draft page first, then player page
       };
 
       console.log(`[ScraperService] Processed PFA data:`, bioData);
@@ -3714,6 +3743,175 @@ export class ScraperService {
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Scrape draft class from Pro Football Archives (PFA)
+   * PFA has draft data with team information for each pick
+   * Format: "Pick#. Team Name - Player Name (Position, College)"
+   *
+   * @param year - Draft year (1936+)
+   * @returns Array of draft prospects with team assignments
+   */
+  async scrapePFADraftClass(year: number): Promise<DraftProspect[]> {
+    await this.initBrowser();
+
+    if (!this.browser) {
+      throw new Error('Failed to initialize browser');
+    }
+
+    const page = await this.browser.newPage();
+    const prospects: DraftProspect[] = [];
+
+    try {
+      console.log(`[ScraperService] Scraping PFA draft class for ${year}`);
+
+      const draftPageUrl = `https://www.profootballarchives.com/drafts/${year}nfldraft.html`;
+      await page.goto(draftPageUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+
+      // Extract draft data from PFA table
+      // PFA 2026 table structure: Round, Overall, Team, Player, Position, College
+      const draftData = await page.evaluate(() => {
+        const picks: Array<{
+          round: number;
+          pick: number;
+          overallPick: number;
+          team: string;
+          name: string;
+          position: string;
+          college: string;
+        }> = [];
+
+        // PFA draft table structure - find all tables on the page
+        const tables = document.querySelectorAll('table');
+
+        for (const table of tables) {
+          const rows = table.querySelectorAll('tr');
+
+          for (const row of rows) {
+            const cells = row.querySelectorAll('td');
+            // Need at least 5 columns: Round, Overall, Team, Player, Position
+            if (cells.length < 5) continue;
+
+            // Column 0: Round (skip if header or non-numeric)
+            const roundText = cells[0]?.textContent?.trim() || '';
+            const round = parseInt(roundText);
+            if (isNaN(round) || round < 1 || round > 7) continue;
+
+            // Column 1: Overall pick number
+            const overallText = cells[1]?.textContent?.trim() || '';
+            const overall = parseInt(overallText);
+            if (isNaN(overall) || overall < 1 || overall > 300) continue;
+
+            // Column 2: Team - get text from link if present, otherwise cell text
+            const teamCell = cells[2];
+            let team = '';
+            const teamLink = teamCell?.querySelector('a');
+            if (teamLink) {
+              team = teamLink.textContent?.trim() || '';
+            } else {
+              team = teamCell?.textContent?.trim() || '';
+            }
+
+            // Column 3: Player name - get text from link
+            const playerCell = cells[3];
+            let playerName = '';
+            const playerLink = playerCell?.querySelector('a');
+            if (playerLink) {
+              playerName = playerLink.textContent?.trim() || '';
+            } else {
+              playerName = playerCell?.textContent?.trim() || '';
+            }
+
+            // Column 4: Position
+            const position = cells[4]?.textContent?.trim() || '';
+
+            // Column 5: College (if present)
+            const college = cells[5]?.textContent?.trim() || '';
+
+            if (playerName && team) {
+              picks.push({
+                round: round,
+                pick: overall,
+                overallPick: overall,
+                team: team,
+                name: playerName,
+                position: position,
+                college: college
+              });
+            }
+          }
+
+          // If we found data, stop looking at other tables
+          if (picks.length > 10) break;
+        }
+
+        return picks;
+      });
+
+      console.log(`[ScraperService] PFA extracted ${draftData.length} picks`);
+
+      // Convert to DraftProspect format
+      for (const pick of draftData) {
+        prospects.push({
+          name: pick.name,
+          position: pick.position,
+          college: pick.college,
+          round: pick.round,
+          pick: pick.overallPick,
+          team: pick.team
+        });
+      }
+
+      // Log first few picks for verification
+      if (prospects.length > 0) {
+        console.log(`[ScraperService] First 3 picks:`);
+        for (let i = 0; i < Math.min(3, prospects.length); i++) {
+          const p = prospects[i];
+          console.log(`  ${i + 1}. ${p.team} - ${p.name} (${p.position}, ${p.college})`);
+        }
+      }
+
+      await page.close();
+      return prospects;
+
+    } catch (error: any) {
+      console.error(`[ScraperService] Error scraping PFA draft class for ${year}:`, error);
+      await page.close();
+      return [];
+    }
+  }
+
+  /**
+   * Get team assignment for a player from PFA draft data
+   * Scrapes the draft page and finds which team picked the player
+   *
+   * @param playerName - Player's name
+   * @param year - Draft year
+   * @returns Team name or null if not found
+   */
+  async getTeamFromPFADraft(playerName: string, year: number): Promise<string | null> {
+    const draftClass = await this.scrapePFADraftClass(year);
+
+    const normalizedSearch = this.normalizeName(playerName);
+    const searchParts = normalizedSearch.split(' ');
+    const searchFirst = searchParts[0];
+    const searchLast = searchParts[searchParts.length - 1];
+
+    for (const prospect of draftClass) {
+      const normalizedName = this.normalizeName(prospect.name);
+      const nameParts = normalizedName.split(' ');
+      const nameFirst = nameParts[0];
+      const nameLast = nameParts[nameParts.length - 1];
+
+      // Match on first and last name
+      if (nameFirst === searchFirst && nameLast === searchLast) {
+        console.log(`[ScraperService] Found ${playerName} drafted by ${prospect.team}`);
+        return prospect.team;
+      }
+    }
+
+    return null;
   }
 }
 

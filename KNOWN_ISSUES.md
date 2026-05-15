@@ -4,6 +4,7 @@ This document records solutions to problems that have been solved before. Check 
 
 ## Index
 
+- [Native Module Issues](#native-module-issues)
 - [Retro Editor Issues](#retro-editor-issues)
 - [M26 Draft Class Save Errors](#m26-draft-class-save-errors)
 - [Data Format Mismatches](#data-format-mismatches)
@@ -11,6 +12,38 @@ This document records solutions to problems that have been solved before. Check 
 - [Data Persistence Issues](#data-persistence-issues)
 - [Handsontable Sorting Issues](#handsontable-sorting-issues)
 - [Packaging and Distribution Issues](#packaging-and-distribution-issues)
+
+---
+
+## Native Module Issues
+
+### Issue: better-sqlite3 NODE_MODULE_VERSION mismatch
+
+**Symptoms:**
+```
+Error: The module 'better_sqlite3.node' was compiled against a different Node.js version using
+NODE_MODULE_VERSION X. This version of Node.js requires NODE_MODULE_VERSION Y.
+```
+
+**Root Cause:**
+- Electron uses a different Node.js version than system Node.js
+- Running `npm rebuild better-sqlite3` compiles for SYSTEM Node, breaking Electron
+- Command-line scripts and Electron app need different compiled versions
+
+**WRONG - This breaks Electron:**
+```bash
+npm rebuild better-sqlite3
+```
+
+**CORRECT - Use electron-rebuild:**
+```bash
+npx electron-rebuild -f -w better-sqlite3
+```
+
+**Prevention:**
+- NEVER run `npm rebuild` on native modules directly
+- ALWAYS use `npx electron-rebuild` for native module issues
+- For command-line scripts that need better-sqlite3, use a separate Node installation or run within Electron context
 
 ---
 

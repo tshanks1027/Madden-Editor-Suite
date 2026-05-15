@@ -27,6 +27,12 @@ import { userDatabaseService } from './UserDatabaseService';
 import { contractService } from './ContractService';
 import { ArchetypeSyncService } from './ArchetypeSyncService';
 import { ovrWeightsCalculator } from './rating-modes/OVRWeightsCalculator';
+import {
+  DB_TO_OVR_FIELD_MAP,
+  mapRatingsForOVR,
+  normalizePosition,
+  POSITION_ALIASES,
+} from './FieldMappingRegistry';
 
 /**
  * Resolve data path for both dev and packaged builds
@@ -50,47 +56,7 @@ function resolveDataPath(...segments: string[]): string {
   return possiblePaths[0];
 }
 
-// Map database field codes to OVR calculator field codes
-// CRITICAL: This MUST match the mapping in database-player-card.js exactly
-// This ensures ONE calculation produces the same result everywhere
-const DB_TO_OVR_FIELD_MAP: { [key: string]: string } = {
-  'PSPD': 'PSPD', 'PACC': 'PACC', 'PSTR': 'PSTR', 'PAGI': 'PAGI', 'PJMP': 'PJMP',
-  'PSTA': 'PSTA', 'PINJ': 'PINJ', 'PTGH': 'PTGH', 'PAWR': 'PAWR',  // NOTE: PSTM is Sleeve Temp, not stamina
-  'PCOD': 'PELU', 'PELU': 'PELU', 'PBCV': 'PBCV',
-  'PBTK': 'PBKT', 'PBKT': 'PBKT', 'PTRK': 'PLTR', 'PLTR': 'PLTR',
-  'PSFA': 'PLSA', 'PLSA': 'PLSA', 'PSPN': 'PLSM', 'PLSM': 'PLSM',
-  'PJKM': 'PLJM', 'PLJM': 'PLJM', 'PCAR': 'PCAR',
-  'PTAS': 'PTAS', 'PTAM': 'PTAM', 'PTAD': 'PTAD',
-  'PTOR': 'PTOR', 'PTUP': 'PTUP', 'PPWR': 'PTHP', 'PTHP': 'PTHP',
-  'PCTH': 'PCTH', 'PSPC': 'PLSC', 'PLSC': 'PLSC', 'PCIT': 'PLCI', 'PLCI': 'PLCI',
-  'PSRR': 'SRRN', 'SRRN': 'SRRN', 'PMRR': 'PMRR', 'PDRR': 'PDRR',
-  'PREL': 'PLRL', 'PLRL': 'PLRL',
-  'PRBK': 'PRBK', 'PPBK': 'PPBK', 'PIBK': 'PLIB', 'PLIB': 'PLIB', 'PLBK': 'PLBK',
-  'PFMS': 'PFMS', 'PRNS': 'PRBF', 'PRBS': 'PRBS', 'PRBF': 'PRBF',  // PRNS in DB = Run Block Finesse (PRBF)
-  'PPBF': 'PPBF', 'PPBP': 'PPBS', 'PPBS': 'PPBS',  // PPBP in DB = Pass Block Power (PPBS)
-  'PTAK': 'PTAK',
-  'PHIT': 'PLHT', 'PLHT': 'PLHT',
-  'PFMV': 'PFMS', 'PPWM': 'PLPM', 'PLPM': 'PLPM',
-  'PBSH': 'PBSG', 'PBSG': 'PBSG',
-  'PPUR': 'PLPU', 'PLPU': 'PLPU',  // PPUR in old CSV = Pursuit, maps to PLPU
-  'PPRC': 'PLPR', 'PLPR': 'PLPR',  // PPRC in old CSV = Play Recognition, maps to PLPR
-  'PPLA': 'PPLA',  // Play Action stays as Play Action (QB attribute)
-  'PMCV': 'PLMC', 'PLMC': 'PLMC', 'PZCV': 'PLZC', 'PLZC': 'PLZC',
-  'PPRS': 'PLPE', 'PLPE': 'PLPE', 'PBSK': 'PBSK',
-  'PKAC': 'PKAC', 'PKPW': 'PKPR', 'PKPR': 'PKPR', 'PKRT': 'PKRT'  // PKPW in DB = PKPR in roster (kick power)
-};
-
-// Helper function to map database ratings to OVR calculator format
-function mapRatingsForOVR(ratings: { [key: string]: number }): { [key: string]: number } {
-  const mapped: { [key: string]: number } = {};
-  for (const [dbField, value] of Object.entries(ratings)) {
-    const ovrField = DB_TO_OVR_FIELD_MAP[dbField] || dbField;
-    if (value !== null && value !== undefined && !isNaN(value)) {
-      mapped[ovrField] = value;
-    }
-  }
-  return mapped;
-}
+// DB_TO_OVR_FIELD_MAP and mapRatingsForOVR are now imported from FieldMappingRegistry
 
 export interface RosterPlayer {
   // Basic Info (lowercase format)
@@ -289,6 +255,8 @@ export class RosterGeneratorService {
   private genericPIDSet: Set<number> = new Set(); // Fast lookup for generic face PIDs
   private validPIDs: Set<number> = new Set(); // ALL valid PIDs from PID_Portrait_Mapping.csv
   private pidToPAM: Map<number, string> = new Map(); // PID → PAM mapping from PID_Portrait_Mapping.csv
+  private _fillDebugCount: number = 0; // Debug counter for fillMissingRatingsFromDb
+  private _enrichDebugCount: number = 0; // Debug counter for enrichPlayerFromDb
   private pidToPortrait: Map<number, string> = new Map(); // PID → Portrait name (for race filtering)
   // NEW: Generic faces grouped by race for proper skin-tone matching
   private genericFacesByRace: Map<number, { pid: number; pam: string; pghe: number }[]> = new Map();
@@ -782,6 +750,16 @@ export class RosterGeneratorService {
     const allDbPlayers = lookupService.getAllPlayerSeasonsForYear(year);
     console.log(`[RosterGeneratorService] Loaded ${allDbPlayers.length} players for year ${year}`);
 
+    // DEBUG: Show first 3 players with their ratings to verify data flow
+    if (allDbPlayers.length > 0) {
+      console.log(`[RosterGeneratorService] DEBUG - First 3 players from database:`);
+      allDbPlayers.slice(0, 3).forEach((p, i) => {
+        console.log(`  Player ${i + 1}: ${p.firstName} ${p.lastName} - team=${p.team}, POVR=${p.ratings?.POVR}, PSPD=${p.ratings?.PSPD}, PACC=${p.ratings?.PACC}, PAWR=${p.ratings?.PAWR}`);
+      });
+    } else {
+      console.log(`[RosterGeneratorService] WARNING: Database returned 0 players for year ${year}!`);
+    }
+
     // Filter out hidden players (user-hidden or bundled-hidden)
     const hiddenPlayerIds = new Set(userDatabaseService.getHiddenPlayers());
     const dbPlayers = allDbPlayers.filter(p => !hiddenPlayerIds.has(p.playerId));
@@ -1157,22 +1135,33 @@ export class RosterGeneratorService {
     console.log('[RosterGeneratorService] Teams:', Array.from(teamPlayers.keys()).slice(0, 10).join(', '), '...');
 
     // Helper to get POVR from either format
+    // IMPORTANT: Use 50 as default for NULL ratings (not 0) to prevent rookie exclusion
     const getPOVR = (p: any) => {
       if (p._source === 'custom') {
-        return p.POVR || 0;
+        return p.POVR || 50;
       }
-      return p.ratings?.POVR || 0;
+      return p.ratings?.POVR || 50;
     };
 
-    // Build roster: top 55 players per team by POVR
+    // Build roster: include ALL players from database, sorted by POVR
+    // Previously we took only top 55 per team which excluded rookies with NULL ratings
     const roster: any[] = [];
     let totalTeams = 0;
 
     teamPlayers.forEach((players, team) => {
-      // Sort by POVR and take top 55
+      // Sort by POVR but include ALL players (not just top 55)
+      // This ensures rookies with NULL/missing ratings are included
       const teamRoster = players
-        .sort((a, b) => getPOVR(b) - getPOVR(a))
-        .slice(0, 55);
+        .sort((a, b) => getPOVR(b) - getPOVR(a));
+
+      // Log if any players have NULL/missing POVR (default 50)
+      const playersWithDefaultPOVR = players.filter(p => !p.ratings?.POVR && p._source !== 'custom');
+      if (playersWithDefaultPOVR.length > 0) {
+        console.log(`[RosterGeneratorService] ${team}: ${playersWithDefaultPOVR.length} players with NULL POVR (using default 50):`);
+        playersWithDefaultPOVR.slice(0, 5).forEach(p => {
+          console.log(`  - ${p.firstName} ${p.lastName} (${p.position})`);
+        });
+      }
 
       roster.push(...teamRoster);
       totalTeams++;
@@ -1201,6 +1190,7 @@ export class RosterGeneratorService {
       console.log('[RosterGeneratorService] Sample enriched players:');
       enrichedPlayers.slice(0, 3).forEach((p: any, i) => {
         console.log(`  Player ${i + 1}: ${p.PFNA} ${p.PLNA} - Team ID: ${p.TGID}, PID: ${p.PSXP}, PEPS: "${p.PEPS}", PLPL: ${p.PLPL}, College: ${p.PCOL}, Archetype: ${p.PLTY}`);
+        console.log(`    RATINGS: POVR=${p.POVR}, PSPD=${p.PSPD}, PACC=${p.PACC}, PAWR=${p.PAWR}, PAGI=${p.PAGI}, PSTR=${p.PSTR}`);
       });
     }
 
@@ -2914,7 +2904,20 @@ export class RosterGeneratorService {
 
     // Get ratings from database - fill missing values
     // Note: User edits are already merged into dbRow.ratings BEFORE this method is called
+    // CRITICAL DEBUG: Log what we're passing to fillMissingRatingsFromDb
+    if (!this._enrichDebugCount) this._enrichDebugCount = 0;
+    if (this._enrichDebugCount < 3) {
+      console.log(`[enrichPlayerFromDb DEBUG] Player: ${cleanFirstName} ${cleanLastName}`);
+      console.log(`  dbRow.ratings exists: ${!!dbRow.ratings}`);
+      console.log(`  dbRow.ratings.POVR: ${dbRow.ratings?.POVR}`);
+      console.log(`  dbRow.ratings.PSPD: ${dbRow.ratings?.PSPD}`);
+      console.log(`  dbRow.ratings.PACC: ${dbRow.ratings?.PACC}`);
+    }
     const ratings = this.fillMissingRatingsFromDb(dbRow.ratings || {});
+    if (this._enrichDebugCount < 3) {
+      console.log(`  AFTER fillMissing: POVR=${ratings.POVR}, PSPD=${ratings.PSPD}, PACC=${ratings.PACC}`);
+      this._enrichDebugCount++;
+    }
 
     // Handle PID/PAM from database
     // Priority: dbRow.maddenPid (already merged with appearance edits) > customPortraitPID > 0
@@ -3284,6 +3287,13 @@ export class RosterGeneratorService {
       } else {
         syncedPlayer.POVR = Math.min(99, calculatedOvr);
       }
+
+      // CRITICAL DEBUG: Log FINAL POVR after recalculation
+      if (this._enrichDebugCount && this._enrichDebugCount <= 3) {
+        console.log(`[enrichPlayerFromDb DEBUG] FINAL for ${syncedPlayer.PFNA} ${syncedPlayer.PLNA}:`);
+        console.log(`  Input PSPD=${attributes.PSPD}, PACC=${attributes.PACC}, PAGI=${attributes.PAGI}, PAWR=${attributes.PAWR}`);
+        console.log(`  calculatedOvr=${calculatedOvr}, FINAL POVR=${syncedPlayer.POVR}`);
+      }
     }
 
     return syncedPlayer;
@@ -3297,6 +3307,14 @@ export class RosterGeneratorService {
   private fillMissingRatingsFromDb(ratings: { [key: string]: number }): { [key: string]: number } {
     const MIN_RATING = 40;  // Madden minimum rating floor
     const MAX_RATING = 99;
+
+    // DEBUG: Log incoming ratings - only for first few calls to avoid spam
+    if (!this._fillDebugCount) this._fillDebugCount = 0;
+    if (this._fillDebugCount < 3) {
+      console.log(`[fillMissingRatingsFromDb] DEBUG - INPUT ratings keys: ${Object.keys(ratings).slice(0, 10).join(', ')}...`);
+      console.log(`[fillMissingRatingsFromDb] DEBUG - POVR=${ratings.POVR}, PSPD=${ratings.PSPD}, PACC=${ratings.PACC}, PAWR=${ratings.PAWR}`);
+      this._fillDebugCount++;
+    }
 
     // FIRST: Convert all DB field names to roster field names
     // This ensures we can find values regardless of how they were stored
@@ -4127,37 +4145,22 @@ export class RosterGeneratorService {
 
   /**
    * Lookup position code from position string (handles old position names)
+   * Uses POSITION_ALIASES from FieldMappingRegistry plus M26-specific mappings
    */
   private async lookupPositionCode(positionName: string): Promise<number> {
     if (!positionName || positionName === '') {
       return 0; // Default to QB
     }
 
-    // Map old/alternate position names to M26 positions
-    const POSITION_MAP: Record<string, string> = {
-      // Offense
-      'QB': 'QB',
-      'HB': 'HB',
-      'RB': 'HB',
-      'FB': 'FB',
-      'WR': 'WR',
-      'FL': 'WR',  // Flanker
-      'SE': 'WR',  // Split End
-      'TE': 'TE',
-      'LT': 'LT',
-      'LG': 'LG',
-      'C': 'C',
-      'RG': 'RG',
-      'RT': 'RT',
-      'G': 'LG',   // Generic Guard
-      'T': 'LT',   // Generic Tackle
-
-      // Defense - Edge
+    // M26-specific position mappings (extends POSITION_ALIASES from registry)
+    // These map to position_lookup.csv names which use M26 naming conventions
+    const M26_POSITION_MAP: Record<string, string> = {
+      // Defense - Edge (M26 uses LEDG/REDG instead of LE/RE)
       'LEDG': 'LEDG',
       'REDG': 'REDG',
-      'LDE': 'LEDG',  // Left Defensive End
-      'RDE': 'REDG',  // Right Defensive End
-      'DE': 'LEDG',   // Generic DE
+      'LDE': 'LEDG',   // Left Defensive End
+      'RDE': 'REDG',   // Right Defensive End
+      'DE': 'LEDG',    // Generic DE
       'LE': 'LEDG',
       'RE': 'REDG',
 
@@ -4165,42 +4168,28 @@ export class RosterGeneratorService {
       'DT': 'DT',
       'LDT': 'DT',
       'RDT': 'DT',
-      'NT': 'DT',    // Nose Tackle
-      'MG': 'DT',    // Middle Guard
+      'NT': 'DT',      // Nose Tackle
+      'MG': 'DT',      // Middle Guard
 
-      // Defense - LB
-      'SAM': 'SAM',      // Strongside
-      'MIKE': 'Mike',    // Middle - MUST match position_lookup.csv exactly (capital M)
-      'WILL': 'WILL',    // Weakside
-      'MLB': 'Mike',     // Middle Linebacker
-      'LOLB': 'WILL',    // Left Outside = Weakside
-      'ROLB': 'SAM',     // Right Outside = Strongside
-      'LLB': 'WILL',     // Left Linebacker
-      'RLB': 'SAM',      // Right Linebacker
-      'LB': 'Mike',      // Generic LB
-      'OLB': 'WILL',     // Generic Outside LB
-      'ILB': 'Mike',     // Inside LB
-
-      // Defense - Secondary
-      'CB': 'CB',
-      'LCB': 'CB',   // Left Cornerback
-      'RCB': 'CB',   // Right Cornerback
-      'DB': 'CB',    // Generic Defensive Back
-      'FS': 'FS',
-      'SS': 'SS',
-      'S': 'FS',     // Generic Safety
-
-      // Special Teams
-      'K': 'K',
-      'P': 'P',
-      'KR': 'HB',    // Kick Returner -> HB
-      'PR': 'WR',    // Punt Returner -> WR
-      'LS': 'C'      // Long Snapper -> C
+      // Defense - LB (M26 uses SAM/Mike/WILL)
+      'SAM': 'SAM',       // Strongside
+      'MIKE': 'Mike',     // Middle - MUST match position_lookup.csv exactly (capital M)
+      'WILL': 'WILL',     // Weakside
+      'MLB': 'Mike',      // Middle Linebacker
+      'LOLB': 'WILL',     // Left Outside = Weakside
+      'ROLB': 'SAM',      // Right Outside = Strongside
+      'LLB': 'WILL',      // Left Linebacker
+      'RLB': 'SAM',       // Right Linebacker
+      'LB': 'Mike',       // Generic LB
+      'OLB': 'WILL',      // Generic Outside LB
+      'ILB': 'Mike',      // Inside LB
     };
 
     // Normalize position (take first position if slash-separated)
-    const normalized = positionName.split('/')[0].trim();
-    const mappedPosition = POSITION_MAP[normalized] || normalized;
+    const normalized = positionName.split('/')[0].trim().toUpperCase();
+
+    // Check M26-specific mappings first, then fall back to POSITION_ALIASES
+    const mappedPosition = M26_POSITION_MAP[normalized] || POSITION_ALIASES[normalized] || normalized;
 
     try {
       const options = await lookupService.getDropdownOptions('position_lookup.csv');

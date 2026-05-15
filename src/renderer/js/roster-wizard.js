@@ -334,6 +334,13 @@ async function generateRoster() {
       console.log('[RosterWizard] Generation successful');
       console.log('[RosterWizard] Players:', result.data.players.length);
 
+      // DEBUG: Log first 5 players with their RATINGS to verify data flow
+      console.log('[RosterWizard] ===== RATING CHECK =====');
+      result.data.players.slice(0, 5).forEach((p, i) => {
+        console.log(`[RosterWizard] Player ${i+1}: ${p.PFNA} ${p.PLNA} - POVR=${p.POVR}, PSPD=${p.PSPD}, PACC=${p.PACC}, PAWR=${p.PAWR}`);
+      });
+      console.log('[RosterWizard] ========================');
+
       // DEBUG: Team distribution analysis
       const teamCounts = {};
       result.data.players.forEach(p => {
@@ -597,6 +604,15 @@ async function loadRosterIntoEditor() {
   processedPlayers.slice(0, 5).forEach((p, i) => {
     console.log(`  Player ${i + 1}: ${p.PFNA} ${p.PLNA} - TGID=${p.TGID} (type: ${typeof p.TGID})`);
   });
+
+  // DEBUG: Log QB RATINGS specifically to track where corruption happens
+  console.log('[RosterWizard] ===== QB RATINGS CHECK =====');
+  const qbs = processedPlayers.filter(p => p.PPOS === 0);
+  console.log(`[RosterWizard] Found ${qbs.length} QBs`);
+  qbs.slice(0, 5).forEach((p, i) => {
+    console.log(`  QB ${i + 1}: ${p.PFNA} ${p.PLNA} - POVR=${p.POVR}, PACC=${p.PACC}, PAGI=${p.PAGI}, PAWR=${p.PAWR}, PBCV=${p.PBCV}, PBKT=${p.PBKT}, PBSK=${p.PBSK}`);
+  });
+  console.log('[RosterWizard] === app.players set, about to call renderRoster ===');
 
   // Store metadata for compatibility with file loading
   app.originalData = {

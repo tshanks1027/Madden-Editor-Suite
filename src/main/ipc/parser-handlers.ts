@@ -50,6 +50,11 @@ ipcMain.handle('parser:parse-roster-file', async (event, filePath: string) => {
  * Save modified player data back to roster file
  */
 ipcMain.handle('parser:save-roster-file', async (event, filePath: string, players: any[], originalData: any, options?: { clearInjuries?: boolean }) => {
+  console.log('[parser-handlers] *** HANDLER REACHED ***');
+  console.log('[parser-handlers] filePath type:', typeof filePath);
+  console.log('[parser-handlers] players type:', typeof players, 'isArray:', Array.isArray(players));
+  console.log('[parser-handlers] originalData type:', typeof originalData);
+
   try {
     console.log('[parser-handlers] Saving roster file:', filePath);
     console.log('[parser-handlers] Player count:', players.length);
@@ -65,10 +70,29 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
       console.log(`[parser-handlers] DEBUG: Sample player with assignedGenr: ${sample.PFNA} ${sample.PLNA}, assignedGenr="${sample.assignedGenr}", assignedSknt=${sample.assignedSknt}`);
     }
 
+    // CRITICAL DEBUG: Check PLRL values received via IPC
+    const playersWithPlrl = players.filter(p => p.PLRL && p.PLRL > 0);
+    console.log(`[parser-handlers] *** PLRL DEBUG: ${playersWithPlrl.length} players have non-zero PLRL via IPC ***`);
+    if (playersWithPlrl.length > 0 && playersWithPlrl.length <= 10) {
+      playersWithPlrl.forEach(p => {
+        console.log(`[parser-handlers]   ${p.PFNA} ${p.PLNA} - PLRL=${p.PLRL}, POID=${p.POID}`);
+      });
+    }
+
     // Save the file - this also runs GenericFaceService.updateBLBMForGenericFaces
     const result = await saveRosterFile(filePath, players, originalData, options);
 
     console.log('[parser-handlers] Save successful, result:', result);
+
+    // Log PLRL debug info
+    if (result?.plrlDebug) {
+      console.log('[parser-handlers] *** PLRL SAVE RESULT ***');
+      console.log(`  Incoming non-zero: ${result.plrlDebug.incomingNonZero}`);
+      console.log(`  Final non-zero (in file records): ${result.plrlDebug.finalNonZero}`);
+      if (result.plrlDebug.samples?.length > 0) {
+        console.log('  Samples:', JSON.stringify(result.plrlDebug.samples));
+      }
+    }
 
     return {
       success: true,
@@ -78,7 +102,8 @@ ipcMain.handle('parser:save-roster-file', async (event, filePath: string, player
       skntSynced: result?.skntSynced ?? 0,
       blbmError: result?.blbmError ?? null,
       injuriesCleared: result?.injuriesCleared ?? 0,
-      equipmentUpdated: result?.equipmentUpdated ?? 0
+      equipmentUpdated: result?.equipmentUpdated ?? 0,
+      plrlDebug: result?.plrlDebug ?? null
     };
 
   } catch (error: any) {

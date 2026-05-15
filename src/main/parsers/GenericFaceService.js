@@ -1650,13 +1650,72 @@ class GenericFaceService {
       return 0;
     }
 
-    console.log(`[GenericFaceService] Syncing player identity for ${Math.min(players.length, blbm._records.length)} players`);
+    console.log(`[GenericFaceService] Syncing player identity for ${players.length} players`);
+
+    // DEBUG: Show sample of player POIDs
+    console.log('[GenericFaceService] First 5 player POIDs from players array:');
+    for (let i = 0; i < Math.min(5, players.length); i++) {
+      const p = players[i];
+      console.log(`  players[${i}]: ${p.PFNA} ${p.PLNA}, POID=${p.POID} (type=${typeof p.POID}), PGID=${p.PGID}`);
+    }
+
+    // CRITICAL FIX: Build POID -> BLBM record map for STABLE lookups
+    // Previously used index matching (blbm._records[i]) which breaks when players are deleted
+    // because the players array shifts but BLBM records don't
+    const poidToBlbmRec = new Map();
+    for (const rec of blbm._records) {
+      const idx = rec.index;
+      if (idx !== undefined && idx !== null) {
+        poidToBlbmRec.set(idx, rec);
+      }
+    }
+    console.log(`[GenericFaceService] Built POID->BLBM map with ${poidToBlbmRec.size} entries`);
+
+    // DEBUG: Show sample of BLBM indices
+    console.log('[GenericFaceService] First 5 BLBM record indices:');
+    for (let i = 0; i < Math.min(5, blbm._records.length); i++) {
+      const rec = blbm._records[i];
+      const f = rec.fields || rec._fields;
+      const cfnm = f?.CFNM?.value ?? f?.CFNM?._value ?? '';
+      const clnm = f?.CLNM?.value ?? f?.CLNM?._value ?? '';
+      console.log(`  blbm._records[${i}]: ${cfnm} ${clnm}, index=${rec.index} (type=${typeof rec.index})`);
+    }
+
+    // DEBUG: Check if first player's POID exists in the map
+    if (players.length > 0) {
+      const testPoid = players[0].POID;
+      const foundRec = poidToBlbmRec.get(testPoid);
+      console.log(`[GenericFaceService] Test lookup: players[0].POID=${testPoid} -> found=${!!foundRec}`);
+      if (!foundRec) {
+        // Try to find why it failed
+        const mapKeys = Array.from(poidToBlbmRec.keys()).slice(0, 10);
+        console.log(`[GenericFaceService] Map keys (first 10): ${JSON.stringify(mapKeys)}`);
+      }
+    }
 
     let updatedCount = 0;
+    let notFoundCount = 0;
 
-    for (let i = 0; i < players.length && i < blbm._records.length; i++) {
+    for (let i = 0; i < players.length; i++) {
       const player = players[i];
-      const blbmRec = blbm._records[i];
+      const poid = player.POID;
+
+      // CRITICAL: Find BLBM record by POID, not array index!
+      // This ensures we modify the correct player's equipment/appearance data
+      let blbmRec = poidToBlbmRec.get(poid);
+
+      if (!blbmRec) {
+        // Fallback: try PGID if POID lookup failed
+        blbmRec = poidToBlbmRec.get(player.PGID);
+        if (!blbmRec) {
+          notFoundCount++;
+          if (notFoundCount <= 5) {
+            console.warn(`[GenericFaceService] No BLBM record for POID=${poid}, PGID=${player.PGID} (${player.PFNA} ${player.PLNA})`);
+          }
+          continue;
+        }
+      }
+
       const fields = blbmRec.fields || blbmRec._fields;
 
       if (!fields) continue;
@@ -1669,18 +1728,15 @@ class GenericFaceService {
       const heightInches = player.PHGT;
       const peps = player.PEPS || '';
 
-      // CRITICAL FIX: Update BLBM record's .index to match player's PGID
-      // The game links PLAY records to BLBM records by finding BLBM[].index === POID
-      // POID is set to PGID in RosterParser, so BLBM.index MUST equal PGID
-      // Without this, faces get assigned to wrong players because the game's lookup fails!
-      const pgid = player.PGID;
-      if (pgid !== undefined && pgid !== null && pgid > 0) {
+      // Update BLBM record's .index to match player's POID
+      // This maintains the PLAY <-> BLBM linkage
+      if (poid !== undefined && poid !== null && poid > 0) {
         const oldIndex = blbmRec.index;
-        if (oldIndex !== pgid) {
-          blbmRec.index = pgid;
+        if (oldIndex !== poid) {
+          blbmRec.index = poid;
           updated = true;
-          if (i < 10) {
-            console.log(`[GenericFaceService] BLBM[${i}].index: ${oldIndex} -> ${pgid} (for ${firstName} ${lastName})`);
+          if (updatedCount < 10) {
+            console.log(`[GenericFaceService] BLBM.index: ${oldIndex} -> ${poid} (for ${firstName} ${lastName})`);
           }
         }
       }
@@ -1816,7 +1872,8 @@ class GenericFaceService {
       }
     }
 
-    console.log(`[GenericFaceService] ===== PLAYER IDENTITY SYNC COMPLETE: ${updatedCount} players updated =====`);
+    console.log(`[GenericFaceService] ===== PLAYER IDENTITY SYNC COMPLETE =====`);
+    console.log(`[GenericFaceService] Updated: ${updatedCount}, Not found by POID: ${notFoundCount}`);
     return updatedCount;
   }
 }

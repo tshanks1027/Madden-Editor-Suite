@@ -2014,12 +2014,24 @@
     }
 
     // PRIORITY 2: Get years with existing season/rating edits
+    // IMPORTANT: Use different APIs for custom vs bundled players to avoid ID collision
     var yearsWithData = [];
     try {
-      var result = await window.electronAPI.database.getPlayerSeasonYears(player.internalId);
-      if (result.success && result.years && result.years.length > 0) {
-        yearsWithData = result.years;
-        console.log('[DbPlayerCard] Found', yearsWithData.length, 'seasons with existing ratings');
+      if (isCustomPlayer) {
+        // Custom players - get years from custom_player_seasons table only
+        // Do NOT query bundled player_seasons table (would match wrong player by ID)
+        var customSeasons = await window.electronAPI.database.getCustomPlayerSeasons(player.internalId);
+        if (customSeasons.success && customSeasons.data && customSeasons.data.length > 0) {
+          yearsWithData = customSeasons.data.map(function(s) { return s.year; });
+          console.log('[DbPlayerCard] Custom player: found', yearsWithData.length, 'custom seasons');
+        }
+      } else {
+        // Bundled players - get years from bundled + user edits
+        var result = await window.electronAPI.database.getPlayerSeasonYears(player.internalId);
+        if (result.success && result.years && result.years.length > 0) {
+          yearsWithData = result.years;
+          console.log('[DbPlayerCard] Found', yearsWithData.length, 'seasons with existing ratings');
+        }
       }
     } catch (error) {
       console.error('[DbPlayerCard] Error fetching season years:', error);
@@ -6218,7 +6230,7 @@
    * PFR uses abbreviations like "CHI", Madden uses names like "Bears"
    */
   var PFR_TO_MADDEN_TEAM = {
-    // Current teams
+    // Current teams - convert to Madden team names
     'ARI': 'Cards', 'ATL': 'Falcons', 'BAL': 'Ravens', 'BUF': 'Bills',
     'CAR': 'Panthers', 'CHI': 'Bears', 'CIN': 'Bengals', 'CLE': 'Browns',
     'DAL': 'Cowboys', 'DEN': 'Broncos', 'DET': 'Lions', 'GB': 'Packers',
@@ -6228,18 +6240,13 @@
     'MIA': 'Dolphins', 'MIN': 'Vikings', 'NE': 'Pats', 'NWE': 'Pats',
     'NO': 'Saints', 'NOR': 'Saints', 'NYG': 'Giants', 'NYJ': 'Jets',
     'OAK': 'Raiders', 'PHI': 'Eagles', 'PIT': 'Steelers', 'SD': 'Chargers',
-    'SDG': 'Chargers', 'SEA': 'Seahawks', 'SF': 'Niners', 'SFO': '49ers',
+    'SDG': 'Chargers', 'SEA': 'Seahawks', 'SF': '49ers', 'SFO': '49ers',
     'STL': 'Rams', 'TB': 'Buccs', 'TAM': 'Buccs', 'TEN': 'Titans',
     'WAS': 'Commanders', 'WSH': 'Commanders',
-    // Historical teams - map to closest modern equivalent or keep as-is
-    'PHO': 'Cards', 'STL': 'Cards', // Phoenix/St. Louis Cardinals -> Cards
-    'BOS': 'Pats', // Boston Patriots -> Pats
-    'HOU': 'Titans', // Houston Oilers -> Titans (for historical purposes)
-    'CRD': 'Cards', // Chicago Cardinals
-    'RAM': 'Rams', // L.A. Rams historical
-    'RAI': 'Raiders', // Raiders historical
-    'CLT': 'Colts', // Baltimore Colts -> Colts
-    // Alternative formats
+    // Historical teams - map to closest modern equivalent
+    'PHO': 'Cards', 'BOS': 'Pats', 'CRD': 'Cards', 'RAM': 'Rams',
+    'RAI': 'Raiders', 'CLT': 'Colts',
+    // Full team names (already in correct format)
     '49ers': '49ers', 'Bears': 'Bears', 'Bengals': 'Bengals', 'Bills': 'Bills',
     'Broncos': 'Broncos', 'Browns': 'Browns', 'Buccs': 'Buccs', 'Cards': 'Cards',
     'Chargers': 'Chargers', 'Chiefs': 'Chiefs', 'Colts': 'Colts', 'Cowboys': 'Cowboys',

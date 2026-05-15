@@ -4649,7 +4649,40 @@ ipcMain.handle('database:get-career-stats', async (event, firstName: string, las
       }
     }
 
-    // IMPORTANT: Do NOT fall back to wrong player - if we can't match properly, return empty
+    // If not found in players table, try direct name lookup in player_season_stats
+    // This handles cases where player_season_stats has the data but players table doesn't
+    if (!player) {
+      const fullName = `${firstName} ${lastName}`;
+      console.log(`[database-handlers] Player not in players table, trying direct name match: ${fullName}`);
+
+      // Find all distinct pfr_ids for this player name
+      const directMatchQuery = db.prepare(`
+        SELECT DISTINCT pfr_id, MIN(year) as first_year, MAX(year) as last_year
+        FROM player_season_stats
+        WHERE player_name = ?
+        GROUP BY pfr_id
+      `);
+      const directMatches = directMatchQuery.all(fullName) as any[];
+
+      if (directMatches.length > 0) {
+        // If we have a draft year, pick the one that matches
+        if (draftYear && directMatches.length > 1) {
+          const match = directMatches.find(m => Math.abs(m.first_year - draftYear) <= 2);
+          if (match) {
+            player = { pfr_id: match.pfr_id, from_year: match.first_year, to_year: match.last_year };
+            console.log(`[database-handlers] Direct name match with draft year: ${player.pfr_id}`);
+          }
+        }
+        // Otherwise just use the first match
+        if (!player) {
+          const m = directMatches[0];
+          player = { pfr_id: m.pfr_id, from_year: m.first_year, to_year: m.last_year };
+          console.log(`[database-handlers] Direct name match: ${player.pfr_id}`);
+        }
+      }
+    }
+
+    // If still not found, return empty
     if (!player) {
       console.log(`[database-handlers] No career stats match for ${firstName} ${lastName} (draft: ${draftYear}, pos: ${position})`);
       return { success: true, stats: [], player: null };
@@ -4676,10 +4709,10 @@ ipcMain.handle('database:get-career-stats', async (event, firstName: string, las
       stats,
       player: {
         pfrId: player.pfr_id,
-        position: player.position,
+        position: player.position || null,
         fromYear: player.from_year,
         toYear: player.to_year,
-        isHof: player.is_hof === 1
+        isHof: player.is_hof === 1 || false
       }
     };
   } catch (error) {
@@ -4701,7 +4734,9 @@ ipcMain.handle('database:get-career-stats-by-year', async (event, firstName: str
 
     console.log(`[database-handlers] Getting career stats for ${firstName} ${lastName} year ${year}`);
 
-    // First find the player's PFR ID
+    // First find the player's PFR ID from players table
+    let pfrId: string | null = null;
+
     const playerQuery = db.prepare(`
       SELECT pfr_id FROM players
       WHERE first_name = ? AND last_name = ?
@@ -4709,7 +4744,24 @@ ipcMain.handle('database:get-career-stats-by-year', async (event, firstName: str
     `);
     const player = playerQuery.get(firstName, lastName) as any;
 
-    if (!player) {
+    if (player) {
+      pfrId = player.pfr_id;
+    } else {
+      // Fallback: try direct name lookup in player_season_stats
+      const fullName = `${firstName} ${lastName}`;
+      const directQuery = db.prepare(`
+        SELECT DISTINCT pfr_id FROM player_season_stats
+        WHERE player_name = ?
+        LIMIT 1
+      `);
+      const direct = directQuery.get(fullName) as any;
+      if (direct) {
+        pfrId = direct.pfr_id;
+        console.log(`[database-handlers] Found via direct name match: ${pfrId}`);
+      }
+    }
+
+    if (!pfrId) {
       return { success: true, stats: null };
     }
 
@@ -4725,7 +4777,7 @@ ipcMain.handle('database:get-career-stats-by-year', async (event, firstName: str
       WHERE pfr_id = ? AND year = ?
       LIMIT 1
     `);
-    const stats = statsQuery.get(player.pfr_id, year) as any;
+    const stats = statsQuery.get(pfrId, year) as any;
 
     return { success: true, stats };
   } catch (error) {

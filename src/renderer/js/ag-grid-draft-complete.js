@@ -1668,12 +1668,24 @@ export async function initializeDraftAGGrid(app, container, prospects) {
                     const playerName = `${prospect.firstName || ''} ${prospect.lastName || ''}`.trim();
 
                     if (confirm(`Delete ${playerName}?`)) {
+                        // DEBUG: Log equipment state BEFORE deletion
+                        console.log('[Draft DELETE DEBUG] ===== BEFORE DELETE =====');
+                        console.log('[Draft DELETE DEBUG] Deleting prospect at rowIndex:', rowIndex, 'Name:', playerName);
+                        console.log('[Draft DELETE DEBUG] Prospect equipment keys:', prospect.equipment ? Object.keys(prospect.equipment) : 'none');
+
                         const allData = [];
                         event.api.forEachNode(node => {
                             if (node.rowIndex !== rowIndex) {
                                 allData.push(node.data);
                             }
                         });
+
+                        // DEBUG: Log state AFTER building new array
+                        console.log('[Draft DELETE DEBUG] ===== AFTER DELETE =====');
+                        console.log('[Draft DELETE DEBUG] Remaining prospects:', allData.length);
+                        if (rowIndex < allData.length) {
+                            console.log('[Draft DELETE DEBUG] New prospect at former index:', { name: allData[rowIndex]?.firstName + ' ' + allData[rowIndex]?.lastName, equipmentKeys: allData[rowIndex]?.equipment ? Object.keys(allData[rowIndex].equipment) : 'none' });
+                        }
 
                         // Recalculate positions
                         allData.forEach((row, index) => {

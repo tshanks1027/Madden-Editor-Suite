@@ -926,6 +926,15 @@ export function initializeAGGridRoster(app, container, players, visibleFields, d
     // Create column definitions
     const columnDefs = createAGGridColumns(visibleFields, displayNames, fieldCodes, app);
 
+    // DEBUG: Check QB ratings being passed to AG-Grid
+    console.log('[AG-Grid] ===== PLAYERS PASSED TO AG-GRID =====');
+    const qbs = players.filter(p => p.PPOS === 0);
+    console.log(`[AG-Grid] Total players: ${players.length}, QBs: ${qbs.length}`);
+    qbs.slice(0, 5).forEach((p, i) => {
+        console.log(`[AG-Grid] QB ${i + 1}: ${p.PFNA} ${p.PLNA} - POVR=${p.POVR}, PACC=${p.PACC}, PAGI=${p.PAGI}, PAWR=${p.PAWR}`);
+    });
+    console.log('[AG-Grid] ========================================');
+
     // Grid options
     const gridOptions = {
         theme: 'legacy', // Use legacy theming to work with ag-grid.css

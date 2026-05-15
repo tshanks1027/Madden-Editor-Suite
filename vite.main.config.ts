@@ -379,6 +379,26 @@ export default defineConfig({
             }
           }
 
+          // Copy pfa-scraped directory (cached PFA draft data with team assignments)
+          const srcPfaScrapedDir = path.join(srcDataDir, 'pfa-scraped');
+          const destPfaScrapedDir = path.join(destDataDir, 'pfa-scraped');
+          if (existsSync(srcPfaScrapedDir)) {
+            if (!existsSync(destPfaScrapedDir)) {
+              mkdirSync(destPfaScrapedDir, { recursive: true });
+            }
+            const pfaFiles = fs.readdirSync(srcPfaScrapedDir);
+            let pfaCount = 0;
+            pfaFiles.forEach(file => {
+              if (file.endsWith('.json')) {
+                const srcFile = path.join(srcPfaScrapedDir, file);
+                const destFile = path.join(destPfaScrapedDir, file);
+                copyFileSync(srcFile, destFile);
+                pfaCount++;
+              }
+            });
+            console.log(`Copied ${pfaCount} PFA scraped data files`);
+          }
+
           // Copy tools directory (external exe tools like presentationIdFix)
           const srcToolsDir = path.join(srcDataDir, 'tools');
           const destToolsDir = path.join(destDataDir, 'tools');

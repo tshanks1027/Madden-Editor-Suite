@@ -495,8 +495,17 @@ export class OVRWeightsCalculator {
       if (!isNaN(numericId) && numericId >= 0 && numericId <= 67) {
         const formulaName = ARCHETYPE_ID_TO_FORMULA[numericId];
         if (formulaName && this.weights.has(formulaName)) {
-          archetypeName = formulaName;
-          console.log(`[OVRWeightsCalculator] Converted archetype ID ${numericId} -> ${formulaName}`);
+          // CRITICAL FIX: Check if archetype matches player's position!
+          // Archetype ID 0 = QB_FieldGeneral, but many non-QB players have PLTY=0
+          // Using QB formula for a CB gives OVR=0 because CBs lack QB attributes
+          const archetypePos = formulaName.split('_')[0]; // e.g., "QB" from "QB_FieldGeneral"
+          if (archetypePos === jsonPos) {
+            archetypeName = formulaName;
+          } else {
+            // Archetype doesn't match position - find correct archetype for this position
+            console.log(`[OVRWeightsCalculator] Archetype ID ${numericId} (${formulaName}) doesn't match position ${jsonPos}, finding correct archetype`);
+            archetypeName = this.findArchetype(attributes, jsonPos);
+          }
         } else {
           console.warn(`[OVRWeightsCalculator] Unknown archetype ID ${numericId}, using default`);
           archetypeName = this.findArchetype(attributes, jsonPos);

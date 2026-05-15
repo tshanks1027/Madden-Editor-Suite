@@ -1103,50 +1103,35 @@ class MaddenEditorApp {
                         return player;
                     }));
 
-                    // Recalculate OVR using the CORRECT game formula for informational logging
-                    // NOTE: We do NOT overwrite stored POVR - just log discrepancies
-                    // POVR only changes when rating fields are actually edited
-                    this.updateLoadingProgress('Checking OVR values...', 82);
+                    // Recalculate OVR using the CORRECT game formula
+                    // POVR is ALWAYS calculated from ratings - we don't trust stored values
+                    this.updateLoadingProgress('Calculating OVR values...', 82);
                     try {
                         const ovrResults = await window.electronAPI.rating.recalculateOVRBatch(this.players);
                         if (ovrResults && ovrResults.length === this.players.length) {
                             let changedCount = 0;
-                            const bigChanges = []; // Track players with >5 point OVR change
                             for (let i = 0; i < ovrResults.length; i++) {
                                 const player = this.players[i];
                                 const oldOVR = player.POVR;
                                 const newOVR = ovrResults[i].ovr;
-                                const ovrChange = Math.abs(newOVR - oldOVR);
+
+                                // Update ARCHETYPE from recalculation if it found the correct one
+                                // When PLTY=0 but player isn't QB, recalculation returns the real archetype name
+                                const resultArchetype = ovrResults[i].archetype;
+                                if (resultArchetype && !resultArchetype.startsWith('ID:') && resultArchetype !== 'KEPT_STORED') {
+                                    player.ARCHETYPE = resultArchetype;
+                                }
+
+                                // ALWAYS update POVR with calculated value
                                 if (oldOVR !== newOVR) {
-                                    // Log players with big OVR changes to help debug
-                                    // NOTE: We do NOT update player.POVR here!
-                                    // The stored OVR from the file is kept.
-                                    // POVR only changes when rating fields are actually edited.
-                                    if (ovrChange > 5) {
-                                        bigChanges.push({
-                                            name: `${player.PFNA} ${player.PLNA}`,
-                                            pos: player.PPOS,
-                                            PLTY: player.PLTY,
-                                            oldOVR,
-                                            newOVR,
-                                            change: newOVR - oldOVR
-                                        });
-                                    }
-                                    // DO NOT overwrite stored POVR - just count for informational logging
-                                    // player.POVR = newOVR;  // REMOVED - this was causing OVRs to change on reload
+                                    player.POVR = newOVR;
                                     changedCount++;
                                 }
                             }
-                            console.log(`[app.js] OVR recalculation: ${changedCount} players had different calculated OVR (stored values kept)`);
-                            if (bigChanges.length > 0) {
-                                console.log(`[app.js] ⚠️ Players with >5 point OVR difference from formula:`);
-                                bigChanges.forEach(p => {
-                                    console.log(`  ${p.name} (pos:${p.pos}): stored=${p.oldOVR}, calc=${p.newOVR} (diff: ${p.change > 0 ? '+' : ''}${p.change}) | PLTY=${p.PLTY}`);
-                                });
-                            }
+                            console.log(`[app.js] OVR calculation complete: ${changedCount} players updated with calculated OVR`);
                         }
                     } catch (err) {
-                        console.error('[app.js] Error checking OVR values:', err);
+                        console.error('[app.js] Error calculating OVR values:', err);
                     }
 
                     // NOTE: Body types are synced from BTYP (BLBM table) in RosterParser.js
@@ -1269,7 +1254,7 @@ class MaddenEditorApp {
                 PWGT: 225,
                 PINJ: 95,
                 PTHP: 88,
-                PTHA: 92,
+                PTAS: 92,  // Throw Accuracy Short (M26 code)
                 PCOL: 4, // Alabama
                 PHSN: 8, // Florida
                 PSXP: 99, // Tom Brady
@@ -1933,6 +1918,14 @@ class MaddenEditorApp {
         if (this.filteredPlayers.length > 0) {
             const afterPOVR = this.filteredPlayers.slice(0, 3).map(p => p.POVR);
             console.log('[renderRoster] AFTER applyFiltersAndSort - first 3 filtered players POVR:', afterPOVR);
+
+            // DEBUG: Check QB ratings specifically
+            const qbs = this.filteredPlayers.filter(p => p.PPOS === 0);
+            console.log('[renderRoster] ===== QB RATINGS IN filteredPlayers =====');
+            console.log(`[renderRoster] Found ${qbs.length} QBs`);
+            qbs.slice(0, 5).forEach((p, i) => {
+                console.log(`  QB ${i + 1}: ${p.PFNA} ${p.PLNA} - POVR=${p.POVR}, PACC=${p.PACC}, PAGI=${p.PAGI}, PAWR=${p.PAWR}`);
+            });
         }
 
         // Destroy existing table
@@ -3338,14 +3331,20 @@ class MaddenEditorApp {
             'PCAR': 'carrying',
             'PCTH': 'catching',
             'PCIT': 'catchInTraffic',
+            'PLCI': 'catchInTraffic',  // M26 code
             'PCOD': 'changeOfDirection',
             'PDRR': 'deepRouteRunning',
             'PFMS': 'finesseMoves',
+            'PFNM': 'finesseMoves',    // M26 code
             'PHIP': 'hitPower',
+            'PHTP': 'hitPower',        // M26 code (PHTP)
             'PIBK': 'impactBlocking',
+            'PIBL': 'impactBlocking',  // M26 code
             'PINJ': 'injury',
             'PJMP': 'jumping',
             'PJKM': 'jukeMove',
+            'PLJM': 'jukeMove',        // M26 code
+            'PJUM': 'jukeMove',        // Legacy code
             'PKAC': 'kickAccuracy',
             'PKPW': 'kickPower',
             'PKPR': 'kickPower',  // TDB2 roster file uses PKPR, database uses PKPW
@@ -3359,17 +3358,22 @@ class MaddenEditorApp {
             'PPLA': 'playAction',
             'PPLR': 'playRecognition',
             'PPOW': 'powerMoves',
+            'PPWM': 'powerMoves',      // M26 code
             'PPRC': 'pressCoverage',
+            'PLPR': 'pressCoverage',   // M26 code (PLPR is press coverage in M26)
             'PPUR': 'pursuit',
             'PRBF': 'runBlockFinesse',
             'PRBS': 'runBlockPower',
             'PRBK': 'runBlock',
             'PREL': 'release',
             'PSPC': 'spectacularCatch',
+            'PLSC': 'spectacularCatch', // M26 code
             'PSPD': 'speed',
             'PSPM': 'spinMove',
+            'PLSM': 'spinMove',         // M26 code
             'PSTA': 'stamina',
             'PLSA': 'stiffArm',
+            'PSTF': 'stiffArm',         // Legacy code
             'PSTR': 'strength',
             'PSRR': 'shortRouteRunning',
             'PTAK': 'tackle',
@@ -4889,15 +4893,71 @@ class MaddenEditorApp {
                 // CRITICAL: Serialize players to plain objects via JSON round-trip
                 // This ensures dynamically-added properties (assignedGenr, assignedSknt) survive
                 // Electron's contextBridge IPC, which can strip non-enumerable or proxy properties
-                const playersToSave = JSON.parse(JSON.stringify(this.players));
-                console.log(`[app.js] DEBUG: After JSON serialize - ${playersToSave.filter(p => p.assignedGenr).length} players have assignedGenr`);
+                let playersToSave;
+                try {
+                    playersToSave = JSON.parse(JSON.stringify(this.players));
 
-                const saveResult = await window.electronAPI.parser.saveRosterFile(
-                    saveFilePath,
-                    playersToSave,
-                    this.originalData,
-                    { clearInjuries: this._injuriesModified || false }
-                );
+                    // DEBUG: PLRL stats for file-specific issue tracking
+                    const plrlNonZero = playersToSave.filter(p => p.PLRL && p.PLRL > 0).length;
+                    const plrlZero = playersToSave.filter(p => !p.PLRL || p.PLRL === 0).length;
+                    console.log(`[app.js] PLRL stats: ${plrlNonZero} non-zero, ${plrlZero} zero/undefined`);
+                    if (plrlNonZero === 0) {
+                        console.warn('[app.js] ⚠️ All PLRL values are 0! Check if data loaded correctly.');
+                    }
+                    // CRITICAL DEBUG: Show which players have non-zero PLRL
+                    if (plrlNonZero > 0 && plrlNonZero <= 10) {
+                        console.log('[app.js] Players with non-zero PLRL:');
+                        playersToSave.filter(p => p.PLRL && p.PLRL > 0).forEach(p => {
+                            console.log(`  ${p.PFNA} ${p.PLNA} - PLRL=${p.PLRL}, POID=${p.POID}, index=${playersToSave.indexOf(p)}`);
+                        });
+                    }
+                } catch (serializeError) {
+                    console.error('[app.js] FATAL: Failed to serialize players array:', serializeError);
+                    console.error('[app.js] Checking for problematic values...');
+                    for (let i = 0; i < this.players.length; i++) {
+                        const p = this.players[i];
+                        for (const key of Object.keys(p)) {
+                            const val = p[key];
+                            if (typeof val === 'bigint') {
+                                console.error(`  Player ${i} (${p.PFNA} ${p.PLNA}): ${key} is BigInt: ${val}`);
+                            } else if (typeof val === 'symbol') {
+                                console.error(`  Player ${i} (${p.PFNA} ${p.PLNA}): ${key} is Symbol`);
+                            } else if (typeof val === 'function') {
+                                console.error(`  Player ${i} (${p.PFNA} ${p.PLNA}): ${key} is Function`);
+                            }
+                        }
+                    }
+                    this.setStatus('Error: Failed to serialize player data');
+                    return;
+                }
+
+                // Serialize originalData too - it may have circular refs that break IPC
+                const originalDataToSave = {
+                    filePath: this.originalData?.filePath,
+                    version: this.originalData?.version,
+                    playerCount: this.originalData?.playerCount,
+                    injuredPGIDs: this.originalData?.injuredPGIDs || []
+                };
+
+                console.log('[app.js] DEBUG: About to call IPC saveRosterFile...');
+                console.log('[app.js] DEBUG: playersToSave.length:', playersToSave.length);
+                console.log('[app.js] DEBUG: originalDataToSave:', JSON.stringify(originalDataToSave).substring(0, 200));
+
+                let saveResult;
+                try {
+                    saveResult = await window.electronAPI.parser.saveRosterFile(
+                        saveFilePath,
+                        playersToSave,
+                        originalDataToSave,
+                        { clearInjuries: this._injuriesModified || false }
+                    );
+                } catch (ipcError) {
+                    console.error('[app.js] IPC call failed:', ipcError);
+                    console.error('[app.js] IPC error name:', ipcError.name);
+                    console.error('[app.js] IPC error message:', ipcError.message);
+                    this.setStatus('Error: Save failed - ' + (ipcError.message || 'Unknown IPC error'));
+                    return;
+                }
 
                 if (saveResult.success) {
                     const lastSlash = Math.max(saveFilePath.lastIndexOf('/'), saveFilePath.lastIndexOf('\\'));
@@ -4911,6 +4971,31 @@ class MaddenEditorApp {
                     console.log('[SAVE DEBUG] SKNT synced:', saveResult.skntSynced);
                     console.log('[SAVE DEBUG] Injuries cleared:', saveResult.injuriesCleared);
                     console.log('[SAVE DEBUG] Equipment updated:', saveResult.equipmentUpdated);
+                    // PLRL debug info from RosterParser
+                    if (saveResult.plrlDebug) {
+                        console.log('[SAVE DEBUG] *** PLRL SAVE INFO ***');
+                        console.log(`[SAVE DEBUG] PLRL incoming non-zero: ${saveResult.plrlDebug.incomingNonZero}`);
+                        console.log(`[SAVE DEBUG] PLRL final in file: ${saveResult.plrlDebug.finalNonZero}`);
+                        console.log(`[SAVE DEBUG] PLRL force-written: ${saveResult.plrlDebug.forceWritten || 0}`);
+                        if (saveResult.plrlDebug.samples?.length > 0) {
+                            console.log('[SAVE DEBUG] PLRL samples:', saveResult.plrlDebug.samples);
+                        }
+                        // Show detailed diagnostics for each tracked PLRL player
+                        if (saveResult.plrlDebug.diagnostics?.length > 0) {
+                            console.log('[SAVE DEBUG] *** PLRL DIAGNOSTICS (per player) ***');
+                            saveResult.plrlDebug.diagnostics.forEach(d => {
+                                console.log(`[SAVE DEBUG]   ${d.name}: POID=${d.poid}, expected=${d.expected}`);
+                                console.log(`[SAVE DEBUG]     poidFound=${d.poidFound}, recordIndex=${d.recordIndex}, hasPlrlField=${d.hasPlrlField}`);
+                                console.log(`[SAVE DEBUG]     beforeWrite=${d.beforeWrite}, afterWrite=${d.afterWrite}, success=${d.success}`);
+                                if (d.error) {
+                                    console.error(`[SAVE DEBUG]     ERROR: ${d.error}`);
+                                }
+                            });
+                        }
+                        if (saveResult.plrlDebug.incomingNonZero > 0 && saveResult.plrlDebug.finalNonZero === 0) {
+                            console.error('[SAVE DEBUG] *** CRITICAL: PLRL values were sent but NOT written to file! ***');
+                        }
+                    }
                     if (saveResult.blbmError) {
                         console.error('[SAVE DEBUG] BLBM error:', saveResult.blbmError);
                     }
@@ -4921,6 +5006,24 @@ class MaddenEditorApp {
                     if (this._injuriesModified) {
                         this._injuriesModified = false;
                         console.log('[SAVE DEBUG] Reset _injuriesModified flag');
+                    }
+
+                    // CRITICAL FIX: Sync POID = PGID in players array after save
+                    // The save process sets POID = PGID in the file for BLBM linkage.
+                    // We must update the in-memory players array to match, otherwise
+                    // subsequent saves will fail POID lookups (file has new POIDs,
+                    // but players array has old POIDs).
+                    let poidSyncCount = 0;
+                    for (const player of this.players) {
+                        if (player.PGID !== undefined && player.PGID !== null && player.PGID > 0) {
+                            if (player.POID !== player.PGID) {
+                                player.POID = player.PGID;
+                                poidSyncCount++;
+                            }
+                        }
+                    }
+                    if (poidSyncCount > 0) {
+                        console.log(`[SAVE DEBUG] Synced POID = PGID for ${poidSyncCount} players in memory`);
                     }
                 } else {
                     throw new Error(saveResult.error || 'Unknown save error');
@@ -10574,49 +10677,50 @@ class MaddenEditorApp {
                 toughness: player.PTGH,
 
                 // Position-specific attributes (will show '-' if not present)
+                // Using M26 field codes with legacy fallbacks
                 throwPower: player.PTHP || '-',
-                throwAccShort: player.PTHA || '-',
-                throwAccMid: player.PTHM || '-',
-                throwAccDeep: player.PTHD || '-',
+                throwAccShort: player.PTAS || '-',  // M26: PTAS
+                throwAccMid: player.PTAM || '-',    // M26: PTAM
+                throwAccDeep: player.PTAD || '-',   // M26: PTAD
                 carrying: player.PCAR || '-',
                 breakTackle: player.PBTK || '-',
                 catching: player.PCTH || '-',
-                catchInTraffic: player.PCIT || '-',
-                routeRunning: player.PRTE || '-',
+                catchInTraffic: player.PLCI || player.PCIT || '-',  // M26: PLCI, fallback PCIT
+                routeRunning: player.PSRR || '-',  // Using short route as general
                 release: player.PREL || '-',
                 runBlock: player.PRBK || '-',
-                passBlock: player.PLBK || '-',
+                passBlock: player.PPBK || '-',     // M26: PPBK (was incorrectly PLBK)
                 tackling: player.PTAK || '-',
                 hitPower: player.PHTP || '-',
-                powerMoves: player.PPOW || '-',
-                finesseMoves: player.PFMS || '-',
+                powerMoves: player.PPWM || '-',    // M26: PPWM (was incorrectly PPOW)
+                finesseMoves: player.PFNM || player.PFMS || '-',  // M26: PFNM
                 blockShedding: player.PBSH || '-',
                 manCoverage: player.PMCV || '-',
                 zoneCoverage: player.PZCV || '-',
                 press: player.PPRS || '-',
-                kickPower: player.PKPR || player.PKPW || '-',  // PKPR (M26) with PKPW fallback
+                kickPower: player.PKPW || '-',     // M26: PKPW
                 kickAccuracy: player.PKAC || '-',
 
-                // Additional Ball Carrier
-                stiffArm: player.PSFA || '-',
-                spinMove: player.PSPM || '-',
-                jukeMove: player.PJKM || '-',
+                // Additional Ball Carrier - M26 uses PLSA/PLSM/PLJM, with PSTF/PSPM/PJUM fallbacks
+                stiffArm: player.PLSA || player.PSTF || '-',   // M26: PLSA
+                spinMove: player.PLSM || player.PSPM || '-',   // M26: PLSM
+                jukeMove: player.PLJM || player.PJUM || '-',   // M26: PLJM
                 trucking: player.PTRK || '-',
                 bcVision: player.PBCV || '-',
 
-                // Additional Receiving
-                specCatch: player.PSPC || '-',
+                // Additional Receiving - M26 uses PLSC/PLCI
+                specCatch: player.PLSC || player.PSPC || '-',  // M26: PLSC
                 shortRoute: player.PSRR || '-',
                 medRoute: player.PMRR || '-',
                 deepRoute: player.PDRR || '-',
 
                 // Additional Blocking
-                leadBlock: player.PLBK || '-',
+                leadBlock: player.PLDB || player.PLBK || '-',  // M26: PLDB
                 impactBlock: player.PIBL || '-',
 
                 // Additional Passing
-                throwOnRun: player.PTHO || '-',
-                throwUnderPress: player.PTHU || '-',
+                throwOnRun: player.PTOR || '-',    // M26: PTOR (was incorrectly PTHO)
+                throwUnderPress: player.PTUP || '-', // M26: PTUP (was incorrectly PTHU)
                 playAction: player.PPLA || '-',
                 breakSack: player.PBSK || '-',
 
@@ -13141,8 +13245,8 @@ class MaddenEditorApp {
         // These are the attributes that directly affect OVR calculation for each position
         const positionRatings = {
             // QB OVR: PAWR*0.16 + PTHP*0.16 + PTAS*0.12 + PTAM*0.12 + PTAD*0.10 + PTOR*0.04 + PSPD*0.03 + PCAR*0.02 + PAGI*0.02 + PSTR*0.02 + PINJ*0.01 + PSTA*0.01
-            // Added PTHA (Throw Accuracy), PTUP (Throw Under Pressure) and PBSK (Break Sack) which are key QB stats
-            'QB': ['PAWR', 'PTHP', 'PTHA', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PBSK', 'PSPD', 'PCAR', 'PAGI', 'PSTR'],
+            // M26 uses PTAS/PTAM/PTAD for throw accuracy short/mid/deep, PTUP for throw under pressure, PBSK for break sack
+            'QB': ['PAWR', 'PTHP', 'PTAS', 'PTAM', 'PTAD', 'PTOR', 'PTUP', 'PBSK', 'PSPD', 'PCAR', 'PAGI', 'PSTR'],
             // HB OVR: PSPD*0.20 + PACC*0.10 + PAGI*0.08 + PCAR*0.10 + PBCV*0.08 + PBKT*0.08 + PSTR*0.06 + PELU*0.06 + PCTH*0.04 + PAWR*0.08 + PSTA*0.04 + PINJ*0.03 + PJMP*0.03 + PTGH*0.02
             'HB': ['PSPD', 'PACC', 'PAGI', 'PCAR', 'PBCV', 'PBKT', 'PSTR', 'PELU', 'PCTH', 'PAWR'],
             'FB': ['PSPD', 'PACC', 'PAGI', 'PCAR', 'PBCV', 'PBKT', 'PSTR', 'PELU', 'PCTH', 'PAWR'],

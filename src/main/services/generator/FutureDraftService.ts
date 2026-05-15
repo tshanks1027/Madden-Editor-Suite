@@ -240,6 +240,7 @@ export class FutureDraftService {
         ratings,
 
         // Location
+        hometown: player.hometown,
         homestate: player.homeState,
 
         // Metadata

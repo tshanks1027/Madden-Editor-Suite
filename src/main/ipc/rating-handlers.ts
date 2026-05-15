@@ -300,7 +300,54 @@ export function registerRatingHandlers(): void {
           if (hasStoredArchetype) {
             // Use stored archetype for calculation
             ovr = ovrWeightsCalculator.calculateOVR(player, position, storedArchetype);
-            archetype = `ID:${storedArchetype}`;
+
+            // CRITICAL: Detect if stored archetype matches player's position
+            // If PLTY=0 (QB_FieldGeneral) but player is CB, we need to show the ACTUAL archetype used
+            const ARCHETYPE_ID_TO_POS: { [key: number]: string } = {
+              0: 'QB', 1: 'QB', 2: 'QB', 3: 'QB', 4: 'QB',  // QB archetypes
+              5: 'HB', 6: 'HB', 7: 'HB', 8: 'HB', 9: 'HB', 10: 'HB', 11: 'HB',  // HB archetypes
+              12: 'FB', 13: 'FB',  // FB archetypes
+              14: 'WR', 15: 'WR', 16: 'WR', 17: 'WR', 18: 'WR', 19: 'WR', 20: 'WR', 21: 'WR',  // WR archetypes
+              22: 'TE', 23: 'TE', 24: 'TE', 25: 'TE', 26: 'TE',  // TE archetypes
+              27: 'C', 28: 'C', 29: 'C', 30: 'C',  // C archetypes
+              31: 'OT', 32: 'OT', 33: 'OT', 34: 'OT',  // OT archetypes (for LT/RT)
+              35: 'G', 36: 'G', 37: 'G', 38: 'G',  // G archetypes (for LG/RG)
+              39: 'DE', 40: 'DE', 41: 'DE', 42: 'DE',  // DE archetypes (for LE/RE)
+              43: 'DT', 44: 'DT', 45: 'DT', 46: 'DT',  // DT archetypes
+              47: 'OLB', 48: 'OLB', 49: 'OLB', 50: 'OLB',  // OLB archetypes (for LOLB/ROLB)
+              51: 'MLB', 52: 'MLB', 53: 'MLB',  // MLB archetypes
+              54: 'CB', 55: 'CB', 56: 'CB', 57: 'CB',  // CB archetypes
+              58: 'S', 59: 'S', 60: 'S', 61: 'S',  // S archetypes (for FS/SS)
+              62: 'KP', 63: 'KP', 64: 'KP', 65: 'KP', 66: 'KP', 67: 'KP'  // K/P archetypes
+            };
+
+            // Map player position to base position for comparison
+            const POS_TO_BASE: { [key: string]: string } = {
+              'QB': 'QB', 'HB': 'HB', 'FB': 'FB', 'WR': 'WR', 'TE': 'TE',
+              'LT': 'OT', 'RT': 'OT', 'LG': 'G', 'RG': 'G', 'C': 'C',
+              'LE': 'DE', 'RE': 'DE', 'DT': 'DT',
+              'LOLB': 'OLB', 'ROLB': 'OLB', 'MLB': 'MLB',
+              'CB': 'CB', 'FS': 'S', 'SS': 'S', 'K': 'KP', 'P': 'KP'
+            };
+
+            const archetypePos = ARCHETYPE_ID_TO_POS[storedArchetype];
+            const playerBasePos = POS_TO_BASE[position] || position;
+
+            if (archetypePos && archetypePos === playerBasePos) {
+              // Archetype matches position - use stored
+              archetype = `ID:${storedArchetype}`;
+            } else {
+              // Mismatch! Use findBestArchetype to get the actual archetype used
+              const best = ovrWeightsCalculator.findBestArchetype(player, position);
+              if (best) {
+                // Get proper display name from ArchetypeService using the archetypeId
+                archetype = ArchetypeService.getArchetypeName(best.archetypeId, position);
+                // Use the OVR from findBestArchetype since it found the correct archetype
+                ovr = best.ovr;
+              } else {
+                archetype = `ID:${storedArchetype}(MISMATCH)`;
+              }
+            }
           } else {
             // No stored archetype - DO NOT recalculate, keep stored POVR
             // Recalculating with findBestArchetype can give inconsistent results

@@ -887,30 +887,185 @@ export class RosterCreatorService {
   }
 
   /**
-   * Get players from ROSTER_lookup.csv for a specific team and year
-   * Returns RosterPlayer array with pre-calculated ratings
+   * Get players from the DATABASE for a specific team and year
+   * This is the PRIMARY source - pulls from player_seasons table
    */
-  private async getPlayersFromLookup(
+  private async getPlayersFromDatabase(
     teamAbbr: string,
     year: number,
     teamId: number
   ): Promise<RosterPlayer[]> {
-    const rookieStats = await playerDataService.getPlayersByTeamYear(teamAbbr, year);
+    // Use lookupService to get players from the database
+    const dbPlayers = lookupService.getPlayersForTeamYear(teamAbbr, year);
 
-    if (rookieStats.length === 0) {
-      console.log(`[RosterCreatorService] No ROSTER_lookup data for ${teamAbbr} in ${year}`);
+    if (dbPlayers.length === 0) {
+      console.log(`[RosterCreatorService] No DATABASE data for ${teamAbbr} in ${year}`);
       return [];
     }
 
-    console.log(`[RosterCreatorService] Found ${rookieStats.length} players for ${teamAbbr} in ${year} from ROSTER_lookup`);
+    console.log(`[RosterCreatorService] Found ${dbPlayers.length} players for ${teamAbbr} in ${year} from DATABASE`);
 
     const players: RosterPlayer[] = [];
-    for (let i = 0; i < rookieStats.length; i++) {
-      const player = this.convertRookieStatsToRosterPlayer(rookieStats[i], teamId, i, year);
+    for (let i = 0; i < dbPlayers.length; i++) {
+      const dbPlayer = dbPlayers[i];
+      const player = this.convertDatabasePlayerToRosterPlayer(dbPlayer, teamId, i);
       players.push(player);
     }
 
     return players;
+  }
+
+  /**
+   * Convert a database player record to RosterPlayer format
+   */
+  private convertDatabasePlayerToRosterPlayer(
+    dbPlayer: {
+      internalId: number;
+      firstName: string;
+      lastName: string;
+      position: string;
+      archetype: string;
+      jersey: number;
+      age: number;
+      college: string;
+      height: number;
+      weight: number;
+      birthDate: string;
+      pid: number;
+      pam: string;
+      devTrait: string;
+      ratings: Record<string, number>;
+    },
+    teamId: number,
+    idx: number
+  ): RosterPlayer {
+    const positionCode = this.positionStringToCode(dbPlayer.position || 'HB');
+
+    // Determine race from PAM for skin tone assignment
+    let race = 0; // Default white
+    let pski = 0;
+    let pghe = 0;
+    let pam = dbPlayer.pam || '';
+    const pid = dbPlayer.pid || 0;
+
+    // Check if we have a valid PID for face assignment
+    const hasValidPID = pid > 0 && this.validPIDs.has(pid);
+
+    if (!hasValidPID) {
+      // Assign generic face based on position and race
+      const faceAssignment = this.assignGenericFace(dbPlayer.position || 'HB', race);
+      pam = faceAssignment.pam;
+      pghe = faceAssignment.pghe;
+      pski = faceAssignment.pski;
+    } else {
+      // Use PID-to-PAM mapping if available
+      if (this.pidToPAM && this.pidToPAM.has(pid)) {
+        pam = this.pidToPAM.get(pid)!;
+      }
+    }
+
+    // Map dev trait string to number
+    let devTraitNum = 0;
+    const devTrait = (dbPlayer.devTrait || '').toLowerCase();
+    if (devTrait === 'x-factor' || devTrait === 'xfactor') devTraitNum = 3;
+    else if (devTrait === 'superstar') devTraitNum = 2;
+    else if (devTrait === 'star') devTraitNum = 1;
+
+    const ratings = dbPlayer.ratings;
+
+    const rosterPlayer: RosterPlayer = {
+      // Basic Info
+      PFNA: dbPlayer.firstName,
+      PLNA: dbPlayer.lastName,
+      PPOS: positionCode.toString(),
+      TGID: teamId,
+      PAGE: dbPlayer.age || 25,
+      PJEN: dbPlayer.jersey || (idx + 1),
+
+      // Physical
+      PHGT: dbPlayer.height || 72,
+      PWGT: dbPlayer.weight || 200,
+
+      // College/Background
+      PCOL: dbPlayer.college || '',
+
+      // Identity
+      PID: hasValidPID ? pid : 0,
+      PEPS: hasValidPID ? pam : '',
+      PAM: pam,
+      PGHE: pghe,
+      PSKI: pski,
+      PLBD: this.determineBodyType(positionCode, dbPlayer.weight || 200),
+
+      // ALL RATINGS FROM DATABASE
+      POVR: ratings.POVR || 50,
+      PSPD: ratings.PSPD || 50,
+      PACC: ratings.PACC || 50,
+      PSTR: ratings.PSTR || 50,
+      PAGI: ratings.PAGI || 50,
+      PAWR: ratings.PAWR || 50,
+      PCTH: ratings.PCTH || 50,
+      PCAR: ratings.PCAR || 50,
+      PTHP: ratings.PTHP || 50,
+      PKPW: ratings.PKPW || 50,
+      PKAC: ratings.PKAC || 50,
+      PRBK: ratings.PRBK || 50,
+      PPBK: ratings.PPBK || 50,
+      PTAK: ratings.PTAK || 50,
+      PBTK: ratings.PBTK || 50,
+      PJMP: ratings.PJMP || 50,
+      PINJ: ratings.PINJ || 50,
+      PSTA: ratings.PSTA || 50,
+      PTGH: ratings.PTGH || 50,
+      PTRK: ratings.PTRK || 50,
+      PCOD: ratings.PCOD || 50,
+      PBCV: ratings.PBCV || 50,
+      PSTF: ratings.PSTF || 50,
+      PSPM: ratings.PSPM || 50,
+      PJUM: ratings.PJUM || 50,
+      PIBL: ratings.PIBL || 50,
+      PRBP: ratings.PRBP || 50,
+      PRBF: ratings.PRBF || 50,
+      PPBP: ratings.PPBP || 50,
+      PPBF: ratings.PPBF || 50,
+      PLDB: ratings.PLDB || 50,
+      PBRS: ratings.PBRS || 50,
+      PTUP: ratings.PTUP || 50,
+      PPWM: ratings.PPWM || 50,
+      PFNM: ratings.PFNM || 50,
+      PBSH: ratings.PBSH || 50,
+      PPUR: ratings.PPUR || 50,
+      PPRC: ratings.PPRC || 50,
+      PMCV: ratings.PMCV || 50,
+      PZCV: ratings.PZCV || 50,
+      PSPC: ratings.PSPC || 50,
+      PCIT: ratings.PCIT || 50,
+      PSRR: ratings.PSRR || 50,
+      PMRR: ratings.PMRR || 50,
+      PDRR: ratings.PDRR || 50,
+      PHTP: ratings.PHTP || 50,
+      PPRS: ratings.PPRS || 50,
+      PREL: ratings.PREL || 50,
+      PTAS: ratings.PTAS || 50,
+      PTAM: ratings.PTAM || 50,
+      PTAD: ratings.PTAD || 50,
+      PPLA: ratings.PPLA || 50,
+      PTOR: ratings.PTOR || 50,
+      PKRT: ratings.PKRT || 50,
+      PLTR: ratings.PLTR || 50,
+      PELU: ratings.PELU || 50,
+
+      // Traits
+      PDEV: devTraitNum,
+      PSIG: 0,
+      PROL: '',
+
+      // Meta
+      _internalId: dbPlayer.internalId,
+      isHallOfFamer: devTraitNum === 3
+    };
+
+    return rosterPlayer;
   }
 
   /**
@@ -957,38 +1112,32 @@ export class RosterCreatorService {
       console.log(`[RosterCreatorService] Template has ${maxPlayers} player slots available`);
       scraperDebugLogger.log(`Template roster loaded: ${maxPlayers} player slots available\n`);
 
-      // Initialize PlayerDataService for ROSTER_lookup access
-      await playerDataService.initialize();
+      // Wait for lookupService database to be ready
+      await lookupService.waitForReady();
 
-      progressCallback?.(20, `Checking ROSTER_lookup for ${year} data...`);
+      progressCallback?.(20, `Checking database for ${year} data...`);
 
-      // First, try to get data from ROSTER_lookup.csv (years 1970-2024)
-      const availableTeams = await playerDataService.getAvailableTeamsForYear(year);
-      const hasLookupData = availableTeams.length > 0;
+      // First, try to get data from the DATABASE (player_seasons table)
+      const availableTeams = lookupService.getTeamsForYear(year);
+      const hasDatabaseData = availableTeams.length > 0;
 
-      console.log(`[RosterCreatorService] ROSTER_lookup has ${availableTeams.length} teams for ${year}`);
+      console.log(`[RosterCreatorService] DATABASE has ${availableTeams.length} teams for ${year}`);
 
       let allRosterPlayers: RosterPlayer[] = [];
 
-      console.log(`[RosterCreatorService] ======= ROSTER_LOOKUP DECISION =======`);
-      console.log(`[RosterCreatorService] hasLookupData=${hasLookupData}, year=${year}`);
+      console.log(`[RosterCreatorService] ======= DATABASE DECISION =======`);
+      console.log(`[RosterCreatorService] hasDatabaseData=${hasDatabaseData}, year=${year}`);
       console.log(`[RosterCreatorService] availableTeams=${availableTeams.length > 0 ? availableTeams.join(',') : 'EMPTY'}`);
-      console.log(`[RosterCreatorService] Condition check: hasLookupData=${hasLookupData} && year >= 1970 (${year >= 1970}) && year <= 2024 (${year <= 2024})`);
-      console.log(`[RosterCreatorService] Will use ROSTER_lookup: ${hasLookupData && year >= 1970 && year <= 2024}`);
       console.log(`[RosterCreatorService] ======================================`);
 
-      if (hasLookupData && year >= 1970 && year <= 2024) {
-        // Use ROSTER_lookup data (pre-calculated ratings)
+      if (hasDatabaseData) {
+        // Use DATABASE data (from player_seasons table)
         progressCallback?.(30, `Loading roster data from database for ${year}...`);
-        console.log(`[RosterCreatorService] ✅ Using ROSTER_lookup data for ${year}`);
+        console.log(`[RosterCreatorService] ✅ Using DATABASE data for ${year}`);
 
-        // Get all teams that existed in the year
-        const teamsForYear = scraperService.getTeamsForYear(year);
+        // Get all teams that existed in the year from database
+        const teamsForYear = availableTeams;
         console.log(`[RosterCreatorService] Teams for ${year}: ${teamsForYear.join(', ')}`);
-
-        // Specifically check for 'oti' (Titans/Oilers)
-        const hasOti = teamsForYear.includes('oti');
-        console.log(`[RosterCreatorService] 'oti' (Titans/Oilers) in teamsForYear: ${hasOti}`);
 
         let teamIndex = 0;
         for (const teamAbbr of teamsForYear) {
@@ -996,18 +1145,18 @@ export class RosterCreatorService {
           const teamId = getHistoricalTeamId(teamAbbr, year);
 
           // Extra logging for historical teams
-          if (['oti', 'bal', 'stl', 'bos', 'oak', 'sdg'].includes(teamAbbr)) {
+          if (['oti', 'bal', 'stl', 'bos', 'oak', 'sdg', 'Oilers', 'Raiders'].includes(teamAbbr)) {
             console.log(`[RosterCreatorService] >>> Processing historical team ${teamAbbr.toUpperCase()}:`);
             console.log(`[RosterCreatorService]     year: ${year}, teamId: ${teamId}`);
           }
 
-          const players = await this.getPlayersFromLookup(teamAbbr, year, teamId);
+          const players = await this.getPlayersFromDatabase(teamAbbr, year, teamId);
 
           if (players.length > 0) {
-            console.log(`[RosterCreatorService] ${teamAbbr}: ${players.length} players from ROSTER_lookup (TGID=${teamId})`);
+            console.log(`[RosterCreatorService] ${teamAbbr}: ${players.length} players from DATABASE (TGID=${teamId})`);
             allRosterPlayers.push(...players);
           } else {
-            console.log(`[RosterCreatorService] ❌ ${teamAbbr}: NO players from ROSTER_lookup`);
+            console.log(`[RosterCreatorService] ❌ ${teamAbbr}: NO players in DATABASE`);
           }
 
           teamIndex++;
@@ -1015,15 +1164,15 @@ export class RosterCreatorService {
           progressCallback?.(progress, `Loaded ${teamAbbr.toUpperCase()} roster...`);
         }
 
-        console.log(`[RosterCreatorService] Total players from ROSTER_lookup: ${allRosterPlayers.length}`);
+        console.log(`[RosterCreatorService] Total players from DATABASE: ${allRosterPlayers.length}`);
 
       } else {
-        console.log(`[RosterCreatorService] ❌ ROSTER_lookup NOT used - falling through to web scraper`);
+        console.log(`[RosterCreatorService] ❌ DATABASE has no data for ${year} - falling through to web scraper`);
       }
 
-      // If we got data from ROSTER_lookup, use it directly
+      // If we got data from DATABASE, use it directly
       if (allRosterPlayers.length > 0) {
-        console.log(`[RosterCreatorService] Using ${allRosterPlayers.length} players from ROSTER_lookup`);
+        console.log(`[RosterCreatorService] Using ${allRosterPlayers.length} players from DATABASE`);
 
         // Log team distribution
         const teamCounts = new Map<string, number>();
@@ -1032,7 +1181,7 @@ export class RosterCreatorService {
           const teamKey = tgid.toString();
           teamCounts.set(teamKey, (teamCounts.get(teamKey) || 0) + 1);
         }
-        console.log(`[RosterCreatorService] Team distribution from ROSTER_lookup:`);
+        console.log(`[RosterCreatorService] Team distribution from DATABASE:`);
         for (const [team, count] of Array.from(teamCounts.entries()).sort()) {
           console.log(`[RosterCreatorService]   TGID ${team}: ${count} players`);
         }
@@ -1056,7 +1205,7 @@ export class RosterCreatorService {
         return finalRoster;
       }
 
-      // Fall back to web scraping for years not in ROSTER_lookup
+      // Fall back to web scraping for years not in database
       progressCallback?.(30, `Generating roster using web scraper...`);
 
       // Generate roster using the creator service (web scraping)

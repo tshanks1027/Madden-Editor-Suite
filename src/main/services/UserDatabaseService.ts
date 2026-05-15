@@ -119,6 +119,63 @@ const LEGACY_TO_M26_FIELD_MAP: Record<string, string> = {
   'PZCV': 'PLZC',  // Zone Coverage
 };
 
+// Team name normalization - converts all team formats to Madden names
+// This ensures consistency across all databases (players.db, user-edits.db, custom-players.db)
+const TEAM_TO_MADDEN: Record<string, string> = {
+  // PFR abbreviations
+  'ARI': 'Cards', 'ATL': 'Falcons', 'BAL': 'Ravens', 'BUF': 'Bills',
+  'CAR': 'Panthers', 'CHI': 'Bears', 'CIN': 'Bengals', 'CLE': 'Browns',
+  'DAL': 'Cowboys', 'DEN': 'Broncos', 'DET': 'Lions', 'GB': 'Packers',
+  'GNB': 'Packers', 'HOU': 'Texans', 'IND': 'Colts', 'JAC': 'Jags',
+  'JAX': 'Jags', 'KC': 'Chiefs', 'KAN': 'Chiefs', 'LA': 'Rams',
+  'LAC': 'Chargers', 'LAR': 'Rams', 'LV': 'Raiders', 'LVR': 'Raiders',
+  'MIA': 'Dolphins', 'MIN': 'Vikings', 'NE': 'Pats', 'NWE': 'Pats',
+  'NO': 'Saints', 'NOR': 'Saints', 'NYG': 'Giants', 'NYJ': 'Jets',
+  'OAK': 'Raiders', 'PHI': 'Eagles', 'PIT': 'Steelers', 'SD': 'Chargers',
+  'SDG': 'Chargers', 'SEA': 'Seahawks', 'SF': '49ers', 'SFO': '49ers',
+  'STL': 'Rams', 'TB': 'Buccs', 'TAM': 'Buccs', 'TEN': 'Titans',
+  'WAS': 'Commanders', 'WSH': 'Commanders',
+  // Full NFL names
+  'Arizona Cardinals': 'Cards', 'Atlanta Falcons': 'Falcons', 'Baltimore Ravens': 'Ravens',
+  'Buffalo Bills': 'Bills', 'Carolina Panthers': 'Panthers', 'Chicago Bears': 'Bears',
+  'Cincinnati Bengals': 'Bengals', 'Cleveland Browns': 'Browns', 'Dallas Cowboys': 'Cowboys',
+  'Denver Broncos': 'Broncos', 'Detroit Lions': 'Lions', 'Green Bay Packers': 'Packers',
+  'Houston Texans': 'Texans', 'Indianapolis Colts': 'Colts', 'Jacksonville Jaguars': 'Jags',
+  'Kansas City Chiefs': 'Chiefs', 'Las Vegas Raiders': 'Raiders', 'Los Angeles Chargers': 'Chargers',
+  'Los Angeles Rams': 'Rams', 'Miami Dolphins': 'Dolphins', 'Minnesota Vikings': 'Vikings',
+  'New England Patriots': 'Pats', 'New Orleans Saints': 'Saints', 'New York Giants': 'Giants',
+  'New York Jets': 'Jets', 'Philadelphia Eagles': 'Eagles', 'Pittsburgh Steelers': 'Steelers',
+  'San Francisco 49ers': '49ers', 'Seattle Seahawks': 'Seahawks', 'Tampa Bay Buccaneers': 'Buccs',
+  'Tennessee Titans': 'Titans', 'Washington Commanders': 'Commanders',
+  // Historical/alternate
+  'PHO': 'Cards', 'CRD': 'Cards', 'BOS': 'Pats', 'RAM': 'Rams', 'RAI': 'Raiders', 'CLT': 'Colts',
+  // Free agent
+  'FA': 'Free Agent',
+  // Already correct (passthrough)
+  'Bears': 'Bears', 'Bengals': 'Bengals', 'Bills': 'Bills', 'Broncos': 'Broncos',
+  'Browns': 'Browns', 'Buccs': 'Buccs', 'Cards': 'Cards', 'Chargers': 'Chargers',
+  'Chiefs': 'Chiefs', 'Colts': 'Colts', 'Cowboys': 'Cowboys', 'Dolphins': 'Dolphins',
+  'Eagles': 'Eagles', 'Falcons': 'Falcons', '49ers': '49ers', 'Giants': 'Giants',
+  'Jags': 'Jags', 'Jets': 'Jets', 'Lions': 'Lions', 'Packers': 'Packers',
+  'Panthers': 'Panthers', 'Pats': 'Pats', 'Raiders': 'Raiders', 'Rams': 'Rams',
+  'Ravens': 'Ravens', 'Commanders': 'Commanders', 'Saints': 'Saints', 'Seahawks': 'Seahawks',
+  'Steelers': 'Steelers', 'Texans': 'Texans', 'Titans': 'Titans', 'Vikings': 'Vikings',
+  'Free Agent': 'Free Agent'
+};
+
+// Normalize team name to Madden format
+function normalizeTeamName(team: string | undefined | null): string | undefined {
+  if (!team) return undefined;
+  const trimmed = team.trim();
+  // Check direct match first
+  if (TEAM_TO_MADDEN[trimmed]) return TEAM_TO_MADDEN[trimmed];
+  // Check uppercase (for abbreviations)
+  if (TEAM_TO_MADDEN[trimmed.toUpperCase()]) return TEAM_TO_MADDEN[trimmed.toUpperCase()];
+  // Return original if no mapping found (shouldn't happen with valid teams)
+  console.warn(`[UserDatabaseService] Unknown team format: "${team}"`);
+  return trimmed;
+}
+
 export interface PlayerEdit {
   originalId: number;
   firstName?: string;
@@ -1408,8 +1465,8 @@ class UserDatabaseService {
       const setClauses: string[] = [];
       const values: unknown[] = [];
 
-      // Check each base field
-      if (edits.team !== undefined) { setClauses.push('team = ?'); values.push(edits.team); }
+      // Check each base field - normalize team name to Madden format
+      if (edits.team !== undefined) { setClauses.push('team = ?'); values.push(normalizeTeamName(edits.team)); }
       if (edits.jersey !== undefined) { setClauses.push('jersey = ?'); values.push(edits.jersey); }
       if (edits.age !== undefined) { setClauses.push('age = ?'); values.push(edits.age); }
       if (edits.position !== undefined) { setClauses.push('position = ?'); values.push(edits.position); }
@@ -1445,8 +1502,8 @@ class UserDatabaseService {
       const columns = ['original_player_id', 'year'];
       const values: unknown[] = [originalPlayerId, year];
 
-      // Add base fields if provided
-      if (edits.team !== undefined) { columns.push('team'); values.push(edits.team); }
+      // Add base fields if provided - normalize team name to Madden format
+      if (edits.team !== undefined) { columns.push('team'); values.push(normalizeTeamName(edits.team)); }
       if (edits.jersey !== undefined) { columns.push('jersey'); values.push(edits.jersey); }
       if (edits.age !== undefined) { columns.push('age'); values.push(edits.age); }
       if (edits.position !== undefined) { columns.push('position'); values.push(edits.position); }
@@ -2168,7 +2225,9 @@ class UserDatabaseService {
     if (!this.customDb) throw new Error('Custom database not initialized');
 
     const columns = ['custom_player_id', 'year', 'team', 'jersey', 'age', 'position', 'archetype'];
-    const values: unknown[] = [customPlayerId, year, season.team ?? null, season.jersey ?? null,
+    // Normalize team name to Madden format
+    const normalizedTeam = season.team ? normalizeTeamName(season.team) : null;
+    const values: unknown[] = [customPlayerId, year, normalizedTeam, season.jersey ?? null,
                                 season.age ?? null, season.position ?? null, season.archetype ?? null];
 
     // Support both nested (season.ratings.POVR) and flat (season.POVR) formats
@@ -2361,13 +2420,15 @@ class UserDatabaseService {
     const setClauses: string[] = [];
     const values: unknown[] = [];
 
-    // Handle season info fields
+    // Handle season info fields - normalize team name to Madden format
     const editsAny = edits as Record<string, unknown>;
     const infoFields = ['team', 'jersey', 'age', 'position', 'archetype'];
     for (const field of infoFields) {
       if (editsAny[field] !== undefined) {
         setClauses.push(`${field} = ?`);
-        values.push(editsAny[field]);
+        // Normalize team names to Madden format
+        const value = field === 'team' ? normalizeTeamName(editsAny[field] as string) : editsAny[field];
+        values.push(value);
       }
     }
 
@@ -2717,10 +2778,19 @@ class UserDatabaseService {
   public getCustomPlayersByDraftYear(year: number): CustomPlayer[] {
     if (!this.customDb) return [];
 
+    // Sort by draft order: round (numeric), then pick (numeric), then name
+    // Handle empty/null/UFA rounds by putting them last (round 99)
+    // CAST to INTEGER for proper numeric sorting (string '7' > '63' alphabetically)
     const rows = this.customDb.prepare(`
       SELECT * FROM custom_players
       WHERE draft_class = ?
-      ORDER BY draft_round, draft_pick, last_name, first_name
+      ORDER BY
+        CASE
+          WHEN draft_round IS NULL OR draft_round = '' OR draft_round = 'UFA' OR draft_round = 'UDFA' THEN 99
+          ELSE CAST(draft_round AS INTEGER)
+        END,
+        COALESCE(draft_pick, 999),
+        last_name, first_name
     `).all(year) as Record<string, unknown>[];
 
     return rows.map(row => ({

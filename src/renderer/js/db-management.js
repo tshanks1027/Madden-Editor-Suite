@@ -564,7 +564,7 @@
 
     var sourceMsg = usingBrowserResults ? 'currently displayed' : 'with missing data';
     var confirmed = confirm(
-      'This will scrape Pro-Football-Reference to fill data for ' + playersToFill.length + ' ' + sourceMsg + ' players.\n\n' +
+      'This will scrape Pro Football Archives to fill data for ' + playersToFill.length + ' ' + sourceMsg + ' players.\n\n' +
       'This may take a while (about 1.5 seconds per player due to rate limiting).\n\n' +
       'Continue?'
     );

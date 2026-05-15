@@ -1363,8 +1363,8 @@
 
     try {
       if (source === 'custom') {
-        // Update custom player's PID
-        await window.electronAPI.database.updateCustomPlayer(playerId, { pid: pid });
+        // Update custom player's PID (field name is maddenPid, not pid)
+        await window.electronAPI.database.updateCustomPlayer(playerId, { maddenPid: pid });
         // Update portrait metadata with player name only (custom players don't have database IDs)
         await window.electronAPI.customPortrait.updateMetadata(pid, { playerName: playerName });
       } else {
