@@ -2875,7 +2875,7 @@ function setPlayerEquipment(poidOrIndex, equipment) {
   // CRITICAL: Store equipment changes keyed by POID, not playerIndex
   // This ensures we find the correct BLBM record during save
   pendingEquipmentChanges.set(poid, { ...equipment });
-  console.log(`[RosterParser] Queued equipment changes for POID ${poid} (player ${playerIndex}):`, equipment);
+  console.log(`[RosterParser] Queued equipment changes for POID ${poid}:`, equipment);
 
   // Also apply immediately to global.rosterFile for any code that reads from it
   const blob = file.BLOB?.records?.[0];
