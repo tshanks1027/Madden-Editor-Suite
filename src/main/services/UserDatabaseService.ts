@@ -210,6 +210,12 @@ export interface AppearanceEdit {
   maddenGslp?: number;       // GSLP skin tone value from file
   maddenCpvf?: number;       // CPVF flag (0 or 1)
   maddenSkinTone?: number;   // Derived skin tone (1-7)
+  maddenGenr?: string;       // GENR string for BLBM (e.g., "gen_7_M_N_024") - verified from face-picker-to-genr.json
+  // Direct BLBM table fields - stored for perfect push/pull cycle
+  maddenGnhd?: number;       // GNHD - generic head ID from BLBM
+  maddenCnid?: number;       // CNID - face asset ID from BLBM (0 for generic faces)
+  maddenAsnm?: string;       // ASNM - asset name string from BLBM
+  maddenBtyp?: number;       // BTYP - body type from BLBM (0-4)
   editedAt?: string;
 }
 
@@ -279,6 +285,7 @@ export interface CustomPlayer {
   maddenGslp?: number;       // GSLP skin tone value from file
   maddenCpvf?: number;       // CPVF flag (0 or 1)
   maddenSkinTone?: number;   // Derived skin tone (1-7)
+  maddenGenr?: string;       // GENR string for BLBM (e.g., "gen_7_M_N_024") - verified from face-picker-to-genr.json
   bodyType?: number;
   handedness?: number;
   has3DModel?: boolean;
@@ -612,6 +619,13 @@ class UserDatabaseService {
     try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_gslp INTEGER`); } catch { /* Column already exists */ }
     try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_cpvf INTEGER`); } catch { /* Column already exists */ }
     try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_skin_tone INTEGER`); } catch { /* Column already exists */ }
+    // Migration: add GENR column for verified face mapping (from face-picker-to-genr.json)
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_genr TEXT`); } catch { /* Column already exists */ }
+    // Migration: add direct BLBM fields for perfect push/pull cycle
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_gnhd INTEGER`); } catch { /* Column already exists */ }
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_cnid INTEGER`); } catch { /* Column already exists */ }
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_asnm TEXT`); } catch { /* Column already exists */ }
+    try { this.editsDb.exec(`ALTER TABLE appearance_edits ADD COLUMN madden_btyp INTEGER`); } catch { /* Column already exists */ }
 
     // Build season_edits table with all rating fields
     const ratingColumns = RATING_FIELDS.map(f => `${f} INTEGER`).join(', ');
@@ -1241,6 +1255,11 @@ class UserDatabaseService {
         maddenGslp: row.madden_gslp as number | undefined,
         maddenCpvf: row.madden_cpvf as number | undefined,
         maddenSkinTone: row.madden_skin_tone as number | undefined,
+        // Direct BLBM fields for perfect push/pull cycle
+        maddenGnhd: row.madden_gnhd as number | undefined,
+        maddenCnid: row.madden_cnid as number | undefined,
+        maddenAsnm: row.madden_asnm as string | undefined,
+        maddenBtyp: row.madden_btyp as number | undefined,
         editedAt: row.edited_at as string | undefined
       });
     }
@@ -1366,14 +1385,21 @@ class UserDatabaseService {
       maddenGslp: edits.maddenGslp !== undefined ? edits.maddenGslp : (existing?.maddenGslp ?? null),
       maddenCpvf: edits.maddenCpvf !== undefined ? edits.maddenCpvf : (existing?.maddenCpvf ?? null),
       maddenSkinTone: edits.maddenSkinTone !== undefined ? edits.maddenSkinTone : (existing?.maddenSkinTone ?? null),
+      maddenGenr: edits.maddenGenr !== undefined ? edits.maddenGenr : (existing?.maddenGenr ?? null),
+      // Direct BLBM fields for perfect push/pull cycle
+      maddenGnhd: edits.maddenGnhd !== undefined ? edits.maddenGnhd : (existing?.maddenGnhd ?? null),
+      maddenCnid: edits.maddenCnid !== undefined ? edits.maddenCnid : (existing?.maddenCnid ?? null),
+      maddenAsnm: edits.maddenAsnm !== undefined ? edits.maddenAsnm : (existing?.maddenAsnm ?? null),
+      maddenBtyp: edits.maddenBtyp !== undefined ? edits.maddenBtyp : (existing?.maddenBtyp ?? null),
     };
 
     this.editsDb.prepare(`
       INSERT OR REPLACE INTO appearance_edits (
         original_player_id, madden_pid, madden_pam, madden_plpo, madden_commid,
-        madden_pghe, madden_pfcg, madden_gpan, madden_gslp, madden_cpvf, madden_skin_tone
+        madden_pghe, madden_pfcg, madden_gpan, madden_gslp, madden_cpvf, madden_skin_tone, madden_genr,
+        madden_gnhd, madden_cnid, madden_asnm, madden_btyp
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       originalPlayerId,
       merged.maddenPid,
@@ -1385,10 +1411,15 @@ class UserDatabaseService {
       merged.maddenGpan,
       merged.maddenGslp,
       merged.maddenCpvf,
-      merged.maddenSkinTone
+      merged.maddenSkinTone,
+      merged.maddenGenr,
+      merged.maddenGnhd,
+      merged.maddenCnid,
+      merged.maddenAsnm,
+      merged.maddenBtyp
     );
 
-    console.log(`[UserDatabaseService] Saved appearance edit for player_id=${originalPlayerId} (PAM=${merged.maddenPam ?? 'null'}, PGHE=${merged.maddenPghe ?? 'null'})`);
+    console.log(`[UserDatabaseService] Saved appearance edit for player_id=${originalPlayerId} (PAM=${merged.maddenPam ?? 'null'}, SKNT=${merged.maddenSkinTone ?? 'null'}, GNHD=${merged.maddenGnhd ?? 'null'}, CNID=${merged.maddenCnid ?? 'null'})`);
   }
 
   public getAppearanceEdit(originalPlayerId: number): AppearanceEdit | null {
@@ -1409,6 +1440,12 @@ class UserDatabaseService {
       maddenGslp: row.madden_gslp as number | undefined,
       maddenCpvf: row.madden_cpvf as number | undefined,
       maddenSkinTone: row.madden_skin_tone as number | undefined,
+      maddenGenr: row.madden_genr as string | undefined,
+      // Direct BLBM fields
+      maddenGnhd: row.madden_gnhd as number | undefined,
+      maddenCnid: row.madden_cnid as number | undefined,
+      maddenAsnm: row.madden_asnm as string | undefined,
+      maddenBtyp: row.madden_btyp as number | undefined,
       editedAt: row.edited_at as string | undefined
     };
   }
@@ -2818,6 +2855,86 @@ class UserDatabaseService {
       createdAt: row.created_at as string | undefined,
       editedAt: row.edited_at as string | undefined
     }));
+  }
+
+  /**
+   * Get custom players for a specific team and year.
+   * Used by RosterCreatorService to include custom players (from draft class push) in generated rosters.
+   * Returns data in a format compatible with lookupService.getPlayersForTeamYear().
+   */
+  public getCustomPlayersForTeamYear(team: string, year: number): Array<{
+    internalId: number;
+    firstName: string;
+    lastName: string;
+    position: string;
+    archetype: string;
+    jersey: number;
+    age: number;
+    college: string;
+    height: number;
+    weight: number;
+    birthDate: string;
+    pid: number;
+    pam: string;
+    devTrait: string;
+    ratings: Record<string, number>;
+    isCustomPlayer: boolean;
+  }> {
+    if (!this.customDb) return [];
+
+    // Normalize team name for comparison
+    const normalizedTeam = normalizeTeamName(team);
+    if (!normalizedTeam) return [];
+
+    // Query custom players with seasons for this team and year
+    const rows = this.customDb.prepare(`
+      SELECT
+        p.id as player_id,
+        p.first_name, p.last_name, p.college_id, p.race, p.height, p.weight,
+        p.madden_pid, p.madden_pam,
+        s.year, s.team, s.jersey, s.age, s.position, s.archetype,
+        ${RATING_FIELDS.map(f => `s.${f}`).join(', ')}
+      FROM custom_players p
+      JOIN custom_player_seasons s ON p.id = s.custom_player_id
+      WHERE s.year = ? AND LOWER(s.team) = LOWER(?)
+      ORDER BY s.position, p.last_name
+    `).all(year, normalizedTeam) as Record<string, unknown>[];
+
+    console.log(`[UserDatabaseService] getCustomPlayersForTeamYear: Found ${rows.length} custom players for team="${normalizedTeam}" year=${year}`);
+
+    return rows.map(row => {
+      const ratings: Record<string, number> = {};
+      for (const field of RATING_FIELDS) {
+        if (row[field] !== null && row[field] !== undefined) {
+          ratings[field] = row[field] as number;
+        }
+      }
+
+      // Get college name from college_id if available
+      let college = '';
+      if (row.college_id) {
+        college = lookupService.getDisplayName('college_lookup.csv', row.college_id as number);
+      }
+
+      return {
+        internalId: -(row.player_id as number), // Negative ID to distinguish from bundled DB players
+        firstName: row.first_name as string,
+        lastName: row.last_name as string,
+        position: row.position as string || '',
+        archetype: row.archetype as string || '',
+        jersey: row.jersey as number || 0,
+        age: row.age as number || 22,
+        college,
+        height: row.height as number || 72,
+        weight: row.weight as number || 200,
+        birthDate: '',
+        pid: row.madden_pid as number || 0,
+        pam: row.madden_pam as string || '',
+        devTrait: '',
+        ratings,
+        isCustomPlayer: true
+      };
+    });
   }
 
   public searchCustomPlayers(query: string, limit = 50): CustomPlayer[] {

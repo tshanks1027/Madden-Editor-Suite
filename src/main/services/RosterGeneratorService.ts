@@ -257,6 +257,7 @@ export class RosterGeneratorService {
   private pidToPAM: Map<number, string> = new Map(); // PID → PAM mapping from PID_Portrait_Mapping.csv
   private _fillDebugCount: number = 0; // Debug counter for fillMissingRatingsFromDb
   private _enrichDebugCount: number = 0; // Debug counter for enrichPlayerFromDb
+  private _faceDebugCount: number = 0; // Debug counter for face data from appearance edits
   private pidToPortrait: Map<number, string> = new Map(); // PID → Portrait name (for race filtering)
   // NEW: Generic faces grouped by race for proper skin-tone matching
   private genericFacesByRace: Map<number, { pid: number; pam: string; pghe: number }[]> = new Map();
@@ -677,6 +678,11 @@ export class RosterGeneratorService {
     try {
       console.log('[RosterGeneratorService] ===== GENERATE ROSTER START =====');
 
+      // Reset debug counters for each generation
+      this._fillDebugCount = 0;
+      this._enrichDebugCount = 0;
+      this._faceDebugCount = 0;
+
       if (!this.initialized) {
         console.log('[RosterGeneratorService] Not initialized, calling initialize()...');
         await this.initialize();
@@ -782,6 +788,22 @@ export class RosterGeneratorService {
     // BULK LOAD appearance edits (PID, PAM, PGHE, etc.) - these are NOT year-specific
     const appearanceEditsMap = userDatabaseService.getAllAppearanceEdits();
     console.log(`[RosterGeneratorService] Appearance edits found: ${appearanceEditsMap.size}`);
+
+    // DEBUG: Show first 5 appearance edits with face data
+    let faceEditCount = 0;
+    for (const [playerId, edit] of appearanceEditsMap.entries()) {
+      if (faceEditCount < 5 && (edit.maddenPam || edit.maddenPghe)) {
+        console.log(`[RosterGeneratorService] APPEARANCE EDIT ${playerId}:`);
+        console.log(`  - maddenPid: ${edit.maddenPid}`);
+        console.log(`  - maddenPam: "${edit.maddenPam}"`);
+        console.log(`  - maddenPghe: ${edit.maddenPghe}`);
+        console.log(`  - maddenSkinTone: ${edit.maddenSkinTone}`);
+        faceEditCount++;
+      }
+    }
+    if (faceEditCount === 0) {
+      console.log(`[RosterGeneratorService] WARNING: No appearance edits have face data (maddenPam or maddenPghe)`);
+    }
 
     // DEBUG: Show sample player IDs from both sources to diagnose mismatch
     if (userEditsMap.size > 0 && dbPlayers.length > 0) {
@@ -995,6 +1017,11 @@ export class RosterGeneratorService {
         if (appearanceEdit.maddenCpvf !== undefined) player.maddenCpvf = appearanceEdit.maddenCpvf;
         if (appearanceEdit.maddenSkinTone !== undefined) player.maddenSkinTone = appearanceEdit.maddenSkinTone;
         if (appearanceEdit.isGenericFace !== undefined) player.isGenericFace = appearanceEdit.isGenericFace;
+        // Direct BLBM fields for perfect push/pull cycle
+        if (appearanceEdit.maddenGnhd !== undefined) player.maddenGnhd = appearanceEdit.maddenGnhd;
+        if (appearanceEdit.maddenCnid !== undefined) player.maddenCnid = appearanceEdit.maddenCnid;
+        if (appearanceEdit.maddenAsnm !== undefined) player.maddenAsnm = appearanceEdit.maddenAsnm;
+        if (appearanceEdit.maddenBtyp !== undefined) player.maddenBtyp = appearanceEdit.maddenBtyp;
 
         // FIX: Add portrait manager PIDs to validPIDs so they don't get rejected
         if (appearanceEdit.maddenPid && appearanceEdit.maddenPid > 0) {
@@ -1003,7 +1030,7 @@ export class RosterGeneratorService {
 
         appearanceMergeCount++;
         if (appearanceMergeCount <= 5) {
-          console.log(`[RosterGeneratorService] APPEARANCE MERGED: ${player.firstName} ${player.lastName} (ID ${player.playerId}), PID=${player.maddenPid}, PAM=${player.maddenPam}, isGenericFace=${player.isGenericFace}`);
+          console.log(`[RosterGeneratorService] APPEARANCE MERGED: ${player.firstName} ${player.lastName} (ID ${player.playerId}), PID=${player.maddenPid}, PAM=${player.maddenPam}, SKNT=${player.maddenSkinTone}, GNHD=${player.maddenGnhd}`);
         }
       }
     }
@@ -1578,7 +1605,6 @@ export class RosterGeneratorService {
 
         // Assign generic face that matches race
         const genericFace = this.selectGenericFaceByRace(fillerRace);
-        // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
 
         // Generate random low OVR (50-65)
         const ovr = Math.floor(Math.random() * 16) + 50;
@@ -1614,7 +1640,7 @@ export class RosterGeneratorService {
           PEPS: genericFace.pam, // GENR from PGHE lookup - matched set with PSXP and PGHE
           POID: 0, // Will be set to PGID during save (links PLAY records to BLBM visuals)
           PCMT: lookupService.getCommentaryId(lastName) || 0, // Commentary ID - looked up by last name
-          // DON'T SET PSKI - BLBM handles it
+          PSKI: genericFace.pski, // CRITICAL: Body skin must match face skin - see KNOWN_ISSUES.md
           PGHE: genericFace.pghe,
           // CRITICAL: PLRC must match GENR first digit for consistent skin tone
           PLRC: parseInt(genericFace.pam.match(/^gen_(\d+)/)?.[1] || '1') || fillerRace,
@@ -2201,11 +2227,10 @@ export class RosterGeneratorService {
       19: 'K', 20: 'P', 21: 'LS'
     };
 
-    // Select a complete generic face (PID, PAM, PGHE) that matches race
+    // Select a complete generic face (PID, PAM, PGHE, PSKI) that matches race
     const positionName = positionMap[positionCode] || 'WR';
     const fillerRace = Math.floor(Math.random() * 7) + 1; // Random race 1-7
     const genericFace = this.selectGenericFaceByRace(fillerRace);
-    // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
 
     // Generate weight-based body type (consistent with other generators)
     // Weight range: 180-259 lbs (PWGT offset: 20-99)
@@ -2322,7 +2347,7 @@ export class RosterGeneratorService {
       PCBT: fillerPcbt, // Weight-based body type (numeric)
       PTAR: fillerPtar, // Weight-based body type (string)
       PGHE: genericFace.pghe, // Generic head ID from race-matched face
-      // DON'T SET PSKI - BLBM handles it
+      PSKI: genericFace.pski, // CRITICAL: Body skin must match face skin - see KNOWN_ISSUES.md
       PLPL: 0, // Generic face marker (number, not string)
       // CRITICAL: PLRC must match GENR first digit for consistent skin tone
       PLRC: parseInt(genericFace.pam.match(/^gen_(\d+)/)?.[1] || '1') || fillerRace,
@@ -2530,7 +2555,7 @@ export class RosterGeneratorService {
     // Variables for generic face handling
     let isGenericFace = false;
     let pgheValue = 0;
-    // DON'T track pskiValue - BLBM GENR/SKNT controls face appearance
+    let pskiValue = 0; // Body skin tone - MUST match face skin - see KNOWN_ISSUES.md
     let plplValue: number = 100; // Default to real face (100)
     let pepsValue: string = ''; // Will be set below based on face type
     let playerPicValue: string = ''; // Display name for Player Pic column
@@ -2544,8 +2569,8 @@ export class RosterGeneratorService {
       plplValue = 0; // Generic face flag
       pepsValue = genericFace.pam; // GENR from PGHE lookup - matched set with pid and pghe
       pgheValue = genericFace.pghe;
-      // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
-      console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic face - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, race=${csvRace}`);
+      pskiValue = genericFace.pski; // CRITICAL: Body skin must match face skin
+      console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic face - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, PSKI=${pskiValue}, race=${csvRace}`);
     } else {
       // Player has valid PID - check if they have a real portrait
       const mappedPAM = this.pidToPAM.get(playerPID);
@@ -2589,8 +2614,8 @@ export class RosterGeneratorService {
         playerPID = genericFace.pid;  // Use matched PID from PGHE lookup
         pepsValue = genericFace.pam;  // GENR from PGHE lookup - matched set
         pgheValue = genericFace.pghe;
-        // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
-        console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic portrait - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, race=${csvRace}`);
+        pskiValue = genericFace.pski; // CRITICAL: Body skin must match face skin
+        console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: Generic portrait - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, PSKI=${pskiValue}, race=${csvRace}`);
       } else {
         // No portrait at all - need to assign generic face
         // BUT FIRST check if player has valid PID in validPIDs - if so, keep it!
@@ -2607,8 +2632,8 @@ export class RosterGeneratorService {
           playerPID = genericFace.pid;
           pepsValue = genericFace.pam; // GENR from PGHE lookup - matched set with pid and pghe
           pgheValue = genericFace.pghe;
-          // DON'T SET PSKI - BLBM GENR/SKNT controls face appearance
-          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: No portrait, generic face - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, race=${csvRace}`);
+          pskiValue = genericFace.pski; // CRITICAL: Body skin must match face skin
+          console.log(`[PEPS DEBUG] ${csvRow.First_Name} ${csvRow.Last_Name}: No portrait, generic face - PID=${playerPID}, PEPS="${pepsValue}", PGHE=${pgheValue}, PSKI=${pskiValue}, race=${csvRace}`);
         }
       }
     }
@@ -2750,8 +2775,8 @@ export class RosterGeneratorService {
       PTAR: this.determineBodyType(csvRow),  // Body type (PTAR is actually body type, not archetype!)
       PYRP: yearsPro,  // Years pro - calculated from draft year
       PROL: this.determineDevTrait(parseInt(ratings.POVR) || 50),  // Dev trait (0=Normal, 1=Star, 2=Superstar, 3=X-Factor)
-      // DON'T SET PSKI for generic faces - BLBM GENR/SKNT controls face appearance
-      // Only set PGHE for generic faces
+      // PSKI MUST be set to match PAM - see KNOWN_ISSUES.md "Generic face skin tone mismatch"
+      PSKI: pskiValue,  // Body skin tone - must match face skin for generic faces
       PGHE: pgheValue,  // Generic head ID (only used for generic faces, 1-290)
 
       // Contract fields - generated using ContractService
@@ -2926,6 +2951,20 @@ export class RosterGeneratorService {
     const dbRace = dbRow.race || 1;
     const playerInternalId = dbRow.playerId;
 
+    // DEBUG: Log face data from appearance edits - ALWAYS log first 10 players
+    if (!this._faceDebugCount) this._faceDebugCount = 0;
+    if (this._faceDebugCount < 10) {
+      console.log(`[FACE PULL DEBUG] ${cleanFirstName} ${cleanLastName} (player ${this._faceDebugCount + 1}):`);
+      console.log(`  - playerId: ${playerInternalId}`);
+      console.log(`  - dbRow.maddenPid: ${dbRow.maddenPid}`);
+      console.log(`  - dbRow.maddenPam: "${dbRow.maddenPam}"`);
+      console.log(`  - dbRow.maddenPghe: ${dbRow.maddenPghe}`);
+      console.log(`  - dbRow.maddenSkinTone: ${dbRow.maddenSkinTone}`);
+      console.log(`  - playerPID (will use): ${playerPID}`);
+      console.log(`  - playerPAM (will use): "${playerPAM}"`);
+      this._faceDebugCount++;
+    }
+
     // Only check for custom portrait if no PID from appearance edits/database
     // This ensures user-assigned generic faces take priority over old custom portrait assignments
     if (!playerPID) {
@@ -2941,6 +2980,7 @@ export class RosterGeneratorService {
     // Variables for generic face handling
     let isGenericFace = false;
     let pgheValue = 0;
+    let pskiValue = 0; // Body skin tone - MUST match face skin - see KNOWN_ISSUES.md
     let plplValue: number = 100;
     let pepsValue: string = '';
     let playerPicValue: string = '';
@@ -2963,6 +3003,7 @@ export class RosterGeneratorService {
       plplValue = 0;
       pepsValue = genericFace.pam;
       pgheValue = genericFace.pghe;
+      pskiValue = genericFace.pski; // CRITICAL: Body skin must match face skin
       playerPicValue = 'Face, Generic';
     } else if (isGenericPID) {
       // PID is a known generic face PID - all columns should show "generic"
@@ -2971,20 +3012,24 @@ export class RosterGeneratorService {
       // Priority: playerPAM (from database) > pgheLookupService > pidToPAM fallback
       if (playerPAM) {
         pepsValue = playerPAM;
-        pgheValue = this.pidToPGHE.get(playerPID) || 0;
-        console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Using DB PAM="${playerPAM}" for generic PID ${playerPID}`);
+        // CRITICAL FIX: Use dbRow.maddenPghe from appearance edits FIRST, then fallback to PID lookup
+        pgheValue = dbRow.maddenPghe || this.pidToPGHE.get(playerPID) || 0;
+        pskiValue = dbRow.maddenSkinTone || this.getPSKIFromPAM(playerPAM); // Derive from PAM or use saved skin tone
+        console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Using DB PAM="${playerPAM}" for generic PID ${playerPID}, PGHE=${pgheValue}, PSKI=${pskiValue}`);
       } else {
         // Look up from PGHE service which has complete PID → GENR mappings
         const pgheEntry = pgheLookupService.getByPID(playerPID);
         if (pgheEntry) {
           pepsValue = pgheEntry.genr;
           pgheValue = pgheEntry.pghe;
-          console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: PGHE lookup for PID ${playerPID} -> GENR="${pgheEntry.genr}"`);
+          pskiValue = this.getPSKIFromPAM(pgheEntry.genr); // Derive from GENR
+          console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: PGHE lookup for PID ${playerPID} -> GENR="${pgheEntry.genr}", PSKI=${pskiValue}`);
         } else {
-          // Fallback to cached mappings
+          // Fallback to cached mappings (still check dbRow for saved values first)
           pepsValue = this.pidToPAM.get(playerPID) || '';
-          pgheValue = this.pidToPGHE.get(playerPID) || 0;
-          console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Fallback for PID ${playerPID} -> PEPS="${pepsValue}" (pidToPAM)`);
+          pgheValue = dbRow.maddenPghe || this.pidToPGHE.get(playerPID) || 0;
+          pskiValue = dbRow.maddenSkinTone || this.getPSKIFromPAM(pepsValue); // Derive from PAM
+          console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Fallback for PID ${playerPID} -> PEPS="${pepsValue}", PGHE=${pgheValue}, PSKI=${pskiValue} (pidToPAM)`);
         }
       }
       playerPicValue = 'Face, Generic';
@@ -2996,9 +3041,11 @@ export class RosterGeneratorService {
         isGenericFace = true;
         plplValue = 0;
         pepsValue = playerPAM;
-        pgheValue = this.pidToPGHE.get(playerPID) || 0;
+        // CRITICAL FIX: Use dbRow.maddenPghe from appearance edits FIRST, then fallback to PID lookup
+        pgheValue = dbRow.maddenPghe || this.pidToPGHE.get(playerPID) || 0;
+        pskiValue = dbRow.maddenSkinTone || this.getPSKIFromPAM(playerPAM); // Derive from PAM or use saved skin tone
         playerPicValue = 'Face, Generic';
-        console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Custom PID ${playerPID} has generic PAM="${playerPAM}", treating as generic face`);
+        console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Custom PID ${playerPID} has generic PAM="${playerPAM}", PGHE=${pgheValue}, PSKI=${pskiValue}, treating as generic face`);
       } else {
         // True custom portrait - use player's name
         plplValue = 100;
@@ -3010,7 +3057,20 @@ export class RosterGeneratorService {
       const mappedPAM = this.pidToPAM.get(playerPID);
       const mappedPortrait = this.pidToPortrait.get(playerPID);
 
-      if (mappedPortrait) {
+      // CRITICAL FIX: Check if database has a generic face PAM assigned to this real player
+      // This happens when user assigns a generic face to a real player via face picker
+      // The PID stays real, but the PAM changes to gen_*
+      if (playerPAM && playerPAM.startsWith('gen_')) {
+        // Real player PID but user assigned a generic face - treat as generic face
+        isGenericFace = true;
+        plplValue = 0; // Generic face indicator
+        pepsValue = playerPAM;
+        // CRITICAL: Use PGHE and skin tone from database appearance edits
+        pgheValue = dbRow.maddenPghe || this.pidToPGHE.get(playerPID) || 0;
+        pskiValue = dbRow.maddenSkinTone || this.getPSKIFromPAM(playerPAM);
+        playerPicValue = 'Face, Generic';
+        console.log(`[PAM DEBUG] ${cleanFirstName} ${cleanLastName}: Real PID ${playerPID} has generic PAM="${playerPAM}" from DB, treating as generic face (PGHE=${pgheValue}, PSKI=${pskiValue})`);
+      } else if (mappedPortrait) {
         plplValue = 100;
         // Use mapped PAM, fallback to database PAM if available
         pepsValue = mappedPAM || playerPAM || '';
@@ -3149,6 +3209,7 @@ export class RosterGeneratorService {
       PYRP: yearsPro,
       PROL: this.determineDevTrait(ratings.POVR || 50),
       PGHE: pgheValue,
+      PSKI: pskiValue, // Body skin tone - must match face skin - see KNOWN_ISSUES.md
       // CRITICAL: PLRC must match GENR first digit for consistent skin tone
       // For generic faces (PEPS starts with "gen_"), extract from first digit
       // For real faces, use dbRace
@@ -3164,7 +3225,29 @@ export class RosterGeneratorService {
       _sourceTeam: dbRow.team || '',
       _position: dbRow.position || '',
       _race: dbRace,
-      _isHOF: dbRow.isHof || false
+      _isHOF: dbRow.isHof || false,
+
+      // CRITICAL: Set assignedGenr and assignedSknt for generic faces
+      // GenericFaceService.updateBLBMForGenericFaces() looks for these fields to
+      // properly update BLBM GENR/SKNT values. Without these, the face data from
+      // database appearance_edits won't be applied during save.
+      // Only set for generic faces (pepsValue starts with 'gen_')
+      ...(isGenericFace && pepsValue && pepsValue.startsWith('gen_') ? {
+        assignedGenr: pepsValue,
+        assignedSknt: pskiValue,
+        assignedRace: dbRace
+      } : {}),
+
+      // CRITICAL: Set direct BLBM fields from database appearance_edits
+      // These are synced during roster push and must be restored during pull
+      // GenericFaceService and RosterParser read these to properly write BLBM table
+      ...(dbRow.maddenGnhd !== undefined && dbRow.maddenGnhd !== null ? { _blbmGnhd: dbRow.maddenGnhd } : {}),
+      ...(dbRow.maddenCnid !== undefined && dbRow.maddenCnid !== null ? { _blbmCnid: dbRow.maddenCnid } : {}),
+      ...(dbRow.maddenAsnm !== undefined && dbRow.maddenAsnm !== null ? { _blbmAsnm: dbRow.maddenAsnm } : {}),
+      ...(dbRow.maddenBtyp !== undefined && dbRow.maddenBtyp !== null ? { _blbmBtyp: dbRow.maddenBtyp } : {}),
+      // Also store GENR/SKNT as BLBM fields for consistency
+      ...(pepsValue && pepsValue.startsWith('gen_') ? { _blbmGenr: pepsValue } : {}),
+      ...(pskiValue > 0 ? { _blbmSknt: pskiValue } : {})
     };
 
     // CRITICAL: Use stored player-level archetype if available (constant across all seasons)
@@ -3791,18 +3874,22 @@ export class RosterGeneratorService {
    * Each generic face has its own unique PID (PSXP) that the game uses to look up the face.
    * Returns PID, GENR (PAM), and PGHE index.
    */
-  private selectGenericFaceByRace(race: number): { pid: number; pam: string; pghe: number } {
+  private selectGenericFaceByRace(race: number): { pid: number; pam: string; pghe: number; pski: number } {
     // Use PGHE service to get a random face for this race
     // Race 1-7 maps directly to skin tone 1-7
     const skinTone = pgheLookupService.raceToSkinTone(race);
     const pgheEntry = pgheLookupService.getRandomBySkinTone(skinTone);
 
     if (pgheEntry) {
-      console.log(`[RosterGeneratorService] Selected PGHE face for race ${race}: PID=${pgheEntry.psxp}, GENR=${pgheEntry.genr}, PGHE=${pgheEntry.pghe}`);
+      // CRITICAL: Derive PSKI from PAM to ensure body skin matches face skin
+      // See KNOWN_ISSUES.md "Generic face skin tone mismatch"
+      const pski = this.getPSKIFromPAM(pgheEntry.genr);
+      console.log(`[RosterGeneratorService] Selected PGHE face for race ${race}: PID=${pgheEntry.psxp}, GENR=${pgheEntry.genr}, PGHE=${pgheEntry.pghe}, PSKI=${pski}`);
       return {
         pid: pgheEntry.psxp,  // The unique PID for this generic face
         pam: pgheEntry.genr,  // The GENR value (e.g., "gen_7_B_N_019")
-        pghe: pgheEntry.pghe  // The face picker index
+        pghe: pgheEntry.pghe, // The face picker index
+        pski: pski            // Body skin tone - must match face skin
       };
     }
 
@@ -3810,11 +3897,12 @@ export class RosterGeneratorService {
     console.warn(`[RosterGeneratorService] PGHE lookup failed for race ${race}, using fallback`);
     const pam = this.generateGenericHeadName(race);
     const pghe = this.assignGenericPGHE(race);
+    const pski = this.getPSKIFromPAM(pam);
     const pid = this.genericPIDs.length > 0
       ? this.genericPIDs[Math.floor(Math.random() * this.genericPIDs.length)]
       : 719;
 
-    return { pid, pam, pghe };
+    return { pid, pam, pghe, pski };
   }
 
   /**
@@ -4309,8 +4397,8 @@ export class RosterGeneratorService {
       'IND': 'Colts',
       'JAC': 'Jags',
       'JAX': 'Jags',
-      'KC': 'Cheifs',
-      'KAN': 'Cheifs',
+      'KC': 'Chiefs',
+      'KAN': 'Chiefs',
       'LAC': 'Chargers',
       'LAR': 'Rams',
       'LA': 'Rams',
@@ -4371,7 +4459,7 @@ export class RosterGeneratorService {
       'Houston Texans': 'Texans',
       'Indianapolis Colts': 'Colts',
       'Jacksonville Jaguars': 'Jags',
-      'Kansas City Chiefs': 'Cheifs',
+      'Kansas City Chiefs': 'Chiefs',
       'Las Vegas Raiders': 'Raiders',
       'Los Angeles Chargers': 'Chargers',
       'Los Angeles Rams': 'Rams',
@@ -4409,8 +4497,8 @@ export class RosterGeneratorService {
       'Colts': 'Colts',
       'Jaguars': 'Jags',
       'Jags': 'Jags',
-      'Chiefs': 'Cheifs',
-      'Cheifs': 'Cheifs',  // Handle misspelling
+      'Chiefs': 'Chiefs',
+      'Cheifs': 'Chiefs',  // Handle misspelling (maps typo to correct spelling)
       'Raiders': 'Raiders',
       'Chargers': 'Chargers',
       'Rams': 'Rams',

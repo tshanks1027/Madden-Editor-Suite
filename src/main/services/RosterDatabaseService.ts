@@ -96,7 +96,7 @@ const ROSTER_TO_DB_FIELD_MAP: Record<string, string> = {
 // Map team ID to name (must match team_lookup.csv)
 const TEAM_ID_TO_ABBR: Record<number, string> = {
   1: 'Bears', 2: 'Bengals', 3: 'Bills', 4: 'Broncos', 5: 'Browns', 6: 'Buccs', 7: 'Cards', 8: 'Chargers',
-  9: 'Cheifs', 10: 'Colts', 11: 'Cowboys', 12: 'Dolphins', 13: 'Eagles', 14: 'Falcons', 15: '49ers', 16: 'Giants',
+  9: 'Chiefs', 10: 'Colts', 11: 'Cowboys', 12: 'Dolphins', 13: 'Eagles', 14: 'Falcons', 15: '49ers', 16: 'Giants',
   17: 'Jags', 18: 'Jets', 19: 'Lions', 20: 'Packers', 21: 'Panthers', 22: 'Pats', 23: 'Raiders', 24: 'Rams',
   25: 'Ravens', 26: 'Commanders', 27: 'Saints', 28: 'Seahawks', 29: 'Steelers', 30: 'Titans', 31: 'Vikings', 32: 'Texans',
   1009: 'FA', 1010: 'FA' // Free agent codes
@@ -552,6 +552,17 @@ class RosterDatabaseService {
         newValue = transform(newValue);
       }
 
+      // CRITICAL FIX: Convert state ID to state name for comparison
+      // Database stores state NAME (e.g., "Illinois") but roster has state ID (e.g., 12)
+      // Without this conversion, push is not idempotent - re-pushing shows false conflicts
+      if (rosterField === 'PHSN' && typeof newValue === 'number') {
+        const stateName = lookupService.getDisplayName('state_lookup.csv', newValue);
+        // Only use converted name if lookup succeeded (not just the ID as string)
+        if (stateName !== newValue.toString()) {
+          newValue = stateName;
+        }
+      }
+
       // Check if values differ
       // Special handling for bodyType - need to normalize both to same format
       let normalizedNewValue = newValue;
@@ -636,6 +647,17 @@ class RosterDatabaseService {
       // Apply transform if needed
       if (transform && typeof newValue === 'number') {
         newValue = transform(newValue);
+      }
+
+      // CRITICAL FIX: Convert state ID to state name for comparison
+      // Database stores state NAME (e.g., "Illinois") but roster has state ID (e.g., 12)
+      // Without this conversion, push is not idempotent - re-pushing shows false conflicts
+      if (rosterField === 'PHSN' && typeof newValue === 'number') {
+        const stateName = lookupService.getDisplayName('state_lookup.csv', newValue);
+        // Only use converted name if lookup succeeded (not just the ID as string)
+        if (stateName !== newValue.toString()) {
+          newValue = stateName;
+        }
       }
 
       // Check if values differ
@@ -1164,32 +1186,65 @@ class RosterDatabaseService {
         console.log(`  - Roster weightVal=${weightVal}, heightVal=${heightVal}`);
       }
 
-      // Save PID, PAM, and PGHE face data to appearance_edits table
+      // CRITICAL: Save ALL BLBM face data to appearance_edits table
+      // This ensures face data persists through push/pull cycle
+      // BLBM fields synced from RosterParser: _blbmGenr, _blbmSknt, _blbmGnhd, _blbmCnid, _blbmAsnm
+      const playerPam = player.assignedGenr || player._blbmGenr || player.PEPS;
+      console.log(`[RosterDatabaseService] FACE DATA CHECK for ${player.PFNA} ${player.PLNA}:`);
+      console.log(`  - bioFields.pid=${bioFields.pid}, bioFields.pam=${bioFields.pam}`);
+      console.log(`  - player.assignedGenr="${player.assignedGenr}", player._blbmGenr="${player._blbmGenr}", player.PEPS="${player.PEPS}"`);
+      console.log(`  - player._blbmSknt=${player._blbmSknt}, player._blbmGnhd=${player._blbmGnhd}, player._blbmCnid=${player._blbmCnid}`);
+      console.log(`  - playerPam="${playerPam}"`);
+
       if (bioFields.pid || bioFields.pam) {
         const appearanceEdits: any = {};
+
+        // PID (Photo ID)
         if (bioFields.pid && player.PSXP !== undefined) {
           appearanceEdits.maddenPid = player.PSXP;
         }
-        // Check assignedGenr FIRST - this is what face picker sets
-        const playerPam = player.assignedGenr || player.PEPS;
+
+        // PAM (GENR string) - check multiple sources
         if (bioFields.pam && playerPam !== undefined) {
           appearanceEdits.maddenPam = playerPam;
+          console.log(`[RosterDatabaseService] ✓ Will save maddenPam="${playerPam}" for ${player.PFNA} ${player.PLNA}`);
         }
 
-        // Extract and include face data from GENR string
+        // BLBM fields directly from roster file (set by RosterParser)
+        // These are the ACTUAL values from the roster - more reliable than lookup
+        if (player._blbmSknt !== undefined && player._blbmSknt !== null) {
+          appearanceEdits.maddenSkinTone = player._blbmSknt;
+        }
+        if (player._blbmGnhd !== undefined && player._blbmGnhd !== null) {
+          appearanceEdits.maddenGnhd = player._blbmGnhd;
+        }
+        if (player._blbmCnid !== undefined && player._blbmCnid !== null) {
+          appearanceEdits.maddenCnid = player._blbmCnid;
+        }
+        if (player._blbmAsnm !== undefined && player._blbmAsnm !== null) {
+          appearanceEdits.maddenAsnm = player._blbmAsnm;
+        }
+        if (player._blbmBtyp !== undefined && player._blbmBtyp !== null) {
+          appearanceEdits.maddenBtyp = player._blbmBtyp;
+        }
+
+        // Also try to extract PGHE from lookup service as fallback
         const faceData = this.extractFaceData(player);
         if (faceData) {
+          // Only use lookup values if we don't have direct BLBM values
+          if (appearanceEdits.maddenSkinTone === undefined) {
+            appearanceEdits.maddenSkinTone = faceData.maddenSkinTone;
+          }
           appearanceEdits.maddenPghe = faceData.maddenPghe;
           appearanceEdits.maddenPfcg = faceData.maddenPfcg;
           appearanceEdits.maddenGpan = faceData.maddenGpan;
           appearanceEdits.maddenGslp = faceData.maddenGslp;
           appearanceEdits.maddenCpvf = faceData.maddenCpvf;
-          appearanceEdits.maddenSkinTone = faceData.maddenSkinTone;
           console.log(`[RosterDatabaseService] updateBundledPlayer - extracted face data for ${player.PFNA} ${player.PLNA}: PGHE=${faceData.maddenPghe}`);
         }
 
         if (Object.keys(appearanceEdits).length > 0) {
-          console.log(`[RosterDatabaseService] updateBundledPlayer - saving appearance edits:`, appearanceEdits);
+          console.log(`[RosterDatabaseService] updateBundledPlayer - saving ${Object.keys(appearanceEdits).length} appearance edits:`, appearanceEdits);
           userDatabaseService.saveAppearanceEdit(playerId, appearanceEdits);
         }
       }

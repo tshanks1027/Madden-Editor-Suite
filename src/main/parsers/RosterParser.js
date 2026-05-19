@@ -174,56 +174,78 @@ async function parseRosterFile(filePath) {
 
         console.log(`[RosterParser] SKNT->PLRC sync results: ${skntSyncedCount} synced, ${skntSkippedNoField} missing SKNT, ${skntSkippedNoChange} already matched`);
 
-        // CRITICAL: Sync GENR from BLBM to PEPS for generic face players
-        // This ensures faces assigned via face picker persist after reload
-        let genrSyncedCount = 0;
-        let genrSkippedNoField = 0;
-        let genrSkippedNotGeneric = 0;
+        // CRITICAL: Sync ALL BLBM fields for ALL players (not just generic faces)
+        // This ensures face data persists through push/pull cycle for ANY player
+        // BLBM fields: GENR (face model), SKNT (skin tone), GNHD (generic head ID),
+        //              CNID (face asset ID), ASNM (asset name), BTYP (body type)
+        let blbmSyncedCount = 0;
+        let blbmSkippedNoField = 0;
 
         for (let i = 0; i < players.length && i < blbm._records.length; i++) {
           const player = players[i];
-          const plpl = player.PLPL;
-          const isGenericFace = plpl === 0 || plpl === '0';
-
-          // Only sync GENR for generic face players
-          if (!isGenericFace) {
-            genrSkippedNotGeneric++;
-            continue;
-          }
-
           const blbmRec = blbm._records[i];
           const fields = blbmRec.fields || blbmRec._fields;
 
-          if (!fields || !fields['GENR']) {
-            genrSkippedNoField++;
+          if (!fields) {
+            blbmSkippedNoField++;
             continue;
           }
 
-          const genr = fields['GENR'].value ?? fields['GENR']._value;
-          const currentPeps = player.PEPS;
-
-          // If BLBM has a valid GENR value and PEPS doesn't match, sync it
-          if (genr && typeof genr === 'string' && genr.startsWith('gen_')) {
-            if (currentPeps !== genr) {
-              players[i].PEPS = genr;
-              // Also set assignedGenr for consistency with face picker flow
+          // Sync ALL BLBM fields to player object for push/pull cycle
+          // GENR - generic face model string (e.g., "gen_7_B_N_019")
+          const genr = fields['GENR']?.value ?? fields['GENR']?._value;
+          if (genr && typeof genr === 'string') {
+            players[i]._blbmGenr = genr;
+            // Also set assignedGenr/PEPS if it's a gen_ face
+            if (genr.startsWith('gen_')) {
               players[i].assignedGenr = genr;
-              // Get SKNT from BLBM for assignedSknt
-              const sknt = fields['SKNT']?.value ?? fields['SKNT']?._value;
-              if (sknt !== undefined && sknt !== null) {
-                players[i].assignedSknt = sknt;
-              }
-              genrSyncedCount++;
-
-              // Log first 5 synced players for debugging
-              if (genrSyncedCount <= 5) {
-                console.log(`[RosterParser] GENR sync: ${player.PFNA} ${player.PLNA} PEPS="${currentPeps}" -> "${genr}"`);
+              const currentPeps = player.PEPS;
+              if (currentPeps !== genr) {
+                players[i].PEPS = genr;
               }
             }
           }
+
+          // SKNT - skin tone (1-7)
+          const sknt = fields['SKNT']?.value ?? fields['SKNT']?._value;
+          if (sknt !== undefined && sknt !== null) {
+            players[i]._blbmSknt = sknt;
+            players[i].assignedSknt = sknt;
+          }
+
+          // GNHD - generic head ID (numeric)
+          const gnhd = fields['GNHD']?.value ?? fields['GNHD']?._value;
+          if (gnhd !== undefined && gnhd !== null) {
+            players[i]._blbmGnhd = gnhd;
+          }
+
+          // CNID - face asset ID (0 for generic faces)
+          const cnid = fields['CNID']?.value ?? fields['CNID']?._value;
+          if (cnid !== undefined && cnid !== null) {
+            players[i]._blbmCnid = cnid;
+          }
+
+          // ASNM - asset name string
+          const asnm = fields['ASNM']?.value ?? fields['ASNM']?._value;
+          if (asnm !== undefined && asnm !== null) {
+            players[i]._blbmAsnm = asnm;
+          }
+
+          // BTYP was already synced to PCBT earlier, but store original too
+          const btyp = fields['BTYP']?.value ?? fields['BTYP']?._value;
+          if (btyp !== undefined && btyp !== null) {
+            players[i]._blbmBtyp = btyp;
+          }
+
+          blbmSyncedCount++;
+
+          // Log first 5 synced players for debugging
+          if (blbmSyncedCount <= 5) {
+            console.log(`[RosterParser] BLBM sync: ${player.PFNA} ${player.PLNA} GENR="${genr}", SKNT=${sknt}, GNHD=${gnhd}, CNID=${cnid}`);
+          }
         }
 
-        console.log(`[RosterParser] GENR->PEPS sync results: ${genrSyncedCount} synced, ${genrSkippedNoField} missing GENR, ${genrSkippedNotGeneric} not generic`);
+        console.log(`[RosterParser] BLBM sync results: ${blbmSyncedCount} players synced, ${blbmSkippedNoField} missing fields`);
       } else {
         console.log('[RosterParser] WARNING: No BLBM table found for BTYP sync');
       }
