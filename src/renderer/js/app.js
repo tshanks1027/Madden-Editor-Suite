@@ -1390,6 +1390,11 @@ class MaddenEditorApp {
      * Users may intentionally set non-standard body types for their players.
      */
     normalizeBodyTypes() {
+        if (!this.players || this.players.length === 0) {
+            alert('No roster loaded. Please load a roster file first.');
+            return;
+        }
+
         let updatedCount = 0;
 
         for (const player of this.players) {
@@ -1417,8 +1422,10 @@ class MaddenEditorApp {
             this.hasUnsavedChanges = true;
             const saveBtn = document.getElementById('saveRosterBtn');
             if (saveBtn) saveBtn.style.display = 'inline-block';
+            alert(`Fixed ${updatedCount} players with incorrect body types.`);
         } else {
             console.log('[normalizeBodyTypes] All body types already correct');
+            alert('All body types are already correct.');
         }
     }
 
@@ -1428,7 +1435,7 @@ class MaddenEditorApp {
      */
     normalizeDraftBodyTypes() {
         if (!this.draftProspects || this.draftProspects.length === 0) {
-            console.log('[normalizeDraftBodyTypes] No draft prospects loaded');
+            alert('No draft class loaded. Please load a draft class file first.');
             return;
         }
 
@@ -1477,8 +1484,10 @@ class MaddenEditorApp {
             if (this.draftAgGrid) {
                 this.draftAgGrid.refreshCells({ force: true });
             }
+            alert(`Fixed ${updatedCount} prospects with incorrect body types.`);
         } else {
             console.log('[normalizeDraftBodyTypes] All body types already correct');
+            alert('All body types are already correct.');
         }
     }
 
@@ -1816,22 +1825,34 @@ class MaddenEditorApp {
 
                 if (result.success && result.equipment) {
                     if (mode === 'roster') {
-                        // Use the parser API to set equipment on roster players
-                        // CRITICAL: Use POID for stable identification after deletions
-                        const playerPoid = player.POID;
-                        if (i < 3) {
-                            console.log(`[MassEquipment] Player ${i}: calling setPlayerEquipment(POID=${playerPoid}, {...${Object.keys(result.equipment).length} fields})`);
-                        }
-                        const setResult = await window.electronAPI.parser.setPlayerEquipment(playerPoid, result.equipment);
-                        if (i < 3) {
-                            console.log(`[MassEquipment] Player ${i} setResult:`, setResult);
-                        }
-                        if (setResult.success) {
-                            updatedCount++;
+                        // Check if this is a loaded roster file or generated roster
+                        const isLoadedFile = !!this.currentFile;
+
+                        if (isLoadedFile) {
+                            // Use the parser API to set equipment on loaded roster files
+                            const playerIndex = player._originalIndex !== undefined ? player._originalIndex : i;
+                            if (i < 3) {
+                                console.log(`[MassEquipment] Player ${i}: calling setPlayerEquipment(index=${playerIndex}, {...${Object.keys(result.equipment).length} fields})`);
+                            }
+                            const setResult = await window.electronAPI.parser.setPlayerEquipment(playerIndex, result.equipment);
+                            if (i < 3) {
+                                console.log(`[MassEquipment] Player ${i} setResult:`, setResult);
+                            }
+                            if (setResult.success) {
+                                updatedCount++;
+                            } else {
+                                errorCount++;
+                                if (errorCount <= 3) {
+                                    console.warn(`[MassEquipment] Failed to set equipment for player ${i}: ${setResult.error}`);
+                                }
+                            }
                         } else {
-                            errorCount++;
-                            if (errorCount <= 3) {
-                                console.warn(`[MassEquipment] Failed to set equipment for player ${i}: ${setResult.error}`);
+                            // Generated roster - store equipment directly on player object
+                            if (!player.equipment) player.equipment = {};
+                            Object.assign(player.equipment, result.equipment);
+                            updatedCount++;
+                            if (i < 3) {
+                                console.log(`[MassEquipment] Player ${i}: stored equipment directly (generated roster)`);
                             }
                         }
                     } else {
@@ -12287,17 +12308,18 @@ class MaddenEditorApp {
         }
 
         // Load equipment data for this player
-        // Use POID directly for equipment lookup - this is the stable identifier
-        // that links PLAY records to BLBM records, and doesn't shift after deletions
-        const playerPoid = playerData.POID;
-        this.currentPlayerPOID = playerPoid;
-        // Also keep array index for other purposes (but not for equipment)
+        // Use _originalIndex for equipment lookup, fall back to rowIndex for generated players
+        const playerIndex = playerData._originalIndex !== undefined ? playerData._originalIndex : rowIndex;
+        this.currentPlayerOriginalIndex = playerIndex;
+        // Also keep POID for other purposes
+        this.currentPlayerPOID = playerData.POID;
+        // And keep visual roster index
         const rosterIndex = this.players.findIndex(p =>
             p.PGID === playerData.PGID ||
             (p.PFNA === playerData.PFNA && p.PLNA === playerData.PLNA && p.TGID === playerData.TGID)
         );
         this.currentPlayerRosterIndex = rosterIndex >= 0 ? rosterIndex : rowIndex;
-        this.loadPlayerEquipment(playerPoid);
+        this.loadPlayerEquipment(playerIndex);
 
         // Reset to first tab when opening
         document.querySelectorAll('.player-card-tab').forEach(t => t.classList.remove('active'));
@@ -13042,9 +13064,9 @@ class MaddenEditorApp {
             console.log('[Player Card] Saved changes for Handsontable row:', this.currentPlayerCardRow);
         }
 
-        // Save equipment changes (use POID for stable identification after deletions)
-        if (this.currentPlayerPOID !== undefined) {
-            this.savePlayerEquipment(this.currentPlayerPOID);
+        // Save equipment changes (use _originalIndex - PLAY and BLBM are aligned by array position)
+        if (this.currentPlayerOriginalIndex !== undefined) {
+            this.savePlayerEquipment(this.currentPlayerOriginalIndex);
         }
 
         // Close the modal
@@ -13053,9 +13075,9 @@ class MaddenEditorApp {
 
     /**
      * Save equipment data for the current player
-     * @param {number} playerPoid - The player's POID (stable identifier)
+     * @param {number} playerIndex - The player's original array index (PLAY/BLBM alignment)
      */
-    async savePlayerEquipment(playerPoid) {
+    async savePlayerEquipment(playerIndex) {
         try {
             const equipment = {
                 // Head/Face
@@ -13102,8 +13124,8 @@ class MaddenEditorApp {
                 RightThighPad: document.getElementById('equipRightThighPad')?.value || ''
             };
 
-            console.log('[PlayerCard] Saving equipment for POID', playerPoid, ':', equipment);
-            const result = await window.electronAPI.parser.setPlayerEquipment(playerPoid, equipment);
+            console.log('[PlayerCard] Saving equipment for index', playerIndex, ':', equipment);
+            const result = await window.electronAPI.parser.setPlayerEquipment(playerIndex, equipment);
             if (result.success) {
                 console.log('[PlayerCard] Equipment saved successfully');
             } else {

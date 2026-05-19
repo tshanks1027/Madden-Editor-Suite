@@ -144,8 +144,9 @@ ipcMain.handle('parser:get-player-equipment', async (event, playerIndex: number)
  */
 ipcMain.handle('parser:set-player-equipment', async (event, playerIndex: number, equipment: Record<string, string>) => {
   try {
-    console.log('[parser-handlers] Setting equipment for player index:', playerIndex, equipment);
+    console.log('[parser-handlers] Setting equipment for player index:', playerIndex, 'equipment keys:', Object.keys(equipment));
     const success = setPlayerEquipment(playerIndex, equipment);
+    console.log('[parser-handlers] setPlayerEquipment returned:', success, 'type:', typeof success);
     return {
       success
     };

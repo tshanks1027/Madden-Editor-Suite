@@ -18,10 +18,15 @@ const MaddenRosterHelper = require(path.join(__dirname, '..', 'lib', 'helpers', 
 // Generic Face Service for updating BLBM with race-appropriate faces
 let genericFaceService = null;
 
+// Module-level reference to current roster file
+// This is more reliable than global.rosterFile for equipment operations
+let moduleRosterFile = null;
+let moduleRosterHelper = null;
+
 // CRITICAL: Track pending equipment changes that need to be applied during save
 // This is necessary because saveRosterFile reloads the file fresh, discarding any
 // in-memory modifications made by setPlayerEquipment
-const pendingEquipmentChanges = new Map(); // Map<POID, equipmentData>
+const pendingEquipmentChanges = new Map(); // Map<playerIndex, equipmentData>
 
 try {
   console.log('[RosterParser] Attempting to load GenericFaceService from:', path.join(__dirname, 'GenericFaceService'));
@@ -75,13 +80,19 @@ async function parseRosterFile(filePath) {
 
     // Extract player data
     const players = [];
-    for (const record of playerTable.records) {
+    for (let i = 0; i < playerTable.records.length; i++) {
+      const record = playerTable.records[i];
       const player = {};
 
       // Convert TDB2 fields to plain object
       for (const fieldName in record.fields) {
         player[fieldName] = record.fields[fieldName].value;
       }
+
+      // CRITICAL: Store original array index for equipment updates
+      // PLAY and BLBM are aligned by array position, so we need this index
+      // when updating equipment after filtering/sorting in the frontend
+      player._originalIndex = i;
 
       players.push(player);
     }
@@ -343,9 +354,14 @@ async function parseRosterFile(filePath) {
     }
     global.rosterFiles.set(filePath, { helper, file });
 
+    // Store in module-level variables (most reliable)
+    moduleRosterFile = file;
+    moduleRosterHelper = helper;
+
     // Also store in global scope for backward compatibility
     global.rosterFile = file;
     global.rosterHelper = helper;
+    console.log('[RosterParser] Stored roster file - module:', !!moduleRosterFile, 'global:', !!global.rosterFile, 'PLAY records:', file.PLAY?.records?.length);
 
     return {
       version: 2026, // Madden 26
@@ -941,30 +957,24 @@ const EQUIPMENT_SLOTS = {
 const EQUIPMENT_OPTIONS = {};
 
 /**
- * Get equipment data for a player by POID
- * @param {number} poidOrIndex - The player's POID (preferred) or legacy index
+ * Get equipment data for a player by array index
+ * @param {number} playerIndex - The player's array index (0-based position in PLAY table)
  * @returns {Object} Equipment slot values
  */
-function getPlayerEquipment(poidOrIndex) {
-  const file = global.rosterFile;
+function getPlayerEquipment(playerIndex) {
+  // Use module-level variable first, fall back to global
+  const file = moduleRosterFile || global.rosterFile;
   if (!file) {
-    console.error('[RosterParser] No roster file loaded');
+    console.error('[RosterParser] getPlayerEquipment: No roster file loaded');
     return null;
   }
 
   const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
-  let poid;
 
-  const directMatch = playTable?.records?.find(r => r.POID === poidOrIndex);
-  if (directMatch) {
-    poid = poidOrIndex;
-  } else {
-    const playerRec = playTable?.records?.[poidOrIndex];
-    if (!playerRec) {
-      console.error('[RosterParser] Could not find player with POID or at index', poidOrIndex);
-      return null;
-    }
-    poid = playerRec.POID;
+  // Validate index
+  if (playerIndex < 0 || playerIndex >= (playTable?.records?.length || 0)) {
+    console.error('[RosterParser] getPlayerEquipment: Invalid player index', playerIndex);
+    return null;
   }
 
   const blob = file.BLOB?.records?.[0];
@@ -974,9 +984,10 @@ function getPlayerEquipment(poidOrIndex) {
     return null;
   }
 
-  const blbmRec = blbm._records.find(r => r.index === poid);
+  // PLAY and BLBM are aligned by array index
+  const blbmRec = blbm._records[playerIndex];
   if (!blbmRec) {
-    console.error('[RosterParser] Could not find BLBM record for POID', poid);
+    console.error('[RosterParser] Could not find BLBM record at index', playerIndex);
     return null;
   }
 
@@ -1024,40 +1035,50 @@ function getPlayerEquipment(poidOrIndex) {
 }
 
 /**
- * Set equipment for a player by POID
- * @param {number} poidOrIndex - The player's POID (preferred) or legacy index
+ * Set equipment for a player by array index
+ * @param {number} playerIndex - The player's array index (0-based position in PLAY table)
  * @param {Object} equipment - Equipment slot values to set
  * @returns {boolean} Success
  */
-function setPlayerEquipment(poidOrIndex, equipment) {
-  const file = global.rosterFile;
+function setPlayerEquipment(playerIndex, equipment) {
+  console.log('[RosterParser] setPlayerEquipment called with index:', playerIndex);
+
+  // Use module-level variable first, fall back to global
+  const file = moduleRosterFile || global.rosterFile;
   if (!file) {
-    console.error('[RosterParser] No roster file loaded');
+    console.error('[RosterParser] setPlayerEquipment FAIL: No roster file loaded (module:', !!moduleRosterFile, 'global:', !!global.rosterFile, ')');
     return false;
   }
 
-  const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
-  let poid;
+  console.log('[RosterParser] setPlayerEquipment: file exists, checking tables...');
+  console.log('[RosterParser] setPlayerEquipment: file.tables exists:', !!file.tables, 'file.PLAY exists:', !!file.PLAY);
 
-  const directMatch = playTable?.records?.find(r => r.POID === poidOrIndex);
-  if (directMatch) {
-    poid = poidOrIndex;
-    const playerName = `${directMatch.PFNA || ''} ${directMatch.PLNA || ''}`.trim();
-    console.log(`[RosterParser] setPlayerEquipment: Found direct POID match: ${poid} (${playerName})`);
-  } else {
-    const playerRec = playTable?.records?.[poidOrIndex];
-    if (!playerRec) {
-      console.error('[RosterParser] Could not find player with POID or at index', poidOrIndex);
-      return false;
-    }
-    poid = playerRec.POID;
-    const playerName = `${playerRec.PFNA || ''} ${playerRec.PLNA || ''}`.trim();
-    console.log(`[RosterParser] setPlayerEquipment: Using legacy index ${poidOrIndex}, POID: ${poid} (${playerName})`);
+  const playTable = file.tables?.find(t => t.name === 'PLAY') || file.PLAY;
+
+  if (!playTable) {
+    console.error('[RosterParser] setPlayerEquipment FAIL: playTable is undefined');
+    return false;
   }
 
-  // Store equipment changes keyed by POID
-  pendingEquipmentChanges.set(poid, { ...equipment });
-  console.log(`[RosterParser] Queued equipment changes for POID ${poid}:`, equipment);
+  console.log('[RosterParser] setPlayerEquipment: playTable.records exists:', !!playTable.records, 'length:', playTable.records?.length);
+
+  // Validate index is within range
+  if (playerIndex < 0 || playerIndex >= (playTable?.records?.length || 0)) {
+    console.error('[RosterParser] setPlayerEquipment FAIL: Invalid player index', playerIndex, 'max:', playTable?.records?.length);
+    return false;
+  }
+
+  // Get player record to log the name (raw records use fields.FIELD.value structure)
+  const playerRec = playTable?.records?.[playerIndex];
+  const firstName = playerRec?.fields?.PFNA?.value || '';
+  const lastName = playerRec?.fields?.PLNA?.value || '';
+  const playerName = `${firstName} ${lastName}`.trim();
+
+  console.log(`[RosterParser] setPlayerEquipment: Index ${playerIndex} (${playerName})`);
+
+  // Store equipment changes keyed by array index (PLAY and BLBM are aligned by position)
+  pendingEquipmentChanges.set(playerIndex, { ...equipment });
+  console.log(`[RosterParser] setPlayerEquipment SUCCESS: Queued equipment changes for index ${playerIndex}:`, Object.keys(equipment).length, 'slots');
 
   return true;
 }
@@ -1084,10 +1105,11 @@ function applyPendingEquipmentChanges(file) {
 
   let totalUpdated = 0;
 
-  for (const [poid, equipment] of pendingEquipmentChanges.entries()) {
-    const blbmRec = blbm._records.find(r => r.index === poid);
+  for (const [playerIndex, equipment] of pendingEquipmentChanges.entries()) {
+    // PLAY and BLBM are aligned by array index
+    const blbmRec = blbm._records[playerIndex];
     if (!blbmRec) {
-      console.warn(`[RosterParser] Could not find BLBM record for POID ${poid}, skipping`);
+      console.warn(`[RosterParser] Could not find BLBM record at index ${playerIndex}, skipping`);
       continue;
     }
 
@@ -1095,7 +1117,7 @@ function applyPendingEquipmentChanges(file) {
     const lout = fields?.LOUT?.value;
 
     if (!lout || !lout._records) {
-      console.warn(`[RosterParser] No LOUT data for POID ${poid}`);
+      console.warn(`[RosterParser] No LOUT data for index ${playerIndex}`);
       continue;
     }
 
@@ -1105,7 +1127,7 @@ function applyPendingEquipmentChanges(file) {
     });
 
     if (!playerOnFieldRec) {
-      console.warn(`[RosterParser] No PlayerOnField loadout for POID ${poid}`);
+      console.warn(`[RosterParser] No PlayerOnField loadout for index ${playerIndex}`);
       continue;
     }
 
@@ -1113,7 +1135,7 @@ function applyPendingEquipmentChanges(file) {
     const pins = pinsField?.value;
 
     if (!pins || !pins._records) {
-      console.warn(`[RosterParser] No PINS data for POID ${poid}`);
+      console.warn(`[RosterParser] No PINS data for index ${playerIndex}`);
       continue;
     }
 
@@ -1140,7 +1162,7 @@ function applyPendingEquipmentChanges(file) {
       }
     }
 
-    console.log(`[RosterParser] Applied ${playerUpdated} equipment slots for POID ${poid}`);
+    console.log(`[RosterParser] Applied ${playerUpdated} equipment slots for index ${playerIndex}`);
     totalUpdated += playerUpdated;
   }
 
